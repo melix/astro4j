@@ -16,28 +16,68 @@
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
+import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.expr.stacking.DistorsionMap;
+import me.champeau.a4j.jsolex.processing.expr.stacking.DistorsionMaps;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
+import me.champeau.a4j.jsolex.processing.util.ImageInterpolation;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.math.fft.FFTSupport;
 import me.champeau.a4j.math.tuples.DoublePair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
 public class Dedistort extends AbstractFunctionImpl {
+    private static final Logger LOGGER = LoggerFactory.getLogger(Dedistort.class);
     private static final String FIND_CORRESP_MESSAGE = message("finding.correspondances");
     private static final String DEDISTORT = message("dedistorting");
+    private static final Map<Integer, float[][]> HANN_WINDOW_CACHE = new ConcurrentHashMap<>();
 
     public Dedistort(Map<Class<?>, Object> context, Broadcaster broadcaster) {
         super(context, broadcaster);
+    }
+
+    private static float[][] getOrCreateHannWindow(int size) {
+        return HANN_WINDOW_CACHE.computeIfAbsent(size, Dedistort::createHannWindow);
+    }
+
+    private static float[][] createHannWindow(int size) {
+        var window = new float[size][size];
+        var weights1D = new float[size];
+        var scale = 2 * Math.PI / (size - 1);
+        for (var i = 0; i < size; i++) {
+            weights1D[i] = 0.5f * (1 - (float) Math.cos(scale * i));
+        }
+        for (var y = 0; y < size; y++) {
+            var wy = weights1D[y];
+            for (var x = 0; x < size; x++) {
+                window[y][x] = weights1D[x] * wy;
+            }
+        }
+        return window;
+    }
+
+    private static float[][] applyWindowCopy(float[][] tile, float[][] window) {
+        var size = tile.length;
+        var result = new float[size][size];
+        for (var y = 0; y < size; y++) {
+            for (var x = 0; x < size; x++) {
+                result[y][x] = tile[y][x] * window[y][x];
+            }
+        }
+        return result;
     }
 
     static void findDisplacement(float[][] referenceData,
@@ -64,7 +104,7 @@ public class Dedistort extends AbstractFunctionImpl {
             if (avgSignal > signal) {
                 var data = image.data();
                 var tiles = createTilesForComparison(tileSize, x, y, referenceData, data, copyWidth, copyHeight);
-                var dxy = crossCorrelationShiftFFT(tiles.referenceTile(), tiles.dataTile());
+                var dxy = phaseCorrelationShiftFFT(tiles.referenceTile(), tiles.dataTile());
                 var dx = -dxy.b();
                 var dy = -dxy.a();
                 distorsion.recordDistorsion((int) (x + tileOffset), (int) (y + tileOffset), dx, dy);
@@ -143,6 +183,68 @@ public class Dedistort extends AbstractFunctionImpl {
         return new DoublePair(shifts[0], shifts[1]);
     }
 
+    public static DoublePair phaseCorrelationShiftFFT(float[][] patchRef, float[][] patchDef) {
+        var size = patchRef.length;
+
+        // Apply Hann window to reduce spectral leakage
+        var window = getOrCreateHannWindow(size);
+        var windowedRef = applyWindowCopy(patchRef, window);
+        var windowedDef = applyWindowCopy(patchDef, window);
+
+        // FFT both patches
+        var fftRef = FFTSupport.fft2Float(windowedRef);
+        var fftDef = FFTSupport.fft2Float(windowedDef);
+
+        // Compute cross-power spectrum with phase normalization
+        var rows = fftRef.real.length;
+        var cols = fftRef.real[0].length;
+        var realResult = new float[rows][cols];
+        var imagResult = new float[rows][cols];
+
+        for (var i = 0; i < rows; i++) {
+            for (var j = 0; j < cols; j++) {
+                var refR = fftRef.real[i][j];
+                var refI = fftRef.imaginary[i][j];
+                var defR = fftDef.real[i][j];
+                var defI = fftDef.imaginary[i][j];
+
+                // Cross-power: conj(ref) * def
+                var crossR = refR * defR + refI * defI;
+                var crossI = refI * defR - refR * defI;
+
+                // Normalize by magnitude (phase correlation)
+                var magSq = crossR * crossR + crossI * crossI;
+                if (magSq > 1e-20f) {
+                    var mag = (float) Math.sqrt(magSq);
+                    realResult[i][j] = crossR / mag;
+                    imagResult[i][j] = crossI / mag;
+                }
+            }
+        }
+
+        // IFFT to get correlation surface
+        var crossCorr = fftShift(FFTSupport.ifft2Float(new FFTSupport.FloatFFT2DResult(realResult, imagResult)));
+
+        // Find peak and apply sub-pixel refinement
+        var maxIdx = findMaxIndex(crossCorr);
+        var center = new double[]{crossCorr.real.length / 2d, crossCorr.real[0].length / 2d};
+        var shifts = new double[]{maxIdx[0] - center[0], maxIdx[1] - center[1]};
+
+        var subpixelOffset = fitGaussian2D(crossCorr.real, maxIdx[0], maxIdx[1]);
+        shifts[0] += subpixelOffset[0];
+        shifts[1] += subpixelOffset[1];
+
+        return new DoublePair(shifts[0], shifts[1]);
+    }
+
+    /**
+     * Phase correlation for displacement estimation.
+     */
+    public static DisplacementResult phaseCorrelationWithPSR(float[][] patchRef, float[][] patchDef) {
+        var shift = phaseCorrelationShiftFFT(patchRef, patchDef);
+        return new DisplacementResult(-shift.b(), -shift.a());
+    }
+
     // Find the index of the maximum value in the cross-correlation matrix
     public static int[] findMaxIndex(FFTSupport.FloatFFT2DResult crossCorr) {
         var maxRow = 0;
@@ -158,12 +260,14 @@ public class Dedistort extends AbstractFunctionImpl {
                     maxRow = y;
                     maxCol = x;
                 } else if (value == maxValue) {
-                    // replace if closer to center
-                    var currentDistance = Math.sqrt(Math.pow(y - centerRow, 2) + Math.pow(x - centerCol, 2));
-                    var bestDistance = Math.sqrt(Math.pow(maxRow - centerRow, 2) + Math.pow(maxCol - centerCol, 2));
-
-                    // Replace if closer to the center
-                    if (currentDistance < bestDistance) {
+                    // Replace if closer to center (compare squared distances to avoid sqrt)
+                    var dy = y - centerRow;
+                    var dx = x - centerCol;
+                    var currentDistSq = dy * dy + dx * dx;
+                    var bestDy = maxRow - centerRow;
+                    var bestDx = maxCol - centerCol;
+                    var bestDistSq = bestDy * bestDy + bestDx * bestDx;
+                    if (currentDistSq < bestDistSq) {
                         maxRow = y;
                         maxCol = x;
                     }
@@ -178,10 +282,12 @@ public class Dedistort extends AbstractFunctionImpl {
         var cols = data.real[0].length;
         var shiftedReal = new float[rows][cols];
         var shiftedImag = new float[rows][cols];
+        var halfRows = rows / 2;
+        var halfCols = cols / 2;
         for (var i = 0; i < rows; i++) {
+            var newI = (i < halfRows) ? i + halfRows : i - halfRows;
             for (var j = 0; j < cols; j++) {
-                var newI = (i + rows / 2) % rows;
-                var newJ = (j + cols / 2) % cols;
+                var newJ = (j < halfCols) ? j + halfCols : j - halfCols;
                 shiftedReal[newI][newJ] = data.real[i][j];
                 shiftedImag[newI][newJ] = data.imaginary[i][j];
             }
@@ -245,6 +351,67 @@ public class Dedistort extends AbstractFunctionImpl {
         return (float) linearInterpolation(i0, i1, yy - y0); // interpolate between the results on the y-axis
     }
 
+    static DisplacementResult findDisplacementWithQuality(float[][] referenceData,
+                                                          ImageWrapper32 image,
+                                                          int width,
+                                                          int height,
+                                                          int x,
+                                                          int y,
+                                                          int tileSize,
+                                                          float signal) {
+        var copyWidth = Math.min(tileSize, width - x);
+        var copyHeight = Math.min(tileSize, height - y);
+        if (copyWidth > 0 && copyHeight > 0) {
+            var sum = 0f;
+            for (var yy = 0; yy < copyHeight; yy++) {
+                var srcY = y + yy;
+                for (var xx = 0; xx < copyWidth; xx++) {
+                    sum += referenceData[srcY][x + xx];
+                }
+            }
+            var avgSignal = sum / (copyWidth * copyHeight);
+            if (avgSignal > signal) {
+                var data = image.data();
+                var tiles = createTilesForComparison(tileSize, x, y, referenceData, data, copyWidth, copyHeight);
+                return phaseCorrelationWithPSR(tiles.referenceTile(), tiles.dataTile());
+            }
+        }
+        return new DisplacementResult(0, 0);
+    }
+
+    private void processWithRefinement(int x, int y, int tileSize,
+                                       float[][] referenceData,
+                                       ImageWrapper32 image,
+                                       int width, int height,
+                                       DistorsionMap distorsionMap,
+                                       float signal) {
+        var result = findDisplacementWithQuality(referenceData, image, width, height, x, y, tileSize, signal);
+        var tileOffset = (int) (tileSize / 2d);
+        distorsionMap.recordDistorsion(x + tileOffset, y + tileOffset, result.dx(), result.dy());
+    }
+
+    private static final int MIN_TILE_SIZE = 32;
+    private static final int MIN_STEP = 8;
+    private static final int ABSOLUTE_MIN_TILE_SIZE = 16;
+
+    private static int computeRefinementTileSize(int coarseTileSize) {
+        return coarseTileSize / 2;
+    }
+
+    private static boolean canRefine(int tileSize) {
+        return tileSize > MIN_TILE_SIZE;
+    }
+
+    private static int countRefinementLevels(int tileSize) {
+        int levels = 0;
+        int currentSize = tileSize;
+        while (currentSize > MIN_TILE_SIZE) {
+            levels++;
+            currentSize /= 2;
+        }
+        return levels;
+    }
+
     public Object dedistort(Map<String, Object> arguments) {
         BuiltinFunction.DEDISTORT.validateArgs(arguments);
         var arg = arguments.get("ref");
@@ -267,7 +434,12 @@ public class Dedistort extends AbstractFunctionImpl {
                 var tileSize = intArg(arguments, "ts", Stacking.DEFAULT_TILE_SIZE);
                 var sampling = doubleArg(arguments, "sampling", Stacking.DEFAULT_SAMPLING);
                 var threshold = doubleArg(arguments, "threshold", -1);
-                return dedistort(mono, image, tileSize, sampling, threshold == -1 ? null : threshold);
+                var iterations = intArg(arguments, "iterations", 1);
+                var refine = intArg(arguments, "refine", 1) != 0;
+                if (iterations < 1) {
+                    iterations = 1;
+                }
+                return dedistort(mono, image, tileSize, sampling, threshold == -1 ? null : threshold, iterations, refine);
             }
             throw new IllegalArgumentException("dedistort 2d argument must be a mono image");
         } else if (arg instanceof List<?>) {
@@ -276,12 +448,12 @@ public class Dedistort extends AbstractFunctionImpl {
             if (reference instanceof List<?> referenceList && target instanceof List<?> targetList) {
                 var images = asMonoImages(targetList);
                 var references = asMonoImages(referenceList);
-                var distorsions = references.stream()
-                        .map(img -> img.findMetadata(DistorsionMap.class).orElseThrow(() -> new IllegalArgumentException("No distorsion map found in reference image")))
+                var distorsionMaps = references.stream()
+                        .map(img -> img.findMetadata(DistorsionMaps.class).orElseThrow(() -> new IllegalArgumentException("No distorsion maps found in reference image")))
                         .toList();
                 return IntStream.range(0, images.size())
                         .parallel()
-                        .mapToObj(i -> dedistortSingle(images.get(i), distorsions.get(i), images.get(i).height(), images.get(i).width()))
+                        .mapToObj(i -> applyDistorsionMaps(images.get(i), distorsionMaps.get(i)))
                         .toList();
             }
         }
@@ -301,39 +473,154 @@ public class Dedistort extends AbstractFunctionImpl {
                                     ImageWrapper32 image,
                                     int tileSize,
                                     double sampling,
-                                    Double backgroundThreshold) {
+                                    Double backgroundThreshold,
+                                    int iterations,
+                                    boolean refine) {
         var width = reference.width();
         var height = reference.height();
         if (image.width() != width || image.height() != height) {
             throw new IllegalArgumentException("Both images must have the same sizes to perform dedistortion");
         }
-        var increment = (int) Math.max(2, tileSize * sampling);
-        var distorsionMap = new DistorsionMap(width, height, tileSize, increment);
         var referenceData = reference.data();
-        var progressCounter = new AtomicInteger();
         var signal = backgroundThreshold != null ? backgroundThreshold.floatValue() : 1;
-        var progressOperation = newOperation().createChild(FIND_CORRESP_MESSAGE);
-        for (var y = 0; y < height; y += increment) {
-            for (var x = 0; x < width; x += increment) {
-                findDisplacement(referenceData, image, width, height, x, y, tileSize, signal, distorsionMap);
-            }
-            var progress = progressCounter.addAndGet(increment) / (double) height;
-            broadcaster.broadcast(progressOperation.update(progress));
-        }
-        broadcaster.broadcast(progressOperation.complete());
-        return dedistortSingle(image, distorsionMap, height, width);
-    }
 
-    private ImageWrapper32 dedistortSingle(ImageWrapper32 image,
-                                           DistorsionMap distorsionMap,
-                                           int height,
-                                           int width) {
+        var refinementLevels = refine ? countRefinementLevels(tileSize) : 0;
+
+        LOGGER.debug("Dedistort: image={}x{}, tileSize={}, sampling={}, iterations={}, refine={}, refinementLevels={}",
+                width, height, tileSize, sampling, iterations, refine, refinementLevels);
+
+        var distorsionMapList = new ArrayList<DistorsionMap>();
+        var currentImage = image;
+        var iterationOperation = newOperation().createChild(DEDISTORT);
+
+        for (int iteration = 0; iteration < iterations; iteration++) {
+            LOGGER.debug("Iteration {}/{}", iteration + 1, iterations);
+            var suffix = iterations > 1 ? " (" + (iteration + 1) + "/" + iterations + ")" : "";
+            broadcaster.broadcast(iterationOperation.update((double) iteration / iterations, DEDISTORT + suffix));
+
+            var iterationInputImage = currentImage;
+            var levelMaps = new ArrayList<DistorsionMap>();
+            var currentTileSize = tileSize;
+            var level = 1;
+            var iterationDistortions = new ArrayList<Double>();
+
+            while (true) {
+                var passName = String.format("Iteration %d - Level %d (tile=%d)", iteration + 1, level, currentTileSize);
+                var map = computeDistortionMap(
+                        referenceData, currentImage, width, height,
+                        currentTileSize, sampling, signal, passName, iterationOperation);
+                levelMaps.add(map);
+                iterationDistortions.add(map.totalDistorsion());
+
+                if (!refine || !canRefine(currentTileSize)) {
+                    break;
+                }
+
+                currentImage = dedistortSingleWithoutMetadata(currentImage, map, iterationOperation, height, width);
+                currentTileSize = computeRefinementTileSize(currentTileSize);
+                level++;
+            }
+
+            DistorsionMap iterationMap;
+            if (levelMaps.size() == 1) {
+                iterationMap = levelMaps.getFirst();
+            } else {
+                iterationMap = DistorsionMap.synthesize(levelMaps, width, height);
+                LOGGER.debug("Iteration {} synthesized {} level maps into one", iteration + 1, levelMaps.size());
+            }
+
+            distorsionMapList.add(iterationMap);
+            currentImage = dedistortSingleWithoutMetadata(iterationInputImage, iterationMap, iterationOperation, height, width);
+
+            LOGGER.debug("Iteration {} complete: distortions by level = {}, synthesized = {}",
+                    iteration + 1, iterationDistortions, iterationMap.totalDistorsion());
+        }
+
+        broadcaster.broadcast(iterationOperation.complete());
+
+        DistorsionMap finalMap;
+        if (distorsionMapList.size() == 1) {
+            finalMap = distorsionMapList.getFirst();
+        } else {
+            finalMap = DistorsionMap.synthesize(distorsionMapList, width, height);
+            LOGGER.debug("Synthesized {} iteration maps into final map", distorsionMapList.size());
+        }
+
+        LOGGER.debug("Dedistort complete: finalDistortion={}", finalMap.totalDistorsion());
+
+        var finalImage = dedistortSingleWithoutMetadata(image, finalMap, iterationOperation, height, width);
+
         var metadata = MutableMap.<Class<?>, Object>of();
         metadata.putAll(image.metadata());
+        metadata.put(DistorsionMaps.class, DistorsionMaps.of(finalMap));
+        return new ImageWrapper32(width, height, finalImage.data(), metadata);
+    }
+
+    private DistorsionMap computeDistortionMap(float[][] referenceData,
+                                               ImageWrapper32 currentImage,
+                                               int width,
+                                               int height,
+                                               int tileSize,
+                                               double sampling,
+                                               float signal,
+                                               String passName,
+                                               ProgressOperation parent) {
+        var safeTileSize = Math.max(ABSOLUTE_MIN_TILE_SIZE, tileSize);
+        var increment = (int) Math.max(MIN_STEP, safeTileSize * sampling);
+        var distorsionMap = new DistorsionMap(width, height, safeTileSize, increment);
+
+        var maxY = height - safeTileSize;
+        var maxX = width - safeTileSize;
+        var totalPoints = ((maxY / increment) + 1) * ((maxX / increment) + 1);
+
+        LOGGER.debug("{}: tileSize={}, sampling={}, increment={}, gridPoints={}", passName, safeTileSize, sampling, increment, totalPoints);
+
+        var progressCounter = new AtomicInteger();
+        var progressOperation = parent.createChild(FIND_CORRESP_MESSAGE);
+
+        for (int y = 0; y <= maxY; y += increment) {
+            for (int x = 0; x <= maxX; x += increment) {
+                processWithRefinement(x, y, safeTileSize,
+                        referenceData, currentImage, width, height, distorsionMap, signal);
+                var progress = progressCounter.incrementAndGet() / (double) totalPoints;
+                if (progressCounter.get() % 100 == 0) {
+                    broadcaster.broadcast(progressOperation.update(progress));
+                }
+            }
+        }
+
+        broadcaster.broadcast(progressOperation.complete());
+        distorsionMap.filterAndSmooth();
+
+        LOGGER.debug("{}: totalDistortion={}", passName, distorsionMap.totalDistorsion());
+
+        return distorsionMap;
+    }
+
+    private ImageWrapper32 applyDistorsionMaps(ImageWrapper32 image, DistorsionMaps distorsionMaps) {
+        var height = image.height();
+        var width = image.width();
+        var currentImage = image;
+
+        for (var distorsionMap : distorsionMaps.maps()) {
+            currentImage = dedistortSingleWithoutMetadata(currentImage, distorsionMap, newOperation(), height, width);
+        }
+
+        var metadata = MutableMap.<Class<?>, Object>of();
+        metadata.putAll(image.metadata());
+        metadata.put(DistorsionMaps.class, distorsionMaps);
+        return new ImageWrapper32(width, height, currentImage.data(), metadata);
+    }
+
+    private ImageWrapper32 dedistortSingleWithoutMetadata(ImageWrapper32 image,
+                                                          DistorsionMap distorsionMap,
+                                                          ProgressOperation parent,
+                                                          int height,
+                                                          int width) {
         var currentY = new AtomicInteger();
         var imageData = image.data();
         var result = new float[height][width];
-        var progressOperation = newOperation().createChild(DEDISTORT);
+        var progressOperation = parent.createChild(DEDISTORT);
         for (var y = 0; y < height; y++) {
             var progress = currentY.incrementAndGet() / (double) height;
             broadcaster.broadcast(progressOperation.update(progress));
@@ -342,13 +629,15 @@ public class Dedistort extends AbstractFunctionImpl {
                 var xx = x + displacement.dx();
                 var yy = y + displacement.dy();
                 if (xx >= 0 && xx < width && yy >= 0 && yy < height) {
-                    var interpolatedValue = bilinearInterpolation(imageData, xx, yy, width, height);
-                    result[y][x] = interpolatedValue;
+                    result[y][x] = ImageInterpolation.lanczos2D(imageData, xx, yy, width, height);
                 }
             }
         }
         broadcaster.broadcast(progressOperation.complete());
-        metadata.put(DistorsionMap.class, distorsionMap);
-        return new ImageWrapper32(width, height, result, metadata);
+        return new ImageWrapper32(width, height, result, MutableMap.of());
     }
+
+    public record DisplacementResult(double dx, double dy) {
+    }
+
 }

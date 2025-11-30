@@ -897,7 +897,7 @@ public class JSolEx implements JSolExInterface {
     }
 
     private void updateProgress(ProgressOperation operation) {
-        updateProgress(operation.progress(), operation.task());
+        updateProgress(operation.progress(), operation.taskPath());
     }
 
     @Override

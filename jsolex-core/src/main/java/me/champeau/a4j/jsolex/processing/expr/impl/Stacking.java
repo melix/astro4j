@@ -20,6 +20,7 @@ import me.champeau.a4j.jsolex.processing.expr.AbstractImageExpressionEvaluator;
 import me.champeau.a4j.jsolex.processing.expr.BestImages;
 import me.champeau.a4j.jsolex.processing.expr.stacking.DistorsionDebugImageCreator;
 import me.champeau.a4j.jsolex.processing.expr.stacking.DistorsionMap;
+import me.champeau.a4j.jsolex.processing.expr.stacking.DistorsionMaps;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
@@ -138,14 +139,15 @@ public class Stacking extends AbstractFunctionImpl {
             var ratio = Math.clamp(doubleArg(arguments, "best", DEFAULT_SELECTION_RATIO), 0, 1);
             var useLocalWeights = intArg(arguments, "local", 0) != 0;
             var imagesWithError = images.stream()
-                    .filter(img -> img.findMetadata(DistorsionMap.class).isPresent())
+                    .filter(img -> img.findMetadata(DistorsionMaps.class).isPresent())
                     .map(img -> {
-                        var distMap = img.findMetadata(DistorsionMap.class).get();
-                        return new ImageWithError(distMap.error(), img, distMap);
+                        var distMaps = img.findMetadata(DistorsionMaps.class).get();
+                        var lastMap = distMaps.getLast();
+                        return new ImageWithError(lastMap.error(), img, lastMap);
                     })
                     .toList();
             if (imagesWithError.size() != images.size()) {
-                throw new IllegalArgumentException("All images must have a DistorsionMap metadata");
+                throw new IllegalArgumentException("All images must have a DistorsionMaps metadata");
             }
 
             if (useLocalWeights) {

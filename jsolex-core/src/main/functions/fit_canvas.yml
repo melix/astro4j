@@ -1,0 +1,11 @@
+name: FIT_CANVAS
+category: ROTATION
+description:
+  fr: "Ajuste la taille du canevas des images pour qu'elles aient toutes les mêmes dimensions, sans redimensionner le disque solaire. Contrairement à radius_rescale, cette fonction ne modifie pas la taille du disque, ce qui évite d'ajouter de la distorsion. Elle utilise les ellipses détectées pour centrer chaque disque solaire dans un canevas commun. Le canevas final est calculé automatiquement pour contenir tous les disques."
+  en: "Adjusts the canvas size of images so they all have the same dimensions, without rescaling the solar disk. Unlike radius_rescale, this function does not modify the disk size, which avoids adding distortion. It uses the detected ellipses to center each solar disk in a common canvas. The final canvas size is computed automatically to contain all disks."
+arguments:
+  - name: images
+    description: Image(s)
+examples:
+  - "fit_canvas(some_image)"
+  - "fit_canvas(images: my_list)"

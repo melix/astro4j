@@ -19,6 +19,7 @@ import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.WorkflowState;
 import me.champeau.a4j.jsolex.processing.sun.detection.PhenomenaDetector;
 import me.champeau.a4j.jsolex.processing.util.Constants;
+import me.champeau.a4j.jsolex.processing.util.ImageInterpolation;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.regression.Ellipse;
@@ -171,22 +172,6 @@ public class JaggingCorrection {
         });
     }
 
-    private static float lanczos(float[] v, double x, int a) {
-        int center = (int) Math.round(x);
-        double sum = 0;
-        double wsum = 0;
-        for (int i = center - a + 1; i <= center + a; i++) {
-            int idx = Math.min(Math.max(i, 0), v.length - 1);
-            double d = x - i;
-            double w = (d == 0) ? 1
-                    : (a * Math.sin(Math.PI * d) * Math.sin(Math.PI * d / a))
-                    / (Math.PI * Math.PI * d * d);
-            sum += v[idx] * w;
-            wsum += w;
-        }
-        return (float) (sum / wsum);
-    }
-
     private void performCorrectionForSingleLine(int y, float[] line, List<Correction> samples, boolean debug, float[] debugR, float[] debugG, float[] debugB) {
         List<Point2D> points = new ArrayList<>();
         for (var sample : samples) {
@@ -205,7 +190,7 @@ public class JaggingCorrection {
         var corrected = new float[line.length];
         for (int x = 0; x < line.length; x++) {
             double srcX = poly.applyAsDouble(x);
-            float value = srcX == x ? line[x] : lanczos(line, srcX, 3);
+            float value = srcX == x ? line[x] : ImageInterpolation.lanczos1D(line, srcX);
             corrected[x] = Math.clamp(value, 0, Constants.MAX_PIXEL_VALUE);
 
             if (debug) {

@@ -318,6 +318,51 @@ public class FFTSupport {
         return new FloatFFT2DResult(realRows, imagRows);
     }
 
+    /**
+     * FFT2 for complex input (when both real and imaginary parts are non-zero).
+     */
+    public static FloatFFT2DResult fft2FloatComplex(FloatFFT2DResult complexInput) {
+        var rows = complexInput.real.length;
+        var cols = complexInput.real[0].length;
+
+        var realRows = new float[rows][cols];
+        var imagRows = new float[rows][cols];
+        for (var i = 0; i < rows; i++) {
+            System.arraycopy(complexInput.real[i], 0, realRows[i], 0, cols);
+            System.arraycopy(complexInput.imaginary[i], 0, imagRows[i], 0, cols);
+        }
+
+        for (var i = 0; i < rows; i++) {
+            var fft = FastFourierTransform.ofComplex(realRows[i], imagRows[i]);
+            fft.transform();
+        }
+
+        var realCols = new float[cols][rows];
+        var imagCols = new float[cols][rows];
+        for (var i = 0; i < rows; i++) {
+            for (var j = 0; j < cols; j++) {
+                realCols[j][i] = realRows[i][j];
+                imagCols[j][i] = imagRows[i][j];
+            }
+        }
+
+        for (var j = 0; j < cols; j++) {
+            var fft = FastFourierTransform.ofComplex(realCols[j], imagCols[j]);
+            fft.transform();
+        }
+
+        var real2D = new float[rows][cols];
+        var imag2D = new float[rows][cols];
+        for (var i = 0; i < rows; i++) {
+            for (var j = 0; j < cols; j++) {
+                real2D[i][j] = realCols[j][i];
+                imag2D[i][j] = imagCols[j][i];
+            }
+        }
+
+        return new FloatFFT2DResult(real2D, imag2D);
+    }
+
     public static FloatFFT2DResult crossCorrelationFloat(FloatFFT2DResult fftRef, FloatFFT2DResult fftDef) {
         var rows = fftRef.real.length;
         var cols = fftRef.real[0].length;

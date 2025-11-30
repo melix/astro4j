@@ -600,11 +600,18 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                 batchScriptExecutor.putInContext(BestImages.class, new BestImages(bestSource));
             }
             var namingStrategy = createNamingStrategy();
+            var parameterValues = processParams.combinedImageMathParams().parameterValues();
             boolean initial = true;
             for (File scriptFile : allScriptFiles) {
                 if (initial) {
                     owner.prepareForScriptExecution(this, processParams, rootOperation, ImageMathScriptExecutor.SectionKind.BATCH);
                     initial = false;
+                }
+                var fileParams = parameterValues.get(scriptFile);
+                if (fileParams != null) {
+                    for (var entry : fileParams.entrySet()) {
+                        batchScriptExecutor.putVariable(entry.getKey(), entry.getValue());
+                    }
                 }
                 executeBatchScript(namingStrategy, scriptFile);
             }

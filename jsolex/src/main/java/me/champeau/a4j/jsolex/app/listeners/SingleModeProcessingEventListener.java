@@ -1012,7 +1012,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
     @Override
     public void onProgress(ProgressEvent e) {
-        owner.updateProgress(e.getPayload().progress(), e.getPayload().task());
+        owner.updateProgress(e.getPayload().progress(), e.getPayload().taskPath());
     }
 
     @Override
@@ -1647,8 +1647,15 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             for (Map.Entry<String, List<ImageWrapper>> entry : scriptImagesByLabel.entrySet()) {
                 batchScriptExecutor.putVariable(entry.getKey(), entry.getValue());
             }
-            
+
+            var parameterValues = adjustedParams.combinedImageMathParams().parameterValues();
             for (File scriptFile : scriptFiles) {
+                var fileParams = parameterValues.get(scriptFile);
+                if (fileParams != null) {
+                    for (var entry : fileParams.entrySet()) {
+                        batchScriptExecutor.putVariable(entry.getKey(), entry.getValue());
+                    }
+                }
                 executeSingleFileBatchScript(namingStrategy, batchScriptExecutor, scriptFile);
             }
         } catch (Exception e) {
