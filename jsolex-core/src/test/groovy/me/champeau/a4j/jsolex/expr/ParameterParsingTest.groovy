@@ -329,4 +329,164 @@ image = gamma(image)
         multiLangParam.getDisplayName("it") != null  // Falls back to first available
         multiLangParam.getDisplayName("fr") == "French Name"  // Direct French
     }
+
+    def "parses outputs section in meta block"() {
+        def script = """meta {
+    outputs {
+        result {
+            title {
+                en = "Processed Image"
+                fr = "Image traitée"
+            }
+            description {
+                en = "The final processed image"
+            }
+        }
+    }
+}
+
+[[single]]
+result = img(0)"""
+        def parser = new ImageMathParser(script)
+
+        when:
+        def root = parser.parseAndInlineIncludes()
+
+        then:
+        root != null
+        def outputsSection = root.findOutputsSection()
+        outputsSection.isPresent()
+        def section = outputsSection.get()
+        def outputDefs = section.getOutputDefs()
+        outputDefs.size() == 1
+        outputDefs[0].getName() == "result"
+    }
+
+    def "extracts outputs metadata using ImageMathParameterExtractor"() {
+        def script = """meta {
+    outputs {
+        solarDisk {
+            title {
+                en = "Solar Disk"
+                fr = "Disque solaire"
+            }
+            description {
+                en = "The processed solar disk image"
+                fr = "Image du disque solaire traitée"
+            }
+        }
+        prominences {
+            title {
+                en = "Prominences"
+            }
+        }
+    }
+}
+
+[[single]]
+solarDisk = img(0)
+prominences = img(1)"""
+        def extractor = new ImageMathParameterExtractor()
+
+        when:
+        def result = extractor.extractParameters(script)
+
+        then:
+        result != null
+        result.outputsMetadata.size() == 2
+
+        def solarDiskMeta = result.getOutputMetadata("solarDisk")
+        solarDiskMeta.isPresent()
+        solarDiskMeta.get().getDisplayTitle("en") == "Solar Disk"
+        solarDiskMeta.get().getDisplayTitle("fr") == "Disque solaire"
+        solarDiskMeta.get().getDisplayDescription("en") == "The processed solar disk image"
+        solarDiskMeta.get().getDisplayDescription("fr") == "Image du disque solaire traitée"
+
+        def prominencesMeta = result.getOutputMetadata("prominences")
+        prominencesMeta.isPresent()
+        prominencesMeta.get().getDisplayTitle("en") == "Prominences"
+        prominencesMeta.get().getDisplayDescription("en") == null  // No description provided
+    }
+
+    def "outputs metadata fallback logic works correctly"() {
+        def script = """meta {
+    outputs {
+        shorthandOutput {
+            title = "Default Title"
+            description = "Default Description"
+        }
+        englishOutput {
+            title {
+                en = "English Title"
+                de = "German Title"
+            }
+        }
+        noTitleOutput {
+            description {
+                en = "Only description"
+            }
+        }
+    }
+}"""
+        def extractor = new ImageMathParameterExtractor()
+
+        when:
+        def result = extractor.extractParameters(script)
+
+        then:
+        result != null
+        result.outputsMetadata.size() == 3
+
+        // Test shorthand output - falls back to "default" key
+        def shorthandMeta = result.getOutputMetadata("shorthandOutput").get()
+        shorthandMeta.getDisplayTitle("fr") == "Default Title"  // Falls back to default
+        shorthandMeta.getDisplayTitle("en") == "Default Title"  // Falls back to default
+        shorthandMeta.getDisplayDescription("fr") == "Default Description"
+
+        // Test English output - falls back to English when language not found
+        def englishMeta = result.getOutputMetadata("englishOutput").get()
+        englishMeta.getDisplayTitle("fr") == "English Title"  // Falls back to English
+        englishMeta.getDisplayTitle("en") == "English Title"
+        englishMeta.getDisplayTitle("de") == "German Title"
+
+        // Test output with no title - returns variable name
+        def noTitleMeta = result.getOutputMetadata("noTitleOutput").get()
+        noTitleMeta.getDisplayTitle("en") == "noTitleOutput"  // Falls back to name
+        noTitleMeta.getDisplayDescription("en") == "Only description"
+    }
+
+    def "parses mixed params and outputs sections"() {
+        def script = """meta {
+    params {
+        gamma {
+            type = "number"
+            default = 1.5
+        }
+    }
+    outputs {
+        result {
+            title {
+                en = "Result Image"
+            }
+        }
+    }
+}
+
+[[single]]
+result = adjust_gamma(img(0), gamma)"""
+        def extractor = new ImageMathParameterExtractor()
+
+        when:
+        def result = extractor.extractParameters(script)
+
+        then:
+        result != null
+        result.hasParametersSection()
+        result.parameters.size() == 1
+        result.parameters[0].name == "gamma"
+
+        result.outputsMetadata.size() == 1
+        result.getOutputMetadata("result").isPresent()
+        result.getOutputMetadata("result").get().getDisplayTitle("en") == "Result Image"
+    }
 }

@@ -1,6 +1,6 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
-- [Nouveautés de la version 4.2.2](#nouveautes-de-la-version-4-2-2) - Exécution plus rapide des scripts, amélioration du stacking et corrections de bugs
+- [Nouveautés de la version 4.3.0](#nouveautes-de-la-version-4-3-0) - Exécution plus rapide des scripts, amélioration du stacking et corrections de bugs
 - [Version 4.2.1](#nouveautes-de-la-version-4-2-1) - Corrections de bugs
 - [Version 4.2.0](#nouveautes-de-la-version-4-2-0) - Java 25, support GIF, réglages de format de fichier
 - [Version 4.1.4](#nouveautes-de-la-version-4-1-4) - Corrections de bugs et améliorations
@@ -11,7 +11,7 @@
 - [Version 4.0.1](#nouveautes-de-la-version-4-0-1) - Sélection de langue, corrections
 - [Version 4.0.0](#nouveautes-de-la-version-4-0-0) - Interface améliorée, intégration BASS2000
 
-## Nouveautés de la version 4.2.2
+## Nouveautés de la version 4.3.0
 
 - Exécution plus rapide des scripts en parallélisant les expressions indépendantes
 - Correction de l'histogramme dans l'onglet statistiques qui ne se mettait pas à jour lors du clic sur les liens d'images
@@ -21,6 +21,7 @@
 - Correction d'un bug qui empêchait l'ouverture de la calculatrice d'exposition optimale dans certains cas
 - Ajout des fonctions conditionnelles `IFEQ`, `IFNEQ`, `IFGT`, `IFGTE`, `IFLT`, `IFLTE` pour la sélection conditionnelle de valeurs basée sur des comparaisons
 - Ajout des fonctions de statistiques par image `IMG_AVG`, `IMG_AVG2`, `IMG_MEDIAN`, `IMG_MEDIAN2`, `IMG_MIN`, `IMG_MAX` qui calculent des statistiques sur tous les pixels de chaque image (contrairement à `AVG`, `MEDIAN`, etc. qui calculent des statistiques pixel par pixel sur plusieurs images)
+- Ajout du support des métadonnées de sortie dans les scripts : les scripts peuvent désormais définir des titres et descriptions pour leurs sorties dans le bloc `meta` en utilisant une section `outputs`. Ceux-ci sont affichés dans le visualiseur d'images à la place des noms de variables
 
 ## Nouveautés de la version 4.2.1
 

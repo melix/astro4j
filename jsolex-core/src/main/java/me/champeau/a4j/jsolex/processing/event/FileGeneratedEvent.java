@@ -26,10 +26,13 @@ public final class FileGeneratedEvent extends ProcessingEvent<FileGeneratedEvent
     }
 
     public static FileGeneratedEvent of(GeneratedImageKind kind, String title, Path path) {
-        return new FileGeneratedEvent(new GeneratedFile(kind, title, path));
+        return new FileGeneratedEvent(new GeneratedFile(kind, title, path, null, null));
     }
 
-    public record GeneratedFile(GeneratedImageKind kind, String title, Path path) {
+    public static FileGeneratedEvent of(GeneratedImageKind kind, String title, Path path, String description, String displayTitle) {
+        return new FileGeneratedEvent(new GeneratedFile(kind, title, path, description, displayTitle));
+    }
 
+    public record GeneratedFile(GeneratedImageKind kind, String title, Path path, String description, String displayTitle) {
     }
 }

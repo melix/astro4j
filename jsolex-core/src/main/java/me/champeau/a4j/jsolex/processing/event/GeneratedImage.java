@@ -25,6 +25,10 @@ public record GeneratedImage(
     String title,
     Path path,
     ImageWrapper image,
-    String description
+    String description,
+    String displayTitle
 ) {
+    public GeneratedImage(GeneratedImageKind kind, String title, Path path, ImageWrapper image, String description) {
+        this(kind, title, path, image, description, null);
+    }
 }

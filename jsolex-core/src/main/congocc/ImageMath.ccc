@@ -147,6 +147,18 @@ import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
         }
         return Collections.emptyList();
     }
+
+    public Optional<OutputsBlock> findOutputsSection() {
+        var metaBlocks = childrenOfType(MetaBlock.class);
+        for (var metaBlock : metaBlocks) {
+            var content = metaBlock.getContent();
+            var outputsBlocks = content.getOutputsBlocks();
+            if (!outputsBlocks.isEmpty()) {
+                return Optional.of(outputsBlocks.getFirst());
+            }
+        }
+        return Optional.empty();
+    }
 }
 
 FirstSection#Section : [SectionHeader] SectionContent;
@@ -211,7 +223,7 @@ SectionHeader :
 (
     <LBRACKET> (
         (<LBRACKET> <IDENTIFIER> <RBRACKET> <RBRACKET>) { thisProduction.setMajor(true); }# |
-        (<IDENTIFIER> | "params") <RBRACKET>
+        (<IDENTIFIER> | "params" | "outputs") <RBRACKET>
     )
 );
 
@@ -627,6 +639,7 @@ INJECT MetaBlock:
         // Fallback: if MetaContent is optimized away, create a virtual one
         var virtualContent = new MetaContent();
         virtualContent.addAll(childrenOfType(ParametersBlock.class));
+        virtualContent.addAll(childrenOfType(OutputsBlock.class));
         virtualContent.addAll(childrenOfType(MetaProperty.class));
         return virtualContent;
     }
@@ -634,12 +647,16 @@ INJECT MetaBlock:
 }
 
 MetaContent:
-    (ParametersBlock | MetaProperty)*;
+    (ParametersBlock | OutputsBlock | MetaProperty)*;
 
 INJECT MetaContent:
 {
     public List<ParametersBlock> getParametersBlocks() {
         return childrenOfType(ParametersBlock.class);
+    }
+
+    public List<OutputsBlock> getOutputsBlocks() {
+        return childrenOfType(OutputsBlock.class);
     }
 
     public List<MetaProperty> getMetaProperties() {
@@ -665,5 +682,33 @@ INJECT ParametersBlock:
 
     public List<ParameterDef> getParameterDefs() {
         return childrenOfType(ParameterDef.class);
+    }
+}
+
+OutputsBlock:
+    <OUTPUTS> <LBRACE> (OutputDef)* <RBRACE>;
+
+INJECT OutputsBlock:
+{
+    public String getName() {
+        return "outputs";
+    }
+
+    public List<OutputDef> getOutputDefs() {
+        return childrenOfType(OutputDef.class);
+    }
+}
+
+OutputDef:
+    <IDENTIFIER> ParameterObject;
+
+INJECT OutputDef:
+{
+    public String getName() {
+        return firstChildOfType(Identifier.class).toString();
+    }
+
+    public ParameterObject getObjectValue() {
+        return firstChildOfType(ParameterObject.class);
     }
 }

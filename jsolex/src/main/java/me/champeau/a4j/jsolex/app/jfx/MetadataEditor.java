@@ -45,6 +45,7 @@ import me.champeau.a4j.jsolex.expr.ast.MetaBlock;
 import me.champeau.a4j.jsolex.processing.params.ChoiceParameter;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParameterExtractor;
 import me.champeau.a4j.jsolex.processing.params.NumberParameter;
+import me.champeau.a4j.jsolex.processing.params.OutputMetadata;
 import me.champeau.a4j.jsolex.processing.params.ParameterType;
 import me.champeau.a4j.jsolex.processing.params.ScriptParameter;
 import me.champeau.a4j.jsolex.processing.util.VersionUtil;
@@ -117,12 +118,32 @@ public class MetadataEditor {
     private VBox numberFieldsBox;
     @FXML
     private VBox choicesBox;
+    @FXML
+    private ListView<OutputModel> outputsList;
+    @FXML
+    private Button addOutputButton;
+    @FXML
+    private Button removeOutputButton;
+    @FXML
+    private TextField outputNameField;
+    @FXML
+    private TextField outputTitleEnField;
+    @FXML
+    private TextField outputTitleFrField;
+    @FXML
+    private TextArea outputDescEnField;
+    @FXML
+    private TextArea outputDescFrField;
+    @FXML
+    private VBox outputFormContainer;
 
     private Stage stage;
     private String originalScript;
     private BiConsumer<String, String> onSave;
     private final ObservableList<ParameterModel> parameters = FXCollections.observableArrayList();
+    private final ObservableList<OutputModel> outputs = FXCollections.observableArrayList();
     private ParameterModel selectedParameter;
+    private OutputModel selectedOutput;
 
     @FXML
     private void initialize() {
@@ -143,7 +164,10 @@ public class MetadataEditor {
             }
         });
 
-        parametersList.getSelectionModel().selectedItemProperty().addListener((_, _, newValue) -> {
+        parametersList.getSelectionModel().selectedItemProperty().addListener((_, oldValue, newValue) -> {
+            if (oldValue != null) {
+                saveParameterChanges(oldValue);
+            }
             selectedParameter = newValue;
             updateParameterForm();
         });
@@ -163,6 +187,27 @@ public class MetadataEditor {
 
         choicesList.getSelectionModel().selectedItemProperty().addListener((_, _, _) -> {
             removeChoiceButton.setDisable(choicesList.getSelectionModel().getSelectedItem() == null);
+        });
+
+        outputsList.setItems(outputs);
+        outputsList.setCellFactory(_ -> new ListCell<OutputModel>() {
+            @Override
+            protected void updateItem(OutputModel item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item.getName());
+                }
+            }
+        });
+
+        outputsList.getSelectionModel().selectedItemProperty().addListener((_, oldValue, newValue) -> {
+            if (oldValue != null) {
+                saveOutputChanges(oldValue);
+            }
+            selectedOutput = newValue;
+            updateOutputForm();
         });
 
         setupValidationListeners();
@@ -336,6 +381,11 @@ public class MetadataEditor {
                     var model = new ParameterModel(param);
                     parameters.add(model);
                 });
+
+                extractionResult.getOutputsMetadata().forEach((name, metadata) -> {
+                    var model = new OutputModel(metadata);
+                    outputs.add(model);
+                });
             }
         } catch (Exception e) {
         }
@@ -441,6 +491,7 @@ public class MetadataEditor {
         if (selectedParameter != null && selectedParameter.getType() == ParameterType.CHOICE) {
             removeChoiceButton.setDisable(choicesList.getSelectionModel().getSelectedItem() == null);
         }
+        removeOutputButton.setDisable(selectedOutput == null);
     }
 
     @FXML
@@ -588,9 +639,112 @@ public class MetadataEditor {
         }
     }
 
+    private void updateOutputForm() {
+        if (selectedOutput == null) {
+            outputFormContainer.setDisable(true);
+            outputNameField.clear();
+            outputTitleEnField.clear();
+            outputTitleFrField.clear();
+            outputDescEnField.clear();
+            outputDescFrField.clear();
+        } else {
+            outputFormContainer.setDisable(false);
+            outputNameField.setText(selectedOutput.getName());
+            outputTitleEnField.setText(selectedOutput.getTitleEn());
+            outputTitleFrField.setText(selectedOutput.getTitleFr());
+            outputDescEnField.setText(selectedOutput.getDescriptionEn());
+            outputDescFrField.setText(selectedOutput.getDescriptionFr());
+        }
+        updateButtonStates();
+    }
+
+    @FXML
+    private void handleAddOutput() {
+        var dialog = new TextInputDialog();
+        dialog.setTitle(I18N.string(JSolEx.class, "metadata-editor", "add.output"));
+        dialog.setHeaderText(null);
+        dialog.setContentText(I18N.string(JSolEx.class, "metadata-editor", "output.name.prompt"));
+        Optional<String> result = dialog.showAndWait();
+
+        result.ifPresent(inputName -> {
+            var name = inputName.trim();
+            if (name.isEmpty()) {
+                showError(I18N.string(JSolEx.class, "metadata-editor", "output.name.empty"));
+                return;
+            }
+            if (!IDENTIFIER_PATTERN.matcher(name).matches()) {
+                showError(I18N.string(JSolEx.class, "metadata-editor", "output.name.invalid"));
+                return;
+            }
+            if (outputs.stream().anyMatch(o -> o.getName().equals(name))) {
+                showError(I18N.string(JSolEx.class, "metadata-editor", "output.name.duplicate"));
+                return;
+            }
+
+            var output = new OutputModel(name);
+            outputs.add(output);
+            outputsList.getSelectionModel().select(output);
+        });
+    }
+
+    @FXML
+    private void handleRemoveOutput() {
+        if (selectedOutput != null) {
+            outputs.remove(selectedOutput);
+            if (!outputs.isEmpty()) {
+                outputsList.getSelectionModel().selectFirst();
+            } else {
+                selectedOutput = null;
+                updateOutputForm();
+            }
+        }
+    }
+
+    @FXML
+    private void handleOutputNameChanged() {
+        if (selectedOutput != null) {
+            var newName = outputNameField.getText().trim();
+            if (!newName.isEmpty() && IDENTIFIER_PATTERN.matcher(newName).matches()) {
+                if (outputs.stream().noneMatch(o -> o != selectedOutput && o.getName().equals(newName))) {
+                    selectedOutput.setName(newName);
+                    outputsList.refresh();
+                }
+            }
+        }
+    }
+
+    @FXML
+    private void handleOutputTitleEnChanged() {
+        if (selectedOutput != null) {
+            selectedOutput.setTitleEn(outputTitleEnField.getText());
+        }
+    }
+
+    @FXML
+    private void handleOutputTitleFrChanged() {
+        if (selectedOutput != null) {
+            selectedOutput.setTitleFr(outputTitleFrField.getText());
+        }
+    }
+
+    @FXML
+    private void handleOutputDescEnChanged() {
+        if (selectedOutput != null) {
+            selectedOutput.setDescriptionEn(outputDescEnField.getText());
+        }
+    }
+
+    @FXML
+    private void handleOutputDescFrChanged() {
+        if (selectedOutput != null) {
+            selectedOutput.setDescriptionFr(outputDescFrField.getText());
+        }
+    }
+
     @FXML
     private void handleOk() {
         saveCurrentParameterChanges();
+        saveCurrentOutputChanges();
         if (!validateMetadata()) {
             return;
         }
@@ -601,39 +755,61 @@ public class MetadataEditor {
     }
 
     private void saveCurrentParameterChanges() {
-        if (selectedParameter == null) {
-            return;
+        if (selectedParameter != null) {
+            saveParameterChanges(selectedParameter);
         }
+    }
 
+    private void saveParameterChanges(ParameterModel param) {
         var newName = parameterNameField.getText().trim();
         if (!newName.isEmpty() && IDENTIFIER_PATTERN.matcher(newName).matches()) {
-            if (parameters.stream().noneMatch(p -> p != selectedParameter && p.getName().equals(newName))) {
-                selectedParameter.setName(newName);
+            if (parameters.stream().noneMatch(p -> p != param && p.getName().equals(newName))) {
+                param.setName(newName);
             }
         }
 
-        selectedParameter.setDisplayNameEn(parameterNameEnField.getText());
-        selectedParameter.setDisplayNameFr(parameterNameFrField.getText());
-        selectedParameter.setDescriptionEn(parameterDescEnField.getText());
-        selectedParameter.setDescriptionFr(parameterDescFrField.getText());
-        selectedParameter.setDefaultValue(defaultValueField.getText());
+        param.setDisplayNameEn(parameterNameEnField.getText());
+        param.setDisplayNameFr(parameterNameFrField.getText());
+        param.setDescriptionEn(parameterDescEnField.getText());
+        param.setDescriptionFr(parameterDescFrField.getText());
+        param.setDefaultValue(defaultValueField.getText());
 
-        if (selectedParameter.getType() == ParameterType.NUMBER) {
+        if (param.getType() == ParameterType.NUMBER) {
             try {
                 var minText = minValueField.getText().trim();
-                selectedParameter.setMinValue(minText.isEmpty() ? null : Double.parseDouble(minText));
+                param.setMinValue(minText.isEmpty() ? null : Double.parseDouble(minText));
             } catch (NumberFormatException e) {
             }
             try {
                 var maxText = maxValueField.getText().trim();
-                selectedParameter.setMaxValue(maxText.isEmpty() ? null : Double.parseDouble(maxText));
+                param.setMaxValue(maxText.isEmpty() ? null : Double.parseDouble(maxText));
             } catch (NumberFormatException e) {
             }
         }
 
-        if (selectedParameter.getType() == ParameterType.CHOICE) {
+        if (param.getType() == ParameterType.CHOICE) {
             addDefaultValueToChoices();
         }
+    }
+
+    private void saveCurrentOutputChanges() {
+        if (selectedOutput != null) {
+            saveOutputChanges(selectedOutput);
+        }
+    }
+
+    private void saveOutputChanges(OutputModel output) {
+        var newName = outputNameField.getText().trim();
+        if (!newName.isEmpty() && IDENTIFIER_PATTERN.matcher(newName).matches()) {
+            if (outputs.stream().noneMatch(o -> o != output && o.getName().equals(newName))) {
+                output.setName(newName);
+            }
+        }
+
+        output.setTitleEn(outputTitleEnField.getText());
+        output.setTitleFr(outputTitleFrField.getText());
+        output.setDescriptionEn(outputDescEnField.getText());
+        output.setDescriptionFr(outputDescFrField.getText());
     }
 
     private boolean validateMetadata() {
@@ -695,6 +871,16 @@ public class MetadataEditor {
             writer.indent();
             for (var param : parameters) {
                 writeParameter(writer, param);
+            }
+            writer.dedent();
+            writer.writeLine("}");
+        }
+
+        if (!outputs.isEmpty()) {
+            writer.writeLine("outputs {");
+            writer.indent();
+            for (var output : outputs) {
+                writeOutput(writer, output);
             }
             writer.dedent();
             writer.writeLine("}");
@@ -764,6 +950,17 @@ public class MetadataEditor {
             }
             writer.writeProperty("choices", choices.toString());
         }
+
+        writer.dedent();
+        writer.writeLine("}");
+    }
+
+    private void writeOutput(IndentedWriter writer, OutputModel output) {
+        writer.writeLine(output.getName() + " {");
+        writer.indent();
+
+        writeLocalizedBlock(writer, "title", output.getTitleEn(), output.getTitleFr());
+        writeLocalizedBlock(writer, "description", output.getDescriptionEn(), output.getDescriptionFr());
 
         writer.dedent();
         writer.writeLine("}");
@@ -962,6 +1159,78 @@ public class MetadataEditor {
 
         public ObservableList<String> getChoices() {
             return choices;
+        }
+    }
+
+    public static class OutputModel {
+        private final StringProperty name = new SimpleStringProperty();
+        private final StringProperty titleEn = new SimpleStringProperty("");
+        private final StringProperty titleFr = new SimpleStringProperty("");
+        private final StringProperty descriptionEn = new SimpleStringProperty("");
+        private final StringProperty descriptionFr = new SimpleStringProperty("");
+
+        public OutputModel(String name) {
+            this.name.set(name);
+        }
+
+        public OutputModel(OutputMetadata metadata) {
+            this.name.set(metadata.name());
+
+            metadata.title().forEach((lang, text) -> {
+                if ("en".equals(lang) || "default".equals(lang)) {
+                    titleEn.set(text);
+                } else if ("fr".equals(lang)) {
+                    titleFr.set(text);
+                }
+            });
+
+            metadata.description().forEach((lang, text) -> {
+                if ("en".equals(lang) || "default".equals(lang)) {
+                    descriptionEn.set(text);
+                } else if ("fr".equals(lang)) {
+                    descriptionFr.set(text);
+                }
+            });
+        }
+
+        public String getName() {
+            return name.get();
+        }
+
+        public void setName(String name) {
+            this.name.set(name);
+        }
+
+        public String getTitleEn() {
+            return titleEn.get();
+        }
+
+        public void setTitleEn(String titleEn) {
+            this.titleEn.set(titleEn);
+        }
+
+        public String getTitleFr() {
+            return titleFr.get();
+        }
+
+        public void setTitleFr(String titleFr) {
+            this.titleFr.set(titleFr);
+        }
+
+        public String getDescriptionEn() {
+            return descriptionEn.get();
+        }
+
+        public void setDescriptionEn(String descriptionEn) {
+            this.descriptionEn.set(descriptionEn);
+        }
+
+        public String getDescriptionFr() {
+            return descriptionFr.get();
+        }
+
+        public void setDescriptionFr(String descriptionFr) {
+            this.descriptionFr.set(descriptionFr);
         }
     }
 }

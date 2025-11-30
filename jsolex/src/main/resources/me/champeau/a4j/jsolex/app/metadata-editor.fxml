@@ -157,6 +157,54 @@
                         </VBox>
                     </HBox>
                 </VBox>
+
+                <!-- Outputs Section -->
+                <VBox styleClass="panel-section" spacing="12">
+                    <Label text="%outputs" styleClass="panel-section-title"/>
+
+                    <HBox spacing="16">
+                        <!-- Outputs List -->
+                        <VBox spacing="8" prefWidth="220">
+                            <ListView fx:id="outputsList" styleClass="embedded-editor" prefHeight="200" VBox.vgrow="ALWAYS"/>
+                            <HBox alignment="CENTER" spacing="8">
+                                <Button fx:id="addOutputButton" styleClass="default-button" mnemonicParsing="false" onAction="#handleAddOutput" text="+" prefWidth="50"/>
+                                <Button fx:id="removeOutputButton" styleClass="default-button" mnemonicParsing="false" onAction="#handleRemoveOutput" text="-" prefWidth="50"/>
+                            </HBox>
+                        </VBox>
+
+                        <!-- Output Form -->
+                        <VBox fx:id="outputFormContainer" HBox.hgrow="ALWAYS" disable="true" spacing="12" styleClass="panel-section">
+                            <ScrollPane fitToWidth="true">
+                                <VBox spacing="12">
+                                    <padding>
+                                        <Insets top="12" right="12" bottom="12" left="12"/>
+                                    </padding>
+
+                                    <VBox spacing="4">
+                                        <Label text="%output.name" styleClass="field-label"/>
+                                        <TextField fx:id="outputNameField" styleClass="modern-text-field" onAction="#handleOutputNameChanged"/>
+                                    </VBox>
+
+                                    <VBox spacing="8">
+                                        <Label text="%output.title.en" styleClass="field-label"/>
+                                        <TextField fx:id="outputTitleEnField" styleClass="modern-text-field" onAction="#handleOutputTitleEnChanged"/>
+
+                                        <Label text="%output.title.fr" styleClass="field-label"/>
+                                        <TextField fx:id="outputTitleFrField" styleClass="modern-text-field" onAction="#handleOutputTitleFrChanged"/>
+                                    </VBox>
+
+                                    <VBox spacing="8">
+                                        <Label text="%output.description.en" styleClass="field-label"/>
+                                        <TextArea fx:id="outputDescEnField" styleClass="modern-text-field" prefRowCount="3" wrapText="true" onKeyReleased="#handleOutputDescEnChanged"/>
+
+                                        <Label text="%output.description.fr" styleClass="field-label"/>
+                                        <TextArea fx:id="outputDescFrField" styleClass="modern-text-field" prefRowCount="3" wrapText="true" onKeyReleased="#handleOutputDescFrChanged"/>
+                                    </VBox>
+                                </VBox>
+                            </ScrollPane>
+                        </VBox>
+                    </HBox>
+                </VBox>
             </VBox>
         </ScrollPane>
     </center>

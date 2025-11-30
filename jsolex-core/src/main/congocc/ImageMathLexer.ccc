@@ -88,4 +88,6 @@ TOKEN #Keyword:
     <META: "meta">
     |
     <PARAMS: "params">
+    |
+    <OUTPUTS: "outputs">
 ;

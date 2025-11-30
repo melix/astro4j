@@ -86,7 +86,9 @@ import me.champeau.a4j.jsolex.processing.expr.ShiftCollectingImageExpressionEval
 import me.champeau.a4j.jsolex.processing.expr.impl.Animate;
 import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
+import me.champeau.a4j.jsolex.processing.params.ImageMathParameterExtractor;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
+import me.champeau.a4j.jsolex.processing.params.OutputMetadata;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.RequestedImages;
 import me.champeau.a4j.jsolex.processing.params.SpectroHeliograph;
@@ -108,6 +110,7 @@ import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import me.champeau.a4j.jsolex.processing.util.Histogram;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.LocaleUtils;
 import me.champeau.a4j.jsolex.processing.util.MetadataSupport;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
@@ -528,7 +531,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     @Override
     public void onImageGenerated(ImageGeneratedEvent event) {
         var payload = event.getPayload();
-        var title = payload.title();
+        var title = payload.displayTitle() != null ? payload.displayTitle() : payload.title();
         var generatedImageKind = payload.kind();
         var imageWrapper = payload.image();
         var pixelShift = imageWrapper.findMetadata(PixelShift.class);
@@ -879,12 +882,15 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
     @Override
     public void onFileGenerated(FileGeneratedEvent event) {
-        var filePath = event.getPayload().path();
+        var payload = event.getPayload();
+        var filePath = payload.path();
         var fileName = filePath.toFile().getName();
+        var displayTitle = payload.displayTitle() != null ? payload.displayTitle() : payload.title();
+        var description = payload.description();
         if (fileName.endsWith(".mp4")) {
-            Platform.runLater(() -> owner.getImagesViewer().addVideo(event.getPayload().kind(), event.getPayload().title(), filePath));
+            Platform.runLater(() -> owner.getImagesViewer().addVideo(payload.kind(), displayTitle, filePath, description));
         } else if (fileName.endsWith(".gif")) {
-            Platform.runLater(() -> owner.getImagesViewer().addAnimatedGif(event.getPayload().kind(), event.getPayload().title(), filePath));
+            Platform.runLater(() -> owner.getImagesViewer().addAnimatedGif(payload.kind(), displayTitle, filePath, description));
         }
     }
 
@@ -1043,17 +1049,22 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         }
         var result = imageScriptExecutor.execute(script, kind);
         var namingStrategy = createNamingStrategy();
+        var outputsMetadata = extractOutputsMetadata(script);
+        var language = LocaleUtils.getConfiguredLocale().getLanguage();
         ImageMathScriptExecutor.render(result, imageEmitter, (outputLabel, fileOutput) -> {
             var baseName = namingStrategy.render(0, null, Constants.TYPE_CUSTOM, outputLabel, computeSerFileBasename(serFile), null);
             try {
                 var displayPath = FilesUtils.saveAllFilesAndGetDisplayPath(fileOutput, outputDirectory, baseName);
                 if (displayPath != null) {
-                    onFileGenerated(FileGeneratedEvent.of(GeneratedImageKind.IMAGE_MATH, outputLabel, displayPath));
+                    var metadata = outputsMetadata.get(outputLabel);
+                    var displayTitle = metadata != null ? metadata.getDisplayTitle(language) : null;
+                    var description = metadata != null ? metadata.getDisplayDescription(language) : null;
+                    onFileGenerated(FileGeneratedEvent.of(GeneratedImageKind.IMAGE_MATH, outputLabel, displayPath, description, displayTitle));
                 }
             } catch (IOException e) {
                 throw new ProcessingException(e);
             }
-        });
+        }, outputsMetadata, language);
         var invalidExpressions = result.invalidExpressions();
         if (!invalidExpressions.isEmpty()) {
             Platform.runLater(() -> ScriptErrorDialog.showErrors(invalidExpressions));
@@ -1062,6 +1073,16 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         var secs = dur.toSeconds() + (dur.toMillisPart() / 1000d);
         onProgress(ProgressEvent.of(rootOperation.complete(String.format(Constants.message("script.completed.in.format"), secs))));
         return result;
+    }
+
+    private Map<String, OutputMetadata> extractOutputsMetadata(String script) {
+        try {
+            var extractor = new ImageMathParameterExtractor();
+            var extractionResult = extractor.extractParameters(script, "runtime");
+            return extractionResult.getOutputsMetadata();
+        } catch (Exception e) {
+            return Map.of();
+        }
     }
 
     @Override
