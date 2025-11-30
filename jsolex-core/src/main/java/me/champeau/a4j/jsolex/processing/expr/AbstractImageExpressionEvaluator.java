@@ -42,6 +42,7 @@ import me.champeau.a4j.jsolex.processing.expr.impl.Filtering;
 import me.champeau.a4j.jsolex.processing.expr.impl.FixBanding;
 import me.champeau.a4j.jsolex.processing.expr.impl.GeometryCorrection;
 import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
+import me.champeau.a4j.jsolex.processing.expr.impl.ImageStatistics;
 import me.champeau.a4j.jsolex.processing.expr.impl.Inverse;
 import me.champeau.a4j.jsolex.processing.expr.impl.Loader;
 import me.champeau.a4j.jsolex.processing.expr.impl.MathFunctions;
@@ -128,6 +129,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     private final ArtifificialFlatCorrector flatCorrector;
     private final GeometryCorrection geometryCorrection;
     private final ImageDraw imageDraw;
+    private final ImageStatistics imageStatistics;
     private final Inverse inverse;
     private final Loader loader;
     private final MathFunctions math;
@@ -159,6 +161,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         this.flatCorrector = new ArtifificialFlatCorrector(context, broadcaster);
         this.geometryCorrection = new GeometryCorrection(context, broadcaster, ellipseFit);
         this.imageDraw = new ImageDraw(context, broadcaster);
+        this.imageStatistics = new ImageStatistics(context, broadcaster);
         this.inverse = new Inverse(context, broadcaster);
         this.loader = new Loader(context, broadcaster);
         this.math = new MathFunctions(context, broadcaster);
@@ -322,6 +325,12 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
                 yield utilities.extractChannel(arguments, 0);
             }
             case IMG -> image(arguments);
+            case IMG_AVG -> imageStatistics.imgAvg(arguments);
+            case IMG_AVG2 -> imageStatistics.imgAvg2(arguments);
+            case IMG_MAX -> imageStatistics.imgMax(arguments);
+            case IMG_MEDIAN -> imageStatistics.imgMedian(arguments);
+            case IMG_MEDIAN2 -> imageStatistics.imgMedian2(arguments);
+            case IMG_MIN -> imageStatistics.imgMin(arguments);
             case INVERT -> inverse.invert(arguments);
             case LINEAR_STRETCH -> stretching.linearStretch(arguments);
             case LIST -> arguments.get("list");

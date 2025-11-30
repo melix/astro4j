@@ -20,6 +20,7 @@
 - Improved `DEDISTORT` algorithm with hierarchical refinement for improved stability. Added an `iterations` optional parameter for finer control
 - Fixed bug preventing the exposure calculator to open in some cases
 - Added conditional functions `IFEQ`, `IFNEQ`, `IFGT`, `IFGTE`, `IFLT`, `IFLTE` for conditional value selection based on comparisons
+- Added per-image statistics functions `IMG_AVG`, `IMG_AVG2`, `IMG_MEDIAN`, `IMG_MEDIAN2`, `IMG_MIN`, `IMG_MAX` that compute statistics across all pixels of each image (unlike `AVG`, `MEDIAN`, etc. which compute pixel-by-pixel statistics across multiple images)
 
 ## What's New in Version 4.2.1
 

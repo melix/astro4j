@@ -1,0 +1,18 @@
+name: IMG_AVG2
+category: MATHS
+spreadList: true
+description:
+  fr: "Calcule la moyenne avec écrêtage sigma de tous les pixels de chaque image. Contrairement à AVG2 qui calcule une moyenne pixel par pixel entre plusieurs images, IMG_AVG2 retourne la valeur moyenne (avec écrêtage sigma) de tous les pixels d'une image. Si plusieurs images sont passées en paramètre, retourne une liste de valeurs. Si une seule image est passée, retourne un nombre."
+  en: "Computes the sigma-clipped average of all pixels in each image. Unlike AVG2 which computes a pixel-by-pixel average across multiple images, IMG_AVG2 returns the sigma-clipped average value of all pixels within an image. If multiple images are passed, returns a list of values. If a single image is passed, returns a number."
+arguments:
+  - name: list
+    description: Arguments
+    required: true
+  - name: sigma
+    description:
+      fr: "Facteur de multiplication pour l'écart-type définissant le seuil d'écrêtage"
+      en: "Multiplication factor for standard deviation defining the clipping threshold"
+    required: true
+examples:
+  - "img_avg2(img(0); 2.0)"
+  - "img_avg2(img(0); img(1); sigma: 2.5)"
