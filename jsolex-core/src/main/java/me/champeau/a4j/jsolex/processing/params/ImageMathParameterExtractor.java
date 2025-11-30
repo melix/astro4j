@@ -374,4 +374,40 @@ public class ImageMathParameterExtractor {
         return result;
     }
 
+    /**
+     * Extracts only the outputs metadata from a script file.
+     * This is a convenience method that avoids the overhead of full parameter extraction
+     * when only outputs metadata is needed.
+     *
+     * @param scriptFile the path to the script file
+     * @return a map of output name to metadata, or an empty map if extraction fails
+     */
+    public static Map<String, OutputMetadata> extractOutputsMetadataOnly(Path scriptFile) {
+        try {
+            var extractor = new ImageMathParameterExtractor();
+            var extractionResult = extractor.extractParameters(scriptFile);
+            return extractionResult.getOutputsMetadata();
+        } catch (Exception e) {
+            return Map.of();
+        }
+    }
+
+    /**
+     * Extracts only the outputs metadata from a script string.
+     * This is a convenience method that avoids the overhead of full parameter extraction
+     * when only outputs metadata is needed.
+     *
+     * @param scriptContent the script content as a string
+     * @return a map of output name to metadata, or an empty map if extraction fails
+     */
+    public static Map<String, OutputMetadata> extractOutputsMetadataOnly(String scriptContent) {
+        try {
+            var extractor = new ImageMathParameterExtractor();
+            var extractionResult = extractor.extractParameters(scriptContent);
+            return extractionResult.getOutputsMetadata();
+        } catch (Exception e) {
+            return Map.of();
+        }
+    }
+
 }

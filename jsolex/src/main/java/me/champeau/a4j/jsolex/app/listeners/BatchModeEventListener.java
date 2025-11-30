@@ -731,25 +731,11 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     }
 
     private static Map<String, OutputMetadata> extractOutputsMetadata(File scriptFile) {
-        try {
-            var extractor = new ImageMathParameterExtractor();
-            var extractionResult = extractor.extractParameters(scriptFile.toPath());
-            return extractionResult.getOutputsMetadata();
-        } catch (Exception e) {
-            LOGGER.debug("Could not extract outputs metadata from script {}: {}", scriptFile, e.getMessage());
-            return Map.of();
-        }
+        return ImageMathParameterExtractor.extractOutputsMetadataOnly(scriptFile.toPath());
     }
 
     private static Map<String, OutputMetadata> extractOutputsMetadataFromScript(String script) {
-        try {
-            var extractor = new ImageMathParameterExtractor();
-            var extractionResult = extractor.extractParameters(script);
-            return extractionResult.getOutputsMetadata();
-        } catch (Exception e) {
-            LOGGER.debug("Could not extract outputs metadata from script: {}", e.getMessage());
-            return Map.of();
-        }
+        return ImageMathParameterExtractor.extractOutputsMetadataOnly(script);
     }
 
     private void updateProgressStatus(boolean increment) {

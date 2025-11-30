@@ -1081,14 +1081,12 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         return result;
     }
 
-    private Map<String, OutputMetadata> extractOutputsMetadata(String script) {
-        try {
-            var extractor = new ImageMathParameterExtractor();
-            var extractionResult = extractor.extractParameters(script, "runtime");
-            return extractionResult.getOutputsMetadata();
-        } catch (Exception e) {
-            return Map.of();
-        }
+    private static Map<String, OutputMetadata> extractOutputsMetadata(String script) {
+        return ImageMathParameterExtractor.extractOutputsMetadataOnly(script);
+    }
+
+    private static Map<String, OutputMetadata> extractOutputsMetadata(File scriptFile) {
+        return ImageMathParameterExtractor.extractOutputsMetadataOnly(scriptFile.toPath());
     }
 
     @Override
@@ -1985,16 +1983,18 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         }
         try {
             processScriptErrors(result);
-            renderSingleFileBatchOutputs(namingStrategy, result);
+            var outputsMetadata = extractOutputsMetadata(scriptFile);
+            renderSingleFileBatchOutputs(namingStrategy, result, outputsMetadata);
         } finally {
             owner.updateProgress(1, String.format(message("executing.script"), scriptFile));
         }
     }
 
-    private void renderSingleFileBatchOutputs(FileNamingStrategy namingStrategy, ImageMathScriptResult result) {
+    private void renderSingleFileBatchOutputs(FileNamingStrategy namingStrategy, ImageMathScriptResult result, Map<String, OutputMetadata> outputsMetadata) {
         if (result.imagesByLabel().isEmpty() && result.filesByLabel().isEmpty()) {
             return;
         }
+        var language = LocaleUtils.getConfiguredLocale().getLanguage();
         Platform.runLater(() -> {
                 var tabPane = owner.getTabs();
                 var imagesViewerTab = owner.getImagesViewerTab();
@@ -2002,20 +2002,28 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 tabPane.getSelectionModel().select(imagesViewerTab);
         });
         result.imagesByLabel().entrySet().stream().parallel().forEach(entry -> {
-            var name = namingStrategy.render(0, null, Constants.TYPE_PROCESSED, entry.getKey(), "batch", entry.getValue());
+            var label = entry.getKey();
+            var metadata = outputsMetadata.get(label);
+            var displayTitle = metadata != null ? metadata.getDisplayTitle(language) : null;
+            var description = metadata != null ? metadata.getDisplayDescription(language) : null;
+            var name = namingStrategy.render(0, null, Constants.TYPE_PROCESSED, label, "batch", entry.getValue());
             var outputFile = new File(outputDirectory.toFile(), name);
             onImageGenerated(new ImageGeneratedEvent(
-                new GeneratedImage(GeneratedImageKind.IMAGE_MATH, entry.getKey(), outputFile.toPath(), entry.getValue(), null)
+                new GeneratedImage(GeneratedImageKind.IMAGE_MATH, label, outputFile.toPath(), entry.getValue(), description, displayTitle)
             ));
         });
         result.filesByLabel().entrySet().stream().parallel().forEach(entry -> {
+            var label = entry.getKey();
+            var metadata = outputsMetadata.get(label);
+            var displayTitle = metadata != null ? metadata.getDisplayTitle(language) : null;
+            var description = metadata != null ? metadata.getDisplayDescription(language) : null;
             var fileOutput = entry.getValue();
-            var baseName = namingStrategy.render(0, null, Constants.TYPE_PROCESSED, entry.getKey(), "batch", null);
+            var baseName = namingStrategy.render(0, null, Constants.TYPE_PROCESSED, label, "batch", null);
             try {
                 var displayPath = FilesUtils.saveAllFilesAndGetDisplayPath(fileOutput, outputDirectory, baseName);
                 // Only fire display event for the designated display file
                 if (displayPath != null) {
-                    onFileGenerated(FileGeneratedEvent.of(GeneratedImageKind.IMAGE_MATH, entry.getKey(), displayPath));
+                    onFileGenerated(FileGeneratedEvent.of(GeneratedImageKind.IMAGE_MATH, label, displayPath, description, displayTitle));
                 }
             } catch (IOException e) {
                 throw new ProcessingException(e);
