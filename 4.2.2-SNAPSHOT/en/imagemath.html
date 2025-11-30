@@ -477,6 +477,12 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_avg2">AVG2</a></li>
 <li><a href="#_concat">CONCAT</a></li>
 <li><a href="#_exp">EXP</a></li>
+<li><a href="#_img_avg">IMG_AVG</a></li>
+<li><a href="#_img_avg2">IMG_AVG2</a></li>
+<li><a href="#_img_max">IMG_MAX</a></li>
+<li><a href="#_img_median">IMG_MEDIAN</a></li>
+<li><a href="#_img_median2">IMG_MEDIAN2</a></li>
+<li><a href="#_img_min">IMG_MIN</a></li>
 <li><a href="#_log">LOG</a></li>
 <li><a href="#_max">MAX</a></li>
 <li><a href="#_median">MEDIAN</a></li>
@@ -920,6 +926,282 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <div class="listingblock">
 <div class="content">
 <pre>exp(v:2)</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_img_avg">IMG_AVG</h3>
+<div class="paragraph">
+<p>Computes the average of all pixels in each image. Unlike AVG which computes a pixel-by-pixel average across multiple images to produce a new image, IMG_AVG returns the average value of all pixels within an image. If multiple images are passed, returns a list of values. If a single image is passed, returns a number.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 13.6363%;">
+<col style="width: 13.6363%;">
+<col style="width: 59.0909%;">
+<col style="width: 13.6365%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Argument</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Required?</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Description</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Default value</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>list</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Arguments</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p><strong>Examples</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>img_avg(img(0))</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>img_avg(img(0); img(1); img(2))</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_img_avg2">IMG_AVG2</h3>
+<div class="paragraph">
+<p>Computes the sigma-clipped average of all pixels in each image. Unlike AVG2 which computes a pixel-by-pixel average across multiple images, IMG_AVG2 returns the sigma-clipped average value of all pixels within an image. If multiple images are passed, returns a list of values. If a single image is passed, returns a number.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 13.6363%;">
+<col style="width: 13.6363%;">
+<col style="width: 59.0909%;">
+<col style="width: 13.6365%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Argument</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Required?</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Description</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Default value</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>list</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Arguments</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>sigma</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Multiplication factor for standard deviation defining the clipping threshold</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p><strong>Examples</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>img_avg2(img(0); 2.0)</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>img_avg2(img(0); img(1); sigma: 2.5)</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_img_max">IMG_MAX</h3>
+<div class="paragraph">
+<p>Returns the maximum value of all pixels in each image. Unlike MAX which computes a pixel-by-pixel maximum across multiple images to produce a new image, IMG_MAX returns the maximum value among all pixels within an image. If multiple images are passed, returns a list of values. If a single image is passed, returns a number.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 13.6363%;">
+<col style="width: 13.6363%;">
+<col style="width: 59.0909%;">
+<col style="width: 13.6365%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Argument</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Required?</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Description</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Default value</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>list</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Arguments</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p><strong>Examples</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>img_max(img(0))</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>img_max(img(0); img(1); img(2))</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_img_median">IMG_MEDIAN</h3>
+<div class="paragraph">
+<p>Computes the median of all pixels in each image. Unlike MEDIAN which computes a pixel-by-pixel median across multiple images to produce a new image, IMG_MEDIAN returns the median value of all pixels within an image. If multiple images are passed, returns a list of values. If a single image is passed, returns a number.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 13.6363%;">
+<col style="width: 13.6363%;">
+<col style="width: 59.0909%;">
+<col style="width: 13.6365%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Argument</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Required?</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Description</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Default value</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>list</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Arguments</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p><strong>Examples</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>img_median(img(0))</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>img_median(img(0); img(1); img(2))</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_img_median2">IMG_MEDIAN2</h3>
+<div class="paragraph">
+<p>Computes the sigma-clipped median of all pixels in each image. Unlike MEDIAN2 which computes a pixel-by-pixel median across multiple images, IMG_MEDIAN2 returns the sigma-clipped median value of all pixels within an image. If multiple images are passed, returns a list of values. If a single image is passed, returns a number.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 13.6363%;">
+<col style="width: 13.6363%;">
+<col style="width: 59.0909%;">
+<col style="width: 13.6365%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Argument</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Required?</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Description</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Default value</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>list</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Arguments</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>sigma</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Multiplication factor for standard deviation defining the clipping threshold</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p><strong>Examples</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>img_median2(img(0); 2.0)</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>img_median2(img(0); img(1); sigma: 2.5)</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_img_min">IMG_MIN</h3>
+<div class="paragraph">
+<p>Returns the minimum value of all pixels in each image. Unlike MIN which computes a pixel-by-pixel minimum across multiple images to produce a new image, IMG_MIN returns the minimum value among all pixels within an image. If multiple images are passed, returns a list of values. If a single image is passed, returns a number.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 13.6363%;">
+<col style="width: 13.6363%;">
+<col style="width: 59.0909%;">
+<col style="width: 13.6365%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Argument</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Required?</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Description</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Default value</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>list</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Arguments</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p><strong>Examples</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>img_min(img(0))</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>img_min(img(0); img(1); img(2))</pre>
 </div>
 </div>
 </div>
