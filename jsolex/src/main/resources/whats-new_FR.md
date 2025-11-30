@@ -18,6 +18,7 @@
 - Ajout de nouveaux mots clés à la fonction `DRAW_TEXT`
 - Ajout de la fonction `FIT_CANVAS` : ajuste la taille du canevas des images pour qu'elles aient des dimensions identiques sans redimensionner le disque solaire (contrairement à `radius_rescale`), utile pour empiler des images sans introduire de distorsion
 - Amélioration de l'algorithme `DEDISTORT` avec raffinement hiérarchique pour une meilleure stabilité. Ajout du paramètre optionnel `iterations` pour un contrôle plus fin.
+- Correction d'un bug qui empêchait l'ouverture de la calculatrice d'exposition optimale dans certains cas
 
 ## Nouveautés de la version 4.2.1
 
