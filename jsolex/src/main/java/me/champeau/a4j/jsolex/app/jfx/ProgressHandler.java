@@ -71,9 +71,9 @@ public final class ProgressHandler {
             }
             if (dirty && pendingUpdate.compareAndSet(false, true)) {
                 Platform.runLater(() -> {
+                    uiUpdater.accept(progress, message);
                     lock.lock();
                     try {
-                        uiUpdater.accept(progress, message);
                         dirty = false;
                     } finally {
                         lock.unlock();
