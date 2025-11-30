@@ -111,8 +111,9 @@ public class ImageStatistics extends AbstractFunctionImpl {
         var height = data.length;
         var width = height > 0 ? data[0].length : 0;
         var stream = IntStream.range(0, height)
-                .flatMap(y -> IntStream.range(0, width).map(x -> y * width + x))
-                .mapToDouble(idx -> data[idx / width][idx % width]);
+                .boxed()
+                .flatMapToDouble(y -> IntStream.range(0, width)
+                        .mapToDouble(x -> data[y][x]));
         return operator.apply(stream).orElse(0);
     }
 }

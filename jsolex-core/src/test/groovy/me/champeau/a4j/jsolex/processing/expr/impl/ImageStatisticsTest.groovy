@@ -223,10 +223,14 @@ class ImageStatisticsTest extends Specification {
         def result = imageStatistics.imgAvg2([list: [img], sigma: 1.0])
 
         then:
-        // After sigma clipping, only values within 1*stddev of mean should remain
+        // After sigma clipping with sigma=1.0:
         // Mean = (10+10+10+100)/4 = 32.5
-        // The 100 is far from the mean and should be clipped
-        result < 32.5d  // Should be closer to 10 after clipping
+        // StdDev = sqrt(((10-32.5)^2 + (10-32.5)^2 + (10-32.5)^2 + (100-32.5)^2)/4) = sqrt((506.25+506.25+506.25+4556.25)/4) = sqrt(1518.75) = 38.97
+        // Threshold = 1.0 * 38.97 = 38.97
+        // Values within [32.5-38.97, 32.5+38.97] = [-6.47, 71.47] are kept
+        // So 10, 10, 10 are kept, 100 is outside threshold and clipped
+        // Average of remaining values = (10+10+10)/3 = 10.0
+        result == 10.0d
     }
 
     def "imgAvg2 returns list for multiple images"() {

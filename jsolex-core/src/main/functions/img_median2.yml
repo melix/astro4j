@@ -1,5 +1,6 @@
 name: IMG_MEDIAN2
 category: MATHS
+spreadList: true
 description:
   fr: "Calcule la médiane avec écrêtage sigma de tous les pixels de chaque image. Contrairement à MEDIAN2 qui calcule une médiane pixel par pixel entre plusieurs images, IMG_MEDIAN2 retourne la valeur médiane (avec écrêtage sigma) de tous les pixels d'une image. Si plusieurs images sont passées en paramètre, retourne une liste de valeurs. Si une seule image est passée, retourne un nombre."
   en: "Computes the sigma-clipped median of all pixels in each image. Unlike MEDIAN2 which computes a pixel-by-pixel median across multiple images, IMG_MEDIAN2 returns the sigma-clipped median value of all pixels within an image. If multiple images are passed, returns a list of values. If a single image is passed, returns a number."
