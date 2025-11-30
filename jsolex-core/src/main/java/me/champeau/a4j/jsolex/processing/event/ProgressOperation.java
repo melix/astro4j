@@ -59,6 +59,26 @@ public class ProgressOperation {
         return task;
     }
 
+    /**
+     * Returns the full task path including all parent tasks, separated by " / ".
+     * For example: "Parent task / Child task / Current task"
+     * Empty task names are skipped in the path.
+     */
+    public String taskPath() {
+        if (parent == null) {
+            return task;
+        }
+        var parentPath = parent.taskPath();
+        var currentTask = task != null ? task : "";
+        if (parentPath == null || parentPath.isEmpty()) {
+            return currentTask;
+        }
+        if (currentTask.isEmpty()) {
+            return parentPath;
+        }
+        return parentPath + " / " + currentTask;
+    }
+
     public double progress() {
         return progress;
     }

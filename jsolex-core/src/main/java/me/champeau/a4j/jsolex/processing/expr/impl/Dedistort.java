@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
+import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.expr.stacking.DistorsionMap;
 import me.champeau.a4j.jsolex.processing.expr.stacking.DistorsionMaps;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
@@ -494,7 +495,8 @@ public class Dedistort extends AbstractFunctionImpl {
 
         for (int iteration = 0; iteration < iterations; iteration++) {
             LOGGER.debug("Iteration {}/{}", iteration + 1, iterations);
-            broadcaster.broadcast(iterationOperation.update((double) iteration / iterations));
+            var suffix = iterations > 1 ? " (" + (iteration + 1) + "/" + iterations + ")" : "";
+            broadcaster.broadcast(iterationOperation.update((double) iteration / iterations, DEDISTORT + suffix));
 
             var iterationInputImage = currentImage;
             var levelMaps = new ArrayList<DistorsionMap>();
@@ -506,7 +508,7 @@ public class Dedistort extends AbstractFunctionImpl {
                 var passName = String.format("Iteration %d - Level %d (tile=%d)", iteration + 1, level, currentTileSize);
                 var map = computeDistortionMap(
                         referenceData, currentImage, width, height,
-                        currentTileSize, sampling, signal, passName);
+                        currentTileSize, sampling, signal, passName, iterationOperation);
                 levelMaps.add(map);
                 iterationDistortions.add(map.totalDistorsion());
 
@@ -514,7 +516,7 @@ public class Dedistort extends AbstractFunctionImpl {
                     break;
                 }
 
-                currentImage = dedistortSingleWithoutMetadata(currentImage, map, height, width);
+                currentImage = dedistortSingleWithoutMetadata(currentImage, map, iterationOperation, height, width);
                 currentTileSize = computeRefinementTileSize(currentTileSize);
                 level++;
             }
@@ -528,7 +530,7 @@ public class Dedistort extends AbstractFunctionImpl {
             }
 
             distorsionMapList.add(iterationMap);
-            currentImage = dedistortSingleWithoutMetadata(iterationInputImage, iterationMap, height, width);
+            currentImage = dedistortSingleWithoutMetadata(iterationInputImage, iterationMap, iterationOperation, height, width);
 
             LOGGER.debug("Iteration {} complete: distortions by level = {}, synthesized = {}",
                     iteration + 1, iterationDistortions, iterationMap.totalDistorsion());
@@ -546,7 +548,7 @@ public class Dedistort extends AbstractFunctionImpl {
 
         LOGGER.debug("Dedistort complete: finalDistortion={}", finalMap.totalDistorsion());
 
-        var finalImage = dedistortSingleWithoutMetadata(image, finalMap, height, width);
+        var finalImage = dedistortSingleWithoutMetadata(image, finalMap, iterationOperation, height, width);
 
         var metadata = MutableMap.<Class<?>, Object>of();
         metadata.putAll(image.metadata());
@@ -561,7 +563,8 @@ public class Dedistort extends AbstractFunctionImpl {
                                                int tileSize,
                                                double sampling,
                                                float signal,
-                                               String passName) {
+                                               String passName,
+                                               ProgressOperation parent) {
         var safeTileSize = Math.max(ABSOLUTE_MIN_TILE_SIZE, tileSize);
         var increment = (int) Math.max(MIN_STEP, safeTileSize * sampling);
         var distorsionMap = new DistorsionMap(width, height, safeTileSize, increment);
@@ -573,7 +576,7 @@ public class Dedistort extends AbstractFunctionImpl {
         LOGGER.debug("{}: tileSize={}, sampling={}, increment={}, gridPoints={}", passName, safeTileSize, sampling, increment, totalPoints);
 
         var progressCounter = new AtomicInteger();
-        var progressOperation = newOperation().createChild(FIND_CORRESP_MESSAGE);
+        var progressOperation = parent.createChild(FIND_CORRESP_MESSAGE);
 
         for (int y = 0; y <= maxY; y += increment) {
             for (int x = 0; x <= maxX; x += increment) {
@@ -600,7 +603,7 @@ public class Dedistort extends AbstractFunctionImpl {
         var currentImage = image;
 
         for (var distorsionMap : distorsionMaps.maps()) {
-            currentImage = dedistortSingleWithoutMetadata(currentImage, distorsionMap, height, width);
+            currentImage = dedistortSingleWithoutMetadata(currentImage, distorsionMap, newOperation(), height, width);
         }
 
         var metadata = MutableMap.<Class<?>, Object>of();
@@ -611,12 +614,13 @@ public class Dedistort extends AbstractFunctionImpl {
 
     private ImageWrapper32 dedistortSingleWithoutMetadata(ImageWrapper32 image,
                                                           DistorsionMap distorsionMap,
+                                                          ProgressOperation parent,
                                                           int height,
                                                           int width) {
         var currentY = new AtomicInteger();
         var imageData = image.data();
         var result = new float[height][width];
-        var progressOperation = newOperation().createChild(DEDISTORT);
+        var progressOperation = parent.createChild(DEDISTORT);
         for (var y = 0; y < height; y++) {
             var progress = currentY.incrementAndGet() / (double) height;
             broadcaster.broadcast(progressOperation.update(progress));

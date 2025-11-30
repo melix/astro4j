@@ -1012,7 +1012,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
     @Override
     public void onProgress(ProgressEvent e) {
-        owner.updateProgress(e.getPayload().progress(), e.getPayload().task());
+        owner.updateProgress(e.getPayload().progress(), e.getPayload().taskPath());
     }
 
     @Override
