@@ -1,6 +1,6 @@
 # Welcome to JSol'Ex {{version}}!
 
-- [What's New in Version 4.2.2](#whats-new-in-version-4-2-2) - Faster script execution, improved stacking and bug fixes
+- [What's New in Version 4.3.0](#whats-new-in-version-4-2-2) - Faster script execution, improved stacking and bug fixes
 - [Version 4.2.1](#whats-new-in-version-4-2-1) - Bug fixes
 - [Version 4.2.0](#whats-new-in-version-4-2-0) - Script repositories, Java 25, GIF support, file format settings
 - [Version 4.1.4](#whats-new-in-version-4-1-4) - Bug fixes and improvements
@@ -11,7 +11,7 @@
 - [Version 4.0.1](#whats-new-in-version-4-0-1) - Language selection, bug fixes
 - [Version 4.0.0](#whats-new-in-version-4-0-0) - Enhanced UI, BASS2000 integration
 
-## What's New in Version 4.2.2
+## What's New in Version 4.3.0
 
 - Faster script execution by parallelizing independent expressions
 - Fixed histogram in stats tab not updating when clicking on image links
@@ -21,6 +21,7 @@
 - Fixed bug preventing the exposure calculator to open in some cases
 - Added conditional functions `IFEQ`, `IFNEQ`, `IFGT`, `IFGTE`, `IFLT`, `IFLTE` for conditional value selection based on comparisons
 - Added per-image statistics functions `IMG_AVG`, `IMG_AVG2`, `IMG_MEDIAN`, `IMG_MEDIAN2`, `IMG_MIN`, `IMG_MAX` that compute statistics across all pixels of each image (unlike `AVG`, `MEDIAN`, etc. which compute pixel-by-pixel statistics across multiple images)
+- Added output metadata support in scripts: scripts can now define titles and descriptions for their outputs in the `meta` block using an `outputs` section. These are displayed in the image viewer instead of variable names
 
 ## What's New in Version 4.2.1
 

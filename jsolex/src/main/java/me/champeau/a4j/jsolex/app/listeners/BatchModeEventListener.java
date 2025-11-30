@@ -49,6 +49,8 @@ import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.AutocropMode;
+import me.champeau.a4j.jsolex.processing.params.ImageMathParameterExtractor;
+import me.champeau.a4j.jsolex.processing.params.OutputMetadata;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
@@ -66,6 +68,7 @@ import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageSaver;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
+import me.champeau.a4j.jsolex.processing.util.LocaleUtils;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.SolarParameters;
 import me.champeau.a4j.jsolex.processing.util.SolarParametersUtils;
@@ -631,16 +634,18 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         }
         try {
             processScriptErrors(result);
-            renderBatchOutputs(namingStrategy, result);
+            var outputsMetadata = extractOutputsMetadata(scriptFile);
+            renderBatchOutputs(namingStrategy, result, outputsMetadata);
         } finally {
             Platform.runLater(() -> owner.updateProgress(1, String.format(message("executing.script"), scriptFile)));
         }
     }
 
-    private void renderBatchOutputs(FileNamingStrategy namingStrategy, ImageMathScriptResult result) {
+    private void renderBatchOutputs(FileNamingStrategy namingStrategy, ImageMathScriptResult result, Map<String, OutputMetadata> outputsMetadata) {
         if (result.imagesByLabel().isEmpty() && result.filesByLabel().isEmpty()) {
             return;
         }
+        var language = LocaleUtils.getConfiguredLocale().getLanguage();
         Platform.runLater(() -> {
                 var tabPane = owner.getTabs();
                 var imagesViewerTab = owner.getImagesViewerTab();
@@ -648,20 +653,28 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                 tabPane.getSelectionModel().select(imagesViewerTab);
         });
         result.imagesByLabel().entrySet().stream().parallel().forEach(entry -> {
-            var name = namingStrategy.render(0, null, Constants.TYPE_PROCESSED, entry.getKey(), "batch", entry.getValue());
+            var label = entry.getKey();
+            var metadata = outputsMetadata.get(label);
+            var displayTitle = metadata != null ? metadata.getDisplayTitle(language) : null;
+            var description = metadata != null ? metadata.getDisplayDescription(language) : null;
+            var name = namingStrategy.render(0, null, Constants.TYPE_PROCESSED, label, "batch", entry.getValue());
             var outputFile = new File(outputDirectory, name);
             delegate.onImageGenerated(new ImageGeneratedEvent(
-                new GeneratedImage(GeneratedImageKind.IMAGE_MATH, entry.getKey(), outputFile.toPath(), entry.getValue(), null)
+                new GeneratedImage(GeneratedImageKind.IMAGE_MATH, label, outputFile.toPath(), entry.getValue(), description, displayTitle)
             ));
         });
         result.filesByLabel().entrySet().stream().parallel().forEach(entry -> {
+            var label = entry.getKey();
+            var metadata = outputsMetadata.get(label);
+            var displayTitle = metadata != null ? metadata.getDisplayTitle(language) : null;
+            var description = metadata != null ? metadata.getDisplayDescription(language) : null;
             var fileOutput = entry.getValue();
-            var baseName = namingStrategy.render(0, null, Constants.TYPE_PROCESSED, entry.getKey(), "batch", null);
+            var baseName = namingStrategy.render(0, null, Constants.TYPE_PROCESSED, label, "batch", null);
             try {
                 var displayPath = FilesUtils.saveAllFilesAndGetDisplayPath(fileOutput, outputDirectory.toPath(), baseName);
                 // Only fire display event for the designated display file
                 if (displayPath != null) {
-                    delegate.onFileGenerated(FileGeneratedEvent.of(GeneratedImageKind.IMAGE_MATH, entry.getKey(), displayPath));
+                    delegate.onFileGenerated(FileGeneratedEvent.of(GeneratedImageKind.IMAGE_MATH, label, displayPath, description, displayTitle));
                 }
             } catch (IOException e) {
                 throw new ProcessingException(e);
@@ -717,6 +730,28 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         );
     }
 
+    private static Map<String, OutputMetadata> extractOutputsMetadata(File scriptFile) {
+        try {
+            var extractor = new ImageMathParameterExtractor();
+            var extractionResult = extractor.extractParameters(scriptFile.toPath());
+            return extractionResult.getOutputsMetadata();
+        } catch (Exception e) {
+            LOGGER.debug("Could not extract outputs metadata from script {}: {}", scriptFile, e.getMessage());
+            return Map.of();
+        }
+    }
+
+    private static Map<String, OutputMetadata> extractOutputsMetadataFromScript(String script) {
+        try {
+            var extractor = new ImageMathParameterExtractor();
+            var extractionResult = extractor.extractParameters(script);
+            return extractionResult.getOutputsMetadata();
+        } catch (Exception e) {
+            LOGGER.debug("Could not extract outputs metadata from script: {}", e.getMessage());
+            return Map.of();
+        }
+    }
+
     private void updateProgressStatus(boolean increment) {
         int done;
         dataLock.writeLock().lock();
@@ -770,7 +805,8 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     public ImageMathScriptResult execute(String script, SectionKind kind) {
         var result = batchScriptExecutor.execute(script, SectionKind.BATCH);
         processScriptErrors(result);
-        renderBatchOutputs(createNamingStrategy(), result);
+        var outputsMetadata = extractOutputsMetadataFromScript(script);
+        renderBatchOutputs(createNamingStrategy(), result, outputsMetadata);
         return result;
     }
 

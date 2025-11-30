@@ -20,6 +20,8 @@ import me.champeau.a4j.jsolex.expr.ast.Identifier;
 import me.champeau.a4j.jsolex.expr.ast.ImageMathScript;
 import me.champeau.a4j.jsolex.expr.ast.MetaBlock;
 import me.champeau.a4j.jsolex.expr.ast.MetaProperty;
+import me.champeau.a4j.jsolex.expr.ast.OutputDef;
+import me.champeau.a4j.jsolex.expr.ast.OutputsBlock;
 import me.champeau.a4j.jsolex.expr.ast.ParameterDef;
 import me.champeau.a4j.jsolex.expr.ast.ParameterObject;
 import me.champeau.a4j.jsolex.expr.ast.ParameterProperty;
@@ -45,6 +47,7 @@ public class ImageMathParameterExtractor {
         private final String requiredVersion;
         private final String author;
         private final String version;
+        private final Map<String, OutputMetadata> outputsMetadata;
 
         public ParameterExtractionResult(List<ScriptParameter> parameters,
                                          boolean hasParametersSection,
@@ -53,7 +56,8 @@ public class ImageMathParameterExtractor {
                                          String scriptFileName,
                                          String requiredVersion,
                                          String author,
-                                         String version) {
+                                         String version,
+                                         Map<String, OutputMetadata> outputsMetadata) {
             this.parameters = List.copyOf(parameters);
             this.hasParametersSection = hasParametersSection;
             this.title = Map.copyOf(title != null ? title : Map.of());
@@ -62,6 +66,7 @@ public class ImageMathParameterExtractor {
             this.requiredVersion = requiredVersion;
             this.author = author;
             this.version = version;
+            this.outputsMetadata = outputsMetadata != null ? Map.copyOf(outputsMetadata) : Map.of();
         }
 
         public List<ScriptParameter> getParameters() {
@@ -94,6 +99,14 @@ public class ImageMathParameterExtractor {
 
         public String getVersion() {
             return version;
+        }
+
+        public Map<String, OutputMetadata> getOutputsMetadata() {
+            return outputsMetadata;
+        }
+
+        public Optional<OutputMetadata> getOutputMetadata(String outputName) {
+            return Optional.ofNullable(outputsMetadata.get(outputName));
         }
 
         public boolean isVersionSupported() {
@@ -184,6 +197,7 @@ public class ImageMathParameterExtractor {
         String requiredVersion = null;
         String author = null;
         String version = null;
+        Map<String, OutputMetadata> outputsMetadata = new HashMap<>();
 
         var metaBlocks = script.childrenOfType(MetaBlock.class);
         for (var metaBlock : metaBlocks) {
@@ -216,6 +230,16 @@ public class ImageMathParameterExtractor {
                     }
                 }
             }
+
+            var outputsBlocks = metaContent.getOutputsBlocks();
+            for (var outputsBlock : outputsBlocks) {
+                for (var outputDef : outputsBlock.getOutputDefs()) {
+                    var outputMetadata = extractOutputMetadata(outputDef);
+                    if (outputMetadata != null) {
+                        outputsMetadata.put(outputMetadata.name(), outputMetadata);
+                    }
+                }
+            }
         }
 
         List<ParameterDef> topLevelParams = script.getTopLevelParameterDefs();
@@ -229,7 +253,21 @@ public class ImageMathParameterExtractor {
             }
         }
 
-        return new ParameterExtractionResult(parameters, hasParametersSection, title, description, fileName, requiredVersion, author, version);
+        return new ParameterExtractionResult(parameters, hasParametersSection, title, description, fileName, requiredVersion, author, version, outputsMetadata);
+    }
+
+    private OutputMetadata extractOutputMetadata(OutputDef outputDef) {
+        String name = outputDef.getName();
+        ParameterObject paramObj = outputDef.getObjectValue();
+
+        if (paramObj == null) {
+            return new OutputMetadata(name, Map.of(), Map.of());
+        }
+
+        Map<String, String> title = extractLocalizedValues(paramObj, "title");
+        Map<String, String> description = extractLocalizedValues(paramObj, "description");
+
+        return new OutputMetadata(name, title, description);
     }
 
 

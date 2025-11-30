@@ -15,12 +15,14 @@
  */
 package me.champeau.a4j.jsolex.processing.expr;
 
+import me.champeau.a4j.jsolex.processing.params.OutputMetadata;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.LocaleUtils;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 
 import java.io.IOException;
@@ -39,6 +41,10 @@ public interface ImageMathScriptExecutor {
     }
 
     static void render(ImageMathScriptResult result, ImageEmitter emitter, FileOutputHandler fileHandler) {
+        render(result, emitter, fileHandler, Map.of(), LocaleUtils.getConfiguredLocale().getLanguage());
+    }
+
+    static void render(ImageMathScriptResult result, ImageEmitter emitter, FileOutputHandler fileHandler, Map<String, OutputMetadata> outputsMetadata, String language) {
         for (Map.Entry<String, ImageWrapper> entry : result.imagesByLabel().entrySet()) {
             var label = entry.getKey();
             if (label.startsWith("__")) {
@@ -49,19 +55,22 @@ public interface ImageMathScriptExecutor {
             if (image instanceof FileBackedImage fileBackedImage) {
                 image = fileBackedImage.unwrapToMemory();
             }
+            var metadata = outputsMetadata.get(label);
+            var title = metadata != null ? metadata.getDisplayTitle(language) : label;
+            var description = metadata != null ? metadata.getDisplayDescription(language) : null;
             if (image instanceof ImageWrapper32 mono) {
                 emitter.newMonoImage(
                     GeneratedImageKind.IMAGE_MATH,
                     null, label,
-                    label,
-                    null,
+                    title,
+                    description,
                     mono);
             } else if (image instanceof RGBImage rgb) {
                 emitter.newColorImage(
                     GeneratedImageKind.IMAGE_MATH,
                     null, label,
-                    label,
-                    null,
+                    title,
+                    description,
                     rgb.width(),
                     rgb.height(),
                     rgb.metadata(),
@@ -71,13 +80,16 @@ public interface ImageMathScriptExecutor {
         for (Map.Entry<String, FileOutputResult> entry : result.filesByLabel().entrySet()) {
             var label = entry.getKey();
             var fileOutput = entry.getValue();
+            var metadata = outputsMetadata.get(label);
+            var title = metadata != null ? metadata.getDisplayTitle(language) : label;
+            var description = metadata != null ? metadata.getDisplayDescription(language) : null;
             if (fileHandler != null) {
                 fileHandler.handle(label, fileOutput);
             } else {
                 emitter.newGenericFile(GeneratedImageKind.IMAGE_MATH,
                     null, label,
-                    label,
-                    null,
+                    title,
+                    description,
                     fileOutput.displayFile());
             }
         }

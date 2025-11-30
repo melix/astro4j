@@ -47,6 +47,8 @@ import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.EllipseFittingMode;
 import me.champeau.a4j.jsolex.processing.params.EnhancementParams;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
+import me.champeau.a4j.jsolex.processing.params.ImageMathParameterExtractor;
+import me.champeau.a4j.jsolex.processing.params.OutputMetadata;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.RotationKind;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
@@ -86,6 +88,7 @@ import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.LocaleUtils;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
@@ -1106,6 +1109,8 @@ public class SolexVideoProcessor implements Broadcaster {
                 }
                 try {
                     var result = scriptRunner.execute(scriptFile.toPath(), ImageMathScriptExecutor.SectionKind.SINGLE);
+                    var outputsMetadata = extractOutputsMetadata(scriptFile);
+                    var language = LocaleUtils.getConfiguredLocale().getLanguage();
                     ImageMathScriptExecutor.render(result, emitter, (outputLabel, fileOutput) -> {
                         var displayFile = fileOutput.displayFile();
                         // Save non-display files with naming strategy
@@ -1116,8 +1121,11 @@ public class SolexVideoProcessor implements Broadcaster {
                             throw new ProcessingException(e);
                         }
                         // Let emitter handle the display file
-                        emitter.newGenericFile(GeneratedImageKind.IMAGE_MATH, null, outputLabel, outputLabel, null, displayFile);
-                    });
+                        var metadata = outputsMetadata.get(outputLabel);
+                        var title = metadata != null ? metadata.getDisplayTitle(language) : outputLabel;
+                        var description = metadata != null ? metadata.getDisplayDescription(language) : null;
+                        emitter.newGenericFile(GeneratedImageKind.IMAGE_MATH, null, outputLabel, title, description, displayFile);
+                    }, outputsMetadata, language);
                     if (!result.invalidExpressions().isEmpty()) {
                         var sb = new StringBuilder();
                         for (InvalidExpression expression : result.invalidExpressions()) {
@@ -1860,6 +1868,18 @@ public class SolexVideoProcessor implements Broadcaster {
             } finally {
                 lock.unlock();
             }
+        }
+    }
+
+    private static Map<String, OutputMetadata> extractOutputsMetadata(File scriptFile) {
+        try {
+            var extractor = new ImageMathParameterExtractor();
+            var script = FilesUtils.readString(scriptFile.toPath());
+            var extractionResult = extractor.extractParameters(script, scriptFile.getName());
+            return extractionResult.getOutputsMetadata();
+        } catch (Exception e) {
+            LOGGER.debug("Could not extract outputs metadata from script {}: {}", scriptFile, e.getMessage());
+            return Map.of();
         }
     }
 

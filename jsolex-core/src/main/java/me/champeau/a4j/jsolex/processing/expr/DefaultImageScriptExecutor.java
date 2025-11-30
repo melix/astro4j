@@ -27,6 +27,7 @@ import me.champeau.a4j.jsolex.expr.ast.FunctionCall;
 import me.champeau.a4j.jsolex.expr.ast.FunctionDef;
 import me.champeau.a4j.jsolex.expr.ast.ImageMathScript;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
+import me.champeau.a4j.jsolex.processing.params.ImageMathParameterExtractor;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
@@ -38,7 +39,6 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.SolarParameters;
-import me.champeau.a4j.jsolex.processing.params.ImageMathParameterExtractor;
 
 import java.nio.file.Path;
 import java.time.Duration;

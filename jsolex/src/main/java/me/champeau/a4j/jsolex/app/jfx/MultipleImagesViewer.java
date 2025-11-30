@@ -28,6 +28,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TextArea;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
@@ -277,7 +278,8 @@ public class MultipleImagesViewer extends Pane {
 
     public MediaPlayer addVideo(GeneratedImageKind kind,
                                 String title,
-                                Path filePath) {
+                                Path filePath,
+                                String description) {
         try {
             lock.lock();
 
@@ -301,16 +303,22 @@ public class MultipleImagesViewer extends Pane {
             var buttonBox = new HBox(playButton, stopButton, rewindButton, openButton);
             buttonBox.setSpacing(10);
             var contentBox = new VBox(new ScrollPane(viewer), buttonBox);
+            if (description != null && !description.isBlank()) {
+                var descriptionArea = createDescriptionArea(description);
+                contentBox.getChildren().add(descriptionArea);
+            }
             contentBox.setAlignment(Pos.CENTER);
             viewer.fitWidthProperty().bind(widthProperty());
             viewer.fitHeightProperty().bind(heightProperty().subtract(buttonBox.heightProperty()));
             var hyperlink = category.addVideo(title, link -> {
                 categories().forEach(CategoryPane::clearSelection);
-                borderPane.setCenter(contentBox);
+                Platform.runLater(() -> borderPane.setCenter(contentBox));
                 selected = link;
                 selectedView = contentBox;
             }, this::onClose);
-            hyperlink.fire();
+            if (selected == null) {
+                hyperlink.fire();
+            }
             return mediaPlayer;
         } finally {
             lock.unlock();
@@ -319,7 +327,8 @@ public class MultipleImagesViewer extends Pane {
 
     public void addAnimatedGif(GeneratedImageKind kind,
                                String title,
-                               Path filePath) {
+                               Path filePath,
+                               String description) {
         try {
             lock.lock();
 
@@ -336,20 +345,36 @@ public class MultipleImagesViewer extends Pane {
             buttonBox.setAlignment(Pos.CENTER);
 
             var contentBox = new VBox(new ScrollPane(imageView), buttonBox);
+            if (description != null && !description.isBlank()) {
+                var descriptionArea = createDescriptionArea(description);
+                contentBox.getChildren().add(descriptionArea);
+            }
             contentBox.setAlignment(Pos.CENTER);
             imageView.fitWidthProperty().bind(widthProperty());
             imageView.fitHeightProperty().bind(heightProperty().subtract(buttonBox.heightProperty()));
 
             var hyperlink = category.addVideo(title, link -> {
                 categories().forEach(CategoryPane::clearSelection);
-                borderPane.setCenter(contentBox);
+                Platform.runLater(() -> borderPane.setCenter(contentBox));
                 selected = link;
                 selectedView = contentBox;
             }, this::onClose);
-            hyperlink.fire();
+            if (selected == null) {
+                hyperlink.fire();
+            }
         } finally {
             lock.unlock();
         }
+    }
+
+    private static TextArea createDescriptionArea(String description) {
+        var descriptionArea = new TextArea(description);
+        descriptionArea.setEditable(false);
+        descriptionArea.setWrapText(true);
+        descriptionArea.getStyleClass().add("description-area");
+        descriptionArea.setPrefRowCount(2);
+        descriptionArea.setMaxHeight(60);
+        return descriptionArea;
     }
 
     private static Media createMedia(Path filePath) {
