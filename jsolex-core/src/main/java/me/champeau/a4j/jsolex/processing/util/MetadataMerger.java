@@ -72,7 +72,18 @@ public class MetadataMerger {
                 }
             }
         }
-
+        if (customMergers.isEmpty() && images.size() > 1) {
+            // Remove PixelShift by default when merging multiple images because it's
+            // misleading, unless all images have the same PixelShift
+            var pixelShifts = images.stream()
+                .map(img -> img.findMetadata(PixelShift.class).orElse(null))
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+            if (pixelShifts.size() != 1) {
+                metadata.remove(PixelShift.class);
+            }
+        }
         return metadata;
     }
 
