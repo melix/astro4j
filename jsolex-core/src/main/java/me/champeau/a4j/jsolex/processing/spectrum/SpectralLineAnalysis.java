@@ -27,7 +27,8 @@ import java.util.stream.IntStream;
  */
 public final class SpectralLineAnalysis {
 
-    private static final double FIT_WINDOW_HALF_WIDTH_ANGSTROMS = 2.5;
+    private static final double MIN_FIT_WINDOW_HALF_WIDTH_ANGSTROMS = 2.5;
+    private static final double WING_THRESHOLD_FRACTION = 0.85;
 
     private SpectralLineAnalysis() {
     }
@@ -35,15 +36,15 @@ public final class SpectralLineAnalysis {
     /**
      * Statistics computed from a spectral line profile.
      *
-     * @param continuum            the continuum intensity level
-     * @param lineCenterWavelength the wavelength at line minimum (Angstroms)
-     * @param lineMinIntensity     the intensity at line minimum
-     * @param lineDepth            the normalized depth (0-1)
-     * @param fwhm                 the full width at half maximum (Angstroms), 0 if not measurable
-     * @param halfMaxIntensity     the intensity at half maximum
+     * @param continuum             the continuum intensity level
+     * @param lineCenterWavelength  the wavelength at line minimum (Angstroms)
+     * @param lineMinIntensity      the intensity at line minimum
+     * @param lineDepth             the normalized depth (0-1)
+     * @param fwhm                  the full width at half maximum (Angstroms), 0 if not measurable
+     * @param halfMaxIntensity      the intensity at half maximum
      * @param blueHalfMaxWavelength the wavelength at blue half-maximum crossing (null if not found)
      * @param redHalfMaxWavelength  the wavelength at red half-maximum crossing (null if not found)
-     * @param asymmetryIndex       the asymmetry index at half-maximum
+     * @param voigtFit              the Voigt profile fit parameters (null if fitting failed)
      */
     public record LineStatistics(
         double continuum,
@@ -54,15 +55,16 @@ public final class SpectralLineAnalysis {
         double halfMaxIntensity,
         Double blueHalfMaxWavelength,
         Double redHalfMaxWavelength,
-        double asymmetryIndex
+        VoigtFitter.VoigtParameters voigtFit
     ) {
         public static LineStatistics empty() {
-            return new LineStatistics(0, 0, 0, 0, 0, 0, null, null, 1.0);
+            return new LineStatistics(0, 0, 0, 0, 0, 0, null, null, null);
         }
 
         public boolean hasFWHMData() {
-            return blueHalfMaxWavelength != null && redHalfMaxWavelength != null;
+            return fwhm > 0 && blueHalfMaxWavelength != null && redHalfMaxWavelength != null;
         }
+
     }
 
     /**
@@ -123,7 +125,7 @@ public final class SpectralLineAnalysis {
         // Estimate continuum from the maximum intensity in the smoothed profile.
         // This works for both narrow (Ha) and broad (Ca K) lines since the profile edges
         // should be at or near continuum level.
-        double continuum = smoothedProfile.stream()
+        var continuum = smoothedProfile.stream()
             .mapToDouble(SpectrumAnalyzer.DataPoint::intensity)
             .max()
             .orElse(0);
@@ -131,30 +133,37 @@ public final class SpectralLineAnalysis {
         // Find minimum intensity from the raw profile within a window around line center.
         // Use raw profile (not smoothed) to get the actual observed minimum at the line core.
         // Use ±2 Å window to account for wavelength calibration uncertainties.
-        double minIntensity = profile.stream()
+        var minIntensity = profile.stream()
             .filter(p -> Math.abs(p.wavelen().angstroms() - lineCenterWavelength) < 2.0)
             .mapToDouble(SpectrumAnalyzer.DataPoint::intensity)
             .min()
             .orElseGet(() -> findMinimumPoint(profile).intensity());
 
-        double lineDepth = continuum > 0 ? (continuum - minIntensity) / continuum : 0;
+        var lineDepth = continuum > 0 ? (continuum - minIntensity) / continuum : 0;
 
         // For absorption lines, half-depth is midpoint between continuum and minimum
-        double halfMaxIntensity = (continuum + minIntensity) / 2.0;
-        // Use smoothed profile for crossings to avoid noise-induced false crossings
-        Double blueHalfMax = findCrossing(smoothedProfile, halfMaxIntensity, true);
-        Double redHalfMax = findCrossing(smoothedProfile, halfMaxIntensity, false);
+        var halfMaxIntensity = (continuum + minIntensity) / 2.0;
+
+        // Determine adaptive fitting window based on profile shape
+
+        // Filter profile to fitting window around line center to avoid fitting secondary features
+        var finalFitWindowHalfWidth = computeAdaptiveWindowHalfWidth(
+            smoothedProfile, lineCenterWavelength, continuum, minIntensity);
+        var fittingProfile = profile.stream()
+            .filter(p -> Math.abs(p.wavelen().angstroms() - lineCenterWavelength) <= finalFitWindowHalfWidth)
+            .toList();
+
+        var voigtFit = VoigtFitter.fit(fittingProfile, continuum, lineCenterWavelength);
 
         double measuredFwhm = 0;
-        double asymmetryIndex = 1.0;
-        // FWHM is only measured when both crossings are found
-        if (blueHalfMax != null && redHalfMax != null) {
-            measuredFwhm = redHalfMax - blueHalfMax;
-            double blueWidth = lineCenterWavelength - blueHalfMax;
-            double redWidth = redHalfMax - lineCenterWavelength;
-            if (blueWidth > 0) {
-                asymmetryIndex = redWidth / blueWidth;
-            }
+        Double blueHalfMax = null;
+        Double redHalfMax = null;
+
+        if (voigtFit.converged()) {
+            measuredFwhm = voigtFit.fwhm();
+            var halfFwhm = measuredFwhm / 2.0;
+            blueHalfMax = voigtFit.center() - halfFwhm;
+            redHalfMax = voigtFit.center() + halfFwhm;
         }
 
         return new LineStatistics(
@@ -166,7 +175,7 @@ public final class SpectralLineAnalysis {
             halfMaxIntensity,
             blueHalfMax,
             redHalfMax,
-            asymmetryIndex
+            voigtFit.converged() ? voigtFit : null
         );
     }
 
@@ -182,16 +191,16 @@ public final class SpectralLineAnalysis {
             return profile;
         }
 
-        int halfWindow = windowSize / 2;
+        var halfWindow = windowSize / 2;
         var smoothed = new java.util.ArrayList<SpectrumAnalyzer.DataPoint>(profile.size());
 
-        for (int i = 0; i < profile.size(); i++) {
-            int start = Math.max(0, i - halfWindow);
-            int end = Math.min(profile.size(), i + halfWindow + 1);
+        for (var i = 0; i < profile.size(); i++) {
+            var start = Math.max(0, i - halfWindow);
+            var end = Math.min(profile.size(), i + halfWindow + 1);
 
             double sum = 0;
-            int count = 0;
-            for (int j = start; j < end; j++) {
+            var count = 0;
+            for (var j = start; j < end; j++) {
                 sum += profile.get(j).intensity();
                 count++;
             }
@@ -219,24 +228,24 @@ public final class SpectralLineAnalysis {
         var bins = new double[numBins];
         var counts = new long[numBins];
 
-        double cx = ellipse.center().a();
-        double cy = ellipse.center().b();
-        double semiA = ellipse.semiAxis().a();
-        double semiB = ellipse.semiAxis().b();
+        var cx = ellipse.center().a();
+        var cy = ellipse.center().b();
+        var semiA = ellipse.semiAxis().a();
+        var semiB = ellipse.semiAxis().b();
 
         var data = image.data();
-        int height = image.height();
-        int width = image.width();
+        var height = image.height();
+        var width = image.width();
 
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                double dx = (x - cx) / semiA;
-                double dy = (y - cy) / semiB;
-                double rhoSquared = dx * dx + dy * dy;
+        for (var y = 0; y < height; y++) {
+            for (var x = 0; x < width; x++) {
+                var dx = (x - cx) / semiA;
+                var dy = (y - cy) / semiB;
+                var rhoSquared = dx * dx + dy * dy;
 
                 if (rhoSquared < 1.0) {
-                    double mu = Math.sqrt(1 - rhoSquared);
-                    int bin = Math.min((int) (mu * numBins), numBins - 1);
+                    var mu = Math.sqrt(1 - rhoSquared);
+                    var bin = Math.min((int) (mu * numBins), numBins - 1);
                     bins[bin] += data[y][x];
                     counts[bin]++;
                 }
@@ -258,52 +267,49 @@ public final class SpectralLineAnalysis {
             .orElse(profile.getFirst());
     }
 
-    private static Double findCrossing(List<SpectrumAnalyzer.DataPoint> profile, double targetIntensity, boolean blueWing) {
-        var minPoint = findMinimumPoint(profile);
-        int minIndex = profile.indexOf(minPoint);
-        double minWavelength = minPoint.wavelen().angstroms();
+    private static double computeAdaptiveWindowHalfWidth(
+        List<SpectrumAnalyzer.DataPoint> profile,
+        double lineCenterWavelength,
+        double continuum,
+        double minIntensity
+    ) {
+        // Find where the line wings approach the continuum level.
+        // We look for the point where intensity reaches WING_THRESHOLD_FRACTION of continuum
+        // on both sides of the line center, then add some margin.
+        var wingThreshold = minIntensity + WING_THRESHOLD_FRACTION * (continuum - minIntensity);
 
-        // Limit search to within ±2.5 Å of the line center to avoid finding crossings
-        // in adjacent spectral features (e.g., Ca H near Ca K)
-        double searchLimit = FIT_WINDOW_HALF_WIDTH_ANGSTROMS;
+        Double blueWingEdge = null;
+        Double redWingEdge = null;
 
-        // Find where the profile crosses the target intensity while moving away from
-        // the line minimum. Only consider upward crossings (intensity increasing).
-        if (blueWing) {
-            for (int i = minIndex; i > 0; i--) {
-                var p0 = profile.get(i);
-                var p1 = profile.get(i - 1);
-                // Stop if we've gone beyond the search window
-                if (minWavelength - p1.wavelen().angstroms() > searchLimit) {
-                    break;
-                }
-                if (p0.intensity() <= targetIntensity && p1.intensity() >= targetIntensity) {
-                    return interpolateCrossing(p1, p0, targetIntensity);
-                }
-            }
-        } else {
-            for (int i = minIndex; i < profile.size() - 1; i++) {
-                var p0 = profile.get(i);
-                var p1 = profile.get(i + 1);
-                // Stop if we've gone beyond the search window
-                if (p1.wavelen().angstroms() - minWavelength > searchLimit) {
-                    break;
-                }
-                if (p0.intensity() <= targetIntensity && p1.intensity() >= targetIntensity) {
-                    return interpolateCrossing(p0, p1, targetIntensity);
-                }
+        // Search for blue wing edge (going from center toward blue)
+        for (var i = profile.size() - 1; i >= 0; i--) {
+            var p = profile.get(i);
+            var wl = p.wavelen().angstroms();
+            if (wl < lineCenterWavelength && p.intensity() >= wingThreshold) {
+                blueWingEdge = wl;
+                break;
             }
         }
 
-        return null;
-    }
-
-    private static double interpolateCrossing(SpectrumAnalyzer.DataPoint p0, SpectrumAnalyzer.DataPoint p1, double targetIntensity) {
-        double intensityDiff = p1.intensity() - p0.intensity();
-        if (Math.abs(intensityDiff) < 1e-10) {
-            return (p0.wavelen().angstroms() + p1.wavelen().angstroms()) / 2.0;
+        // Search for red wing edge (going from center toward red)
+        for (var p : profile) {
+            var wl = p.wavelen().angstroms();
+            if (wl > lineCenterWavelength && p.intensity() >= wingThreshold) {
+                redWingEdge = wl;
+                break;
+            }
         }
-        double t = (targetIntensity - p0.intensity()) / intensityDiff;
-        return p0.wavelen().angstroms() + t * (p1.wavelen().angstroms() - p0.wavelen().angstroms());
+
+        // Calculate window half-width based on detected edges
+        var blueHalfWidth = blueWingEdge != null
+            ? lineCenterWavelength - blueWingEdge
+            : MIN_FIT_WINDOW_HALF_WIDTH_ANGSTROMS;
+        var redHalfWidth = redWingEdge != null
+            ? redWingEdge - lineCenterWavelength
+            : MIN_FIT_WINDOW_HALF_WIDTH_ANGSTROMS;
+
+        // Use the larger of the two half-widths, with 20% margin, but at least the minimum
+        var estimatedHalfWidth = Math.max(blueHalfWidth, redHalfWidth) * 1.2;
+        return Math.max(MIN_FIT_WINDOW_HALF_WIDTH_ANGSTROMS, estimatedHalfWidth);
     }
 }

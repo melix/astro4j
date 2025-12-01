@@ -1478,16 +1478,12 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 ? (hasWavelength ? String.format(Locale.US, "%.3f Å", stats.fwhm()) : String.format(Locale.US, "%.2f px", stats.fwhm()))
                 : "N/A";
         var fwhmBox = createStatItem(message("line.fwhm"), fwhmValue);
-        String asymmetryValue = stats.hasFWHMData()
-                ? String.format(Locale.US, "%.3f", stats.asymmetryIndex())
-                : "N/A";
-        var asymmetryBox = createStatItem(message("line.asymmetry"), asymmetryValue);
         var continuumBox = createStatItem(message("line.continuum"), String.format(Locale.US, "%.1f", stats.continuum()));
         var centerBox = createStatItem(message("line.center"), hasWavelength
                 ? String.format(Locale.US, "%.3f Å", stats.lineCenterWavelength())
                 : String.format(Locale.US, "%.2f px", stats.lineCenterWavelength()));
 
-        statsBox.getChildren().addAll(titleLabel, depthBox, fwhmBox, asymmetryBox, continuumBox, centerBox);
+        statsBox.getChildren().addAll(titleLabel, depthBox, fwhmBox, continuumBox, centerBox);
         return statsBox;
     }
 
