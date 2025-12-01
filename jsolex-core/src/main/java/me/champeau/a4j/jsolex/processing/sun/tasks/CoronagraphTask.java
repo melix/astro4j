@@ -42,8 +42,8 @@ public class CoronagraphTask extends AbstractTask<ImageWrapper32> {
     @Override
     protected ImageWrapper32 doCall() throws Exception {
         var buffer = getBuffer();
-        DiskFill.doFill(fitting, buffer, 0, null);
-        for (int i=0;i<2;i++) {
+        DiskFill.doFillWithGradient(fitting, buffer, 0);
+        for (int i = 0; i < 2; i++) {
             workImage = BackgroundRemoval.neutralizeBackground(workImage);
         }
         buffer = workImage.data();

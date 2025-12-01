@@ -29,6 +29,9 @@ import java.util.List;
 import java.util.Map;
 
 public class DiskFill extends AbstractFunctionImpl {
+
+    public static final int SAMPLES = 4;
+
     public DiskFill(Map<Class<?>, Object> context, Broadcaster broadcaster) {
         super(context, broadcaster);
     }
@@ -55,15 +58,25 @@ public class DiskFill extends AbstractFunctionImpl {
         }
         if (img instanceof ImageWrapper32 mono) {
             var copy = mono.copy();
-            doFill(ellipse, copy.data(), fill, outsideFill);
+            if (outsideFill == null) {
+                doFillWithGradient(ellipse, copy.data(), fill);
+            } else {
+                doFillWithGradient(ellipse, copy.data(), fill, outsideFill);
+            }
             return copy;
         } else if (img instanceof RGBImage rgb) {
             var r = ImageWrapper.copyData(rgb.r());
-            doFill(ellipse, r, fill, outsideFill);
             var g = ImageWrapper.copyData(rgb.g());
-            doFill(ellipse, g, fill, outsideFill);
             var b = ImageWrapper.copyData(rgb.b());
-            doFill(ellipse, b, fill, outsideFill);
+            if (outsideFill == null) {
+                doFillWithGradient(ellipse, r, fill);
+                doFillWithGradient(ellipse, g, fill);
+                doFillWithGradient(ellipse, b, fill);
+            } else {
+                doFillWithGradient(ellipse, r, fill, outsideFill);
+                doFillWithGradient(ellipse, g, fill, outsideFill);
+                doFillWithGradient(ellipse, b, fill, outsideFill);
+            }
             return new RGBImage(rgb.width(), rgb.height(), r, g, b, new LinkedHashMap<>(rgb.metadata()));
         }
         return null;
@@ -108,5 +121,51 @@ public class DiskFill extends AbstractFunctionImpl {
                 }
             }
         }
+    }
+
+    public static void doFillWithGradient(Ellipse ellipse, float[][] image, float fillColor) {
+        int height = image.length;
+        int width = image[0].length;
+
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                float coverage = computeSubpixelCoverage(ellipse, x, y);
+                if (coverage > 0.999f) {
+                    image[y][x] = fillColor;
+                } else if (coverage > 0.001f) {
+                    image[y][x] = fillColor * coverage + image[y][x] * (1 - coverage);
+                }
+            }
+        }
+    }
+
+    public static void doFillWithGradient(Ellipse ellipse, float[][] image, float insideColor, float outsideColor) {
+        int height = image.length;
+        int width = image[0].length;
+
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                float coverage = computeSubpixelCoverage(ellipse, x, y);
+                image[y][x] = insideColor * coverage + outsideColor * (1 - coverage);
+            }
+        }
+    }
+
+    private static float computeSubpixelCoverage(Ellipse ellipse, int px, int py) {
+        int insideCount = 0;
+        int total = DiskFill.SAMPLES * DiskFill.SAMPLES;
+        float step = 1.0f / DiskFill.SAMPLES;
+        float offset = step / 2.0f;
+
+        for (int sy = 0; sy < DiskFill.SAMPLES; sy++) {
+            for (int sx = 0; sx < DiskFill.SAMPLES; sx++) {
+                double subX = px - 0.5 + offset + sx * step;
+                double subY = py - 0.5 + offset + sy * step;
+                if (ellipse.isWithin(subX, subY)) {
+                    insideCount++;
+                }
+            }
+        }
+        return (float) insideCount / total;
     }
 }
