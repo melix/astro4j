@@ -1193,3 +1193,23 @@
 .dark-slider:focused .thumb {
     -fx-background-color: #f8f9fa;
 }
+
+.reset-button {
+    -fx-background-color: transparent;
+    -fx-text-fill: #6c757d;
+    -fx-font-size: 14px;
+    -fx-padding: 2 6;
+    -fx-min-width: 24;
+    -fx-pref-width: 24;
+    -fx-max-width: 24;
+    -fx-min-height: 24;
+    -fx-pref-height: 24;
+    -fx-max-height: 24;
+    -fx-background-radius: 4;
+    -fx-cursor: hand;
+}
+
+.reset-button:hover {
+    -fx-background-color: #e9ecef;
+    -fx-text-fill: #495057;
+}

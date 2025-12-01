@@ -16,11 +16,13 @@
 package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.scene.Node;
+import javafx.scene.control.Button;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import me.champeau.a4j.jsolex.processing.params.ChoiceParameter;
 import me.champeau.a4j.jsolex.processing.params.NumberParameter;
 import me.champeau.a4j.jsolex.processing.params.ScriptParameter;
@@ -35,6 +37,7 @@ import java.util.Map;
 import java.util.function.BiConsumer;
 
 public class ScriptParameterUIBuilder {
+    private static final String RESET_ICON = "\u21BA";
 
     public static void buildParameterGrid(
             GridPane grid,
@@ -52,9 +55,9 @@ public class ScriptParameterUIBuilder {
             grid.add(label, 0, row);
 
             var initialValue = initialValues != null ? initialValues.get(param.getName()) : null;
-            var control = createParameterControl(param, initialValue, validationCallback, valueChangeCallback);
-            javafx.scene.layout.GridPane.setHgrow(control, javafx.scene.layout.Priority.ALWAYS);
-            grid.add(control, 1, row);
+            var controlWithReset = createParameterControlWithReset(param, initialValue, validationCallback, valueChangeCallback);
+            GridPane.setHgrow(controlWithReset, javafx.scene.layout.Priority.ALWAYS);
+            grid.add(controlWithReset, 1, row);
 
             var description = param.getDescription(currentLanguage);
             if (description != null && !description.isEmpty()) {
@@ -71,11 +74,37 @@ public class ScriptParameterUIBuilder {
         }
     }
 
-    private static Node createParameterControl(
+    private static Node createParameterControlWithReset(
             ScriptParameter param,
             Object initialValue,
             BiConsumer<String, Boolean> validationCallback,
             BiConsumer<String, Object> valueChangeCallback) {
+
+        var resetAction = new Runnable[1];
+        var control = createParameterControl(param, initialValue, validationCallback, valueChangeCallback, resetAction);
+
+        var resetButton = new Button(RESET_ICON);
+        resetButton.getStyleClass().add("reset-button");
+        resetButton.setTooltip(new Tooltip(I18N.string(ScriptParameterUIBuilder.class, "script-parameters", "reset.to.default")));
+        resetButton.setOnAction(e -> {
+            if (resetAction[0] != null) {
+                resetAction[0].run();
+            }
+        });
+
+        var hbox = new HBox(4, control, resetButton);
+        hbox.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+        HBox.setHgrow(control, javafx.scene.layout.Priority.ALWAYS);
+
+        return hbox;
+    }
+
+    private static Node createParameterControl(
+            ScriptParameter param,
+            Object initialValue,
+            BiConsumer<String, Boolean> validationCallback,
+            BiConsumer<String, Object> valueChangeCallback,
+            Runnable[] resetAction) {
 
         var paramKey = param.getName();
 
@@ -114,12 +143,18 @@ public class ScriptParameterUIBuilder {
                 if (initialValue != null) {
                     valueChangeCallback.accept(param.getName(), initialValue);
                 }
+
+                resetAction[0] = () -> {
+                    var defaultValue = choiceParam.getDefaultValue();
+                    if (defaultValue != null) {
+                        choiceBox.setValue(defaultValue.toString());
+                    }
+                };
+
                 return choiceBox;
             }
             case NumberParameter numberParam -> {
                 var textField = new TextField();
-                var min = numberParam.getMin() != null ? numberParam.getMin().doubleValue() : Double.NEGATIVE_INFINITY;
-                var max = numberParam.getMax() != null ? numberParam.getMax().doubleValue() : Double.POSITIVE_INFINITY;
                 var value = initialValue instanceof Number num ? num.doubleValue() :
                            (numberParam.getDefaultValue() instanceof Number defNum ? defNum.doubleValue() : 0.0);
 
@@ -163,6 +198,14 @@ public class ScriptParameterUIBuilder {
                 });
 
                 valueChangeCallback.accept(param.getName(), value);
+
+                resetAction[0] = () -> {
+                    var defaultValue = numberParam.getDefaultValue();
+                    if (defaultValue instanceof Number defNum) {
+                        textField.setText(formatter.format(defNum.doubleValue()));
+                    }
+                };
+
                 return textField;
             }
             case StringParameter stringParam -> {
@@ -195,6 +238,12 @@ public class ScriptParameterUIBuilder {
                     valueChangeCallback.accept(param.getName(), newVal);
                 });
                 valueChangeCallback.accept(param.getName(), textValue);
+
+                resetAction[0] = () -> {
+                    var defaultValue = stringParam.getDefaultValue();
+                    textField.setText(defaultValue != null ? defaultValue.toString() : "");
+                };
+
                 return textField;
             }
             default -> {
