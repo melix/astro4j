@@ -1,5 +1,6 @@
 # Welcome to JSol'Ex {{version}}!
 
+- [What's New in Version 4.3.1](#whats-new-in-version-4-3-1) - New stretching functions
 - [What's New in Version 4.3.0](#whats-new-in-version-4-3-0) - Faster script execution, improved stacking and bug fixes
 - [Version 4.2.1](#whats-new-in-version-4-2-1) - Bug fixes
 - [Version 4.2.0](#whats-new-in-version-4-2-0) - Script repositories, Java 25, GIF support, file format settings
@@ -10,6 +11,11 @@
 - [Version 4.1.0](#whats-new-in-version-4-1-0) - User-defined presets, collage creation
 - [Version 4.0.1](#whats-new-in-version-4-0-1) - Language selection, bug fixes
 - [Version 4.0.0](#whats-new-in-version-4-0-0) - Enhanced UI, BASS2000 integration
+
+## What's New in Version 4.3.1
+
+- Added `PERCENTILE_STRETCH` function: stretches histogram by mapping specified percentiles to black and white points
+- Added `SIGMOID_STRETCH` function: applies a sigmoid (S-curve) transformation for smooth contrast enhancement
 
 ## What's New in Version 4.3.0
 

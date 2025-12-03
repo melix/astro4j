@@ -1,0 +1,23 @@
+name: SIGMOID_STRETCH
+category: ENHANCEMENT
+description:
+  fr: "Applique une transformation sigmoide (courbe en S) pour ameliorer le contraste de maniere douce."
+  en: "Applies a sigmoid (S-curve) transformation for smooth contrast enhancement."
+arguments:
+  - name: img
+    description: Image(s)
+    required: true
+  - name: midpoint
+    required: false
+    description:
+      fr: "Point central de la courbe (0-1) (defaut: 0.5)"
+      en: "Center of the sigmoid curve (0-1) (default: 0.5)"
+  - name: steepness
+    required: false
+    description:
+      fr: "Raideur de la transition, valeurs plus elevees = plus de contraste (defaut: 10)"
+      en: "Steepness of transition, higher values create more contrast (default: 10)"
+examples:
+  - "sigmoid_stretch(img(0))"
+  - "sigmoid_stretch(img: img(0), midpoint: 0.5, steepness: 10)"
+  - "sigmoid_stretch(img(0), 0.4, 8)"
