@@ -19,8 +19,10 @@ import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.CurveTransformStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
-import me.champeau.a4j.jsolex.processing.stretching.MidtoneTransferFunctionStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.MidtoneTransferFunctionAutostretchStrategy;
+import me.champeau.a4j.jsolex.processing.stretching.MidtoneTransferFunctionStrategy;
+import me.champeau.a4j.jsolex.processing.stretching.PercentileStretchStrategy;
+import me.champeau.a4j.jsolex.processing.stretching.SigmoidStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 
@@ -80,5 +82,19 @@ public class Stretching extends AbstractFunctionImpl {
         double shadowsClip = doubleArg(arguments, "shadows_clip", MidtoneTransferFunctionAutostretchStrategy.DEFAULT_SHADOWS_CLIP);
         double targetBg = doubleArg(arguments, "target_bg", MidtoneTransferFunctionAutostretchStrategy.DEFAULT_TARGET_BG);
         return monoToMonoImageTransformer("mtf_autostretch", "img", arguments, image -> new MidtoneTransferFunctionAutostretchStrategy(shadowsClip, targetBg).stretch(image));
+    }
+
+    public Object percentileStretch(Map<String, Object> arguments) {
+        BuiltinFunction.PERCENTILE_STRETCH.validateArgs(arguments);
+        double lo = doubleArg(arguments, "lo", 0.1);
+        double hi = doubleArg(arguments, "hi", 99.9);
+        return monoToMonoImageTransformer("percentile_stretch", "img", arguments, image -> new PercentileStretchStrategy(lo, hi).stretch(image));
+    }
+
+    public Object sigmoidStretch(Map<String, Object> arguments) {
+        BuiltinFunction.SIGMOID_STRETCH.validateArgs(arguments);
+        double midpoint = doubleArg(arguments, "midpoint", 0.5);
+        double steepness = doubleArg(arguments, "steepness", 10);
+        return monoToMonoImageTransformer("sigmoid_stretch", "img", arguments, image -> new SigmoidStretchingStrategy(midpoint, steepness).stretch(image));
     }
 }

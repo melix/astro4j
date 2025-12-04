@@ -349,6 +349,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case MONO -> utilities.toMono(arguments);
             case MOSAIC -> mosaicComposition.mosaic(arguments);
             case NEUTRALIZE_BG -> bgRemoval.neutralizeBackground(arguments);
+            case PERCENTILE_STRETCH -> stretching.percentileStretch(arguments);
             case POW -> math.pow(arguments);
             case PX2A -> pixelsToAngstroms(arguments);
             case RADIUS_RESCALE -> scaling.radiusRescale(arguments);
@@ -367,6 +368,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case RGB -> RGBCombination.combine(arguments);
             case SATURATE -> saturation.saturate(arguments);
             case SHARPEN -> convolution.sharpen(arguments);
+            case SIGMOID_STRETCH -> stretching.sigmoidStretch(arguments);
             case MTF -> stretching.mtf(arguments);
             case MTF_AUTOSTRETCH -> stretching.mtfAutostretch(arguments);
             case FIND_SHIFT -> pixelShiftFor(arguments);

@@ -1,0 +1,23 @@
+name: PERCENTILE_STRETCH
+category: ENHANCEMENT
+description:
+  fr: "Etire l'histogramme en mappant les percentiles specifies aux points noir et blanc."
+  en: "Stretches histogram by mapping specified percentiles to black and white points."
+arguments:
+  - name: img
+    description: Image(s)
+    required: true
+  - name: lo
+    required: false
+    description:
+      fr: "Percentile bas (0-100), les valeurs en dessous deviennent noires (defaut: 0.1)"
+      en: "Low percentile (0-100), values below become black (default: 0.1)"
+  - name: hi
+    required: false
+    description:
+      fr: "Percentile haut (0-100), les valeurs au dessus deviennent blanches (defaut: 99.9)"
+      en: "High percentile (0-100), values above become white (default: 99.9)"
+examples:
+  - "percentile_stretch(img(0))"
+  - "percentile_stretch(img: img(0), lo: 0.5, hi: 99.5)"
+  - "percentile_stretch(img(0), 1, 99)"
