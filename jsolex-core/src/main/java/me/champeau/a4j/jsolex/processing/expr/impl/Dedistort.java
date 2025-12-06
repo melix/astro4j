@@ -183,6 +183,14 @@ public class Dedistort extends AbstractFunctionImpl {
         return new DoublePair(shifts[0], shifts[1]);
     }
 
+    public static DoublePair bestShiftFFT(float[][] patchRef, float[][] patchDef) {
+        if (patchRef.length < 32) {
+            return crossCorrelationShiftFFT(patchRef, patchDef);
+        } else {
+            return phaseCorrelationShiftFFT(patchRef, patchDef);
+        }
+    }
+
     public static DoublePair phaseCorrelationShiftFFT(float[][] patchRef, float[][] patchDef) {
         var size = patchRef.length;
 
