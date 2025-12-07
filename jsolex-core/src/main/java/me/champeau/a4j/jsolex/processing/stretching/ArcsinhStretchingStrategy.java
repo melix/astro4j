@@ -17,15 +17,24 @@ package me.champeau.a4j.jsolex.processing.stretching;
 
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
+import me.champeau.a4j.math.opencl.OpenCLContext;
+import me.champeau.a4j.math.opencl.OpenCLSupport;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
 import static org.apache.commons.math3.util.FastMath.asinh;
+import static org.lwjgl.opencl.CL10.CL_MEM_READ_WRITE;
+import static org.lwjgl.opencl.CL10.CL_SUCCESS;
+import static org.lwjgl.opencl.CL10.clEnqueueNDRangeKernel;
+import static org.lwjgl.opencl.CL10.clSetKernelArg;
+import static org.lwjgl.system.MemoryStack.stackPush;
 
 /**
  * Implements arcsinh stretching, as described in SIRIL docs:
  * https://free-astro.org/siril_doc-en/co/AsinhTransformation.html
  */
 public final class ArcsinhStretchingStrategy implements StretchingStrategy {
+    private static final int GPU_THRESHOLD = 65536;
+
     private final double blackPoint;
     private final double stretch;
     private final double maxStretch;
@@ -54,6 +63,20 @@ public final class ArcsinhStretchingStrategy implements StretchingStrategy {
 
     @Override
     public void stretch(ImageWrapper32 image) {
+        var context = OpenCLSupport.getContext();
+        int n = image.width() * image.height();
+        if (context != null && OpenCLSupport.isEnabled() && n >= GPU_THRESHOLD) {
+            try {
+                stretchGPU(context, image);
+                return;
+            } catch (Exception e) {
+                // Fall through to CPU
+            }
+        }
+        stretchCPU(image);
+    }
+
+    void stretchCPU(ImageWrapper32 image) {
         var data = image.data();
         var height = image.height();
         var width = image.width();
@@ -70,6 +93,55 @@ public final class ArcsinhStretchingStrategy implements StretchingStrategy {
                 line[x] = Math.min(MAX_PIXEL_VALUE, line[x]);
             }
         }
+        LinearStrechingStrategy.DEFAULT.stretch(image);
+    }
+
+    void stretchGPU(OpenCLContext context, ImageWrapper32 image) {
+        var data = image.data();
+        int width = image.width();
+        int height = image.height();
+        int n = width * height;
+
+        var flatData = new float[n];
+        for (int y = 0; y < height; y++) {
+            System.arraycopy(data[y], 0, flatData, y * width, width);
+        }
+
+        context.executeWithLock(() -> {
+            long dataBuffer = 0;
+            try {
+                dataBuffer = context.allocateBuffer(n * Float.BYTES, CL_MEM_READ_WRITE);
+                context.writeBuffer(dataBuffer, flatData);
+
+                try (var stack = stackPush()) {
+                    var kernel = context.getKernelManager().getKernel("stretching", "asinh_stretch");
+                    clSetKernelArg(kernel, 0, stack.pointers(dataBuffer));
+                    clSetKernelArg(kernel, 1, stack.floats((float) normalizedBlackPoint));
+                    clSetKernelArg(kernel, 2, stack.floats((float) stretch));
+                    clSetKernelArg(kernel, 3, stack.floats((float) asinh));
+                    clSetKernelArg(kernel, 4, stack.floats(MAX_PIXEL_VALUE));
+                    clSetKernelArg(kernel, 5, stack.ints(n));
+
+                    var globalWorkSize = stack.pointers(n);
+                    int err = clEnqueueNDRangeKernel(context.getCommandQueue(), kernel, 1, null, globalWorkSize, null, null, null);
+                    if (err != CL_SUCCESS) {
+                        throw new RuntimeException("Failed to execute kernel: " + err);
+                    }
+                    context.finish();
+                }
+
+                context.readBuffer(dataBuffer, flatData);
+            } finally {
+                if (dataBuffer != 0) {
+                    context.releaseBuffer(dataBuffer);
+                }
+            }
+        });
+
+        for (int y = 0; y < height; y++) {
+            System.arraycopy(flatData, y * width, data[y], 0, width);
+        }
+
         LinearStrechingStrategy.DEFAULT.stretch(image);
     }
 

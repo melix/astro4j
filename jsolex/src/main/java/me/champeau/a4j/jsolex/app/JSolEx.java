@@ -151,6 +151,7 @@ import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
 import me.champeau.a4j.jsolex.processing.util.VersionUtil;
 import me.champeau.a4j.math.VectorApiSupport;
+import me.champeau.a4j.math.opencl.OpenCLSupport;
 import me.champeau.a4j.math.regression.Ellipse;
 import me.champeau.a4j.ser.Header;
 import me.champeau.a4j.ser.ImageMetadata;
@@ -452,6 +453,7 @@ public class JSolEx implements JSolExInterface {
             if (config.isAutoStartServer()) {
                 server.start(config.getAutoStartServerPort());
             }
+            LOGGER.info(message("gpu.support"), OpenCLSupport.isEnabled() ? message("gpu.enabled") : message("gpu.disabled"));
             updateServerStatus(false);
             server.addStatusChangeListener(this::updateServerStatus);
             maybeShowWelcomeMessage(rootScene);

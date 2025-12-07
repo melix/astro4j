@@ -55,6 +55,7 @@ public class Configuration {
     private static final String IMAGE_FORMATS = "image.formats";
     private static final String ANIMATION_FORMATS = "animation.formats";
     private static final String SCRIPT_REPOSITORIES = "script.repositories";
+    private static final String GPU_ACCELERATION = "gpu.acceleration";
 
     public static final String DEFAULT_SOLAP_URL = "ftp://ftp.obspm.fr/incoming/solap";
 
@@ -75,6 +76,11 @@ public class Configuration {
         var selectedLanguage = getSelectedLanguage();
         if (selectedLanguage != null) {
             System.setProperty("jsolex.locale", selectedLanguage);
+        }
+
+        // Set system property for GPU acceleration if configured
+        if (isGpuAccelerationEnabled()) {
+            System.setProperty("opencl.enabled", "true");
         }
     }
 
@@ -214,6 +220,19 @@ public class Configuration {
 
     public void setBass2000FormConfirmed(boolean confirmed) {
         prefs.putBoolean(BASS2000_FORM_CONFIRMED, confirmed);
+    }
+
+    public boolean isGpuAccelerationEnabled() {
+        return prefs.getBoolean(GPU_ACCELERATION, false);
+    }
+
+    public void setGpuAccelerationEnabled(boolean enabled) {
+        prefs.putBoolean(GPU_ACCELERATION, enabled);
+        if (enabled) {
+            System.setProperty("opencl.enabled", "true");
+        } else {
+            System.clearProperty("opencl.enabled");
+        }
     }
 
     public String getSelectedLanguage() {

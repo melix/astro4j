@@ -16,6 +16,7 @@
 package me.champeau.a4j.math.image;
 
 import me.champeau.a4j.math.VectorApiSupport;
+import me.champeau.a4j.math.opencl.OpenCLSupport;
 
 import java.util.Arrays;
 
@@ -26,6 +27,11 @@ public interface ImageMath {
     int MAX_VALUE = 65535;
 
     static ImageMath newInstance() {
+        // OpenCL requires explicit opt-in via OPENCL_ENABLED=true
+        if (OpenCLSupport.isEnabled()) {
+            return new OpenCLImageMath(OpenCLSupport.getContext());
+        }
+        // Vector API enabled by default when available
         if (VectorApiSupport.isEnabled()) {
             return new VectorApiImageMath();
         }
@@ -525,5 +531,147 @@ public interface ImageMath {
             }
         }
         return new Image(width, height, sum);
+    }
+
+    /**
+     * Applies a distortion map to warp an image using Lanczos interpolation.
+     * The distortion grid is a sparse representation of dx/dy displacements
+     * sampled at regular intervals (gridStep).
+     *
+     * @param source the source image to warp
+     * @param gridDx the x-displacement grid (gridHeight x gridWidth)
+     * @param gridDy the y-displacement grid (gridHeight x gridWidth)
+     * @param gridStep the step size between grid samples in pixels
+     * @param useLanczos if true, use Lanczos-3 interpolation; otherwise use bilinear
+     * @return the warped image
+     */
+    default Image dedistort(Image source, float[][] gridDx, float[][] gridDy, int gridStep, boolean useLanczos) {
+        var data = source.data();
+        var width = source.width();
+        var height = source.height();
+        var gridHeight = gridDx.length;
+        var gridWidth = gridDx[0].length;
+        var result = new float[height][width];
+
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                // Convert pixel coords to grid coords
+                double ax = (double) x / gridStep;
+                double ay = (double) y / gridStep;
+
+                // Bicubic interpolation of displacement from grid
+                double dx = 0.0;
+                double dy = 0.0;
+
+                if (ax >= 0 && ax < gridWidth - 1 && ay >= 0 && ay < gridHeight - 1) {
+                    dx = bicubicGridSample(gridDx, ax, ay, gridWidth, gridHeight);
+                    dy = bicubicGridSample(gridDy, ax, ay, gridWidth, gridHeight);
+                }
+
+                double srcX = x + dx;
+                double srcY = y + dy;
+
+                if (srcX >= 0 && srcX < width && srcY >= 0 && srcY < height) {
+                    if (useLanczos) {
+                        result[y][x] = lanczos2D(data, srcX, srcY, width, height);
+                    } else {
+                        result[y][x] = bilinear2D(data, srcX, srcY, width, height);
+                    }
+                } else {
+                    result[y][x] = 0.0f;
+                }
+            }
+        }
+
+        return new Image(width, height, result);
+    }
+
+    private static double bicubicGridSample(float[][] grid, double x, double y, int gridWidth, int gridHeight) {
+        int x0 = (int) Math.floor(x);
+        int y0 = (int) Math.floor(y);
+        double dx = x - x0;
+        double dy = y - y0;
+
+        double result = 0.0;
+        for (int i = 0; i < 4; i++) {
+            double wy = cubicWeight(dy - (i - 1));
+            int yi = Math.min(Math.max(y0 - 1 + i, 0), gridHeight - 1);
+            for (int j = 0; j < 4; j++) {
+                int xi = Math.min(Math.max(x0 - 1 + j, 0), gridWidth - 1);
+                double wx = cubicWeight(dx - (j - 1));
+                result += grid[yi][xi] * wx * wy;
+            }
+        }
+        return result;
+    }
+
+    private static double cubicWeight(double t) {
+        double a = -0.5;
+        double absT = Math.abs(t);
+        if (absT <= 1.0) {
+            return (a + 2.0) * absT * absT * absT - (a + 3.0) * absT * absT + 1.0;
+        } else if (absT < 2.0) {
+            return a * absT * absT * absT - 5.0 * a * absT * absT + 8.0 * a * absT - 4.0 * a;
+        } else {
+            return 0.0;
+        }
+    }
+
+    private static float lanczos2D(float[][] image, double xx, double yy, int width, int height) {
+        int LANCZOS_A = 3;
+        int x0 = (int) Math.floor(xx);
+        int y0 = (int) Math.floor(yy);
+
+        double sum = 0.0;
+        double weightSum = 0.0;
+
+        for (int j = y0 - LANCZOS_A + 1; j <= y0 + LANCZOS_A; j++) {
+            for (int i = x0 - LANCZOS_A + 1; i <= x0 + LANCZOS_A; i++) {
+                if (i >= 0 && i < width && j >= 0 && j < height) {
+                    double wx = lanczosKernel(xx - i, LANCZOS_A);
+                    double wy = lanczosKernel(yy - j, LANCZOS_A);
+                    double w = wx * wy;
+                    sum += image[j][i] * w;
+                    weightSum += w;
+                }
+            }
+        }
+
+        return weightSum > 0 ? (float) (sum / weightSum) : 0f;
+    }
+
+    private static double lanczosKernel(double x, int a) {
+        if (x == 0) {
+            return 1.0;
+        }
+        double absX = Math.abs(x);
+        if (absX >= a) {
+            return 0.0;
+        }
+        double pix = Math.PI * x;
+        return (a * Math.sin(pix) * Math.sin(pix / a)) / (pix * pix);
+    }
+
+    private static float bilinear2D(float[][] image, double xx, double yy, int width, int height) {
+        int x0 = (int) Math.floor(xx);
+        int y0 = (int) Math.floor(yy);
+        int x1 = Math.min(x0 + 1, width - 1);
+        int y1 = Math.min(y0 + 1, height - 1);
+
+        x0 = Math.max(0, Math.min(x0, width - 1));
+        y0 = Math.max(0, Math.min(y0, height - 1));
+
+        double fx = xx - Math.floor(xx);
+        double fy = yy - Math.floor(yy);
+
+        float v00 = image[y0][x0];
+        float v10 = image[y0][x1];
+        float v01 = image[y1][x0];
+        float v11 = image[y1][x1];
+
+        double i0 = v00 + fx * (v10 - v00);
+        double i1 = v01 + fx * (v11 - v01);
+
+        return (float) (i0 + fy * (i1 - i0));
     }
 }

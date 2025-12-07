@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.stretching;
 
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
+// Not worth running on GPU: memory transfer overhead dominates the simple scaling operation
 public final class RangeExpansionStrategy implements StretchingStrategy {
     private static final int MAX_VALUE = 65535;
 

@@ -627,6 +627,34 @@ public class DistorsionMap {
         return tileSize;
     }
 
+    public int getGridWidth() {
+        return gridXSize;
+    }
+
+    public int getGridHeight() {
+        return gridYSize;
+    }
+
+    public float[][] getGridDx() {
+        var result = new float[gridYSize][gridXSize];
+        for (var y = 0; y < gridYSize; y++) {
+            for (var x = 0; x < gridXSize; x++) {
+                result[y][x] = (float) dxy[y][x][0];
+            }
+        }
+        return result;
+    }
+
+    public float[][] getGridDy() {
+        var result = new float[gridYSize][gridXSize];
+        for (var y = 0; y < gridYSize; y++) {
+            for (var x = 0; x < gridXSize; x++) {
+                result[y][x] = (float) dxy[y][x][1];
+            }
+        }
+        return result;
+    }
+
     private void removeOutliers(double madThreshold, int windowSize) {
         var rows = dxy.length;
         var cols = dxy[0].length;

@@ -29,6 +29,8 @@ module me.champeau.a4j.jsolex.core {
     requires org.apache.commons.compress;
     requires java.net.http;
     requires java.sql;
+    requires static org.lwjgl;
+    requires static org.lwjgl.opencl;
     exports me.champeau.a4j.jsolex.expr;
     exports me.champeau.a4j.jsolex.expr.ast;
     exports me.champeau.a4j.jsolex.processing.color;

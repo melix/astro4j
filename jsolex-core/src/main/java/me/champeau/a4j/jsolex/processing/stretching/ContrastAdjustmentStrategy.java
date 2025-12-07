@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.processing.stretching;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
+// Not worth running on GPU: memory transfer overhead dominates the simple clamp operation
 public final class ContrastAdjustmentStrategy implements StretchingStrategy {
     public static final ContrastAdjustmentStrategy DEFAULT = new ContrastAdjustmentStrategy(0, Constants.MAX_PIXEL_VALUE);
 

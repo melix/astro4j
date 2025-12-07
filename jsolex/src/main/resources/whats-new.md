@@ -1,7 +1,7 @@
 # Welcome to JSol'Ex {{version}}!
 
-- [What's New in Version 4.3.1](#whats-new-in-version-4-3-1) - New stretching functions
-- [What's New in Version 4.3.0](#whats-new-in-version-4-3-0) - Faster script execution, improved stacking and bug fixes
+- [What's New in Version 4.3.1](#whats-new-in-version-4-3-1) - New stretching functions, experimental GPU acceleration
+- [Version 4.3.0](#whats-new-in-version-4-3-0) - Faster script execution, improved stacking and bug fixes
 - [Version 4.2.1](#whats-new-in-version-4-2-1) - Bug fixes
 - [Version 4.2.0](#whats-new-in-version-4-2-0) - Script repositories, Java 25, GIF support, file format settings
 - [Version 4.1.4](#whats-new-in-version-4-1-4) - Bug fixes and improvements
@@ -16,6 +16,23 @@
 
 - Added `PERCENTILE_STRETCH` function: stretches histogram by mapping specified percentiles to black and white points
 - Added `SIGMOID_STRETCH` function: applies a sigmoid (S-curve) transformation for smooth contrast enhancement
+- [Experimental GPU Acceleration](#experimental-gpu-acceleration): significantly faster image processing on compatible graphics cards
+
+### Experimental GPU Acceleration
+
+JSol'Ex 4.3.1 introduces experimental GPU acceleration to speed up image processing.
+When enabled, operations like dedistortion and stacking can be significantly faster, especially on large images.
+
+**How to Enable**
+
+1. Go to **Advanced Parameters** in the main window
+2. Check the **GPU acceleration (Experimental)** option
+3. Restart JSol'Ex
+
+**Requirements**
+
+- A graphics card with up-to-date drivers (NVIDIA, AMD, or Intel)
+- If GPU acceleration doesn't work after enabling, try updating your graphics drivers
 
 ## What's New in Version 4.3.0
 

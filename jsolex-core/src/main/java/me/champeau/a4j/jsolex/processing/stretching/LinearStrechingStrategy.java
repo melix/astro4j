@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.processing.stretching;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
+// Not worth running on GPU: memory transfer overhead dominates the simple linear scaling
 public final class LinearStrechingStrategy implements StretchingStrategy {
     public static final LinearStrechingStrategy DEFAULT = new LinearStrechingStrategy(0, Constants.MAX_PIXEL_VALUE);
 

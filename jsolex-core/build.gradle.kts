@@ -1,9 +1,11 @@
 import me.champeau.astro4j.BuiltinFunctionCodeGenerator
 import me.champeau.astro4j.SpectrumFileConverter
+import java.util.*
 
 plugins {
     id("me.champeau.astro4j.library")
     id("me.champeau.astro4j.congocc")
+    id("me.champeau.jmh") version "0.7.3"
 }
 
 description = "Shared library for spectroheliographic video file processing"
@@ -20,6 +22,8 @@ dependencies {
         setTransitive(false)
     }
     implementation(libs.jcodec)
+    implementation(libs.lwjgl)
+    implementation(libs.lwjgl.opencl)
     testImplementation(testFixtures(projects.jserfile))
 }
 
@@ -29,11 +33,13 @@ astro4j {
 
 
 tasks.withType<JavaCompile>().configureEach {
-    doFirst {
-        options.compilerArgs.addAll(
-            listOf("--module-path", classpath.asPath)
-        )
-        classpath = files()
+    if (!name.lowercase(Locale.ENGLISH).contains("jmh")) {
+        doFirst {
+            options.compilerArgs.addAll(
+                listOf("--module-path", classpath.asPath)
+            )
+            classpath = files()
+        }
     }
 }
 
@@ -75,4 +81,7 @@ spotless {
     java {
         targetExclude(fileTree("build/generated-sources"))
     }
+}
+
+jmh {
 }
