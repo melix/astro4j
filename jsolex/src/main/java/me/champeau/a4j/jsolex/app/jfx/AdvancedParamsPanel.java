@@ -50,9 +50,11 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
     private final CheckBox generateFits;
     private final CheckBox generateMp4;
     private final CheckBox generateGif;
+    private final CheckBox gpuAcceleration;
 
     private int initialMemoryRestriction;
     private String initialLanguage;
+    private boolean initialGpuAcceleration;
 
     public AdvancedParamsPanel() {
         getStyleClass().add("parameter-panel");
@@ -71,6 +73,7 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
         generateFits = createCheckBox("FITS", I18N.string(JSolEx.class, "advanced-params", "generate.fits.files"));
         generateMp4 = createCheckBox("MP4", I18N.string(JSolEx.class, "advanced-params", "generate.mp4.files"));
         generateGif = createCheckBox("GIF", I18N.string(JSolEx.class, "advanced-params", "generate.gif.files"));
+        gpuAcceleration = createCheckBox("", I18N.string(JSolEx.class, "advanced-params", "gpu.acceleration.tooltip"));
 
         setupLayout();
         loadConfiguration();
@@ -149,6 +152,11 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
                 memoryBox,
                 "memory.restriction.tooltip");
 
+        addGridRow(performanceGrid, 2,
+                I18N.string(JSolEx.class, "advanced-params", "gpu.acceleration"),
+                gpuAcceleration,
+                "gpu.acceleration.tooltip");
+
         performanceSection.getChildren().add(performanceGrid);
 
         var dataSection = createSection("data.section");
@@ -211,6 +219,9 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
         var animationFormats = config.getAnimationFormats();
         generateMp4.setSelected(animationFormats.contains(AnimationFormat.MP4));
         generateGif.setSelected(animationFormats.contains(AnimationFormat.GIF));
+
+        initialGpuAcceleration = config.isGpuAccelerationEnabled();
+        gpuAcceleration.setSelected(initialGpuAcceleration);
     }
 
     public void saveConfiguration() {
@@ -249,6 +260,8 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
             animationFormats.add(AnimationFormat.GIF);
         }
         config.setAnimationFormats(animationFormats);
+
+        config.setGpuAccelerationEnabled(gpuAcceleration.isSelected());
     }
 
     public boolean requiresRestart() {
@@ -259,8 +272,9 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
 
         var memoryChanged = initialMemoryRestriction != newMemoryRestriction;
         var languageChanged = !newLanguage.equals(initialLanguage);
+        var gpuChanged = initialGpuAcceleration != gpuAcceleration.isSelected();
 
-        return memoryChanged || languageChanged;
+        return memoryChanged || languageChanged || gpuChanged;
     }
 
     private String computeMemoryUsageHelpLabel(Number value) {

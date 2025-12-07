@@ -20,11 +20,14 @@ import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.expr.stacking.DistorsionMap;
 import me.champeau.a4j.jsolex.processing.expr.stacking.DistorsionMaps;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
-import me.champeau.a4j.jsolex.processing.util.ImageInterpolation;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
+import me.champeau.a4j.math.correlation.PhaseCorrelation;
 import me.champeau.a4j.math.fft.FFTSupport;
+import me.champeau.a4j.math.image.Image;
+import me.champeau.a4j.math.image.ImageMath;
+import me.champeau.a4j.math.opencl.OpenCLSupport;
 import me.champeau.a4j.math.tuples.DoublePair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,6 +47,7 @@ public class Dedistort extends AbstractFunctionImpl {
     private static final String FIND_CORRESP_MESSAGE = message("finding.correspondances");
     private static final String DEDISTORT = message("dedistorting");
     private static final Map<Integer, float[][]> HANN_WINDOW_CACHE = new ConcurrentHashMap<>();
+    private static final ImageMath IMAGE_MATH = ImageMath.newInstance();
 
     public Dedistort(Map<Class<?>, Object> context, Broadcaster broadcaster) {
         super(context, broadcaster);
@@ -575,13 +579,36 @@ public class Dedistort extends AbstractFunctionImpl {
                                                ProgressOperation parent) {
         var safeTileSize = Math.max(ABSOLUTE_MIN_TILE_SIZE, tileSize);
         var increment = (int) Math.max(MIN_STEP, safeTileSize * sampling);
+
+        if (OpenCLSupport.isEnabled() && (safeTileSize == 32 || safeTileSize == 64 || safeTileSize == 128)) {
+            try {
+                return computeDistortionMapGPU(referenceData, currentImage, width, height,
+                        safeTileSize, increment, signal, passName, parent);
+            } catch (Exception e) {
+                LOGGER.warn("GPU distortion map computation failed, falling back to CPU: {}", e.getMessage());
+            }
+        }
+
+        return computeDistortionMapCPU(referenceData, currentImage, width, height,
+                safeTileSize, increment, signal, passName, parent);
+    }
+
+    private DistorsionMap computeDistortionMapCPU(float[][] referenceData,
+                                                   ImageWrapper32 currentImage,
+                                                   int width,
+                                                   int height,
+                                                   int safeTileSize,
+                                                   int increment,
+                                                   float signal,
+                                                   String passName,
+                                                   ProgressOperation parent) {
         var distorsionMap = new DistorsionMap(width, height, safeTileSize, increment);
 
         var maxY = height - safeTileSize;
         var maxX = width - safeTileSize;
         var totalPoints = ((maxY / increment) + 1) * ((maxX / increment) + 1);
 
-        LOGGER.debug("{}: tileSize={}, sampling={}, increment={}, gridPoints={}", passName, safeTileSize, sampling, increment, totalPoints);
+        LOGGER.debug("{}: tileSize={}, increment={}, gridPoints={} (CPU)", passName, safeTileSize, increment, totalPoints);
 
         var progressCounter = new AtomicInteger();
         var progressOperation = parent.createChild(FIND_CORRESP_MESSAGE);
@@ -605,6 +632,132 @@ public class Dedistort extends AbstractFunctionImpl {
         return distorsionMap;
     }
 
+    private DistorsionMap computeDistortionMapGPU(float[][] referenceData,
+                                                   ImageWrapper32 currentImage,
+                                                   int width,
+                                                   int height,
+                                                   int safeTileSize,
+                                                   int increment,
+                                                   float signal,
+                                                   String passName,
+                                                   ProgressOperation parent) {
+        var distorsionMap = new DistorsionMap(width, height, safeTileSize, increment);
+        var data = currentImage.data();
+
+        var maxY = height - safeTileSize;
+        var maxX = width - safeTileSize;
+        var tileOffset = safeTileSize / 2;
+
+        var progressOperation = parent.createChild(FIND_CORRESP_MESSAGE);
+
+        int batchSize = computeBatchSize(safeTileSize);
+        var gridPositions = new ArrayList<int[]>(batchSize);
+        var refTilesList = new ArrayList<float[][]>(batchSize);
+        var targetTilesList = new ArrayList<float[][]>(batchSize);
+
+        int totalPoints = ((maxY / increment) + 1) * ((maxX / increment) + 1);
+        int processedPoints = 0;
+
+        for (int y = 0; y <= maxY; y += increment) {
+            for (int x = 0; x <= maxX; x += increment) {
+                var copyWidth = Math.min(safeTileSize, width - x);
+                var copyHeight = Math.min(safeTileSize, height - y);
+
+                if (copyWidth == safeTileSize && copyHeight == safeTileSize) {
+                    float sum = 0f;
+                    for (int yy = 0; yy < copyHeight; yy++) {
+                        for (int xx = 0; xx < copyWidth; xx++) {
+                            sum += referenceData[y + yy][x + xx];
+                        }
+                    }
+                    float avgSignal = sum / (copyWidth * copyHeight);
+
+                    if (avgSignal > signal) {
+                        var refTile = new float[safeTileSize][safeTileSize];
+                        var targetTile = new float[safeTileSize][safeTileSize];
+                        for (int yy = 0; yy < safeTileSize; yy++) {
+                            System.arraycopy(referenceData[y + yy], x, refTile[yy], 0, safeTileSize);
+                            System.arraycopy(data[y + yy], x, targetTile[yy], 0, safeTileSize);
+                        }
+                        gridPositions.add(new int[]{x + tileOffset, y + tileOffset});
+                        refTilesList.add(refTile);
+                        targetTilesList.add(targetTile);
+
+                        if (refTilesList.size() >= batchSize) {
+                            processBatch(distorsionMap, gridPositions, refTilesList, targetTilesList);
+                            gridPositions.clear();
+                            refTilesList.clear();
+                            targetTilesList.clear();
+                        }
+                    } else {
+                        distorsionMap.recordDistorsion(x + tileOffset, y + tileOffset, 0, 0);
+                    }
+                } else {
+                    distorsionMap.recordDistorsion(x + tileOffset, y + tileOffset, 0, 0);
+                }
+
+                processedPoints++;
+                if (processedPoints % 1000 == 0) {
+                    broadcaster.broadcast(progressOperation.update(processedPoints / (double) totalPoints));
+                }
+            }
+        }
+
+        if (!refTilesList.isEmpty()) {
+            processBatch(distorsionMap, gridPositions, refTilesList, targetTilesList);
+        }
+
+        LOGGER.debug("{}: tileSize={}, increment={}, totalPoints={} (GPU batched)", passName, safeTileSize, increment, totalPoints);
+
+        broadcaster.broadcast(progressOperation.complete());
+        distorsionMap.filterAndSmooth();
+
+        LOGGER.debug("{}: totalDistortion={}", passName, distorsionMap.totalDistorsion());
+
+        return distorsionMap;
+    }
+
+    private static int computeBatchSize(int tileSize) {
+        var runtime = Runtime.getRuntime();
+        long freeMemory = runtime.freeMemory() + (runtime.maxMemory() - runtime.totalMemory());
+        long availableJavaMemory = (long) (freeMemory * 0.75);
+        long bytesPerTileJava = (long) tileSize * tileSize * Float.BYTES;
+        long bytesPerTilePairJava = bytesPerTileJava * 2;
+        int javaBatchSize = (int) (availableJavaMemory / bytesPerTilePairJava);
+
+        // For GPU, we need much more memory per tile:
+        // - 2 input buffers (real): tileSize² × 4 bytes each
+        // - 2 complex buffers (ref + target): tileSize² × 8 bytes each
+        // - 1 temp buffer (complex): tileSize² × 8 bytes
+        // - 1 real output buffer: tileSize² × 4 bytes
+        // Total: ~36 bytes per element = 36 × tileSize² per tile
+        long bytesPerTileGpu = (long) tileSize * tileSize * 36;
+        var ctx = OpenCLSupport.getContext();
+        long gpuMemory = ctx != null ? ctx.getCapabilities().maxMemAllocSize() : Long.MAX_VALUE;
+        long availableGpuMemory = (long) (gpuMemory * 0.5);
+        int gpuBatchSize = (int) (availableGpuMemory / bytesPerTileGpu);
+
+        int batchSize = Math.max(100, Math.min(javaBatchSize, gpuBatchSize));
+        LOGGER.debug("Computed batch size: {} tiles (java limit: {}, gpu limit: {}, tile size: {})",
+                batchSize, javaBatchSize, gpuBatchSize, tileSize);
+        return batchSize;
+    }
+
+    private void processBatch(DistorsionMap distorsionMap,
+                              List<int[]> gridPositions,
+                              List<float[][]> refTilesList,
+                              List<float[][]> targetTilesList) {
+        var refTiles = refTilesList.toArray(new float[0][][]);
+        var targetTiles = targetTilesList.toArray(new float[0][][]);
+
+        var displacements = PhaseCorrelation.getInstance().batchedCorrelation(refTiles, targetTiles);
+
+        for (int i = 0; i < displacements.length; i++) {
+            var pos = gridPositions.get(i);
+            distorsionMap.recordDistorsion(pos[0], pos[1], displacements[i][0], displacements[i][1]);
+        }
+    }
+
     private ImageWrapper32 applyDistorsionMaps(ImageWrapper32 image, DistorsionMaps distorsionMaps) {
         var height = image.height();
         var width = image.width();
@@ -625,34 +778,18 @@ public class Dedistort extends AbstractFunctionImpl {
                                                           ProgressOperation parent,
                                                           int height,
                                                           int width) {
-        var imageData = image.data();
-        var result = new float[height][width];
         var progressOperation = parent.createChild(DEDISTORT);
-        var numProcessors = Math.max(Runtime.getRuntime().availableProcessors() - 1, 1);
-        var batchSize = Math.max(1, height / numProcessors);
-        var completedRows = new AtomicInteger();
+        broadcaster.broadcast(progressOperation.update(0.0));
 
-        IntStream.range(0, numProcessors)
-                .parallel()
-                .forEach(batch -> {
-                    var startY = batch * batchSize;
-                    var endY = (batch == numProcessors - 1) ? height : Math.min(startY + batchSize, height);
-                    for (var y = startY; y < endY; y++) {
-                        for (var x = 0; x < width; x++) {
-                            var displacement = distorsionMap.findDistorsion(x, y);
-                            var xx = x + displacement.dx();
-                            var yy = y + displacement.dy();
-                            if (xx >= 0 && xx < width && yy >= 0 && yy < height) {
-                                result[y][x] = ImageInterpolation.lanczos2D(imageData, xx, yy, width, height);
-                            }
-                        }
-                        var progress = completedRows.incrementAndGet() / (double) height;
-                        broadcaster.broadcast(progressOperation.update(progress));
-                    }
-                });
+        var gridDx = distorsionMap.getGridDx();
+        var gridDy = distorsionMap.getGridDy();
+        var gridStep = distorsionMap.getStep();
+
+        var sourceImage = new Image(width, height, image.data());
+        var resultImage = IMAGE_MATH.dedistort(sourceImage, gridDx, gridDy, gridStep, true);
 
         broadcaster.broadcast(progressOperation.complete());
-        return new ImageWrapper32(width, height, result, MutableMap.of());
+        return new ImageWrapper32(width, height, resultImage.data(), MutableMap.of());
     }
 
     public record DisplacementResult(double dx, double dy) {

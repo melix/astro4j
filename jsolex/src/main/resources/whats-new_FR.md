@@ -1,7 +1,7 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
-- [Nouveautés de la version 4.3.1](#nouveautes-de-la-version-4-3-1) - Nouvelles fonctions d'étirement
-- [Nouveautés de la version 4.3.0](#nouveautes-de-la-version-4-3-0) - Exécution plus rapide des scripts, amélioration du stacking et corrections de bugs
+- [Nouveautés de la version 4.3.1](#nouveautes-de-la-version-4-3-1) - Nouvelles fonctions d'étirement, accélération GPU expérimentale
+- [Version 4.3.0](#nouveautes-de-la-version-4-3-0) - Exécution plus rapide des scripts, amélioration du stacking et corrections de bugs
 - [Version 4.2.1](#nouveautes-de-la-version-4-2-1) - Corrections de bugs
 - [Version 4.2.0](#nouveautes-de-la-version-4-2-0) - Java 25, support GIF, réglages de format de fichier
 - [Version 4.1.4](#nouveautes-de-la-version-4-1-4) - Corrections de bugs et améliorations
@@ -16,6 +16,23 @@
 
 - Ajout de la fonction `PERCENTILE_STRETCH` : étire l'histogramme en mappant les percentiles spécifiés aux points noir et blanc
 - Ajout de la fonction `SIGMOID_STRETCH` : applique une transformation sigmoïde (courbe en S) pour une amélioration douce du contraste
+- [Accélération GPU expérimentale](#acceleration-gpu-experimentale) : traitement d'image significativement plus rapide sur les cartes graphiques compatibles
+
+### Accélération GPU expérimentale
+
+JSol'Ex 4.3.1 introduit une accélération GPU expérimentale pour accélérer le traitement d'image.
+Lorsqu'elle est activée, des opérations comme la dédistorsion et l'empilement peuvent être significativement plus rapides, en particulier sur les grandes images.
+
+**Comment activer**
+
+1. Allez dans **Paramètres avancés** dans la fenêtre principale
+2. Cochez l'option **Accélération GPU (Expérimental)**
+3. Redémarrez JSol'Ex
+
+**Prérequis**
+
+- Une carte graphique avec des pilotes à jour (NVIDIA, AMD ou Intel)
+- Si l'accélération GPU ne fonctionne pas après activation, essayez de mettre à jour vos pilotes graphiques
 
 ## Nouveautés de la version 4.3.0
 

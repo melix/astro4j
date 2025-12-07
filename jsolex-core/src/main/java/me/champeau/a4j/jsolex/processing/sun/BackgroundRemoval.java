@@ -17,9 +17,12 @@ package me.champeau.a4j.jsolex.processing.sun;
 
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.math.opencl.OpenCLContext;
+import me.champeau.a4j.math.opencl.OpenCLSupport;
 import me.champeau.a4j.math.regression.Ellipse;
 import org.apache.commons.math3.linear.LUDecomposition;
 import org.apache.commons.math3.linear.MatrixUtils;
+import org.apache.commons.math3.linear.RealVector;
 import org.apache.commons.math3.stat.regression.OLSMultipleLinearRegression;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +32,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.IntStream;
+
+import static org.lwjgl.opencl.CL10.CL_MEM_READ_ONLY;
+import static org.lwjgl.opencl.CL10.CL_MEM_WRITE_ONLY;
+import static org.lwjgl.opencl.CL10.CL_SUCCESS;
+import static org.lwjgl.opencl.CL10.clEnqueueNDRangeKernel;
+import static org.lwjgl.opencl.CL10.clSetKernelArg;
+import static org.lwjgl.system.MemoryStack.stackPush;
 
 import static me.champeau.a4j.jsolex.processing.sun.ImageUtils.bilinearSmoothing;
 import static me.champeau.a4j.jsolex.processing.sun.workflow.AnalysisUtils.estimateBackground;
@@ -238,16 +248,17 @@ public class BackgroundRemoval {
         var coefficients = solver.solve(mXty);
 
         // Generate background using the coefficients
-        IntStream.range(0, height).parallel().forEach(y -> {
-            for (int x = 0; x < width; x++) {
-                double[] terms = generatePolynomialTerms(x, y, width, height, degree);
-                double bgValue = 0;
-                for (int i = 0; i < terms.length; i++) {
-                    bgValue += coefficients.getEntry(i) * terms[i];
-                }
-                background[y][x] = (float) Math.clamp(bgValue, 0, Constants.MAX_PIXEL_VALUE);
+        // GPU is only beneficial for degree > 2; for lower degrees, memory transfer overhead dominates
+        var context = OpenCLSupport.getContext();
+        if (context != null && OpenCLSupport.isEnabled() && width * height >= 65536 && degree > 2) {
+            try {
+                generateBackgroundGPU(context, background, coefficients, width, height, degree, numTerms);
+            } catch (Exception e) {
+                generateBackgroundCPU(background, coefficients, width, height, degree);
             }
-        });
+        } else {
+            generateBackgroundCPU(background, coefficients, width, height, degree);
+        }
         return Optional.of(new ImageWrapper32(width, height, background, new HashMap<>(image.metadata())));
     }
 
@@ -294,6 +305,93 @@ public class BackgroundRemoval {
         }
 
         return terms;
+    }
+
+    private static void generateBackgroundCPU(float[][] background, RealVector coefficients, int width, int height, int degree) {
+        IntStream.range(0, height).parallel().forEach(y -> {
+            for (int x = 0; x < width; x++) {
+                double[] terms = generatePolynomialTerms(x, y, width, height, degree);
+                double bgValue = 0;
+                for (int i = 0; i < terms.length; i++) {
+                    bgValue += coefficients.getEntry(i) * terms[i];
+                }
+                background[y][x] = (float) Math.clamp(bgValue, 0, Constants.MAX_PIXEL_VALUE);
+            }
+        });
+    }
+
+    private static void generateBackgroundGPU(OpenCLContext context,
+                                              float[][] background,
+                                              RealVector coefficients,
+                                              int width,
+                                              int height,
+                                              int degree,
+                                              int numTerms) {
+        int n = width * height;
+        var flatBackground = new float[n];
+        var coeffArray = new float[numTerms];
+        for (int i = 0; i < numTerms; i++) {
+            coeffArray[i] = (float) coefficients.getEntry(i);
+        }
+
+        context.executeWithLock(() -> {
+            long backgroundBuffer = 0;
+            long coeffBuffer = 0;
+            try {
+                backgroundBuffer = context.allocateBuffer(n * Float.BYTES, CL_MEM_WRITE_ONLY);
+                coeffBuffer = context.allocateBuffer(numTerms * Float.BYTES, CL_MEM_READ_ONLY);
+
+                context.writeBuffer(coeffBuffer, coeffArray);
+
+                try (var stack = stackPush()) {
+                    String kernelName;
+                    if (degree == 1) {
+                        kernelName = "generate_background_deg1";
+                    } else if (degree == 2) {
+                        kernelName = "generate_background_deg2";
+                    } else if (degree == 3) {
+                        kernelName = "generate_background_deg3";
+                    } else {
+                        kernelName = "generate_background_generic";
+                    }
+
+                    var kernel = context.getKernelManager().getKernel("background", kernelName);
+                    clSetKernelArg(kernel, 0, stack.pointers(backgroundBuffer));
+                    clSetKernelArg(kernel, 1, stack.pointers(coeffBuffer));
+                    clSetKernelArg(kernel, 2, stack.ints(width));
+                    clSetKernelArg(kernel, 3, stack.ints(height));
+
+                    if (kernelName.equals("generate_background_generic")) {
+                        clSetKernelArg(kernel, 4, stack.ints(degree));
+                        clSetKernelArg(kernel, 5, stack.ints(numTerms));
+                        clSetKernelArg(kernel, 6, stack.floats(Constants.MAX_PIXEL_VALUE));
+                    } else {
+                        clSetKernelArg(kernel, 4, stack.floats(Constants.MAX_PIXEL_VALUE));
+                    }
+
+                    var globalWorkSize = stack.pointers(width, height);
+                    int err = clEnqueueNDRangeKernel(context.getCommandQueue(), kernel, 2, null, globalWorkSize, null, null, null);
+                    if (err != CL_SUCCESS) {
+                        throw new RuntimeException("Failed to execute kernel: " + err);
+                    }
+                    context.finish();
+                }
+
+                context.readBuffer(backgroundBuffer, flatBackground);
+            } finally {
+                if (backgroundBuffer != 0) {
+                    context.releaseBuffer(backgroundBuffer);
+                }
+                if (coeffBuffer != 0) {
+                    context.releaseBuffer(coeffBuffer);
+                }
+            }
+        });
+
+        // Unflatten the result
+        for (int y = 0; y < height; y++) {
+            System.arraycopy(flatBackground, y * width, background[y], 0, width);
+        }
     }
 
     /**

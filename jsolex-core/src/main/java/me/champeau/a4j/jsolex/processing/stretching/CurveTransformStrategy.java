@@ -19,7 +19,9 @@ import me.champeau.a4j.jsolex.processing.color.ColorCurve;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
+// Not worth running on GPU: memory transfer overhead dominates the simple polynomial evaluation
 public final class CurveTransformStrategy implements StretchingStrategy {
+
     private final double in;
     private final double out;
     private final double protectLo;
@@ -54,7 +56,7 @@ public final class CurveTransformStrategy implements StretchingStrategy {
             var line = data[y];
             for (int x = 0; x < width; x++) {
                 var v = line[x];
-                if (v>protectLo && v < protectHi) {
+                if (v > protectLo && v < protectHi) {
                     line[x] = (float) Math.clamp(curve.applyAsDouble(v), 0, Constants.MAX_PIXEL_VALUE);
                 }
             }

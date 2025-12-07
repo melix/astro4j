@@ -6,6 +6,12 @@ plugins {
 
 description = "A Sol'Ex spectroheliographic video file processor (JavaFX version)"
 
+val lwjglNatives = when {
+    org.gradle.internal.os.OperatingSystem.current().isWindows -> "natives-windows"
+    org.gradle.internal.os.OperatingSystem.current().isMacOsX -> "natives-macos"
+    else -> "natives-linux"
+}
+
 dependencies {
     implementation(projects.jsolexCore)
     implementation(projects.jsolexServer)
@@ -19,6 +25,11 @@ dependencies {
     implementation(libs.ikonli.fluentui)
     implementation(libs.commons.net)
     runtimeOnly(libs.sqlite)
+
+    // LWJGL OpenCL for GPU acceleration
+    implementation(libs.lwjgl)
+    implementation(libs.lwjgl.opencl)
+    implementation(variantOf(libs.lwjgl) { classifier(lwjglNatives) })
 }
 
 jlink {

@@ -7,12 +7,24 @@ plugins {
 
 description = "Provides some mathematical functions like linear or elliptic regression"
 
+val lwjglNatives = when {
+    org.gradle.internal.os.OperatingSystem.current().isWindows -> "natives-windows"
+    org.gradle.internal.os.OperatingSystem.current().isMacOsX -> "natives-macos"
+    else -> "natives-linux"
+}
+
 astro4j {
     withVectorApi()
 }
 
 dependencies {
     implementation(libs.commons.math)
+
+    implementation(libs.lwjgl)
+    implementation(libs.lwjgl.opencl)
+
+    // Runtime natives
+    runtimeOnly(variantOf(libs.lwjgl) { classifier(lwjglNatives) })
 }
 
 tasks.withType<JavaCompile>().configureEach {
@@ -31,4 +43,8 @@ tasks.withType<Javadoc>().configureEach {
         options.setModulePath(classpath.files.toList())
         classpath = files()
     }
+}
+
+jmh {
+    includes.set(listOf("OpenCLFFTBenchmark"))
 }
