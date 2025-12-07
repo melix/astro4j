@@ -28,12 +28,11 @@ import static org.lwjgl.opencl.CL10.*;
  * Thread-safety: All GPU operations are synchronized using the lock in {@link OpenCLContext}
  * to prevent kernel argument race conditions when multiple threads access the GPU concurrently.
  */
-class OpenCLImageMath implements ImageMath {
+class OpenCLImageMath extends VectorApiImageMath {
     private static final int DEFAULT_MIN_PIXELS_FOR_GPU = 65536; // 256x256 minimum for GPU operations
     private static final int DEFAULT_MIN_PIXELS_FOR_CONVOLUTION = 16384; // 128x128 - convolution benefits at smaller sizes
 
     private final OpenCLContext context;
-    private final ImageMath fallback;
     private final int minPixelsForGPU;
     private final int minPixelsForConvolution;
     private final boolean allowFallback;
@@ -43,13 +42,12 @@ class OpenCLImageMath implements ImageMath {
     }
 
     /**
-     * Constructor for testing that allows setting custom thresholds and disabling fallback.
+     * Constructor for testing that allows setting custom thresholds and disabling super.
      * Use minPixels = 0 to force GPU execution for all image sizes.
      * Set allowFallback = false to throw exceptions instead of falling back to CPU.
      */
     OpenCLImageMath(OpenCLContext context, int minPixelsForGPU, int minPixelsForConvolution, boolean allowFallback) {
         this.context = context;
-        this.fallback = new VectorApiImageMath();
         this.minPixelsForGPU = minPixelsForGPU;
         this.minPixelsForConvolution = minPixelsForConvolution;
         this.allowFallback = allowFallback;
@@ -69,7 +67,7 @@ class OpenCLImageMath implements ImageMath {
             if (!allowFallback) {
                 throw new OpenCLException("GPU add required but image too small");
             }
-            return fallback.add(source, f);
+            return super.add(source, f);
         }
         try {
             return addGPU(source, f);
@@ -77,7 +75,7 @@ class OpenCLImageMath implements ImageMath {
             if (!allowFallback) {
                 throw e;
             }
-            return fallback.add(source, f);
+            return super.add(source, f);
         }
     }
 
@@ -122,7 +120,7 @@ class OpenCLImageMath implements ImageMath {
             if (!allowFallback) {
                 throw new OpenCLException("GPU multiply required but image too small");
             }
-            return fallback.multiply(source, f);
+            return super.multiply(source, f);
         }
         try {
             return multiplyGPU(source, f);
@@ -130,7 +128,7 @@ class OpenCLImageMath implements ImageMath {
             if (!allowFallback) {
                 throw e;
             }
-            return fallback.multiply(source, f);
+            return super.multiply(source, f);
         }
     }
 
@@ -175,7 +173,7 @@ class OpenCLImageMath implements ImageMath {
             if (!allowFallback) {
                 throw new OpenCLException("GPU divide required but image too small");
             }
-            return fallback.divide(first, second);
+            return super.divide(first, second);
         }
         try {
             return divideGPU(first, second);
@@ -183,7 +181,7 @@ class OpenCLImageMath implements ImageMath {
             if (!allowFallback) {
                 throw e;
             }
-            return fallback.divide(first, second);
+            return super.divide(first, second);
         }
     }
 
@@ -235,7 +233,7 @@ class OpenCLImageMath implements ImageMath {
             if (!allowFallback) {
                 throw new OpenCLException("GPU multiply images required but image too small");
             }
-            return fallback.multiply(first, second);
+            return super.multiply(first, second);
         }
         try {
             return multiplyImagesGPU(first, second);
@@ -243,7 +241,7 @@ class OpenCLImageMath implements ImageMath {
             if (!allowFallback) {
                 throw e;
             }
-            return fallback.multiply(first, second);
+            return super.multiply(first, second);
         }
     }
 
@@ -295,7 +293,7 @@ class OpenCLImageMath implements ImageMath {
             if (!allowFallback) {
                 throw new OpenCLException("GPU convolution required but image too small: " + image.width() + "x" + image.height());
             }
-            return fallback.convolve(image, kernel);
+            return super.convolve(image, kernel);
         }
         try {
             return convolveGPU(image, kernel);
@@ -303,7 +301,7 @@ class OpenCLImageMath implements ImageMath {
             if (!allowFallback) {
                 throw e;
             }
-            return fallback.convolve(image, kernel);
+            return super.convolve(image, kernel);
         }
     }
 
@@ -442,7 +440,7 @@ class OpenCLImageMath implements ImageMath {
             if (!allowFallback) {
                 throw new OpenCLException("GPU rotateAndScale required but image too small");
             }
-            return fallback.rotateAndScale(image, angle, blackpoint, scaleX, scaleY);
+            return super.rotateAndScale(image, angle, blackpoint, scaleX, scaleY);
         }
         try {
             return rotateAndScaleGPU(image, angle, blackpoint, scaleX, scaleY);
@@ -450,7 +448,7 @@ class OpenCLImageMath implements ImageMath {
             if (!allowFallback) {
                 throw e;
             }
-            return fallback.rotateAndScale(image, angle, blackpoint, scaleX, scaleY);
+            return super.rotateAndScale(image, angle, blackpoint, scaleX, scaleY);
         }
     }
 
@@ -511,7 +509,7 @@ class OpenCLImageMath implements ImageMath {
             if (!allowFallback) {
                 throw new OpenCLException("GPU rotate required but image too small");
             }
-            return fallback.rotate(image, angle, blackpoint, resize);
+            return super.rotate(image, angle, blackpoint, resize);
         }
         try {
             return rotateGPU(image, angle, blackpoint, resize);
@@ -519,7 +517,7 @@ class OpenCLImageMath implements ImageMath {
             if (!allowFallback) {
                 throw e;
             }
-            return fallback.rotate(image, angle, blackpoint, resize);
+            return super.rotate(image, angle, blackpoint, resize);
         }
     }
 
@@ -578,7 +576,7 @@ class OpenCLImageMath implements ImageMath {
             if (!allowFallback) {
                 throw new OpenCLException("GPU rescale required but image too small");
             }
-            return fallback.rescale(image, newWidth, newHeight);
+            return super.rescale(image, newWidth, newHeight);
         }
         try {
             return rescaleGPU(image, newWidth, newHeight);
@@ -586,7 +584,7 @@ class OpenCLImageMath implements ImageMath {
             if (!allowFallback) {
                 throw e;
             }
-            return fallback.rescale(image, newWidth, newHeight);
+            return super.rescale(image, newWidth, newHeight);
         }
     }
 
@@ -641,7 +639,7 @@ class OpenCLImageMath implements ImageMath {
             if (!allowFallback) {
                 throw new OpenCLException("GPU mirror required but image too small");
             }
-            return fallback.mirror(source, horizontalMirror, verticalMirror);
+            return super.mirror(source, horizontalMirror, verticalMirror);
         }
         try {
             return mirrorGPU(source, horizontalMirror, verticalMirror);
@@ -649,7 +647,7 @@ class OpenCLImageMath implements ImageMath {
             if (!allowFallback) {
                 throw e;
             }
-            return fallback.mirror(source, horizontalMirror, verticalMirror);
+            return super.mirror(source, horizontalMirror, verticalMirror);
         }
     }
 
@@ -699,7 +697,7 @@ class OpenCLImageMath implements ImageMath {
             if (!allowFallback) {
                 throw new OpenCLException("GPU dedistort required but image too small");
             }
-            return fallback.dedistort(source, gridDx, gridDy, gridStep, useLanczos);
+            return super.dedistort(source, gridDx, gridDy, gridStep, useLanczos);
         }
         try {
             return dedistortGPU(source, gridDx, gridDy, gridStep, useLanczos);
@@ -707,7 +705,7 @@ class OpenCLImageMath implements ImageMath {
             if (!allowFallback) {
                 throw e;
             }
-            return fallback.dedistort(source, gridDx, gridDy, gridStep, useLanczos);
+            return super.dedistort(source, gridDx, gridDy, gridStep, useLanczos);
         }
     }
 
