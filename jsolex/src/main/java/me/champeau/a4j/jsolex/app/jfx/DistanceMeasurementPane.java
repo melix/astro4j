@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
+import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -24,7 +25,6 @@ import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
 import javafx.scene.SnapshotParameters;
 import javafx.scene.control.Button;
-import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.image.Image;
@@ -71,6 +71,11 @@ public class DistanceMeasurementPane extends BorderPane {
     private final Pane overlayLayer;
     private double zoom = 1.0;
     private final Pane container;
+    private final ScrollPane scrollPane;
+    private double lastImageX = -1;
+    private double lastImageY = -1;
+    private double lastMouseXInViewport = -1;
+    private double lastMouseYInViewport = -1;
 
     public DistanceMeasurementPane(
             Image withoutGlobe,
@@ -85,7 +90,7 @@ public class DistanceMeasurementPane extends BorderPane {
         overlayLayer.setPickOnBounds(false);
         container = new Pane();
         container.getChildren().addAll(imageView, overlayLayer);
-        var scrollPane = new ScrollPane(container);
+        scrollPane = new ScrollPane(container);
         scrollPane.setPannable(true);
         setCenter(scrollPane);
         var topBar = new VBox();
@@ -171,15 +176,66 @@ public class DistanceMeasurementPane extends BorderPane {
         }
         var deltaY = event.getDeltaY();
         if (deltaY != 0) {
+            var viewportBounds = scrollPane.getViewportBounds();
+            double mouseXInViewport = event.getX();
+            double mouseYInViewport = event.getY();
+            double imageX;
+            double imageY;
+            if (lastImageX >= 0 && lastMouseXInViewport == mouseXInViewport && lastMouseYInViewport == mouseYInViewport) {
+                imageX = lastImageX;
+                imageY = lastImageY;
+            } else {
+                double scrollOffsetX = -viewportBounds.getMinX();
+                double scrollOffsetY = -viewportBounds.getMinY();
+                double mouseXInContent = scrollOffsetX + mouseXInViewport;
+                double mouseYInContent = scrollOffsetY + mouseYInViewport;
+                imageX = mouseXInContent / zoom;
+                imageY = mouseYInContent / zoom;
+            }
+            lastMouseXInViewport = mouseXInViewport;
+            lastMouseYInViewport = mouseYInViewport;
+            lastImageX = imageX;
+            lastImageY = imageY;
             double zoomFactor = 1.05;
             if (deltaY < 0) {
                 zoom /= zoomFactor;
             } else {
                 zoom *= zoomFactor;
             }
+            zoom = Math.max(0.1, Math.min(zoom, 5));
+            double finalZoom = zoom;
+            double finalImageX = imageX;
+            double finalImageY = imageY;
+            applyZoom();
+            updateCurrentMeasurementPaths();
+            Platform.runLater(() -> {
+                double newContentWidth = image.getWidth() * finalZoom;
+                double newContentHeight = image.getHeight() * finalZoom;
+                double newMouseXInContent = finalImageX * finalZoom;
+                double newMouseYInContent = finalImageY * finalZoom;
+                double newScrollOffsetX = newMouseXInContent - mouseXInViewport;
+                double newScrollOffsetY = newMouseYInContent - mouseYInViewport;
+                var newViewportBounds = scrollPane.getViewportBounds();
+                double newViewportWidth = newViewportBounds.getWidth();
+                double newViewportHeight = newViewportBounds.getHeight();
+                double newHmax = Math.max(0, newContentWidth - newViewportWidth);
+                double newVmax = Math.max(0, newContentHeight - newViewportHeight);
+                double rawHvalue = newHmax > 0 ? newScrollOffsetX / newHmax : 0;
+                double rawVvalue = newVmax > 0 ? newScrollOffsetY / newVmax : 0;
+                double newHvalue = Math.max(0, Math.min(1, rawHvalue));
+                double newVvalue = Math.max(0, Math.min(1, rawVvalue));
+                if (rawHvalue != newHvalue || rawVvalue != newVvalue) {
+                    double actualScrollOffsetX = newHvalue * newHmax;
+                    double actualScrollOffsetY = newVvalue * newVmax;
+                    double actualMouseXInContent = actualScrollOffsetX + mouseXInViewport;
+                    double actualMouseYInContent = actualScrollOffsetY + mouseYInViewport;
+                    lastImageX = actualMouseXInContent / finalZoom;
+                    lastImageY = actualMouseYInContent / finalZoom;
+                }
+                scrollPane.setHvalue(newHvalue);
+                scrollPane.setVvalue(newVvalue);
+            });
         }
-        applyZoom();
-        updateCurrentMeasurementPaths();
         event.consume();
     }
 

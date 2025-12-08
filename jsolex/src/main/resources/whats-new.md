@@ -17,6 +17,7 @@
 - Added `PERCENTILE_STRETCH` function: stretches histogram by mapping specified percentiles to black and white points
 - Added `SIGMOID_STRETCH` function: applies a sigmoid (S-curve) transformation for smooth contrast enhancement
 - [Experimental GPU Acceleration](#experimental-gpu-acceleration): significantly faster image processing on compatible graphics cards
+- Improved zoom behavior: zooming now centers on the mouse cursor position instead of the top-left corner, keeping the feature of interest centered in the view
 
 ### Experimental GPU Acceleration
 
