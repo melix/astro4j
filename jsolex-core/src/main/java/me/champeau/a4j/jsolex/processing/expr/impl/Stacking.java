@@ -21,6 +21,7 @@ import me.champeau.a4j.jsolex.processing.expr.BestImages;
 import me.champeau.a4j.jsolex.processing.expr.stacking.DistorsionDebugImageCreator;
 import me.champeau.a4j.jsolex.processing.expr.stacking.DistorsionMap;
 import me.champeau.a4j.jsolex.processing.expr.stacking.DistorsionMaps;
+import me.champeau.a4j.jsolex.processing.expr.stacking.ConsensusReference;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
@@ -593,6 +594,12 @@ public class Stacking extends AbstractFunctionImpl {
                         .map(ImageWrapper32.class::cast)
                         .orElseThrow();
             }
+            case CONSENSUS -> {
+                var keyframe = computeReferenceImageAndAdjustWeights(images, null, ReferenceSelection.SHARPNESS, weights);
+                var copy = keyframe.copy();
+                copy.metadata().put(ConsensusReference.class, ConsensusReference.INSTANCE);
+                yield copy;
+            }
         };
     }
 
@@ -721,7 +728,8 @@ public class Stacking extends AbstractFunctionImpl {
         MEDIAN,
         ECCENTRICITY,
         SHARPNESS,
-        MANUAL
+        MANUAL,
+        CONSENSUS
     }
 
 }

@@ -18,6 +18,7 @@
 - Added `SIGMOID_STRETCH` function: applies a sigmoid (S-curve) transformation for smooth contrast enhancement
 - [Experimental GPU Acceleration](#experimental-gpu-acceleration): significantly faster image processing on compatible graphics cards
 - Improved zoom behavior: zooming now centers on the mouse cursor position instead of the top-left corner, keeping the feature of interest centered in the view
+- Added `consensus` reference selection mode in `STACK_REF`: uses averaged displacement fields to estimate true undistorted geometry, improving dedistortion accuracy when no single frame is optimal
 
 ### Experimental GPU Acceleration
 
