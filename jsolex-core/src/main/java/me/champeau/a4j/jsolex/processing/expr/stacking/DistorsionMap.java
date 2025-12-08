@@ -150,6 +150,71 @@ public class DistorsionMap {
         return result;
     }
 
+    public static DistorsionMap average(List<DistorsionMap> maps) {
+        if (maps.isEmpty()) {
+            throw new IllegalArgumentException("Cannot average empty list of maps");
+        }
+        if (maps.size() == 1) {
+            return maps.getFirst();
+        }
+
+        var first = maps.getFirst();
+        var step = first.step;
+        var tileSize = first.tileSize;
+        var gridYSize = first.gridYSize;
+        var gridXSize = first.gridXSize;
+
+        // Validate all maps have the same dimensions
+        for (var i = 1; i < maps.size(); i++) {
+            var map = maps.get(i);
+            if (map.gridYSize != gridYSize || map.gridXSize != gridXSize) {
+                throw new IllegalArgumentException(
+                    String.format("Map %d has dimensions %dx%d but expected %dx%d",
+                        i, map.gridXSize, map.gridYSize, gridXSize, gridYSize));
+            }
+        }
+
+        var dxy = new double[gridYSize][gridXSize][2];
+        var sampled = new boolean[gridYSize][gridXSize];
+
+        for (var gy = 0; gy < gridYSize; gy++) {
+            for (var gx = 0; gx < gridXSize; gx++) {
+                var sumDx = 0.0;
+                var sumDy = 0.0;
+                var count = 0;
+                for (var map : maps) {
+                    if (map.sampled[gy][gx]) {
+                        sumDx += map.dxy[gy][gx][0];
+                        sumDy += map.dxy[gy][gx][1];
+                        count++;
+                    }
+                }
+                if (count > 0) {
+                    dxy[gy][gx][0] = sumDx / count;
+                    dxy[gy][gx][1] = sumDy / count;
+                    sampled[gy][gx] = true;
+                }
+            }
+        }
+
+        return new DistorsionMap(step, tileSize, dxy, sampled);
+    }
+
+    public DistorsionMap negate() {
+        var negatedDxy = new double[gridYSize][gridXSize][2];
+        var copiedSampled = new boolean[gridYSize][gridXSize];
+
+        for (var gy = 0; gy < gridYSize; gy++) {
+            for (var gx = 0; gx < gridXSize; gx++) {
+                negatedDxy[gy][gx][0] = -dxy[gy][gx][0];
+                negatedDxy[gy][gx][1] = -dxy[gy][gx][1];
+                copiedSampled[gy][gx] = sampled[gy][gx];
+            }
+        }
+
+        return new DistorsionMap(step, tileSize, negatedDxy, copiedSampled);
+    }
+
     public void recordDistorsion(int x, int y, double dx, double dy) {
         var offset = tileSize / 2;
         var sampleX = (x - offset) / step;

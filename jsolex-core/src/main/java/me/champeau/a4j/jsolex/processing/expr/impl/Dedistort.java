@@ -19,6 +19,7 @@ import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.expr.stacking.DistorsionMap;
 import me.champeau.a4j.jsolex.processing.expr.stacking.DistorsionMaps;
+import me.champeau.a4j.jsolex.processing.expr.stacking.ConsensusReference;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -33,9 +34,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
@@ -48,6 +51,11 @@ public class Dedistort extends AbstractFunctionImpl {
     private static final String DEDISTORT = message("dedistorting");
     private static final Map<Integer, float[][]> HANN_WINDOW_CACHE = new ConcurrentHashMap<>();
     private static final ImageMath IMAGE_MATH = ImageMath.newInstance();
+
+    // By the Central Limit Theorem, the sample mean converges to the true mean with standard
+    // error proportional to σ/√n. With 30 samples, we get a good approximation (σ/√30 ≈ 0.18σ)
+    // while keeping computational complexity linear O(N×k) instead of quadratic O(N²).
+    private static final int MAX_CONSENSUS_COMPARISONS = 30;
 
     public Dedistort(Map<Class<?>, Object> context, Broadcaster broadcaster) {
         super(context, broadcaster);
@@ -434,6 +442,9 @@ public class Dedistort extends AbstractFunctionImpl {
             }
             var target = arguments.get("img");
             if (target instanceof List<?> listOfImages) {
+                if (mono.findMetadata(ConsensusReference.class).isPresent()) {
+                    return dedistortWithConsensusReference(listOfImages, arguments);
+                }
                 return listOfImages.stream()
                         .parallel()
                         .map(img -> {
@@ -504,6 +515,7 @@ public class Dedistort extends AbstractFunctionImpl {
         var distorsionMapList = new ArrayList<DistorsionMap>();
         var currentImage = image;
         var iterationOperation = newOperation().createChild(DEDISTORT);
+        var previousDistortion = Double.MAX_VALUE;
 
         for (int iteration = 0; iteration < iterations; iteration++) {
             LOGGER.debug("Iteration {}/{}", iteration + 1, iterations);
@@ -541,8 +553,16 @@ public class Dedistort extends AbstractFunctionImpl {
                 LOGGER.debug("Iteration {} synthesized {} level maps into one", iteration + 1, levelMaps.size());
             }
 
+            // Check if distortion increased - if so, stop and discard this iteration
+            var currentDistortion = iterationMap.totalDistorsion();
+            if (currentDistortion > previousDistortion) {
+                LOGGER.warn(message("consensus.reference.distortion.increased"), iteration + 1, currentDistortion, previousDistortion);
+                break;
+            }
+
             distorsionMapList.add(iterationMap);
             currentImage = dedistortSingleWithoutMetadata(iterationInputImage, iterationMap, iterationOperation, height, width);
+            previousDistortion = currentDistortion;
 
             LOGGER.debug("Iteration {} complete: distortions by level = {}, synthesized = {}",
                     iteration + 1, iterationDistortions, iterationMap.totalDistorsion());
@@ -793,6 +813,157 @@ public class Dedistort extends AbstractFunctionImpl {
     }
 
     public record DisplacementResult(double dx, double dy) {
+    }
+
+    /**
+     * Dedistorts images using consensus reference mode.
+     * <p>
+     * This algorithm estimates the true undistorted geometry by computing pairwise
+     * displacement fields between all images and averaging them. For each image i,
+     * we compute displacement maps to all other images j, then average these maps.
+     * Since displacement(i→j) = d_j - d_i (where d_x is image x's distortion),
+     * averaging over all j gives approximately -d_i. Negating this gives the correction
+     * needed to map image i to the true geometry.
+     */
+    private List<ImageWrapper32> dedistortWithConsensusReference(List<?> listOfImages,
+                                                                Map<String, Object> arguments) {
+        var images = asMonoImages(listOfImages);
+        var imageCount = images.size();
+
+        if (imageCount == 1) {
+            return images;
+        }
+        if (imageCount < 5) {
+            LOGGER.warn(message("consensus.reference.few.images"), imageCount);
+        }
+
+        var tileSize = intArg(arguments, "ts", Stacking.DEFAULT_TILE_SIZE);
+        var sampling = doubleArg(arguments, "sampling", Stacking.DEFAULT_SAMPLING);
+        var threshold = doubleArg(arguments, "threshold", -1);
+        var signal = threshold == -1 ? 1f : (float) threshold;
+        var iterations = intArg(arguments, "iterations", 1);
+        if (iterations < 1) {
+            iterations = 1;
+        }
+
+        var width = images.getFirst().width();
+        var height = images.getFirst().height();
+
+        var mainOperation = newOperation().createChild(DEDISTORT);
+
+        // Track accumulated distortion maps per image across iterations
+        var accumulatedMaps = new ArrayList<DistorsionMaps>(imageCount);
+        for (int i = 0; i < imageCount; i++) {
+            accumulatedMaps.add(new DistorsionMaps(List.of()));
+        }
+
+        // Current working images (will be warped after each iteration)
+        var currentImages = new ArrayList<>(images);
+        var previousAvgDistortion = Double.MAX_VALUE;
+
+        for (int iteration = 0; iteration < iterations; iteration++) {
+            var suffix = iterations > 1 ? " (" + (iteration + 1) + "/" + iterations + ")" : "";
+            LOGGER.debug("Consensus reference iteration {}/{}: computing distortion maps for {} images",
+                    iteration + 1, iterations, imageCount);
+            var computingMessage = message("consensus.reference.computing");
+            broadcaster.broadcast(mainOperation.update((double) iteration / iterations, computingMessage + suffix));
+
+            // For each image, compute displacement to all other images and average
+            // This gives image[i] → truth directly via CLT
+            var iterationMaps = new ArrayList<DistorsionMap>(imageCount);
+            var comparingOperation = mainOperation.createChild(computingMessage);
+
+            // Determine how many comparisons to make per image
+            var comparisonsPerImage = Math.min(imageCount - 1, MAX_CONSENSUS_COMPARISONS);
+            var useSubsampling = comparisonsPerImage < imageCount - 1;
+
+            for (int i = 0; i < imageCount; i++) {
+                var sourceImage = currentImages.get(i);
+                var sourceData = sourceImage.data();
+                broadcaster.broadcast(comparingOperation.update((double) i / imageCount,
+                        String.format("Image %d/%d", i + 1, imageCount)));
+
+                // Build list of target indices (excluding self)
+                var targetIndices = new ArrayList<Integer>(imageCount - 1);
+                for (int j = 0; j < imageCount; j++) {
+                    if (j != i) {
+                        targetIndices.add(j);
+                    }
+                }
+
+                // Subsample if needed, using a fixed seed for reproducibility
+                if (useSubsampling) {
+                    var random = new Random(42L + i + (long) iteration * imageCount);
+                    Collections.shuffle(targetIndices, random);
+                    targetIndices = new ArrayList<>(targetIndices.subList(0, comparisonsPerImage));
+                }
+
+                // Compute displacements from image[i] to selected other images
+                var mapsToOthers = new ArrayList<DistorsionMap>(comparisonsPerImage);
+                var imageOperation = comparingOperation.createChild(message("consensus.reference.comparing"));
+                for (int j : targetIndices) {
+                    var targetImage = currentImages.get(j);
+                    var passName = String.format("Iter %d - Image %d -> %d", iteration + 1, i + 1, j + 1);
+                    var map = computeDistortionMap(sourceData, targetImage, width, height,
+                            tileSize, sampling, signal, passName, imageOperation);
+                    mapsToOthers.add(map);
+                }
+                broadcaster.broadcast(imageOperation.complete());
+
+                // Average: average(image[i] → image[j]) ≈ -d_i (negative of image[i]'s distortion)
+                // So we negate to get the correction: image[i] → truth ≈ d_i
+                var avgMap = DistorsionMap.average(mapsToOthers);
+                var imageToTruth = avgMap.negate();
+                iterationMaps.add(imageToTruth);
+                LOGGER.debug("Consensus reference iteration {}: image {}: toTruth distortion={}",
+                        iteration + 1, i, imageToTruth.totalDistorsion());
+            }
+            broadcaster.broadcast(comparingOperation.complete());
+
+            // Check if distortion increased - if so, stop and discard this iteration
+            var avgDistortion = iterationMaps.stream()
+                    .mapToDouble(DistorsionMap::totalDistorsion)
+                    .average()
+                    .orElse(0);
+
+            if (avgDistortion > previousAvgDistortion) {
+                LOGGER.warn(message("consensus.reference.distortion.increased"), iteration + 1, avgDistortion, previousAvgDistortion);
+                break;
+            }
+
+            LOGGER.debug("Consensus reference iteration {}: average toTruth distortion={}",
+                    iteration + 1, avgDistortion);
+            previousAvgDistortion = avgDistortion;
+
+            // Warp each image and accumulate its distortion map
+            for (int i = 0; i < imageCount; i++) {
+                var map = iterationMaps.get(i);
+                accumulatedMaps.set(i, accumulatedMaps.get(i).append(map));
+                currentImages.set(i, dedistortSingleWithoutMetadata(currentImages.get(i), map, mainOperation, height, width));
+            }
+        }
+
+        // Build final results with accumulated maps in metadata
+        LOGGER.debug("Consensus reference dedistort: building results for {} images", imageCount);
+        broadcaster.broadcast(mainOperation.update(0.95, "Building results"));
+
+        var results = new ArrayList<ImageWrapper32>(imageCount);
+        for (int i = 0; i < imageCount; i++) {
+            var correctedImage = currentImages.get(i);
+            var distorsionMaps = accumulatedMaps.get(i);
+
+            var metadata = MutableMap.<Class<?>, Object>of();
+            metadata.putAll(images.get(i).metadata());
+            metadata.put(DistorsionMaps.class, distorsionMaps);
+            results.add(new ImageWrapper32(width, height, correctedImage.data(), metadata));
+
+            LOGGER.debug("Consensus reference: image {}: total maps={}", i, distorsionMaps.size());
+        }
+
+        broadcaster.broadcast(mainOperation.complete());
+        LOGGER.debug("Consensus reference dedistort: completed for {} images with {} iterations", imageCount, iterations);
+
+        return results;
     }
 
 }

@@ -17,6 +17,7 @@
 - Ajout de la fonction `PERCENTILE_STRETCH` : étire l'histogramme en mappant les percentiles spécifiés aux points noir et blanc
 - Ajout de la fonction `SIGMOID_STRETCH` : applique une transformation sigmoïde (courbe en S) pour une amélioration douce du contraste
 - [Accélération GPU expérimentale](#acceleration-gpu-experimentale) : traitement d'image significativement plus rapide sur les cartes graphiques compatibles
+- Ajout du mode de sélection de référence `consensus` dans `STACK_REF` : utilise la moyenne des champs de déplacement pour estimer la géométrie non distordue réelle, améliorant la précision de la dédistorsion lorsqu'aucune image n'est optimale
 - Amélioration du zoom : le zoom est maintenant centré sur la position du curseur de la souris au lieu du coin supérieur gauche, gardant la zone d'intérêt centrée dans la vue
 
 ### Accélération GPU expérimentale
