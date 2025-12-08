@@ -11,7 +11,7 @@ micronaut = "4.9.3"
 richtextfx = "0.11.7"
 jcodec="0.2.5"
 ikonli="12.4.0"
-sqlite="3.51.0.0"
+sqlite="3.51.1.0"
 lwjgl="3.3.6"
 
 [libraries]
