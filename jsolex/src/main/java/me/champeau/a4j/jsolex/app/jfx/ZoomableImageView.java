@@ -75,6 +75,14 @@ public class ZoomableImageView extends HBox {
     private RectangleSelectionListener rectangleSelectionListener;
     private ContextMenu rectangleSelectionMenu;
 
+    // Fields for zoom tracking
+    private double lastImageX = -1;
+    private double lastImageY = -1;
+    private double lastMouseScreenX = -1;
+    private double lastMouseScreenY = -1;
+    private double lastMouseXInViewport = -1;
+    private double lastMouseYInViewport = -1;
+
     public ZoomableImageView() {
         super();
         this.scrollPane = new ScrollPane();
@@ -83,7 +91,7 @@ public class ZoomableImageView extends HBox {
         scrollPane.setPannable(true);
         scrollPane.setContent(imageView);
 
-        imageView.setOnScroll(this::handleScroll);
+        scrollPane.addEventFilter(ScrollEvent.SCROLL, this::handleScroll);
         imageView.setOnMouseClicked(evt -> {
             if (evt.getButton().equals(MouseButton.PRIMARY) && evt.getClickCount() == 2) {
                 if (zoom == 1.0) {
@@ -289,15 +297,150 @@ public class ZoomableImageView extends HBox {
         if (event.isControlDown() && !isSelectingRectangle.get()) {
             double deltaY = event.getDeltaY();
             if (deltaY != 0) {
-                double zoomFactor = 1.05;
-                if (deltaY < 0) {
-                    zoom /= zoomFactor;
-                } else {
-                    zoom *= zoomFactor;
+                var image = imageView.getImage();
+                if (image == null) {
+                    return;
                 }
-                zoom = Math.max(0.1, Math.min(zoom, 5));
+                double mouseScreenX = event.getScreenX();
+                double mouseScreenY = event.getScreenY();
+
+                // Check if mouse position on screen changed - use screen coordinates because
+                // local coordinates shift as the scroll position changes
+                boolean mouseMovedSignificantly = lastMouseScreenX < 0 ||
+                    Math.abs(mouseScreenX - lastMouseScreenX) > 2 ||
+                    Math.abs(mouseScreenY - lastMouseScreenY) > 2;
+
+                double zoomFactor = 1.05;
+                double newZoom;
+                if (deltaY < 0) {
+                    newZoom = zoom / zoomFactor;
+                } else {
+                    newZoom = zoom * zoomFactor;
+                }
+                newZoom = Math.max(0.1, Math.min(newZoom, 5));
+
+                double imageX;
+                double imageY;
+                double viewportMouseX;
+                double viewportMouseY;
+                if (mouseMovedSignificantly) {
+                    // Mouse moved - recalculate image coordinates
+                    // Use sceneToLocal on imageView to get coordinates directly in image space
+                    var pointInImage = imageView.sceneToLocal(event.getSceneX(), event.getSceneY());
+                    double fitWidth = imageView.getFitWidth();
+                    double fitHeight = imageView.getFitHeight();
+
+                    viewportMouseX = event.getX();
+                    viewportMouseY = event.getY();
+
+                    // Convert from scaled image coordinates to original image pixel coordinates
+                    double rawImageX;
+                    double rawImageY;
+                    if (fitWidth > 0 && fitHeight > 0) {
+                        rawImageX = pointInImage.getX() * image.getWidth() / fitWidth;
+                        rawImageY = pointInImage.getY() * image.getHeight() / fitHeight;
+                    } else {
+                        rawImageX = pointInImage.getX();
+                        rawImageY = pointInImage.getY();
+                    }
+                    imageX = rawImageX;
+                    imageY = rawImageY;
+
+                    // DON'T clamp imageX/Y based on scroll constraints!
+                    // We want to track the TRUE image pixel under cursor.
+                    // The scroll will be clamped to 0-1 range, and as we zoom in,
+                    // eventually the scroll will become achievable and start tracking correctly.
+
+                    // Only clamp to actual image bounds
+                    imageX = Math.max(0, Math.min(image.getWidth() - 1, imageX));
+                    imageY = Math.max(0, Math.min(image.getHeight() - 1, imageY));
+
+                    // Save for next iteration
+                    lastImageX = imageX;
+                    lastImageY = imageY;
+                    lastMouseScreenX = mouseScreenX;
+                    lastMouseScreenY = mouseScreenY;
+                    lastMouseXInViewport = viewportMouseX;
+                    lastMouseYInViewport = viewportMouseY;
+                } else {
+                    // Mouse didn't move - reuse all saved coordinates
+                    imageX = lastImageX;
+                    imageY = lastImageY;
+                    viewportMouseX = lastMouseXInViewport;
+                    viewportMouseY = lastMouseYInViewport;
+                }
+
+                zoom = newZoom;
                 triggerOnZoomChanged();
                 applyZoom();
+
+                // Force layout to update before calculating scroll positions
+                scrollPane.layout();
+
+                // Now calculate and set scroll positions synchronously
+                double newContentWidth = image.getWidth() * zoom;
+                double newContentHeight = image.getHeight() * zoom;
+                var newViewportBounds = scrollPane.getViewportBounds();
+                double newViewportWidth = newViewportBounds.getWidth();
+                double newViewportHeight = newViewportBounds.getHeight();
+
+                // When content is smaller than viewport, it gets centered.
+                // We need to account for this centering when calculating where
+                // the image pixel will appear in the viewport.
+                double newCenteringOffsetX = Math.max(0, (newViewportWidth - newContentWidth) / 2);
+                double newCenteringOffsetY = Math.max(0, (newViewportHeight - newContentHeight) / 2);
+
+                // Position of the target image pixel in content coordinates
+                double newMouseXInContent = imageX * zoom;
+                double newMouseYInContent = imageY * zoom;
+
+                // Where the target pixel will appear in the viewport, accounting for centering
+                // If centered: pixel appears at (newMouseXInContent + centeringOffset)
+                // We want it at viewportMouseX, so scroll offset = (newMouseXInContent + centeringOffset) - viewportMouseX
+                // But scroll offset must be >= 0, and centering only applies when content < viewport
+                double newHmax = Math.max(0, newContentWidth - newViewportWidth);
+                double newVmax = Math.max(0, newContentHeight - newViewportHeight);
+
+                double newScrollOffsetX;
+                double newScrollOffsetY;
+                if (newHmax > 0) {
+                    // Content larger than viewport - normal scrolling
+                    newScrollOffsetX = newMouseXInContent - viewportMouseX;
+                } else {
+                    // Content fits in viewport - it will be centered
+                    // The pixel will appear at (newMouseXInContent + newCenteringOffsetX) in viewport coords
+                    // We can't scroll, so we can only track if the pixel naturally falls under cursor
+                    newScrollOffsetX = 0;
+                }
+                if (newVmax > 0) {
+                    newScrollOffsetY = newMouseYInContent - viewportMouseY;
+                } else {
+                    newScrollOffsetY = 0;
+                }
+
+                double rawHvalue = newHmax > 0 ? newScrollOffsetX / newHmax : 0;
+                double rawVvalue = newVmax > 0 ? newScrollOffsetY / newVmax : 0;
+                double newHvalue = Math.max(0, Math.min(1, rawHvalue));
+                double newVvalue = Math.max(0, Math.min(1, rawVvalue));
+
+                // When content fits in viewport or scroll is clamped, the target pixel
+                // won't be under the cursor. Adjust tracking to the achievable position.
+                if (newHmax <= 0) {
+                    // Content centered - the pixel under cursor is determined by centering
+                    lastImageX = (viewportMouseX - newCenteringOffsetX) / zoom;
+                } else if (rawHvalue < 0 || rawHvalue > 1) {
+                    double actualScrollOffsetX = newHvalue * newHmax;
+                    lastImageX = (actualScrollOffsetX + viewportMouseX) / zoom;
+                }
+                if (newVmax <= 0) {
+                    lastImageY = (viewportMouseY - newCenteringOffsetY) / zoom;
+                } else if (rawVvalue < 0 || rawVvalue > 1) {
+                    double actualScrollOffsetY = newVvalue * newVmax;
+                    lastImageY = (actualScrollOffsetY + viewportMouseY) / zoom;
+                }
+
+                scrollPane.setHvalue(newHvalue);
+                scrollPane.setVvalue(newVvalue);
             }
             event.consume();
         }

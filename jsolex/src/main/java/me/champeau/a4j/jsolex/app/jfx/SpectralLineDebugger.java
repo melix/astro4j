@@ -147,6 +147,10 @@ public class SpectralLineDebugger {
     private final List<Point2D> samplePoints = new ArrayList<>();
     private final List<Double> sampleDistances = new ArrayList<>();
     private double zoom = 1.0;
+    private double lastImageX = -1;
+    private double lastImageY = -1;
+    private double lastMouseXInViewport = -1;
+    private double lastMouseYInViewport = -1;
     private DoubleUnaryOperator polynomial;
     private DoubleUnaryOperator lockedPolynomial;
     private SerFileReader reader;
@@ -181,10 +185,31 @@ public class SpectralLineDebugger {
         var toggleGroup = new ToggleGroup();
         average.setToggleGroup(toggleGroup);
         frames.setToggleGroup(toggleGroup);
-        canvas.setOnScroll(event -> {
+        canvasScrollPane.addEventFilter(javafx.scene.input.ScrollEvent.SCROLL, event -> {
             if (event.isControlDown()) {
                 double deltaY = event.getDeltaY();
-                if (deltaY != 0) {
+                if (deltaY != 0 && image != null) {
+                    var viewportBounds = canvasScrollPane.getViewportBounds();
+                    double mouseXInViewport = event.getX();
+                    double mouseYInViewport = event.getY();
+                    double imageX;
+                    double imageY;
+                    double currentScale = canvas.getWidth() / image.getWidth();
+                    if (lastImageX >= 0 && lastMouseXInViewport == mouseXInViewport && lastMouseYInViewport == mouseYInViewport) {
+                        imageX = lastImageX;
+                        imageY = lastImageY;
+                    } else {
+                        double scrollOffsetX = -viewportBounds.getMinX();
+                        double scrollOffsetY = -viewportBounds.getMinY();
+                        double mouseXInContent = scrollOffsetX + mouseXInViewport;
+                        double mouseYInContent = scrollOffsetY + mouseYInViewport;
+                        imageX = mouseXInContent / currentScale;
+                        imageY = mouseYInContent / currentScale;
+                    }
+                    lastMouseXInViewport = mouseXInViewport;
+                    lastMouseYInViewport = mouseYInViewport;
+                    lastImageX = imageX;
+                    lastImageY = imageY;
                     double zoomFactor = 1.05;
                     if (deltaY < 0) {
                         zoom /= zoomFactor;
@@ -192,7 +217,37 @@ public class SpectralLineDebugger {
                         zoom *= zoomFactor;
                     }
                     zoom = Math.max(0.1, Math.min(zoom, 5));
+                    double finalImageX = imageX;
+                    double finalImageY = imageY;
                     fireZoomChanged(scene);
+                    Platform.runLater(() -> {
+                        double newScale = canvas.getWidth() / image.getWidth();
+                        double newContentWidth = canvas.getWidth();
+                        double newContentHeight = canvas.getHeight();
+                        double newMouseXInContent = finalImageX * newScale;
+                        double newMouseYInContent = finalImageY * newScale;
+                        double newScrollOffsetX = newMouseXInContent - mouseXInViewport;
+                        double newScrollOffsetY = newMouseYInContent - mouseYInViewport;
+                        var newViewportBounds = canvasScrollPane.getViewportBounds();
+                        double newViewportWidth = newViewportBounds.getWidth();
+                        double newViewportHeight = newViewportBounds.getHeight();
+                        double newHmax = Math.max(0, newContentWidth - newViewportWidth);
+                        double newVmax = Math.max(0, newContentHeight - newViewportHeight);
+                        double rawHvalue = newHmax > 0 ? newScrollOffsetX / newHmax : 0;
+                        double rawVvalue = newVmax > 0 ? newScrollOffsetY / newVmax : 0;
+                        double newHvalue = Math.max(0, Math.min(1, rawHvalue));
+                        double newVvalue = Math.max(0, Math.min(1, rawVvalue));
+                        if (rawHvalue != newHvalue || rawVvalue != newVvalue) {
+                            double actualScrollOffsetX = newHvalue * newHmax;
+                            double actualScrollOffsetY = newVvalue * newVmax;
+                            double actualMouseXInContent = actualScrollOffsetX + mouseXInViewport;
+                            double actualMouseYInContent = actualScrollOffsetY + mouseYInViewport;
+                            lastImageX = actualMouseXInContent / newScale;
+                            lastImageY = actualMouseYInContent / newScale;
+                        }
+                        canvasScrollPane.setHvalue(newHvalue);
+                        canvasScrollPane.setVvalue(newVvalue);
+                    });
                 }
                 event.consume();
             }

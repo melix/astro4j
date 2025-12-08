@@ -175,7 +175,8 @@ public class SpectrumBrowser extends BorderPane {
                 double deltaY = event.getDeltaY();
                 if (deltaY != 0) {
                     double factor = deltaY > 0 ? 1 / ZOOM_FACTOR : ZOOM_FACTOR;
-                    zoom(factor);
+                    double mouseY = event.getY();
+                    zoomAroundPosition(factor, mouseY);
                 }
             } else {
                 double delta = event.getDeltaY();
@@ -675,6 +676,25 @@ public class SpectrumBrowser extends BorderPane {
         adjustDispersion.setSelected(false);
         visibleRangeAngstroms.set(visibleRangeAngstroms.get() * factor);
         centerWavelength(Wavelen.ofAngstroms(centerWavelength));
+        drawSpectrum();
+    }
+
+    private void zoomAroundPosition(double factor, double mouseY) {
+        var height = canvas.getHeight();
+        var idx = flipSpectrumCheckBox.isSelected() ? height - mouseY : mouseY;
+        double wavelengthAtMouse = currentMinWavelength + idx * (visibleRangeAngstroms.get() / height);
+        adjustDispersion.setSelected(false);
+        double oldRange = visibleRangeAngstroms.get();
+        double newRange = oldRange * factor;
+        visibleRangeAngstroms.set(newRange);
+        double relativePosition = idx / height;
+        currentMinWavelength = wavelengthAtMouse - relativePosition * newRange;
+        currentMinWavelength = Math.max(currentMinWavelength, ReferenceIntensities.INSTANCE.getMinWavelength());
+        currentMaxWavelength = currentMinWavelength + newRange;
+        if (currentMaxWavelength > ReferenceIntensities.INSTANCE.getMaxWavelength()) {
+            currentMaxWavelength = ReferenceIntensities.INSTANCE.getMaxWavelength();
+            currentMinWavelength = currentMaxWavelength - newRange;
+        }
         drawSpectrum();
     }
 
