@@ -359,22 +359,18 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                         if (solarImage != null && spectrumImage != null) {
                             var rgb = reconstructionView.getSolarImageData();
                             var pixelformat = PixelFormat.getByteRgbInstance();
-
-                            // Force final solar image update with complete buffer
-                            solarImage.getPixelWriter().setPixels(
-                                    0, 0,
-                                    width, height,
-                                    pixelformat,
-                                    rgb,
-                                    0,
-                                    3 * width
-                            );
-
-                            // Force final spectrum image update if spectrum data is available
-                            var spectrum = reconstructionView.getSpectrumView();
-                            if (spectrum.getImage() != null) {
-                                // The spectrum image should already be up-to-date from the last partial reconstruction
-                                // No additional update needed for spectrum in final flush
+                            int imageWidth = (int) solarImage.getWidth();
+                            int imageHeight = (int) solarImage.getHeight();
+                            int expectedSize = 3 * imageWidth * imageHeight;
+                            if (rgb.length == expectedSize) {
+                                solarImage.getPixelWriter().setPixels(
+                                        0, 0,
+                                        imageWidth, imageHeight,
+                                        pixelformat,
+                                        rgb,
+                                        0,
+                                        3 * imageWidth
+                                );
                             }
                         }
                     } finally {
