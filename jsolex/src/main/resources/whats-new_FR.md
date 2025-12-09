@@ -1,6 +1,7 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
-- [Nouveautés de la version 4.3.1](#nouveautes-de-la-version-4-3-1) - Nouvelles fonctions d'étirement, accélération GPU expérimentale
+- [Nouveautés de la version 4.3.2](#nouveautes-de-la-version-4-3-2) - Légende de graphique interactive
+- [Version 4.3.1](#nouveautes-de-la-version-4-3-1) - Nouvelles fonctions d'étirement, accélération GPU expérimentale
 - [Version 4.3.0](#nouveautes-de-la-version-4-3-0) - Exécution plus rapide des scripts, amélioration du stacking et corrections de bugs
 - [Version 4.2.1](#nouveautes-de-la-version-4-2-1) - Corrections de bugs
 - [Version 4.2.0](#nouveautes-de-la-version-4-2-0) - Java 25, support GIF, réglages de format de fichier
@@ -11,6 +12,10 @@
 - [Version 4.1.0](#nouveautes-de-la-version-4-1-0) - Préréglages utilisateur, création de collages
 - [Version 4.0.1](#nouveautes-de-la-version-4-0-1) - Sélection de langue, corrections
 - [Version 4.0.0](#nouveautes-de-la-version-4-0-0) - Interface améliorée, intégration BASS2000
+
+## Nouveautés de la version 4.3.2
+
+- La légende du graphique de profil est maintenant interactive : cliquez sur les éléments de la légende pour afficher ou masquer les séries de données
 
 ## Nouveautés de la version 4.3.1
 

@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.app.listeners;
 import javafx.application.Platform;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Insets;
+import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -1617,7 +1618,40 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     }
                 }
             }
+
+            addLegendToggleHandlers(chart);
         });
+    }
+
+    private static void addLegendToggleHandlers(XYChart<?, ?> chart) {
+        for (var node : chart.lookupAll(".chart-legend-item")) {
+            if (node instanceof Label legendLabel) {
+                legendLabel.setCursor(Cursor.HAND);
+                var seriesName = legendLabel.getText();
+                legendLabel.setOnMouseClicked(event -> {
+                    for (var s : chart.getData()) {
+                        if (s.getName().equals(seriesName)) {
+                            toggleSeriesVisibility(s, legendLabel);
+                            break;
+                        }
+                    }
+                });
+            }
+        }
+    }
+
+    private static void toggleSeriesVisibility(XYChart.Series<?, ?> series, Label legendLabel) {
+        var node = series.getNode();
+        if (node != null) {
+            boolean visible = !node.isVisible();
+            node.setVisible(visible);
+            for (var data : series.getData()) {
+                if (data.getNode() != null) {
+                    data.getNode().setVisible(visible);
+                }
+            }
+            legendLabel.setOpacity(visible ? 1.0 : 0.4);
+        }
     }
 
     private LineChart<String, Number> createProfileChart(
@@ -1768,6 +1802,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             var scene = new Scene(pane, 800, 600);
             newWindow.setScene(scene);
             newWindow.show();
+
+            Platform.runLater(() -> addLegendToggleHandlers(newChart));
         }));
 
         menu.getItems().add(openInNewWindow);
