@@ -16,10 +16,8 @@
 package me.champeau.a4j.jsolex.processing.sun
 
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32
-import me.champeau.a4j.math.opencl.OpenCLSupport
 import me.champeau.a4j.math.regression.Ellipse
 import me.champeau.a4j.math.tuples.DoubleSextuplet
-import spock.lang.Requires
 import spock.lang.Specification
 
 class BackgroundRemovalTest extends Specification {
@@ -65,58 +63,6 @@ class BackgroundRemovalTest extends Specification {
         degree << [1, 2, 3]
     }
 
-    @Requires({ OpenCLSupport.isAvailable() })
-    def "GPU background model matches CPU implementation degree #degree"() {
-        given:
-        def width = 512
-        def height = 512
-        def cpuData = createTestImage(width, height)
-        def gpuData = copyData(cpuData)
-        def cpuImage = new ImageWrapper32(width, height, cpuData, [:])
-        def gpuImage = new ImageWrapper32(width, height, gpuData, [:])
-
-        when:
-        def cpuResult = runCpuOnly {
-            BackgroundRemoval.backgroundModel(cpuImage, degree, 2.0)
-        }
-        def gpuResult = runGpuEnabled {
-            BackgroundRemoval.backgroundModel(gpuImage, degree, 2.0)
-        }
-
-        then:
-        cpuResult.isPresent()
-        gpuResult.isPresent()
-        compareData(cpuResult.get().data(), gpuResult.get().data(), width, height, 1.0f)
-
-        where:
-        degree << [1, 2, 3]
-    }
-
-    @Requires({ OpenCLSupport.isAvailable() })
-    def "GPU background model matches CPU implementation with ellipse"() {
-        given:
-        def width = 512
-        def height = 512
-        def cpuData = createTestImage(width, height)
-        def gpuData = copyData(cpuData)
-        def ellipse = createTestEllipse(width, height)
-        def cpuImage = new ImageWrapper32(width, height, cpuData, [(Ellipse): ellipse])
-        def gpuImage = new ImageWrapper32(width, height, gpuData, [(Ellipse): ellipse])
-
-        when:
-        def cpuResult = runCpuOnly {
-            BackgroundRemoval.backgroundModel(cpuImage, 2, 2.0)
-        }
-        def gpuResult = runGpuEnabled {
-            BackgroundRemoval.backgroundModel(gpuImage, 2, 2.0)
-        }
-
-        then:
-        cpuResult.isPresent()
-        gpuResult.isPresent()
-        compareData(cpuResult.get().data(), gpuResult.get().data(), width, height, 1.0f)
-    }
-
     private static float[][] createTestImage(int width, int height) {
         var data = new float[height][width]
         var random = new Random(42)
@@ -128,16 +74,6 @@ class BackgroundRemovalTest extends Specification {
             }
         }
         return data
-    }
-
-    private static float[][] copyData(float[][] src) {
-        var height = src.length
-        var width = src[0].length
-        var copy = new float[height][width]
-        for (int y = 0; y < height; y++) {
-            System.arraycopy(src[y], 0, copy[y], 0, width)
-        }
-        return copy
     }
 
     private static Ellipse createTestEllipse(int width, int height) {
@@ -173,53 +109,5 @@ class BackgroundRemovalTest extends Specification {
             }
         }
         return false
-    }
-
-    private static boolean compareData(float[][] a, float[][] b, int width, int height, float tolerance) {
-        int mismatches = 0
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                def diff = Math.abs(a[y][x] - b[y][x])
-                if (diff > tolerance) {
-                    if (mismatches < 5) {
-                        System.err.println("Mismatch at ($x, $y): CPU=${a[y][x]}, GPU=${b[y][x]}, diff=$diff")
-                    }
-                    mismatches++
-                }
-            }
-        }
-        if (mismatches > 0) {
-            System.err.println("Total mismatches: $mismatches out of ${width * height}")
-            return false
-        }
-        return true
-    }
-
-    private static <T> T runCpuOnly(Closure<T> closure) {
-        def oldProp = System.getProperty("opencl.enabled")
-        try {
-            System.setProperty("opencl.enabled", "false")
-            return closure.call()
-        } finally {
-            if (oldProp != null) {
-                System.setProperty("opencl.enabled", oldProp)
-            } else {
-                System.clearProperty("opencl.enabled")
-            }
-        }
-    }
-
-    private static <T> T runGpuEnabled(Closure<T> closure) {
-        def oldProp = System.getProperty("opencl.enabled")
-        try {
-            System.setProperty("opencl.enabled", "true")
-            return closure.call()
-        } finally {
-            if (oldProp != null) {
-                System.setProperty("opencl.enabled", oldProp)
-            } else {
-                System.clearProperty("opencl.enabled")
-            }
-        }
     }
 }
