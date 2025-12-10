@@ -879,14 +879,18 @@ public class SpectralEvolution4DViewer extends AbstractSpectral3DViewer {
 
     private void toggleAnimation() {
         if (animationTimer != null) {
-            animationTimer.stop();
+            // Stop animation first, then set animationMode to false
+            // This prevents the slider listener from triggering buildSurface in animation mode
+            var timer = animationTimer;
             animationTimer = null;
+            timer.stop();
+            animationMode = false;
             playButton.setText(I18N.string(JSolEx.class, "spectral-surface-3d", "play"));
             sliceSlider.setDisable(false);
             sliceModeCombo.setDisable(false);
-            animationMode = false;
             currentMesh = null;
-            buildSurface();
+            // Use Platform.runLater to ensure any pending animation frame has completed
+            javafx.application.Platform.runLater(this::buildSurface);
         } else {
             sliceSlider.setDisable(true);
             sliceModeCombo.setDisable(true);
@@ -908,6 +912,11 @@ public class SpectralEvolution4DViewer extends AbstractSpectral3DViewer {
             animationTimer = new AnimationTimer() {
                 @Override
                 public void handle(long now) {
+                    // Check if animation was stopped
+                    if (animationTimer == null || !animationMode) {
+                        return;
+                    }
+
                     if (frameStartTime[0] == 0) {
                         frameStartTime[0] = now;
                         return;
