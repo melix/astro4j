@@ -29,6 +29,7 @@ import javafx.scene.chart.LineChart;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
@@ -58,7 +59,10 @@ import me.champeau.a4j.jsolex.app.jfx.I18N;
 import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
 import me.champeau.a4j.jsolex.app.jfx.ReconstructionView;
 import me.champeau.a4j.jsolex.app.jfx.RectangleSelectionListener;
+import me.champeau.a4j.jsolex.app.jfx.SamplingOptionsDialog;
 import me.champeau.a4j.jsolex.app.jfx.ScriptErrorDialog;
+import me.champeau.a4j.jsolex.app.jfx.SpectralEvolution4DViewer;
+import me.champeau.a4j.jsolex.app.jfx.SpectralLineSurface3DViewer;
 import me.champeau.a4j.jsolex.app.jfx.ZoomableImageView;
 import me.champeau.a4j.jsolex.app.script.JSolExScriptExecutor;
 import me.champeau.a4j.jsolex.processing.event.AverageImageComputedEvent;
@@ -98,10 +102,13 @@ import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.RequestedImages;
 import me.champeau.a4j.jsolex.processing.params.SpectroHeliograph;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectralLineAnalysis;
+import me.champeau.a4j.jsolex.processing.spectrum.SpectralLineSurfaceDataExtractor;
+import me.champeau.a4j.jsolex.processing.spectrum.SpectralProfileEvolutionExtractor;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
+import me.champeau.a4j.jsolex.processing.sun.TrimmingParameters;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
@@ -152,6 +159,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.WeakHashMap;
+import java.lang.ref.WeakReference;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
@@ -161,6 +169,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
+import static me.champeau.a4j.jsolex.app.JSolEx.newScene;
 import static me.champeau.a4j.jsolex.app.jfx.BatchOperations.blockingUntilResultAvailable;
 import static me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper.computeSerFileBasename;
 import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectoriesIfNeeded;
@@ -214,6 +223,11 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private SpectralLineAnalysis.LineStatistics currentLineStatistics;
     private Integer currentColumn;
     private float[][] currentSpectrumFrameData;
+    private AverageImageComputedEvent.AverageImage cachedAverageImagePayload;
+    private TrimmingParameters cachedTrimmingParameters;
+    private Button show3DButton;
+    private Button showEvolutionButton;
+    private WeakReference<SpectralEvolution4DViewer> spectral4DViewer;
 
     public SingleModeProcessingEventListener(JSolExInterface owner,
                                              ProgressOperation rootOperation,
@@ -456,6 +470,22 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     }
                 } catch (Exception ex) {
                     throw new ProcessingException(ex);
+                }
+                // Synchronize with 4D viewer if open
+                LOGGER.info("Checking 4D viewer sync: spectral4DViewer={}", spectral4DViewer);
+                if (spectral4DViewer != null) {
+                    var viewer = spectral4DViewer.get();
+                    LOGGER.info("4D viewer from WeakReference: {}", viewer);
+                    if (viewer != null) {
+                        int clickedFrame = (int) Math.round(frameNb);
+                        int clickedSlit = xIndex;
+                        double clickedPixelShift = pixelShift;
+                        LOGGER.info("Calling setPositionFromClick({}, {}, {})", clickedFrame, clickedSlit, clickedPixelShift);
+                        Platform.runLater(() -> {
+                            viewer.setPositionFromClick(clickedFrame, clickedSlit, clickedPixelShift);
+                            viewer.bringToFront();
+                        });
+                    }
                 }
             });
         });
@@ -1225,6 +1255,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     @Override
     public void onAverageImageComputed(AverageImageComputedEvent e) {
         var payload = e.getPayload();
+        cachedAverageImagePayload = payload;
+        Platform.runLater(this::updateSpectral3DButtonsState);
         adjustedParams = payload.adjustedParams();
         polynomial = payload.polynomial();
         averageImage = payload.image().data();
@@ -1427,8 +1459,25 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 }
             }, finalStatsToDisplay, canDrawReference));
 
+            // Create button bar above the chart
+            show3DButton = new Button(I18N.string(JSolEx.class, "spectral-surface-3d", "show.3d.profile"));
+            show3DButton.getStyleClass().add("image-viewer-button");
+            show3DButton.setMinSize(Button.USE_PREF_SIZE, Button.USE_PREF_SIZE);
+            show3DButton.setOnAction(evt -> show3DSpectralProfile());
+            show3DButton.setDisable(cachedAverageImagePayload == null);
+            showEvolutionButton = new Button(I18N.string(JSolEx.class, "spectral-surface-3d", "show.spectral.cube"));
+            showEvolutionButton.getStyleClass().add("image-viewer-button");
+            showEvolutionButton.setMinSize(Button.USE_PREF_SIZE, Button.USE_PREF_SIZE);
+            showEvolutionButton.setOnAction(evt -> showSpectralEvolution());
+            showEvolutionButton.setDisable(cachedAverageImagePayload == null || cachedTrimmingParameters == null);
+            var buttonBar = new HBox(10);
+            buttonBar.setPadding(new Insets(5, 10, 5, 10));
+            buttonBar.setAlignment(javafx.geometry.Pos.CENTER_RIGHT);
+            buttonBar.getChildren().addAll(show3DButton, showEvolutionButton);
+
             // Create the main layout with chart and statistics
             var mainPane = new BorderPane();
+            mainPane.setTop(buttonBar);
             mainPane.setCenter(lineChart);
             mainPane.setBottom(statisticsPanel);
 
@@ -1444,7 +1493,18 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
     @Override
     public void onTrimmingParametersDetermined(TrimmingParametersDeterminedEvent e) {
-        owner.setTrimmingParameters(e.getPayload());
+        cachedTrimmingParameters = e.getPayload();
+        Platform.runLater(this::updateSpectral3DButtonsState);
+        owner.setTrimmingParameters(cachedTrimmingParameters);
+    }
+
+    private void updateSpectral3DButtonsState() {
+        if (show3DButton != null) {
+            show3DButton.setDisable(cachedAverageImagePayload == null);
+        }
+        if (showEvolutionButton != null) {
+            showEvolutionButton.setDisable(cachedAverageImagePayload == null || cachedTrimmingParameters == null);
+        }
     }
 
     @Override
@@ -1482,6 +1542,126 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
         statsBox.getChildren().addAll(titleLabel, depthBox, fwhmBox, continuumBox, centerBox);
         return statsBox;
+    }
+
+    private void show3DSpectralProfile() {
+        if (cachedAverageImagePayload == null) {
+            return;
+        }
+        BackgroundOperations.async(() -> {
+            var payload = cachedAverageImagePayload;
+            var params = payload.adjustedParams();
+            var lambda0 = params.spectrumParams().ray().wavelength();
+            var binning = params.observationDetails().binning();
+            var pixelSize = params.observationDetails().pixelSize();
+            if (binning == null || pixelSize == null || lambda0.nanos() <= 0 || pixelSize <= 0 || binning <= 0) {
+                return;
+            }
+            var dispersion = SpectrumAnalyzer.computeSpectralDispersion(
+                    params.observationDetails().instrument(),
+                    lambda0,
+                    pixelSize * binning
+            );
+            var surfaceData = SpectralLineSurfaceDataExtractor.extractSurfaceData(
+                    payload.image().data(),
+                    payload.polynomial(),
+                    payload.leftBorder(),
+                    payload.rightBorder(),
+                    payload.image().height(),
+                    lambda0,
+                    dispersion,
+                    150,
+                    100
+            );
+            Platform.runLater(() -> SpectralLineSurface3DViewer.show(
+                    surfaceData,
+                    I18N.string(JSolEx.class, "spectral-surface-3d", "frame.title")
+            ));
+        });
+    }
+
+    private void showSpectralEvolution() {
+        if (cachedTrimmingParameters == null || cachedAverageImagePayload == null) {
+            return;
+        }
+        var trimParams = cachedTrimmingParameters;
+        var payload = cachedAverageImagePayload;
+        var params = payload.adjustedParams();
+        var lambda0 = params.spectrumParams().ray().wavelength();
+        var binning = params.observationDetails().binning();
+        var pixelSize = params.observationDetails().pixelSize();
+        if (binning == null || pixelSize == null || lambda0.nanos() <= 0 || pixelSize <= 0 || binning <= 0) {
+            return;
+        }
+        var dispersion = SpectrumAnalyzer.computeSpectralDispersion(
+                params.observationDetails().instrument(),
+                lambda0,
+                pixelSize * binning
+        );
+
+        var dialog = new SamplingOptionsDialog();
+        var optionsOpt = dialog.showAndWait(owner.getMainStage());
+        if (optionsOpt.isEmpty()) {
+            return;
+        }
+        var options = optionsOpt.get();
+
+        var loadingStage = createLoadingStage(I18N.string(JSolEx.class, "spectral-surface-3d", "evolution.title"));
+        loadingStage.show();
+
+        BackgroundOperations.async(() -> {
+            try (var reader = SerFileReader.of(trimParams.serFile())) {
+                var geometry = reader.header().geometry();
+                var evolutionData = SpectralProfileEvolutionExtractor.extractEvolution4D(
+                        reader,
+                        geometry,
+                        trimParams.polynomial(),
+                        0,
+                        geometry.width(),
+                        trimParams.minX(),
+                        trimParams.maxX(),
+                        trimParams.firstFrame(),
+                        trimParams.lastFrame(),
+                        lambda0,
+                        dispersion,
+                        options.spatialResolution(),
+                        options.wavelengthResolution(),
+                        trimParams.verticalFlip(),
+                        null
+                );
+                var ellipseForViewer = mainEllipse;
+                Platform.runLater(() -> {
+                    loadingStage.close();
+                    var viewer = SpectralEvolution4DViewer.show(
+                            evolutionData,
+                            ellipseForViewer,
+                            I18N.string(JSolEx.class, "spectral-surface-3d", "evolution.title")
+                    );
+                    spectral4DViewer = new WeakReference<>(viewer);
+                });
+            } catch (Exception e) {
+                LOGGER.error("Failed to extract spectral evolution", e);
+                Platform.runLater(loadingStage::close);
+            }
+        });
+    }
+
+    private Stage createLoadingStage(String title) {
+        var progressIndicator = new javafx.scene.control.ProgressIndicator();
+        progressIndicator.setProgress(-1);
+        var label = new Label(I18N.string(JSolEx.class, "spectral-surface-3d", "loading"));
+        label.setMinSize(Label.USE_PREF_SIZE, Label.USE_PREF_SIZE);
+        var vbox = new VBox(10, progressIndicator, label);
+        vbox.setAlignment(javafx.geometry.Pos.CENTER);
+        vbox.setPadding(new javafx.geometry.Insets(20));
+        var scene = newScene(vbox);
+        var stage = new Stage();
+        stage.setTitle(title);
+        stage.setScene(scene);
+        stage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
+        stage.setResizable(false);
+        stage.sizeToScene();
+        return stage;
     }
 
     private VBox createStatItem(String label, String value) {
