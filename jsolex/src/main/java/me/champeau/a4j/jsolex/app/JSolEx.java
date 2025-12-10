@@ -526,6 +526,12 @@ public class JSolEx implements JSolExInterface {
         }
     }
 
+    public static Scene newScene(Parent root, int width, int height) {
+        var scene = new Scene(root, width, height);
+        scene.getStylesheets().add(JSolEx.class.getResource("components.css").toExternalForm());
+        return scene;
+    }
+
     public static Scene newScene(Parent root) {
         var scene = new Scene(root);
         scene.getStylesheets().add(JSolEx.class.getResource("components.css").toExternalForm());
