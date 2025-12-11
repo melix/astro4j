@@ -65,13 +65,13 @@ public class SpectralEvolution4DViewer extends AbstractSpectral3DViewer {
     private Label slicePositionLabel;
     private Button playButton;
     private ComboBox<SliceMode> sliceModeCombo;
-    private TriangleMesh currentMesh;
     private boolean animationMode = false;
-    private int animationResolution = 256;
-    private static final int MIN_ANIMATION_RESOLUTION = 64;
-    private static final long TARGET_FRAME_NANOS = 50_000_000L;
+    private int animationResolution;
+    private static final int INITIAL_ANIMATION_RESOLUTION = 512;
+    private static final int MIN_ANIMATION_RESOLUTION = 128;
+    private static final double TARGET_FPS = 15.0;
+    private static final long TARGET_FRAME_NANOS = (long) (1_000_000_000L / TARGET_FPS);
     private static final double ANIMATION_DURATION_SECONDS = 10.0;
-    private static final double TARGET_FPS = 20.0;
 
     private final Label sliceOverlayLabel;
     private final PauseTransition sliderDebounce;
@@ -430,7 +430,7 @@ public class SpectralEvolution4DViewer extends AbstractSpectral3DViewer {
         if (currentSliceMode != SliceMode.WAVELENGTH) {
             currentSliceMode = SliceMode.WAVELENGTH;
             sliceModeCombo.getSelectionModel().select(SliceMode.WAVELENGTH);
-            currentMesh = null;
+            invalidateMesh();
             rebuildAxes();
             updateLegendLabels();
         }
@@ -812,7 +812,7 @@ public class SpectralEvolution4DViewer extends AbstractSpectral3DViewer {
                 settingSliderProgrammatically = true;
                 sliceSlider.setValue(0.5);
                 settingSliderProgrammatically = false;
-                currentMesh = null;
+                invalidateMesh();
                 buildSurface();
                 rebuildAxes();
                 updateSlicePositionLabel();
@@ -888,7 +888,7 @@ public class SpectralEvolution4DViewer extends AbstractSpectral3DViewer {
             playButton.setText(I18N.string(JSolEx.class, "spectral-surface-3d", "play"));
             sliceSlider.setDisable(false);
             sliceModeCombo.setDisable(false);
-            currentMesh = null;
+            invalidateMesh();
             // Use Platform.runLater to ensure any pending animation frame has completed
             javafx.application.Platform.runLater(this::buildSurface);
         } else {
@@ -897,8 +897,8 @@ public class SpectralEvolution4DViewer extends AbstractSpectral3DViewer {
             playButton.setText(I18N.string(JSolEx.class, "spectral-surface-3d", "stop"));
 
             animationMode = true;
-            animationResolution = 256;
-            currentMesh = null;
+            animationResolution = INITIAL_ANIMATION_RESOLUTION;
+            invalidateMesh();
             buildSurface();
 
             var sliceCount = data.getSliceCount(currentSliceMode.toDataSliceMode());
@@ -943,17 +943,19 @@ public class SpectralEvolution4DViewer extends AbstractSpectral3DViewer {
     }
 
     private void adjustResolution(long lastFrameDurationNanos) {
-        var oldResolution = animationResolution;
         var maxResolution = Math.max(data.frameCount(), data.wavelengthCount());
+        var oldResolution = animationResolution;
 
-        if (lastFrameDurationNanos > TARGET_FRAME_NANOS * 1.5) {
-            animationResolution = Math.max(MIN_ANIMATION_RESOLUTION, animationResolution * 3 / 4);
-        } else if (lastFrameDurationNanos < TARGET_FRAME_NANOS * 0.7) {
-            animationResolution = Math.min(maxResolution, animationResolution * 5 / 4);
+        if (lastFrameDurationNanos > TARGET_FRAME_NANOS * 1.2) {
+            // Too slow, decrease resolution by ~10%
+            animationResolution = Math.max(MIN_ANIMATION_RESOLUTION, animationResolution * 9 / 10);
+        } else if (lastFrameDurationNanos < TARGET_FRAME_NANOS * 0.8) {
+            // Fast enough, increase resolution by ~10%
+            animationResolution = Math.min(maxResolution, animationResolution * 11 / 10);
         }
 
         if (oldResolution != animationResolution) {
-            currentMesh = null;
+            invalidateMesh();
             buildSurface();
         }
     }
@@ -1014,6 +1016,15 @@ public class SpectralEvolution4DViewer extends AbstractSpectral3DViewer {
         );
     }
 
+    public void stopAnimation() {
+        if (animationTimer != null) {
+            var timer = animationTimer;
+            animationTimer = null;
+            timer.stop();
+            animationMode = false;
+        }
+    }
+
     public static SpectralEvolution4DViewer show(SpectralEvolution4DData data, Ellipse ellipse, String title) {
         var viewer = new SpectralEvolution4DViewer(data, ellipse);
         var stage = FXUtils.newStage();
@@ -1021,6 +1032,7 @@ public class SpectralEvolution4DViewer extends AbstractSpectral3DViewer {
         var scene = newScene(viewer, 1100, 700);
         stage.setScene(scene);
         stage.setMaximized(true);
+        stage.setOnHidden(e -> viewer.stopAnimation());
         stage.show();
         return viewer;
     }

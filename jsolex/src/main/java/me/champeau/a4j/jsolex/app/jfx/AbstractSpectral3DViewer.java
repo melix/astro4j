@@ -107,6 +107,10 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
     protected double currentSurfaceXSize = SURFACE_SIZE;
     protected double currentSurfaceZSize = SURFACE_SIZE;
 
+    protected TriangleMesh reusableMesh;
+    protected int lastMeshXCount = -1;
+    protected int lastMeshZCount = -1;
+
     protected Label legendTitleLabel;
     protected Label legendHighLabel;
     protected Label legendLowLabel;
@@ -188,10 +192,6 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
 
     protected void buildSurfaceFromData(SpectralLineSurfaceData surfaceData, int meshXCount, int meshZCount,
                                         boolean preserveAspectRatio) {
-        if (surfaceGroup != null) {
-            root3D.getChildren().remove(surfaceGroup);
-        }
-
         var fullXCount = surfaceData.xAxisCount();
         var fullZCount = surfaceData.wavelengthCount();
 
@@ -215,184 +215,466 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
         currentSurfaceXSize = surfaceXSize;
         currentSurfaceZSize = surfaceZSize;
 
-        var mesh = createMesh(surfaceData, fullXCount, fullZCount, meshXCount, meshZCount, surfaceXSize, surfaceZSize);
-        var meshView = new MeshView(mesh);
-        meshView.setMaterial(createMaterial());
-        meshView.setCullFace(CullFace.NONE);
-        meshView.setDrawMode(DrawMode.FILL);
+        boolean canReuseMesh = reusableMesh != null
+                && lastMeshXCount == meshXCount
+                && lastMeshZCount == meshZCount;
 
-        var volumeGroup = new Group(meshView);
+        if (canReuseMesh) {
+            updateMeshPoints(reusableMesh, surfaceData, fullXCount, fullZCount, meshXCount, meshZCount, surfaceXSize, surfaceZSize);
+        } else {
+            if (surfaceGroup != null) {
+                root3D.getChildren().remove(surfaceGroup);
+            }
 
-        var bottomMesh = createBottomMesh(surfaceXSize, surfaceZSize);
-        var bottomView = new MeshView(bottomMesh);
-        var bottomMaterial = new PhongMaterial(Color.rgb(40, 40, 50));
-        bottomView.setMaterial(bottomMaterial);
-        bottomView.setCullFace(CullFace.NONE);
-        volumeGroup.getChildren().add(bottomView);
+            reusableMesh = createCombinedMesh(surfaceData, fullXCount, fullZCount, meshXCount, meshZCount, surfaceXSize, surfaceZSize);
+            lastMeshXCount = meshXCount;
+            lastMeshZCount = meshZCount;
 
-        var wallMesh = createWallMesh(surfaceData, fullXCount, fullZCount, meshXCount, meshZCount, surfaceXSize, surfaceZSize);
-        var wallView = new MeshView(wallMesh);
-        wallView.setMaterial(createMaterial());
-        wallView.setCullFace(CullFace.NONE);
-        volumeGroup.getChildren().add(wallView);
+            var meshView = new MeshView(reusableMesh);
+            meshView.setMaterial(createMaterial());
+            meshView.setCullFace(CullFace.NONE);
+            meshView.setDrawMode(DrawMode.FILL);
+            meshView.setMouseTransparent(true);
 
-        surfaceGroup = volumeGroup;
-        surfaceGroup.getTransforms().addAll(
-                new Translate(-surfaceXSize / 2, 0, -surfaceZSize / 2),
-                new Scale(1, -1, 1)
-        );
+            surfaceGroup = new Group(meshView);
+            surfaceGroup.setMouseTransparent(true);
+            surfaceGroup.getTransforms().addAll(
+                    new Translate(-surfaceXSize / 2, 0, -surfaceZSize / 2),
+                    new Scale(1, -1, 1)
+            );
 
-        root3D.getChildren().add(surfaceGroup);
+            root3D.getChildren().add(surfaceGroup);
+        }
     }
 
-    protected TriangleMesh createBottomMesh(double surfaceXSize, double surfaceZSize) {
-        var mesh = new TriangleMesh();
-
-        mesh.getPoints().addAll(
-                0, 0, 0,
-                (float) surfaceXSize, 0, 0,
-                (float) surfaceXSize, 0, (float) surfaceZSize,
-                0, 0, (float) surfaceZSize
-        );
-
-        mesh.getTexCoords().addAll(0, 0.5f);
-
-        mesh.getFaces().addAll(
-                0, 0, 1, 0, 2, 0,
-                0, 0, 2, 0, 3, 0
-        );
-
-        return mesh;
+    protected void invalidateMesh() {
+        reusableMesh = null;
+        lastMeshXCount = -1;
+        lastMeshZCount = -1;
     }
 
-    protected TriangleMesh createWallMesh(SpectralLineSurfaceData surfaceData, int fullXCount, int fullZCount,
-                                          int meshXCount, int meshZCount, double surfaceXSize, double surfaceZSize) {
-        var mesh = new TriangleMesh();
+    protected void updateMeshPoints(TriangleMesh mesh, SpectralLineSurfaceData surfaceData, int fullXCount, int fullZCount,
+                                    int meshXCount, int meshZCount, double surfaceXSize, double surfaceZSize) {
+        int surfaceVertices = meshXCount * meshZCount;
+        int wallVertices = meshXCount * 4 + meshZCount * 4;
+        int bottomVertices = 4;
+        int totalVertices = surfaceVertices + wallVertices + bottomVertices;
+
+        var points = new float[totalVertices * 3];
+        var texCoords = new float[totalVertices * 2];
+
+        float xScale = (float) surfaceXSize / (meshXCount - 1);
+        float zScale = (float) surfaceZSize / (meshZCount - 1);
+        float yScale = (float) (SURFACE_SIZE * 0.5);
+
+        int pointIdx = 0;
+        int texIdx = 0;
+
+        // === SURFACE VERTICES ===
+        for (var z = 0; z < meshZCount; z++) {
+            var srcZ = meshZCount == fullZCount ? z : z * (fullZCount - 1) / (meshZCount - 1);
+            float zPos = z * zScale;
+            for (var x = 0; x < meshXCount; x++) {
+                var srcX = meshXCount == fullXCount ? x : x * (fullXCount - 1) / (meshXCount - 1);
+                var normalizedValue = surfaceData.normalizedIntensity(srcX, srcZ);
+                var scaledValue = applyScale(normalizedValue);
+
+                points[pointIdx++] = x * xScale;
+                points[pointIdx++] = scaledValue * yScale;
+                points[pointIdx++] = zPos;
+
+                texCoords[texIdx++] = scaledValue;
+                texCoords[texIdx++] = 0.5f;
+            }
+        }
+
+        // === WALL VERTICES ===
+        int srcZBack = meshZCount == fullZCount ? meshZCount - 1 : (meshZCount - 1) * (fullZCount - 1) / (meshZCount - 1);
+        int srcXRight = meshXCount == fullXCount ? meshXCount - 1 : (meshXCount - 1) * (fullXCount - 1) / (meshXCount - 1);
 
         for (var x = 0; x < meshXCount; x++) {
             var srcX = meshXCount == fullXCount ? x : x * (fullXCount - 1) / (meshXCount - 1);
-            var xPos = (float) x / (meshXCount - 1) * (float) surfaceXSize;
+            float xPos = x * xScale;
 
             var frontNormalized = surfaceData.normalizedIntensity(srcX, 0);
-            var frontYPos = applyScale(frontNormalized) * (float) (SURFACE_SIZE * 0.5);
-            mesh.getPoints().addAll(xPos, frontYPos, 0);
-            mesh.getPoints().addAll(xPos, 0, 0);
-            mesh.getTexCoords().addAll(applyScale(frontNormalized), 0.5f);
-            mesh.getTexCoords().addAll(0, 0.5f);
+            var frontScaled = applyScale(frontNormalized);
+            points[pointIdx++] = xPos;
+            points[pointIdx++] = frontScaled * yScale;
+            points[pointIdx++] = 0;
+            texCoords[texIdx++] = frontScaled;
+            texCoords[texIdx++] = 0.5f;
 
-            var srcZBack = meshZCount == fullZCount ? meshZCount - 1 : (meshZCount - 1) * (fullZCount - 1) / (meshZCount - 1);
+            points[pointIdx++] = xPos;
+            points[pointIdx++] = 0;
+            points[pointIdx++] = 0;
+            texCoords[texIdx++] = 0;
+            texCoords[texIdx++] = 0.5f;
+
             var backNormalized = surfaceData.normalizedIntensity(srcX, srcZBack);
-            var backYPos = applyScale(backNormalized) * (float) (SURFACE_SIZE * 0.5);
-            mesh.getPoints().addAll(xPos, backYPos, (float) surfaceZSize);
-            mesh.getPoints().addAll(xPos, 0, (float) surfaceZSize);
-            mesh.getTexCoords().addAll(applyScale(backNormalized), 0.5f);
-            mesh.getTexCoords().addAll(0, 0.5f);
+            var backScaled = applyScale(backNormalized);
+            points[pointIdx++] = xPos;
+            points[pointIdx++] = backScaled * yScale;
+            points[pointIdx++] = (float) surfaceZSize;
+            texCoords[texIdx++] = backScaled;
+            texCoords[texIdx++] = 0.5f;
+
+            points[pointIdx++] = xPos;
+            points[pointIdx++] = 0;
+            points[pointIdx++] = (float) surfaceZSize;
+            texCoords[texIdx++] = 0;
+            texCoords[texIdx++] = 0.5f;
         }
 
         for (var z = 0; z < meshZCount; z++) {
             var srcZ = meshZCount == fullZCount ? z : z * (fullZCount - 1) / (meshZCount - 1);
-            var zPos = (float) z / (meshZCount - 1) * (float) surfaceZSize;
+            float zPos = z * zScale;
 
             var leftNormalized = surfaceData.normalizedIntensity(0, srcZ);
-            var leftYPos = applyScale(leftNormalized) * (float) (SURFACE_SIZE * 0.5);
-            mesh.getPoints().addAll(0, leftYPos, zPos);
-            mesh.getPoints().addAll(0, 0, zPos);
-            mesh.getTexCoords().addAll(applyScale(leftNormalized), 0.5f);
-            mesh.getTexCoords().addAll(0, 0.5f);
+            var leftScaled = applyScale(leftNormalized);
+            points[pointIdx++] = 0;
+            points[pointIdx++] = leftScaled * yScale;
+            points[pointIdx++] = zPos;
+            texCoords[texIdx++] = leftScaled;
+            texCoords[texIdx++] = 0.5f;
 
-            var srcXRight = meshXCount == fullXCount ? meshXCount - 1 : (meshXCount - 1) * (fullXCount - 1) / (meshXCount - 1);
+            points[pointIdx++] = 0;
+            points[pointIdx++] = 0;
+            points[pointIdx++] = zPos;
+            texCoords[texIdx++] = 0;
+            texCoords[texIdx++] = 0.5f;
+
             var rightNormalized = surfaceData.normalizedIntensity(srcXRight, srcZ);
-            var rightYPos = applyScale(rightNormalized) * (float) (SURFACE_SIZE * 0.5);
-            mesh.getPoints().addAll((float) surfaceXSize, rightYPos, zPos);
-            mesh.getPoints().addAll((float) surfaceXSize, 0, zPos);
-            mesh.getTexCoords().addAll(applyScale(rightNormalized), 0.5f);
-            mesh.getTexCoords().addAll(0, 0.5f);
+            var rightScaled = applyScale(rightNormalized);
+            points[pointIdx++] = (float) surfaceXSize;
+            points[pointIdx++] = rightScaled * yScale;
+            points[pointIdx++] = zPos;
+            texCoords[texIdx++] = rightScaled;
+            texCoords[texIdx++] = 0.5f;
+
+            points[pointIdx++] = (float) surfaceXSize;
+            points[pointIdx++] = 0;
+            points[pointIdx++] = zPos;
+            texCoords[texIdx++] = 0;
+            texCoords[texIdx++] = 0.5f;
         }
 
-        var frontBaseIdx = 0;
-        for (var x = 0; x < meshXCount - 1; x++) {
-            var topLeft = frontBaseIdx + x * 4;
-            var bottomLeft = topLeft + 1;
-            var topRight = frontBaseIdx + (x + 1) * 4;
-            var bottomRight = topRight + 1;
-            mesh.getFaces().addAll(
-                    topLeft, topLeft, bottomLeft, bottomLeft, bottomRight, bottomRight,
-                    topLeft, topLeft, bottomRight, bottomRight, topRight, topRight
-            );
-        }
+        // === BOTTOM VERTICES (static - no intensity changes) ===
+        points[pointIdx++] = 0;
+        points[pointIdx++] = 0;
+        points[pointIdx++] = 0;
+        texCoords[texIdx++] = 0;
+        texCoords[texIdx++] = 0.5f;
 
-        var backBaseIdx = 2;
-        for (var x = 0; x < meshXCount - 1; x++) {
-            var topLeft = backBaseIdx + x * 4;
-            var bottomLeft = topLeft + 1;
-            var topRight = backBaseIdx + (x + 1) * 4;
-            var bottomRight = topRight + 1;
-            mesh.getFaces().addAll(
-                    topLeft, topLeft, topRight, topRight, bottomRight, bottomRight,
-                    topLeft, topLeft, bottomRight, bottomRight, bottomLeft, bottomLeft
-            );
-        }
+        points[pointIdx++] = (float) surfaceXSize;
+        points[pointIdx++] = 0;
+        points[pointIdx++] = 0;
+        texCoords[texIdx++] = 0;
+        texCoords[texIdx++] = 0.5f;
 
-        var sideBaseIdx = meshXCount * 4;
-        for (var z = 0; z < meshZCount - 1; z++) {
-            var topLeft = sideBaseIdx + z * 4;
-            var bottomLeft = topLeft + 1;
-            var topRight = sideBaseIdx + (z + 1) * 4;
-            var bottomRight = topRight + 1;
-            mesh.getFaces().addAll(
-                    topLeft, topLeft, topRight, topRight, bottomRight, bottomRight,
-                    topLeft, topLeft, bottomRight, bottomRight, bottomLeft, bottomLeft
-            );
-        }
+        points[pointIdx++] = (float) surfaceXSize;
+        points[pointIdx++] = 0;
+        points[pointIdx++] = (float) surfaceZSize;
+        texCoords[texIdx++] = 0;
+        texCoords[texIdx++] = 0.5f;
 
-        var rightBaseIdx = sideBaseIdx + 2;
-        for (var z = 0; z < meshZCount - 1; z++) {
-            var topLeft = rightBaseIdx + z * 4;
-            var bottomLeft = topLeft + 1;
-            var topRight = rightBaseIdx + (z + 1) * 4;
-            var bottomRight = topRight + 1;
-            mesh.getFaces().addAll(
-                    topLeft, topLeft, bottomLeft, bottomLeft, bottomRight, bottomRight,
-                    topLeft, topLeft, bottomRight, bottomRight, topRight, topRight
-            );
-        }
+        points[pointIdx++] = 0;
+        points[pointIdx++] = 0;
+        points[pointIdx++] = (float) surfaceZSize;
+        texCoords[texIdx++] = 0;
+        texCoords[texIdx] = 0.5f;
 
-        return mesh;
+        mesh.getPoints().setAll(points);
+        mesh.getTexCoords().setAll(texCoords);
     }
 
-    protected TriangleMesh createMesh(SpectralLineSurfaceData surfaceData, int fullXCount, int fullZCount,
-                                      int meshXCount, int meshZCount, double surfaceXSize, double surfaceZSize) {
+    protected TriangleMesh createCombinedMesh(SpectralLineSurfaceData surfaceData, int fullXCount, int fullZCount,
+                                              int meshXCount, int meshZCount, double surfaceXSize, double surfaceZSize) {
         var mesh = new TriangleMesh();
 
+        // Calculate total sizes for pre-allocation
+        // Surface: meshXCount * meshZCount vertices
+        // Walls: front/back (meshXCount * 4) + left/right (meshZCount * 4)
+        // Bottom: 4 vertices
+        int surfaceVertices = meshXCount * meshZCount;
+        int wallVertices = meshXCount * 4 + meshZCount * 4;
+        int bottomVertices = 4;
+        int totalVertices = surfaceVertices + wallVertices + bottomVertices;
+
+        var points = new float[totalVertices * 3];
+        var texCoords = new float[totalVertices * 2];
+
+        float xScale = (float) surfaceXSize / (meshXCount - 1);
+        float zScale = (float) surfaceZSize / (meshZCount - 1);
+        float yScale = (float) (SURFACE_SIZE * 0.5);
+
+        int pointIdx = 0;
+        int texIdx = 0;
+
+        // === SURFACE VERTICES ===
         for (var z = 0; z < meshZCount; z++) {
             var srcZ = meshZCount == fullZCount ? z : z * (fullZCount - 1) / (meshZCount - 1);
+            float zPos = z * zScale;
             for (var x = 0; x < meshXCount; x++) {
                 var srcX = meshXCount == fullXCount ? x : x * (fullXCount - 1) / (meshXCount - 1);
-
-                var xPos = (float) x / (meshXCount - 1) * (float) surfaceXSize;
                 var normalizedValue = surfaceData.normalizedIntensity(srcX, srcZ);
-                var yPos = applyScale(normalizedValue) * (float) (SURFACE_SIZE * 0.5);
-                var zPos = (float) z / (meshZCount - 1) * (float) surfaceZSize;
-                mesh.getPoints().addAll(xPos, yPos, zPos);
+                var scaledValue = applyScale(normalizedValue);
 
-                var u = applyScale(normalizedValue);
-                mesh.getTexCoords().addAll(u, 0.5f);
+                points[pointIdx++] = x * xScale;
+                points[pointIdx++] = scaledValue * yScale;
+                points[pointIdx++] = zPos;
+
+                texCoords[texIdx++] = scaledValue;
+                texCoords[texIdx++] = 0.5f;
             }
         }
 
+        // === WALL VERTICES ===
+        int wallBaseVertex = surfaceVertices;
+        int srcZBack = meshZCount == fullZCount ? meshZCount - 1 : (meshZCount - 1) * (fullZCount - 1) / (meshZCount - 1);
+        int srcXRight = meshXCount == fullXCount ? meshXCount - 1 : (meshXCount - 1) * (fullXCount - 1) / (meshXCount - 1);
+
+        // Front and back walls (along X axis)
+        for (var x = 0; x < meshXCount; x++) {
+            var srcX = meshXCount == fullXCount ? x : x * (fullXCount - 1) / (meshXCount - 1);
+            float xPos = x * xScale;
+
+            // Front wall - top vertex
+            var frontNormalized = surfaceData.normalizedIntensity(srcX, 0);
+            var frontScaled = applyScale(frontNormalized);
+            points[pointIdx++] = xPos;
+            points[pointIdx++] = frontScaled * yScale;
+            points[pointIdx++] = 0;
+            texCoords[texIdx++] = frontScaled;
+            texCoords[texIdx++] = 0.5f;
+
+            // Front wall - bottom vertex
+            points[pointIdx++] = xPos;
+            points[pointIdx++] = 0;
+            points[pointIdx++] = 0;
+            texCoords[texIdx++] = 0;
+            texCoords[texIdx++] = 0.5f;
+
+            // Back wall - top vertex
+            var backNormalized = surfaceData.normalizedIntensity(srcX, srcZBack);
+            var backScaled = applyScale(backNormalized);
+            points[pointIdx++] = xPos;
+            points[pointIdx++] = backScaled * yScale;
+            points[pointIdx++] = (float) surfaceZSize;
+            texCoords[texIdx++] = backScaled;
+            texCoords[texIdx++] = 0.5f;
+
+            // Back wall - bottom vertex
+            points[pointIdx++] = xPos;
+            points[pointIdx++] = 0;
+            points[pointIdx++] = (float) surfaceZSize;
+            texCoords[texIdx++] = 0;
+            texCoords[texIdx++] = 0.5f;
+        }
+
+        // Left and right walls (along Z axis)
+        for (var z = 0; z < meshZCount; z++) {
+            var srcZ = meshZCount == fullZCount ? z : z * (fullZCount - 1) / (meshZCount - 1);
+            float zPos = z * zScale;
+
+            // Left wall - top vertex
+            var leftNormalized = surfaceData.normalizedIntensity(0, srcZ);
+            var leftScaled = applyScale(leftNormalized);
+            points[pointIdx++] = 0;
+            points[pointIdx++] = leftScaled * yScale;
+            points[pointIdx++] = zPos;
+            texCoords[texIdx++] = leftScaled;
+            texCoords[texIdx++] = 0.5f;
+
+            // Left wall - bottom vertex
+            points[pointIdx++] = 0;
+            points[pointIdx++] = 0;
+            points[pointIdx++] = zPos;
+            texCoords[texIdx++] = 0;
+            texCoords[texIdx++] = 0.5f;
+
+            // Right wall - top vertex
+            var rightNormalized = surfaceData.normalizedIntensity(srcXRight, srcZ);
+            var rightScaled = applyScale(rightNormalized);
+            points[pointIdx++] = (float) surfaceXSize;
+            points[pointIdx++] = rightScaled * yScale;
+            points[pointIdx++] = zPos;
+            texCoords[texIdx++] = rightScaled;
+            texCoords[texIdx++] = 0.5f;
+
+            // Right wall - bottom vertex
+            points[pointIdx++] = (float) surfaceXSize;
+            points[pointIdx++] = 0;
+            points[pointIdx++] = zPos;
+            texCoords[texIdx++] = 0;
+            texCoords[texIdx++] = 0.5f;
+        }
+
+        // === BOTTOM VERTICES ===
+        int bottomBaseVertex = wallBaseVertex + wallVertices;
+        points[pointIdx++] = 0;
+        points[pointIdx++] = 0;
+        points[pointIdx++] = 0;
+        texCoords[texIdx++] = 0;
+        texCoords[texIdx++] = 0.5f;
+
+        points[pointIdx++] = (float) surfaceXSize;
+        points[pointIdx++] = 0;
+        points[pointIdx++] = 0;
+        texCoords[texIdx++] = 0;
+        texCoords[texIdx++] = 0.5f;
+
+        points[pointIdx++] = (float) surfaceXSize;
+        points[pointIdx++] = 0;
+        points[pointIdx++] = (float) surfaceZSize;
+        texCoords[texIdx++] = 0;
+        texCoords[texIdx++] = 0.5f;
+
+        points[pointIdx++] = 0;
+        points[pointIdx++] = 0;
+        points[pointIdx++] = (float) surfaceZSize;
+        texCoords[texIdx++] = 0;
+        texCoords[texIdx++] = 0.5f;
+
+        // === CALCULATE FACE COUNTS ===
+        int surfaceFaces = (meshXCount - 1) * (meshZCount - 1) * 2;
+        int wallFaces = ((meshXCount - 1) * 2 + (meshZCount - 1) * 2) * 2;
+        int bottomFaces = 2;
+        int totalFaces = surfaceFaces + wallFaces + bottomFaces;
+        var faces = new int[totalFaces * 6];
+        int faceIdx = 0;
+
+        // === SURFACE FACES ===
         for (var z = 0; z < meshZCount - 1; z++) {
+            int rowStart = z * meshXCount;
+            int nextRowStart = (z + 1) * meshXCount;
             for (var x = 0; x < meshXCount - 1; x++) {
-                var p00 = z * meshXCount + x;
-                var p10 = z * meshXCount + x + 1;
-                var p01 = (z + 1) * meshXCount + x;
-                var p11 = (z + 1) * meshXCount + x + 1;
+                int p00 = rowStart + x;
+                int p10 = p00 + 1;
+                int p01 = nextRowStart + x;
+                int p11 = p01 + 1;
 
-                mesh.getFaces().addAll(
-                        p00, p00, p10, p10, p11, p11,
-                        p00, p00, p11, p11, p01, p01
-                );
+                // First triangle
+                faces[faceIdx++] = p00;
+                faces[faceIdx++] = p00;
+                faces[faceIdx++] = p10;
+                faces[faceIdx++] = p10;
+                faces[faceIdx++] = p11;
+                faces[faceIdx++] = p11;
+
+                // Second triangle
+                faces[faceIdx++] = p00;
+                faces[faceIdx++] = p00;
+                faces[faceIdx++] = p11;
+                faces[faceIdx++] = p11;
+                faces[faceIdx++] = p01;
+                faces[faceIdx++] = p01;
             }
         }
+
+        // === WALL FACES ===
+        // Front wall faces
+        int frontBaseIdx = wallBaseVertex;
+        for (var x = 0; x < meshXCount - 1; x++) {
+            int topLeft = frontBaseIdx + x * 4;
+            int bottomLeft = topLeft + 1;
+            int topRight = frontBaseIdx + (x + 1) * 4;
+            int bottomRight = topRight + 1;
+            faces[faceIdx++] = topLeft;
+            faces[faceIdx++] = topLeft;
+            faces[faceIdx++] = bottomLeft;
+            faces[faceIdx++] = bottomLeft;
+            faces[faceIdx++] = bottomRight;
+            faces[faceIdx++] = bottomRight;
+            faces[faceIdx++] = topLeft;
+            faces[faceIdx++] = topLeft;
+            faces[faceIdx++] = bottomRight;
+            faces[faceIdx++] = bottomRight;
+            faces[faceIdx++] = topRight;
+            faces[faceIdx++] = topRight;
+        }
+
+        // Back wall faces
+        int backBaseIdx = wallBaseVertex + 2;
+        for (var x = 0; x < meshXCount - 1; x++) {
+            int topLeft = backBaseIdx + x * 4;
+            int bottomLeft = topLeft + 1;
+            int topRight = backBaseIdx + (x + 1) * 4;
+            int bottomRight = topRight + 1;
+            faces[faceIdx++] = topLeft;
+            faces[faceIdx++] = topLeft;
+            faces[faceIdx++] = topRight;
+            faces[faceIdx++] = topRight;
+            faces[faceIdx++] = bottomRight;
+            faces[faceIdx++] = bottomRight;
+            faces[faceIdx++] = topLeft;
+            faces[faceIdx++] = topLeft;
+            faces[faceIdx++] = bottomRight;
+            faces[faceIdx++] = bottomRight;
+            faces[faceIdx++] = bottomLeft;
+            faces[faceIdx++] = bottomLeft;
+        }
+
+        // Left wall faces
+        int sideBaseIdx = wallBaseVertex + meshXCount * 4;
+        for (var z = 0; z < meshZCount - 1; z++) {
+            int topLeft = sideBaseIdx + z * 4;
+            int bottomLeft = topLeft + 1;
+            int topRight = sideBaseIdx + (z + 1) * 4;
+            int bottomRight = topRight + 1;
+            faces[faceIdx++] = topLeft;
+            faces[faceIdx++] = topLeft;
+            faces[faceIdx++] = topRight;
+            faces[faceIdx++] = topRight;
+            faces[faceIdx++] = bottomRight;
+            faces[faceIdx++] = bottomRight;
+            faces[faceIdx++] = topLeft;
+            faces[faceIdx++] = topLeft;
+            faces[faceIdx++] = bottomRight;
+            faces[faceIdx++] = bottomRight;
+            faces[faceIdx++] = bottomLeft;
+            faces[faceIdx++] = bottomLeft;
+        }
+
+        // Right wall faces
+        int rightBaseIdx = sideBaseIdx + 2;
+        for (var z = 0; z < meshZCount - 1; z++) {
+            int topLeft = rightBaseIdx + z * 4;
+            int bottomLeft = topLeft + 1;
+            int topRight = rightBaseIdx + (z + 1) * 4;
+            int bottomRight = topRight + 1;
+            faces[faceIdx++] = topLeft;
+            faces[faceIdx++] = topLeft;
+            faces[faceIdx++] = bottomLeft;
+            faces[faceIdx++] = bottomLeft;
+            faces[faceIdx++] = bottomRight;
+            faces[faceIdx++] = bottomRight;
+            faces[faceIdx++] = topLeft;
+            faces[faceIdx++] = topLeft;
+            faces[faceIdx++] = bottomRight;
+            faces[faceIdx++] = bottomRight;
+            faces[faceIdx++] = topRight;
+            faces[faceIdx++] = topRight;
+        }
+
+        // === BOTTOM FACES ===
+        faces[faceIdx++] = bottomBaseVertex;
+        faces[faceIdx++] = bottomBaseVertex;
+        faces[faceIdx++] = bottomBaseVertex + 1;
+        faces[faceIdx++] = bottomBaseVertex + 1;
+        faces[faceIdx++] = bottomBaseVertex + 2;
+        faces[faceIdx++] = bottomBaseVertex + 2;
+
+        faces[faceIdx++] = bottomBaseVertex;
+        faces[faceIdx++] = bottomBaseVertex;
+        faces[faceIdx++] = bottomBaseVertex + 2;
+        faces[faceIdx++] = bottomBaseVertex + 2;
+        faces[faceIdx++] = bottomBaseVertex + 3;
+        faces[faceIdx++] = bottomBaseVertex + 3;
+
+        // Bulk add all data at once
+        mesh.getPoints().setAll(points);
+        mesh.getTexCoords().setAll(texCoords);
+        mesh.getFaces().setAll(faces);
 
         return mesh;
     }

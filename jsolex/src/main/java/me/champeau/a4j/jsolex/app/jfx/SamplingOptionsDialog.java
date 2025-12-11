@@ -48,7 +48,7 @@ public class SamplingOptionsDialog {
         wavelengthCombo.setValue(96);
 
         spatialCombo = new ComboBox<>();
-        spatialCombo.getItems().addAll(64, 128, 256, 512, 1024);
+        spatialCombo.getItems().addAll(64, 128, 256, 512, 1024, 1536, 2048, 3072, 4096);
         spatialCombo.setValue(512);
 
         memoryLabel = new Label();

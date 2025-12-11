@@ -25,3 +25,7 @@ dependencies {
 application {
     mainClass.set("me.champeau.a4j.jsolex.server.JSolexServer")
 }
+
+tasks.withType<JavaCompile> {
+    options.compilerArgs.add("-Xlint:none")
+}
