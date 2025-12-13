@@ -25,6 +25,7 @@ import javafx.scene.Group;
 import javafx.scene.SnapshotParameters;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.control.Button;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.image.WritableImage;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
@@ -133,13 +134,69 @@ public class SpectralEvolution4DViewer extends AbstractSpectral3DViewer {
     private VBox createProfileOverlay() {
         overlayTitleLabel.setStyle("-fx-text-fill: white; -fx-font-size: 10px; -fx-font-weight: bold;");
 
+        profileCanvas.setOnMouseClicked(this::handleProfileCanvasClick);
+
         var box = new VBox(4, overlayTitleLabel, profileCanvas);
         box.setStyle("-fx-background-color: transparent; -fx-padding: 8;");
         box.setAlignment(Pos.TOP_RIGHT);
-        box.setMouseTransparent(true);
         box.setPickOnBounds(false);
         box.setMaxSize(VBox.USE_PREF_SIZE, VBox.USE_PREF_SIZE);
         return box;
+    }
+
+    private void handleProfileCanvasClick(MouseEvent event) {
+        if (currentSliceMode == SliceMode.WAVELENGTH) {
+            double margin = 5;
+            var plotW = PROFILE_WIDTH - 2 * margin;
+            var clickX = event.getX();
+            var fraction = (clickX - margin) / plotW;
+            fraction = Math.max(0, Math.min(1, fraction));
+            sliceSlider.setValue(fraction);
+        } else if (ellipse != null) {
+            var fraction = computeDiskClickFraction(event.getX(), event.getY());
+            if (fraction >= 0 && fraction <= 1) {
+                sliceSlider.setValue(fraction);
+            }
+        }
+    }
+
+    private double computeDiskClickFraction(double clickX, double clickY) {
+        double margin = 5;
+        var availableW = PROFILE_WIDTH - 2 * margin;
+        var availableH = PROFILE_HEIGHT - 2 * margin;
+
+        var boundingBox = ellipse.boundingBox();
+        var ellipseMinX = boundingBox.a();
+        var ellipseMaxX = boundingBox.b();
+        var ellipseMinY = boundingBox.c();
+        var ellipseMaxY = boundingBox.d();
+
+        var slitPositions = data.slitPositions();
+        var frameIndices = data.frameIndices();
+        double dataMinX = frameIndices[0];
+        double dataMaxX = frameIndices[frameIndices.length - 1];
+        double dataMinY = slitPositions[0];
+        double dataMaxY = slitPositions[slitPositions.length - 1];
+
+        var totalMinX = Math.min(ellipseMinX, dataMinX);
+        var totalMaxX = Math.max(ellipseMaxX, dataMaxX);
+        var totalMinY = Math.min(ellipseMinY, dataMinY);
+        var totalMaxY = Math.max(ellipseMaxY, dataMaxY);
+        var totalOrigW = totalMaxX - totalMinX;
+        var totalOrigH = totalMaxY - totalMinY;
+
+        var scale = Math.min(availableW / totalOrigW, availableH / totalOrigH);
+
+        var offsetX = margin + (availableW - totalOrigW * scale) / 2;
+        var offsetY = margin + (availableH - totalOrigH * scale) / 2;
+
+        if (currentSliceMode == SliceMode.SLIT) {
+            var dataY = (clickY - offsetY) / scale + totalMinY;
+            return (dataY - dataMinY) / (dataMaxY - dataMinY);
+        } else {
+            var dataX = (clickX - offsetX) / scale + totalMinX;
+            return (dataX - dataMinX) / (dataMaxX - dataMinX);
+        }
     }
 
     private void updateProfileOverlay() {
