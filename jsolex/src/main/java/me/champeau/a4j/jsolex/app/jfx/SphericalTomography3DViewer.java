@@ -417,7 +417,20 @@ public class SphericalTomography3DViewer extends BorderPane {
             var checkBox = new CheckBox(label);
             checkBox.setSelected(true);
             checkBox.selectedProperty().addListener((obs, oldVal, newVal) -> {
+                var selectedCount = checkBoxes.stream().filter(CheckBox::isSelected).count();
+                if (!newVal && selectedCount == 0) {
+                    // Prevent unselecting the last layer
+                    checkBox.setSelected(true);
+                    return;
+                }
                 renderer.setShellVisible(pixelShift, newVal);
+                if (selectedCount == 1) {
+                    // Only one layer left, set exaggeration to minimum
+                    exaggerationSlider.setValue(exaggerationSlider.getMin());
+                } else if (newVal && selectedCount == 2 && exaggerationSlider.getValue() == exaggerationSlider.getMin()) {
+                    // Layer was added and exaggeration is at minimum, reset to default
+                    exaggerationSlider.setValue(0.2);
+                }
                 glImageView.requestRender();
             });
             checkBoxes.add(checkBox);
@@ -437,9 +450,19 @@ public class SphericalTomography3DViewer extends BorderPane {
         showLowestBtn.getStyleClass().add("default-button");
         showLowestBtn.setMaxWidth(Double.MAX_VALUE);
         showLowestBtn.setOnAction(e -> {
+            // First select the target to ensure at least one is selected
             for (var i = 0; i < checkBoxes.size(); i++) {
                 var shell = data.shells().get(i);
-                checkBoxes.get(i).setSelected(Math.abs(shell.wavelengthOffset() - minOffset) < 0.001);
+                if (Math.abs(shell.wavelengthOffset() - minOffset) < 0.001) {
+                    checkBoxes.get(i).setSelected(true);
+                }
+            }
+            // Then deselect all others
+            for (var i = 0; i < checkBoxes.size(); i++) {
+                var shell = data.shells().get(i);
+                if (Math.abs(shell.wavelengthOffset() - minOffset) >= 0.001) {
+                    checkBoxes.get(i).setSelected(false);
+                }
             }
         });
 
@@ -447,9 +470,19 @@ public class SphericalTomography3DViewer extends BorderPane {
         showHighestBtn.getStyleClass().add("default-button");
         showHighestBtn.setMaxWidth(Double.MAX_VALUE);
         showHighestBtn.setOnAction(e -> {
+            // First select the target to ensure at least one is selected
             for (var i = 0; i < checkBoxes.size(); i++) {
                 var shell = data.shells().get(i);
-                checkBoxes.get(i).setSelected(Math.abs(shell.wavelengthOffset() - maxOffset) < 0.001);
+                if (Math.abs(shell.wavelengthOffset() - maxOffset) < 0.001) {
+                    checkBoxes.get(i).setSelected(true);
+                }
+            }
+            // Then deselect all others
+            for (var i = 0; i < checkBoxes.size(); i++) {
+                var shell = data.shells().get(i);
+                if (Math.abs(shell.wavelengthOffset() - maxOffset) >= 0.001) {
+                    checkBoxes.get(i).setSelected(false);
+                }
             }
         });
 
