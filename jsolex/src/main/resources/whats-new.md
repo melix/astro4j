@@ -19,6 +19,7 @@
 - New 3D Spectral Line Profile viewer: visualizes spectral line intensity as a 3D surface across slit positions and wavelength offsets. Access it via the "3D Spectral Profile" button in the profile tab
 - New Spectral Evolution viewer: shows how the spectral line profile varies along the scan direction (frame by frame at disk center)
 - Spherical Tomography viewer now features a volume renderer with smooth layer blending that reveals chromospheric structures at different altitudes
+- New single image 3D view: display any processed image as a 3D hemisphere. Access it via the "3D" button in the image viewer toolbar
 
 ## What's New in Version 4.3.1
 

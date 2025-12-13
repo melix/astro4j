@@ -306,6 +306,22 @@ public class ImageViewer implements WithRootNode {
         });
     }
 
+    private void maybeAdd3DView(Supplier<EventTarget> target) {
+        if (!OpenGLAvailability.isAvailable()) {
+            return;
+        }
+        image.findMetadata(Ellipse.class).ifPresent(ignored -> {
+            EventHandler<ActionEvent> handler = evt -> BackgroundOperations.async(() -> {
+                var prepared = applyTransformations(image.copy());
+                SingleImage3DViewer.show(prepared.unwrapToMemory(), title, processParams);
+            });
+            var targetNode = target.get();
+            if (targetNode instanceof Button button) {
+                button.setOnAction(handler);
+            }
+        });
+    }
+
     /**
      * Returns the zoomable image view.
      *
@@ -492,8 +508,17 @@ public class ImageViewer implements WithRootNode {
                 measureButton.setDisable(false);
                 return measureButton;
             });
+            var view3dButton = createButton("3D");
+            view3dButton.setStyle("-fx-padding: 2; -fx-font-size: 18");
+            view3dButton.setVisible(false);
+            view3dButton.setManaged(false);
+            maybeAdd3DView(() -> {
+                view3dButton.setVisible(true);
+                view3dButton.setManaged(true);
+                return view3dButton;
+            });
             line1.getChildren().addAll(reset, saveButton, prevButton, nextButton);
-            line2.getChildren().addAll(correctAngleP, zoomLabel, zoomMinus, zoomPlus, fitButton, fitToCenter, oneToOneFit, leftRotate, rightRotate, verticalMirror, horizontalMirror, applyNextTime, measureButton, dimensions, coordinatesLabel);
+            line2.getChildren().addAll(correctAngleP, zoomLabel, zoomMinus, zoomPlus, fitButton, fitToCenter, oneToOneFit, leftRotate, rightRotate, verticalMirror, horizontalMirror, applyNextTime, measureButton, view3dButton, dimensions, coordinatesLabel);
             var titleLabel = new Label(title);
             titleLabel.setStyle("-fx-font-weight: bold");
             var alignButton = createButton("⌖");
@@ -515,6 +540,7 @@ public class ImageViewer implements WithRootNode {
                 horizontalMirror.setTooltip(new Tooltip(message("horizontal.flip")));
                 applyNextTime.setTooltip(new Tooltip(message("apply.next.time")));
                 measureButton.setTooltip(new Tooltip(message("measure.button.tooltip")));
+                view3dButton.setTooltip(new Tooltip(message("view3d.button.tooltip")));
                 var titleBox = new HBox(alignButton, titleLabel, new Label("(" + imageFile.getName() + ")"));
                 titleBox.setSpacing(4);
                 titleBox.setAlignment(Pos.CENTER_LEFT);

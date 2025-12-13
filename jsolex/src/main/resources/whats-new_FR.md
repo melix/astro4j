@@ -19,6 +19,7 @@
 - Nouveau visualiseur de profil spectral 3D : affiche l'intensité de la raie spectrale sous forme de surface 3D en fonction de la position sur la fente et du décalage en longueur d'onde. Accessible via le bouton "Profil spectral 3D" dans l'onglet profil
 - Nouveau visualiseur d'évolution spectrale : montre comment le profil de la raie spectrale varie le long du scan (image par image au centre du disque)
 - Le visualiseur de tomographie sphérique propose désormais un rendu volumétrique avec un lissage des couches qui révèle les structures chromosphériques à différentes altitudes
+- Nouvelle vue 3D pour image unique : affiche n'importe quelle image traitée sous forme d'hémisphère 3D. Accessible via le bouton "3D" dans la barre d'outils de la visionneuse
 
 ## Nouveautés de la version 4.3.1
 

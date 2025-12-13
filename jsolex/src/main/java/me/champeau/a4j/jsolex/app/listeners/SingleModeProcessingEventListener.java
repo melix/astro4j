@@ -61,6 +61,7 @@ import me.champeau.a4j.jsolex.app.jfx.CustomAnimationCreator;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
 import me.champeau.a4j.jsolex.app.jfx.SphericalTomographyCreator;
 import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
+import me.champeau.a4j.jsolex.app.jfx.OpenGLAvailability;
 import me.champeau.a4j.jsolex.app.jfx.ReconstructionView;
 import me.champeau.a4j.jsolex.app.jfx.RectangleSelectionListener;
 import me.champeau.a4j.jsolex.app.jfx.SamplingOptionsDialog;
@@ -1522,6 +1523,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             showTomographyButton.getStyleClass().add("image-viewer-button");
             showTomographyButton.setMinSize(Button.USE_PREF_SIZE, Button.USE_PREF_SIZE);
             showTomographyButton.setOnAction(evt -> showSphericalTomography());
+            var openGLAvailable = OpenGLAvailability.isAvailable();
+            showTomographyButton.setVisible(openGLAvailable);
+            showTomographyButton.setManaged(openGLAvailable);
             showTomographyButton.setDisable(shiftImages.isEmpty() || cachedAverageImagePayload == null);
             var buttonBar = new HBox(10);
             buttonBar.setPadding(new Insets(5, 10, 5, 10));

@@ -91,6 +91,7 @@ import me.champeau.a4j.jsolex.app.jfx.ProgressHandler;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
 import me.champeau.a4j.jsolex.app.jfx.ImageMathEditor;
 import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
+import me.champeau.a4j.jsolex.app.jfx.OpenGLAvailability;
 import me.champeau.a4j.jsolex.app.jfx.MetadataEditor;
 import me.champeau.a4j.jsolex.app.jfx.MultipleImagesViewer;
 import me.champeau.a4j.jsolex.app.jfx.NamingPatternEditor;
@@ -487,6 +488,9 @@ public class JSolEx implements JSolExInterface {
                 server.start(config.getAutoStartServerPort());
             }
             LOGGER.info(message("gpu.support"), OpenCLSupport.isEnabled() ? message("gpu.enabled") : message("gpu.disabled"));
+            OpenGLAvailability.checkAsync().thenAccept(available ->
+                    LOGGER.info(message("opengl.support"), available ? message("opengl.available") : message("opengl.unavailable"))
+            );
             updateServerStatus(false);
             server.addStatusChangeListener(this::updateServerStatus);
             maybeShowWelcomeMessage(rootScene);
