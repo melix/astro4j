@@ -1213,3 +1213,13 @@
     -fx-background-color: #e9ecef;
     -fx-text-fill: #495057;
 }
+
+/* Spectral line indicator badge */
+.spectral-line-badge {
+    -fx-background-radius: 8;
+    -fx-padding: 2 8;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-text-fill: white;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 2, 0, 0, 1);
+}

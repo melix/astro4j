@@ -130,6 +130,7 @@ import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParamsIO;
 import me.champeau.a4j.jsolex.processing.params.RotationKind;
 import me.champeau.a4j.jsolex.processing.params.ScriptParameter;
+import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.spectrum.SerFileTrimmer;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper;
@@ -289,6 +290,11 @@ public class JSolEx implements JSolExInterface {
     @FXML
     private Button bass2000Button;
 
+    @FXML
+    private Label spectralLinePrefix;
+
+    @FXML
+    private Label spectralLineIndicator;
 
     @FXML
     private ChoiceBox<Integer> redshiftBoxSize;
@@ -919,6 +925,69 @@ public class JSolEx implements JSolExInterface {
 
     private void updateProgress(ProgressOperation operation) {
         updateProgress(operation.progress(), operation.taskPath());
+    }
+
+    @Override
+    public void updateSpectralLineIndicator(SpectralRay ray, boolean autoDetected) {
+        Platform.runLater(() -> {
+            if (autoDetected) {
+                spectralLinePrefix.setText(message("spectral.line.detected"));
+                spectralLinePrefix.setVisible(true);
+                spectralLinePrefix.setManaged(true);
+            } else {
+                spectralLinePrefix.setVisible(false);
+                spectralLinePrefix.setManaged(false);
+            }
+            spectralLineIndicator.setText(ray.toString());
+            spectralLineIndicator.setStyle("-fx-background-color: " + toWebColor(wavelengthToColor(ray.wavelength().nanos())) + ";");
+            spectralLineIndicator.setVisible(true);
+            spectralLineIndicator.setManaged(true);
+        });
+    }
+
+    @Override
+    public void hideSpectralLineIndicator() {
+        Platform.runLater(() -> {
+            spectralLinePrefix.setVisible(false);
+            spectralLinePrefix.setManaged(false);
+            spectralLineIndicator.setVisible(false);
+            spectralLineIndicator.setManaged(false);
+        });
+    }
+
+    private static javafx.scene.paint.Color wavelengthToColor(double wavelengthNm) {
+        if (wavelengthNm <= 0) {
+            return javafx.scene.paint.Color.GRAY;
+        }
+        if (wavelengthNm < 380) {
+            return javafx.scene.paint.Color.rgb(148, 0, 211);
+        }
+        if (wavelengthNm < 440) {
+            return javafx.scene.paint.Color.rgb(75, 0, 130);
+        }
+        if (wavelengthNm < 490) {
+            return javafx.scene.paint.Color.rgb(0, 0, 255);
+        }
+        if (wavelengthNm < 510) {
+            return javafx.scene.paint.Color.rgb(0, 255, 255);
+        }
+        if (wavelengthNm < 580) {
+            return javafx.scene.paint.Color.rgb(0, 128, 0);
+        }
+        if (wavelengthNm < 590) {
+            return javafx.scene.paint.Color.rgb(255, 255, 0);
+        }
+        if (wavelengthNm < 620) {
+            return javafx.scene.paint.Color.rgb(255, 165, 0);
+        }
+        return javafx.scene.paint.Color.rgb(255, 0, 0);
+    }
+
+    private static String toWebColor(javafx.scene.paint.Color color) {
+        return String.format("#%02X%02X%02X",
+                (int) (color.getRed() * 255),
+                (int) (color.getGreen() * 255),
+                (int) (color.getBlue() * 255));
     }
 
     @Override

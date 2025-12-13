@@ -105,6 +105,7 @@ import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.OutputMetadata;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.RequestedImages;
+import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.params.SpectroHeliograph;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectralLineAnalysis;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectralLineSurfaceDataExtractor;
@@ -973,6 +974,16 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         sd = payload.timestamp();
         owner.getRedshiftTab().setDisable(true);
         scriptImagesByLabel.clear();
+        var spectralRay = params.spectrumParams().ray();
+        if (spectralRay != null && !SpectralRay.AUTO.equals(spectralRay)) {
+            owner.updateSpectralLineIndicator(spectralRay, false);
+        }
+    }
+
+    @Override
+    public void onSpectralLineDetected(SpectralLineDetectedEvent e) {
+        var detectedRay = e.getPayload().spectralRay();
+        owner.updateSpectralLineIndicator(detectedRay, true);
     }
 
     @Override
