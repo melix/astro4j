@@ -15,11 +15,20 @@
  */
 package me.champeau.a4j.math.image;
 
+/**
+ * A variable-size sharpening kernel.
+ */
 public class SharpenKernel implements Kernel {
     private final int n;
     private final float[][] array;
     private final float factor;
 
+    /**
+     * Creates a sharpening kernel of the specified size.
+     *
+     * @param n the kernel size (must be odd and >= 3)
+     * @return a sharpening kernel
+     */
     public static SharpenKernel of(int n) {
         return new SharpenKernel(n);
     }

@@ -20,10 +20,21 @@ package me.champeau.a4j.math.opencl;
  */
 public class OpenCLException extends RuntimeException {
 
+    /**
+     * Creates an OpenCL exception with a message.
+     *
+     * @param message the error message
+     */
     public OpenCLException(String message) {
         super(message);
     }
 
+    /**
+     * Creates an OpenCL exception with a message and cause.
+     *
+     * @param message the error message
+     * @param cause the underlying cause
+     */
     public OpenCLException(String message, Throwable cause) {
         super(message, cause);
     }

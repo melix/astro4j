@@ -27,7 +27,17 @@ import javafx.stage.Stage;
 import me.champeau.a4j.jsolex.app.AlertFactory;
 import me.champeau.a4j.jsolex.app.JSolEx;
 
+/**
+ * Controller for displaying the advanced parameters dialog.
+ */
 public class AdvancedParamsController {
+    private AdvancedParamsController() {
+    }
+
+    /**
+     * Opens the advanced parameters dialog.
+     * @param owner the owner window
+     */
     public static void openDialog(Stage owner) {
         var stage = new Stage();
         stage.initOwner(owner);

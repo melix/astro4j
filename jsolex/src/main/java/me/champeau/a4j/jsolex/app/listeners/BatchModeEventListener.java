@@ -100,6 +100,7 @@ import static me.champeau.a4j.jsolex.app.JSolEx.message;
 import static me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper.computeSerFileBasename;
 import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.LOGGER;
 
+/** Event listener for batch mode processing. */
 public class BatchModeEventListener implements ProcessingEventListener, ImageMathScriptExecutor {
 
     private static final ReentrantLock ellipseFittingLock = new ReentrantLock();
@@ -138,6 +139,15 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     private ProcessParams adjustedParams;
     private final ReentrantReadWriteLock dataLock;
 
+    /**
+     * Creates a new batch mode event listener.
+     * @param owner the main interface
+     * @param rootOperation the root progress operation
+     * @param delegate the single mode processing event listener
+     * @param sequenceNumber the sequence number of this item in the batch
+     * @param context the batch processing context
+     * @param processParams the processing parameters
+     */
     public BatchModeEventListener(JSolExInterface owner,
                                   ProgressOperation rootOperation,
                                   SingleModeProcessingEventListener delegate,
@@ -813,6 +823,9 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         }
     }
 
+    /**
+     * Called when processing fails for the current item.
+     */
     public void onProcessingFailed() {
         item.status().set(message("batch.error"));
         dataLock.writeLock().lock();

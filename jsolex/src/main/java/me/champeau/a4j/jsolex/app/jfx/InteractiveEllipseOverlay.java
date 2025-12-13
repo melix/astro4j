@@ -36,6 +36,9 @@ import java.util.function.Consumer;
 
 import static javafx.scene.input.ScrollEvent.*;
 
+/**
+ * Interactive overlay for manipulating ellipse parameters through visual handles.
+ */
 public class InteractiveEllipseOverlay {
     private static final double HANDLE_RADIUS = 12.0;
     private static final Color ELLIPSE_COLOR = Color.CYAN;
@@ -69,7 +72,10 @@ public class InteractiveEllipseOverlay {
     private enum HandleType {
         NONE, TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT, ROTATION
     }
-    
+
+    /**
+     * Creates a new instance with initialized visual elements.
+     */
     public InteractiveEllipseOverlay() {
         ellipseShape = new Ellipse();
         ellipseShape.setFill(Color.TRANSPARENT);
@@ -398,7 +404,12 @@ public class InteractiveEllipseOverlay {
         rotationHandle.setCenterX(rotHandleX * zoom + contentOffsetX);
         rotationHandle.setCenterY(rotHandleY * zoom + contentOffsetY);
     }
-    
+
+    /**
+     * Sets the ellipse to display and manipulate.
+     *
+     * @param ellipse the ellipse parameters
+     */
     public void setEllipse(me.champeau.a4j.math.regression.Ellipse ellipse) {
         this.currentEllipse = ellipse;
         updateHandlePositionsFromEllipse();
@@ -442,22 +453,42 @@ public class InteractiveEllipseOverlay {
         rotHandleX = centerX + rotHandleDistance * cosRot;
         rotHandleY = centerY + rotHandleDistance * sinRot;
     }
-    
+
+    /**
+     * Returns the current ellipse.
+     *
+     * @return the current ellipse
+     */
     public me.champeau.a4j.math.regression.Ellipse getEllipse() {
         return currentEllipse;
     }
-    
+
+    /**
+     * Sets the zoom level for display.
+     *
+     * @param zoom the zoom factor
+     */
     public void setZoom(double zoom) {
         this.zoom = zoom;
         updateVisualElements();
         ensureAnchorsAreVisible();
     }
-    
+
+    /**
+     * Sets whether the overlay is active and visible.
+     *
+     * @param active true to activate the overlay
+     */
     public void setActive(boolean active) {
         this.isActive = active;
         setVisible(active);
     }
-    
+
+    /**
+     * Returns whether the overlay is active.
+     *
+     * @return true if the overlay is active
+     */
     public boolean isActive() {
         return isActive;
     }
@@ -474,7 +505,12 @@ public class InteractiveEllipseOverlay {
             line.setVisible(visible);
         }
     }
-    
+
+    /**
+     * Sets a listener to be notified when the ellipse changes.
+     *
+     * @param listener the listener to notify on ellipse changes
+     */
     public void setOnEllipseChanged(Consumer<me.champeau.a4j.math.regression.Ellipse> listener) {
         this.onEllipseChanged = listener;
     }
@@ -484,7 +520,12 @@ public class InteractiveEllipseOverlay {
             onEllipseChanged.accept(currentEllipse);
         }
     }
-    
+
+    /**
+     * Returns all visual nodes for adding to a scene graph.
+     *
+     * @return list of visual nodes
+     */
     public List<Node> getNodes() {
         return List.of(
             ellipseShape,
@@ -493,7 +534,12 @@ public class InteractiveEllipseOverlay {
             rotationHandle
         );
     }
-    
+
+    /**
+     * Sets the scroll pane for viewport management.
+     *
+     * @param scrollPane the scroll pane containing the overlay
+     */
     public void setScrollPane(ScrollPane scrollPane) {
         this.scrollPane = scrollPane;
     }

@@ -69,14 +69,27 @@ public class OpenGLSphereRenderer implements SphereRenderer {
     private int textureWidth;
     private int textureHeight;
 
+    /**
+     * Creates a new OpenGL sphere renderer for the given tomography data.
+     *
+     * @param data the spherical tomography data to render
+     */
     public OpenGLSphereRenderer(SphericalTomographyData data) {
         this.data = data;
     }
 
+    /**
+     * Checks if textures need to be reloaded.
+     *
+     * @return true if textures need to be reloaded, false otherwise
+     */
     public boolean needsTextureReload() {
         return needsTextureReload;
     }
 
+    /**
+     * Reloads all textures if needed.
+     */
     public void reloadTextures() {
         if (!needsTextureReload || !dataPreprocessed) {
             return;
@@ -95,6 +108,9 @@ public class OpenGLSphereRenderer implements SphereRenderer {
         needsTextureReload = false;
     }
 
+    /**
+     * Loads all textures from the tomography data into OpenGL.
+     */
     public void loadTextures() {
         if (texturesLoaded) {
             return;
@@ -318,6 +334,12 @@ public class OpenGLSphereRenderer implements SphereRenderer {
         return image;
     }
 
+    /**
+     * Result of texture creation containing the texture ID and average color.
+     *
+     * @param textureId the OpenGL texture ID
+     * @param averageColor the average RGB color within the disk
+     */
     private record TextureResult(int textureId, float[] averageColor) {}
 
     private TextureResult createShellTexture(float[][] imageData, boolean isBase, float colorPosition,
@@ -556,6 +578,12 @@ public class OpenGLSphereRenderer implements SphereRenderer {
         throw new IllegalArgumentException("Unsupported image type: " + image.getClass());
     }
 
+    /**
+     * Renders the spherical tomography visualization.
+     *
+     * @param viewWidth the width of the viewport
+     * @param viewHeight the height of the viewport
+     */
     public void render(int viewWidth, int viewHeight) {
         if (!texturesLoaded) {
             LOGGER.warn("render() called but textures not loaded");
@@ -868,35 +896,76 @@ public class OpenGLSphereRenderer implements SphereRenderer {
         glBindTexture(GL_TEXTURE_2D, shell.textureId);
     }
 
+    /**
+     * Sets the camera distance from the sphere.
+     *
+     * @param distance the distance, clamped between 1.5 and 10.0
+     */
     public void setCameraDistance(float distance) {
         this.cameraDistance = Math.max(1.5f, Math.min(10.0f, distance));
     }
 
+    /**
+     * Gets the current camera distance.
+     *
+     * @return the camera distance
+     */
     public float getCameraDistance() {
         return cameraDistance;
     }
 
+    /**
+     * Sets the rotation angles for the sphere.
+     *
+     * @param x rotation around the X axis in degrees
+     * @param y rotation around the Y axis in degrees
+     */
     public void setRotation(float x, float y) {
         this.rotationX = x;
         this.rotationY = y;
     }
 
+    /**
+     * Gets the rotation around the X axis.
+     *
+     * @return the X rotation in degrees
+     */
     public float getRotationX() {
         return rotationX;
     }
 
+    /**
+     * Gets the rotation around the Y axis.
+     *
+     * @return the Y rotation in degrees
+     */
     public float getRotationY() {
         return rotationY;
     }
 
+    /**
+     * Sets the radial exaggeration factor to emphasize shell separation.
+     *
+     * @param exaggeration the exaggeration factor
+     */
     public void setRadialExaggeration(float exaggeration) {
         this.radialExaggeration = exaggeration;
     }
 
+    /**
+     * Gets the current radial exaggeration factor.
+     *
+     * @return the radial exaggeration factor
+     */
     public float getRadialExaggeration() {
         return radialExaggeration;
     }
 
+    /**
+     * Sets the color map for rendering shells.
+     *
+     * @param colorMap the color map to use
+     */
     public void setColorMap(SphereRenderer.ColorMap colorMap) {
         if (this.colorMap != colorMap) {
             this.colorMap = colorMap;
@@ -904,18 +973,38 @@ public class OpenGLSphereRenderer implements SphereRenderer {
         }
     }
 
+    /**
+     * Gets the current color map.
+     *
+     * @return the current color map
+     */
     public SphereRenderer.ColorMap getColorMap() {
         return colorMap;
     }
 
+    /**
+     * Sets whether to show prominences at the solar limb.
+     *
+     * @param show true to show prominences, false to hide them
+     */
     public void setShowProminences(boolean show) {
         this.showProminences = show;
     }
 
+    /**
+     * Checks if prominences are being shown.
+     *
+     * @return true if prominences are shown, false otherwise
+     */
     public boolean isShowProminences() {
         return showProminences;
     }
 
+    /**
+     * Sets whether to use contrast-enhanced images.
+     *
+     * @param enhanced true to use enhanced images, false to use raw images
+     */
     public void setContrastEnhanced(boolean enhanced) {
         LOGGER.debug("setContrastEnhanced: {} -> {}, enhancedImageDataList null? {}",
                 this.contrastEnhanced, enhanced, enhancedImageDataList == null);
@@ -953,6 +1042,9 @@ public class OpenGLSphereRenderer implements SphereRenderer {
         return !hiddenShells.contains(shell.pixelShift);
     }
 
+    /**
+     * Disposes all OpenGL resources used by this renderer.
+     */
     @Override
     public void dispose() {
         for (var shell : shellRenderData) {
@@ -966,6 +1058,18 @@ public class OpenGLSphereRenderer implements SphereRenderer {
         texturesLoaded = false;
     }
 
+    /**
+     * Data associated with a single shell for rendering.
+     *
+     * @param textureId the OpenGL texture ID
+     * @param normalizedRadius the normalized radius of this shell
+     * @param pixelShift the pixel shift value for this shell
+     * @param imageWidth the width of the texture image
+     * @param imageHeight the height of the texture image
+     * @param ellipse the ellipse fit for the solar disk, if available
+     * @param colorPosition the position in the color map (0 to 1)
+     * @param averageColor the average RGB color within the disk
+     */
     private record ShellRenderData(
             int textureId,
             double normalizedRadius,

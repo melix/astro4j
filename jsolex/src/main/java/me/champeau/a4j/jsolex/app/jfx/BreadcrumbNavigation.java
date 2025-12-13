@@ -25,26 +25,49 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
+/** Navigation breadcrumb component. */
 public class BreadcrumbNavigation extends HBox {
-    
+
+    /** Breadcrumb item representing a navigation step. */
     public static class BreadcrumbItem {
         private final String title;
         private final String id;
         private final Runnable action;
-        
+
+        /**
+         * Creates a breadcrumb item.
+         * @param id the item ID
+         * @param title the item title
+         * @param action the action to run when clicked
+         */
         public BreadcrumbItem(String id, String title, Runnable action) {
             this.id = id;
             this.title = title;
             this.action = action;
         }
-        
+
+        /**
+         * Gets the title of this breadcrumb item.
+         * @return the item title
+         */
         public String getTitle() { return title; }
+
+        /**
+         * Gets the unique identifier of this breadcrumb item.
+         * @return the item ID
+         */
         public String getId() { return id; }
+
+        /**
+         * Gets the action to execute when this breadcrumb item is clicked.
+         * @return the item action
+         */
         public Runnable getAction() { return action; }
     }
-    
+
     private final List<BreadcrumbItem> items = new ArrayList<>();
-    
+
+    /** Creates a new breadcrumb navigation component. */
     public BreadcrumbNavigation() {
         getStyleClass().add("breadcrumb-nav");
         setSpacing(4);
@@ -52,33 +75,49 @@ public class BreadcrumbNavigation extends HBox {
         setAlignment(Pos.CENTER_LEFT);
     }
     
+    /**
+     * Sets the breadcrumb path.
+     * @param path the list of breadcrumb items
+     */
     public void setPath(List<BreadcrumbItem> path) {
         this.items.clear();
         this.items.addAll(path);
         rebuildBreadcrumb();
     }
-    
+
+    /**
+     * Adds a breadcrumb item.
+     * @param item the item to add
+     */
     public void addItem(BreadcrumbItem item) {
         items.add(item);
         rebuildBreadcrumb();
     }
-    
+
+    /**
+     * Adds a breadcrumb item.
+     * @param id the item ID
+     * @param title the item title
+     * @param action the action to run when clicked
+     */
     public void addItem(String id, String title, Runnable action) {
         addItem(new BreadcrumbItem(id, title, action));
     }
-    
+
+    /** Removes the last breadcrumb item. */
     public void removeLastItem() {
         if (!items.isEmpty()) {
             items.remove(items.size() - 1);
             rebuildBreadcrumb();
         }
     }
-    
+
+    /** Clears all breadcrumb items. */
     public void clear() {
         items.clear();
         getChildren().clear();
     }
-    
+
     private void rebuildBreadcrumb() {
         getChildren().clear();
         
@@ -107,6 +146,10 @@ public class BreadcrumbNavigation extends HBox {
         }
     }
     
+    /**
+     * Returns the list of breadcrumb items.
+     * @return the list of items
+     */
     public List<BreadcrumbItem> getItems() {
         return new ArrayList<>(items);
     }

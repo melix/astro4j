@@ -33,6 +33,11 @@ public record Header(
         ImageMetadata metadata
 ) {
 
+    /**
+     * Determines if this is a JSol'Ex trimmed SER file.
+     *
+     * @return true if this is a JSol'Ex trimmed SER file
+     */
     public boolean isJSolexTrimmedSer() {
         return JSOLEX_RECORDER.equals(fileId);
     }

@@ -17,10 +17,25 @@ package me.champeau.a4j.jsolex.processing.util;
 
 import java.util.Locale;
 
+/**
+ * Supported animation output formats.
+ */
 public enum AnimationFormat {
+    /**
+     * MP4 video format.
+     */
     MP4,
+
+    /**
+     * GIF animation format.
+     */
     GIF;
 
+    /**
+     * Returns the file extension for this format.
+     *
+     * @return the file extension including the leading dot
+     */
     public String extension() {
         return "." + name().toLowerCase(Locale.US);
     }

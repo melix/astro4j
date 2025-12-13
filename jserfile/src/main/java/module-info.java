@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/** Provides support for reading and writing SER video files. */
 module me.champeau.a4j.jserfile {
     exports me.champeau.a4j.ser;
     exports me.champeau.a4j.ser.bayer;

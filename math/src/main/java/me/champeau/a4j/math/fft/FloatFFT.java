@@ -15,12 +15,23 @@
  */
 package me.champeau.a4j.math.fft;
 
+/** Interface for float precision FFT operations. */
 public interface FloatFFT {
+    /** Performs the forward FFT. */
     void transform();
 
+    /** Performs the inverse FFT. */
     void inverseTransform();
 
+    /**
+     * Returns the real component.
+     * @return the real component
+     */
     float[] real();
 
+    /**
+     * Returns the imaginary component.
+     * @return the imaginary component
+     */
     float[] imaginary();
 }

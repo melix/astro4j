@@ -23,9 +23,15 @@ import me.champeau.a4j.math.regression.Ellipse;
 
 import java.util.function.Consumer;
 
+/**
+ * Image view with interactive ellipse fitting support.
+ */
 public class EllipseFittingImageView extends ZoomableImageView {
     private final PointBasedEllipseOverlay ellipseOverlay = new PointBasedEllipseOverlay();
 
+    /**
+     * Creates a new ellipse fitting image view.
+     */
     public EllipseFittingImageView() {
         super();
         initializeEllipseOverlay();
@@ -56,6 +62,10 @@ public class EllipseFittingImageView extends ZoomableImageView {
         super.setImage(image);
     }
 
+    /**
+     * Enables or disables interactive ellipse mode.
+     * @param enabled true to enable, false to disable
+     */
     public void enableInteractiveEllipseMode(boolean enabled) {
         ellipseOverlay.setActive(enabled);
         if (enabled) {
@@ -63,19 +73,35 @@ public class EllipseFittingImageView extends ZoomableImageView {
         }
     }
 
+    /**
+     * Sets the ellipse to display in interactive mode.
+     * @param ellipse the ellipse to display
+     */
     public void setInteractiveEllipse(Ellipse ellipse) {
         ellipseOverlay.setEllipse(ellipse);
         ellipseOverlay.getNodes().forEach(Node::toFront);
     }
 
+    /**
+     * Sets a listener for ellipse changes.
+     * @param listener the listener to notify when the ellipse changes
+     */
     public void setOnEllipseChanged(Consumer<Ellipse> listener) {
         ellipseOverlay.setOnEllipseChanged(listener);
     }
 
+    /**
+     * Checks if interactive ellipse mode is active.
+     * @return true if in interactive mode
+     */
     public boolean isInInteractiveEllipseMode() {
         return ellipseOverlay.isActive();
     }
-    
+
+    /**
+     * Sets the opacity of the ellipse overlay.
+     * @param opacity the opacity value (0.0-1.0)
+     */
     public void setEllipseOpacity(double opacity) {
         ellipseOverlay.setOpacity(opacity);
     }

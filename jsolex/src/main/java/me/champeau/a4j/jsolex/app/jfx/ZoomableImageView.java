@@ -477,6 +477,11 @@ public class ZoomableImageView extends HBox {
         this.imagePath = imagePath;
     }
 
+    /**
+     * Sets the image to display.
+     *
+     * @param image the image to display
+     */
     public void setImage(Image image) {
         imageView.setImage(image);
         imageView.setPreserveRatio(true);
@@ -628,6 +633,11 @@ public class ZoomableImageView extends HBox {
         scrollPane.setVvalue(y / (image.getHeight() - height));
     }
 
+    /**
+     * Returns the underlying image view.
+     *
+     * @return the image view
+     */
     public ImageView getImageView() {
         return imageView;
     }
@@ -644,10 +654,21 @@ public class ZoomableImageView extends HBox {
         return canFitToCenter;
     }
 
+    /**
+     * Determines whether a mouse event should be handled.
+     *
+     * @param event the mouse event
+     * @return true if the event should be handled
+     */
     protected boolean shouldHandleMouseEvent(MouseEvent event) {
         return true;
     }
 
+    /**
+     * Called when zoom level changes, providing an extension point for subclasses.
+     *
+     * @param zoom the new zoom level
+     */
     protected void onZoomChanged(double zoom) {
         // Extension point for subclasses
     }

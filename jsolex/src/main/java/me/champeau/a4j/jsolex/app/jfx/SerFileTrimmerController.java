@@ -41,6 +41,10 @@ import java.util.function.Consumer;
 
 import static me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper.findMetadataFile;
 
+/**
+ * Controller for the SER file trimmer dialog, which allows users to trim SER files
+ * by selecting frame ranges and spatial boundaries to reduce file size.
+ */
 public class SerFileTrimmerController {
     private static final Logger LOGGER = LoggerFactory.getLogger(SerFileTrimmerController.class);
 
@@ -80,6 +84,15 @@ public class SerFileTrimmerController {
     private Consumer<? super File> onFinish;
     private TrimmingParameters trimmingParameters;
 
+    /**
+     * Creates and displays a SER file trimmer dialog.
+     *
+     * @param stage the stage to display the dialog in
+     * @param payload the trimming parameters containing file and boundary information
+     * @param onStart callback to execute when trimming starts
+     * @param progressConsumer callback to receive progress updates during trimming
+     * @param onFinish callback to execute when trimming completes, receives the output file or null on failure
+     */
     public static void create(Stage stage,
                               TrimmingParameters payload,
                               Runnable onStart,
@@ -101,6 +114,12 @@ public class SerFileTrimmerController {
         }
     }
 
+    /**
+     * Copies the metadata file associated with the given SER file to a trimmed version,
+     * if such metadata file exists.
+     *
+     * @param serFile the original SER file whose metadata should be copied
+     */
     public static void maybeCopyMetadata(File serFile) {
         findMetadataFile(serFile.toPath()).ifPresent(metadataFile -> {
             var outputMetadataFile = toTrimmedFile(metadataFile);
@@ -245,11 +264,19 @@ public class SerFileTrimmerController {
         }
     }
 
+    /**
+     * Cancels the trimming operation and closes the dialog.
+     */
     @FXML
     public void cancel() {
         stage.close();
     }
 
+    /**
+     * Initiates the SER file trimming process based on user-selected parameters.
+     * This method closes the dialog, starts trimming in a background thread,
+     * and invokes callbacks for progress updates and completion.
+     */
     @FXML
     public void trim() {
         var outputFile = toTrimmedFile(trimmingParameters.serFile());
@@ -288,6 +315,13 @@ public class SerFileTrimmerController {
 
     }
 
+    /**
+     * Generates a file path for the trimmed version of a SER file by appending "-trimmed"
+     * to the base name.
+     *
+     * @param serFile the original SER file
+     * @return a file reference for the trimmed output file
+     */
     public static File toTrimmedFile(File serFile) {
         var baseName = serFile.getName().substring(0, serFile.getName().lastIndexOf('.'));
         var ext = serFile.getName().substring(serFile.getName().lastIndexOf('.'));

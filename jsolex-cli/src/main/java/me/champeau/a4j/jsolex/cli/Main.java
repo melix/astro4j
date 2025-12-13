@@ -49,12 +49,19 @@ import java.util.Set;
 
 import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectoriesIfNeeded;
 
-
+/**
+ * Command-line interface for JSol'Ex video processing.
+ * Uses the default constructor for Picocli dependency injection.
+ */
 @Command(name = "jsolex", description = "Sol'Ex spectroheliograph video processing",
         mixinStandardHelpOptions = true)
 @ReflectiveAccess
 public class Main implements Runnable {
     private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
+
+    /** Creates a new instance. Required by Picocli. */
+    public Main() {
+    }
 
     @Option(names = {"-v", "--verbose"}, description = "Verbose output")
     boolean verbose;
@@ -86,10 +93,15 @@ public class Main implements Runnable {
     @CommandLine.ArgGroup
     BandingCorrectionOptions bandingCorrectionOptions = new BandingCorrectionOptions();
 
+    /**
+     * Main entry point for the JSol'Ex CLI.
+     * @param args command line arguments
+     */
     public static void main(String[] args) {
         PicocliRunner.run(Main.class, args);
     }
 
+    /** Executes the video processing with the configured options. */
     public void run() {
         if (verbose) {
             logger(LoggingListener.class.getName()).setLevel(Level.DEBUG);

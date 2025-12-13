@@ -71,7 +71,16 @@ import static me.champeau.a4j.jsolex.app.JSolEx.message;
 import static me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper.findMetadataFile;
 import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectoriesIfNeeded;
 
+/**
+ * Controller for the image inspector dialog.
+ */
 public class ImageInspectorController {
+
+    /**
+     * Creates a new instance. Required by FXML.
+     */
+    public ImageInspectorController() {
+    }
     private static final Logger LOGGER = LoggerFactory.getLogger(ImageInspectorController.class);
     private static final List<String> DEFAULT_EXTENSIONS = Stream.of(ImageFormat.PNG, ImageFormat.JPG, ImageFormat.TIF, ImageFormat.FITS)
         .map(ImageFormat::extension).toList();
@@ -119,6 +128,15 @@ public class ImageInspectorController {
     private final Set<File> deletedFiles = new HashSet<>();
     private final Map<File, File> movedFiles = new HashMap<>();
 
+    /**
+     * Creates and shows the image inspector dialog.
+     * @param processParams the processing parameters
+     * @param images the images by index
+     * @param filesPerIndex the files per index
+     * @param serFilesByIndex the SER files by index
+     * @param outputDirectory the output directory
+     * @param onClose callback when dialog closes
+     */
     public static void create(ProcessParams processParams,
                               Map<Integer, List<CandidateImageDescriptor>> images,
                               Map<Integer, List<File>> filesPerIndex,
@@ -462,6 +480,9 @@ public class ImageInspectorController {
         return null;
     }
 
+    /**
+     * Finishes the image inspection and processes discarded images.
+     */
     @FXML
     public void finish() {
         ConfirmController.open(images.size(), (int) kept().count()).ifPresent(options -> {
@@ -526,10 +547,18 @@ public class ImageInspectorController {
         });
     }
 
+    /**
+     * Gets the set of deleted files.
+     * @return unmodifiable set of deleted files
+     */
     public Set<File> getDeletedFiles() {
         return Collections.unmodifiableSet(deletedFiles);
     }
 
+    /**
+     * Gets the map of moved files.
+     * @return unmodifiable map of moved files (source to destination)
+     */
     public Map<File, File> getMovedFiles() {
         return Collections.unmodifiableMap(movedFiles);
     }
@@ -562,10 +591,18 @@ public class ImageInspectorController {
         }
     }
 
+    /**
+     * Gets the list of discarded image indices.
+     * @return list of discarded image indices
+     */
     public List<Integer> getDiscardedImages() {
         return discarded().map(s -> s.index).toList();
     }
 
+    /**
+     * Gets the best image index.
+     * @return optional containing the best image index, or empty if none selected
+     */
     public Optional<Integer> getBestImage() {
         return selections.values().stream()
             .filter(s -> s.getState() == SelectionState.BEST)
@@ -600,7 +637,16 @@ public class ImageInspectorController {
         DISCARD, KEEP, BEST
     }
 
+    /**
+     * Controller for the confirmation dialog.
+     */
     public static class ConfirmController {
+
+        /**
+         * Creates a new instance. Required by FXML.
+         */
+        public ConfirmController() {
+        }
         private Stage stage;
 
         @FXML
@@ -614,18 +660,30 @@ public class ImageInspectorController {
 
         private ConfirmOptions options;
 
+        /**
+         * Cancels the confirmation.
+         */
         @FXML
         public void cancel() {
             options = null;
             stage.close();
         }
 
+        /**
+         * Confirms the selected options.
+         */
         @FXML
         public void confirm() {
             options = new ConfirmOptions(deleteFiles.getValue(), deleteSer.getValue());
             stage.close();
         }
 
+        /**
+         * Opens the confirmation dialog.
+         * @param total the total number of images
+         * @param kept the number of images kept
+         * @return optional containing the confirmation options, or empty if cancelled
+         */
         public static Optional<ConfirmOptions> open(int total, int kept) {
             var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "confirm-image-selection");
             try {
@@ -653,12 +711,29 @@ public class ImageInspectorController {
         }
     }
 
+    /**
+     * Options for discarding images.
+     * @param filesAction action to take for image files
+     * @param serAction action to take for SER files
+     */
     public record ConfirmOptions(DiscardAction filesAction, DiscardAction serAction) {
     }
 
+    /**
+     * Actions that can be taken for discarded files.
+     */
     public enum DiscardAction {
+        /**
+         * Keep the files.
+         */
         KEEP,
+        /**
+         * Delete the files.
+         */
         DELETE,
+        /**
+         * Move the files to a discarded directory.
+         */
         MOVE;
 
         public String toString() {

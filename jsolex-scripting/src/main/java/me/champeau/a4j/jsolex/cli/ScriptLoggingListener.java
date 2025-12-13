@@ -38,6 +38,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+/** Event listener for logging processing events in script execution. */
 public class ScriptLoggingListener implements ProcessingEventListener {
     private static final Logger LOGGER = LoggerFactory.getLogger(ScriptLoggingListener.class);
     private final ProcessParams processParams;
@@ -47,6 +48,11 @@ public class ScriptLoggingListener implements ProcessingEventListener {
 
     private long sd;
 
+    /**
+     * Creates a new script logging listener.
+     * @param processParams the processing parameters
+     * @param imageFormats the image formats to use when saving
+     */
     public ScriptLoggingListener(ProcessParams processParams, Set<ImageFormat> imageFormats) {
         this.processParams = processParams;
         this.imageFormats = imageFormats;
@@ -105,6 +111,10 @@ public class ScriptLoggingListener implements ProcessingEventListener {
         generatedImages.putAll(e.getPayload().imagesByLabel());
     }
 
+    /**
+     * Gets the images generated during script execution.
+     * @return map of image names to image wrappers
+     */
     public Map<String, ImageWrapper> getGeneratedImages() {
         return generatedImages;
     }

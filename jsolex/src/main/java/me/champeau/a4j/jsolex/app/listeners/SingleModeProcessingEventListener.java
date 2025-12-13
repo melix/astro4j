@@ -186,6 +186,12 @@ import static me.champeau.a4j.jsolex.app.jfx.FXUtils.newStage;
 import static me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper.computeSerFileBasename;
 import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectoriesIfNeeded;
 
+/**
+ * Event listener for single mode processing that handles processing events,
+ * image generation, and user interface updates during Sol'Ex video file processing.
+ * This listener manages the visualization of processed images, histograms, spectral profiles,
+ * and provides script execution capabilities through the ImageMath language.
+ */
 public class SingleModeProcessingEventListener implements ProcessingEventListener, ImageMathScriptExecutor, Broadcaster {
     private static final Logger LOGGER = LoggerFactory.getLogger(SingleModeProcessingEventListener.class);
     private static final String[] RGB_COLORS = {"red", "green", "blue"};
@@ -242,6 +248,18 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private Button showTomographyButton;
     private WeakReference<SpectralEvolution4DViewer> spectral4DViewer;
 
+    /**
+     * Creates a new single mode processing event listener.
+     *
+     * @param owner the JSol'Ex interface that owns this listener
+     * @param rootOperation the root progress operation for tracking overall processing progress
+     * @param baseName the base name for generated files
+     * @param serFile the SER video file being processed, or null if processing other formats
+     * @param outputDirectory the directory where processed images will be saved
+     * @param params the processing parameters
+     * @param processingDate the date and time when processing started
+     * @param popupViews map of image viewer popup windows
+     */
     public SingleModeProcessingEventListener(JSolExInterface owner,
                                              ProgressOperation rootOperation,
                                              String baseName,
@@ -2460,6 +2478,11 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         }
     }
 
+    /**
+     * Checks if a SER video file is associated with this processing session.
+     *
+     * @return true if a SER file is being processed, false otherwise
+     */
     public boolean hasSerFile() {
         return serFile != null;
     }

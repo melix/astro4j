@@ -21,6 +21,10 @@ import java.util.function.DoubleUnaryOperator;
 
 /**
  * A quadruplet of doubles.
+ * @param a the first component
+ * @param b the second component
+ * @param c the third component
+ * @param d the fourth component
  */
 public record DoubleQuadruplet(
         double a,
@@ -28,6 +32,10 @@ public record DoubleQuadruplet(
         double c,
         double d
 ) {
+    /**
+     * Returns a polynomial operator representing ax^3 + bx^2 + cx + d.
+     * @return a polynomial operator representing ax^3 + bx^2 + cx + d
+     */
     public DoubleUnaryOperator asPolynomial() {
         return new Operator();
     }
@@ -45,10 +53,19 @@ public record DoubleQuadruplet(
         }
     }
 
+    /**
+     * Returns a string representation of the polynomial.
+     * @return a string representation of the polynomial
+     */
     public String asPolynomialString() {
         return String.format(Locale.US, "{%s,%s,%s,%s}", a, b, c, d);
     }
 
+    /**
+     * Parses a polynomial string into a DoubleQuadruplet.
+     * @param polynomial the polynomial string
+     * @return the parsed quadruplet, or empty if parsing fails
+     */
     public static Optional<DoubleQuadruplet> parsePolynomial(String polynomial) {
         try {
             String[] parts = polynomial.substring(1, polynomial.length() - 1).split("\\s*,\\s*");

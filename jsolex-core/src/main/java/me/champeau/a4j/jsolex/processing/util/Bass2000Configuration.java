@@ -19,17 +19,40 @@ import com.google.gson.annotations.SerializedName;
 
 import java.util.Map;
 
+/**
+ * Configuration data for BASS2000 upload functionality.
+ * This record is deserialized from a remote JSON configuration.
+ *
+ * @param requiresVersion the minimum application version required for BASS2000 uploads
+ * @param enabled whether BASS2000 uploads are currently enabled
+ * @param message localized messages keyed by language code (e.g., "en", "fr")
+ */
 public record Bass2000Configuration(
         @SerializedName("requiresVersion") String requiresVersion,
         @SerializedName("enabled") boolean enabled,
         @SerializedName("message") Map<String, String> message
 ) {
+    /**
+     * Constructs a Bass2000Configuration with the specified parameters.
+     * If the message map is null, an empty map is used instead.
+     *
+     * @param requiresVersion the minimum application version required
+     * @param enabled whether BASS2000 is enabled
+     * @param message localized messages by language code
+     */
     public Bass2000Configuration(String requiresVersion, boolean enabled, Map<String, String> message) {
         this.requiresVersion = requiresVersion;
         this.enabled = enabled;
         this.message = message != null ? message : Map.of();
     }
 
+    /**
+     * Retrieves a localized message for the specified language.
+     * Falls back to English if the requested language is not available.
+     *
+     * @param language the language code (e.g., "en", "fr")
+     * @return the message in the requested language, or English, or empty string if neither exists
+     */
     public String getMessage(String language) {
         return message.getOrDefault(language, message.getOrDefault("en", ""));
     }

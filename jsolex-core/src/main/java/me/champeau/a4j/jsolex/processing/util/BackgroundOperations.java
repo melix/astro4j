@@ -22,6 +22,12 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.logError;
 
+/**
+ * Utility class for executing background operations using different execution strategies.
+ * Provides CPU-bound async execution, IO-bound async execution with virtual threads,
+ * and exclusive IO operations with locking. All operations are tracked and can be
+ * interrupted or cleaned up.
+ */
 public final class BackgroundOperations {
 
     private static final ExecutorService ASYNC = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors(), new ThreadFactory() {
@@ -61,6 +67,13 @@ public final class BackgroundOperations {
 
     }
 
+    /**
+     * Executes a CPU-bound task asynchronously on a fixed thread pool.
+     * The task is tracked and can be interrupted via {@link #interrupt()}.
+     * Exceptions thrown by the action are logged but do not propagate.
+     *
+     * @param action the task to execute
+     */
     public static void async(Runnable action) {
         TASKS.add(ASYNC.submit(wrap(action)));
     }
@@ -75,10 +88,24 @@ public final class BackgroundOperations {
         };
     }
 
+    /**
+     * Executes an IO-bound task asynchronously using virtual threads.
+     * The task is tracked and can be interrupted via {@link #interrupt()}.
+     * Exceptions thrown by the action are logged but do not propagate.
+     *
+     * @param action the IO task to execute
+     */
     public static void asyncIo(Runnable action) {
         TASKS.add(IO_ASYNC.submit(wrap(action)));
     }
 
+    /**
+     * Executes an IO operation with exclusive access via a lock.
+     * Only one exclusive IO operation can run at a time.
+     * This method blocks until the lock is acquired.
+     *
+     * @param action the exclusive IO operation to execute
+     */
     public static void exclusiveIO(Runnable action) {
         try {
             EXCLUSIVE_IO_LOCK.lock();
@@ -88,12 +115,20 @@ public final class BackgroundOperations {
         }
     }
 
+    /**
+     * Shuts down all executors immediately, attempting to stop all actively
+     * executing tasks. This method does not wait for tasks to complete.
+     */
     public static void close() {
         ASYNC.shutdownNow();
         IO_ASYNC.shutdownNow();
         EXCLUSIVE_IO.shutdownNow();
     }
 
+    /**
+     * Interrupts all currently tracked background tasks by cancelling them.
+     * Cancelled tasks may throw {@link InterruptedException} if they are blocked.
+     */
     public static void interrupt() {
         TASKS.forEach(f -> f.cancel(true));
     }

@@ -19,9 +19,15 @@ import me.champeau.a4j.ser.ImageGeometry;
 
 import java.nio.ByteBuffer;
 
+/** Vertically mirrors the output of another image converter. */
 public class VerticalMirrorConverter implements ImageConverter<float[][]> {
     private final ImageConverter<float[][]> delegate;
 
+    /**
+     * Constructs a vertical mirror converter.
+     *
+     * @param delegate the delegate converter
+     */
     public VerticalMirrorConverter(ImageConverter<float[][]> delegate) {
         this.delegate = delegate;
     }

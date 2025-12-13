@@ -24,6 +24,10 @@ import me.champeau.a4j.math.regression.Ellipse;
 import java.util.Comparator;
 import java.util.List;
 
+/**
+ * Comparator for metadata classes that enforces a specific display order.
+ * Classes not in the explicit order are sorted alphabetically by simple name.
+ */
 public class MetadataComparator implements Comparator<Class<?>> {
     private static final List<Class<?>> EXPLICIT_ORDER = List.of(
         GeneratedImageMetadata.class,
@@ -32,6 +36,12 @@ public class MetadataComparator implements Comparator<Class<?>> {
         Ellipse.class,
         SolarParameters.class
     );
+
+    /**
+     * Creates a new instance.
+     */
+    public MetadataComparator() {
+    }
 
     @Override
     public int compare(Class<?> o1, Class<?> o2) {

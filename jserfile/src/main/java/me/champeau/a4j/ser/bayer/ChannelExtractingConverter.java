@@ -21,13 +21,17 @@ import java.nio.ByteBuffer;
 
 import static me.champeau.a4j.ser.bayer.BayerMatrixSupport.PIXEL;
 
-/**
- * A converter which will extract a single channel from an RGB image.
- */
+/** Extracts a single channel from an RGB image. */
 public class ChannelExtractingConverter implements ImageConverter<short[]> {
     private final ImageConverter<short[]> delegate;
     private final int channel;
 
+    /**
+     * Constructs a channel extracting converter.
+     *
+     * @param delegate the delegate converter that produces RGB data
+     * @param channel the channel to extract
+     */
     public ChannelExtractingConverter(ImageConverter<short[]> delegate, int channel) {
         this.delegate = delegate;
         this.channel = channel;

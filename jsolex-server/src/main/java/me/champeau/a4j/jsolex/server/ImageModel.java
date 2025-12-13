@@ -15,6 +15,14 @@
  */
 package me.champeau.a4j.jsolex.server;
 
+/**
+ * Model representing an image in the server.
+ * @param id the unique image identifier
+ * @param category the image category
+ * @param title the image title
+ * @param path the file path to the image
+ * @param caption the image caption
+ */
 public record ImageModel(
     Long id,
     String category,

@@ -69,7 +69,17 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
 
+/**
+ * Controller for the collage creation dialog.
+ * Allows users to create custom image collages by combining multiple images.
+ */
 public class CollageController {
+
+    /**
+     * Creates a new instance. Required by FXML.
+     */
+    public CollageController() {
+    }
     private static final Logger LOGGER = LoggerFactory.getLogger(CollageController.class);
     private static final DataFormat SLOT_DATA_FORMAT = new DataFormat("application/x-slot-index");
     private static final AtomicInteger COLLAGE_COUNTER = new AtomicInteger(0);
@@ -133,6 +143,14 @@ public class CollageController {
     @FXML
     private Button createCollageButton;
 
+    /**
+     * Sets up the collage controller.
+     * @param stage the dialog stage
+     * @param owner the owner interface
+     * @param images the list of available images
+     * @param outputDirectory the output directory
+     * @param processParams the processing parameters
+     */
     public void setup(Stage stage, JSolExInterface owner, List<MultipleImagesViewer.ImageInfo> images, Path outputDirectory, ProcessParams processParams) {
         this.stage = stage;
         this.multipleImagesViewer = owner.getImagesViewer();

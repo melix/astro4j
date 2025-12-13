@@ -39,6 +39,7 @@ import java.util.stream.Collectors;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
+/** WebSocket handler for live image updates. */
 @ServerWebSocket("/ws/live")
 public class MainWebSocket extends AbstractController implements StoreListener {
     private static final Logger LOGGER = LoggerFactory.getLogger(MainWebSocket.class);
@@ -50,6 +51,12 @@ public class MainWebSocket extends AbstractController implements StoreListener {
     private final WebSocketBroadcaster broadcaster;
     private final ApplicationContext context;
 
+    /**
+     * Creates a new main WebSocket handler.
+     * @param viewsRenderer the views renderer
+     * @param broadcaster the WebSocket broadcaster
+     * @param context the application context
+     */
     public MainWebSocket(ViewsRenderer<Object, ?> viewsRenderer,
                          WebSocketBroadcaster broadcaster,
                          ApplicationContext context) {
@@ -58,6 +65,11 @@ public class MainWebSocket extends AbstractController implements StoreListener {
         this.context = context;
     }
 
+    /**
+     * Called when a WebSocket connection is opened.
+     * @param session the WebSocket session
+     * @throws IOException if an I/O error occurs
+     */
     @OnOpen
     public void onOpen(WebSocketSession session) throws IOException {
         var store = context.getBean(ImagesStore.class);
@@ -104,11 +116,20 @@ public class MainWebSocket extends AbstractController implements StoreListener {
         });
     }
 
+    /**
+     * Called when a WebSocket connection is closed.
+     * @param session the WebSocket session
+     */
     @OnClose
     public void onClose(WebSocketSession session) {
         LOGGER.info("WebSocket connection closed: {}", session.getId());
     }
 
+    /**
+     * Called when a WebSocket message is received.
+     * @param message the message content
+     * @param session the WebSocket session
+     */
     @OnMessage
     public void onMessage(String message, WebSocketSession session) {
         LOGGER.debug("WebSocket message from {}: {}", session.getId(), message);

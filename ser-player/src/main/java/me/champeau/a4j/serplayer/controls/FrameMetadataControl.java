@@ -22,6 +22,7 @@ import javafx.scene.layout.VBox;
 
 import java.io.IOException;
 
+/** Control panel displaying metadata information for video frames. */
 public class FrameMetadataControl extends VBox {
     @FXML private Label fileNameTitle;
     @FXML private Label fileNameValue;
@@ -37,6 +38,7 @@ public class FrameMetadataControl extends VBox {
 
     @FXML private Label timestampValue;
 
+    /** Creates a new frame metadata control panel. */
     public FrameMetadataControl() {
         var fxmlLoader = new FXMLLoader(getClass().getResource(
                 "file-metadata.fxml")
@@ -51,23 +53,42 @@ public class FrameMetadataControl extends VBox {
         }
     }
 
+    /**
+     * Sets the filename display.
+     * @param name the filename to display
+     */
     public void setFilename(String name) {
         fileNameValue.textProperty().set(name);
     }
 
+    /**
+     * Sets the color mode display.
+     * @param colorMode the color mode to display
+     */
     public void setColorMode(String colorMode) {
         colorModeValue.textProperty().set(colorMode);
     }
 
-
+    /**
+     * Sets the frame number display.
+     * @param frame the frame number to display
+     */
     public void setFrame(String frame) {
         frameValue.textProperty().set(frame);
     }
 
+    /**
+     * Sets the frames per second display.
+     * @param text the FPS text to display
+     */
     public void setFps(String text) {
         fpsValue.textProperty().set(text);
     }
 
+    /**
+     * Sets the timestamp display.
+     * @param timestamp the timestamp to display
+     */
     public void setTimestamp(String timestamp) {
         timestampValue.textProperty().set(timestamp);
     }

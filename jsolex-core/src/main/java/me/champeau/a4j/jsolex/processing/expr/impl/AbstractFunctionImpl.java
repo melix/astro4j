@@ -36,13 +36,28 @@ import java.util.function.DoubleUnaryOperator;
 import java.util.function.Function;
 import java.util.stream.IntStream;
 
+/** Base class for function implementations. */
 class AbstractFunctionImpl {
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractFunctionImpl.class);
 
+    /**
+     * The evaluation context containing shared objects.
+     */
     protected final Map<Class<?>, Object> context;
+
+    /**
+     * Broadcaster for publishing progress events.
+     */
     protected final Broadcaster broadcaster;
+
     private final ProgressOperation operation;
 
+    /**
+     * Creates a new function implementation.
+     *
+     * @param context the evaluation context
+     * @param broadcaster the broadcaster for progress events
+     */
     protected AbstractFunctionImpl(Map<Class<?>, Object> context, Broadcaster broadcaster) {
         this.context = context;
         this.broadcaster = broadcaster;
@@ -58,10 +73,22 @@ class AbstractFunctionImpl {
         return parent.createChild(name);
     }
 
+    /**
+     * Creates a new child progress operation.
+     *
+     * @return a new progress operation
+     */
     protected ProgressOperation newOperation() {
         return operation.createChild(operation.task());
     }
 
+    /**
+     * Gets an ellipse from arguments or context.
+     *
+     * @param arguments the function arguments
+     * @param key the argument key
+     * @return the ellipse, if found
+     */
     protected Optional<Ellipse> getEllipse(Map<String, Object> arguments, String key) {
         return getArgument(Ellipse.class, arguments, key)
                 .or(() -> findEllipseInArguments(arguments))
@@ -76,14 +103,38 @@ class AbstractFunctionImpl {
         return Optional.empty();
     }
 
+    /**
+     * Gets a value from the evaluation context.
+     *
+     * @param type the type to retrieve
+     * @param <T> the type parameter
+     * @return the value, if found
+     */
     protected <T> Optional<T> getFromContext(Class<T> type) {
         return (Optional<T>) Optional.ofNullable(context.get(type));
     }
 
+    /**
+     * Gets an argument from the argument map.
+     *
+     * @param clazz the expected type
+     * @param args the arguments map
+     * @param key the argument key
+     * @param <T> the type parameter
+     * @return the argument value, if found
+     */
     protected <T> Optional<T> getArgument(Class<T> clazz, Map<String, Object> args, String key) {
         return Optional.ofNullable((T) args.get(key));
     }
 
+    /**
+     * Gets a double argument with default value.
+     *
+     * @param arguments the arguments map
+     * @param key the argument key
+     * @param defaultValue the default value
+     * @return the argument value or default
+     */
     protected double doubleArg(Map<String, Object> arguments, String key, double defaultValue) {
         if (!arguments.containsKey(key)) {
             return defaultValue;
@@ -91,6 +142,14 @@ class AbstractFunctionImpl {
         return getAsNumber(arguments, key).doubleValue();
     }
 
+    /**
+     * Gets a float argument with default value.
+     *
+     * @param arguments the arguments map
+     * @param key the argument key
+     * @param defaultValue the default value
+     * @return the argument value or default
+     */
     protected float floatArg(Map<String, Object> arguments, String key, float defaultValue) {
         if (!arguments.containsKey(key)) {
             return defaultValue;
@@ -98,6 +157,14 @@ class AbstractFunctionImpl {
         return getAsNumber(arguments, key).floatValue();
     }
 
+    /**
+     * Gets an int argument with default value.
+     *
+     * @param arguments the arguments map
+     * @param key the argument key
+     * @param defaultValue the default value
+     * @return the argument value or default
+     */
     protected int intArg(Map<String, Object> arguments, String key, int defaultValue) {
         if (!arguments.containsKey(key)) {
             return defaultValue;
@@ -105,6 +172,14 @@ class AbstractFunctionImpl {
         return getAsNumber(arguments, key).intValue();
     }
 
+    /**
+     * Gets a string argument with default value.
+     *
+     * @param arguments the arguments map
+     * @param key the argument key
+     * @param defaultValue the default value
+     * @return the argument value or default
+     */
     protected String stringArg(Map<String, Object> arguments, String key, String defaultValue) {
         if (!arguments.containsKey(key)) {
             return defaultValue;
@@ -112,6 +187,13 @@ class AbstractFunctionImpl {
         return getArgument(String.class, arguments, key).orElseThrow();
     }
 
+    /**
+     * Gets an argument as a Number.
+     *
+     * @param arguments the arguments map
+     * @param key the argument key
+     * @return the argument value as a Number
+     */
     protected Number getAsNumber(Map<String, Object> arguments, String key) {
         var obj = arguments.get(key);
         if (obj instanceof Number num) {
@@ -122,6 +204,15 @@ class AbstractFunctionImpl {
         throw new IllegalStateException("Expected to find a number argument for argument " + key + " but it as a " + obj.getClass());
     }
 
+    /**
+     * Expands a list argument to process each element in parallel.
+     *
+     * @param currentFunction the function name
+     * @param key the argument key
+     * @param arguments the arguments map
+     * @param function the function to apply to each element
+     * @return the list of results
+     */
     @SuppressWarnings("unchecked")
     public List<Object> expandToImageList(String currentFunction,
                                           String key,
@@ -165,6 +256,15 @@ class AbstractFunctionImpl {
         }
     }
 
+    /**
+     * Applies a transformation to mono images.
+     *
+     * @param name the function name
+     * @param key the argument key
+     * @param arguments the arguments map
+     * @param consumer the image consumer
+     * @return the transformed image or list of images
+     */
     public Object monoToMonoImageTransformer(String name, String key, Map<String, Object> arguments, ImageConsumer consumer) {
         var arg = arguments.get(key);
         if (arg instanceof List<?>) {
@@ -177,6 +277,15 @@ class AbstractFunctionImpl {
         throw new IllegalArgumentException(name + " first argument must be a mono image or a list of images");
     }
 
+    /**
+     * Applies a unary function to images.
+     *
+     * @param arguments the arguments map
+     * @param name the function name
+     * @param key the argument key
+     * @param function the unary function
+     * @return the transformed image or list of images
+     */
     protected Object applyUnary(Map<String, Object> arguments, String name, String key, DoubleUnaryOperator function) {
         if (arguments.size() != 1) {
             throw new IllegalArgumentException(name + " takes 1 argument (image(s))");
@@ -189,6 +298,15 @@ class AbstractFunctionImpl {
         return applyUnary(img, function);
     }
 
+    /**
+     * Applies a unary transformation to images.
+     *
+     * @param arguments the arguments map
+     * @param name the function name
+     * @param key the argument key
+     * @param transformer the mono image transformer
+     * @return the transformed image or list of images
+     */
     protected Object applyUnary(Map<String, Object> arguments, String name, String key, MonoImageTransformer transformer) {
         var arg = arguments.get(key);
         if (arg instanceof List<?>) {
@@ -198,6 +316,16 @@ class AbstractFunctionImpl {
         return applyUnary(img, transformer);
     }
 
+    /**
+     * Applies a binary function to images.
+     *
+     * @param arguments the arguments map
+     * @param left the left argument key
+     * @param right the right argument key
+     * @param name the function name
+     * @param function the binary function
+     * @return the transformed image or list of images
+     */
     protected Object applyBinary(Map<String, Object> arguments, String left, String right, String name, DoubleBinaryOperator function) {
         var arg = arguments.get(left);
         if (arg instanceof List<?>) {
@@ -249,15 +377,34 @@ class AbstractFunctionImpl {
         throw new IllegalStateException("Unexpected image type " + img);
     }
 
+    /** Functional interface for consuming images. */
     @FunctionalInterface
     public interface ImageConsumer {
+        /**
+         * Accepts an image.
+         *
+         * @param image the image to accept
+         */
         void accept(ImageWrapper image);
     }
 
+    /** Functional interface for transforming mono images. */
     @FunctionalInterface
     public interface MonoImageTransformer {
+        /**
+         * Transforms image data.
+         *
+         * @param width the image width
+         * @param height the image height
+         * @param data the image data
+         */
         void transform(int width, int height, float[][] data);
 
+        /**
+         * Post-processes the image after transformation.
+         *
+         * @param image the image to post-process
+         */
         default void postProcess(ImageWrapper image) {
 
         }

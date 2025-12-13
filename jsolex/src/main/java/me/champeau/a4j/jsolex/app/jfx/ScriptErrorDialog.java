@@ -35,6 +35,10 @@ import java.io.StringWriter;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * A dialog for displaying script expression errors with detailed stack traces.
+ * Provides both a summary view and expandable details for debugging script issues.
+ */
 public class ScriptErrorDialog {
     private static final String BUNDLE = "script-error";
 
@@ -42,6 +46,11 @@ public class ScriptErrorDialog {
     private final String title;
     private final String header;
 
+    /**
+     * Creates a dialog with default localized title and header.
+     *
+     * @param invalidExpressions the list of invalid expressions to display
+     */
     public ScriptErrorDialog(List<InvalidExpression> invalidExpressions) {
         this(invalidExpressions,
              I18N.string(ScriptErrorDialog.class, BUNDLE, "title"),
@@ -49,12 +58,23 @@ public class ScriptErrorDialog {
                  "header." + (invalidExpressions.size() == 1 ? "single" : "many")));
     }
 
+    /**
+     * Creates a dialog with custom title and header.
+     *
+     * @param invalidExpressions the list of invalid expressions to display
+     * @param title the dialog title
+     * @param header the dialog header text
+     */
     public ScriptErrorDialog(List<InvalidExpression> invalidExpressions, String title, String header) {
         this.invalidExpressions = invalidExpressions;
         this.title = title;
         this.header = header;
     }
 
+    /**
+     * Displays the error dialog and waits for the user to close it.
+     * The dialog shows a summary of errors and expandable details with stack traces.
+     */
     public void showAndWait() {
         var alert = new Alert(Alert.AlertType.ERROR);
         alert.setTitle(title);
@@ -164,6 +184,12 @@ public class ScriptErrorDialog {
         Clipboard.getSystemClipboard().setContent(content);
     }
 
+    /**
+     * Convenience method to display errors in a dialog.
+     * Does nothing if the list is null or empty.
+     *
+     * @param invalidExpressions the list of invalid expressions to display, or null
+     */
     public static void showErrors(List<InvalidExpression> invalidExpressions) {
         if (invalidExpressions != null && !invalidExpressions.isEmpty()) {
             new ScriptErrorDialog(invalidExpressions).showAndWait();

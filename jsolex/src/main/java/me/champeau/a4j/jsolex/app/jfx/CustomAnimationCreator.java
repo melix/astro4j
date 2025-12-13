@@ -39,33 +39,98 @@ import java.util.Locale;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
 
+/**
+ * Controller for the custom animation creation dialog.
+ * Allows users to create custom Doppler shift animations.
+ */
 public class CustomAnimationCreator {
+
+    /**
+     * Creates a new instance. Required by FXML.
+     */
+    public CustomAnimationCreator() {
+    }
+
+    /**
+     * Default delay in milliseconds between animation frames.
+     */
     public static final String DEFAULT_DELAY = "25";
 
+    /**
+     * Width input field.
+     */
     @FXML
     public TextField width;
+
+    /**
+     * Height input field.
+     */
     @FXML
     public TextField height;
+
+    /**
+     * Minimum pixel shift input field.
+     */
     @FXML
     public TextField minShift;
+
+    /**
+     * Maximum pixel shift input field.
+     */
     @FXML
     public TextField maxShift;
+
+    /**
+     * Animation title input field.
+     */
     @FXML
     public TextField title;
+
+    /**
+     * Checkbox to enable animation generation.
+     */
     @FXML
     public CheckBox generateAnim;
+
+    /**
+     * Checkbox to enable panel generation.
+     */
     @FXML
     public CheckBox generatePanel;
+
+    /**
+     * Checkbox to enable animation annotation.
+     */
     @FXML
     public CheckBox annotateAnim;
+
+    /**
+     * Label showing hint for minimum shift value.
+     */
     @FXML
     public Label minShiftHint;
+
+    /**
+     * Label showing hint for maximum shift value.
+     */
     @FXML
     public Label maxShiftHint;
+
+    /**
+     * Animation delay input field.
+     */
     @FXML
     public TextField delay;
+
+    /**
+     * Label showing estimated disk space requirement.
+     */
     @FXML
     public Label estimatedDiskSpace;
+
+    /**
+     * Color picker for annotation color.
+     */
     @FXML
     public ColorPicker annotationColor;
 
@@ -75,6 +140,20 @@ public class CustomAnimationCreator {
 
     private Stage stage;
 
+    /**
+     * Sets up the custom animation creator dialog.
+     * @param stage the dialog stage
+     * @param processParams the processing parameters
+     * @param range the pixel shift range
+     * @param imageWidth the image width
+     * @param imageHeight the image height
+     * @param x the x coordinate
+     * @param y the y coordinate
+     * @param w the width
+     * @param h the height
+     * @param redshiftProcessor the redshift images processor
+     * @param id the doppler shift ID
+     */
     public void setup(Stage stage,
                       ProcessParams processParams,
                       PixelShiftRange range,

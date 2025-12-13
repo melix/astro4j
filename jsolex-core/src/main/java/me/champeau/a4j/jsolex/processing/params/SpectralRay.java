@@ -29,6 +29,11 @@ import java.util.stream.Stream;
  * Defines the most common spectral lines used with Sol'Ex and when possible,
  * defines a color curve to perform automatic coloring of images.
  * See https://en.wikipedia.org/wiki/Fraunhofer_lines for wavelenths
+ * @param label the spectral line label
+ * @param colorCurve the color curve for automatic coloring
+ * @param wavelength the wavelength
+ * @param emission true if this is an emission line
+ * @param automaticScripts automatic scripts to run
  */
 public record SpectralRay(String label, ColorCurve colorCurve, Wavelen wavelength, boolean emission, List<Path> automaticScripts) {
     public static final SpectralRay AUTO = new SpectralRay("Autodetect", null, Wavelen.ofAngstroms(0), false, List.of());
@@ -229,10 +234,22 @@ public record SpectralRay(String label, ColorCurve colorCurve, Wavelen wavelengt
         return PREDEFINED;
     }
 
+    /**
+     * Creates a copy with a different wavelength.
+     *
+     * @param wavelength the new wavelength
+     * @return the updated spectral ray
+     */
     public SpectralRay withWavelength(Wavelen wavelength) {
         return new SpectralRay(label, colorCurve, wavelength, emission, automaticScripts);
     }
 
+    /**
+     * Creates a copy with different automatic scripts.
+     *
+     * @param automaticScripts the automatic scripts
+     * @return the updated spectral ray
+     */
     public SpectralRay withAutomaticScripts(List<Path> automaticScripts) {
         return new SpectralRay(label, colorCurve, wavelength, emission, automaticScripts);
     }

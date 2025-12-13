@@ -41,6 +41,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
+/** Store for managing generated images in the server. */
 @Singleton
 public class ImagesStore implements ProcessingEventListener {
     private final AtomicLong currentId = new AtomicLong(0);
@@ -51,6 +52,10 @@ public class ImagesStore implements ProcessingEventListener {
     private final ImageSaver saver;
     private final List<StoreListener> listeners;
 
+    /**
+     * Creates a new images store.
+     * @param listeners the listeners to notify of store events
+     */
     public ImagesStore(List<StoreListener> listeners) {
         this.listeners = listeners;
         var params = ProcessParams.loadDefaults();
@@ -93,6 +98,7 @@ public class ImagesStore implements ProcessingEventListener {
         }
     }
 
+    /** Clears all images from the store. */
     public void clear() {
         images.clear();
         imagesById.clear();
@@ -101,6 +107,11 @@ public class ImagesStore implements ProcessingEventListener {
         }
     }
 
+    /**
+     * Finds an image by its ID.
+     * @param id the image ID
+     * @return an optional containing the image model if found
+     */
     public Optional<ImageModel> findImage(Long id) {
         if (id == null) {
             return Optional.empty();
@@ -108,16 +119,28 @@ public class ImagesStore implements ProcessingEventListener {
         return Optional.ofNullable(imagesById.get(id));
     }
 
+    /**
+     * Gets all display categories.
+     * @return list of display categories sorted by ordinal
+     */
     public List<DisplayCategory> getDisplayCategories() {
         return images.keySet().stream()
             .sorted(Comparator.comparingInt(DisplayCategory::ordinal))
             .toList();
     }
 
+    /**
+     * Gets all images indexed by ID.
+     * @return unmodifiable map of images by ID
+     */
     public Map<Long, ImageModel> getImagesById() {
         return Collections.unmodifiableMap(imagesById);
     }
 
+    /**
+     * Gets all images organized by display category and image kind.
+     * @return map of images by display category and kind
+     */
     public Map<DisplayCategory, Map<GeneratedImageKind, List<ImageModel>>> getImages() {
         return getDisplayCategories().stream()
             .collect(Collectors.toMap(

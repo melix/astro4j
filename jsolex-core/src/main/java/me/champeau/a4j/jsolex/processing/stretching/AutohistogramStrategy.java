@@ -30,9 +30,20 @@ import java.util.function.DoubleUnaryOperator;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
 
+/**
+ * Automatic histogram stretching strategy with background neutralization and brightness adjustment.
+ */
 public final class AutohistogramStrategy implements StretchingStrategy {
     private static final Logger LOGGER = LoggerFactory.getLogger(AutohistogramStrategy.class);
+
+    /**
+     * Default background threshold for neutralization.
+     */
     public static final double DEFAULT_BACKGROUND_THRESHOLD = 0.5;
+
+    /**
+     * Default prominence stretch factor.
+     */
     public static final double DEFAULT_PROM_STRETCH = 0;
 
     private static final int TARGET_AVG = 18000;
@@ -40,6 +51,9 @@ public final class AutohistogramStrategy implements StretchingStrategy {
     private static final ClaheStrategy CLAHE_STRATEGY = new ClaheStrategy(16, 64, 1.1);
     private static final StretchingStrategy PROTUS_STRATEGY = new ClaheStrategy(8, 64, 0.8);
 
+    /**
+     * Default gamma correction value.
+     */
     public static final double DEFAULT_GAMMA = 1.5;
 
     private final double gamma;
@@ -47,6 +61,14 @@ public final class AutohistogramStrategy implements StretchingStrategy {
     private final double backgroundThreshold;
     private final double protusStretch;
 
+    /**
+     * Creates a new autohistogram stretching strategy.
+     *
+     * @param gamma the gamma correction value (must be greater than 1)
+     * @param adjustBrightness whether to adjust brightness automatically
+     * @param backgroundThreshold the background neutralization threshold (0 to 1)
+     * @param protusStretch the prominence stretch factor (must be non-negative)
+     */
     public AutohistogramStrategy(double gamma, boolean adjustBrightness, double backgroundThreshold, double protusStretch) {
         if (gamma < 1) {
             throw new IllegalArgumentException("Gamma must be greater than 1");
@@ -194,6 +216,16 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         }
     }
 
+    /**
+     * Neutralizes the background of an image using polynomial background modeling.
+     *
+     * @param disk the image to process
+     * @param degree the polynomial degree for background modeling
+     * @param sigma the sigma value for outlier rejection
+     * @param smoothing the smoothing factor for background subtraction
+     * @param e optional ellipse to exclude from background calculation
+     * @return the average background level after neutralization
+     */
     public static double neutralizeBg(ImageWrapper32 disk, int degree, double sigma, float smoothing, Ellipse e) {
         var diskData = disk.data();
         var optionalModel = BackgroundRemoval.backgroundModel(disk, degree, sigma);

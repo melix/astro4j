@@ -18,11 +18,12 @@ package me.champeau.a4j.ser.bayer;
 import me.champeau.a4j.ser.ColorMode;
 import me.champeau.a4j.ser.ImageGeometry;
 
-/**
- * An implementation of demosaicing using bilinear interpolation, which works
- * on a byte[] containing (R,G,B) byte tuples.
- */
+/** Demosaicing implementation using bilinear interpolation. */
 public class BilinearDemosaicingStrategy extends AbstractDemosaicingStrategy {
+
+    /** Constructs a bilinear demosaicing strategy. */
+    public BilinearDemosaicingStrategy() {
+    }
 
     @Override
     public void demosaic(short[] image, ColorMode mode, ImageGeometry geometry) {

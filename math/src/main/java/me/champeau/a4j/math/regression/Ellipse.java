@@ -32,18 +32,28 @@ public class Ellipse {
         this.cart = cartesian;
     }
 
+    /**
+     * Creates an ellipse from Cartesian coefficients.
+     * @param coefficients the Cartesian coefficients (a, b, c, d, e, f)
+     * @return the ellipse
+     */
     public static Ellipse ofCartesian(DoubleSextuplet coefficients) {
         return new Ellipse(coefficients);
     }
 
+    /**
+     * Returns the Cartesian coefficients of this ellipse.
+     * @return the Cartesian coefficients of this ellipse
+     */
     public DoubleSextuplet getCartesianCoefficients() {
         return cart;
     }
 
 
     /**
-     * Computes the rotation angle of the ellipse
+     * Computes the rotation angle of the ellipse.
      * Formulas from https://mathworld.wolfram.com/Ellipse.html
+     * @return the rotation angle in radians
      */
     public double rotationAngle() {
         var a = cart.a();
@@ -61,6 +71,10 @@ public class Ellipse {
         return Math.PI / 2 + Math.atan(b / (a - c)) / 2;
     }
 
+    /**
+     * Returns the discriminant of the ellipse equation.
+     * @return the discriminant of the ellipse equation
+     */
     public double discriminant() {
         var a = cart.a();
         var b = cart.b();
@@ -68,6 +82,10 @@ public class Ellipse {
         return b * b - 4 * a * c;
     }
 
+    /**
+     * Returns the center coordinates of the ellipse.
+     * @return the center coordinates of the ellipse
+     */
     public DoublePair center() {
         var a = cart.a();
         var b = cart.b();
@@ -80,7 +98,11 @@ public class Ellipse {
         return new DoublePair(cx / discri, cy / discri);
     }
 
-    // Formulas from https://mathworld.wolfram.com/Ellipse.html
+    /**
+     * Computes the semi-major and semi-minor axes.
+     * Formulas from https://mathworld.wolfram.com/Ellipse.html
+     * @return the semi-axes lengths
+     */
     public DoublePair semiAxis() {
         // we're using the same parameter names as in the page above in order
         // to doublecheck results more easily
@@ -98,11 +120,20 @@ public class Ellipse {
         return new DoublePair(aPrime, bPrime);
     }
 
+    /**
+     * Returns the ratio of the y-axis to x-axis.
+     * @return the ratio of the y-axis to x-axis
+     */
     public double xyRatio() {
         var sa = semiAxis();
         return sa.b() / sa.a();
     }
 
+    /**
+     * Converts a parametric angle to Cartesian coordinates on the ellipse.
+     * @param angle the parametric angle
+     * @return the Cartesian coordinates
+     */
     public Point2D toCartesian(double angle) {
         var sa = semiAxis();
         var rotation = rotationAngle();
@@ -121,6 +152,12 @@ public class Ellipse {
         );
     }
 
+    /**
+     * Creates a new ellipse centered at the specified coordinates.
+     * @param cx the x-coordinate of the new center
+     * @param cy the y-coordinate of the new center
+     * @return the translated ellipse
+     */
     public Ellipse centeredAt(int cx, int cy) {
         var center = center();
         var dx = cx - center.a();
@@ -129,6 +166,10 @@ public class Ellipse {
     }
 
 
+    /**
+     * Returns the four vertices of the ellipse.
+     * @return the four vertices of the ellipse
+     */
     public Point2D[] findVertices() {
         var theta = rotationAngle();
         var ortho = theta - Math.PI / 2;
@@ -150,6 +191,11 @@ public class Ellipse {
         };
     }
 
+    /**
+     * Finds x coordinates for a given y coordinate on the ellipse.
+     * @param y the y coordinate
+     * @return the x coordinates, or empty if none exist
+     */
     public Optional<DoublePair> findX(double y) {
         var a = cart.a();
         var b = cart.b() * y + cart.d();
@@ -168,6 +214,11 @@ public class Ellipse {
         return Optional.empty();
     }
 
+    /**
+     * Finds y coordinates for a given x coordinate on the ellipse.
+     * @param x the x coordinate
+     * @return the y coordinates, or empty if none exist
+     */
     public Optional<DoublePair> findY(double x) {
         var a = cart.c();
         var b = cart.b() * x + cart.e();
@@ -186,10 +237,21 @@ public class Ellipse {
         return Optional.empty();
     }
 
+    /**
+     * Checks if a point is within the ellipse.
+     * @param point the point to check
+     * @return true if the point is within the ellipse
+     */
     public boolean isWithin(Point2D point) {
         return isWithin(point.x(), point.y());
     }
 
+    /**
+     * Checks if coordinates are within the ellipse.
+     * @param x the x coordinate
+     * @param y the y coordinate
+     * @return true if the coordinates are within the ellipse
+     */
     public boolean isWithin(double x, double y) {
         var a = cart.a();
         var b = cart.b();
@@ -201,6 +263,12 @@ public class Ellipse {
         return a >= 0 && value <= 0 || a <= 0 && value >= 0;
     }
 
+    /**
+     * Computes the signed distance from a point to the ellipse boundary.
+     * @param x the x coordinate
+     * @param y the y coordinate
+     * @return the distance (negative inside, positive outside)
+     */
     public double distanceFromBoundary(double x, double y) {
         var a = cart.a();
         var b = cart.b();
@@ -237,6 +305,12 @@ public class Ellipse {
         ));
     }
 
+    /**
+     * Rescales the ellipse by the given factors.
+     * @param scaleX the x-axis scaling factor
+     * @param scaleY the y-axis scaling factor
+     * @return the rescaled ellipse
+     */
     public Ellipse rescale(double scaleX, double scaleY) {
         var cx = center().a();
         var cy = center().b();
@@ -292,6 +366,7 @@ public class Ellipse {
     /**
      * Rotates an ellipse using the supplied rotation center.
      * @param theta the rotation angle
+     * @param rotationCenter the center of rotation
      * @return the rotated ellipse
      */
     public Ellipse rotate(double theta, Point2D rotationCenter) {
@@ -302,6 +377,10 @@ public class Ellipse {
         return e2.translate(cx, cy);
     }
 
+    /**
+     * Returns the eccentricity of the ellipse.
+     * @return the eccentricity of the ellipse
+     */
     public double eccentricity() {
         var sa = semiAxis();
         var a = sa.a();
@@ -314,6 +393,10 @@ public class Ellipse {
         return Math.sqrt(1 - (b * b) / (a * a));
     }
 
+    /**
+     * Returns the axis-aligned bounding box of the ellipse.
+     * @return the axis-aligned bounding box of the ellipse
+     */
     public DoubleQuadruplet boundingBox() {
         var center = center();
         var x0 = center.a();
@@ -335,6 +418,15 @@ public class Ellipse {
         );
     }
 
+    /**
+     * Rotates the ellipse accounting for image dimension changes.
+     * @param angle the rotation angle
+     * @param srcWidth the source width
+     * @param srcHeight the source height
+     * @param newWidth the new width
+     * @param newHeight the new height
+     * @return the rotated ellipse
+     */
     public Ellipse rotate(double angle, int srcWidth, int srcHeight, int newWidth, int newHeight) {
         var sx = srcWidth / 2d;
         var sy = srcHeight / 2d;
@@ -347,6 +439,11 @@ public class Ellipse {
         return rotated;
     }
 
+    /**
+     * Flips the ellipse vertically.
+     * @param height the image height
+     * @return the flipped ellipse
+     */
     public Ellipse vflip(double height) {
         var a = cart.a();
         var b = cart.b();
@@ -364,6 +461,11 @@ public class Ellipse {
         ));
     }
 
+    /**
+     * Flips the ellipse horizontally.
+     * @param width the image width
+     * @return the flipped ellipse
+     */
     public Ellipse hflip(double width) {
         var a = cart.a();
         var b = cart.b();

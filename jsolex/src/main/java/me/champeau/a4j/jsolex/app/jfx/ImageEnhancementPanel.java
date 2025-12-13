@@ -51,8 +51,11 @@ import me.champeau.a4j.math.image.Deconvolution;
 import java.nio.file.Path;
 import java.util.Locale;
 
+/**
+ * Panel for configuring image enhancement parameters.
+ */
 public class ImageEnhancementPanel extends BaseParameterPanel {
-    
+
     private ChoiceBox<ContrastEnhancement> contrastEnhancementChoice;
     private TextField autostretchGamma;
     private TextField bgThreshold;
@@ -97,7 +100,10 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
     private Label flatModeHelp;
     
     private ProcessParamsController controller;
-    
+
+    /**
+     * Creates a new image enhancement panel.
+     */
     public ImageEnhancementPanel() {
         getStyleClass().add("parameter-panel");
         initializeComponents();
@@ -454,7 +460,11 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
         
         updateParameterVisibility();
     }
-    
+
+    /**
+     * Loads parameters from process params into the UI fields.
+     * @param params the processing parameters to load
+     */
     public void loadData(ProcessParams params) {
         contrastEnhancementChoice.setValue(params.contrastEnhancement());
         autostretchGamma.setText(String.valueOf(params.autoStretchParams().gamma()));
@@ -523,11 +533,19 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
             }
         }
     }
-    
+
+    /**
+     * Gets the selected contrast enhancement method.
+     * @return the contrast enhancement method
+     */
     public ContrastEnhancement getContrastEnhancement() {
         return contrastEnhancementChoice.getValue();
     }
-    
+
+    /**
+     * Gets the autostretch parameters.
+     * @return the autostretch parameters
+     */
     public AutoStretchParams getAutoStretchParams() {
         var gamma = parseDouble(autostretchGamma.getText(), AutohistogramStrategy.DEFAULT_GAMMA);
         var bgThresholdValue = parseDouble(bgThreshold.getText(), AutohistogramStrategy.DEFAULT_BACKGROUND_THRESHOLD);
@@ -535,7 +553,11 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
         
         return new AutoStretchParams(gamma, bgThresholdValue, protusStretch);
     }
-    
+
+    /**
+     * Gets the CLAHE parameters.
+     * @return the CLAHE parameters
+     */
     public ClaheParams getClaheParams() {
         var tileSize = claheTileSize.getValue() != null ? claheTileSize.getValue() : ClaheStrategy.DEFAULT_TILE_SIZE;
         var bins = claheBins.getValue() != null ? claheBins.getValue() : ClaheStrategy.DEFAULT_BINS;
@@ -625,11 +647,19 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
             }
         }
     }
-    
+
+    /**
+     * Sets the process parameters controller.
+     * @param controller the controller
+     */
     public void setController(ProcessParamsController controller) {
         this.controller = controller;
     }
-    
+
+    /**
+     * Updates the flat file path.
+     * @param flatPath the path to the flat file
+     */
     public void updateFlatFile(Path flatPath) {
         selectedFlatFilePath = flatPath;
         if (flatPath != null) {
@@ -638,17 +668,29 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
             flatFilePath.setText("");
         }
     }
-    
+
+    /**
+     * Gets the banding correction parameters.
+     * @return the banding correction parameters
+     */
     public BandingCorrectionParams getBandingCorrectionParams() {
         var passes = parseInt(bandingCorrectionPasses.getText(), BandingReduction.DEFAULT_PASS_COUNT);
         var width = parseInt(bandingCorrectionWidth.getText(), BandingReduction.DEFAULT_BAND_SIZE);
         return new BandingCorrectionParams(width, passes);
     }
-    
+
+    /**
+     * Gets the deconvolution mode.
+     * @return the deconvolution mode
+     */
     public DeconvolutionMode getDeconvolutionMode() {
         return deconvolutionMode.getValue();
     }
-    
+
+    /**
+     * Gets the Richardson-Lucy deconvolution parameters.
+     * @return the Richardson-Lucy parameters
+     */
     public RichardsonLucyDeconvolutionParams getRichardsonLucyParams() {
         return new RichardsonLucyDeconvolutionParams(
             parseDouble(rlRadius.getText(), Deconvolution.DEFAULT_RADIUS),
@@ -656,7 +698,11 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
             parseInt(rlIterations.getText(), Deconvolution.DEFAULT_ITERATIONS)
         );
     }
-    
+
+    /**
+     * Gets the enhancement parameters.
+     * @return the enhancement parameters
+     */
     public EnhancementParams getEnhancementParams() {
         var flatMode = this.flatMode.getValue();
         boolean artificialFlat = flatMode == FlatMode.ARTIFICIAL;
@@ -678,7 +724,11 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
             getSharpeningParams()
         );
     }
-    
+
+    /**
+     * Gets the sharpening parameters.
+     * @return the sharpening parameters
+     */
     public SharpeningParams getSharpeningParams() {
         var method = sharpeningMethod.getValue();
         if (method == null || method == SharpeningMethod.NONE) {

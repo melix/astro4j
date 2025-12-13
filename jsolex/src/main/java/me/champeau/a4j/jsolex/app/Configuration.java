@@ -39,6 +39,7 @@ import java.util.stream.Collectors;
 
 import static java.util.stream.Collectors.joining;
 
+/** Configuration manager for JSol'Ex application preferences. */
 public class Configuration {
     private static final String RECENT_FILES = "recent.files";
     private static final String PREFERRED_WIDTH = "preferred.width";
@@ -57,6 +58,9 @@ public class Configuration {
     private static final String SCRIPT_REPOSITORIES = "script.repositories";
     private static final String GPU_ACCELERATION = "gpu.acceleration";
 
+    /**
+     * The default SOLAP FTP server URL for submissions.
+     */
     public static final String DEFAULT_SOLAP_URL = "ftp://ftp.obspm.fr/incoming/solap";
 
     private final Preferences prefs;
@@ -71,7 +75,7 @@ public class Configuration {
                 .limit(10)
                 .collect(Collectors.toCollection(ArrayList::new));
         FitsUtils.setPippCompatibility(isWritePippCompatibleFits());
-        
+
         // Set system property for locale if configured
         var selectedLanguage = getSelectedLanguage();
         if (selectedLanguage != null) {
@@ -84,10 +88,18 @@ public class Configuration {
         }
     }
 
+    /**
+     * Returns a new instance of Configuration.
+     * @return a new Configuration instance
+     */
     public static Configuration getInstance() {
         return new Configuration();
     }
 
+    /**
+     * Records that a SER file was loaded.
+     * @param path the path to the loaded file
+     */
     public void loadedSerFile(Path path) {
         recentFiles.remove(path);
         recentFiles.addFirst(path);
@@ -95,6 +107,11 @@ public class Configuration {
         updateLastOpenDirectory(path.getParent());
     }
 
+    /**
+     * Remembers the directory for the given kind.
+     * @param path the path to remember
+     * @param kind the directory kind
+     */
     public void rememberDirectoryFor(Path path, DirectoryKind kind) {
         if (kind == DirectoryKind.SER_FILE) {
             loadedSerFile(path);
@@ -103,38 +120,73 @@ public class Configuration {
         }
     }
 
+    /**
+     * Updates the last opened directory.
+     * @param directory the directory path
+     */
     public void updateLastOpenDirectory(Path directory) {
         updateLastOpenDirectory(directory, DirectoryKind.SER_FILE);
     }
 
+    /**
+     * Updates the last opened directory for the given kind.
+     * @param directory the directory path
+     * @param kind the directory kind
+     */
     public void updateLastOpenDirectory(Path directory, DirectoryKind kind) {
         var name = directory.toString();
         var key = kind.dirKey();
         prefs.put(key, name);
     }
 
+    /**
+     * Updates the last opened directory with a custom key.
+     * @param directory the directory path
+     * @param customKey the custom key
+     */
     public void updateLastOpenDirectory(Path directory, String customKey) {
         var name = directory.toString();
         var key = CUSTOM_DIR + customKey;
         prefs.put(key, name);
     }
 
+    /**
+     * Returns the memory restriction multiplier.
+     * @return the memory restriction multiplier
+     */
     public int getMemoryRestrictionMultiplier() {
         return prefs.getInt(MEMORY_RESTRICTION, 1);
     }
 
+    /**
+     * Sets the memory restriction multiplier.
+     * @param multiplier the multiplier value
+     */
     public void setMemoryRestrictionMultiplier(int multiplier) {
         prefs.putInt(MEMORY_RESTRICTION, multiplier);
     }
 
+    /**
+     * Returns the list of recent files.
+     * @return the list of recent files
+     */
     public List<Path> getRecentFiles() {
         return Collections.unmodifiableList(recentFiles);
     }
 
+    /**
+     * Finds the last opened directory.
+     * @return the last opened directory, or empty if not found
+     */
     public Optional<Path> findLastOpenDirectory() {
         return findLastOpenDirectory(DirectoryKind.SER_FILE);
     }
 
+    /**
+     * Finds the last opened directory for the given kind.
+     * @param kind the directory kind
+     * @return the last opened directory, or empty if not found
+     */
     public Optional<Path> findLastOpenDirectory(DirectoryKind kind) {
         var dir = prefs.get(kind.dirKey(), null);
         if (dir != null) {
@@ -146,6 +198,11 @@ public class Configuration {
         return Optional.empty();
     }
 
+    /**
+     * Finds the last opened directory with a custom key.
+     * @param customKey the custom key
+     * @return the last opened directory, or empty if not found
+     */
     public Optional<Path> findLastOpenDirectory(String customKey) {
         var dir = prefs.get(CUSTOM_DIR + customKey, null);
         if (dir != null) {
@@ -157,32 +214,59 @@ public class Configuration {
         return Optional.empty();
     }
 
+    /**
+     * Checks if the server should auto-start.
+     * @return true if auto-start is enabled
+     */
     public boolean isAutoStartServer() {
         return prefs.getBoolean(AUTO_START_SERVER, false);
     }
 
+    /**
+     * Checks if PIPP-compatible FITS files should be written.
+     * @return true if PIPP compatibility is enabled
+     */
     public boolean isWritePippCompatibleFits() {
         return prefs.getBoolean(PIPP_COMPAT, false);
     }
 
+    /**
+     * Sets whether to write PIPP-compatible FITS files.
+     * @param pippCompat true to enable PIPP compatibility
+     */
     public void setWritePippCompatibleFits(boolean pippCompat) {
         prefs.putBoolean(PIPP_COMPAT, pippCompat);
         FitsUtils.setPippCompatibility(pippCompat);
     }
 
+    /**
+     * Sets whether to auto-start the server.
+     * @param autoStart true to enable auto-start
+     */
     public void setAutoStartServer(boolean autoStart) {
         prefs.putBoolean(AUTO_START_SERVER, autoStart);
     }
 
+    /**
+     * Returns the auto-start server port.
+     * @return the server port
+     */
     public int getAutoStartServerPort() {
         return prefs.getInt(AUTO_START_SERVER_PORT, JSolEx.EMBEDDED_SERVER_DEFAULT_PORT);
     }
 
+    /**
+     * Sets the auto-start server port.
+     * @param port the server port
+     */
     public void setAutoStartServerPort(int port) {
         prefs.putInt(AUTO_START_SERVER_PORT, port);
     }
 
-
+    /**
+     * Returns the preferred window dimensions.
+     * @return the preferred dimensions
+     */
     public IntPair getPreferredDimensions() {
         return new IntPair(
                 prefs.getInt(PREFERRED_WIDTH, 1024),
@@ -190,42 +274,82 @@ public class Configuration {
         );
     }
 
+    /**
+     * Sets the preferred window width.
+     * @param width the window width
+     */
     public void setPreferredWidth(int width) {
         prefs.put(PREFERRED_WIDTH, String.valueOf(width));
     }
 
+    /**
+     * Sets the preferred window height.
+     * @param height the window height
+     */
     public void setPreferredHeigth(int height) {
         prefs.put(PREFERRED_HEIGHT, String.valueOf(height));
     }
 
+    /**
+     * Returns the watch mode wait time in milliseconds.
+     * @return the wait time in milliseconds
+     */
     public int getWatchModeWaitTimeMilis() {
         return prefs.getInt("watch.mode.wait.time", 2500);
     }
 
+    /**
+     * Sets the watch mode wait time in milliseconds.
+     * @param time the wait time in milliseconds
+     */
     public void setWatchModeWaitTimeMilis(int time) {
         prefs.putInt("watch.mode.wait.time", Math.max(500, time));
     }
 
+    /**
+     * Returns the BASS2000 FTP URL.
+     * @return the FTP URL
+     */
     public String getBass2000FtpUrl() {
         return prefs.get(BASS2000_FTP_URL, DEFAULT_SOLAP_URL);
     }
 
+    /**
+     * Sets the BASS2000 FTP URL.
+     * @param url the FTP URL
+     */
     public void setBass2000FtpUrl(String url) {
         prefs.put(BASS2000_FTP_URL, url);
     }
 
+    /**
+     * Checks if the BASS2000 form has been confirmed.
+     * @return true if confirmed
+     */
     public boolean isBass2000FormConfirmed() {
         return prefs.getBoolean(BASS2000_FORM_CONFIRMED, false);
     }
 
+    /**
+     * Sets whether the BASS2000 form has been confirmed.
+     * @param confirmed true if confirmed
+     */
     public void setBass2000FormConfirmed(boolean confirmed) {
         prefs.putBoolean(BASS2000_FORM_CONFIRMED, confirmed);
     }
 
+    /**
+     * Checks if GPU acceleration is enabled.
+     * @return true if GPU acceleration is enabled
+     */
     public boolean isGpuAccelerationEnabled() {
         return prefs.getBoolean(GPU_ACCELERATION, false);
     }
 
+    /**
+     * Sets whether GPU acceleration is enabled.
+     * @param enabled true to enable GPU acceleration
+     */
     public void setGpuAccelerationEnabled(boolean enabled) {
         prefs.putBoolean(GPU_ACCELERATION, enabled);
         if (enabled) {
@@ -235,10 +359,18 @@ public class Configuration {
         }
     }
 
+    /**
+     * Returns the selected language.
+     * @return the language tag, or null if not set
+     */
     public String getSelectedLanguage() {
         return prefs.get(SELECTED_LANGUAGE, null);
     }
 
+    /**
+     * Sets the selected language.
+     * @param languageTag the language tag, or null to clear
+     */
     public void setSelectedLanguage(String languageTag) {
         if (languageTag == null) {
             prefs.remove(SELECTED_LANGUAGE);
@@ -249,6 +381,10 @@ public class Configuration {
         }
     }
 
+    /**
+     * Returns the configured image formats.
+     * @return the set of image formats
+     */
     public Set<ImageFormat> getImageFormats() {
         var formatsString = prefs.get(IMAGE_FORMATS, ImageFormat.PNG.name());
         return Arrays.stream(formatsString.split(","))
@@ -265,6 +401,10 @@ public class Configuration {
                 .collect(Collectors.toCollection(() -> EnumSet.noneOf(ImageFormat.class)));
     }
 
+    /**
+     * Sets the configured image formats.
+     * @param formats the set of image formats
+     */
     public void setImageFormats(Set<ImageFormat> formats) {
         if (formats == null || formats.isEmpty()) {
             formats = EnumSet.of(ImageFormat.PNG);
@@ -275,6 +415,10 @@ public class Configuration {
         prefs.put(IMAGE_FORMATS, formatsString);
     }
 
+    /**
+     * Returns the configured animation formats.
+     * @return the set of animation formats
+     */
     public Set<AnimationFormat> getAnimationFormats() {
         var formatsString = prefs.get(ANIMATION_FORMATS, AnimationFormat.MP4.name());
         return Arrays.stream(formatsString.split(","))
@@ -291,6 +435,10 @@ public class Configuration {
                 .collect(Collectors.toCollection(() -> EnumSet.noneOf(AnimationFormat.class)));
     }
 
+    /**
+     * Sets the configured animation formats.
+     * @param formats the set of animation formats
+     */
     public void setAnimationFormats(Set<AnimationFormat> formats) {
         if (formats == null || formats.isEmpty()) {
             formats = EnumSet.of(AnimationFormat.MP4);
@@ -301,6 +449,10 @@ public class Configuration {
         prefs.put(ANIMATION_FORMATS, formatsString);
     }
 
+    /**
+     * Returns the configured script repositories.
+     * @return the list of script repositories
+     */
     public List<ScriptRepository> getScriptRepositories() {
         var repositoriesString = prefs.get(SCRIPT_REPOSITORIES, "");
         if (repositoriesString.isEmpty()) {
@@ -315,6 +467,10 @@ public class Configuration {
                 .collect(Collectors.toCollection(ArrayList::new));
     }
 
+    /**
+     * Sets the configured script repositories.
+     * @param repositories the list of script repositories
+     */
     public void setScriptRepositories(List<ScriptRepository> repositories) {
         if (repositories == null || repositories.isEmpty()) {
             prefs.remove(SCRIPT_REPOSITORIES);
@@ -332,6 +488,10 @@ public class Configuration {
         return repository.name() + ":::" + repository.url() + ":::" + lastCheckStr + ":::" + repository.enabled();
     }
 
+    /**
+     * Returns the last repository check time.
+     * @return the last check time
+     */
     public Instant getLastRepositoryCheckTime() {
         var lastCheckMillis = prefs.getLong("repository.last.check", 0);
         if (lastCheckMillis == 0) {
@@ -340,6 +500,10 @@ public class Configuration {
         return Instant.ofEpochMilli(lastCheckMillis);
     }
 
+    /**
+     * Sets the last repository check time.
+     * @param instant the check time
+     */
     public void setLastRepositoryCheckTime(Instant instant) {
         prefs.putLong("repository.last.check", instant.toEpochMilli());
     }
@@ -373,10 +537,15 @@ public class Configuration {
         }
     }
 
+    /** Directory kind enumeration for different file types. */
     public enum DirectoryKind {
+        /** SER file directory */
         SER_FILE(null),
+        /** Flat file directory */
         FLAT_FILE("flat"),
+        /** Image math directory */
         IMAGE_MATH("image.math"),
+        /** Spectrum identification directory */
         SPECTRUM_IDENTIFICATION("spectrum.identification");
 
         private final String dirName;
@@ -385,6 +554,10 @@ public class Configuration {
             this.dirName = dirName;
         }
 
+        /**
+         * Returns the preference key for this directory kind.
+         * @return the preference key
+         */
         public String dirKey() {
             if (dirName == null) {
                 return LAST_DIRECTORY;

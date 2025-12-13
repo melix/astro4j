@@ -69,6 +69,9 @@ import java.util.stream.Stream;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
 
+/**
+ * A viewer component that displays multiple images organized by categories with navigation.
+ */
 public class MultipleImagesViewer extends Pane {
     // Ordered list to determine the default image to show
     private static final List<GeneratedImageKind> DEFAULT_IMAGE_TO_SHOW = List.of(
@@ -101,6 +104,9 @@ public class MultipleImagesViewer extends Pane {
     private ProcessParams processParams;
     private Path outputDirectory;
 
+    /**
+     * Creates a new instance.
+     */
     public MultipleImagesViewer() {
         getStyleClass().add("multiple-images-viewer");
         borderPane = new BorderPane();
@@ -150,7 +156,9 @@ public class MultipleImagesViewer extends Pane {
         return actionsSection;
     }
 
-
+    /**
+     * Clears all images and categories from the viewer.
+     */
     public void clear() {
         try {
             lock.lock();
@@ -191,6 +199,11 @@ public class MultipleImagesViewer extends Pane {
         }
     }
 
+    /**
+     * Registers a hook to be executed when a specific view is shown.
+     * @param view the view to register the hook for
+     * @param action the action to execute when the view is shown
+     */
     public void registerOnShowHook(Object view, Runnable action) {
         try {
             lock.lock();
@@ -200,6 +213,24 @@ public class MultipleImagesViewer extends Pane {
         }
     }
 
+    /**
+     * Adds an image to the viewer.
+     * @param listener the processing event listener
+     * @param operation the progress operation
+     * @param title the title of the image
+     * @param baseName the base name for the file
+     * @param kind the kind of generated image
+     * @param description the description of the image
+     * @param imageWrapper the image wrapper
+     * @param file the file containing the image
+     * @param params the processing parameters
+     * @param popupViews map of popup views
+     * @param pixelShift the pixel shift
+     * @param transformer function to transform the viewer
+     * @param onShow callback when the image is shown
+     * @param <T> the type of the transformed viewer
+     * @return the transformed viewer
+     */
     public <T extends WithRootNode> T addImage(ProcessingEventListener listener,
                                                ProgressOperation operation,
                                                String title,
@@ -276,6 +307,14 @@ public class MultipleImagesViewer extends Pane {
         }
     }
 
+    /**
+     * Adds a video to the viewer.
+     * @param kind the kind of generated image
+     * @param title the title of the video
+     * @param filePath the path to the video file
+     * @param description the description of the video
+     * @return the media player for the video
+     */
     public MediaPlayer addVideo(GeneratedImageKind kind,
                                 String title,
                                 Path filePath,
@@ -325,6 +364,13 @@ public class MultipleImagesViewer extends Pane {
         }
     }
 
+    /**
+     * Adds an animated GIF to the viewer.
+     * @param kind the kind of generated image
+     * @param title the title of the animation
+     * @param filePath the path to the GIF file
+     * @param description the description of the animation
+     */
     public void addAnimatedGif(GeneratedImageKind kind,
                                String title,
                                Path filePath,
@@ -411,6 +457,10 @@ public class MultipleImagesViewer extends Pane {
         return false;
     }
 
+    /**
+     * Returns the currently selected image viewer.
+     * @return the selected viewer, or null if the selected view is not an image viewer
+     */
     public ImageViewer getSelectedViewer() {
         if (selectedView instanceof ImageViewer viewer) {
             return viewer;
@@ -447,9 +497,19 @@ public class MultipleImagesViewer extends Pane {
         return (DisplayCategory) pane.getProperties().get(DisplayCategory.class);
     }
 
+    /**
+     * Information about an image in the viewer.
+     * @param image the image wrapper
+     * @param title the image title
+     * @param kind the kind of generated image
+     */
     public record ImageInfo(ImageWrapper image, String title, GeneratedImageKind kind) {
     }
 
+    /**
+     * Returns all available images with their information.
+     * @return list of image information
+     */
     public List<ImageInfo> getAllAvailableImagesWithInfo() {
         lock.lock();
         try {
@@ -474,6 +534,12 @@ public class MultipleImagesViewer extends Pane {
         return viewerKinds.get(viewer);
     }
 
+    /**
+     * Sets the context for collage creation.
+     * @param owner the JSolEx interface owner
+     * @param processParams the processing parameters
+     * @param outputDirectory the output directory
+     */
     public void setCollageContext(JSolExInterface owner, ProcessParams processParams, Path outputDirectory) {
         this.owner = owner;
         this.processParams = processParams;

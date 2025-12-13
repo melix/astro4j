@@ -19,12 +19,29 @@ import me.champeau.a4j.jsolex.processing.event.ProcessingEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 
+/**
+ * Interface for broadcasting processing events to listeners.
+ * Used to communicate progress and status during image processing operations.
+ */
 public interface Broadcaster {
+    /**
+     * A no-op broadcaster that ignores all events.
+     */
     Broadcaster NO_OP = e -> {};
 
+    /**
+     * Broadcasts a progress operation by wrapping it in a ProgressEvent.
+     *
+     * @param operation the progress operation to broadcast
+     */
     default void broadcast(ProgressOperation operation) {
         broadcast(ProgressEvent.of(operation));
     }
 
+    /**
+     * Broadcasts a processing event to all listeners.
+     *
+     * @param event the event to broadcast
+     */
     void broadcast(ProcessingEvent<?> event);
 }

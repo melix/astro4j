@@ -20,12 +20,31 @@ import me.champeau.a4j.math.image.Image;
 
 import java.util.function.DoubleUnaryOperator;
 
+/**
+ * Event fired when the average image has been computed during processing.
+ * This event contains the averaged image along with associated metadata
+ * such as polynomial correction function and border information.
+ */
 public final class AverageImageComputedEvent extends ProcessingEvent<AverageImageComputedEvent.AverageImage> {
 
+    /**
+     * Creates a new average image computed event.
+     *
+     * @param image the average image data
+     */
     public AverageImageComputedEvent(AverageImage image) {
         super(image);
     }
 
+    /**
+     * Contains the average image and associated metadata.
+     *
+     * @param image the averaged image
+     * @param polynomial the polynomial correction function
+     * @param leftBorder the left border position
+     * @param rightBorder the right border position
+     * @param adjustedParams the processing parameters adjusted during computation
+     */
     public record AverageImage(
         Image image,
         DoubleUnaryOperator polynomial,

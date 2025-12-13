@@ -17,13 +17,31 @@ package me.champeau.a4j.math.image;
 
 import java.util.Arrays;
 
+/**
+ * Represents a 2D image with floating-point pixel values.
+ *
+ * @param width the width of the image
+ * @param height the height of the image
+ * @param data the pixel data organized as [y][x]
+ */
 public record Image(int width, int height, float[][] data) {
 
+    /**
+     * Creates a new image with different pixel data but same dimensions.
+     *
+     * @param newData the new pixel data
+     * @return a new image with the updated data
+     */
     public Image withData(float[][] newData) {
         var copyData = deepCopy(newData);
         return new Image(width, height, copyData);
     }
 
+    /**
+     * Creates a deep copy of this image.
+     *
+     * @return a new image with copied data
+     */
     public Image copy() {
         var copyData = deepCopy(data);
         return new Image(width, height, copyData);

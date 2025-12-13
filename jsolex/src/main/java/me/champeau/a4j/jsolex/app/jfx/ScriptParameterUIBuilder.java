@@ -36,9 +36,27 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.function.BiConsumer;
 
+/**
+ * Utility class for building JavaFX UI controls for script parameters.
+ * Creates appropriate input controls (choice boxes, text fields) based on parameter types
+ * and handles validation and value change notifications.
+ */
 public class ScriptParameterUIBuilder {
     private static final String RESET_ICON = "\u21BA";
 
+    private ScriptParameterUIBuilder() {
+    }
+
+    /**
+     * Constructs a grid of parameter controls with labels and help icons.
+     *
+     * @param grid the GridPane to populate with parameter controls
+     * @param parameters the list of script parameters to create controls for
+     * @param currentLanguage the language code for localized parameter names and descriptions
+     * @param initialValues the initial values for the parameters, may be null
+     * @param validationCallback callback invoked when parameter validation state changes
+     * @param valueChangeCallback callback invoked when parameter value changes
+     */
     public static void buildParameterGrid(
             GridPane grid,
             List<ScriptParameter> parameters,

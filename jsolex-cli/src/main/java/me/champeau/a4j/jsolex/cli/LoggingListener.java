@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+/** Event listener for logging processing events in the CLI. */
 public class LoggingListener implements ProcessingEventListener {
     private static final Logger LOGGER = LoggerFactory.getLogger(LoggingListener.class);
     private final ProcessParams processParams;
@@ -41,6 +42,11 @@ public class LoggingListener implements ProcessingEventListener {
     private final List<String> suggestions = new CopyOnWriteArrayList<>();
     private long sd;
 
+    /**
+     * Creates a new logging listener.
+     * @param processParams the processing parameters
+     * @param imageFormats the image formats to use when saving
+     */
     public LoggingListener(ProcessParams processParams, Set<ImageFormat> imageFormats) {
         this.processParams = processParams;
         this.imageFormats = imageFormats;

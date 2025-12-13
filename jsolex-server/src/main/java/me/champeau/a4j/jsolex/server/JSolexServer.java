@@ -29,13 +29,30 @@ import java.util.List;
 
 import static me.champeau.a4j.jsolex.server.AbstractController.localized;
 
+/**
+ * Embedded web server for JSol'Ex application.
+ * Uses the default constructor.
+ */
 public class JSolexServer {
     private static final Logger LOGGER = LoggerFactory.getLogger(JSolexServer.class);
 
+    /** Creates a new instance. */
+    public JSolexServer() {
+    }
+
+    /**
+     * Main entry point for the JSol'Ex server.
+     * @param args command line arguments
+     */
     public static void main(String[] args) {
         Micronaut.run(JSolexServer.class);
     }
 
+    /**
+     * Gets the server URLs for all network interfaces.
+     * @param server the embedded server
+     * @return list of server URLs
+     */
     public static List<String> getServerUrls(EmbeddedServer server) {
         var port = server.getPort();
         try {
@@ -48,6 +65,12 @@ public class JSolexServer {
         return List.of();
     }
 
+    /**
+     * Starts the server on the specified port with the given process parameters.
+     * @param port the port to listen on
+     * @param processParams the processing parameters to use
+     * @return the application context
+     */
     public static ApplicationContext start(int port, ProcessParams processParams) {
         var server = ApplicationContext.builder()
             .mainClass(JSolexServer.class)

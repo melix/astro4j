@@ -15,11 +15,18 @@
  */
 package me.champeau.a4j.ser;
 
+/** Utility class for converting images to 8-bit format. */
 public class EightBitConversionSupport {
     private EightBitConversionSupport() {
 
     }
 
+    /**
+     * Converts a 16-bit image to 8-bit format.
+     *
+     * @param image the 16-bit image data
+     * @return the 8-bit image data
+     */
     public static byte[] to8BitImage(short[] image) {
         byte[] converted = new byte[image.length];
         for (int i = 0; i < image.length; i++) {
@@ -29,6 +36,12 @@ public class EightBitConversionSupport {
         return converted;
     }
 
+    /**
+     * Converts a 2D float image to 8-bit format.
+     *
+     * @param image the float image data
+     * @return the 8-bit image data
+     */
     public static byte[] to8BitImage(float[][] image) {
         if (image.length == 0) {
             return new byte[0];

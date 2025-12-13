@@ -20,6 +20,7 @@ import me.champeau.a4j.ser.ImageGeometry;
 import java.nio.ByteBuffer;
 
 /**
+ * Converts image data to float precision.
  * Each pixel in the image is represented by one byte per
  * channel (e.g in an RGB image, 3 bytes, or in a mono image, 1 byte).
  * This class is responsible for converting each byte into a float
@@ -28,6 +29,11 @@ import java.nio.ByteBuffer;
 public class FloatPrecisionImageConverter implements ImageConverter<float[][]> {
     private final ImageConverter<short[]> delegate;
 
+    /**
+     * Constructs a float precision image converter.
+     *
+     * @param delegate the delegate converter that produces short array data
+     */
     public FloatPrecisionImageConverter(ImageConverter<short[]> delegate) {
         this.delegate = delegate;
     }

@@ -19,7 +19,12 @@ package me.champeau.a4j.serplayer;
  * Basic controls of a player.
  */
 public interface PlayerController {
+    /** Toggles play/pause state. */
     void play();
+
+    /** Advances to the next frame. */
     void forward();
+
+    /** Goes back to the previous frame. */
     void rewind();
 }

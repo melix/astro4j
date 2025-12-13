@@ -93,6 +93,10 @@ import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+/**
+ * A rich text area component for editing ImageMath scripts with syntax highlighting,
+ * code completion, and search/replace functionality.
+ */
 public class ImageMathTextArea extends BorderPane {
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final CodeArea codeArea = new CodeArea();
@@ -138,6 +142,7 @@ public class ImageMathTextArea extends BorderPane {
         }
     }
 
+    /** Creates a new ImageMath text area with syntax highlighting and code completion. */
     public ImageMathTextArea() {
         this.completionProvider = new ImageMathCompletionProvider(null, knownVariables);
 
@@ -176,24 +181,44 @@ public class ImageMathTextArea extends BorderPane {
         setupKeyboardShortcuts();
     }
 
+    /**
+     * Sets the directory for resolving include files.
+     * @param includesDir the includes directory path
+     */
     public void setIncludesDir(Path includesDir) {
         this.includesDir = includesDir;
         this.completionProvider = new ImageMathCompletionProvider(includesDir, knownVariables);
         requestHighlighting();
     }
 
+    /**
+     * Adds a variable name to the known variables for autocompletion.
+     * @param variable the variable name
+     */
     public void addKnownVariable(String variable) {
         knownVariables.add(variable);
     }
 
+    /**
+     * Sets whether meta blocks should be automatically folded when loading scripts.
+     * @param autoFold true to auto-fold meta blocks
+     */
     public void setAutoFoldMetaBlocks(boolean autoFold) {
         this.autoFoldMetaBlocks = autoFold;
     }
 
+    /**
+     * Sets the handler to invoke when the user requests to edit metadata.
+     * @param handler the metadata editor handler
+     */
     public void setMetadataEditorHandler(Runnable handler) {
         this.metadataEditorHandler = handler;
     }
 
+    /**
+     * Sets the text content of the editor.
+     * @param text the text to set
+     */
     public void setText(String text) {
         Platform.runLater(() -> {
             foldedRegions.clear();
@@ -208,14 +233,26 @@ public class ImageMathTextArea extends BorderPane {
         });
     }
 
+    /**
+     * Returns the current text content.
+     * @return the text content
+     */
     public String getText() {
         return codeArea.textProperty().getValue();
     }
 
+    /**
+     * Returns the text property for binding.
+     * @return the text property
+     */
     public ObservableValue<String> textProperty() {
         return codeArea.textProperty();
     }
 
+    /**
+     * Returns the underlying code area component.
+     * @return the code area
+     */
     public CodeArea getCodeArea() {
         return codeArea;
     }
@@ -236,6 +273,7 @@ public class ImageMathTextArea extends BorderPane {
         codeArea.setStyleSpans(0, highlighting);
     }
 
+    /** Requests syntax highlighting to be recomputed. */
     public void requestHighlighting() {
         try {
             applyHighlighting(computeHighlightingAsync().get());
@@ -861,6 +899,7 @@ public class ImageMathTextArea extends BorderPane {
     }
 
 
+    /** Closes the text area and releases resources. */
     public void close() {
         hideHoverTooltip();
         executor.shutdownNow();
@@ -1279,6 +1318,10 @@ public class ImageMathTextArea extends BorderPane {
         });
     }
 
+    /**
+     * Shows the search bar, optionally with replace functionality.
+     * @param withReplace true to include the replace field
+     */
     public void showSearchBar(boolean withReplace) {
         if (!searchBar.isVisible()) {
             setTop(searchBar);
@@ -1304,6 +1347,7 @@ public class ImageMathTextArea extends BorderPane {
         }
     }
 
+    /** Hides the search bar and clears search highlights. */
     public void hideSearchBar() {
         searchBar.setVisible(false);
         searchBar.setManaged(false);

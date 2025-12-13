@@ -26,6 +26,7 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import java.io.File;
 import java.util.function.Supplier;
 
+/** Abstract base class for tasks that write images to files. */
 public abstract class AbstractImageWriterTask extends AbstractTask<Void> {
     private final File outputDirectory;
     private final String title;
@@ -33,6 +34,18 @@ public abstract class AbstractImageWriterTask extends AbstractTask<Void> {
     private final GeneratedImageKind kind;
     private final String description;
 
+    /**
+     * Creates an image writer task.
+     *
+     * @param broadcaster the broadcaster
+     * @param operation the progress operation
+     * @param image the image supplier
+     * @param outputDirectory the output directory
+     * @param title the image title
+     * @param name the output file name
+     * @param description the image description
+     * @param kind the image kind
+     */
     protected AbstractImageWriterTask(Broadcaster broadcaster,
                                       ProgressOperation operation,
                                       Supplier<ImageWrapper32> image,
@@ -49,6 +62,7 @@ public abstract class AbstractImageWriterTask extends AbstractTask<Void> {
         this.description = description;
     }
 
+    /** Transforms the image before writing. Subclasses can override this method. */
     public void transform() {
 
     }
@@ -62,5 +76,10 @@ public abstract class AbstractImageWriterTask extends AbstractTask<Void> {
         return null;
     }
 
+    /**
+     * Creates the image wrapper to be saved.
+     *
+     * @return the image wrapper
+     */
     public abstract ImageWrapper createImageWrapper();
 }

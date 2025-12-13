@@ -21,6 +21,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiConsumer;
 
+/**
+ * Handles progress updates from background threads and throttles UI updates
+ * to avoid overwhelming the JavaFX application thread.
+ */
 public final class ProgressHandler {
     private static final long UPDATE_INTERVAL_MS = 50;
 
@@ -34,6 +38,11 @@ public final class ProgressHandler {
     private volatile boolean dirty;
     private volatile boolean running = true;
 
+    /**
+     * Creates a new progress handler.
+     *
+     * @param uiUpdater the consumer that updates the UI with progress and message
+     */
     public ProgressHandler(BiConsumer<Double, String> uiUpdater) {
         this.uiUpdater = uiUpdater;
         this.updateThread = new Thread(this::updateLoop, "ProgressHandler");
@@ -41,6 +50,12 @@ public final class ProgressHandler {
         this.updateThread.start();
     }
 
+    /**
+     * Updates the progress and message.
+     *
+     * @param progress the progress value (0.0 to 1.0)
+     * @param message the progress message
+     */
     public void update(double progress, String message) {
         lock.lock();
         try {
@@ -52,10 +67,16 @@ public final class ProgressHandler {
         }
     }
 
+    /**
+     * Hides the progress indicator.
+     */
     public void hide() {
         update(0, "");
     }
 
+    /**
+     * Closes the progress handler and stops the update thread.
+     */
     public void close() {
         running = false;
         updateThread.interrupt();

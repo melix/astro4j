@@ -19,7 +19,13 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 
+/**
+ * Factory for creating styled alert dialogs.
+ */
 public class AlertFactory {
+    private AlertFactory() {
+    }
+
     private static Alert newAlert(Alert.AlertType type, String message) {
         var alert = new Alert(type);
         alert.setWidth(600);
@@ -59,22 +65,46 @@ public class AlertFactory {
         return alert;
     }
 
+    /**
+     * Creates an information alert with no message.
+     * @return the alert
+     */
     public static Alert info() {
         return newAlert(Alert.AlertType.INFORMATION, null);
     }
 
+    /**
+     * Creates an information alert with a message.
+     * @param message the message to display
+     * @return the alert
+     */
     public static Alert info(String message) {
         return newAlert(Alert.AlertType.INFORMATION, message);
     }
 
+    /**
+     * Creates an error alert with a message.
+     * @param message the error message
+     * @return the alert
+     */
     public static Alert error(String message) {
         return newAlert(Alert.AlertType.ERROR, message);
     }
 
+    /**
+     * Creates a warning alert with a message.
+     * @param message the warning message
+     * @return the alert
+     */
     public static Alert warning(String message) {
         return newAlert(Alert.AlertType.WARNING, message);
     }
 
+    /**
+     * Creates a confirmation alert with a message.
+     * @param message the confirmation message
+     * @return the alert
+     */
     public static Alert confirmation(String message) {
         return newAlert(Alert.AlertType.CONFIRMATION, message);
     }

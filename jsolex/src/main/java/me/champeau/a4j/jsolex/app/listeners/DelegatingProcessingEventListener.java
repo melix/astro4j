@@ -38,10 +38,17 @@ import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 
 import java.util.List;
 
+/**
+ * Processing event listener that delegates all events to a list of listeners.
+ */
 public class DelegatingProcessingEventListener implements ProcessingEventListener, Broadcaster {
 
     private final List<ProcessingEventListener> listeners;
 
+    /**
+     * Creates a delegating processing event listener.
+     * @param listeners the list of listeners to delegate to
+     */
     public DelegatingProcessingEventListener(List<ProcessingEventListener> listeners) {
         this.listeners = listeners;
     }

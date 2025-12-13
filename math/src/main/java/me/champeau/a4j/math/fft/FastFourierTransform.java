@@ -55,6 +55,12 @@ public interface FastFourierTransform {
         return new CommonsMathFFT(real, imaginary);
     }
 
+    /**
+     * Returns a single dimensional Fourier transform for float arrays.
+     * @param real the real part of complex numbers
+     * @param imaginary the imaginary part of complex numbers
+     * @return the Fourier transform
+     */
     static FloatFFT ofComplex(float[] real, float[] imaginary) {
         int n = real.length;
         if (imaginary.length != n) {
@@ -106,6 +112,7 @@ public interface FastFourierTransform {
      * Pads 2d data so that its width and height are powers of 2.
      * The original data is centered in the padded version.
      * @param data the data
+     * @param width the width of the data
      * @return the padded data
      */
     static double[] pad(double[] data, int width) {
@@ -137,11 +144,13 @@ public interface FastFourierTransform {
     void inverseTransform();
 
     /**
+     * Returns the real part of the complex numbers.
      * @return the real part of the complex numbers
      */
     double[] real();
 
     /**
+     * Returns the imaginary part of the complex numbers.
      * @return the imaginary part of the complex numbers
      */
     double[] imaginary();

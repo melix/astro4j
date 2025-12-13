@@ -56,15 +56,30 @@ import java.util.stream.Stream;
 
 import static me.champeau.a4j.ser.EightBitConversionSupport.to8BitImage;
 
+/**
+ * Provides animation creation functions for sequences of images.
+ */
 public class Animate extends AbstractFunctionImpl {
     private static final Logger LOGGER = LoggerFactory.getLogger(Animate.class);
 
     private static final int DEFAULT_DELAY = 250;
 
+    /**
+     * Creates a new animation function.
+     *
+     * @param context the evaluation context
+     * @param broadcaster the broadcaster for progress events
+     */
     public Animate(Map<Class<?>, Object> context, Broadcaster broadcaster) {
         super(context, broadcaster);
     }
 
+    /**
+     * Creates an animation from a list of images.
+     *
+     * @param arguments the function arguments
+     * @return the animation output file
+     */
     public Object createAnimation(Map<String, Object> arguments) {
         BuiltinFunction.ANIM.validateArgs(arguments);
         var images = arguments.get("images");
@@ -290,8 +305,8 @@ public class Animate extends AbstractFunctionImpl {
      * This function interpolates between two images by blending 2 subsequent images together
      * using a number of steps and a specific transition type.
      *
-     * @param arguments
-     * @return
+     * @param arguments the function arguments
+     * @return the list of interpolated images
      */
     public Object transition(Map<String, Object> arguments) {
         BuiltinFunction.TRANSITION.validateArgs(arguments);

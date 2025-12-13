@@ -34,7 +34,16 @@ import me.champeau.a4j.jsolex.app.JSolExServerHolder;
 import java.net.URI;
 import java.util.function.Consumer;
 
+/**
+ * Controller for the embedded web server dialog.
+ */
 public class EmbeddedServerController {
+
+    /**
+     * Creates a new instance. Required by FXML.
+     */
+    public EmbeddedServerController() {
+    }
 
     private Consumer<? super Boolean> listener;
     @FXML
@@ -54,6 +63,13 @@ public class EmbeddedServerController {
     private HostServices hostServices;
     private Configuration configuration;
 
+    /**
+     * Sets up the embedded server controller.
+     * @param stage the dialog stage
+     * @param server the server holder
+     * @param hostServices the host services
+     * @param configuration the application configuration
+     */
     public void setup(Stage stage, JSolExServerHolder server, HostServices hostServices, Configuration configuration) {
         this.stage = stage;
         this.server = server;
@@ -114,6 +130,9 @@ public class EmbeddedServerController {
         return !server.isStarted();
     }
 
+    /**
+     * Starts or stops the embedded server.
+     */
     @FXML
     public void startOrStop() {
         startStopButton.setDisable(true);
@@ -125,6 +144,9 @@ public class EmbeddedServerController {
         updateStartStopLabel();
     }
 
+    /**
+     * Closes the embedded server dialog.
+     */
     @FXML
     public void close() {
         configuration.setAutoStartServer(startOnLaunch.isSelected());

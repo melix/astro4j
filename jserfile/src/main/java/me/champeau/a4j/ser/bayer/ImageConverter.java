@@ -24,6 +24,8 @@ import java.nio.ByteBuffer;
  * for converting the raw byte[] from each
  * frame into RGB images (or any other relevant
  * format for image processing)
+ *
+ * @param <ARRAY> the type of the output array
  */
 public interface ImageConverter<ARRAY> {
 

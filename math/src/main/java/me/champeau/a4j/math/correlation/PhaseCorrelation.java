@@ -41,6 +41,11 @@ public class PhaseCorrelation {
     private PhaseCorrelation() {
     }
 
+    /**
+     * Returns the singleton instance.
+     *
+     * @return the phase correlation instance
+     */
     public static PhaseCorrelation getInstance() {
         return INSTANCE;
     }
@@ -391,6 +396,13 @@ public class PhaseCorrelation {
         return result;
     }
 
+    /**
+     * Computes the phase correlation shift between two patches using FFT.
+     *
+     * @param patchRef the reference patch
+     * @param patchDef the displaced patch
+     * @return the displacement as (dy, dx)
+     */
     public static DoublePair phaseCorrelationShiftFFT(float[][] patchRef, float[][] patchDef) {
         var size = patchRef.length;
 

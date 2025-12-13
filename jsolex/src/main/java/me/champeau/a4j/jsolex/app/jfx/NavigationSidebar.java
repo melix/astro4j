@@ -33,15 +33,30 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
+/**
+ * A vertical sidebar component for navigation between different content panels.
+ */
 public class NavigationSidebar extends VBox {
-    
+
+    /**
+     * Represents a navigation item with an icon, title, description and associated content.
+     */
     public static class NavigationItem {
         private final String id;
         private final String title;
         private final String icon;
         private final Node content;
         private final String description;
-        
+
+        /**
+         * Creates a new navigation item.
+         *
+         * @param id the unique identifier for this item
+         * @param title the display title
+         * @param icon the icon text
+         * @param content the content node to display when selected
+         * @param description the optional description text
+         */
         public NavigationItem(String id, String title, String icon, Node content, String description) {
             this.id = id;
             this.title = title;
@@ -49,11 +64,40 @@ public class NavigationSidebar extends VBox {
             this.content = content;
             this.description = description;
         }
-        
+
+        /**
+         * Returns the unique identifier.
+         *
+         * @return the id
+         */
         public String getId() { return id; }
+
+        /**
+         * Returns the display title.
+         *
+         * @return the title
+         */
         public String getTitle() { return title; }
+
+        /**
+         * Returns the icon text.
+         *
+         * @return the icon
+         */
         public String getIcon() { return icon; }
+
+        /**
+         * Returns the content node.
+         *
+         * @return the content
+         */
         public Node getContent() { return content; }
+
+        /**
+         * Returns the description text.
+         *
+         * @return the description
+         */
         public String getDescription() { return description; }
     }
     
@@ -61,7 +105,10 @@ public class NavigationSidebar extends VBox {
     private final List<Button> navButtons = new ArrayList<>();
     private final ObjectProperty<NavigationItem> selectedItem = new SimpleObjectProperty<>();
     private Consumer<NavigationItem> onItemSelected;
-    
+
+    /**
+     * Creates a new navigation sidebar.
+     */
     public NavigationSidebar() {
         getStyleClass().add("navigation-sidebar");
         setPrefWidth(300);
@@ -71,7 +118,12 @@ public class NavigationSidebar extends VBox {
         setPadding(new Insets(12));
         setFillWidth(true);
     }
-    
+
+    /**
+     * Adds a navigation item to the sidebar.
+     *
+     * @param item the item to add
+     */
     public void addNavigationItem(NavigationItem item) {
         items.add(item);
 
@@ -135,7 +187,12 @@ public class NavigationSidebar extends VBox {
         
         return button;
     }
-    
+
+    /**
+     * Selects the specified navigation item.
+     *
+     * @param item the item to select
+     */
     public void selectItem(NavigationItem item) {
         var previousItem = selectedItem.get();
         selectedItem.set(item);
@@ -153,23 +210,46 @@ public class NavigationSidebar extends VBox {
             onItemSelected.accept(item);
         }
     }
-    
+
+    /**
+     * Sets the callback to invoke when an item is selected.
+     *
+     * @param onItemSelected the callback consumer
+     */
     public void setOnItemSelected(Consumer<NavigationItem> onItemSelected) {
         this.onItemSelected = onItemSelected;
     }
-    
+
+    /**
+     * Returns the property for the selected item.
+     *
+     * @return the selected item property
+     */
     public ObjectProperty<NavigationItem> selectedItemProperty() {
         return selectedItem;
     }
-    
+
+    /**
+     * Returns the currently selected item.
+     *
+     * @return the selected item
+     */
     public NavigationItem getSelectedItem() {
         return selectedItem.get();
     }
-    
+
+    /**
+     * Returns all navigation items.
+     *
+     * @return the list of navigation items
+     */
     public List<NavigationItem> getNavigationItems() {
         return items;
     }
-    
+
+    /**
+     * Adds a visual separator to the sidebar.
+     */
     public void addSeparator() {
         var separator = new Label();
         separator.getStyleClass().add("nav-separator");
@@ -177,14 +257,25 @@ public class NavigationSidebar extends VBox {
         separator.setMaxWidth(Double.MAX_VALUE);
         getChildren().add(separator);
     }
-    
+
+    /**
+     * Adds a section title to the sidebar.
+     *
+     * @param title the section title text
+     */
     public void addTitle(String title) {
         var titleLabel = new Label(title);
         titleLabel.getStyleClass().add("nav-section-title");
         titleLabel.setPadding(new Insets(16, 0, 8, 0));
         getChildren().add(titleLabel);
     }
-    
+
+    /**
+     * Creates a fade transition for content panel switching.
+     *
+     * @param content the content node to transition
+     * @return the configured fade transition
+     */
     public static FadeTransition createContentTransition(Node content) {
         var transition = new FadeTransition(Duration.millis(200), content);
         transition.setFromValue(0.0);

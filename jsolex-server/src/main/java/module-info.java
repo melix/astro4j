@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/** Module for the JSol'Ex embedded web server. */
 module me.champeau.a4j.jsolex.server {
     requires me.champeau.a4j.jsolex.core;
     requires io.micronaut.micronaut_context;

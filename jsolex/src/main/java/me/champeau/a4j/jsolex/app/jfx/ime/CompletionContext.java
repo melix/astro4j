@@ -27,6 +27,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/** Context for code completion in the image math editor. */
 public class CompletionContext {
     private final String text;
     private final int caretPosition;
@@ -48,6 +49,13 @@ public class CompletionContext {
         this.userFunctions = userFunctions;
     }
 
+    /**
+     * Analyzes the text at the caret position to determine completion context.
+     * @param text the text to analyze
+     * @param caretPosition the caret position
+     * @param includesDir the includes directory
+     * @return the completion context
+     */
     public static CompletionContext analyze(String text, int caretPosition, Path includesDir) {
         var parser = new ImageMathParser(text);
         parser.setParserTolerant(true);
@@ -211,37 +219,69 @@ public class CompletionContext {
                 .findFirst();
     }
 
+    /**
+     * Returns the partial token at the caret position.
+     * @return the partial token
+     */
     public String getPartialToken() {
         return partialToken;
     }
 
+    /**
+     * Returns the context type.
+     * @return the context type
+     */
     public ContextType getContextType() {
         return contextType;
     }
 
+    /**
+     * Returns the current function call, if any.
+     * @return the current function call
+     */
     public Optional<FunctionCall> getCurrentFunctionCall() {
         return Optional.ofNullable(currentFunctionCall);
     }
 
+    /**
+     * Returns the set of known variables.
+     * @return the known variables
+     */
     public Set<String> getKnownVariables() {
         return knownVariables;
     }
 
+    /**
+     * Returns the set of user-defined functions.
+     * @return the user functions
+     */
     public Set<String> getUserFunctions() {
         return userFunctions;
     }
 
+    /**
+     * Returns the text being analyzed.
+     * @return the text
+     */
     public String getText() {
         return text;
     }
 
+    /**
+     * Returns the caret position.
+     * @return the caret position
+     */
     public int getCaretPosition() {
         return caretPosition;
     }
 
+    /** Context type enumeration. */
     public enum ContextType {
+        /** General context */
         GENERAL,
+        /** Function parameter context */
         FUNCTION_PARAMETER,
+        /** Named parameter value context */
         NAMED_PARAMETER_VALUE
     }
 }

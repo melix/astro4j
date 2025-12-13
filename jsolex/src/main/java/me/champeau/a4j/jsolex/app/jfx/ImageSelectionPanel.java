@@ -74,6 +74,9 @@ import java.util.stream.Collectors;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
+/**
+ * Panel for selecting which images to generate during processing.
+ */
 public class ImageSelectionPanel extends BaseParameterPanel {
     private static final Logger LOGGER = LoggerFactory.getLogger(ImageSelectionPanel.class);
 
@@ -125,7 +128,9 @@ public class ImageSelectionPanel extends BaseParameterPanel {
     private boolean autoContinuum;
     private SelectionMode currentMode = SelectionMode.CUSTOM;
 
-
+    /**
+     * Creates a new instance. Required by FXML.
+     */
     public ImageSelectionPanel() {
         getStyleClass().add("parameter-panel");
         initializeComponents();
@@ -650,22 +655,42 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         imageMathParams = new ImageMathParams(currentFiles, currentParams);
     }
 
+    /**
+     * Sets the controller for this panel.
+     * @param controller the controller
+     */
     public void setController(ProcessParamsController controller) {
         this.controller = controller;
     }
 
+    /**
+     * Sets the stage for this panel.
+     * @param stage the stage
+     */
     public void setStage(Stage stage) {
         this.stage = stage;
     }
 
+    /**
+     * Sets the host services for this panel.
+     * @param hostServices the host services
+     */
     public void setHostServices(HostServices hostServices) {
         this.hostServices = hostServices;
     }
 
+    /**
+     * Sets whether batch mode is enabled.
+     * @param batchMode true if batch mode is enabled
+     */
     public void setBatchMode(boolean batchMode) {
         this.batchMode = batchMode;
     }
 
+    /**
+     * Returns the property indicating whether all script parameters are valid.
+     * @return the validation property
+     */
     public BooleanProperty allScriptParametersValidProperty() {
         return allScriptParametersValid;
     }
@@ -676,6 +701,9 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         allScriptParametersValid.set(allValid);
     }
 
+    /**
+     * Loads the quick mode preset selection.
+     */
     public void loadQuickModeSelection() {
         var debugWasSelected = debug.isSelected();
         selectAllExceptDebug(false);
@@ -691,6 +719,9 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         updateCurrentModeDisplay();
     }
 
+    /**
+     * Loads the full mode preset selection.
+     */
     public void loadFullModeSelection() {
         var debugWasSelected = debug.isSelected();
         var scriptsWereSelected = applyAutomaticScripts.isSelected();
@@ -703,6 +734,10 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         updateCurrentModeDisplay();
     }
 
+    /**
+     * Loads image selection data from process parameters.
+     * @param processParams the process parameters to load from
+     */
     public void loadData(ProcessParams processParams) {
         var requestedImages = processParams.requestedImages();
         var images = requestedImages.images();
@@ -746,6 +781,10 @@ public class ImageSelectionPanel extends BaseParameterPanel {
 
     }
 
+    /**
+     * Returns the requested images based on current selection.
+     * @return the requested images
+     */
     public RequestedImages getRequestedImages() {
         Set<GeneratedImageKind> images = EnumSet.noneOf(GeneratedImageKind.class);
 
@@ -824,20 +863,36 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         );
     }
 
+    /**
+     * Returns whether custom mode is active.
+     * @return true if custom mode is active
+     */
     public boolean isCustomMode() {
         return currentMode == SelectionMode.CUSTOM || 
                (imageMathParams != null && !imageMathParams.equals(ImageMathParams.NONE)) ||
                applyAutomaticScripts.isSelected();
     }
 
+    /**
+     * Returns whether custom image selection is active.
+     * @return true if custom image selection is active
+     */
     public boolean hasCustomImageSelection() {
         return currentMode == SelectionMode.CUSTOM;
     }
 
+    /**
+     * Returns whether custom scripts are loaded.
+     * @return true if custom scripts are loaded
+     */
     public boolean hasCustomScripts() {
         return imageMathParams != null && !imageMathParams.equals(ImageMathParams.NONE);
     }
 
+    /**
+     * Returns whether automatic scripts are enabled.
+     * @return true if automatic scripts are enabled
+     */
     public boolean hasAutomaticScripts() {
         return applyAutomaticScripts.isSelected();
     }
@@ -1190,6 +1245,10 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         updateScriptLabel();
     }
 
+    /**
+     * Loads a user preset.
+     * @param preset the preset to load
+     */
     public void loadUserPreset(UserPreset preset) {
         try {
             // Clear all selections first

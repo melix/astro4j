@@ -27,6 +27,10 @@ import java.nio.ByteBuffer;
  */
 public class RGBImageConverter implements ImageConverter<short[]>, BayerMatrixSupport {
 
+    /** Constructs an RGB image converter. */
+    public RGBImageConverter() {
+    }
+
     @Override
     public short[] createBuffer(ImageGeometry geometry) {
         int size = geometry.height() * geometry.width();

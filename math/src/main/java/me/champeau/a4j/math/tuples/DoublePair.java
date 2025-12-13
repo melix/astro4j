@@ -27,6 +27,10 @@ public record DoublePair(
         double a,
         double b
 ) {
+    /**
+     * Returns a polynomial operator representing ax + b.
+     * @return a polynomial operator representing ax + b
+     */
     public DoubleUnaryOperator asPolynomial() {
         return x -> a * x + b;
     }

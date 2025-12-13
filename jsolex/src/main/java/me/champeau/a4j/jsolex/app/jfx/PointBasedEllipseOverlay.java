@@ -36,6 +36,9 @@ import java.util.function.Consumer;
 
 import static javafx.scene.input.ScrollEvent.SCROLL;
 
+/**
+ * Interactive overlay for defining and editing an ellipse by placing control points.
+ */
 public class PointBasedEllipseOverlay {
     private static final double POINT_RADIUS = 8.0;
     private static final Color ELLIPSE_COLOR = Color.CYAN;
@@ -62,6 +65,9 @@ public class PointBasedEllipseOverlay {
     private double contentOffsetX = 0;
     private double contentOffsetY = 0;
 
+    /**
+     * Creates a new point-based ellipse overlay.
+     */
     public PointBasedEllipseOverlay() {
         pointHandles = new ArrayList<>();
         ellipsePoints = new ArrayList<>();
@@ -421,49 +427,7 @@ public class PointBasedEllipseOverlay {
             onEllipseChanged.accept(currentEllipse);
         }
     }
-    
-    public void setEllipse(me.champeau.a4j.math.regression.Ellipse ellipse) {
-        // Clear existing points and create new ones based on the ellipse
-        clearPoints();
-        
-        if (ellipse != null) {
-            this.currentEllipse = ellipse;
-            
-            // Generate points around the ellipse perimeter for editing
-            var center = ellipse.center();
-            var radiusX = ellipse.semiAxis().a();
-            var radiusY = ellipse.semiAxis().b();
-            var rotation = ellipse.rotationAngle();
-            
-            // Create 8 points around the ellipse
-            var numPoints = 8;
-            for (int i = 0; i < numPoints; i++) {
-                var angle = 2 * Math.PI * i / numPoints;
-                var x = radiusX * Math.cos(angle);
-                var y = radiusY * Math.sin(angle);
-                
-                // Apply rotation
-                var rotatedX = x * Math.cos(rotation) - y * Math.sin(rotation);
-                var rotatedY = x * Math.sin(rotation) + y * Math.cos(rotation);
-                
-                // Translate to center
-                var finalX = center.a() + rotatedX;
-                var finalY = center.b() + rotatedY;
-                
-                addPointWithoutUpdate(finalX, finalY);
-            }
-            
-            // Now update everything once with the correct ellipse
-            updateVisualElements();
-            updateEllipseShape(ellipseShape, currentEllipse);
-            previewEllipseShape.setVisible(false);
-            ellipseShape.setVisible(true);
-            notifyEllipseChanged();
-        }
-        
-        ensurePointsAreVisible();
-    }
-    
+
     private void clearPoints() {
         ellipsePoints.clear();
         for (var handle : pointHandles) {
@@ -471,30 +435,78 @@ public class PointBasedEllipseOverlay {
         }
         pointHandles.clear();
     }
-    
+
+    /**
+     * Sets the ellipse to display.
+     *
+     * @param ellipse the ellipse to display
+     */
+    public void setEllipse(me.champeau.a4j.math.regression.Ellipse ellipse) {
+        clearPoints();
+        currentEllipse = ellipse;
+        if (ellipse != null) {
+            updateEllipseShape(ellipseShape, ellipse);
+            ellipseShape.setVisible(true);
+            previewEllipseShape.setVisible(false);
+        } else {
+            ellipseShape.setVisible(false);
+            previewEllipseShape.setVisible(false);
+        }
+    }
+
+    /**
+     * Returns the current ellipse.
+     *
+     * @return the current ellipse
+     */
     public me.champeau.a4j.math.regression.Ellipse getEllipse() {
         return currentEllipse;
     }
-    
+
+    /**
+     * Returns whether there are enough points to fit an ellipse.
+     *
+     * @return true if there are at least 3 points
+     */
     public boolean hasEnoughPoints() {
         return ellipsePoints.size() >= 3;
     }
-    
+
+    /**
+     * Returns the number of control points.
+     *
+     * @return the number of points
+     */
     public int getPointCount() {
         return ellipsePoints.size();
     }
-    
+
+    /**
+     * Sets the zoom level for the overlay.
+     *
+     * @param zoom the zoom level
+     */
     public void setZoom(double zoom) {
         this.zoom = zoom;
         updateVisualElements();
         ensurePointsAreVisible();
     }
-    
+
+    /**
+     * Sets whether the overlay is active.
+     *
+     * @param active true to activate the overlay
+     */
     public void setActive(boolean active) {
         this.isActive = active;
         setVisible(active);
     }
-    
+
+    /**
+     * Returns whether the overlay is active.
+     *
+     * @return true if the overlay is active
+     */
     public boolean isActive() {
         return isActive;
     }
@@ -502,19 +514,39 @@ public class PointBasedEllipseOverlay {
     private void setVisible(boolean visible) {
         overlayPane.setVisible(visible);
     }
-    
+
+    /**
+     * Sets the callback for when the ellipse changes.
+     *
+     * @param listener the listener to notify when the ellipse changes
+     */
     public void setOnEllipseChanged(Consumer<me.champeau.a4j.math.regression.Ellipse> listener) {
         this.onEllipseChanged = listener;
     }
-    
+
+    /**
+     * Returns the UI nodes for this overlay.
+     *
+     * @return the list of nodes
+     */
     public List<Node> getNodes() {
         return List.of(overlayPane);
     }
-    
+
+    /**
+     * Sets the scroll pane that contains this overlay.
+     *
+     * @param scrollPane the scroll pane
+     */
     public void setScrollPane(ScrollPane scrollPane) {
         this.scrollPane = scrollPane;
     }
-    
+
+    /**
+     * Sets the opacity of the ellipse shapes.
+     *
+     * @param opacity the opacity value (0.0 to 1.0)
+     */
     public void setOpacity(double opacity) {
         ellipseShape.setOpacity(opacity);
         previewEllipseShape.setOpacity(opacity);

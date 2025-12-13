@@ -26,10 +26,18 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
 
+/**
+ * Provides code completion suggestions for the ImageMath scripting language.
+ */
 public class ImageMathCompletionProvider implements CompletionProvider {
     private final Path includesDir;
     private final Set<String> knownVariables;
 
+    /**
+     * Creates a new completion provider.
+     * @param includesDir the directory containing include files
+     * @param knownVariables the set of known variable names
+     */
     public ImageMathCompletionProvider(Path includesDir, Set<String> knownVariables) {
         this.includesDir = includesDir;
         this.knownVariables = knownVariables;

@@ -24,6 +24,7 @@ import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 import java.util.function.Supplier;
 
+/** Base class for web controllers providing common rendering and localization functionality. */
 class AbstractController {
     private static final ResourceBundle BUNDLE;
 
@@ -39,10 +40,21 @@ class AbstractController {
 
     private final ViewsRenderer<Object, ?> viewsRenderer;
 
+    /**
+     * Creates a new abstract controller.
+     * @param viewsRenderer the views renderer
+     */
     AbstractController(ViewsRenderer<Object, ?> viewsRenderer) {
         this.viewsRenderer = viewsRenderer;
     }
 
+    /**
+     * Renders a view with the given model.
+     * @param view the view name
+     * @param modelSupplier supplier for the model
+     * @param <T> the model type
+     * @return rendered view as string
+     */
     protected <T> String render(String view, Supplier<T> modelSupplier) {
         var writer = new StringWriter();
         try {
@@ -53,6 +65,11 @@ class AbstractController {
         return writer.toString();
     }
 
+    /**
+     * Gets a localized string for the given property key.
+     * @param property the property key
+     * @return the localized string, or the key if not found
+     */
     public static String localized(String property) {
         if (!BUNDLE.containsKey(property)) {
             return property;

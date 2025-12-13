@@ -44,11 +44,29 @@ import static java.lang.Math.sin;
 import static java.lang.Math.toRadians;
 import static me.champeau.a4j.jsolex.processing.util.SolarParametersUtils.localDateTimeToJulianDate;
 
+/**
+ * Controller for the exposure time calculator dialog.
+ */
 public class ExposureCalculator {
+
+    /**
+     * Creates a new instance. Required by FXML.
+     */
+    public ExposureCalculator() {
+    }
+
     private static final double J2000 = 2451545;
     private static final ZoneId UTC = ZoneId.of("UTC");
     private static final String DATE_PATTERN = "yyyy-MM-dd";
+
+    /**
+     * Default pixel size in micrometers.
+     */
     public static final double DEFAULT_PIXEL_SIZE = 2.4;
+
+    /**
+     * Default focal length in millimeters.
+     */
     public static final int DEFAULT_FOCAL_LENGTH = 400;
 
     @FXML
@@ -77,6 +95,10 @@ public class ExposureCalculator {
 
     private Stage stage;
 
+    /**
+     * Sets up the exposure calculator dialog.
+     * @param stage the dialog stage
+     */
     public void setup(Stage stage) {
         pixelSize.setTextFormatter(new TextFormatter<>(new DoubleStringConverter()));
         binning.setTextFormatter(new TextFormatter<>(new IntegerStringConverter()));

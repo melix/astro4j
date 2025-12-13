@@ -22,6 +22,19 @@ import javafx.collections.ObservableList;
 
 import java.io.File;
 
+/**
+ * Batch processing item.
+ * @param id the item ID
+ * @param file the SER file
+ * @param reconstructionProgress the reconstruction progress property
+ * @param generatedFiles the list of generated files
+ * @param status the processing status property
+ * @param detectedActiveRegions the detected active regions property
+ * @param maxRedshiftKmPerSec the maximum redshift property
+ * @param ellermanBombs the Ellerman bombs count property
+ * @param flares the flares count property
+ * @param log the processing log
+ */
 public record BatchItem(
         int id,
         File file,

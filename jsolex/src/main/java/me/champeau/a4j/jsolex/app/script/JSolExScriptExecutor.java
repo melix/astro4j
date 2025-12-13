@@ -38,6 +38,13 @@ import java.util.function.Function;
  * A script executor which exposes a JavaFX file chooser to the {@link Loader}.
  */
 public class JSolExScriptExecutor extends DefaultImageScriptExecutor {
+    /**
+     * Creates a new script executor with broadcaster support.
+     * @param imageSupplier the supplier for images by pixel shift
+     * @param context the execution context
+     * @param broadcaster the event broadcaster
+     * @param stage the JavaFX stage for file chooser dialogs
+     */
     public JSolExScriptExecutor(Function<PixelShift, ImageWrapper> imageSupplier,
                                 Map<Class, Object> context,
                                 Broadcaster broadcaster,
@@ -46,6 +53,12 @@ public class JSolExScriptExecutor extends DefaultImageScriptExecutor {
         prepareContext(context, stage);
     }
 
+    /**
+     * Creates a new script executor.
+     * @param imagesByShift the supplier for images by pixel shift
+     * @param context the execution context
+     * @param stage the JavaFX stage for file chooser dialogs
+     */
     public JSolExScriptExecutor(Function<PixelShift, ImageWrapper> imagesByShift,
                                 Map<Class, Object> context,
                                 Stage stage) {

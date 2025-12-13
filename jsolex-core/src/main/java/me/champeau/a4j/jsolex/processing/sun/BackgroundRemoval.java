@@ -35,6 +35,10 @@ import static me.champeau.a4j.jsolex.processing.sun.workflow.AnalysisUtils.estim
 import static me.champeau.a4j.jsolex.processing.sun.workflow.AnalysisUtils.estimateBackgroundLevel;
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
+/**
+ * Utility class for background removal and neutralization in solar images.
+ * Provides algorithms to model and subtract background using polynomial regression.
+ */
 public class BackgroundRemoval {
     private static final Logger LOGGER = LoggerFactory.getLogger(BackgroundRemoval.class);
     private static final double PENALTY = 1e-6;
@@ -43,6 +47,17 @@ public class BackgroundRemoval {
 
     }
 
+    /**
+     * Removes background from image data using a quadratic model based on distance from the solar disk.
+     * Applies correction outside the ellipse and performs bilinear smoothing at the edges.
+     *
+     * @param width the image width
+     * @param height the image height
+     * @param data the image data array
+     * @param tolerance the correction factor
+     * @param background the estimated background level
+     * @param ellipse the solar disk ellipse
+     */
     public static void removeBackground(int width,
                                         int height,
                                         float[][] data,
@@ -94,6 +109,13 @@ public class BackgroundRemoval {
         return blindBackgroundNeutralization(image).neutralized();
     }
 
+    /**
+     * Performs blind background neutralization on an image, estimating background level
+     * and removing it using polynomial regression without requiring user input.
+     *
+     * @param image the image to process
+     * @return the neutralization result containing the processed image and average background level
+     */
     public static BlindBackgroundNeutralizationResult blindBackgroundNeutralization(ImageWrapper32 image) {
         int bins = 64;
         var neut = blindBackgroundNeutralization2(image, bins);
@@ -171,10 +193,13 @@ public class BackgroundRemoval {
     }
 
     /**
-     * Computes a background model for the given image.
+     * Computes a background model for the given image using polynomial regression.
+     * The model is fitted to background pixels (outside the solar disk) and filtered using sigma clipping.
      *
      * @param image the image to process
-     * @return the background model
+     * @param degree the polynomial degree for the model
+     * @param sigma the sigma threshold for outlier filtering
+     * @return the background model if sufficient samples are available, empty otherwise
      */
     public static Optional<ImageWrapper32> backgroundModel(ImageWrapper32 image, int degree, double sigma) {
         var data = image.data();
@@ -414,6 +439,7 @@ public class BackgroundRemoval {
      * due to resizing for example.
      *
      * @param image the image
+     * @return a copy of the image with zero pixels replaced by the minimal non-zero value
      */
     public static ImageWrapper32 removeZeroPixels(ImageWrapper32 image) {
         var copy = image.copy();
@@ -437,6 +463,13 @@ public class BackgroundRemoval {
         return copy;
     }
 
+    /**
+     * Result of blind background neutralization containing the processed image
+     * and the estimated average background level.
+     *
+     * @param neutralized the image with neutralized background
+     * @param averageBackground the estimated average background level
+     */
     public record BlindBackgroundNeutralizationResult(
             ImageWrapper32 neutralized,
             double averageBackground

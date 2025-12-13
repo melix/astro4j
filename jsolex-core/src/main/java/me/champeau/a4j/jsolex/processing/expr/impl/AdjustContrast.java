@@ -32,11 +32,24 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/** Provides contrast adjustment functions for images. */
 public class AdjustContrast extends AbstractFunctionImpl {
+    /**
+     * Creates a new contrast adjustment function.
+     *
+     * @param context the evaluation context
+     * @param broadcaster the broadcaster for progress events
+     */
     public AdjustContrast(Map<Class<?>, Object> context, Broadcaster broadcaster) {
         super(context, broadcaster);
     }
 
+    /**
+     * Adjusts image contrast.
+     *
+     * @param arguments function arguments
+     * @return the adjusted image or list of images
+     */
     public Object adjustContrast(Map<String, Object> arguments) {
         BuiltinFunction.ADJUST_CONTRAST.validateArgs(arguments);
         int min = intArg(arguments, "min", 0);
@@ -50,6 +63,12 @@ public class AdjustContrast extends AbstractFunctionImpl {
         return monoToMonoImageTransformer("adjust_contrast", "img", arguments, image -> new ContrastAdjustmentStrategy(min << 8, max << 8).stretch(image));
     }
 
+    /**
+     * Adjusts image gamma.
+     *
+     * @param arguments function arguments
+     * @return the adjusted image or list of images
+     */
     public Object adjustGamma(Map<String, Object> arguments) {
         BuiltinFunction.ADJUST_GAMMA.validateArgs(arguments);
         double gamma = doubleArg(arguments, "gamma", 1);
@@ -59,6 +78,12 @@ public class AdjustContrast extends AbstractFunctionImpl {
         return monoToMonoImageTransformer("adjust_gamma", "img", arguments, image -> new GammaStrategy(gamma).stretch(image));
     }
 
+    /**
+     * Applies automatic contrast adjustment.
+     *
+     * @param arguments function arguments
+     * @return the adjusted image or list of images
+     */
     public Object autoContrast(Map<String, Object> arguments) {
         BuiltinFunction.AUTO_CONTRAST.validateArgs(arguments);
         double gamma = doubleArg(arguments, "gamma", 1);
@@ -70,6 +95,12 @@ public class AdjustContrast extends AbstractFunctionImpl {
         return monoToMonoImageTransformer("auto_contrast", "img", arguments, image -> new AutohistogramStrategy(gamma, true, bgThreshold, protusStretch).stretch(image));
     }
 
+    /**
+     * Equalizes contrast across multiple images.
+     *
+     * @param arguments function arguments
+     * @return the equalized images
+     */
     public Object equalize(Map<String, Object> arguments) {
         BuiltinFunction.EQUALIZE.validateArgs(arguments);
         if (!(arguments.get("list") instanceof List<?> topLevel) || topLevel.size() != 1) {

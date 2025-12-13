@@ -26,6 +26,7 @@ import me.champeau.a4j.math.regression.Ellipse;
  * @param stddev the standard deviation
  * @param min the minimum value
  * @param max the maximum value
+ * @param histogram the histogram of pixel values
  */
 public record ImageAnalysis(float avg, float stddev, float min, float max, Histogram histogram) {
 

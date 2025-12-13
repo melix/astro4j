@@ -45,12 +45,28 @@ import java.util.function.Function;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.newScene;
 
+/**
+ * Controller for the setup editor dialog.
+ * Allows users to create, edit, and manage telescope/camera setups.
+ */
 public class SetupEditor {
+    /**
+     * Default name used for new setups.
+     */
     public static final String DEFAULT_NAME = "My setup";
+    /**
+     * ListView displaying all available setups.
+     */
     @FXML
     public ListView<Setup> elements;
+    /**
+     * Checkbox indicating whether to force camera parameters from setup.
+     */
     @FXML
     public CheckBox forceCamera;
+    /**
+     * Checkbox indicating whether to show coordinates in image details.
+     */
     @FXML
     public CheckBox showInDetails;
     @FXML
@@ -83,6 +99,18 @@ public class SetupEditor {
     private Stage stage;
     private Setup selected;
 
+    /**
+     * Default constructor.
+     */
+    public SetupEditor() {
+    }
+
+    /**
+     * Opens the setup editor dialog.
+     *
+     * @param stage the parent stage
+     * @param onCloseRequest callback invoked when the editor is closed
+     */
     public static void openEditor(Stage stage, Consumer<? super SetupEditor> onCloseRequest) {
         var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "setup-editor");
         try {
@@ -116,6 +144,12 @@ public class SetupEditor {
         });
     }
 
+    /**
+     * Initializes the setup editor with the given stage.
+     * Configures form fields, formatters, and event listeners.
+     *
+     * @param stage the stage to associate with this editor
+     */
     public void setup(Stage stage) {
         formFields = List.of(
             label,
@@ -259,6 +293,10 @@ public class SetupEditor {
         return transformer.apply(obj);
     }
 
+    /**
+     * Validates and saves the setups, then closes the editor.
+     * Checks for duplicate labels and empty lists before saving.
+     */
     @FXML
     public void close() {
         var items = elements.getItems();
@@ -290,16 +328,28 @@ public class SetupEditor {
         stage.fireEvent(new WindowEvent(stage, WindowEvent.WINDOW_CLOSE_REQUEST));
     }
 
+    /**
+     * Cancels the editing session and closes the editor without saving changes.
+     */
     @FXML
     public void cancel() {
         this.selected = null;
         requestClose();
     }
 
+    /**
+     * Returns the setup that was selected when the editor was closed.
+     *
+     * @return optional containing the selected setup, or empty if cancelled
+     */
     public Optional<Setup> getSelected() {
         return Optional.ofNullable(selected);
     }
 
+    /**
+     * Removes the currently selected setup from the list.
+     * Clears form fields if no items remain.
+     */
     @FXML
     public void removeSelectedItem() {
         var idx = elements.getSelectionModel().getSelectedIndex();
@@ -322,6 +372,11 @@ public class SetupEditor {
         formFields.forEach(e -> e.setDisable(disable));
     }
 
+    /**
+     * Adds a new setup to the list.
+     * If a setup is currently selected, creates a copy of it.
+     * Otherwise, creates a new setup with default values.
+     */
     @FXML
     public void addNewItem() {
         fireDisableStatus(false);
@@ -366,6 +421,11 @@ public class SetupEditor {
         elements.getSelectionModel().select(newElement);
     }
 
+    /**
+     * Returns an unmodifiable view of all setups in the editor.
+     *
+     * @return unmodifiable list of all setups
+     */
     public List<Setup> getItems() {
         return Collections.unmodifiableList(elements.getItems());
     }

@@ -55,7 +55,17 @@ import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 
+/**
+ * Controller for the BASS2000 submission wizard.
+ * Guides users through the process of preparing and submitting solar images to the BASS2000 database.
+ */
 public class Bass2000SubmissionController {
+
+    /**
+     * Creates a new instance. Required by FXML.
+     */
+    public Bass2000SubmissionController() {
+    }
     private static final Logger LOGGER = LoggerFactory.getLogger(Bass2000SubmissionController.class);
 
     static final SpectralRay BASS2000_HA = SpectralRay.H_ALPHA.withWavelength(Wavelen.ofAngstroms(6562.762));
@@ -126,6 +136,12 @@ public class Bass2000SubmissionController {
 
     private Path outputDirectory;
 
+    /**
+     * Sets up the submission controller.
+     * @param stage the dialog stage
+     * @param mainController the main controller
+     * @param outputDirectory the output directory
+     */
     public void setup(Stage stage, JSolExInterface mainController, Path outputDirectory) {
         this.stage = stage;
         this.mainController = mainController;

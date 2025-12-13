@@ -21,10 +21,23 @@ package me.champeau.a4j.math;
  * @param y the y coordinate
  */
 public record Point2D(double x, double y) {
+    /**
+     * Computes the Euclidean distance to another point.
+     *
+     * @param other the other point
+     * @return the distance
+     */
     public double distanceTo(Point2D other) {
         return Math.sqrt(Math.pow(x-other.x, 2) + Math.pow(y - other.y, 2));
     }
 
+    /**
+     * Translates this point by the given offsets.
+     *
+     * @param dx the x offset
+     * @param dy the y offset
+     * @return the translated point
+     */
     public Point2D translate(double dx, double dy) {
         return new Point2D(x + dx, y + dy);
     }

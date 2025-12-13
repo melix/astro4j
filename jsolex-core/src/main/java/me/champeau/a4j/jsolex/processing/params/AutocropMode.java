@@ -15,11 +15,37 @@
  */
 package me.champeau.a4j.jsolex.processing.params;
 
+/**
+ * Modes for automatic cropping of processed images.
+ */
 public enum AutocropMode {
+    /**
+     * No automatic cropping.
+     */
     OFF,
+
+    /**
+     * Crop to the source image width.
+     */
     SOURCE_WIDTH,
+
+    /**
+     * Crop to 1:1 radius ratio.
+     */
     RADIUS_1_1,
+
+    /**
+     * Crop to 1:2 radius ratio.
+     */
     RADIUS_1_2,
+
+    /**
+     * Crop to 1:5 radius ratio.
+     */
     RADIUS_1_5,
+
+    /**
+     * Crop to a fixed width.
+     */
     FIXED_WIDTH
 }

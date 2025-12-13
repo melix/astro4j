@@ -15,6 +15,12 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
+/**
+ * User rotation settings.
+ * @param rotation the rotation angle in degrees
+ * @param correctAngleP whether to correct angle P
+ * @param verticalFlip whether to apply vertical flip
+ */
 public record ApplyUserRotation(
     int rotation,
     boolean correctAngleP,

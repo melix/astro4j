@@ -24,11 +24,26 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Provides artificial flat field correction for images.
+ */
 public class ArtifificialFlatCorrector extends AbstractFunctionImpl {
+    /**
+     * Creates a new artificial flat corrector function.
+     *
+     * @param context the evaluation context
+     * @param broadcaster the broadcaster for progress events
+     */
     public ArtifificialFlatCorrector(Map<Class<?>, Object> context, Broadcaster broadcaster) {
         super(context, broadcaster);
     }
 
+    /**
+     * Performs flat field correction on an image or list of images.
+     *
+     * @param arguments the function arguments
+     * @return the corrected image or list of images
+     */
     public Object performFlatCorrection(Map<String ,Object> arguments) {
         BuiltinFunction.FLAT_CORRECTION.validateArgs(arguments);
         if (arguments.isEmpty() || arguments.size() > 4) {

@@ -17,11 +17,21 @@ package me.champeau.a4j.math.image.analysis;
 
 import me.champeau.a4j.math.image.Kernel;
 
+/**
+ * Utility class for Gaussian function operations and kernel generation.
+ */
 public class GaussianSupport {
     private GaussianSupport() {
 
     }
 
+    /**
+     * Generates a square Gaussian matrix.
+     *
+     * @param n the size of the square matrix
+     * @param sigma the standard deviation of the Gaussian
+     * @return a square matrix containing Gaussian values
+     */
     public static double[][] gaussianSquare(int n, float sigma) {
         var gaussian = new double[n][n];
         for (int x = 0; x < n; x++) {
@@ -32,6 +42,13 @@ public class GaussianSupport {
         return gaussian;
     }
 
+    /**
+     * Generates a square Gaussian matrix as float values.
+     *
+     * @param n the size of the square matrix
+     * @param sigma the standard deviation of the Gaussian
+     * @return a square matrix containing Gaussian values as floats
+     */
     public static float[][] gaussianSquareAsFloat(int n, float sigma) {
         var gaussian = new float[n][n];
         for (int x = 0; x < n; x++) {
@@ -42,6 +59,13 @@ public class GaussianSupport {
         return gaussian;
     }
 
+    /**
+     * Creates a Gaussian blur kernel.
+     *
+     * @param n the size of the kernel
+     * @param sigma the standard deviation of the Gaussian
+     * @return a Gaussian kernel
+     */
     public static Kernel gaussianKernel(int n, float sigma) {
         var kernel = gaussianSquareAsFloat(n, sigma);
         return new Kernel() {
@@ -67,6 +91,14 @@ public class GaussianSupport {
         };
     }
 
+    /**
+     * Computes the 2D Gaussian function value at the given coordinates.
+     *
+     * @param x the x coordinate
+     * @param y the y coordinate
+     * @param sigma the standard deviation of the Gaussian
+     * @return the Gaussian value at (x, y)
+     */
     public static double gaussian(double x, double y, double sigma) {
         return (1.0f / (2.0f * Math.PI * sigma * sigma)) * Math.exp(-(x * x + y * y) / (2.0f * sigma * sigma));
     }

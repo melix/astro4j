@@ -41,7 +41,16 @@ import java.util.function.Consumer;
 
 import static me.champeau.a4j.jsolex.app.Configuration.DirectoryKind.FLAT_FILE;
 
+/**
+ * Controller for the flat selection dialog.
+ */
 public class FlatSelectionController {
+
+    /**
+     * Creates a new instance. Required by FXML.
+     */
+    public FlatSelectionController() {
+    }
     private static final FileChooser.ExtensionFilter FLAT_EXTENSIONS = new FileChooser.ExtensionFilter("Flats", "*.fits", "*.ser");
 
     @FXML
@@ -60,6 +69,15 @@ public class FlatSelectionController {
     private ProcessParams params;
     private Consumer<? super Optional<Path>> onClose;
 
+    /**
+     * Opens the flat selection dialog.
+     * @param stage the parent stage
+     * @param broadcaster the event broadcaster
+     * @param operation the progress operation
+     * @param configuration the application configuration
+     * @param params the process parameters
+     * @param onClose callback invoked when dialog closes with selected path
+     */
     public static void open(Stage stage,
                             Broadcaster broadcaster,
                             ProgressOperation operation,
@@ -94,6 +112,9 @@ public class FlatSelectionController {
         this.onClose = onClose;
     }
 
+    /**
+     * Shows file chooser to select a flat frame.
+     */
     @FXML
     public void selectFlat() {
         var fileChooser = new FileChooser();
@@ -113,6 +134,9 @@ public class FlatSelectionController {
         });
     }
 
+    /**
+     * Cancels flat selection and closes the dialog.
+     */
     @FXML
     public void cancel() {
         stage.close();

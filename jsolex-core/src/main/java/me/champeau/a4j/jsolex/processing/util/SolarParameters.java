@@ -19,6 +19,11 @@ import static java.lang.Math.toDegrees;
 
 /**
  * The Carrington rotation, B0, L0 and P angles.
+ * @param carringtonRotation the Carrington rotation number
+ * @param b0 the B0 angle in radians
+ * @param l0 the L0 angle in radians
+ * @param p the P angle in radians
+ * @param apparentSize the apparent solar size
  */
 public record SolarParameters(
         int carringtonRotation,

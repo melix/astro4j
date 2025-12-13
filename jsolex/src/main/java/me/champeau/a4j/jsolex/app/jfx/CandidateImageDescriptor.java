@@ -22,10 +22,10 @@ import java.nio.file.Path;
 /**
  * Describes an image that has been generated as a candidate for the final image,
  * before manual validation.
- * @param kind
- * @param title
- * @param path
- * @param pixelShift
+ * @param kind the type of image that was generated
+ * @param title the display title for the image
+ * @param path the file path where the image is stored
+ * @param pixelShift the pixel shift used to generate this image
  */
 public record CandidateImageDescriptor(
     GeneratedImageKind kind,

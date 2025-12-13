@@ -42,12 +42,22 @@ public class ShaderProgram {
     private int fragmentShaderId;
     private final Map<String, Integer> uniformLocations = new HashMap<>();
 
+    /**
+     * Creates a new shader program instance.
+     */
     public ShaderProgram() {
         this.programId = 0;
         this.vertexShaderId = 0;
         this.fragmentShaderId = 0;
     }
 
+    /**
+     * Compiles and links vertex and fragment shaders into a program.
+     *
+     * @param vertexSource the vertex shader source code
+     * @param fragmentSource the fragment shader source code
+     * @throws ShaderCompilationException if shader compilation or linking fails
+     */
     public void compile(String vertexSource, String fragmentSource) throws ShaderCompilationException {
         vertexShaderId = compileShader(GL_VERTEX_SHADER, vertexSource);
         fragmentShaderId = compileShader(GL_FRAGMENT_SHADER, fragmentSource);
@@ -95,6 +105,13 @@ public class ShaderProgram {
         return shaderId;
     }
 
+    /**
+     * Loads shader source code from a resource file.
+     *
+     * @param resourcePath the path to the shader resource
+     * @return the shader source code as a string
+     * @throws IOException if the resource cannot be read
+     */
     public static String loadShaderSource(String resourcePath) throws IOException {
         try (InputStream is = ShaderProgram.class.getResourceAsStream(resourcePath)) {
             if (is == null) {
@@ -106,14 +123,26 @@ public class ShaderProgram {
         }
     }
 
+    /**
+     * Activates this shader program for use in rendering.
+     */
     public void use() {
         glUseProgram(programId);
     }
 
+    /**
+     * Deactivates the current shader program.
+     */
     public void unbind() {
         glUseProgram(0);
     }
 
+    /**
+     * Retrieves the location of a uniform variable in the shader program.
+     *
+     * @param name the name of the uniform variable
+     * @return the location of the uniform, or -1 if not found
+     */
     public int getUniformLocation(String name) {
         return uniformLocations.computeIfAbsent(name, n -> {
             int loc = glGetUniformLocation(programId, n);
@@ -124,38 +153,94 @@ public class ShaderProgram {
         });
     }
 
+    /**
+     * Sets an integer uniform variable.
+     *
+     * @param name the name of the uniform variable
+     * @param value the integer value to set
+     */
     public void setUniform(String name, int value) {
         glUniform1i(getUniformLocation(name), value);
     }
 
+    /**
+     * Sets a float uniform variable.
+     *
+     * @param name the name of the uniform variable
+     * @param value the float value to set
+     */
     public void setUniform(String name, float value) {
         glUniform1f(getUniformLocation(name), value);
     }
 
+    /**
+     * Sets a 2D vector uniform variable.
+     *
+     * @param name the name of the uniform variable
+     * @param x the x component
+     * @param y the y component
+     */
     public void setUniform(String name, float x, float y) {
         glUniform2f(getUniformLocation(name), x, y);
     }
 
+    /**
+     * Sets a 3D vector uniform variable.
+     *
+     * @param name the name of the uniform variable
+     * @param x the x component
+     * @param y the y component
+     * @param z the z component
+     */
     public void setUniform(String name, float x, float y, float z) {
         glUniform3f(getUniformLocation(name), x, y, z);
     }
 
+    /**
+     * Sets a 4D vector uniform variable.
+     *
+     * @param name the name of the uniform variable
+     * @param x the x component
+     * @param y the y component
+     * @param z the z component
+     * @param w the w component
+     */
     public void setUniform(String name, float x, float y, float z, float w) {
         glUniform4f(getUniformLocation(name), x, y, z, w);
     }
 
+    /**
+     * Sets a 3x3 matrix uniform variable.
+     *
+     * @param name the name of the uniform variable
+     * @param matrix the matrix values in column-major order
+     */
     public void setUniformMatrix3(String name, float[] matrix) {
         glUniformMatrix3fv(getUniformLocation(name), false, matrix);
     }
 
+    /**
+     * Sets a 4x4 matrix uniform variable.
+     *
+     * @param name the name of the uniform variable
+     * @param matrix the matrix values in column-major order
+     */
     public void setUniformMatrix4(String name, float[] matrix) {
         glUniformMatrix4fv(getUniformLocation(name), false, matrix);
     }
 
+    /**
+     * Returns the OpenGL program ID.
+     *
+     * @return the program ID
+     */
     public int getProgramId() {
         return programId;
     }
 
+    /**
+     * Cleans up and releases OpenGL resources used by this shader program.
+     */
     public void dispose() {
         unbind();
         if (programId != 0) {
@@ -175,7 +260,15 @@ public class ShaderProgram {
         fragmentShaderId = 0;
     }
 
+    /**
+     * Exception thrown when shader compilation or linking fails.
+     */
     public static class ShaderCompilationException extends Exception {
+        /**
+         * Creates a new shader compilation exception.
+         *
+         * @param message the error message
+         */
         public ShaderCompilationException(String message) {
             super(message);
         }

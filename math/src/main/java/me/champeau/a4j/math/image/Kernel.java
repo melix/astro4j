@@ -15,9 +15,26 @@
  */
 package me.champeau.a4j.math.image;
 
+/** Interface for convolution kernels. */
 public interface Kernel {
+    /**
+     * Returns the number of rows in the kernel.
+     * @return the number of rows in the kernel
+     */
     int rows();
+    /**
+     * Returns the number of columns in the kernel.
+     * @return the number of columns in the kernel
+     */
     int cols();
+    /**
+     * Returns the kernel coefficients.
+     * @return the kernel coefficients
+     */
     float[][] kernel();
+    /**
+     * Returns the normalization factor.
+     * @return the normalization factor
+     */
     float factor();
 }

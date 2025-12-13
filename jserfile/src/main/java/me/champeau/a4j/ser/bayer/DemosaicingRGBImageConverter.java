@@ -20,15 +20,18 @@ import me.champeau.a4j.ser.ImageGeometry;
 
 import java.nio.ByteBuffer;
 
-/**
- * An RGB image converter which adds demosaicing of the resulting
- * image.
- */
+/** An RGB image converter which adds demosaicing of the resulting image. */
 public class DemosaicingRGBImageConverter implements ImageConverter<short[]> {
     private final DemosaicingStrategy strategy;
     private final RGBImageConverter delegate;
     private final ColorMode forcedMode;
 
+    /**
+     * Constructs a demosaicing RGB image converter.
+     *
+     * @param strategy the demosaicing strategy
+     * @param forcedMode the forced color mode, or null to use the geometry's color mode
+     */
     public DemosaicingRGBImageConverter(DemosaicingStrategy strategy, ColorMode forcedMode) {
         this.strategy = strategy;
         this.delegate = new RGBImageConverter();

@@ -17,6 +17,11 @@ package me.champeau.a4j.math.tuples;
 
 /**
  * A quintuplet of doubles.
+ * @param a the first component
+ * @param b the second component
+ * @param c the third component
+ * @param e the fourth component
+ * @param d the fifth component
  */
 public record DoubleQuintuplet(
         double a,

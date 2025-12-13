@@ -94,6 +94,15 @@ public class OpenGLImageView extends ImageView {
 
     private Thread renderThread;
 
+    /**
+     * Creates a new OpenGL ImageView with the specified dimensions and callbacks.
+     *
+     * @param width the initial width of the render target
+     * @param height the initial height of the render target
+     * @param initCallback callback invoked once on the render thread after OpenGL initialization
+     * @param renderCallback callback invoked on the render thread for each frame
+     * @param cleanupCallback callback invoked on the render thread when disposing
+     */
     public OpenGLImageView(int width, int height, Runnable initCallback, Consumer<OpenGLImageView> renderCallback, Runnable cleanupCallback) {
         this.width = width;
         this.height = height;
@@ -396,6 +405,9 @@ public class OpenGLImageView extends ImageView {
 
     /**
      * Request a resize of the render target.
+     *
+     * @param newWidth the new width
+     * @param newHeight the new height
      */
     public void requestResize(int newWidth, int newHeight) {
         if (newWidth > 0 && newHeight > 0) {
@@ -408,6 +420,8 @@ public class OpenGLImageView extends ImageView {
 
     /**
      * Sets a callback to be invoked on the JavaFX thread when an initialization error occurs.
+     *
+     * @param callback the error callback
      */
     public void setOnError(Consumer<Throwable> callback) {
         this.errorCallback = callback;
@@ -420,6 +434,8 @@ public class OpenGLImageView extends ImageView {
 
     /**
      * Get the render width.
+     *
+     * @return the current render width in pixels
      */
     public int getRenderWidth() {
         return width;
@@ -427,6 +443,8 @@ public class OpenGLImageView extends ImageView {
 
     /**
      * Get the render height.
+     *
+     * @return the current render height in pixels
      */
     public int getRenderHeight() {
         return height;
@@ -435,6 +453,8 @@ public class OpenGLImageView extends ImageView {
     /**
      * Returns whether shaders are supported on this system.
      * Must be called after initialization is complete.
+     *
+     * @return true if shaders are supported, false otherwise
      */
     public boolean areShadersSupported() {
         return shadersSupported.get();
@@ -457,6 +477,8 @@ public class OpenGLImageView extends ImageView {
     /**
      * Renders a frame synchronously and returns the pixels as a BufferedImage.
      * This method blocks until the render is complete.
+     *
+     * @return the rendered image, or null if rendering failed or timed out
      */
     public BufferedImage renderAndCapture() {
         // Wait for initialization if not yet done
@@ -512,6 +534,10 @@ public class OpenGLImageView extends ImageView {
      * Switches to a new renderer by providing new callbacks.
      * The old cleanup callback will be called, then the new init callback will be called.
      * This method is non-blocking - the switch happens asynchronously on the render thread.
+     *
+     * @param newInitCallback the initialization callback for the new renderer
+     * @param newRenderCallback the render callback for the new renderer
+     * @param newCleanupCallback the cleanup callback for the new renderer
      */
     public void switchRenderer(Runnable newInitCallback, Consumer<OpenGLImageView> newRenderCallback, Runnable newCleanupCallback) {
         if (!initialized.get() || disposed) {

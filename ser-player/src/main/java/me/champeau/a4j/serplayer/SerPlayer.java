@@ -49,7 +49,14 @@ import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.time.Duration;
 
+/**
+ * JavaFX application for playing SER video files.
+ * Uses the default constructor as required by JavaFX Application.
+ */
 public class SerPlayer extends Application implements BayerMatrixSupport, PlayerController {
+    /** Creates a new instance. Required by JavaFX. */
+    public SerPlayer() {
+    }
 
     private static final int INITIAL_WIDTH = 800;
     private static final int INITIAL_HEIGHT = 600;
@@ -223,6 +230,7 @@ public class SerPlayer extends Application implements BayerMatrixSupport, Player
     }
 
 
+    /** Toggles play/pause state of the video player. */
     @Override
     public void play() {
         if (videoAnimationTimer != null) {
@@ -230,6 +238,7 @@ public class SerPlayer extends Application implements BayerMatrixSupport, Player
         }
     }
 
+    /** Advances to the next frame. */
     @Override
     public void forward() {
         if (videoAnimationTimer != null) {
@@ -237,6 +246,7 @@ public class SerPlayer extends Application implements BayerMatrixSupport, Player
         }
     }
 
+    /** Goes back to the previous frame. */
     @Override
     public void rewind() {
         if (videoAnimationTimer != null) {
@@ -244,6 +254,10 @@ public class SerPlayer extends Application implements BayerMatrixSupport, Player
         }
     }
 
+    /**
+     * Main entry point for the SER Player application.
+     * @param args command line arguments
+     */
     public static void main(String[] args) {
         launch();
     }

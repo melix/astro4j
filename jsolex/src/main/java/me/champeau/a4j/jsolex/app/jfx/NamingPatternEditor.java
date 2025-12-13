@@ -47,7 +47,13 @@ import java.util.function.Consumer;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.newScene;
 
+/**
+ * Editor for file naming patterns.
+ */
 public class NamingPatternEditor {
+    /**
+     * The list of naming patterns.
+     */
     @FXML
     public ListView<NamedPattern> elements;
     @FXML
@@ -67,6 +73,18 @@ public class NamingPatternEditor {
     private Stage stage;
     private NamedPattern selectedPattern;
 
+    /**
+     * Creates a new instance.
+     */
+    public NamingPatternEditor() {
+    }
+
+    /**
+     * Opens the naming pattern editor in the given stage.
+     * @param stage the stage to display the editor in
+     * @param header the SER file header
+     * @param onCloseRequest callback when the editor is closed
+     */
     public static void openEditor(Stage stage, Header header, Consumer<? super NamingPatternEditor> onCloseRequest) {
         var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "naming-patterns");
         try {
@@ -90,6 +108,11 @@ public class NamingPatternEditor {
         }
     }
 
+    /**
+     * Sets up the editor with the given stage and header.
+     * @param stage the stage to use
+     * @param header the SER file header
+     */
     public void setup(Stage stage, Header header) {
         var patterns = FileNamingPatternsIO.loadDefaults();
         this.stage = stage;
@@ -156,6 +179,9 @@ public class NamingPatternEditor {
         }
     }
 
+    /**
+     * Closes the editor and saves the patterns.
+     */
     @FXML
     public void close() {
         FileNamingPatternsIO.saveDefaults(elements.getItems());
@@ -167,12 +193,18 @@ public class NamingPatternEditor {
         stage.fireEvent(new WindowEvent(stage, WindowEvent.WINDOW_CLOSE_REQUEST));
     }
 
+    /**
+     * Cancels the editor without saving.
+     */
     @FXML
     public void cancel() {
         this.selectedPattern = null;
         requestClose();
     }
 
+    /**
+     * Resets the patterns to their default values.
+     */
     @FXML
     public void reset() {
         elements.getItems().clear();
@@ -180,16 +212,26 @@ public class NamingPatternEditor {
         elements.getSelectionModel().select(0);
     }
 
+    /**
+     * Returns the selected pattern.
+     * @return the selected pattern, or empty if none is selected
+     */
     public Optional<NamedPattern> getSelectedPattern() {
         return Optional.ofNullable(selectedPattern);
     }
 
+    /**
+     * Removes the selected pattern from the list.
+     */
     @FXML
     public void removeSelectedItem() {
         var idx = elements.getSelectionModel().getSelectedIndex();
         elements.getItems().remove(idx);
     }
 
+    /**
+     * Adds a new custom pattern to the list.
+     */
     @FXML
     public void addNewItem() {
         var newElement = new NamedPattern("Custom " + elements.getItems().size(), FileNamingStrategy.DEFAULT_TEMPLATE, FileNamingStrategy.DEFAULT_DATETIME_FORMAT, FileNamingStrategy.DEFAULT_DATE_FORMAT);

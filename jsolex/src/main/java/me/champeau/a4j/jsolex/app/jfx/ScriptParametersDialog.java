@@ -34,6 +34,11 @@ import java.util.concurrent.CompletableFuture;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.newScene;
 
+/**
+ * A modal dialog for collecting script parameter values from the user.
+ * The dialog presents a form with controls for each parameter type (choice, number, string)
+ * and validates user input before allowing submission.
+ */
 public class ScriptParametersDialog {
     private final List<ScriptParameter> parameters;
     private final Map<String, Object> initialValues;
@@ -42,12 +47,24 @@ public class ScriptParametersDialog {
     private final CompletableFuture<Map<String, Object>> resultFuture = new CompletableFuture<>();
     private Button okButton;
 
+    /**
+     * Creates a new script parameters dialog.
+     *
+     * @param parameters the list of script parameters to collect values for
+     * @param initialValues the initial values for the parameters, may be null
+     */
     public ScriptParametersDialog(List<ScriptParameter> parameters, Map<String, Object> initialValues) {
         this.parameters = parameters;
         this.initialValues = initialValues != null ? initialValues : Map.of();
         this.resultValues = new HashMap<>(this.initialValues);
     }
 
+    /**
+     * Displays the dialog and waits for user input.
+     *
+     * @param owner the owner stage for this dialog
+     * @return a map of parameter names to their values, or null if the dialog was cancelled
+     */
     public Map<String, Object> showAndWait(Stage owner) {
         var stage = new Stage();
         stage.initOwner(owner);

@@ -15,14 +15,32 @@
  */
 package me.champeau.a4j.jsolex.processing.params;
 
+/**
+ * Parameters for banding correction processing.
+ *
+ * @param width the band width in pixels
+ * @param passes the number of correction passes to apply
+ */
 public record BandingCorrectionParams(
         int width,
         int passes
 ) {
+    /**
+     * Returns a copy of this instance with the specified band width.
+     *
+     * @param width the new band width in pixels
+     * @return a new BandingCorrectionParams with the updated width
+     */
     public BandingCorrectionParams withWidth(int width) {
         return new BandingCorrectionParams(width, passes);
     }
 
+    /**
+     * Returns a copy of this instance with the specified number of passes.
+     *
+     * @param passes the new number of correction passes
+     * @return a new BandingCorrectionParams with the updated passes
+     */
     public BandingCorrectionParams withPasses(int passes) {
         return new BandingCorrectionParams(width, passes);
     }

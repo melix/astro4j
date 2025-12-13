@@ -53,6 +53,9 @@ import java.util.stream.Collectors;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
 
+/**
+ * Controller for the image selection dialog.
+ */
 public class ImageSelector {
     private static final Logger LOGGER = LoggerFactory.getLogger(ImageSelector.class);
 
@@ -111,6 +114,25 @@ public class ImageSelector {
     private ImageMathParams cachedImageMathParams;
     private List<Double> cachedShifts;
 
+    /**
+     * Creates a new instance. Required by FXML.
+     */
+    public ImageSelector() {
+    }
+
+    /**
+     * Configures the image selector dialog.
+     *
+     * @param stage the stage
+     * @param images the requested images
+     * @param debug whether debug mode is enabled
+     * @param selectedPixelShifts the selected pixel shifts
+     * @param dopplerShift the doppler shift
+     * @param continuumShift the continuum shift
+     * @param imageMathParams the image math parameters
+     * @param hostServices the host services
+     * @param batchMode whether batch mode is enabled
+     */
     public void setup(Stage stage,
                       Set<GeneratedImageKind> images,
                       boolean debug,
@@ -227,10 +249,20 @@ public class ImageSelector {
         stage.fireEvent(new WindowEvent(stage, WindowEvent.WINDOW_CLOSE_REQUEST));
     }
 
+    /**
+     * Returns whether debug mode is selected.
+     *
+     * @return whether debug mode is selected
+     */
     public boolean hasDebug() {
         return debug.isSelected();
     }
 
+    /**
+     * Returns the requested images configuration.
+     *
+     * @return the requested images configuration
+     */
     public Optional<RequestedImages> getRequestedImages() {
         return Optional.ofNullable(requestedImages);
     }
@@ -370,6 +402,9 @@ public class ImageSelector {
         ellermanBombs.setSelected(selected);
     }
 
+    /**
+     * Opens the ImageMath editor dialog.
+     */
     @FXML
     public void openImageMath() {
         ImageMathEditor.create(stage,

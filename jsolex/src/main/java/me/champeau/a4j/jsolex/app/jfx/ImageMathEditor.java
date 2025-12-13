@@ -47,14 +47,24 @@ import java.util.function.Consumer;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.newScene;
 
+/**
+ * FXML controller for the ImageMath script editor window.
+ */
 public class ImageMathEditor {
+    /** Creates a new instance. Required by FXML. */
+    public ImageMathEditor() {
+    }
+
     private static final ButtonType PROCEED = new ButtonType(I18N.string(JSolEx.class, "imagemath-editor", "proceed.anyway"));
     private static final ButtonType BACK = new ButtonType(I18N.string(JSolEx.class, "imagemath-editor", "back"));
+    /** File extension for ImageMath scripts. */
     public static final String MATH_EXTENSION = ".math";
+    /** File chooser filter for ImageMath script files. */
     public static final FileChooser.ExtensionFilter MATH_SCRIPT_EXTENSION_FILTER = new FileChooser.ExtensionFilter("ImageMath Script (*.math)", "*" + MATH_EXTENSION);
 
     private final Configuration configuration = Configuration.getInstance();
 
+    /** Container for the file list panel. */
     @FXML
     public VBox fileList;
 
@@ -77,6 +87,16 @@ public class ImageMathEditor {
     private HostServices hostServices;
     private boolean batchMode;
 
+    /**
+     * Creates and displays an ImageMath editor window.
+     * @param stage the parent stage
+     * @param imageMathParams the initial parameters
+     * @param hostServices the host services for opening URLs
+     * @param batchMode whether the editor is in batch mode
+     * @param multiFile whether multiple files are supported
+     * @param onCreate callback when the editor is created
+     * @param onClose callback when the editor is closed
+     */
     public static void create(Stage stage,
                               ImageMathParams imageMathParams,
                               HostServices hostServices,
@@ -116,10 +136,21 @@ public class ImageMathEditor {
         }
     }
 
+    /**
+     * Adds a known variable to the script editor for autocompletion.
+     * @param variable the variable name
+     */
     public void addKnownVariable(String variable) {
         scriptTextArea.addKnownVariable(variable);
     }
 
+    /**
+     * Sets up the editor with the given parameters.
+     * @param stage the parent stage
+     * @param imageMathParams the initial parameters
+     * @param hostServices the host services for opening URLs
+     * @param batchMode whether the editor is in batch mode
+     */
     public void setup(Stage stage, ImageMathParams imageMathParams, HostServices hostServices, boolean batchMode) {
         this.stage = stage;
         this.hostServices = hostServices;
@@ -264,6 +295,7 @@ public class ImageMathEditor {
     }
 
 
+    /** Removes the currently selected script from the list. */
     @FXML
     public void removeSelectedItem() {
         if (doesNotHaveStaleChanges()) {
@@ -289,6 +321,7 @@ public class ImageMathEditor {
         updatingText.set(true);
     }
 
+    /** Opens a file chooser to load a script file. */
     @FXML
     public void loadScript() {
         if (doesNotHaveStaleChanges()) {
@@ -314,6 +347,10 @@ public class ImageMathEditor {
         }
     }
 
+    /**
+     * Returns the current configuration if the user confirmed the dialog.
+     * @return the configuration, or empty if cancelled
+     */
     public Optional<ImageMathParams> getConfiguration() {
         return Optional.ofNullable(params);
     }
@@ -326,6 +363,10 @@ public class ImageMathEditor {
         }
     }
 
+    /**
+     * Checks if there are unsaved changes and prompts the user if so.
+     * @return true if there are no stale changes or user chose to proceed
+     */
     public boolean doesNotHaveStaleChanges() {
         if (hasPendingUpdates.get()) {
             var alert = AlertFactory.confirmation(I18N.string(JSolEx.class, "imagemath-editor", "unsaved.changes.description"));
@@ -375,6 +416,7 @@ public class ImageMathEditor {
         scriptsToApply.getSelectionModel().select(targetEntry);
     }
 
+    /** Opens the ImageMath documentation in the default browser. */
     @FXML
     public void openDocs() {
         DocsHelper.openHelp(hostServices, "imagemath");
@@ -387,6 +429,10 @@ public class ImageMathEditor {
         }
     }
 
+    /**
+     * Configuration for ImageMath scripts.
+     * @param scriptFiles the list of script files
+     */
     public record ImageMathConfiguration(
             List<File> scriptFiles
     ) {

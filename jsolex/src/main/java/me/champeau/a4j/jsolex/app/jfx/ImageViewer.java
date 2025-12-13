@@ -93,6 +93,9 @@ import static me.champeau.a4j.jsolex.app.JSolEx.message;
 import static me.champeau.a4j.jsolex.app.JSolEx.newScene;
 import static me.champeau.a4j.jsolex.app.jfx.FXUtils.newStage;
 
+/**
+ * Controller for the image viewer.
+ */
 public class ImageViewer implements WithRootNode {
     private final Lock displayLock = new ReentrantLock();
     private Node root;
@@ -133,6 +136,17 @@ public class ImageViewer implements WithRootNode {
     private Set<ImageViewer> siblings;
     private PauseTransition stretchedImageDebounce;
 
+    /**
+     * Creates a new instance. Required by FXML.
+     */
+    public ImageViewer() {
+    }
+
+    /**
+     * Initializes the image viewer with its root node.
+     *
+     * @param root the root node
+     */
     public void init(Node root) {
         this.root = root;
         this.stretchedImageDebounce = new PauseTransition(Duration.seconds(10));
@@ -143,10 +157,30 @@ public class ImageViewer implements WithRootNode {
         });
     }
 
+    /**
+     * Returns the fit width property.
+     *
+     * @return the fit width property
+     */
     public DoubleProperty fitWidthProperty() {
         return imageView.prefWidthProperty();
     }
 
+    /**
+     * Configures the image viewer.
+     *
+     * @param broadcaster the event broadcaster
+     * @param operation the progress operation
+     * @param title the title
+     * @param baseName the base name
+     * @param kind the generated image kind
+     * @param description the description
+     * @param image the image
+     * @param imageName the image file name
+     * @param params the process parameters
+     * @param popupViews the popup views
+     * @param siblings the sibling viewers
+     */
     public void setup(ProcessingEventListener broadcaster,
                       ProgressOperation operation,
                       String title,
@@ -272,10 +306,18 @@ public class ImageViewer implements WithRootNode {
         });
     }
 
+    /**
+     * Returns the zoomable image view.
+     *
+     * @return the zoomable image view
+     */
     public ZoomableImageView getImageView() {
         return imageView;
     }
 
+    /**
+     * Resets the zoom if it is set to zero.
+     */
     public void maybeResetZoom() {
         if (imageView.getZoom() == 0) {
             imageView.resetZoom();
@@ -669,11 +711,21 @@ public class ImageViewer implements WithRootNode {
         return image;
     }
 
+    /**
+     * Returns the stretched image.
+     *
+     * @return the stretched image
+     */
     public ImageWrapper getStretchedImage() {
         var result = stretchedImage == null ? image : stretchedImage;
         return result == null ? null : result.unwrapToMemory();
     }
 
+    /**
+     * Sets the callback to invoke when the stretched image is updated.
+     *
+     * @param onStretchedImageUpdate the callback
+     */
     public void setOnStretchedImageUpdate(Consumer<ImageWrapper> onStretchedImageUpdate) {
         this.onStretchedImageUpdate = onStretchedImageUpdate;
     }
@@ -683,6 +735,14 @@ public class ImageViewer implements WithRootNode {
         return root;
     }
 
+    /**
+     * Updates the displayed image.
+     *
+     * @param baseName the base name
+     * @param params the process parameters
+     * @param image the image
+     * @param path the image path
+     */
     public synchronized void setImage(String baseName, ProcessParams params, ImageWrapper image, Path path) {
         this.processParams = params;
         this.image = FileBackedImage.wrap(image);
@@ -693,6 +753,9 @@ public class ImageViewer implements WithRootNode {
         showImage();
     }
 
+    /**
+     * Displays the current image from the history.
+     */
     public void showImage() {
         var currentState = imageHistory.get(currentImage.get());
         this.processParams = currentState.processParams;

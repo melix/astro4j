@@ -13,6 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/**
+ * Mathematical utilities for astronomy image processing including linear algebra,
+ * FFT operations, image processing, and hardware acceleration via Vector API and OpenCL.
+ */
 module me.champeau.a4j.math {
     exports me.champeau.a4j.math;
     exports me.champeau.a4j.math.correlation;

@@ -24,6 +24,9 @@ import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Internationalization utility for loading FXML and resource bundles.
+ */
 public class I18N {
     private static final Map<String, ResourceBundle> CACHED_BUNDLES = new ConcurrentHashMap<>();
 
@@ -31,6 +34,12 @@ public class I18N {
 
     }
 
+    /**
+     * Creates an FXML loader with the appropriate resource bundle.
+     * @param clazz the class used to locate the FXML resource
+     * @param resourceName the resource name without extension
+     * @return an FXML loader configured with the resource bundle
+     */
     public static FXMLLoader fxmlLoader(Class<?> clazz, String resourceName) {
         try {
             var bundle = fetchBundle(clazz.getPackageName() + "." + resourceName);
@@ -40,6 +49,13 @@ public class I18N {
         }
     }
 
+    /**
+     * Gets a localized string from a resource bundle.
+     * @param clazz the class used to locate the resource bundle
+     * @param resourceName the resource bundle name
+     * @param label the string key
+     * @return the localized string, or empty string if not found
+     */
     public static String string(Class<?> clazz, String resourceName, String label) {
         try {
             var baseName = clazz.getPackageName() + "." + resourceName;

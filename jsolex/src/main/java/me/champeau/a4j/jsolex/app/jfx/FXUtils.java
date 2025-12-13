@@ -19,6 +19,9 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.stage.Stage;
 
+/**
+ * JavaFX utility methods.
+ */
 public class FXUtils {
     private FXUtils() {
 

@@ -30,8 +30,11 @@ import me.champeau.a4j.ser.ColorMode;
 
 import java.util.Locale;
 
+/**
+ * Panel for advanced processing parameters like tilt, XY ratio, and polynomial settings.
+ */
 public class AdvancedParametersPanel extends BaseParameterPanel {
-    
+
     private ProcessParamsController controller;
     
     private CheckBox forceTilt;
@@ -49,8 +52,8 @@ public class AdvancedParametersPanel extends BaseParameterPanel {
     private CheckBox disallowDownsampling;
     private CheckBox spectrumVFlip;
     private CheckBox assumeMonoVideo;
-    
-    
+
+    /** Creates a new advanced parameters panel. */
     public AdvancedParametersPanel() {
         getStyleClass().add("parameter-panel");
         initializeComponents();
@@ -147,7 +150,11 @@ public class AdvancedParametersPanel extends BaseParameterPanel {
         disallowDownsampling.setSelected(false);
         spectrumVFlip.setSelected(false);
     }
-    
+
+    /**
+     * Loads data from the given process parameters.
+     * @param params the parameters to load from
+     */
     public void loadData(ProcessParams params) {
         var geometryParams = params.geometryParams();
         
@@ -184,49 +191,91 @@ public class AdvancedParametersPanel extends BaseParameterPanel {
         var videoParams = params.videoParams();
         assumeMonoVideo.setSelected(videoParams.colorMode() != null && videoParams.colorMode() == ColorMode.MONO);
     }
-    
-    
+
+    /**
+     * Returns whether the force tilt checkbox is selected.
+     * @return true if selected
+     */
     public boolean isForceTiltSelected() {
         return forceTilt.isSelected();
     }
-    
+
+    /**
+     * Returns the tilt value entered.
+     * @return the tilt value
+     */
     public double getTiltValue() {
         return parseDouble(tiltValue.getText(), 0.0);
     }
-    
+
+    /**
+     * Returns whether the force XY ratio checkbox is selected.
+     * @return true if selected
+     */
     public boolean isForceXYRatioSelected() {
         return forceXYRatio.isSelected();
     }
-    
+
+    /**
+     * Returns the XY ratio value entered.
+     * @return the XY ratio value
+     */
     public double getXYRatioValue() {
         return parseDouble(xyRatioValue.getText(), 1.0);
     }
-    
+
+    /**
+     * Returns the selected ellipse fitting mode.
+     * @return the ellipse fitting mode
+     */
     public EllipseFittingMode getEllipseFittingMode() {
         return ellipseFittingMode.getValue();
     }
-    
+
+    /**
+     * Returns whether the force polynomial checkbox is selected.
+     * @return true if selected
+     */
     public boolean isForcePolynomialSelected() {
         return forcePolynomial.isSelected();
     }
-    
+
+    /**
+     * Returns the forced polynomial expression.
+     * @return the polynomial expression
+     */
     public String getForcedPolynomial() {
         return forcedPolynomial.getText();
     }
-    
+
+    /**
+     * Returns whether downsampling is disallowed.
+     * @return true if downsampling is disallowed
+     */
     public boolean isDisallowDownsamplingSelected() {
         return disallowDownsampling.isSelected();
     }
-    
+
+    /**
+     * Returns whether spectrum vertical flip is enabled.
+     * @return true if enabled
+     */
     public boolean isSpectrumVFlipSelected() {
         return spectrumVFlip.isSelected();
     }
-    
+
+    /**
+     * Returns whether to assume mono video.
+     * @return true if mono video is assumed
+     */
     public boolean isAssumeMonoVideoSelected() {
         return assumeMonoVideo.isSelected();
     }
-    
-    
+
+    /**
+     * Sets the controller for this panel.
+     * @param controller the controller
+     */
     public void setController(ProcessParamsController controller) {
         this.controller = controller;
     }
@@ -234,14 +283,22 @@ public class AdvancedParametersPanel extends BaseParameterPanel {
     private void openPolynomialEditor() {
         controller.openVideoDebugger();
     }
-    
+
+    /**
+     * Updates the forced polynomial field.
+     * @param polynomial the polynomial expression
+     */
     public void updateForcedPolynomial(String polynomial) {
         if (polynomial != null && !polynomial.trim().isEmpty()) {
             forcedPolynomial.setText(polynomial);
             forcePolynomial.setSelected(true);
         }
     }
-    
+
+    /**
+     * Updates the spectrum vertical flip setting.
+     * @param spectrumVFlipEnabled whether vertical flip is enabled
+     */
     public void updateSpectrumVFlip(boolean spectrumVFlipEnabled) {
         spectrumVFlip.setSelected(spectrumVFlipEnabled);
     }

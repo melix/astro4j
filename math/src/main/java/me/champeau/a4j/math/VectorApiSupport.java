@@ -15,7 +15,13 @@
  */
 package me.champeau.a4j.math;
 
+/**
+ * Utility class for detecting and managing Vector API support.
+ */
 public class VectorApiSupport {
+    /**
+     * Environment variable name for controlling Vector API usage.
+     */
     public static final String VECTOR_API_ENV_VAR = "VECTOR_API";
     private static final boolean VECTOR_API_PRESENT;
 
@@ -29,6 +35,14 @@ public class VectorApiSupport {
         VECTOR_API_PRESENT = check;
     }
 
+    private VectorApiSupport() {
+    }
+
+    /**
+     * Checks if Vector API is enabled.
+     *
+     * @return true if Vector API is present and enabled
+     */
     public static boolean isEnabled() {
         var enabled = System.getenv(VECTOR_API_ENV_VAR);
         if (enabled == null) {
@@ -37,6 +51,11 @@ public class VectorApiSupport {
         return VECTOR_API_PRESENT && Boolean.parseBoolean(enabled);
     }
 
+    /**
+     * Checks if Vector API classes are available.
+     *
+     * @return true if Vector API is present
+     */
     public static boolean isPresent() {
         return VECTOR_API_PRESENT;
     }

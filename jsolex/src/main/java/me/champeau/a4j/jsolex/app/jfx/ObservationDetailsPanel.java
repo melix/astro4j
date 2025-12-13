@@ -39,6 +39,9 @@ import me.champeau.a4j.ser.Header;
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
 
+/**
+ * A panel for editing observation details including observer information, location, and equipment configuration.
+ */
 public class ObservationDetailsPanel extends BaseParameterPanel {
 
     private final Header serFileHeader;
@@ -59,7 +62,12 @@ public class ObservationDetailsPanel extends BaseParameterPanel {
     private TextField pixelSize;
     private CheckBox altAzMode;
     private ProcessParamsController controller;
-    
+
+    /**
+     * Creates a new observation details panel.
+     *
+     * @param serFileHeader the SER file header containing metadata
+     */
     public ObservationDetailsPanel(Header serFileHeader) {
         this.serFileHeader = serFileHeader;
         getStyleClass().add("parameter-panel");
@@ -224,8 +232,13 @@ public class ObservationDetailsPanel extends BaseParameterPanel {
         box.getChildren().addAll(telescope, selectButton);
         return box;
     }
-    
-    
+
+    /**
+     * Loads observation details data into the panel.
+     *
+     * @param params the process parameters containing observation details
+     * @param metadata the capture software metadata
+     */
     public void loadData(ProcessParams params, CaptureSoftwareMetadataHelper.CaptureMetadata metadata) {
         var obsDetails = params.observationDetails();
         
@@ -270,7 +283,12 @@ public class ObservationDetailsPanel extends BaseParameterPanel {
             binning.setValue(metadata.binning());
         }
     }
-    
+
+    /**
+     * Retrieves the observation details from the panel fields.
+     *
+     * @return the observation details
+     */
     public ObservationDetails getObservationDetails() {
         var defaults = ProcessParams.loadDefaults().observationDetails();
         
@@ -295,12 +313,21 @@ public class ObservationDetailsPanel extends BaseParameterPanel {
             .withPixelSize(parseDoubleOrNull(pixelSize.getText()))
             .withAltAzMode(altAzMode.isSelected());
     }
-    
-    
+
+    /**
+     * Checks if the panel contains valid data.
+     *
+     * @return true if the observer name is not empty
+     */
     public boolean isValid() {
         return observerName.getText() != null && !observerName.getText().trim().isEmpty();
     }
-    
+
+    /**
+     * Sets the controller for this panel.
+     *
+     * @param controller the process parameters controller
+     */
     public void setController(ProcessParamsController controller) {
         this.controller = controller;
     }
@@ -312,8 +339,12 @@ public class ObservationDetailsPanel extends BaseParameterPanel {
     private void openSetupEditor() {
         controller.openSetupEditor();
     }
-    
-    
+
+    /**
+     * Updates the panel fields from a setup configuration.
+     *
+     * @param setup the setup configuration
+     */
     public void updateFromSetup(Setup setup) {
         telescope.setText(setup.telescope() != null ? setup.telescope() : "");
         focalLength.setText(setup.focalLength() != null ? String.valueOf(setup.focalLength()) : "");
@@ -327,7 +358,12 @@ public class ObservationDetailsPanel extends BaseParameterPanel {
         mount.setText(setup.mount() != null ? setup.mount() : "");
         altAzMode.setSelected(setup.altAzMode());
     }
-    
+
+    /**
+     * Updates the selected instrument.
+     *
+     * @param selectedInstrument the instrument to select
+     */
     public void updateInstrument(SpectroHeliograph selectedInstrument) {
         instrument.setValue(selectedInstrument);
     }

@@ -60,47 +60,71 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
-
+/**
+ * Command-line entry point for executing JSol'Ex image processing scripts.
+ * Uses the default constructor for Picocli dependency injection.
+ */
 @Command(name = "jsolex", description = "Sol'Ex spectroheliograph video processing",
         mixinStandardHelpOptions = true)
 @ReflectiveAccess
 public class ScriptingEntryPoint implements Runnable {
     private static final Logger LOGGER = LoggerFactory.getLogger(ScriptingEntryPoint.class);
 
+    /** Creates a new instance. Required by Picocli. */
+    public ScriptingEntryPoint() {
+    }
+
+    /** Enables verbose output. */
     @Option(names = {"-v", "--verbose"}, description = "Verbose output")
     public boolean verbose;
 
+    /** Parameters to pass to the script. */
     @Option(names = {"-p", "--param"}, description = "Parameter to pass to the script")
     public Map<String, Object> params;
 
+    /** Paths to the scripts to execute. */
     @Option(names = {"-s", "--script"}, description = "Path to the script to execute", required = true)
     public List<File> scriptPaths;
 
+    /** Output directory for generated files. */
     @Option(names = {"-o", "--output"}, description = "Output directory")
     public File outputDir;
 
+    /** Image and animation output formats. */
     @Option(names = {"-f", "--format"}, description = "Image and animation formats (jpg, png, fits, tif, gif, mp4)")
     public List<String> formats = List.of(ImageFormat.FITS.name(), ImageFormat.JPG.name(), ImageFormat.PNG.name(), ImageFormat.TIF.name(), AnimationFormat.GIF.name(), AnimationFormat.MP4.name());
 
+    /** Enables debug mode. */
     @Option(names = {"-d", "--debug"}, description = "Debug mode", defaultValue = "false")
     public boolean debug;
 
+    /** SER input files to process. */
     @Option(names = {"-i", "--input-file"}, description = "SER Input file to process")
     public List<File> inputFiles;
 
+    /** Configuration file path. */
     @Option(names = {"-c", "--config"}, description = "Configuration file")
     public File configFile;
 
     private ProgressListener progressListener;
 
+    /**
+     * Sets the progress listener.
+     * @param progressListener the progress listener
+     */
     public void setProgressListener(ProgressListener progressListener) {
         this.progressListener = progressListener;
     }
 
+    /**
+     * Main entry point for the scripting CLI.
+     * @param args command line arguments
+     */
     public static void main(String[] args) {
         PicocliRunner.run(ScriptingEntryPoint.class, args);
     }
 
+    /** Executes the script processing with the configured options. */
     public void run() {
         long sd = System.nanoTime();
         if (scriptPaths == null) {
@@ -341,9 +365,19 @@ public class ScriptingEntryPoint implements Runnable {
         };
     }
 
+    /** Listener for tracking script execution progress. */
     public interface ProgressListener {
+        /**
+         * Called when progress is updated.
+         * @param task the task name
+         * @param progressPercent the progress percentage
+         */
         void onProgress(String task, double progressPercent);
 
+        /**
+         * Called when an error occurs.
+         * @param error the error message
+         */
         void onError(String error);
     }
 

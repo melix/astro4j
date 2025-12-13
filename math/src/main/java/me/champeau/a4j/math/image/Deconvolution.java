@@ -23,16 +23,29 @@ public class Deconvolution {
     private static final float EPSILON = 1e-7f;
     private static final int MAX_VALUE = 65535;
 
+    /** Default PSF radius. */
     public static final double DEFAULT_RADIUS = 2.5;
+    /** Default PSF sigma. */
     public static final double DEFAULT_SIGMA = 2.5;
+    /** Default number of iterations. */
     public static final int DEFAULT_ITERATIONS = 5;
 
     private final ImageMath imageMath;
 
+    /**
+     * Creates a new deconvolution processor.
+     * @param imageMath the image math operations provider
+     */
     public Deconvolution(ImageMath imageMath) {
         this.imageMath = imageMath;
     }
 
+    /**
+     * Generates a Gaussian point spread function.
+     * @param radius the PSF radius
+     * @param sigma the Gaussian sigma
+     * @return the PSF image
+     */
     public static Image generateGaussianPSF(double radius, double sigma) {
         int width = (int) (2 * (radius + .5));
         int height = width;
@@ -53,6 +66,13 @@ public class Deconvolution {
         return new Image(width, height, psf);
     }
 
+    /**
+     * Performs Richardson-Lucy deconvolution.
+     * @param image the input image
+     * @param psf the point spread function
+     * @param iterations the number of iterations
+     * @return the deconvolved image
+     */
     public Image richardsonLucy(Image image, Image psf, int iterations) {
         var estimate = image;
         var psfFlipped = imageMath.mirror(psf, false, true);

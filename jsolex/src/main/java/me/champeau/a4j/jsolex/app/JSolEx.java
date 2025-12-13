@@ -203,6 +203,9 @@ import static me.champeau.a4j.jsolex.app.jfx.SerFileTrimmerController.toTrimmedF
 import static me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper.findMetadataFile;
 import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.logError;
 
+/**
+ * Main JavaFX application for processing Sol'Ex spectroheliographic video files.
+ */
 public class JSolEx implements JSolExInterface {
 
     private static final long MINIMAL_MEMORY = 6 * 1024 * 1024 * 1024L;
@@ -223,8 +226,17 @@ public class JSolEx implements JSolExInterface {
     private static final FileChooser.ExtensionFilter SER_FILES_EXTENSION_FILTER = new FileChooser.ExtensionFilter("SER files", "*.ser", "*.SER");
     private static final String DISCORD_INVITE = "https://discord.gg/y9NCGaWzve";
 
+    /**
+     * Default port for the embedded web server.
+     */
     public static final int EMBEDDED_SERVER_DEFAULT_PORT = 9122;
+    /**
+     * Supported image file extensions.
+     */
     public static final Set<String> IMAGE_FILE_EXTENSIONS = Set.of("png", "jpg", "jpeg", "tif", "tiff", "fits", "fit");
+    /**
+     * File chooser extension filter for image files.
+     */
     public static final FileChooser.ExtensionFilter IMAGE_FILES_EXTENSIONS = new FileChooser.ExtensionFilter("Image Files", IMAGE_FILE_EXTENSIONS.stream().map(ext -> "*." + ext).toList());
 
     private final Configuration config = Configuration.getInstance();
@@ -355,6 +367,12 @@ public class JSolEx implements JSolExInterface {
     private final RepositoryUpdateService repositoryUpdateService = new RepositoryUpdateService();
     private ProgressHandler progressHandler;
 
+    /**
+     * Creates a new instance. Required by JavaFX.
+     */
+    public JSolEx() {
+    }
+
     @Override
     public MultipleImagesViewer getImagesViewer() {
         return multipleImagesViewer;
@@ -395,6 +413,12 @@ public class JSolEx implements JSolExInterface {
         return rootStage;
     }
 
+    /**
+     * Starts the JSolEx application.
+     *
+     * @param stage the primary stage
+     * @throws Exception if an error occurs during startup
+     */
     public void start(Stage stage) throws Exception {
         this.rootStage = stage;
         var fxmlLoader = I18N.fxmlLoader(getClass(), "app");
@@ -535,12 +559,26 @@ public class JSolEx implements JSolExInterface {
         }
     }
 
+    /**
+     * Creates a new scene with the JSolEx stylesheet applied.
+     *
+     * @param root the root node
+     * @param width the scene width
+     * @param height the scene height
+     * @return the configured scene
+     */
     public static Scene newScene(Parent root, int width, int height) {
         var scene = new Scene(root, width, height);
         scene.getStylesheets().add(JSolEx.class.getResource("components.css").toExternalForm());
         return scene;
     }
 
+    /**
+     * Creates a new scene with the JSolEx stylesheet applied.
+     *
+     * @param root the root node
+     * @return the configured scene
+     */
     public static Scene newScene(Parent root) {
         var scene = new Scene(root);
         scene.getStylesheets().add(JSolEx.class.getResource("components.css").toExternalForm());
@@ -1569,6 +1607,12 @@ public class JSolEx implements JSolExInterface {
         return singleModeProcessingEventListener;
     }
 
+    /**
+     * Creates a fake SER file header for testing or synthetic data.
+     *
+     * @param now the timestamp to use
+     * @return the fake header
+     */
     public static Header createFakeHeader(LocalDateTime now) {
         return new Header(null, null, null, 0, new ImageMetadata(null, null, null, true, now, now.atZone(ZoneId.of("UTC"))));
     }
@@ -2116,6 +2160,9 @@ public class JSolEx implements JSolExInterface {
     }
 
 
+    /**
+     * Trims a SER file by removing unwanted frames.
+     */
     @FXML
     public void trimSerFile() {
         Platform.runLater(() -> {
@@ -2250,6 +2297,12 @@ public class JSolEx implements JSolExInterface {
         }
     }
 
+    /**
+     * Retrieves a localized message by label.
+     *
+     * @param label the message label
+     * @return the localized message
+     */
     public static String message(String label) {
         var message = I18N.string(JSolEx.class, "messages", label);
         if (message.isEmpty()) {
@@ -2258,6 +2311,11 @@ public class JSolEx implements JSolExInterface {
         return message;
     }
 
+    /**
+     * Sets the JavaFX HostServices for opening URLs.
+     *
+     * @param hostServices the host services
+     */
     public void setHostServices(HostServices hostServices) {
         this.hostServices = hostServices;
     }
@@ -2267,7 +2325,16 @@ public class JSolEx implements JSolExInterface {
         return hostServices;
     }
 
+    /**
+     * JavaFX Application launcher for JSolEx.
+     */
     public static class Launcher extends Application {
+
+        /**
+         * Creates a new instance. Required by JavaFX.
+         */
+        public Launcher() {
+        }
 
         @Override
         public void start(Stage stage) throws Exception {
@@ -2277,6 +2344,11 @@ public class JSolEx implements JSolExInterface {
         }
     }
 
+    /**
+     * Application entry point.
+     *
+     * @param args command-line arguments
+     */
     public static void main(String[] args) {
         Application.launch(Launcher.class, args);
     }

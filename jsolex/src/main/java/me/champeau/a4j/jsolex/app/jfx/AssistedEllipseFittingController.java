@@ -37,9 +37,16 @@ import java.util.function.Consumer;
 import static me.champeau.a4j.jsolex.app.JSolEx.newScene;
 
 /**
- * Controller for the assisted ellipse fitting dialog
+ * Controller for the assisted ellipse fitting dialog.
+ * Allows users to manually adjust ellipse parameters for solar disk detection.
  */
 public class AssistedEllipseFittingController {
+
+    /**
+     * Creates a new instance. Required by FXML.
+     */
+    public AssistedEllipseFittingController() {
+    }
 
     @FXML
     private VBox editContent;
@@ -91,7 +98,7 @@ public class AssistedEllipseFittingController {
         resetButton.setOnAction(_ -> resetEllipse());
         applyButton.setOnAction(_ -> applyEllipse());
         cancelButton.setOnAction(_ -> cancel());
-        
+
         opacitySlider.valueProperty().addListener((_, _, newValue) -> {
             if (imageView != null) {
                 imageView.setEllipseOpacity(newValue.doubleValue());
@@ -100,7 +107,9 @@ public class AssistedEllipseFittingController {
     }
 
     /**
-     * Sets up the dialog with the provided image and initial ellipse
+     * Sets up the dialog with the provided image and initial ellipse.
+     * @param source the source image
+     * @param initialEllipse the initial ellipse fit
      */
     public void setup(ImageWrapper32 source, Ellipse initialEllipse) {
         var image = source.copy();
@@ -151,7 +160,12 @@ public class AssistedEllipseFittingController {
     }
     
     /**
-     * Creates an ellipse from geometric parameters
+     * Creates an ellipse from geometric parameters.
+     * @param centerX the center X coordinate
+     * @param centerY the center Y coordinate
+     * @param radiusX the X radius
+     * @param radiusY the Y radius
+     * @return the created ellipse
      */
     private Ellipse createEllipseFromParameters(double centerX,
                                                 double centerY,
@@ -178,7 +192,8 @@ public class AssistedEllipseFittingController {
     }
     
     /**
-     * Called when the ellipse is changed by user interaction
+     * Called when the ellipse is changed by user interaction.
+     * @param ellipse the new ellipse
      */
     private void onEllipseChanged(Ellipse ellipse) {
         this.currentEllipse = ellipse;
@@ -224,23 +239,42 @@ public class AssistedEllipseFittingController {
         }
     }
     
+    /**
+     * Sets the callback to invoke when the ellipse is applied.
+     * @param callback the callback consumer
+     */
     public void setOnEllipseApplied(Consumer<Ellipse> callback) {
         this.onEllipseApplied = callback;
     }
-    
+
+    /**
+     * Returns whether the ellipse was applied.
+     * @return true if applied
+     */
     public boolean isApplied() {
         return applied;
     }
 
     /**
-     * Shows the assisted ellipse fitting dialog
+     * Shows the assisted ellipse fitting dialog.
+     * @param parent the parent stage
+     * @param image the image to fit
+     * @param initialEllipse the initial ellipse
+     * @return a future containing the fitted ellipse
      */
     public static CompletableFuture<Ellipse> showDialog(Stage parent, ImageWrapper32 image, Ellipse initialEllipse) {
         return showDialog(parent, image, initialEllipse, null, 0, 0);
     }
     
     /**
-     * Shows the assisted ellipse fitting dialog with batch context
+     * Shows the assisted ellipse fitting dialog with batch context.
+     * @param parent the parent stage
+     * @param image the image to fit
+     * @param initialEllipse the initial ellipse
+     * @param fileName the file name to display
+     * @param currentFile the current file number
+     * @param totalFiles the total number of files
+     * @return a future containing the fitted ellipse
      */
     public static CompletableFuture<Ellipse> showDialog(Stage parent, ImageWrapper32 image, Ellipse initialEllipse, String fileName, int currentFile, int totalFiles) {
         var future = new CompletableFuture<Ellipse>();

@@ -35,6 +35,7 @@ import java.util.function.Consumer;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
 
+/** Pane displaying a category of images with links. */
 public class CategoryPane extends VBox {
 
     private final List<Hyperlink> safeLinks = Collections.synchronizedList(new ArrayList<>());
@@ -43,6 +44,11 @@ public class CategoryPane extends VBox {
     private Hyperlink selected = null;
     private final Consumer<? super CategoryPane> whenEmpty;
 
+    /**
+     * Creates a category pane.
+     * @param title the category title
+     * @param whenEmpty callback when the category becomes empty
+     */
     public CategoryPane(String title, Consumer<? super CategoryPane> whenEmpty) {
         this.whenEmpty = whenEmpty;
         Label titleLabel = new Label(title);
@@ -120,6 +126,13 @@ public class CategoryPane extends VBox {
         return close;
     }
 
+    /**
+     * Adds a video link.
+     * @param title the video title
+     * @param onClick callback when clicked
+     * @param onClose callback when closed
+     * @return the created hyperlink
+     */
     public Hyperlink addVideo(String title, Consumer<? super Hyperlink> onClick, Consumer<? super Hyperlink> onClose) {
         var link = new Hyperlink(title);
         link.setOnAction(e -> {
@@ -147,6 +160,7 @@ public class CategoryPane extends VBox {
         selected = link;
     }
 
+    /** Clears the current selection. */
     public void clearSelection() {
         if (selected != null) {
             selected.getStyleClass().remove("category-link-selected");
@@ -154,6 +168,7 @@ public class CategoryPane extends VBox {
         }
     }
 
+    /** Selects the first item. */
     public void selectFirst() {
         links.stream()
             .findFirst()

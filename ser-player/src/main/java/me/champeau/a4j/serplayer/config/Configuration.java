@@ -29,11 +29,13 @@ import java.util.stream.Collectors;
 
 import static java.util.stream.Collectors.joining;
 
+/** Configuration manager for the SER player application. */
 public class Configuration {
     private static final String RECENT_FILES = "recent.files";
     private final Preferences prefs;
     private final List<Path> recentFiles;
 
+    /** Creates a new configuration instance and loads recent files from preferences. */
     public Configuration() {
         prefs = Preferences.userRoot().node(this.getClass().getName());
         String recentFilesString = prefs.get(RECENT_FILES, "");
@@ -44,16 +46,28 @@ public class Configuration {
                 .collect(Collectors.toCollection(ArrayList::new));
     }
 
+    /**
+     * Records that a file was loaded and updates the recent files list.
+     * @param path the path of the loaded file
+     */
     public void loaded(Path path) {
         recentFiles.remove(path);
         recentFiles.add(0, path);
         prefs.put(RECENT_FILES, recentFiles.stream().map(Path::toString).collect(joining(File.pathSeparator)));
     }
 
+    /**
+     * Gets the list of recently loaded files.
+     * @return an unmodifiable list of recent file paths
+     */
     public List<Path> getRecentFiles() {
         return Collections.unmodifiableList(recentFiles);
     }
 
+    /**
+     * Gets the configured locale.
+     * @return the default locale
+     */
     public Locale getLocale() {
         return Locale.getDefault();
     }

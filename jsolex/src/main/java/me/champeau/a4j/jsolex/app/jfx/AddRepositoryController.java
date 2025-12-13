@@ -25,7 +25,14 @@ import me.champeau.a4j.jsolex.app.JSolEx;
 
 import java.util.function.Consumer;
 
+/**
+ * Controller for the add/edit repository dialog.
+ */
 public class AddRepositoryController {
+    /** Creates a new controller. */
+    public AddRepositoryController() {
+    }
+
     @FXML
     private TextField nameField;
 
@@ -39,12 +46,24 @@ public class AddRepositoryController {
     private Consumer<Pair<String, String>> onAdd;
     private boolean editMode;
 
+    /**
+     * Sets up the controller for adding a new repository.
+     * @param stage the dialog stage
+     * @param onAdd callback when repository is added
+     */
     public void setup(Stage stage, Consumer<Pair<String, String>> onAdd) {
         this.stage = stage;
         this.onAdd = onAdd;
         this.editMode = false;
     }
 
+    /**
+     * Sets up the controller for editing an existing repository.
+     * @param stage the dialog stage
+     * @param existingName the current repository name
+     * @param existingUrl the current repository URL
+     * @param onSave callback when repository is saved
+     */
     public void setupForEdit(Stage stage, String existingName, String existingUrl, Consumer<Pair<String, String>> onSave) {
         this.stage = stage;
         this.onAdd = onSave;

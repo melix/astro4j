@@ -24,7 +24,14 @@ import java.util.concurrent.atomic.AtomicReference;
  * {@code OPENCL_ENABLED=true} or system property {@code opencl.enabled=true}.
  */
 public class OpenCLSupport {
+    /**
+     * Environment variable name for enabling OpenCL.
+     */
     public static final String OPENCL_ENV_VAR = "OPENCL_ENABLED";
+
+    /**
+     * System property name for enabling OpenCL.
+     */
     public static final String OPENCL_SYSTEM_PROPERTY = "opencl.enabled";
 
     private static final boolean OPENCL_AVAILABLE;

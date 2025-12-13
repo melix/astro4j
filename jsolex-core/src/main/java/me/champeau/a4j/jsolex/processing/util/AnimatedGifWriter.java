@@ -27,12 +27,24 @@ import javax.imageio.stream.ImageOutputStream;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 
+/**
+ * Writer for creating animated GIF files.
+ */
 public class AnimatedGifWriter implements AutoCloseable {
     private final ImageWriter writer;
     private final ImageWriteParam params;
     private final IIOMetadata metadata;
     private final ImageOutputStream output;
 
+    /**
+     * Creates a new animated GIF writer.
+     *
+     * @param out the output stream to write to
+     * @param imageType the image type (BufferedImage type constant)
+     * @param delay the delay between frames in milliseconds
+     * @param loop whether to loop the animation
+     * @throws IOException if an I/O error occurs
+     */
     public AnimatedGifWriter(ImageOutputStream out, int imageType, int delay, boolean loop) throws IOException {
         writer = newWriter();
         params = writer.getDefaultWriteParam();
@@ -66,6 +78,12 @@ public class AnimatedGifWriter implements AutoCloseable {
         writer.prepareWriteSequence(null);
     }
 
+    /**
+     * Writes an image frame to the animation sequence.
+     *
+     * @param img the image to write
+     * @throws IOException if an I/O error occurs
+     */
     public void writeToSequence(BufferedImage img) throws IOException {
         writer.writeToSequence(new IIOImage(img, null, metadata), params);
     }

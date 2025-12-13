@@ -24,6 +24,10 @@ import java.time.Instant;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
+/**
+ * Service responsible for checking and updating script repositories at startup.
+ * This service runs periodic checks to refresh script repositories from remote sources.
+ */
 public class RepositoryUpdateService {
     private static final Logger LOGGER = LoggerFactory.getLogger(RepositoryUpdateService.class);
     private static final Duration CHECK_INTERVAL = Duration.ofHours(24);
@@ -31,11 +35,18 @@ public class RepositoryUpdateService {
     private final Configuration configuration;
     private final ScriptRepositoryManager repositoryManager;
 
+    /**
+     * Creates a new repository update service with default configuration.
+     */
     public RepositoryUpdateService() {
         this.configuration = Configuration.getInstance();
         this.repositoryManager = new ScriptRepositoryManager();
     }
 
+    /**
+     * Checks if repository updates are needed at application startup.
+     * Updates are performed in a background thread if the check interval has elapsed.
+     */
     public void checkAtStartup() {
         var lastCheck = configuration.getLastRepositoryCheckTime();
         var now = Instant.now();
@@ -49,6 +60,10 @@ public class RepositoryUpdateService {
         }
     }
 
+    /**
+     * Performs the actual check and update of all enabled repositories.
+     * This method runs in a background thread and updates repository metadata.
+     */
     private void checkForUpdates() {
         try {
             LOGGER.debug(message("repository.update.checking"));

@@ -26,6 +26,11 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Optional;
 
+/**
+ * Service for tracking BASS2000 upload history using a local SQLite database.
+ * This service maintains a record of all uploads to help detect duplicates and
+ * provide upload history information.
+ */
 public class Bass2000UploadHistoryService {
     private static final Logger LOGGER = LoggerFactory.getLogger(Bass2000UploadHistoryService.class);
     private static final String DB_FILE = "bass2000-uploads.db";
@@ -40,6 +45,11 @@ public class Bass2000UploadHistoryService {
         initializeDatabase();
     }
 
+    /**
+     * Returns the singleton instance of the Bass2000UploadHistoryService.
+     *
+     * @return the singleton instance
+     */
     public static Bass2000UploadHistoryService getInstance() {
         return INSTANCE;
     }
@@ -75,6 +85,14 @@ public class Bass2000UploadHistoryService {
         return DriverManager.getConnection("jdbc:sqlite:" + dbPath.toAbsolutePath());
     }
 
+    /**
+     * Records a successful upload to the BASS2000 database.
+     *
+     * @param observationDate the date of the observation
+     * @param wavelengthAngstroms the wavelength of the observation in angstroms
+     * @param sourceFilename the original source filename
+     * @param uploadedFilename the filename as uploaded to BASS2000
+     */
     public void recordUpload(LocalDate observationDate, double wavelengthAngstroms, String sourceFilename, String uploadedFilename) {
         var insertSQL = """
             INSERT INTO uploads (observation_date, wavelength_angstroms, source_filename, uploaded_filename)
@@ -97,6 +115,15 @@ public class Bass2000UploadHistoryService {
         }
     }
 
+    /**
+     * Checks for a duplicate upload for the given observation date and wavelength.
+     * A duplicate is defined as an upload with the same observation date and a wavelength
+     * within 0.1 angstroms of the specified value.
+     *
+     * @param observationDate the observation date to check
+     * @param wavelengthAngstroms the wavelength to check in angstroms
+     * @return an Optional containing the most recent matching upload record, or empty if none found
+     */
     public Optional<UploadRecord> checkForDuplicateUpload(LocalDate observationDate, double wavelengthAngstroms) {
         var querySQL = """
             SELECT source_filename, uploaded_filename, upload_timestamp
@@ -131,6 +158,13 @@ public class Bass2000UploadHistoryService {
         return Optional.empty();
     }
 
+    /**
+     * Record of a previous BASS2000 upload.
+     *
+     * @param sourceFilename the original source filename
+     * @param uploadedFilename the filename as uploaded to BASS2000
+     * @param uploadTimestamp the timestamp when the upload occurred
+     */
     public record UploadRecord(
         String sourceFilename,
         String uploadedFilename,

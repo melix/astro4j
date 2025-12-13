@@ -15,11 +15,17 @@
  */
 package me.champeau.a4j.math.image;
 
+/** A simple box blur kernel. */
 public class BlurKernel implements Kernel {
     private final int n;
     private final float[][] array;
     private final float factor;
 
+    /**
+     * Creates a blur kernel of the specified size.
+     * @param n the kernel size
+     * @return the blur kernel
+     */
     public static BlurKernel of(int n) {
         return new BlurKernel(n);
     }

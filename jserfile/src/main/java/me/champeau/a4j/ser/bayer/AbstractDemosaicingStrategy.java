@@ -18,17 +18,30 @@ package me.champeau.a4j.ser.bayer;
 import me.champeau.a4j.ser.ColorMode;
 import me.champeau.a4j.ser.ImageGeometry;
 
-/**
- * Base class for demosaicing algorithms.
- */
+/** Base class for demosaicing algorithms. */
 public abstract class AbstractDemosaicingStrategy implements DemosaicingStrategy, BayerMatrixSupport {
 
+    /** Constructs an abstract demosaicing strategy. */
+    protected AbstractDemosaicingStrategy() {
+    }
+
+    /** The color mode. */
     protected ColorMode colorMode;
+    /** The image geometry. */
     protected ImageGeometry geometry;
+    /** The image width. */
     protected int width;
+    /** The image height. */
     protected int height;
+    /** The line feed size. */
     protected int lineFeed;
 
+    /**
+     * Sets up the demosaicing strategy with the given parameters.
+     *
+     * @param colorMode the color mode
+     * @param geometry the image geometry
+     */
     protected void setup(ColorMode colorMode, ImageGeometry geometry) {
         this.colorMode = colorMode;
         this.geometry = geometry;
@@ -37,18 +50,47 @@ public abstract class AbstractDemosaicingStrategy implements DemosaicingStrategy
         this.lineFeed = PIXEL * width;
     }
 
+    /**
+     * Converts a signed short to an unsigned value.
+     *
+     * @param b the signed short
+     * @return the unsigned value
+     */
     protected static int unsigned(short b) {
         return b & 0xFFFF;
     }
 
+    /**
+     * Computes the average of two values.
+     *
+     * @param a the first value
+     * @param b the second value
+     * @return the average
+     */
     protected static short avg(short a, short b) {
         return (short) ((unsigned(a) + unsigned(b)) >> 1);
     }
 
+    /**
+     * Computes the average of four values.
+     *
+     * @param a the first value
+     * @param b the second value
+     * @param c the third value
+     * @param d the fourth value
+     * @return the average
+     */
     protected static short avg(short a, short b, short c, short d) {
         return (short) ((unsigned(a) + unsigned(b) + unsigned(c) + unsigned(d)) >> 2);
     }
 
+    /**
+     * Computes the index in the image buffer for the given coordinates.
+     *
+     * @param x the x coordinate
+     * @param y the y coordinate
+     * @return the index in the buffer
+     */
     protected int indexOf(int x, int y) {
         return PIXEL * (x + y * width);
     }
@@ -57,6 +99,8 @@ public abstract class AbstractDemosaicingStrategy implements DemosaicingStrategy
      * Given a 2*2 bayer pixel, determines which color is represented at
      * the provided coordinates.
      *
+     * @param x the x coordinate
+     * @param y the y coordinate
      * @return which color is represented
      */
     protected int colorKindAt(int x, int y) {

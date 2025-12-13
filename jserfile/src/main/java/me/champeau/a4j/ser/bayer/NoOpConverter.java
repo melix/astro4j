@@ -19,7 +19,13 @@ import me.champeau.a4j.ser.ImageGeometry;
 
 import java.nio.ByteBuffer;
 
+/** An image converter that performs no conversion. */
 public class NoOpConverter implements ImageConverter<byte[]> {
+
+    /** Constructs a no-op converter. */
+    public NoOpConverter() {
+    }
+
     @Override
     public byte[] createBuffer(ImageGeometry geometry) {
         return new byte[geometry.getBytesPerFrame()];

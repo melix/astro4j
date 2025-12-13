@@ -28,6 +28,8 @@ import java.util.List;
  * Holds a list of distorsion maps, typically one per iteration of dedistorsion.
  * This allows reapplying all distorsion corrections in sequence when applying
  * precomputed maps to new images.
+ *
+ * @param maps the list of distorsion maps to apply in sequence
  */
 public record DistorsionMaps(List<DistorsionMap> maps) {
 

@@ -39,26 +39,55 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+/** Abstract base class for evaluating ImageMath expressions. */
 public abstract class ExpressionEvaluator {
     private final Map<String, Object> variables = new ConcurrentHashMap<>();
     private final Map<String, UserFunction> userFunctions = new ConcurrentHashMap<>();
 
+    /**
+     * Stores a variable value.
+     *
+     * @param name the variable name
+     * @param value the value
+     */
     public void putVariable(String name, Object value) {
         variables.put(name, value);
     }
 
+    /**
+     * Registers a user function.
+     *
+     * @param name the function name
+     * @param function the function implementation
+     */
     public void putFunction(String name, UserFunction function) {
         userFunctions.put(name, function);
     }
 
+    /**
+     * Returns the registered user functions.
+     *
+     * @return the registered user functions
+     */
     public Map<String, UserFunction> getUserFunctions() {
         return Collections.unmodifiableMap(userFunctions);
     }
 
+    /**
+     * Returns the variables map.
+     *
+     * @return the variables map
+     */
     public Map<String, Object> getVariables() {
         return Collections.unmodifiableMap(variables);
     }
 
+    /**
+     * Evaluates an expression.
+     *
+     * @param expression the expression to evaluate
+     * @return the evaluation result
+     */
     public final Object evaluate(Expression expression) {
         return doEvaluate(expression);
     }
@@ -175,12 +204,40 @@ public abstract class ExpressionEvaluator {
         throw new UnsupportedOperationException("Unexpected expression type '" + expression + "'");
     }
 
+    /**
+     * Performs addition of two objects.
+     *
+     * @param left the left operand
+     * @param right the right operand
+     * @return the result of the addition
+     */
     protected abstract Object plus(Object left, Object right);
 
+    /**
+     * Performs subtraction of two objects.
+     *
+     * @param left the left operand
+     * @param right the right operand
+     * @return the result of the subtraction
+     */
     protected abstract Object minus(Object left, Object right);
 
+    /**
+     * Performs multiplication of two objects.
+     *
+     * @param left the left operand
+     * @param right the right operand
+     * @return the result of the multiplication
+     */
     protected abstract Object mul(Object left, Object right);
 
+    /**
+     * Performs division of two objects.
+     *
+     * @param left the left operand
+     * @param right the right operand
+     * @return the result of the division
+     */
     protected abstract Object div(Object left, Object right);
 
     protected Object variable(String name) {
@@ -190,6 +247,13 @@ public abstract class ExpressionEvaluator {
         throw new IllegalStateException("Undefined variable '" + name + "'");
     }
 
+    /**
+     * Calls a builtin function with the provided arguments.
+     *
+     * @param function the builtin function to call
+     * @param arguments the arguments to pass to the function
+     * @return the result of the function call
+     */
     protected abstract Object functionCall(BuiltinFunction function, Map<String, Object> arguments);
 
     protected Object userFunctionCall(UserFunction function, Map<String, Object> arguments) {

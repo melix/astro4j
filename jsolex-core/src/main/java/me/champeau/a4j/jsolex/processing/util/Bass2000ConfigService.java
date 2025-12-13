@@ -27,6 +27,11 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Optional;
 
+/**
+ * Service for managing BASS2000 configuration fetched from a remote endpoint.
+ * This service handles fetching, caching, and validating configuration settings
+ * that control BASS2000 upload functionality.
+ */
 public class Bass2000ConfigService {
     private static final Logger LOGGER = LoggerFactory.getLogger(Bass2000ConfigService.class);
     private static final String CONFIG_URL = "https://melix.github.io/astro4j/bass2000.json";
@@ -44,11 +49,22 @@ public class Bass2000ConfigService {
                 .build();
         this.gson = new Gson();
     }
-    
+
+    /**
+     * Returns the singleton instance of the Bass2000ConfigService.
+     *
+     * @return the singleton instance
+     */
     public static Bass2000ConfigService getInstance() {
         return INSTANCE;
     }
 
+    /**
+     * Fetches the BASS2000 configuration from the remote endpoint.
+     * The configuration is cached after the first successful fetch.
+     *
+     * @return an Optional containing the configuration if successfully fetched, empty otherwise
+     */
     public Optional<Bass2000Configuration> fetchConfiguration() {
         if (cachedConfig != null) {
             return Optional.of(cachedConfig);
@@ -82,6 +98,12 @@ public class Bass2000ConfigService {
         }
     }
 
+    /**
+     * Checks whether BASS2000 functionality is currently enabled.
+     * This considers both the remote configuration status and version compatibility.
+     *
+     * @return true if BASS2000 is enabled and the current version is supported, false otherwise
+     */
     public boolean isBass2000Enabled() {
         var config = fetchConfiguration();
         if (config.isEmpty()) {
@@ -96,13 +118,33 @@ public class Bass2000ConfigService {
         return isVersionSupported(cfg.requiresVersion());
     }
 
+    /**
+     * Enumeration of reasons why BASS2000 functionality might be disabled.
+     */
     public enum DisabledReason {
+        /**
+         * BASS2000 is enabled and functional.
+         */
         ENABLED,
+        /**
+         * Failed to fetch the configuration from the remote endpoint.
+         */
         CONFIG_FETCH_FAILED,
+        /**
+         * BASS2000 is explicitly disabled in the remote configuration.
+         */
         EXPLICITLY_DISABLED,
+        /**
+         * The current application version is older than the minimum required version.
+         */
         VERSION_TOO_OLD
     }
 
+    /**
+     * Determines the reason why BASS2000 is disabled, or confirms it is enabled.
+     *
+     * @return the reason for BASS2000's current state
+     */
     public DisabledReason getDisabledReason() {
         var config = fetchConfiguration();
         if (config.isEmpty()) {
@@ -121,6 +163,11 @@ public class Bass2000ConfigService {
         return DisabledReason.ENABLED;
     }
 
+    /**
+     * Retrieves the minimum required application version from the remote configuration.
+     *
+     * @return the required version string, or null if the configuration could not be fetched
+     */
     public String getRequiredVersion() {
         var config = fetchConfiguration();
         return config.map(Bass2000Configuration::requiresVersion).orElse(null);

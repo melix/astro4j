@@ -19,6 +19,8 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.SourceInfo;
 
 /**
  * Represents the best images, as selected by the user.
+ *
+ * @param sourceInfo the source information for the best images
  */
 public record BestImages(
     SourceInfo sourceInfo

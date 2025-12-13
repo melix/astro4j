@@ -55,7 +55,13 @@ import java.util.List;
 
 import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectoriesIfNeeded;
 
+/**
+ * Pane for measuring distances on solar images.
+ */
 public class DistanceMeasurementPane extends BorderPane {
+    /**
+     * Solar radius in kilometers.
+     */
     public static final int SOLAR_RADIUS_KMS = 696342;
     private final ImageView imageView;
     private final Label distanceLabel;
@@ -77,6 +83,13 @@ public class DistanceMeasurementPane extends BorderPane {
     private double lastMouseXInViewport = -1;
     private double lastMouseYInViewport = -1;
 
+    /**
+     * Creates a distance measurement pane.
+     * @param withoutGlobe the image without reference globe
+     * @param withGlobe the image with reference globe
+     * @param ellipse the solar disk ellipse
+     * @param solarParams the solar parameters
+     */
     public DistanceMeasurementPane(
             Image withoutGlobe,
             Image withGlobe,
@@ -557,6 +570,10 @@ public class DistanceMeasurementPane extends BorderPane {
         return total;
     }
 
+    /**
+     * Gets the total measured distance in kilometers.
+     * @return the distance in kilometers
+     */
     public double getSolarDistanceKms() {
         var distanceInSolarRadii = totalDistance();
         return distanceInSolarRadii * (double) SOLAR_RADIUS_KMS;

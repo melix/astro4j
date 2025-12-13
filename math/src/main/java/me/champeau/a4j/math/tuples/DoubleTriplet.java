@@ -29,6 +29,10 @@ public record DoubleTriplet(
         double b,
         double c
 ) {
+    /**
+     * Returns a polynomial operator representing ax^2 + bx + c.
+     * @return a polynomial operator representing ax^2 + bx + c
+     */
     public DoubleUnaryOperator asPolynomial() {
         return new Operator();
     }

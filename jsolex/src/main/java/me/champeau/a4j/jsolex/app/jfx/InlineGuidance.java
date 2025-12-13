@@ -26,14 +26,31 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 
+/**
+ * A reusable UI component that displays inline guidance messages with different severity levels.
+ */
 public class InlineGuidance extends VBox {
-    
+
+    /** Types of guidance that can be displayed. */
     public enum GuidanceType {
-        TIP, RECOMMENDATION, WARNING, REQUIREMENT
+        /** A helpful tip. */
+        TIP,
+        /** A recommended action. */
+        RECOMMENDATION,
+        /** A warning message. */
+        WARNING,
+        /** A required action. */
+        REQUIREMENT
     }
 
     private final Button actionButton;
 
+    /**
+     * Creates a new inline guidance component.
+     * @param title the title of the guidance
+     * @param description the description text
+     * @param type the type of guidance
+     */
     public InlineGuidance(String title, String description, GuidanceType type) {
         getStyleClass().addAll("inline-guidance", "guidance-" + type.name().toLowerCase());
         setSpacing(8);
@@ -66,23 +83,53 @@ public class InlineGuidance extends VBox {
         
         getChildren().addAll(header, descriptionLabel, actionButton);
     }
-    
+
+    /**
+     * Creates a tip guidance.
+     * @param title the title
+     * @param description the description
+     * @return a new tip guidance instance
+     */
     public static InlineGuidance tip(String title, String description) {
         return new InlineGuidance(title, description, GuidanceType.TIP);
     }
-    
+
+    /**
+     * Creates a recommendation guidance.
+     * @param title the title
+     * @param description the description
+     * @return a new recommendation guidance instance
+     */
     public static InlineGuidance recommendation(String title, String description) {
         return new InlineGuidance(title, description, GuidanceType.RECOMMENDATION);
     }
-    
+
+    /**
+     * Creates a warning guidance.
+     * @param title the title
+     * @param description the description
+     * @return a new warning guidance instance
+     */
     public static InlineGuidance warning(String title, String description) {
         return new InlineGuidance(title, description, GuidanceType.WARNING);
     }
-    
+
+    /**
+     * Creates a requirement guidance.
+     * @param title the title
+     * @param description the description
+     * @return a new requirement guidance instance
+     */
     public static InlineGuidance requirement(String title, String description) {
         return new InlineGuidance(title, description, GuidanceType.REQUIREMENT);
     }
-    
+
+    /**
+     * Adds an action button to the guidance.
+     * @param actionText the button text
+     * @param action the action to perform when clicked
+     * @return this guidance instance
+     */
     public InlineGuidance withAction(String actionText, Runnable action) {
         actionButton.setText(actionText);
         actionButton.setOnAction(e -> {
@@ -93,7 +140,8 @@ public class InlineGuidance extends VBox {
         actionButton.setManaged(true);
         return this;
     }
-    
+
+    /** Dismisses the guidance with a fade-out animation. */
     public void dismiss() {
         FadeTransition fadeOut = new FadeTransition(Duration.millis(200), this);
         fadeOut.setFromValue(1.0);
@@ -104,7 +152,8 @@ public class InlineGuidance extends VBox {
         });
         fadeOut.play();
     }
-    
+
+    /** Shows the guidance with a fade-in animation. */
     public void show() {
         setVisible(true);
         setManaged(true);

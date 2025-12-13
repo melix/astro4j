@@ -31,6 +31,7 @@ import static java.lang.Math.tan;
 import static java.lang.Math.toDegrees;
 import static java.lang.Math.toRadians;
 
+/** Utility methods for computing solar parameters. */
 public final class SolarParametersUtils {
     private static final Logger LOGGER = LoggerFactory.getLogger(SolarParametersUtils.class);
 
@@ -216,6 +217,8 @@ public final class SolarParametersUtils {
 
     /**
      * Record to store the result of the parallactic angle computation.
+     *
+     * @param parallacticAngle the computed parallactic angle in radians
      */
     public record ParallacticAngleResult(double parallacticAngle) {
     }

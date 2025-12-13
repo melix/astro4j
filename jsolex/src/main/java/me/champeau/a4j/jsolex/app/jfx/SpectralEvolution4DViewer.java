@@ -93,6 +93,12 @@ public class SpectralEvolution4DViewer extends AbstractSpectral3DViewer {
     private int clickedSlitIndex = -1;
     private boolean settingSliderProgrammatically = false;
 
+    /**
+     * Creates a new 4D spectral evolution viewer.
+     *
+     * @param data the spectral evolution data to visualize
+     * @param ellipse the ellipse representing the solar disk boundary, may be null
+     */
     public SpectralEvolution4DViewer(SpectralEvolution4DData data, Ellipse ellipse) {
         super();
         this.data = data;
@@ -470,6 +476,9 @@ public class SpectralEvolution4DViewer extends AbstractSpectral3DViewer {
         return new MeshView(mesh);
     }
 
+    /**
+     * Brings this viewer window to the front and requests focus.
+     */
     public void bringToFront() {
         var scene = getScene();
         if (scene != null && scene.getWindow() != null) {
@@ -477,6 +486,15 @@ public class SpectralEvolution4DViewer extends AbstractSpectral3DViewer {
         }
     }
 
+    /**
+     * Sets the viewer position based on a click location from another view.
+     * This method updates the slice mode to wavelength and positions the viewer
+     * at the specified frame, slit position, and wavelength offset.
+     *
+     * @param frameNumber the frame number that was clicked
+     * @param slitPosition the slit position that was clicked
+     * @param pixelShift the pixel shift from the center wavelength
+     */
     public void setPositionFromClick(int frameNumber, int slitPosition, double pixelShift) {
         var frameIndex = findClosestIndex(data.frameIndices(), frameNumber);
         var slitIndex = findClosestIndex(data.slitPositions(), slitPosition);
@@ -1073,6 +1091,9 @@ public class SpectralEvolution4DViewer extends AbstractSpectral3DViewer {
         );
     }
 
+    /**
+     * Stops the animation if it is currently running.
+     */
     public void stopAnimation() {
         if (animationTimer != null) {
             var timer = animationTimer;
@@ -1082,6 +1103,14 @@ public class SpectralEvolution4DViewer extends AbstractSpectral3DViewer {
         }
     }
 
+    /**
+     * Creates and displays a new spectral evolution 4D viewer in a new window.
+     *
+     * @param data the spectral evolution data to visualize
+     * @param ellipse the ellipse representing the solar disk boundary, may be null
+     * @param title the window title
+     * @return the created viewer instance
+     */
     public static SpectralEvolution4DViewer show(SpectralEvolution4DData data, Ellipse ellipse, String title) {
         var viewer = new SpectralEvolution4DViewer(data, ellipse);
         var stage = FXUtils.newStage();
@@ -1099,6 +1128,11 @@ public class SpectralEvolution4DViewer extends AbstractSpectral3DViewer {
         FRAME,
         WAVELENGTH;
 
+        /**
+         * Converts this UI slice mode to the corresponding data layer slice mode.
+         *
+         * @return the corresponding data slice mode
+         */
         public SpectralEvolution4DData.SliceMode toDataSliceMode() {
             return SpectralEvolution4DData.SliceMode.valueOf(name());
         }

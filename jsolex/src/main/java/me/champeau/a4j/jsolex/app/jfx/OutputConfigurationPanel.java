@@ -32,6 +32,9 @@ import me.champeau.a4j.jsolex.processing.params.GlobeStyle;
 import me.champeau.a4j.jsolex.processing.params.NamedPattern;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 
+/**
+ * Panel for configuring output options and file naming patterns.
+ */
 public class OutputConfigurationPanel extends BaseParameterPanel {
 
     private CheckBox autoSave;
@@ -39,7 +42,10 @@ public class OutputConfigurationPanel extends BaseParameterPanel {
     private ChoiceBox<GlobeStyle> globeStyle;
     private ChoiceBox<NamedPattern> namingPattern;
     private ProcessParamsController controller;
-    
+
+    /**
+     * Creates a new output configuration panel.
+     */
     public OutputConfigurationPanel() {
         getStyleClass().add("parameter-panel");
         initializeComponents();
@@ -117,8 +123,74 @@ public class OutputConfigurationPanel extends BaseParameterPanel {
         
         getChildren().addAll(optionsSection, namingSection, resetButton);
     }
-    
-    
+
+    /**
+     * Loads data from process parameters.
+     *
+     * @param params the process parameters
+     * @param batchMode whether batch mode is enabled
+     */
+    public void loadData(ProcessParams params, boolean batchMode) {
+        var extraParams = params.extraParams();
+
+        // Load other options
+        autoSave.setSelected(extraParams.autosave());
+        globeStyle.setValue(extraParams.globeStyle() != null ? extraParams.globeStyle() : GlobeStyle.EQUATORIAL_COORDS);
+        // autoTrimSerFile is handled separately in the controller
+
+        // Load naming pattern
+        if (extraParams.fileNamePattern() != null) {
+            // Find matching pattern by pattern string
+            namingPattern.getItems().stream()
+                .filter(p -> p.pattern().equals(extraParams.fileNamePattern()))
+                .findFirst()
+                .ifPresent(namingPattern::setValue);
+        }
+    }
+
+    /**
+     * Returns the extra parameters from the panel.
+     *
+     * @return the extra parameters
+     */
+    public ExtraParams getExtraParams() {
+        var defaults = ProcessParams.loadDefaults().extraParams();
+
+        return defaults
+            .withAutosave(autoSave.isSelected())
+            .withGlobeStyle(globeStyle.getValue() != null ? globeStyle.getValue() : GlobeStyle.EQUATORIAL_COORDS)
+            .withFileNamePattern(namingPattern.getValue() != null ? namingPattern.getValue().pattern() : defaults.fileNamePattern());
+    }
+
+    /**
+     * Returns whether auto trim is selected.
+     *
+     * @return true if auto trim is selected
+     */
+    public boolean isAutoTrimSelected() {
+        return autoTrimSerFile.isSelected();
+    }
+
+    /**
+     * Sets the controller for this panel.
+     *
+     * @param controller the controller
+     */
+    public void setController(ProcessParamsController controller) {
+        this.controller = controller;
+    }
+
+    /**
+     * Updates the naming pattern selection.
+     *
+     * @param pattern the pattern to select
+     */
+    public void updateNamingPattern(NamedPattern pattern) {
+        namingPattern.getItems().clear();
+        namingPattern.getItems().addAll(FileNamingPatternsIO.loadDefaults());
+        namingPattern.getSelectionModel().select(pattern);
+    }
+
     private HBox createNamingPatternBox() {
         var box = createHBox();
 
@@ -148,46 +220,5 @@ public class OutputConfigurationPanel extends BaseParameterPanel {
         if (!namingPattern.getItems().isEmpty()) {
             namingPattern.getSelectionModel().selectFirst();
         }
-    }
-    
-    public void loadData(ProcessParams params, boolean batchMode) {
-        var extraParams = params.extraParams();
-
-        // Load other options
-        autoSave.setSelected(extraParams.autosave());
-        globeStyle.setValue(extraParams.globeStyle() != null ? extraParams.globeStyle() : GlobeStyle.EQUATORIAL_COORDS);
-        // autoTrimSerFile is handled separately in the controller
-        
-        // Load naming pattern
-        if (extraParams.fileNamePattern() != null) {
-            // Find matching pattern by pattern string
-            namingPattern.getItems().stream()
-                .filter(p -> p.pattern().equals(extraParams.fileNamePattern()))
-                .findFirst()
-                .ifPresent(namingPattern::setValue);
-        }
-    }
-    
-    public ExtraParams getExtraParams() {
-        var defaults = ProcessParams.loadDefaults().extraParams();
-
-        return defaults
-            .withAutosave(autoSave.isSelected())
-            .withGlobeStyle(globeStyle.getValue() != null ? globeStyle.getValue() : GlobeStyle.EQUATORIAL_COORDS)
-            .withFileNamePattern(namingPattern.getValue() != null ? namingPattern.getValue().pattern() : defaults.fileNamePattern());
-    }
-    
-    public boolean isAutoTrimSelected() {
-        return autoTrimSerFile.isSelected();
-    }
-    
-    public void setController(ProcessParamsController controller) {
-        this.controller = controller;
-    }
-    
-    public void updateNamingPattern(NamedPattern pattern) {
-        namingPattern.getItems().clear();
-        namingPattern.getItems().addAll(FileNamingPatternsIO.loadDefaults());
-        namingPattern.getSelectionModel().select(pattern);
     }
 }

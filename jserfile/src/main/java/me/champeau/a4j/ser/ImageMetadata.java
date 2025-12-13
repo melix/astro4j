@@ -24,6 +24,7 @@ import java.time.ZonedDateTime;
  * @param observer the observer
  * @param instrument the instrument
  * @param telescope the telescope
+ * @param hasTimestamps whether the SER file has timestamps for individual frames
  * @param localDateTime the local date time
  * @param utcDateTime the UTC timestamp
  */
@@ -44,6 +45,11 @@ public record ImageMetadata(
         return hasTimestamps;
     }
 
+    /**
+     * Creates a copy of this metadata without timestamps.
+     *
+     * @return a new ImageMetadata without timestamps
+     */
     public ImageMetadata withoutTimestamps() {
         return new ImageMetadata(
                 observer,

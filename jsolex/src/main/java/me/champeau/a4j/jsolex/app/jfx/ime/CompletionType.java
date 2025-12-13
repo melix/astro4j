@@ -15,10 +15,16 @@
  */
 package me.champeau.a4j.jsolex.app.jfx.ime;
 
+/** Completion item type enumeration. */
 public enum CompletionType {
+    /** Function completion */
     FUNCTION,
+    /** Variable completion */
     VARIABLE,
+    /** Parameter completion */
     PARAMETER,
+    /** Keyword completion */
     KEYWORD,
+    /** User-defined function completion */
     USER_FUNCTION
 }

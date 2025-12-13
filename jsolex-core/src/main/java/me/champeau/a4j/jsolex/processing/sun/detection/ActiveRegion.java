@@ -23,6 +23,8 @@ import java.util.List;
 /**
  * Represents an active region, which is a group of points, guaranteed to be sorted by x and y.
  * @param points points belonging to the active region
+ * @param topLeft the top-left corner of the bounding box
+ * @param bottomRight the bottom-right corner of the bounding box
  */
 public record ActiveRegion(
     List<Point2D> points,
@@ -32,6 +34,12 @@ public record ActiveRegion(
 
     private static final Comparator<Point2D> POINTS_COMPARATOR = Comparator.comparingDouble(Point2D::x).thenComparingDouble(Point2D::y);
 
+    /**
+     * Creates an active region from a list of points.
+     *
+     * @param points the points to include
+     * @return the active region
+     */
     public static ActiveRegion of(List<Point2D> points) {
         var sortedPoints = points.stream()
             .sorted(POINTS_COMPARATOR)
@@ -52,22 +60,29 @@ public record ActiveRegion(
         return new ActiveRegion(sortedPoints, topLeft, bottomRight);
     }
 
-    public Point2D topLeft() {
-        return topLeft;
-    }
-
-    public Point2D bottomRight() {
-        return bottomRight;
-    }
-
+    /**
+     * Computes the width of the bounding box.
+     *
+     * @return the width of the bounding box
+     */
     public double width() {
         return bottomRight().x() - topLeft().x();
     }
 
+    /**
+     * Computes the height of the bounding box.
+     *
+     * @return the height of the bounding box
+     */
     public double height() {
         return bottomRight().y() - topLeft().y();
     }
 
+    /**
+     * Computes the area of the bounding box.
+     *
+     * @return the area of the bounding box
+     */
     public double area() {
         return width() * height();
     }

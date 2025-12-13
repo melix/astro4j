@@ -17,6 +17,12 @@ package me.champeau.a4j.math.tuples;
 
 /**
  * A sextuplet of doubles.
+ * @param a the first component
+ * @param b the second component
+ * @param c the third component
+ * @param d the fourth component
+ * @param e the fifth component
+ * @param f the sixth component
  */
 public record DoubleSextuplet(
         double a,

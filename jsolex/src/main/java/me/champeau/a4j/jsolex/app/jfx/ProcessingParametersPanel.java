@@ -40,6 +40,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+/**
+ * Panel for configuring processing parameters including spectrum and geometry settings.
+ */
 public class ProcessingParametersPanel extends BaseParameterPanel {
 
     private ChoiceBox<SpectralRay> wavelengthChoice;
@@ -63,6 +66,9 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
     private ProcessParamsController controller;
     private boolean batchMode;
 
+    /**
+     * Creates a new processing parameters panel.
+     */
     public ProcessingParametersPanel() {
         initializeComponents();
         setupLayout();
@@ -192,6 +198,11 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
         }
     }
 
+    /**
+     * Sets the source image width for validation warnings.
+     *
+     * @param width the source width in pixels
+     */
     public void setSourceWidth(Integer width) {
         this.sourceWidth = width;
         updateFixedWidthWarning();
@@ -281,6 +292,12 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
         }
     }
 
+    /**
+     * Loads data from process parameters.
+     *
+     * @param params the process parameters
+     * @param batchMode whether batch mode is enabled
+     */
     public void loadData(ProcessParams params, boolean batchMode) {
         if (this.batchMode != batchMode) {
             this.batchMode = batchMode;
@@ -316,10 +333,20 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
         }
     }
 
+    /**
+     * Sets the controller for this panel.
+     *
+     * @param controller the controller
+     */
     public void setController(ProcessParamsController controller) {
         this.controller = controller;
     }
 
+    /**
+     * Updates the wavelength selection.
+     *
+     * @param ray the spectral ray to select
+     */
     public void updateWavelength(SpectralRay ray) {
         wavelengthChoice.getItems().clear();
         var candidates = loadAbsorptionLines();
@@ -331,7 +358,11 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
         }
     }
 
-
+    /**
+     * Returns the spectrum parameters from the panel.
+     *
+     * @return the spectrum parameters
+     */
     public SpectrumParams getSpectrumParams() {
         var selectedRay = wavelengthChoice.getValue();
         var pixelShifts = parsePixelShifts(pixelShiftingField.getText());
@@ -345,6 +376,11 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
         );
     }
 
+    /**
+     * Returns the geometry parameters from the panel.
+     *
+     * @return the geometry parameters
+     */
     public GeometryParams getGeometryParams() {
         var defaults = ProcessParams.loadDefaults().geometryParams();
         Integer fixedWidth = null;
@@ -364,6 +400,11 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
                 .withAutocorrectAngleP(autocorrectAnglePCheck.isSelected());
     }
 
+    /**
+     * Returns whether the panel contains valid parameters.
+     *
+     * @return true if all parameters are valid
+     */
     public boolean isValid() {
         try {
             var pixelShifts = parsePixelShifts(pixelShiftingField.getText());
@@ -384,14 +425,29 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
         }
     }
 
+    /**
+     * Returns whether images should be reviewed after batch processing.
+     *
+     * @return true if review is enabled
+     */
     public boolean isReviewImagesAfterBatch() {
         return batchMode && reviewImagesAfterBatch.isSelected();
     }
 
+    /**
+     * Returns the pixel shift value as a string.
+     *
+     * @return the pixel shift value
+     */
     public String getPixelShiftValue() {
         return pixelShiftingField.getText();
     }
 
+    /**
+     * Returns the parsed pixel shift values.
+     *
+     * @return the list of pixel shift values
+     */
     public List<Double> getPixelShiftValues() {
         return parsePixelShifts(pixelShiftingField.getText());
     }
@@ -425,14 +481,29 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
         return Double.parseDouble(normalized);
     }
 
+    /**
+     * Returns the continuum shift value as a string.
+     *
+     * @return the continuum shift value
+     */
     public String getContinuumShiftValue() {
         return continuumShiftingField.getText();
     }
 
+    /**
+     * Returns the Doppler shift value as a string.
+     *
+     * @return the Doppler shift value
+     */
     public String getDopplerShiftValue() {
         return dopplerShiftingField.getText();
     }
 
+    /**
+     * Sets the pixel shift value.
+     *
+     * @param value the pixel shift value
+     */
     public void setPixelShiftValue(String value) {
         pixelShiftingField.setText(value);
     }
@@ -534,6 +605,9 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
         }
     }
 
+    /**
+     * Called when observation details change to update the UI.
+     */
     public void onObservationDetailsChanged() {
         updateAngstromLabels();
     }

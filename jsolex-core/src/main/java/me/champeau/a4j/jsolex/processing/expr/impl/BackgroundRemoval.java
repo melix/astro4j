@@ -27,11 +27,31 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+/**
+ * Implementation of background removal functions for the image math language.
+ * Provides functions to remove or neutralize background in solar images.
+ */
 public class BackgroundRemoval extends AbstractFunctionImpl {
+    /**
+     * Constructs a background removal function implementation.
+     *
+     * @param context the execution context
+     * @param broadcaster the broadcaster for progress notifications
+     */
     public BackgroundRemoval(Map<Class<?>, Object> context, Broadcaster broadcaster) {
         super(context, broadcaster);
     }
 
+    /**
+     * Removes background from an image using a quadratic model based on distance from the solar disk.
+     * The function removes background outside the ellipse using a tolerance-based correction.
+     *
+     * @param arguments function arguments containing:
+     *                  - img: the input image or list of images
+     *                  - ellipse: the solar disk ellipse (optional if metadata available)
+     *                  - tolerance: the correction factor (default: 0.9)
+     * @return the processed image or list of images with background removed
+     */
     public Object removeBackground(Map<String ,Object> arguments) {
         BuiltinFunction.REMOVE_BG.validateArgs(arguments);
         var arg = arguments.get("img");
@@ -63,6 +83,15 @@ public class BackgroundRemoval extends AbstractFunctionImpl {
         throw new IllegalArgumentException("remove_bg only supports mono images");
     }
 
+    /**
+     * Neutralizes background by estimating background level and removing it using polynomial regression.
+     * The function iteratively models and removes background outside the solar disk.
+     *
+     * @param arguments function arguments containing:
+     *                  - img: the input image or list of images
+     *                  - iterations: number of neutralization iterations (default: 1)
+     * @return the processed image or list of images with neutralized background
+     */
     public Object neutralizeBackground(Map<String ,Object> arguments) {
         BuiltinFunction.NEUTRALIZE_BG.validateArgs(arguments);
         var arg = arguments.get("img");
@@ -90,6 +119,16 @@ public class BackgroundRemoval extends AbstractFunctionImpl {
         throw new IllegalArgumentException("neutralize_bg only supports mono images");
     }
 
+    /**
+     * Computes a polynomial background model for an image by fitting a surface to background pixels.
+     * The model is computed using pixels outside the solar disk and can use various polynomial degrees.
+     *
+     * @param arguments function arguments containing:
+     *                  - img: the input image or list of images
+     *                  - order: polynomial degree (default: 2)
+     *                  - sigma: sigma threshold for outlier filtering (default: 2.5)
+     * @return the computed background model image or list of images
+     */
     public Object backgroundModel(Map<String ,Object> arguments) {
         BuiltinFunction.BG_MODEL.validateArgs(arguments);
         var arg = arguments.get("img");

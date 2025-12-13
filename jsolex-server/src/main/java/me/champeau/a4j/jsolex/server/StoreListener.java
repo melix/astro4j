@@ -15,8 +15,17 @@
  */
 package me.champeau.a4j.jsolex.server;
 
+/** Listener for image store events. */
 public interface StoreListener {
+    /**
+     * Called when an image is added to the store.
+     * @param store the image store
+     */
     void imageAdded(ImagesStore store);
 
+    /**
+     * Called when the store is cleared.
+     * @param imagesStore the image store
+     */
     void cleared(ImagesStore imagesStore);
 }

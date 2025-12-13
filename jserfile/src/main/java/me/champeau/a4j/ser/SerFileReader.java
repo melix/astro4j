@@ -37,6 +37,7 @@ import java.util.Optional;
  */
 public class SerFileReader implements AutoCloseable {
     private static final ZoneId UTC = ZoneId.of("UTC");
+    /** The file ID for JSol'Ex trimmed SER files. */
     public static final String JSOLEX_RECORDER = "JSOLEX-TRIMMED";
 
     private final File backingFile;
@@ -53,6 +54,16 @@ public class SerFileReader implements AutoCloseable {
     private ZonedDateTime currentTimestamp;
     private volatile boolean closed = false;
 
+    /**
+     * Constructs a new SER file reader.
+     *
+     * @param backingFile the backing file
+     * @param accessFile the random access file
+     * @param imageBuffers the image buffers
+     * @param maxFramesPerBuffer the maximum frames per buffer
+     * @param timestampsBuffer the timestamps buffer
+     * @param header the SER file header
+     */
     private SerFileReader(File backingFile, RandomAccessFile accessFile, ByteBuffer[] imageBuffers, int maxFramesPerBuffer, ByteBuffer timestampsBuffer, Header header) {
         this.backingFile = backingFile;
         this.accessFile = accessFile;
@@ -64,10 +75,20 @@ public class SerFileReader implements AutoCloseable {
         this.frameBuffer = new byte[bytesPerFrame];
     }
 
+    /**
+     * Gets the SER file header.
+     *
+     * @return the header
+     */
     public Header header() {
         return header;
     }
 
+    /**
+     * Gets the current frame.
+     *
+     * @return the current frame
+     */
     public Frame currentFrame() {
         assertNotClosed();
         if (previousFrame != currentFrame) {
@@ -86,6 +107,7 @@ public class SerFileReader implements AutoCloseable {
         }
     }
 
+    /** Moves to the next frame. */
     public void nextFrame() {
         assertNotClosed();
         currentFrame = (currentFrame + 1) % header.frameCount();
@@ -103,20 +125,34 @@ public class SerFileReader implements AutoCloseable {
         }
     }
 
+    /**
+     * Seeks to the specified frame.
+     *
+     * @param frameNb the frame number
+     */
     public void seekFrame(int frameNb) {
         assertNotClosed();
         currentFrame = frameNb % header.frameCount();
         positionBuffers();
     }
 
+    /** Seeks to the last frame. */
     public void seekLast() {
         seekFrame(header.frameCount() - 1);
     }
 
+    /** Seeks to the first frame. */
     public void seekFirst() {
         seekFrame(0);
     }
 
+    /**
+     * Opens a SER file for reading.
+     *
+     * @param file the file to read
+     * @return a new SerFileReader
+     * @throws IOException if an I/O error occurs
+     */
     public static SerFileReader of(File file) throws IOException {
         var tmpReader = createBaseReader(file);
         return fixReader(tmpReader);
@@ -232,6 +268,11 @@ public class SerFileReader implements AutoCloseable {
         return next;
     }
 
+    /**
+     * Estimates the frames per second of the video.
+     *
+     * @return the estimated FPS, or empty if it cannot be determined
+     */
     public Optional<Double> estimateFps() {
         Optional<Double> value = Optional.empty();
         if (header.metadata().telescope().contains("fps=")) {
@@ -260,6 +301,14 @@ public class SerFileReader implements AutoCloseable {
         return value;
     }
 
+    /**
+     * Reads the SER file header.
+     *
+     * @param fileId the file ID
+     * @param buffer the buffer containing header data
+     * @return the parsed header
+     * @throws IOException if an I/O error occurs
+     */
     private static Header readHeader(String fileId, ByteBuffer buffer) throws IOException {
         Camera camera = new Camera(buffer.getInt());
         Optional<ColorMode> colorMode = ColorMode.of(buffer.getInt());
@@ -321,10 +370,21 @@ public class SerFileReader implements AutoCloseable {
         System.gc();
     }
 
+    /**
+     * Determines if the reader is closed.
+     *
+     * @return true if closed
+     */
     public boolean isClosed() {
         return closed;
     }
 
+    /**
+     * Reopens the SER file.
+     *
+     * @return a new SerFileReader for the same file
+     * @throws IOException if an I/O error occurs
+     */
     public SerFileReader reopen() throws IOException {
         var baseReader = createBaseReader(backingFile);
         return new SerFileReader(

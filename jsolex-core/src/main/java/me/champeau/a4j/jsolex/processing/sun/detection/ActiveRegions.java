@@ -21,15 +21,31 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.function.Function;
 
+/**
+ * A collection of active regions.
+ *
+ * @param regionList the list of active regions
+ */
 public record ActiveRegions(
     List<ActiveRegion> regionList
 ) {
+    /**
+     * Creates a new collection of active regions, sorted by area in descending order.
+     *
+     * @param regionList the list of active regions
+     */
     public ActiveRegions(List<ActiveRegion> regionList) {
         this.regionList = regionList.stream()
             .sorted(Comparator.comparingDouble(ActiveRegion::area).reversed())
             .toList();
     }
 
+    /**
+     * Transforms all regions using the given transformer.
+     *
+     * @param transformer the point transformer
+     * @return the transformed regions
+     */
     public ActiveRegions transform(Function<? super Point2D, Point2D> transformer) {
         return new ActiveRegions(
             regionList.stream()
@@ -42,6 +58,13 @@ public record ActiveRegions(
         );
     }
 
+    /**
+     * Translates all regions by the given offset.
+     *
+     * @param dx the x offset
+     * @param dy the y offset
+     * @return the translated regions
+     */
     public ActiveRegions translate(double dx, double dy) {
         return transform(p -> p.translate(dx, dy));
     }

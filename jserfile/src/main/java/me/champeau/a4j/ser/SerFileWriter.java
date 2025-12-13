@@ -31,6 +31,7 @@ import java.util.stream.IntStream;
 
 import static me.champeau.a4j.ser.SerFileReader.JSOLEX_RECORDER;
 
+/** Writes SER video files. */
 public class SerFileWriter implements AutoCloseable {
     private static final ZoneId UTC = ZoneId.of("UTC");
     private static final int LITTLE_ENDIAN = 1;
@@ -44,6 +45,16 @@ public class SerFileWriter implements AutoCloseable {
     private final List<Long> timestamps = new ArrayList<>();
     private int frameCount;
 
+    /**
+     * Constructs a new SER file writer.
+     *
+     * @param file the output file
+     * @param date the recording date
+     * @param camera the camera information
+     * @param geometry the image geometry
+     * @param metadata the image metadata
+     * @throws IOException if an I/O error occurs
+     */
     public SerFileWriter(File file,
                          ZonedDateTime date,
                          Camera camera,
@@ -57,6 +68,13 @@ public class SerFileWriter implements AutoCloseable {
         writeHeader(ByteBuffer.allocate(178).order(ByteOrder.LITTLE_ENDIAN), date);
     }
 
+    /**
+     * Writes a frame to the SER file.
+     *
+     * @param date the frame timestamp
+     * @param reader the frame reader
+     * @throws IOException if an I/O error occurs
+     */
     public void writeFrame(ZonedDateTime date, FrameReader reader) throws IOException {
         frameCount++;
         var buffer = ByteBuffer.allocate(geometry.getBytesPerFrame()).order(geometry.imageEndian());
@@ -75,7 +93,11 @@ public class SerFileWriter implements AutoCloseable {
     }
 
     /**
-     * An optimized version when we know we're writing a mono image
+     * An optimized version when we know we're writing a mono image.
+     *
+     * @param date the frame timestamp
+     * @param reader the mono frame reader
+     * @throws IOException if an I/O error occurs
      */
     public void writeMonoFrame(ZonedDateTime date, MonoFrameReader reader) throws IOException {
         frameCount++;
@@ -107,6 +129,16 @@ public class SerFileWriter implements AutoCloseable {
         }
     }
 
+    /**
+     * Writes a pixel to the buffer.
+     *
+     * @param buffer the buffer to write to
+     * @param r the red value
+     * @param g the green value
+     * @param b the blue value
+     * @param bytesPerPixel the number of bytes per pixel
+     * @param bitsToDiscard the number of bits to discard
+     */
     private void writePixel(ByteBuffer buffer, short r, short g, short b, int bytesPerPixel, int bitsToDiscard) {
         switch (geometry.colorMode()) {
             case MONO:
@@ -127,6 +159,14 @@ public class SerFileWriter implements AutoCloseable {
         }
     }
 
+    /**
+     * Writes a color value to the buffer.
+     *
+     * @param frameData the frame data buffer
+     * @param bytesPerPixel the number of bytes per pixel
+     * @param bitsToDiscard the number of bits to discard
+     * @param color the color value
+     */
     private static void writeColor(ByteBuffer frameData, int bytesPerPixel, int bitsToDiscard, short color) {
         if (bytesPerPixel == 1) {
             // Align the most significant bits back into the 8-bit range
@@ -140,10 +180,23 @@ public class SerFileWriter implements AutoCloseable {
         }
     }
 
+    /**
+     * Writes an ASCII string to the buffer.
+     *
+     * @param buffer the buffer to write to
+     * @param value the string value
+     */
     private void writeAsciiString(ByteBuffer buffer, String value) {
         writeAsciiString(buffer, value, value.length());
     }
 
+    /**
+     * Writes an ASCII string to the buffer with a specific length.
+     *
+     * @param buffer the buffer to write to
+     * @param value the string value
+     * @param length the length to write
+     */
     private void writeAsciiString(ByteBuffer buffer, String value, int length) {
         byte[] buf = new byte[length];
         if (value != null) {
@@ -153,6 +206,13 @@ public class SerFileWriter implements AutoCloseable {
         buffer.put(buf);
     }
 
+    /**
+     * Writes the SER file header.
+     *
+     * @param buffer the buffer to write to
+     * @param date the recording date
+     * @throws IOException if an I/O error occurs
+     */
     private void writeHeader(ByteBuffer buffer, ZonedDateTime date) throws IOException {
         writeAsciiString(buffer, JSOLEX_RECORDER);
         buffer.putInt(camera.id());
@@ -196,17 +256,38 @@ public class SerFileWriter implements AutoCloseable {
         raf.close();
     }
 
+    /** Reads RGB values from a frame. */
     @FunctionalInterface
     public interface FrameReader {
+        /**
+         * Gets the RGB values at the specified coordinates.
+         *
+         * @param x the x coordinate
+         * @param y the y coordinate
+         * @return the RGB values as a 3-element array
+         */
         short[] getRGB(int x, int y);
     }
 
+    /** Reads mono pixel values from a frame. */
     @FunctionalInterface
     public interface MonoFrameReader {
+        /**
+         * Determines if the frame should be vertically flipped.
+         *
+         * @return true if the frame should be vertically flipped
+         */
         default boolean isVFlip() {
             return false;
         }
 
+        /**
+         * Gets the pixel value at the specified coordinates.
+         *
+         * @param x the x coordinate
+         * @param y the y coordinate
+         * @return the pixel value
+         */
         short getPixel(int x, int y);
     }
 }

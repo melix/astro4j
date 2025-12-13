@@ -19,7 +19,20 @@ import me.champeau.a4j.jsolex.processing.util.Histogram;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.regression.Ellipse;
 
+/**
+ * Utility class for image analysis operations.
+ */
 public class AnalysisUtils {
+    private AnalysisUtils() {
+    }
+
+    /**
+     * Estimates the black point value from pixels outside the solar disk.
+     *
+     * @param image the image to analyze
+     * @param ellipse the solar disk ellipse
+     * @return the estimated black point
+     */
     public static double estimateBlackPoint(ImageWrapper32 image, Ellipse ellipse) {
         var width = image.width();
         var height = image.height();
@@ -42,6 +55,13 @@ public class AnalysisUtils {
         return blackEstimate;
     }
 
+    /**
+     * Estimates the background level from pixels outside the solar disk.
+     *
+     * @param image the image to analyze
+     * @param ellipse the solar disk ellipse
+     * @return the estimated background level
+     */
     public static double estimateBackground(ImageWrapper32 image, Ellipse ellipse) {
         var width = image.width();
         var height = image.height();
@@ -61,14 +81,33 @@ public class AnalysisUtils {
         return avg;
     }
 
+    /**
+     * Estimates the signal level using histogram analysis with default bins.
+     *
+     * @param data the image data
+     * @return the estimated signal level
+     */
     public static float estimateSignalLevel(float[][] data) {
         return estimateSignalLevel(data, 32);
     }
 
+    /**
+     * Estimates the background level using histogram analysis with default bins.
+     *
+     * @param data the image data
+     * @return the estimated background level
+     */
     public static float estimateBackgroundLevel(float[][] data) {
         return estimateBackgroundLevel(data, 64);
     }
 
+    /**
+     * Estimates the background level using histogram analysis.
+     *
+     * @param data the image data
+     * @param bins the number of histogram bins
+     * @return the estimated background level
+     */
     public static float estimateBackgroundLevel(float[][] data, int bins) {
         var h = Histogram.of(data, bins);
         var values = h.values();
@@ -89,6 +128,13 @@ public class AnalysisUtils {
         return (65535f * idx) / bins;
     }
 
+    /**
+     * Estimates the signal level using histogram analysis.
+     *
+     * @param data the image data
+     * @param bins the number of histogram bins
+     * @return the estimated signal level
+     */
     public static float estimateSignalLevel(float[][] data, int bins) {
         var h = Histogram.of(data, bins);
         var values = h.values();

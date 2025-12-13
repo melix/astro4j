@@ -17,6 +17,13 @@ package me.champeau.a4j.jsolex.app.jfx.ime;
 
 import java.util.List;
 
+/** Provider for code completion items. */
 public interface CompletionProvider {
+    /**
+     * Returns completion items for the given text and caret position.
+     * @param text the text to analyze
+     * @param caretPosition the caret position
+     * @return the list of completion items
+     */
     List<CompletionItem> getCompletions(String text, int caretPosition);
 }

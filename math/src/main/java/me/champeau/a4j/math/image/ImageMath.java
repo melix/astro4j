@@ -22,10 +22,22 @@ import java.util.Arrays;
 
 import static java.lang.Math.round;
 
+/**
+ * Interface for image processing operations with multiple backend implementations.
+ * Implementations may use OpenCL, Vector API, or fallback scalar operations.
+ */
 public interface ImageMath {
 
+    /**
+     * Maximum pixel value for 16-bit images.
+     */
     int MAX_VALUE = 65535;
 
+    /**
+     * Creates a new instance with the best available backend implementation.
+     *
+     * @return an ImageMath instance
+     */
     static ImageMath newInstance() {
         // OpenCL requires explicit opt-in via OPENCL_ENABLED=true
         if (OpenCLSupport.isEnabled()) {
@@ -38,6 +50,12 @@ public interface ImageMath {
         return new FallbackImageMath();
     }
 
+    /**
+     * Rotates an image 90 degrees counter-clockwise.
+     *
+     * @param image the source image
+     * @return the rotated image
+     */
     default Image rotateLeft(Image image) {
         var data = image.data();
         var width = image.width();
@@ -54,6 +72,12 @@ public interface ImageMath {
         return new Image(newWidth, newHeight, output);
     }
 
+    /**
+     * Rotates an image 90 degrees clockwise.
+     *
+     * @param image the source image
+     * @return the rotated image
+     */
     default Image rotateRight(Image image) {
         var data = image.data();
         var width = image.width();
@@ -70,6 +94,12 @@ public interface ImageMath {
         return new Image(newWidth, newHeight, output);
     }
 
+    /**
+     * Computes the average value for each row in the image.
+     *
+     * @param image the source image
+     * @return an array of row averages
+     */
     default double[] lineAverages(Image image) {
         var height = image.height();
         double[] result = new double[height];
@@ -79,6 +109,13 @@ public interface ImageMath {
         return result;
     }
 
+    /**
+     * Computes the average value of a specific row in the image.
+     *
+     * @param image the source image
+     * @param lineNb the row number
+     * @return the average value of the row
+     */
     default double averageOf(Image image, int lineNb) {
         var data = image.data();
         var width = image.width();
@@ -89,6 +126,12 @@ public interface ImageMath {
         return sum / width;
     }
 
+    /**
+     * Computes the average value of an array.
+     *
+     * @param data the input array
+     * @return the average value
+     */
     default double averageOf(double[] data) {
         double sum = 0;
         int max = data.length;
@@ -98,6 +141,12 @@ public interface ImageMath {
         return sum / max;
     }
 
+    /**
+     * Computes the average value of a 2D array.
+     *
+     * @param data the input 2D array
+     * @return the average value
+     */
     default float averageOf(float[][] data) {
         float sum = 0;
         int cpt = 0;
@@ -110,6 +159,13 @@ public interface ImageMath {
         return sum / cpt;
     }
 
+    /**
+     * Updates a running average with a new data point using incremental formula.
+     *
+     * @param current the current data values
+     * @param average the running average (modified in place)
+     * @param n the count of values including this one
+     */
     default void incrementalAverage(float[][] current, float[][] average, int n) {
         for (int j = 0; j < current.length; j++) {
             var averageLine = average[j];
@@ -120,6 +176,16 @@ public interface ImageMath {
         }
     }
 
+    /**
+     * Rotates and scales an image in one operation.
+     *
+     * @param image the source image
+     * @param angle the rotation angle in radians
+     * @param blackpoint the value to use for pixels outside the source
+     * @param scaleX the horizontal scale factor
+     * @param scaleY the vertical scale factor
+     * @return the transformed image
+     */
     default Image rotateAndScale(Image image, double angle, float blackpoint, double scaleX, double scaleY) {
         var data = image.data();
         var width = image.width();
@@ -165,7 +231,15 @@ public interface ImageMath {
         return new Image(newWidth, newHeight, output);
     }
 
-
+    /**
+     * Rotates an image by an arbitrary angle with optional resizing.
+     *
+     * @param image the source image
+     * @param angle the rotation angle in radians
+     * @param blackpoint the value to use for pixels outside the source (negative for adaptive)
+     * @param resize if true, resize output to fit entire rotated image
+     * @return the rotated image
+     */
     default Image rotate(Image image, double angle, float blackpoint, boolean resize) {
         var data = image.data();
         var width = image.width();
@@ -238,6 +312,14 @@ public interface ImageMath {
         return new Image(newWidth, newHeight, output);
     }
 
+    /**
+     * Rescales an image to new dimensions using bilinear interpolation.
+     *
+     * @param image the source image
+     * @param newWidth the target width
+     * @param newHeight the target height
+     * @return the rescaled image
+     */
     default Image rescale(Image image, int newWidth, int newHeight) {
         var data = image.data();
         var width = image.width();
@@ -278,6 +360,14 @@ public interface ImageMath {
         return new Image(newWidth, newHeight, output);
     }
 
+    /**
+     * Mirrors an image horizontally and/or vertically.
+     *
+     * @param source the source image
+     * @param horizontalMirror if true, mirror horizontally
+     * @param verticalMirror if true, mirror vertically
+     * @return the mirrored image
+     */
     default Image mirror(Image source, boolean horizontalMirror, boolean verticalMirror) {
         if (!horizontalMirror && !verticalMirror) {
             return source;
@@ -299,6 +389,12 @@ public interface ImageMath {
         return new Image(width, height, mirrored);
     }
 
+    /**
+     * Computes the integral image for fast area sum queries.
+     *
+     * @param source the source image
+     * @return the integral image
+     */
     default Image integralImage(Image source) {
         var data = source.data();
         var width = source.width();
@@ -331,6 +427,16 @@ public interface ImageMath {
         return new Image(width, height, integral);
     }
 
+    /**
+     * Computes the sum of pixel values in a rectangular area using an integral image.
+     *
+     * @param integralImage the precomputed integral image
+     * @param x the left coordinate of the area
+     * @param y the top coordinate of the area
+     * @param width the width of the area
+     * @param height the height of the area
+     * @return the sum of values in the area
+     */
     default float areaSum(Image integralImage, int x, int y, int width, int height) {
         var imageWidth = integralImage.width();
         var imageHeight = integralImage.height();
@@ -354,10 +460,27 @@ public interface ImageMath {
         return 0;
     }
 
+    /**
+     * Computes the average pixel value in a rectangular area using an integral image.
+     *
+     * @param integralImage the precomputed integral image
+     * @param x the left coordinate of the area
+     * @param y the top coordinate of the area
+     * @param width the width of the area
+     * @param height the height of the area
+     * @return the average value in the area
+     */
     default float areaAverage(Image integralImage, int x, int y, int width, int height) {
         return areaSum(integralImage, x, y, width, height) / (width * height);
     }
 
+    /**
+     * Applies a convolution kernel to an image.
+     *
+     * @param image the source image
+     * @param kernel the convolution kernel
+     * @return the convolved image
+     */
     default Image convolve(Image image, Kernel kernel) {
         var source = image.data();
         var height = image.height();
@@ -394,7 +517,12 @@ public interface ImageMath {
         return image.withData(convolved);
     }
 
-
+    /**
+     * Computes the gradient using left-top Sobel operators.
+     *
+     * @param image the source image
+     * @return the gradient magnitude and direction
+     */
     default Gradient gradientLT(Image image) {
         var gx = convolve(image, Kernel33.SOBEL_LEFT).data();
         var gy = convolve(image, Kernel33.SOBEL_TOP).data();
@@ -416,6 +544,12 @@ public interface ImageMath {
         return new Gradient(new Image(width, height, mag), new Image(width, height, dir));
     }
 
+    /**
+     * Computes the gradient using right-bottom Sobel operators.
+     *
+     * @param image the source image
+     * @return the gradient magnitude and direction
+     */
     default Gradient gradientRB(Image image) {
         var gx = convolve(image, Kernel33.SOBEL_RIGHT).data();
         var gy = convolve(image, Kernel33.SOBEL_BOTTOM).data();
@@ -437,7 +571,13 @@ public interface ImageMath {
         return new Gradient(new Image(width, height, mag), new Image(width, height, dir));
     }
 
-
+    /**
+     * Multiplies all pixel values by a scalar.
+     *
+     * @param source the source image
+     * @param f the multiplication factor
+     * @return the result image
+     */
     default Image multiply(Image source, float f) {
         var firstData = source.data();
         var height = source.height();
@@ -451,6 +591,13 @@ public interface ImageMath {
         return new Image(width, height, result);
     }
 
+    /**
+     * Adds a scalar to all pixel values.
+     *
+     * @param source the source image
+     * @param f the value to add
+     * @return the result image
+     */
     default Image add(Image source, float f) {
         var firstData = source.data();
         var height = source.height();
@@ -464,6 +611,13 @@ public interface ImageMath {
         return new Image(width, height, result);
     }
 
+    /**
+     * Divides corresponding pixels of two images.
+     *
+     * @param first the numerator image
+     * @param second the denominator image
+     * @return the result image
+     */
     default Image divide(Image first, Image second) {
         var firstData = first.data();
         var secondData = second.data();
@@ -478,6 +632,13 @@ public interface ImageMath {
         return new Image(width, height, result);
     }
 
+    /**
+     * Multiplies corresponding pixels of two images.
+     *
+     * @param first the first image
+     * @param second the second image
+     * @return the result image
+     */
     default Image multiply(Image first, Image second) {
         var firstData = first.data();
         var secondData = second.data();
@@ -518,6 +679,12 @@ public interface ImageMath {
         return Math.sqrt(sumOfSquares) / count;
     }
 
+    /**
+     * Applies Laplacian edge detection to an image.
+     *
+     * @param image the source image
+     * @return the Laplacian result
+     */
     default Image laplacian(Image image) {
         var a = multiply(convolve(image, Kernel33.LAPLACIAN), 2 / 3f).data();
         var b = multiply(convolve(image, Kernel33.LAPLACIAN_B), 1 / 3f).data();

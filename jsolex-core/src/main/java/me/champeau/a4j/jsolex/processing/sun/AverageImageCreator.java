@@ -30,8 +30,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
 /**
- * An edge detector which compute the magnitude of the signal and detect edges by comparing it
- * to a threshold.
+ * Computes an average image from multiple frames in a SER file.
+ * This class processes frames in parallel, filters out frames that are too dark,
+ * and computes an incremental average to produce a single averaged image.
  */
 public class AverageImageCreator {
     private static final int IO_PARALLELISM = 4 * Runtime.getRuntime().availableProcessors();
@@ -42,6 +43,13 @@ public class AverageImageCreator {
 
     private float[][] averageImage;
 
+    /**
+     * Creates a new average image creator.
+     *
+     * @param imageConverter the converter for processing raw frame data
+     * @param rootOperation the root progress operation for reporting progress
+     * @param broadcaster the broadcaster for publishing progress events
+     */
     public AverageImageCreator(ImageConverter<float[][]> imageConverter,
                                ProgressOperation rootOperation,
                                Broadcaster broadcaster) {
@@ -50,6 +58,13 @@ public class AverageImageCreator {
         this.broadcaster = broadcaster;
     }
 
+    /**
+     * Computes the average image from all frames in the SER file.
+     * Frames with mean intensity below 50% of the maximum are excluded.
+     * Processing is performed in parallel for efficiency.
+     *
+     * @param reader the SER file reader containing the frames to average
+     */
     public void computeAverageImage(SerFileReader reader) {
         int frameCount = reader.header().frameCount();
         ImageGeometry geometry = reader.header().geometry();
@@ -121,6 +136,11 @@ public class AverageImageCreator {
         return maxMean;
     }
 
+    /**
+     * Returns the computed average image.
+     *
+     * @return the average image as a 2D float array
+     */
     public float[][] getAverageImage() {
         return averageImage;
     }

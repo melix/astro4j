@@ -22,15 +22,32 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * This bean is used to instantiate shared context between the JSol'Ex main application and the server.
+ * Uses the default constructor for Micronaut dependency injection.
  */
 @Singleton
 public class SharedContext {
     private final Map<Class<?>, Object> context = new ConcurrentHashMap<>();
 
+    /** Creates a new instance. Required by Micronaut. */
+    public SharedContext() {
+    }
+
+    /**
+     * Gets a value from the shared context.
+     * @param type the type of the value
+     * @param <T> the value type
+     * @return the value associated with the type, or null if not found
+     */
     public <T> T get(Class<T> type) {
         return type.cast(context.get(type));
     }
 
+    /**
+     * Sets a value in the shared context.
+     * @param type the type of the value
+     * @param value the value to store
+     * @param <T> the value type
+     */
     public <T> void set(Class<T> type, T value) {
         context.put(type, value);
     }

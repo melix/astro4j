@@ -20,6 +20,8 @@ import java.util.List;
 
 /**
  * Represents a single file output.
+ *
+ * @param file the output file path
  */
 public record SingleFileOutput(Path file) implements FileOutputResult {
     @Override

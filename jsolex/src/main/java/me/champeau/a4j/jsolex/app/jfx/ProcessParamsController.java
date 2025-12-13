@@ -55,7 +55,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-
+/**
+ * Controller for the process parameters dialog.
+ * Manages the navigation between different parameter panels and coordinates
+ * the collection of processing parameters from the UI.
+ */
 public class ProcessParamsController {
     private static final Logger LOGGER = LoggerFactory.getLogger(ProcessParamsController.class);
 
@@ -84,6 +88,24 @@ public class ProcessParamsController {
     private Button quickButton;
     private Button fullButton;
 
+    /**
+     * Default constructor.
+     */
+    public ProcessParamsController() {
+    }
+
+    /**
+     * Sets up the controller with all necessary dependencies and initializes the UI.
+     *
+     * @param stage the stage to display the dialog in
+     * @param progressOperation the progress operation for tracking processing progress
+     * @param broadcaster the broadcaster for publishing events
+     * @param serFile the SER file being processed
+     * @param header the header information from the SER file
+     * @param metadata the capture software metadata
+     * @param batchMode whether batch mode is enabled
+     * @param hostServices the host services for opening external links
+     */
     public void setup(Stage stage,
                       ProgressOperation progressOperation,
                       Broadcaster broadcaster,
@@ -370,6 +392,14 @@ public class ProcessParamsController {
                 .withExtraParams(extraParams);
     }
 
+    /**
+     * Loads initial data into all panels.
+     *
+     * @param serFile the SER file being processed
+     * @param header the header information from the SER file
+     * @param metadata the capture software metadata
+     * @param batchMode whether batch mode is enabled
+     */
     private void loadInitialData(File serFile,
                                  Header header,
                                  CaptureSoftwareMetadataHelper.CaptureMetadata metadata,
@@ -382,18 +412,36 @@ public class ProcessParamsController {
         outputPanel.loadData(processParams, batchMode);
     }
 
+    /**
+     * Gets the process parameters collected from the UI.
+     *
+     * @return the process parameters if processing was completed, empty otherwise
+     */
     public Optional<ProcessParams> getProcessParams() {
         return Optional.ofNullable(processParams);
     }
 
+    /**
+     * Checks if auto-trim SER file option is selected.
+     *
+     * @return true if auto-trim is selected, false otherwise
+     */
     public boolean isAutoTrimSerFileSelected() {
         return outputPanel != null && outputPanel.isAutoTrimSelected();
     }
 
+    /**
+     * Gets the root pane of the dialog.
+     *
+     * @return the root BorderPane
+     */
     public BorderPane getRoot() {
         return root;
     }
 
+    /**
+     * Opens the instrument editor dialog.
+     */
     public void openInstrumentEditor() {
         var stage = new Stage();
         stage.initStyle(StageStyle.DECORATED);
@@ -412,6 +460,9 @@ public class ProcessParamsController {
         });
     }
 
+    /**
+     * Opens the setup editor dialog.
+     */
     public void openSetupEditor() {
         var editorStage = new Stage();
         editorStage.initStyle(StageStyle.DECORATED);
@@ -425,6 +476,9 @@ public class ProcessParamsController {
         });
     }
 
+    /**
+     * Opens the wavelength editor dialog.
+     */
     public void openWavelengthEditor() {
         var stage = new Stage();
         stage.initStyle(StageStyle.DECORATED);
@@ -438,6 +492,9 @@ public class ProcessParamsController {
         });
     }
 
+    /**
+     * Opens the naming pattern editor dialog.
+     */
     public void openNamingPatternEditor() {
         var stage = new Stage();
         stage.initStyle(StageStyle.DECORATED);
@@ -451,19 +508,32 @@ public class ProcessParamsController {
             stage.close();
         });
     }
-    
+
+    /**
+     * Gets the current header, creating a dummy one if needed.
+     *
+     * @return the current header
+     */
     private Header getCurrentHeader() {
         var now = LocalDateTime.now();
         return new Header(null, null, null, 0, 
             new ImageMetadata(null, null, null, true, now, now.atZone(ZoneId.of("UTC"))));
     }
-    
+
+    /**
+     * Updates the spectrum vertical flip setting based on the instrument.
+     *
+     * @param instrument the spectroheliograph instrument
+     */
     public void updateSpectrumVFlipForInstrument(SpectroHeliograph instrument) {
         if (advancedPanel != null) {
             advancedPanel.updateSpectrumVFlip(instrument.spectrumVFlip());
         }
     }
 
+    /**
+     * Opens the flat file selection dialog.
+     */
     public void selectFlatFile() {
         var stage = new Stage(StageStyle.UTILITY);
         FlatSelectionController.open(stage,
@@ -478,6 +548,9 @@ public class ProcessParamsController {
                 }));
     }
 
+    /**
+     * Opens the video debugger dialog for analyzing spectral lines.
+     */
     public void openVideoDebugger() {
         if (serFile == null) {
             return;
@@ -498,6 +571,9 @@ public class ProcessParamsController {
         debugger.setOnCloseRequest(e -> popups.remove(debugger));
     }
 
+    /**
+     * Closes all popup windows.
+     */
     private void closePopups() {
         popups.forEach(p -> {
             if (p.isShowing()) {
@@ -506,6 +582,13 @@ public class ProcessParamsController {
         });
     }
 
+    /**
+     * Shows a warning dialog when switching from custom mode.
+     *
+     * @param headerKey the i18n key for the warning header
+     * @param baseContentKey the base i18n key for the warning content
+     * @return true if the user confirmed, false otherwise
+     */
     private boolean showCustomModeWarning(String headerKey, String baseContentKey) {
         if (!imageSelectionPanel.isCustomMode()) {
             return true;
@@ -530,6 +613,9 @@ public class ProcessParamsController {
         return result.isPresent() && result.get() != ButtonType.CANCEL;
     }
 
+    /**
+     * Updates the visibility of buttons based on the current mode.
+     */
     public void updateButtonsVisibility() {
         if (imageSelectionPanel != null && processSelectedButton != null) {
             boolean isCustom = imageSelectionPanel.isCustomMode();
@@ -537,18 +623,31 @@ public class ProcessParamsController {
             processSelectedButton.setManaged(isCustom);
         }
     }
-    
+
+    /**
+     * Gets the processing parameters panel.
+     *
+     * @return the processing parameters panel
+     */
     public ProcessingParametersPanel getProcessingPanel() {
         return processingPanel;
     }
-    
+
+    /**
+     * Gets the observation details from the observation panel.
+     *
+     * @return the observation details, or null if the panel is not initialized
+     */
     public ObservationDetails getObservationDetails() {
         if (observationPanel != null) {
             return observationPanel.getObservationDetails();
         }
         return null;
     }
-    
+
+    /**
+     * Notifies that observation details have changed.
+     */
     public void notifyObservationDetailsChanged() {
         if (processingPanel != null) {
             processingPanel.onObservationDetailsChanged();

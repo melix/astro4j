@@ -24,17 +24,47 @@ import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.function.Supplier;
 
+/**
+ * Abstract base class for processing tasks.
+ *
+ * @param <T> the result type
+ */
 public abstract class AbstractTask<T> implements Callable<T>, Supplier<T> {
+    /**
+     * The progress operation for tracking task execution.
+     */
     protected final ProgressOperation operation;
+
+    /**
+     * Supplier for the work image.
+     */
     protected final Supplier<ImageWrapper32> workImageSupplier;
+
+    /**
+     * Broadcaster for publishing progress events.
+     */
     protected final Broadcaster broadcaster;
+
+    /**
+     * The work image being processed.
+     */
     protected ImageWrapper32 workImage;
+
+    /**
+     * The width of the work image.
+     */
     protected int width;
+
+    /**
+     * The height of the work image.
+     */
     protected int height;
 
     /**
      * Creates an abstract task
      *
+     * @param broadcaster the broadcaster for progress events
+     * @param operation the progress operation
      * @param imageSupplier the current image. A copy will be created in the
      * constructor, so that this task works with its own buffer
      */
@@ -52,6 +82,7 @@ public abstract class AbstractTask<T> implements Callable<T>, Supplier<T> {
         return doCall();
     }
 
+    /** Prepares the image for processing by creating a working copy. */
     protected void prepareImage() {
         var image = workImageSupplier.get();
         this.workImage = image.copy();
@@ -59,6 +90,12 @@ public abstract class AbstractTask<T> implements Callable<T>, Supplier<T> {
         this.height = image.height();
     }
 
+    /**
+     * Performs the actual task computation.
+     *
+     * @return the task result
+     * @throws Exception if an error occurs
+     */
     protected abstract T doCall() throws Exception ;
 
     @Override
@@ -72,11 +109,18 @@ public abstract class AbstractTask<T> implements Callable<T>, Supplier<T> {
 
     /**
      * Returns this task image buffer
+     *
+     * @return the image data buffer
      */
     public final float[][] getBuffer() {
         return workImage.data();
     }
 
+    /**
+     * Returns the image metadata.
+     *
+     * @return the metadata map
+     */
     public Map<Class<?>, Object> getMetadata() {
         return workImage.metadata();
     }

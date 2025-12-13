@@ -28,11 +28,18 @@ import me.champeau.a4j.jsolex.processing.util.VersionUtil;
 import java.io.File;
 import java.util.Map;
 
+/** Main HTTP controller for the JSol'Ex web interface. */
 @Controller("/")
 public class MainController extends AbstractController {
     private final ImagesStore imagesStore;
     private final SharedContext sharedContext;
 
+    /**
+     * Creates a new main controller.
+     * @param imagesStore the image store
+     * @param viewsRenderer the views renderer
+     * @param sharedContext the shared context
+     */
     public MainController(ImagesStore imagesStore,
                           ViewsRenderer<Object, ?> viewsRenderer,
                           SharedContext sharedContext) {
@@ -41,12 +48,21 @@ public class MainController extends AbstractController {
         this.sharedContext = sharedContext;
     }
 
+    /**
+     * Serves the index page.
+     * @return HTTP response with the index view
+     */
     @Get("/")
     @View("index")
     public HttpResponse<?> index() {
         return HttpResponse.ok();
     }
 
+    /**
+     * Serves an image by its ID.
+     * @param id the image ID
+     * @return HTTP response with the image file or not found
+     */
     @Get("/image/{id}")
     HttpResponse<File> image(Long id) {
         return imagesStore.findImage(id).map(image -> {
@@ -60,6 +76,10 @@ public class MainController extends AbstractController {
         }).orElseGet(HttpResponse::notFound);
     }
 
+    /**
+     * Serves the menu view.
+     * @return model and view for the menu
+     */
     @Get("/views/menu")
     public ModelAndView<?> view() {
         var params = sharedContext.get(ProcessParams.class);

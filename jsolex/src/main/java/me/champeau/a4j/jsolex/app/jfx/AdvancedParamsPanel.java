@@ -37,6 +37,9 @@ import me.champeau.a4j.jsolex.processing.util.LocaleUtils;
 
 import java.util.EnumSet;
 
+/**
+ * Panel for advanced application settings like language, output formats, and performance options.
+ */
 public class AdvancedParamsPanel extends BaseParameterPanel {
     private final TextField watchModeWaitTimeMillis;
     private final Slider memoryRestrictionMultiplier;
@@ -56,6 +59,7 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
     private String initialLanguage;
     private boolean initialGpuAcceleration;
 
+    /** Creates a new advanced parameters panel with default settings. */
     public AdvancedParamsPanel() {
         getStyleClass().add("parameter-panel");
         setPadding(new Insets(24));
@@ -224,6 +228,7 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
         gpuAcceleration.setSelected(initialGpuAcceleration);
     }
 
+    /** Saves the current panel settings to the application configuration. */
     public void saveConfiguration() {
         var config = Configuration.getInstance();
 
@@ -264,6 +269,10 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
         config.setGpuAccelerationEnabled(gpuAcceleration.isSelected());
     }
 
+    /**
+     * Returns whether the changed settings require an application restart.
+     * @return true if restart is required
+     */
     public boolean requiresRestart() {
         var newMemoryRestriction = (int) memoryRestrictionMultiplier.getValue();
         var selectedLanguageDisplay = languageSelector.getValue();

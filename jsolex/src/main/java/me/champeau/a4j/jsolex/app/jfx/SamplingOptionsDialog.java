@@ -33,6 +33,9 @@ import java.util.Optional;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.newScene;
 
+/**
+ * Dialog for configuring spectroheliographic reconstruction sampling options.
+ */
 public class SamplingOptionsDialog {
     private final ComboBox<Integer> wavelengthCombo;
     private final ComboBox<Integer> spatialCombo;
@@ -40,8 +43,17 @@ public class SamplingOptionsDialog {
     private final Label warningLabel;
     private Button okButton;
 
+    /**
+     * Sampling options for spectroheliographic reconstruction.
+     *
+     * @param wavelengthResolution the wavelength resolution
+     * @param spatialResolution the spatial resolution
+     */
     public record SamplingOptions(int wavelengthResolution, int spatialResolution) {}
 
+    /**
+     * Creates a new sampling options dialog.
+     */
     public SamplingOptionsDialog() {
         wavelengthCombo = new ComboBox<>();
         wavelengthCombo.getItems().addAll(32, 64, 96, 128, 256);
@@ -60,6 +72,12 @@ public class SamplingOptionsDialog {
         warningLabel.setManaged(false);
     }
 
+    /**
+     * Shows the dialog and waits for user input.
+     *
+     * @param owner the owner stage
+     * @return the selected sampling options, or empty if cancelled
+     */
     public Optional<SamplingOptions> showAndWait(Stage owner) {
         var stage = new Stage();
         stage.initOwner(owner);
@@ -147,6 +165,9 @@ public class SamplingOptionsDialog {
         return Optional.ofNullable(result[0]);
     }
 
+    /**
+     * Updates the memory usage estimate based on current selections.
+     */
     private void updateMemoryEstimate() {
         int wavelength = wavelengthCombo.getValue();
         int spatial = spatialCombo.getValue();
@@ -171,6 +192,11 @@ public class SamplingOptionsDialog {
         }
     }
 
+    /**
+     * Returns the available memory for reconstruction.
+     *
+     * @return the available memory in bytes
+     */
     private static long getAvailableMemory() {
         var runtime = Runtime.getRuntime();
         long maxMemory = runtime.maxMemory();
@@ -179,6 +205,13 @@ public class SamplingOptionsDialog {
         return maxMemory - totalMemory + freeMemory;
     }
 
+    /**
+     * Estimates the memory required for reconstruction.
+     *
+     * @param wavelengthResolution the wavelength resolution
+     * @param spatialResolution the spatial resolution
+     * @return the estimated memory usage in bytes
+     */
     private static long estimateMemory(int wavelengthResolution, int spatialResolution) {
         long infrastructureCost = 2L * 1024 * 1024 * 1024;
         long slitCount = spatialResolution;
@@ -189,6 +222,12 @@ public class SamplingOptionsDialog {
         return infrastructureCost + dataSize * 2;
     }
 
+    /**
+     * Formats a byte count as a human-readable memory size.
+     *
+     * @param bytes the number of bytes
+     * @return the formatted memory string
+     */
     private static String formatMemory(long bytes) {
         if (bytes < 1024) {
             return bytes + " B";

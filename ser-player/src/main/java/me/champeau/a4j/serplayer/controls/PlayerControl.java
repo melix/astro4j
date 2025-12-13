@@ -22,9 +22,14 @@ import me.champeau.a4j.serplayer.PlayerController;
 
 import java.io.IOException;
 
+/** Control panel for video player operations. */
 public class PlayerControl extends HBox {
     private final PlayerController controller;
 
+    /**
+     * Creates a new player control panel.
+     * @param controller the player controller to use
+     */
     public PlayerControl(PlayerController controller) {
         this.controller = controller;
         var fxmlLoader = new FXMLLoader(getClass().getResource(
@@ -40,16 +45,19 @@ public class PlayerControl extends HBox {
         }
     }
 
+    /** Handles the play/pause action. */
     @FXML
     public void play() {
         controller.play();
     }
 
+    /** Handles the rewind action. */
     @FXML
     public void rewind() {
         controller.rewind();
     }
 
+    /** Handles the forward action. */
     @FXML
     public void forward() {
         controller.forward();

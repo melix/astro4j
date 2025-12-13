@@ -41,6 +41,9 @@ import java.util.concurrent.Semaphore;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
 
+/**
+ * A view for displaying spectroheliographic reconstruction with synchronized spectrum and solar image views.
+ */
 public class ReconstructionView extends BorderPane implements WithRootNode {
     private final ImageView spectrumView;
     private final ZoomableImageView solarView;
@@ -51,6 +54,13 @@ public class ReconstructionView extends BorderPane implements WithRootNode {
     private final byte[] solarImageData;
     private Image spectrumImage;
 
+    /**
+     * Creates a reconstruction view with synchronized spectrum and solar image displays.
+     *
+     * @param solarView the zoomable solar image view
+     * @param solarImageData the raw solar image data
+     * @param parentWidth the parent container width property for layout binding
+     */
     public ReconstructionView(ZoomableImageView solarView, byte[] solarImageData, ReadOnlyDoubleProperty parentWidth) {
         this.spectrumView = new ImageView();
         this.solarView = solarView;
@@ -111,22 +121,47 @@ public class ReconstructionView extends BorderPane implements WithRootNode {
         });
     }
 
+    /**
+     * Returns the lock used for synchronizing access to the reconstruction view.
+     *
+     * @return the semaphore lock
+     */
     public Semaphore getLock() {
         return lock;
     }
 
+    /**
+     * Returns the raw solar image data.
+     *
+     * @return the solar image data array
+     */
     public byte[] getSolarImageData() {
         return solarImageData;
     }
 
+    /**
+     * Returns the spectrum image view.
+     *
+     * @return the spectrum image view
+     */
     public ImageView getSpectrumView() {
         return spectrumView;
     }
 
+    /**
+     * Returns the zoomable solar image view.
+     *
+     * @return the solar image view
+     */
     public ZoomableImageView getSolarView() {
         return solarView;
     }
 
+    /**
+     * Returns the vertical scroll offset of the solar view.
+     *
+     * @return the Y offset in pixels
+     */
     public double getOffsetY() {
         var scrollPane = solarView.getScrollPane();
         var content = (Region) scrollPane.getContent();
@@ -135,6 +170,11 @@ public class ReconstructionView extends BorderPane implements WithRootNode {
         return scrollPane.getVvalue() * (contentHeight - viewportHeight);
     }
 
+    /**
+     * Returns the horizontal scroll offset of the solar view.
+     *
+     * @return the X offset in pixels
+     */
     public double getOffsetX() {
         var scrollPane = solarView.getScrollPane();
         var content = (Region) scrollPane.getContent();
@@ -143,10 +183,20 @@ public class ReconstructionView extends BorderPane implements WithRootNode {
         return scrollPane.getHvalue() * (contentWidth - viewportWidth);
     }
 
+    /**
+     * Returns the canvas overlay for the spectrum view.
+     *
+     * @return the spectrum view overlay canvas
+     */
     public Canvas getSpectrumViewOverlay() {
         return spectrumViewOverlay;
     }
 
+    /**
+     * Returns the canvas overlay for the solar view.
+     *
+     * @return the solar view overlay canvas
+     */
     public Canvas getSolarViewOverlay() {
         return solarViewOverlay;
     }
@@ -156,6 +206,11 @@ public class ReconstructionView extends BorderPane implements WithRootNode {
         return this;
     }
 
+    /**
+     * Sets the spectrum image to be displayed.
+     *
+     * @param spectrumImage the spectrum image
+     */
     public void setSpectrumImage(Image spectrumImage) {
         this.spectrumImage = spectrumImage;
     }

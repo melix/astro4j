@@ -105,6 +105,7 @@ import java.util.stream.Stream;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
+/** Abstract base class for evaluating image processing expressions. */
 public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluator {
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractImageExpressionEvaluator.class);
 
@@ -143,6 +144,11 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     private final Stacking stacking;
     private final Utilities utilities;
 
+    /**
+     * Creates a new image expression evaluator.
+     *
+     * @param broadcaster the broadcaster for progress events
+     */
     protected AbstractImageExpressionEvaluator(Broadcaster broadcaster) {
         this.broadcaster = broadcaster;
         this.adjustContrast = new AdjustContrast(context, broadcaster);
@@ -176,6 +182,13 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         this.mosaicComposition = new MosaicComposition(context, broadcaster, stacking, ellipseFit, scaling);
     }
 
+    /**
+     * Stores a value in the evaluation context.
+     *
+     * @param key the class key
+     * @param value the value to store
+     * @param <T> the type of the key
+     */
     public <T> void putInContext(Class<T> key, Object value) {
         context.put(key, value);
     }
@@ -398,6 +411,11 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         return 1;
     }
 
+    /**
+     * Creates a continuum image from wavelength samples.
+     *
+     * @return the continuum image
+     */
     public ImageWrapper32 createContinuumImage() {
         record ImageWithAverage(ImageWrapper image, double average) {
         }
@@ -463,6 +481,12 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         return (ImageWrapper32) functionCall(BuiltinFunction.MEDIAN, Map.of("list", samples));
     }
 
+    /**
+     * Computes the pixel shift for a given wavelength.
+     *
+     * @param arguments function arguments including wavelength
+     * @return the pixel shift value
+     */
     public Object pixelShiftFor(Map<String, Object> arguments) {
         BuiltinFunction.FIND_SHIFT.validateArgs(arguments);
         var first = arguments.get("wl");
@@ -501,6 +525,13 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         return determineWavelengthOf(context, image);
     }
 
+    /**
+     * Determines the wavelength of an image from its metadata.
+     *
+     * @param context the evaluation context
+     * @param image the image
+     * @return the wavelength in angstroms
+     */
     public static double determineWavelengthOf(Map<Class<?>, Object> context, ImageWrapper image) {
         var metadata = image.metadata();
         var pixelShift = (PixelShift) metadata.get(PixelShift.class);
@@ -513,6 +544,12 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         return round2digits(lambda0.plus(pixelShift.pixelShift(), dispersion).angstroms());
     }
 
+    /**
+     * Converts angstroms to pixel shift.
+     *
+     * @param arguments function arguments
+     * @return the pixel shift value
+     */
     public Object angstromsToPixels(Map<String, Object> arguments) {
         double angstroms = asScalar(arguments.get("a")).doubleValue();
         var params = (ProcessParams) context.get(ProcessParams.class);
@@ -524,6 +561,12 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         return round2digits(angstroms / dispersion.angstromsPerPixel());
     }
 
+    /**
+     * Converts pixel shift to angstroms.
+     *
+     * @param arguments function arguments
+     * @return the wavelength shift in angstroms
+     */
     public Object pixelsToAngstroms(Map<String, Object> arguments) {
         double pixels = asScalar(arguments.get("px")).doubleValue();
         var params = (ProcessParams) context.get(ProcessParams.class);
@@ -536,10 +579,23 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         return round2digits(v);
     }
 
+    /**
+     * Rounds a value to 2 decimal digits.
+     *
+     * @param v the value
+     * @return the rounded value
+     */
     public static double round2digits(double v) {
         return Math.round(100d * v) / 100d;
     }
 
+    /**
+     * Computes the spectral dispersion for the given parameters.
+     *
+     * @param params the processing parameters
+     * @param lambda0 the reference wavelength
+     * @return the spectral dispersion
+     */
     public static Dispersion computeDispersion(ProcessParams params, Wavelen lambda0) {
         var instrument = params.observationDetails().instrument();
         var pixelSize = params.observationDetails().pixelSize();
@@ -557,6 +613,14 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         );
     }
 
+    /**
+     * Computes the pixel shift between two wavelengths.
+     *
+     * @param params the processing parameters
+     * @param targetWaveLength the target wavelength
+     * @param referenceWavelength the reference wavelength
+     * @return the pixel shift value
+     */
     protected double computePixelShift(ProcessParams params, Wavelen targetWaveLength, Wavelen referenceWavelength) {
         if (params == null) {
             return 0;
@@ -574,6 +638,12 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         return SpectrumAnalyzer.computePixelShift(pixelSize, binning, lambda0, targetWaveLength, instrument);
     }
 
+    /**
+     * Computes the median of a stream of doubles.
+     *
+     * @param doubleStream the stream of values
+     * @return the median value, or empty if the stream is empty
+     */
     public static OptionalDouble median(DoubleStream doubleStream) {
         var array = doubleStream.toArray();
         if (array.length == 0) {
@@ -590,6 +660,13 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         return OptionalDouble.of(median);
     }
 
+    /**
+     * Computes the average of a stream with sigma clipping.
+     *
+     * @param doubleStream the stream of values
+     * @param sigma the sigma threshold for clipping
+     * @return the clipped average, or empty if the stream is empty
+     */
     public static OptionalDouble applySigmaClippedAverage(DoubleStream doubleStream, double sigma) {
         var array = doubleStream.toArray();
         if (array.length == 0) {
@@ -614,6 +691,13 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         return result.isPresent() ? result : OptionalDouble.of(mean);
     }
 
+    /**
+     * Computes the median of a stream with sigma clipping.
+     *
+     * @param doubleStream the stream of values
+     * @param sigma the sigma threshold for clipping
+     * @return the clipped median, or empty if the stream is empty
+     */
     public static OptionalDouble applySigmaClippedMedian(DoubleStream doubleStream, double sigma) {
         var array = doubleStream.toArray();
         if (array.length == 0) {
@@ -662,6 +746,12 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         return path;
     }
 
+    /**
+     * Finds an image with the given pixel shift.
+     *
+     * @param shift the pixel shift
+     * @return the image at that shift
+     */
     public abstract ImageWrapper findImage(PixelShift shift);
 
     private ImageWrapper image(Map<String, Object> arguments) {
@@ -681,6 +771,16 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
 
     }
 
+    /**
+     * Applies a binary operator to images and scalars.
+     *
+     * @param leftImage the left image operand
+     * @param rightImage the right image operand
+     * @param leftScalar the left scalar operand
+     * @param rightScalar the right scalar operand
+     * @param operator the binary operator
+     * @return the result of the operation
+     */
     public static Object applyOperator(ImageWrapper32 leftImage,
                                         ImageWrapper32 rightImage,
                                         Number leftScalar,
@@ -822,6 +922,11 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         return Collections.unmodifiableList(images);
     }
 
+    /**
+     * Exports the evaluator state as JSON.
+     *
+     * @return the JSON representation
+     */
     public String exportAsJson() {
         var gson = new Gson()
                 .newBuilder()

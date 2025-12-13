@@ -30,6 +30,24 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+/**
+ * Context for batch processing operations.
+ * @param items the batch items
+ * @param progress the set of completed item indices
+ * @param errors the set of error item indices
+ * @param batchFinished flag indicating batch completion
+ * @param outputDirectory the output directory
+ * @param processingDate the processing date
+ * @param imagesByLabel images grouped by label
+ * @param imageWrappersByIndex images grouped by index
+ * @param imagesByIndex image descriptors grouped by index
+ * @param filesByIndex files grouped by index
+ * @param serFilesByIndex SER files grouped by index
+ * @param referenceHeader the reference header
+ * @param solarParametersByIndex solar parameters grouped by index
+ * @param processParamsByIndex processing parameters grouped by index
+ * @param dataLock lock for thread-safe data access
+ */
 public record BatchProcessingContext(
     List<BatchItem> items,
     Set<Integer> progress,

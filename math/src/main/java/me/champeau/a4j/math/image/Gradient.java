@@ -15,6 +15,12 @@
  */
 package me.champeau.a4j.math.image;
 
+/**
+ * Represents the gradient of an image as magnitude and direction components.
+ *
+ * @param magnitude the gradient magnitude at each pixel
+ * @param direction the gradient direction at each pixel
+ */
 public record Gradient(
         Image magnitude,
         Image direction

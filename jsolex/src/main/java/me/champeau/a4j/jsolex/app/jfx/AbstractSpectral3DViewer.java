@@ -84,15 +84,24 @@ import java.util.stream.Collectors;
  * Provides common functionality for camera, lighting, mesh creation, legend, and export.
  */
 public abstract class AbstractSpectral3DViewer extends BorderPane {
+    /** Initial camera distance from the surface. */
     protected static final double INITIAL_DISTANCE = 800;
+    /** Minimum zoom distance. */
     protected static final double MIN_DISTANCE = 200;
+    /** Maximum zoom distance. */
     protected static final double MAX_DISTANCE = 2000;
+    /** Default surface size in 3D units. */
     protected static final double SURFACE_SIZE = 400;
 
+    /** Root group for all 3D objects. */
     protected final Group root3D;
+    /** Perspective camera for 3D rendering. */
     protected final PerspectiveCamera camera;
+    /** Rotation transform around X axis. */
     protected final Rotate rotateX;
+    /** Rotation transform around Y axis. */
     protected final Rotate rotateY;
+    /** Translation transform for camera distance. */
     protected final Translate cameraTranslate;
 
     private double anchorX;
@@ -100,25 +109,40 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
     private double anchorAngleX;
     private double anchorAngleY;
 
+    /** Current intensity scale mode. */
     protected IntensityScale scale = IntensityScale.LINEAR;
+    /** Group containing the 3D surface mesh. */
     protected Group surfaceGroup;
+    /** Group containing the axes and labels. */
     protected Group axesGroup;
 
+    /** Current X size of the surface in 3D units. */
     protected double currentSurfaceXSize = SURFACE_SIZE;
+    /** Current Z size of the surface in 3D units. */
     protected double currentSurfaceZSize = SURFACE_SIZE;
 
+    /** Reusable mesh for performance optimization. */
     protected TriangleMesh reusableMesh;
+    /** Last X count used for mesh creation. */
     protected int lastMeshXCount = -1;
+    /** Last Z count used for mesh creation. */
     protected int lastMeshZCount = -1;
 
+    /** Label displaying the legend title. */
     protected Label legendTitleLabel;
+    /** Label for high intensity values. */
     protected Label legendHighLabel;
+    /** Label for low intensity values. */
     protected Label legendLowLabel;
+    /** Label for interpretation text. */
     protected Label legendInterpretLabel;
 
+    /** Pane containing the 3D graph. */
     protected final StackPane graphPane;
+    /** Whether to export only the graph or the entire window. */
     protected boolean exportGraphOnly = true;
 
+    /** Creates a new 3D viewer with default camera and lighting. */
     protected AbstractSpectral3DViewer() {
         this.root3D = new Group();
         this.camera = new PerspectiveCamera(true);
@@ -141,6 +165,7 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
         graphPane = new StackPane(subScene);
     }
 
+    /** Initializes the view by building the surface and setting up the UI panels. */
     protected void initializeView() {
         buildSurface();
         addAxesWithLabels();
@@ -166,30 +191,77 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
         root3D.getChildren().addAll(ambientLight, pointLight);
     }
 
+    /** Builds or rebuilds the 3D surface mesh. */
     protected abstract void buildSurface();
 
+    /** Adds coordinate axes with labels to the 3D scene. */
     protected abstract void addAxesWithLabels();
 
+    /**
+     * Creates the description panel shown at the top of the viewer.
+     * @return the description panel
+     */
     protected abstract HBox createDescriptionPanel();
 
+    /**
+     * Creates the control panel with buttons and sliders.
+     * @return the control panel
+     */
     protected abstract HBox createControlPanel();
 
+    /**
+     * Returns the i18n key for the interpretation text.
+     * @return the interpretation key
+     */
     protected abstract String getInterpretationKey();
 
+    /**
+     * Returns the minimum intensity value for the legend.
+     * @return the minimum intensity
+     */
     protected abstract double getMinIntensity();
 
+    /**
+     * Returns the maximum intensity value for the legend.
+     * @return the maximum intensity
+     */
     protected abstract double getMaxIntensity();
 
+    /**
+     * Returns whether this viewer supports video export.
+     * @return true if video export is supported
+     */
     protected abstract boolean supportsVideoExport();
 
+    /**
+     * Returns the number of frames for video export.
+     * @return the frame count
+     */
     protected abstract int getVideoFrameCount();
 
+    /**
+     * Sets the frame index during video export.
+     * @param index the frame index to display
+     */
     protected abstract void setVideoFrameIndex(int index);
 
+    /**
+     * Builds the surface from data without preserving aspect ratio.
+     * @param surfaceData the spectral data to render
+     * @param meshXCount the number of mesh points along the X axis
+     * @param meshZCount the number of mesh points along the Z axis
+     */
     protected void buildSurfaceFromData(SpectralLineSurfaceData surfaceData, int meshXCount, int meshZCount) {
         buildSurfaceFromData(surfaceData, meshXCount, meshZCount, false);
     }
 
+    /**
+     * Builds the surface from spectral data with configurable aspect ratio.
+     * @param surfaceData the spectral data to render
+     * @param meshXCount the number of mesh points along the X axis
+     * @param meshZCount the number of mesh points along the Z axis
+     * @param preserveAspectRatio whether to preserve the data aspect ratio
+     */
     protected void buildSurfaceFromData(SpectralLineSurfaceData surfaceData, int meshXCount, int meshZCount,
                                         boolean preserveAspectRatio) {
         var fullXCount = surfaceData.xAxisCount();
@@ -247,12 +319,24 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
         }
     }
 
+    /** Invalidates the cached mesh, forcing a rebuild on next update. */
     protected void invalidateMesh() {
         reusableMesh = null;
         lastMeshXCount = -1;
         lastMeshZCount = -1;
     }
 
+    /**
+     * Updates mesh vertex positions with new surface data.
+     * @param mesh the mesh to update
+     * @param surfaceData the spectral data
+     * @param fullXCount total X points in data
+     * @param fullZCount total Z points in data
+     * @param meshXCount mesh X resolution
+     * @param meshZCount mesh Z resolution
+     * @param surfaceXSize surface width in 3D units
+     * @param surfaceZSize surface depth in 3D units
+     */
     protected void updateMeshPoints(TriangleMesh mesh, SpectralLineSurfaceData surfaceData, int fullXCount, int fullZCount,
                                     int meshXCount, int meshZCount, double surfaceXSize, double surfaceZSize) {
         int surfaceVertices = meshXCount * meshZCount;
@@ -387,6 +471,17 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
         mesh.getTexCoords().setAll(texCoords);
     }
 
+    /**
+     * Creates a combined mesh including surface, walls, and bottom.
+     * @param surfaceData the spectral data
+     * @param fullXCount total X points in data
+     * @param fullZCount total Z points in data
+     * @param meshXCount mesh X resolution
+     * @param meshZCount mesh Z resolution
+     * @param surfaceXSize surface width in 3D units
+     * @param surfaceZSize surface depth in 3D units
+     * @return the created triangle mesh
+     */
     protected TriangleMesh createCombinedMesh(SpectralLineSurfaceData surfaceData, int fullXCount, int fullZCount,
                                               int meshXCount, int meshZCount, double surfaceXSize, double surfaceZSize) {
         var mesh = new TriangleMesh();
@@ -679,6 +774,11 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
         return mesh;
     }
 
+    /**
+     * Applies the current intensity scale transformation to a normalized value.
+     * @param normalizedValue the normalized intensity value in [0, 1]
+     * @return the scaled value
+     */
     protected float applyScale(float normalizedValue) {
         if (normalizedValue < 0 || normalizedValue > 1) {
             throw new IllegalArgumentException("Normalized value must be in [0, 1], got: " + normalizedValue);
@@ -700,6 +800,10 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
         };
     }
 
+    /**
+     * Creates the material with color gradient texture for the surface.
+     * @return the material
+     */
     protected PhongMaterial createMaterial() {
         var width = 256;
         var height = 1;
@@ -718,6 +822,11 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
         return material;
     }
 
+    /**
+     * Converts a normalized intensity value to a color using the heat map gradient.
+     * @param t the normalized intensity in [0, 1]
+     * @return the corresponding color
+     */
     protected Color intensityToColor(double t) {
         if (t < 0.25) {
             var ratio = t / 0.25;
@@ -734,12 +843,24 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
         }
     }
 
+    /**
+     * Creates a cylindrical axis line with the given length and material.
+     * @param length the length of the axis line
+     * @param material the material to use
+     * @return a group containing the axis line
+     */
     protected Group createAxisLine(double length, PhongMaterial material) {
         var shaft = new Cylinder(1.5, length);
         shaft.setMaterial(material);
         return new Group(shaft);
     }
 
+    /**
+     * Creates a 3D text label with the specified text and color.
+     * @param text the label text
+     * @param color the text color
+     * @return the created text node
+     */
     protected Text create3DLabel(String text, Color color) {
         var label = new Text(text);
         label.setFont(Font.font("System", FontWeight.BOLD, 14));
@@ -747,6 +868,13 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
         return label;
     }
 
+    /**
+     * Creates an axis info label showing axis name and value with a color indicator.
+     * @param axisName the axis name
+     * @param value the axis value text
+     * @param color the color indicator
+     * @return an HBox containing the label
+     */
     protected HBox createAxisInfoLabel(String axisName, String value, Color color) {
         var colorBox = new Box(12, 12, 1);
         colorBox.setMaterial(new PhongMaterial(color));
@@ -762,6 +890,10 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
         return box;
     }
 
+    /**
+     * Creates the legend panel with color bar and labels.
+     * @return the legend panel
+     */
     protected VBox createLegendPanel() {
         legendTitleLabel = new Label();
         legendTitleLabel.setFont(Font.font(legendTitleLabel.getFont().getFamily(), FontWeight.BOLD, 11));
@@ -809,6 +941,7 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
         return panel;
     }
 
+    /** Updates the legend labels based on current scale mode. */
     protected void updateLegendLabels() {
         var isLog = scale != IntensityScale.LINEAR;
         var titleKey = isLog ? "legend.intensity.log" : "legend.intensity";
@@ -821,6 +954,10 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
         legendInterpretLabel.setText(I18N.string(JSolEx.class, "spectral-surface-3d", getInterpretationKey()));
     }
 
+    /**
+     * Creates a vertical color bar canvas for the legend.
+     * @return the canvas
+     */
     protected Canvas createColorBar() {
         var width = 20;
         var height = 150;
@@ -839,6 +976,10 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
         return canvas;
     }
 
+    /**
+     * Sets up mouse handlers for rotation and zoom.
+     * @param subScene the subscene to attach handlers to
+     */
     protected void setupMouseHandlers(SubScene subScene) {
         subScene.setOnMousePressed(event -> {
             anchorX = event.getSceneX();
@@ -863,12 +1004,17 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
         });
     }
 
+    /** Resets the camera to the initial view position. */
     protected void resetView() {
         rotateX.setAngle(-30);
         rotateY.setAngle(30);
         cameraTranslate.setZ(-INITIAL_DISTANCE);
     }
 
+    /**
+     * Shows a dialog asking whether to export the graph only or the entire frame.
+     * @return true if the user confirmed, false if cancelled
+     */
     protected boolean askExportScope() {
         var graphOnly = I18N.string(JSolEx.class, "spectral-surface-3d", "export.scope.graph");
         var wholeFrame = I18N.string(JSolEx.class, "spectral-surface-3d", "export.scope.frame");
@@ -892,6 +1038,10 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
         return true;
     }
 
+    /**
+     * Exports the current view to a PNG file.
+     * @param defaultFileName the default filename for the save dialog
+     */
     protected void exportToPng(String defaultFileName) {
         if (!askExportScope()) {
             return;
@@ -913,6 +1063,12 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
         }
     }
 
+    /**
+     * Exports the view as a video animation.
+     * @param defaultFileName the default filename
+     * @param onDisableControls callback to disable controls during export
+     * @param onEnableControls callback to re-enable controls after export
+     */
     protected void exportToVideo(String defaultFileName, Runnable onDisableControls, Runnable onEnableControls) {
         if (!askExportScope()) {
             return;
@@ -1071,6 +1227,11 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
         return result.get();
     }
 
+    /**
+     * Saves a WritableImage to a PNG file.
+     * @param image the image to save
+     * @param file the destination file
+     */
     protected void saveImage(WritableImage image, File file) {
         var bufferedImage = new BufferedImage(
                 (int) image.getWidth(),
@@ -1089,6 +1250,11 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
         }
     }
 
+    /**
+     * Creates the common control panel with reset, export, scale, and rotation controls.
+     * @param additionalControls additional controls to include in the panel
+     * @return the control panel
+     */
     protected HBox createCommonControlPanel(Node... additionalControls) {
         var resetButton = createStyledButton(I18N.string(JSolEx.class, "spectral-surface-3d", "reset.view"));
         resetButton.setOnAction(e -> resetView());
@@ -1153,6 +1319,11 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
         return buttonBox;
     }
 
+    /**
+     * Creates a styled button with the viewer's button style.
+     * @param text the button text
+     * @return the styled button
+     */
     protected static Button createStyledButton(String text) {
         var button = new Button(text);
         button.getStyleClass().add("image-viewer-button");
@@ -1160,20 +1331,32 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
         return button;
     }
 
+    /**
+     * Creates a styled label with minimum sizing.
+     * @param text the label text
+     * @return the styled label
+     */
     protected static Label createStyledLabel(String text) {
         var label = new Label(text);
         label.setMinSize(Label.USE_PREF_SIZE, Label.USE_PREF_SIZE);
         return label;
     }
 
+    /** Called when the PNG export button is clicked. */
     protected abstract void onExportPng();
 
+    /** Called when the video export button is clicked. */
     protected abstract void onExportVideo();
 
+    /** Available intensity scale modes for the 3D surface. */
     protected enum IntensityScale {
+        /** Linear mapping (no transformation). */
         LINEAR,
+        /** Square mapping (emphasizes high values). */
         SQUARE,
+        /** Logarithmic base-2 mapping. */
         LOG2,
+        /** Logarithmic base-10 mapping (stronger compression). */
         LOG10;
 
         @Override

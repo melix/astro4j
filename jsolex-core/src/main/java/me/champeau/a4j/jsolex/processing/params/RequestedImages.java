@@ -26,6 +26,11 @@ import java.util.Set;
  *
  * @param images the image kinds
  * @param pixelShifts the requested pixel shifts
+ * @param internalPixelShifts internal pixel shifts
+ * @param requestedWaveLengths requested wavelengths
+ * @param mathImages image math parameters
+ * @param autoContinuum whether to auto-generate continuum
+ * @param applyAutomaticScripts whether to apply automatic scripts
  */
 public record RequestedImages(
     Set<GeneratedImageKind> images,

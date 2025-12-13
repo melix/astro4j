@@ -20,6 +20,7 @@ import org.apache.commons.math3.linear.MatrixUtils;
 
 import java.util.Arrays;
 
+/** Matrix operations on double precision arrays. */
 public class DoubleMatrix {
     private final double[][] matrix;
     private final int rows;
@@ -48,6 +49,7 @@ public class DoubleMatrix {
     }
 
     /**
+     * Returns the transposed matrix.
      * @return the transposed matrix
      */
     public DoubleMatrix transpose() {
@@ -165,7 +167,8 @@ public class DoubleMatrix {
     }
 
     /**
-     * @return returns this matrix with all coefficients negated
+     * Returns this matrix with all coefficients negated.
+     * @return this matrix with all coefficients negated
      */
     public DoubleMatrix neg() {
         return mul(-1d);
@@ -226,12 +229,18 @@ public class DoubleMatrix {
     }
 
     /**
+     * Returns the backing array of this matrix.
      * @return the backing array of this matrix
      */
     public double[][] asArray() {
         return matrix;
     }
 
+    /**
+     * Container for eigenvalues and eigenvectors.
+     * @param values the eigenvalues
+     * @param vectors the eigenvectors
+     */
     public record EigenSystem(double[] values, double[][] vectors) {
         @Override
         public String toString() {

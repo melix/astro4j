@@ -28,6 +28,7 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 
+/** Utility for batching JavaFX operations. */
 public final class BatchOperations {
     private static final ReentrantLock LOCK = new ReentrantLock();
     private static final Condition CONDITION = LOCK.newCondition();
@@ -45,6 +46,11 @@ public final class BatchOperations {
 
     }
 
+    /**
+     * Submits an action that should only be executed once for the given kind.
+     * @param kind the kind identifier
+     * @param action the action to execute
+     */
     public static void submitOneOfAKind(Object kind, Runnable action) {
         LOCK.lock();
         try {
@@ -55,6 +61,12 @@ public final class BatchOperations {
         }
     }
 
+    /**
+     * Blocks until a result is available from the supplier.
+     * @param supplier the supplier to get the result from
+     * @param <T> the result type
+     * @return the result
+     */
     public static <T> T blockingUntilResultAvailable(Supplier<T> supplier) {
         var ref = new AtomicReference<T>();
         var latch = new CountDownLatch(1);

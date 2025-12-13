@@ -41,6 +41,13 @@ public final class ArcsinhStretchingStrategy implements StretchingStrategy {
     private final double asinh;
     private final double normalizedBlackPoint;
 
+    /**
+     * Creates a new arcsinh stretching strategy.
+     *
+     * @param blackPoint the black point value
+     * @param stretch the stretch factor
+     * @param maxStretch the maximum stretch value
+     */
     public ArcsinhStretchingStrategy(float blackPoint, float stretch, double maxStretch) {
         this.blackPoint = blackPoint;
         this.stretch = stretch;
@@ -49,14 +56,29 @@ public final class ArcsinhStretchingStrategy implements StretchingStrategy {
         this.normalizedBlackPoint = blackPoint / MAX_PIXEL_VALUE;
     }
 
+    /**
+     * Returns the black point value.
+     *
+     * @return the black point
+     */
     public double getBlackPoint() {
         return blackPoint;
     }
 
+    /**
+     * Returns the stretch factor.
+     *
+     * @return the stretch factor
+     */
     public double getStretch() {
         return stretch;
     }
 
+    /**
+     * Returns the maximum stretch value.
+     *
+     * @return the maximum stretch value
+     */
     public double getMaxStretch() {
         return maxStretch;
     }
@@ -145,6 +167,12 @@ public final class ArcsinhStretchingStrategy implements StretchingStrategy {
         LinearStrechingStrategy.DEFAULT.stretch(image);
     }
 
+    /**
+     * Stretches a single pixel value using arcsinh transformation.
+     *
+     * @param v the pixel value to stretch
+     * @return the stretched pixel value
+     */
     public float stretchPixel(float v) {
         if (v == 0) {
             return 0;

@@ -34,7 +34,11 @@ public class CustomTooltip {
     private final PauseTransition showTimer;
     private final PauseTransition hideTimer;
     private boolean showing = false;
-    
+
+    /**
+     * Creates a custom tooltip with the specified text.
+     * @param text the tooltip text
+     */
     public CustomTooltip(String text) {
         popup = new Popup();
         popup.setAutoHide(false);
@@ -55,7 +59,11 @@ public class CustomTooltip {
     }
     
     private Node currentOwner;
-    
+
+    /**
+     * Attaches this tooltip to the specified node.
+     * @param node the node to attach to
+     */
     public void attachTo(Node node) {
         detachFromCurrent();
         this.currentOwner = node;
@@ -94,7 +102,10 @@ public class CustomTooltip {
             }
         });
     }
-    
+
+    /**
+     * Detaches this tooltip from the currently attached node.
+     */
     public void detachFromCurrent() {
         showTimer.stop();
         hideTimer.stop();

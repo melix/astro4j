@@ -15,6 +15,11 @@
  */
 package me.champeau.a4j.jsolex.app.jfx.ime;
 
+/**
+ * Code completion item.
+ * @param text the completion text
+ * @param type the completion type
+ */
 public record CompletionItem(
         String text,
         CompletionType type

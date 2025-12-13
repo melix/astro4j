@@ -30,8 +30,19 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import me.champeau.a4j.jsolex.app.JSolEx;
 
+/**
+ * Base class for parameter panels with common UI helpers.
+ */
 public abstract class BaseParameterPanel extends VBox {
+    /** Creates a new panel. */
+    protected BaseParameterPanel() {
+    }
 
+    /**
+     * Creates a titled section container.
+     * @param title the section title i18n key
+     * @return the section container
+     */
     protected VBox createSection(String title) {
         var localized = I18N.string(JSolEx.class, "process-params", title);
         if (localized.isEmpty()) {
@@ -47,6 +58,10 @@ public abstract class BaseParameterPanel extends VBox {
         return section;
     }
 
+    /**
+     * Creates a configured grid pane for form layout.
+     * @return the grid pane
+     */
     protected GridPane createGrid() {
         var grid = new GridPane();
         grid.setHgap(12);
@@ -72,10 +87,25 @@ public abstract class BaseParameterPanel extends VBox {
         return grid;
     }
 
+    /**
+     * Adds a row to a grid with label and control.
+     * @param grid the grid pane
+     * @param row the row index
+     * @param labelText the label text
+     * @param control the control node
+     */
     protected void addGridRow(GridPane grid, int row, String labelText, Node control) {
         addGridRow(grid, row, labelText, control, null);
     }
 
+    /**
+     * Adds a row to a grid with label, control, and optional tooltip.
+     * @param grid the grid pane
+     * @param row the row index
+     * @param labelText the label text
+     * @param control the control node
+     * @param tooltipKey the i18n key for the tooltip, or null
+     */
     protected void addGridRow(GridPane grid, int row, String labelText, Node control, String tooltipKey) {
         var label = new Label(labelText);
         label.getStyleClass().addAll("field-label", "field-label-wrapped");
@@ -86,11 +116,24 @@ public abstract class BaseParameterPanel extends VBox {
         addHelpIcon(grid, row, tooltipKey);
     }
 
+    /**
+     * Adds a row to a grid with control and tooltip.
+     * @param grid the grid pane
+     * @param row the row index
+     * @param control the control node
+     * @param tooltipKey the i18n key for the tooltip
+     */
     protected void addGridRow(GridPane grid, int row, Node control, String tooltipKey) {
         addGridRow(grid, row, control);
         addHelpIcon(grid, row, tooltipKey);
     }
 
+    /**
+     * Adds a row to a grid with control spanning both columns.
+     * @param grid the grid pane
+     * @param row the row index
+     * @param control the control node
+     */
     protected void addGridRow(GridPane grid, int row, Node control) {
         grid.add(control, 0, row, 2, 1);
     }
@@ -112,7 +155,13 @@ public abstract class BaseParameterPanel extends VBox {
             }
         }
     }
-    
+
+    /**
+     * Creates a styled text field.
+     * @param defaultValue the default text
+     * @param tooltipText the tooltip text, or null
+     * @return the text field
+     */
     protected TextField createTextField(String defaultValue, String tooltipText) {
         var field = new TextField(defaultValue);
         field.getStyleClass().add("modern-text-field");
@@ -122,7 +171,13 @@ public abstract class BaseParameterPanel extends VBox {
         }
         return field;
     }
-    
+
+    /**
+     * Creates a checkbox with optional tooltip.
+     * @param text the checkbox text
+     * @param tooltipText the tooltip text, or null
+     * @return the checkbox
+     */
     protected CheckBox createCheckBox(String text, String tooltipText) {
         var checkBox = new CheckBox(text);
         if (tooltipText != null) {
@@ -131,20 +186,37 @@ public abstract class BaseParameterPanel extends VBox {
         }
         return checkBox;
     }
-    
+
+    /**
+     * Creates a choice box.
+     * @param <T> the item type
+     * @return the choice box
+     */
     protected <T> ChoiceBox<T> createChoiceBox() {
         var choiceBox = new ChoiceBox<T>();
         choiceBox.setMaxWidth(Double.MAX_VALUE);
         return choiceBox;
     }
-    
+
+    /**
+     * Creates a choice box with an associated button.
+     * @param choiceBox the choice box
+     * @param button the button
+     * @return the HBox containing both
+     */
     protected HBox createChoiceBoxWithButton(ChoiceBox<?> choiceBox, Button button) {
         var box = createHBox();
         HBox.setHgrow(choiceBox, Priority.ALWAYS);
         box.getChildren().addAll(choiceBox, button);
         return box;
     }
-    
+
+    /**
+     * Parses an integer with a default value.
+     * @param text the text to parse
+     * @param defaultValue the default if parsing fails
+     * @return the parsed integer
+     */
     protected int parseInt(String text, int defaultValue) {
         if (text == null || text.trim().isEmpty()) {
             return defaultValue;
@@ -155,7 +227,13 @@ public abstract class BaseParameterPanel extends VBox {
             return defaultValue;
         }
     }
-    
+
+    /**
+     * Parses a double with a default value.
+     * @param text the text to parse
+     * @param defaultValue the default if parsing fails
+     * @return the parsed double
+     */
     protected double parseDouble(String text, double defaultValue) {
         if (text == null || text.trim().isEmpty()) {
             return defaultValue;
@@ -166,7 +244,12 @@ public abstract class BaseParameterPanel extends VBox {
             return defaultValue;
         }
     }
-    
+
+    /**
+     * Parses a double or returns null.
+     * @param text the text to parse
+     * @return the parsed double, or null if parsing fails
+     */
     protected Double parseDoubleOrNull(String text) {
         if (text == null || text.trim().isEmpty()) {
             return null;
@@ -177,7 +260,12 @@ public abstract class BaseParameterPanel extends VBox {
             return null;
         }
     }
-    
+
+    /**
+     * Parses an integer or returns null.
+     * @param text the text to parse
+     * @return the parsed integer, or null if parsing fails
+     */
     protected Integer parseIntegerOrNull(String text) {
         if (text == null || text.trim().isEmpty()) {
             return null;
@@ -189,6 +277,10 @@ public abstract class BaseParameterPanel extends VBox {
         }
     }
 
+    /**
+     * Creates a styled horizontal box.
+     * @return the HBox
+     */
     protected HBox createHBox() {
         var box = new HBox(8);
         VBox.setVgrow(box, Priority.ALWAYS);

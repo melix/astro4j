@@ -17,6 +17,13 @@ package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.scene.Node;
 
+/**
+ * Interface for components that have a root JavaFX node.
+ */
 public interface WithRootNode {
+    /**
+     * Returns the root node of this component.
+     * @return the root node
+     */
     Node getRoot();
 }

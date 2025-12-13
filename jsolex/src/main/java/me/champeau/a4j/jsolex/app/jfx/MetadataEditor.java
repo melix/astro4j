@@ -58,6 +58,9 @@ import java.util.regex.Pattern;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.newScene;
 
+/**
+ * Editor for ImageMath script metadata blocks.
+ */
 public class MetadataEditor {
     private static final Pattern IDENTIFIER_PATTERN = Pattern.compile("[a-zA-Z_][a-zA-Z0-9_]*");
     private static final Pattern VERSION_PATTERN = Pattern.compile("\\d+\\.\\d+(\\.\\d+)?");
@@ -144,6 +147,12 @@ public class MetadataEditor {
     private final ObservableList<OutputModel> outputs = FXCollections.observableArrayList();
     private ParameterModel selectedParameter;
     private OutputModel selectedOutput;
+
+    /**
+     * Creates a new instance. Required by JavaFX.
+     */
+    public MetadataEditor() {
+    }
 
     @FXML
     private void initialize() {
@@ -319,6 +328,13 @@ public class MetadataEditor {
         }
     }
 
+    /**
+     * Opens the metadata editor dialog.
+     *
+     * @param stage the parent stage
+     * @param scriptText the ImageMath script text
+     * @param onSave callback invoked when metadata is saved
+     */
     public static void openEditor(Stage stage, String scriptText, BiConsumer<String, String> onSave) {
         var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "metadata-editor");
         try {
@@ -1040,6 +1056,9 @@ public class MetadataEditor {
         }
     }
 
+    /**
+     * Model for a script parameter.
+     */
     public static class ParameterModel {
         private final StringProperty name = new SimpleStringProperty();
         private final ObjectProperty<ParameterType> type = new SimpleObjectProperty<>(ParameterType.NUMBER);
@@ -1052,10 +1071,20 @@ public class MetadataEditor {
         private final ObjectProperty<Double> maxValue = new SimpleObjectProperty<>();
         private final ObservableList<String> choices = FXCollections.observableArrayList();
 
+        /**
+         * Creates a new parameter model with the given name.
+         *
+         * @param name the parameter name
+         */
         public ParameterModel(String name) {
             this.name.set(name);
         }
 
+        /**
+         * Creates a new parameter model from script parameter.
+         *
+         * @param param the script parameter
+         */
         public ParameterModel(ScriptParameter param) {
             this.name.set(param.getName());
             this.type.set(param.getType());
@@ -1085,83 +1114,181 @@ public class MetadataEditor {
             }
         }
 
+        /**
+         * Gets the parameter name.
+         *
+         * @return the name
+         */
         public String getName() {
             return name.get();
         }
 
+        /**
+         * Sets the parameter name.
+         *
+         * @param name the name
+         */
         public void setName(String name) {
             this.name.set(name);
         }
 
+        /**
+         * Gets the parameter type.
+         *
+         * @return the type
+         */
         public ParameterType getType() {
             return type.get();
         }
 
+        /**
+         * Sets the parameter type.
+         *
+         * @param type the type
+         */
         public void setType(ParameterType type) {
             this.type.set(type);
         }
 
+        /**
+         * Gets the English display name.
+         *
+         * @return the English display name
+         */
         public String getDisplayNameEn() {
             return displayNameEn.get();
         }
 
+        /**
+         * Sets the English display name.
+         *
+         * @param displayNameEn the English display name
+         */
         public void setDisplayNameEn(String displayNameEn) {
             this.displayNameEn.set(displayNameEn);
         }
 
+        /**
+         * Gets the French display name.
+         *
+         * @return the French display name
+         */
         public String getDisplayNameFr() {
             return displayNameFr.get();
         }
 
+        /**
+         * Sets the French display name.
+         *
+         * @param displayNameFr the French display name
+         */
         public void setDisplayNameFr(String displayNameFr) {
             this.displayNameFr.set(displayNameFr);
         }
 
+        /**
+         * Gets the English description.
+         *
+         * @return the English description
+         */
         public String getDescriptionEn() {
             return descriptionEn.get();
         }
 
+        /**
+         * Sets the English description.
+         *
+         * @param descriptionEn the English description
+         */
         public void setDescriptionEn(String descriptionEn) {
             this.descriptionEn.set(descriptionEn);
         }
 
+        /**
+         * Gets the French description.
+         *
+         * @return the French description
+         */
         public String getDescriptionFr() {
             return descriptionFr.get();
         }
 
+        /**
+         * Sets the French description.
+         *
+         * @param descriptionFr the French description
+         */
         public void setDescriptionFr(String descriptionFr) {
             this.descriptionFr.set(descriptionFr);
         }
 
+        /**
+         * Gets the default value.
+         *
+         * @return the default value
+         */
         public Object getDefaultValue() {
             return defaultValue.get();
         }
 
+        /**
+         * Sets the default value.
+         *
+         * @param defaultValue the default value
+         */
         public void setDefaultValue(Object defaultValue) {
             this.defaultValue.set(defaultValue);
         }
 
+        /**
+         * Gets the minimum value for numeric parameters.
+         *
+         * @return the minimum value
+         */
         public Double getMinValue() {
             return minValue.get();
         }
 
+        /**
+         * Sets the minimum value for numeric parameters.
+         *
+         * @param minValue the minimum value
+         */
         public void setMinValue(Double minValue) {
             this.minValue.set(minValue);
         }
 
+        /**
+         * Gets the maximum value for numeric parameters.
+         *
+         * @return the maximum value
+         */
         public Double getMaxValue() {
             return maxValue.get();
         }
 
+        /**
+         * Sets the maximum value for numeric parameters.
+         *
+         * @param maxValue the maximum value
+         */
         public void setMaxValue(Double maxValue) {
             this.maxValue.set(maxValue);
         }
 
+        /**
+         * Gets the list of choices for choice parameters.
+         *
+         * @return the choices list
+         */
         public ObservableList<String> getChoices() {
             return choices;
         }
     }
 
+    /**
+     * Model for a script output.
+     */
     public static class OutputModel {
         private final StringProperty name = new SimpleStringProperty();
         private final StringProperty titleEn = new SimpleStringProperty("");
@@ -1169,10 +1296,20 @@ public class MetadataEditor {
         private final StringProperty descriptionEn = new SimpleStringProperty("");
         private final StringProperty descriptionFr = new SimpleStringProperty("");
 
+        /**
+         * Creates a new output model with the given name.
+         *
+         * @param name the output name
+         */
         public OutputModel(String name) {
             this.name.set(name);
         }
 
+        /**
+         * Creates a new output model from metadata.
+         *
+         * @param metadata the output metadata
+         */
         public OutputModel(OutputMetadata metadata) {
             this.name.set(metadata.name());
 
@@ -1193,42 +1330,92 @@ public class MetadataEditor {
             });
         }
 
+        /**
+         * Gets the output name.
+         *
+         * @return the name
+         */
         public String getName() {
             return name.get();
         }
 
+        /**
+         * Sets the output name.
+         *
+         * @param name the name
+         */
         public void setName(String name) {
             this.name.set(name);
         }
 
+        /**
+         * Gets the English title.
+         *
+         * @return the English title
+         */
         public String getTitleEn() {
             return titleEn.get();
         }
 
+        /**
+         * Sets the English title.
+         *
+         * @param titleEn the English title
+         */
         public void setTitleEn(String titleEn) {
             this.titleEn.set(titleEn);
         }
 
+        /**
+         * Gets the French title.
+         *
+         * @return the French title
+         */
         public String getTitleFr() {
             return titleFr.get();
         }
 
+        /**
+         * Sets the French title.
+         *
+         * @param titleFr the French title
+         */
         public void setTitleFr(String titleFr) {
             this.titleFr.set(titleFr);
         }
 
+        /**
+         * Gets the English description.
+         *
+         * @return the English description
+         */
         public String getDescriptionEn() {
             return descriptionEn.get();
         }
 
+        /**
+         * Sets the English description.
+         *
+         * @param descriptionEn the English description
+         */
         public void setDescriptionEn(String descriptionEn) {
             this.descriptionEn.set(descriptionEn);
         }
 
+        /**
+         * Gets the French description.
+         *
+         * @return the French description
+         */
         public String getDescriptionFr() {
             return descriptionFr.get();
         }
 
+        /**
+         * Sets the French description.
+         *
+         * @param descriptionFr the French description
+         */
         public void setDescriptionFr(String descriptionFr) {
             this.descriptionFr.set(descriptionFr);
         }

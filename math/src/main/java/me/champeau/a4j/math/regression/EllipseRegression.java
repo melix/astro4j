@@ -35,6 +35,10 @@ public class EllipseRegression {
 
     private final List<Point2D> samples;
 
+    /**
+     * Creates a new ellipse regression solver.
+     * @param samples the data points to fit
+     */
     public EllipseRegression(List<Point2D> samples) {
         this.samples = samples;
     }
@@ -65,6 +69,10 @@ public class EllipseRegression {
         return DoubleMatrix.of(result);
     }
 
+    /**
+     * Solves the ellipse fitting problem.
+     * @return the fitted ellipse
+     */
     public Ellipse solve() {
         var d1 = designMatrix1();
         var d2 = designMatrix2();
@@ -82,6 +90,13 @@ public class EllipseRegression {
         );
     }
 
+    /**
+     * Computes element-wise scaled product of two vectors.
+     * @param scale the scaling factor
+     * @param vec1 the first vector
+     * @param vec2 the second vector
+     * @return the scaled product
+     */
     public static double[] scalarProduct(double scale, double[] vec1, double[] vec2) {
         int len = vec1.length;
         if (len != vec2.length) {
@@ -94,6 +109,12 @@ public class EllipseRegression {
         return result;
     }
 
+    /**
+     * Subtracts one vector from another.
+     * @param vec1 the first vector
+     * @param vec2 the second vector
+     * @return the difference vector
+     */
     public static double[] substract(double[] vec1, double[] vec2) {
         int len = vec1.length;
         if (len != vec2.length) {
@@ -106,6 +127,11 @@ public class EllipseRegression {
         return result;
     }
 
+    /**
+     * Evaluates the eigensystem to find the valid ellipse solution.
+     * @param system the eigensystem
+     * @return the solution coefficients
+     */
     public static double[][] evaluateSolutions(DoubleMatrix.EigenSystem system) {
         double[][] vectors = system.vectors();
         double[] v0 = vectors[0];

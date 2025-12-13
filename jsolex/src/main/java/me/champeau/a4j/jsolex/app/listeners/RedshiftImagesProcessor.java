@@ -74,6 +74,10 @@ import java.util.stream.Stream;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
 
+/**
+ * Processes and generates visualization outputs for redshift phenomena detected in solar images.
+ * This class handles the creation of animations and panel layouts showing wavelength shifts.
+ */
 public class RedshiftImagesProcessor {
     private static final Logger LOGGER = LoggerFactory.getLogger(RedshiftImagesProcessor.class);
     private final static int[] YELLOW = {255, 255, 0};
@@ -99,6 +103,24 @@ public class RedshiftImagesProcessor {
     private final int imageWidth;
     private final int imageHeight;
 
+    /**
+     * Creates a new redshift images processor.
+     *
+     * @param shiftImages map of pixel shifts to corresponding images
+     * @param params processing parameters
+     * @param serFile source SER video file
+     * @param outputDirectory directory for output files
+     * @param owner JSolEx interface for UI updates
+     * @param broadcaster event broadcaster for progress updates
+     * @param imageEmitter emitter for generated images
+     * @param redshifts list of detected redshift areas
+     * @param polynomial polynomial function for spectrum analysis
+     * @param averageImage average image data
+     * @param operation progress operation for tracking
+     * @param namingStrategy strategy for naming output files
+     * @param sequenceNumber sequence number for output naming
+     * @param serFileBaseName base name of the SER file
+     */
     public RedshiftImagesProcessor(Map<PixelShift, ImageWrapper> shiftImages,
                                    ProcessParams params,
                                    File serFile,
@@ -137,10 +159,21 @@ public class RedshiftImagesProcessor {
         }
     }
 
+    /**
+     * Creates a new processor instance with different redshift areas.
+     *
+     * @param redshifts new list of redshift areas
+     * @return new processor instance with updated redshifts
+     */
     public RedshiftImagesProcessor withRedshifts(List<RedshiftArea> redshifts) {
         return new RedshiftImagesProcessor(shiftImages, params, serFile, outputDirectory, owner, broadcaster, imageEmitter, redshifts, polynomial, averageImage, operation, namingStrategy, sequenceNumber, serFileBaseName);
     }
 
+    /**
+     * Computes the sun radius from ellipse metadata.
+     *
+     * @return the average of semi-major and semi-minor axes, or empty if no ellipse metadata found
+     */
     public Optional<Double> getSunRadius() {
         return shiftImages.values().stream()
             .map(i -> i.findMetadata(Ellipse.class).map(e -> (e.semiAxis().a() + e.semiAxis().b()) / 2))
@@ -148,10 +181,25 @@ public class RedshiftImagesProcessor {
             .orElse(Optional.empty());
     }
 
+    /**
+     * Returns the list of detected redshift areas.
+     *
+     * @return list of redshift areas
+     */
     public List<RedshiftArea> getRedshifts() {
         return redshifts;
     }
 
+    /**
+     * Produces visualization images for all redshift areas.
+     *
+     * @param kind type of output to create (animation, panel, or both)
+     * @param boxSize size of the cropped box around each redshift area
+     * @param margin additional pixel shifts to include beyond detected maximum
+     * @param useFullRangePanels whether to show full range of shifts in panels
+     * @param annotateAnimations whether to add wavelength annotations to animation frames
+     * @param annotationColor RGB color values for annotations
+     */
     public void produceImages(RedshiftCreatorKind kind, int boxSize, int margin, boolean useFullRangePanels, boolean annotateAnimations, int[] annotationColor) {
         var requiredShifts = createRange(margin, redshifts.stream().mapToInt(RedshiftArea::pixelShift).max().orElse(0));
         var missingShifts = requiredShifts.stream().filter(d -> !shiftImages.containsKey(new PixelShift(d))).toList();
@@ -191,6 +239,13 @@ public class RedshiftImagesProcessor {
         broadcaster.broadcast(progressOperation.complete());
     }
 
+    /**
+     * Creates a range of pixel shifts including fractional values.
+     *
+     * @param margin additional margin around the pixel shift
+     * @param pixelShift maximum pixel shift value
+     * @return set of pixel shift values with 0.25 increments
+     */
     private LinkedHashSet<Double> createRange(int margin, int pixelShift) {
         var range = pixelShift + margin;
         var requiredShifts = new LinkedHashSet<Double>();
@@ -204,6 +259,14 @@ public class RedshiftImagesProcessor {
         return requiredShifts;
     }
 
+    /**
+     * Creates a range of pixel shifts between min and max values.
+     *
+     * @param minShift minimum shift value
+     * @param maxShift maximum shift value
+     * @param increment step size between values
+     * @return set of pixel shift values
+     */
     private LinkedHashSet<Double> createMinMaxRange(double minShift, double maxShift, double increment) {
         var requiredShifts = new LinkedHashSet<Double>();
         for (double i = minShift; i <= maxShift; i += increment) {
@@ -212,6 +275,17 @@ public class RedshiftImagesProcessor {
         return requiredShifts;
     }
 
+    /**
+     * Generates images for a specific redshift area.
+     *
+     * @param redshift the redshift area to process
+     * @param kind type of output to create
+     * @param boxSize size of the cropped region
+     * @param useFullRangePanels whether to show full range in panels
+     * @param annotateAnimations whether to annotate animation frames
+     * @param shiftToContrastAdjusted map of pixel shifts to contrast-adjusted images
+     * @param annotationColor RGB color for annotations
+     */
     private void produceImagesForRedshift(RedshiftArea redshift,
                                           RedshiftCreatorKind kind,
                                           int boxSize,
@@ -239,6 +313,12 @@ public class RedshiftImagesProcessor {
         }
     }
 
+    /**
+     * Converts pixel shift to wavelength in angstroms.
+     *
+     * @param shift pixel shift value
+     * @return formatted string representation in angstroms
+     */
     public String toAngstroms(double shift) {
         var lambda0 = params.spectrumParams().ray().wavelength();
         var instrument = params.observationDetails().instrument();
@@ -247,6 +327,12 @@ public class RedshiftImagesProcessor {
         return String.format(Locale.US, "%.2fÅ", angstroms);
     }
 
+    /**
+     * Converts wavelength in angstroms to pixel shift.
+     *
+     * @param angstroms wavelength shift in angstroms
+     * @return equivalent pixel shift value
+     */
     public double toPixels(double angstroms) {
         var lambda0 = params.spectrumParams().ray().wavelength();
         var instrument = params.observationDetails().instrument();
@@ -254,6 +340,21 @@ public class RedshiftImagesProcessor {
         return angstroms / dispersion.angstromsPerPixel();
     }
 
+    /**
+     * Generates a standalone animation for a custom region.
+     *
+     * @param x left coordinate of the region
+     * @param y top coordinate of the region
+     * @param width width of the region
+     * @param height height of the region
+     * @param minShift minimum pixel shift for animation
+     * @param maxShift maximum pixel shift for animation
+     * @param title title for the animation
+     * @param name base name for output files
+     * @param annotate whether to add annotations
+     * @param delay frame delay in milliseconds
+     * @param annotationColor RGB color for annotations
+     */
     public void generateStandaloneAnimation(int x, int y, int width, int height, double minShift, double maxShift, String title, String name, boolean annotate, int delay, int[] annotationColor) {
         var crop = new Crop(Map.of(), broadcaster);
         var contrast = new AdjustContrast(Map.of(), broadcaster);
@@ -296,10 +397,27 @@ public class RedshiftImagesProcessor {
             displayFile);
     }
 
+    /**
+     * Converts RGB color array to hexadecimal string.
+     *
+     * @param annotationColor RGB values as integers
+     * @return hexadecimal color string
+     */
     private static String toHex(int[] annotationColor) {
         return String.format("%02x%02x%02x", annotationColor[0], annotationColor[1], annotationColor[2]);
     }
 
+    /**
+     * Creates animation frames with optional annotations.
+     *
+     * @param width frame width
+     * @param height frame height
+     * @param annotate whether to add wavelength annotations
+     * @param cropped cropped images to process
+     * @param scaling scaling operation for resizing
+     * @param annotationColorHex hexadecimal color for annotations
+     * @return list of processed image frames
+     */
     private List<ImageWrapper> createFrames(int width, int height, boolean annotate, Object cropped, Scaling scaling, String annotationColorHex) {
         List<ImageWrapper> frames;
         if (annotate && cropped instanceof List list) {
@@ -345,6 +463,19 @@ public class RedshiftImagesProcessor {
         return frames;
     }
 
+    /**
+     * Generates a standalone panel for a custom region.
+     *
+     * @param x left coordinate of the region
+     * @param y top coordinate of the region
+     * @param width width of the region
+     * @param height height of the region
+     * @param minShift minimum pixel shift for panel
+     * @param maxShift maximum pixel shift for panel
+     * @param title title for the panel
+     * @param name base name for output files
+     * @param annotationColor RGB color for annotations
+     */
     public void generateStandalonePanel(int x, int y, int width, int height, double minShift, double maxShift, String title, String name, int[] annotationColor) {
         var crop = new Crop(Map.of(), broadcaster);
         var contrast = new AdjustContrast(Map.of(), broadcaster);
@@ -388,6 +519,18 @@ public class RedshiftImagesProcessor {
         createSinglePanel(frames, finalWidth, finalHeight, title, name, annotationColor);
     }
 
+    /**
+     * Generates an animation for a specific redshift area.
+     *
+     * @param redshift the redshift area
+     * @param animate animation operation
+     * @param cropped cropped images
+     * @param annotateAnimations whether to annotate frames
+     * @param width frame width
+     * @param height frame height
+     * @param scaling scaling operation
+     * @param annotationColorHex hexadecimal annotation color
+     */
     private void generateAnim(RedshiftArea redshift, Animate animate, Object cropped, boolean annotateAnimations, int width, int height, Scaling scaling, String annotationColorHex) {
         var frames = createFrames(width, height, annotateAnimations, cropped, scaling, annotationColorHex);
         var anim = (FileOutputResult) animate.createAnimation(Map.of("images", frames, "delay", 25));
@@ -414,6 +557,16 @@ public class RedshiftImagesProcessor {
             displayFile);
     }
 
+    /**
+     * Generates a panel for a specific redshift area.
+     *
+     * @param redshift the redshift area
+     * @param cropped cropped images
+     * @param boxSize size of individual boxes
+     * @param crop crop operation
+     * @param useFullRangePanels whether to show full range
+     * @param annotationColor RGB annotation color
+     */
     private void generatePanel(RedshiftArea redshift, List<ImageWrapper> cropped, int boxSize, Crop crop, boolean useFullRangePanels, int[] annotationColor) {
         var snapshots = cropped;
         if (boxSize <= 128) {
@@ -448,6 +601,16 @@ public class RedshiftImagesProcessor {
         createSinglePanel(snapshotsToDisplay, width, height, title, name, annotationColor);
     }
 
+    /**
+     * Creates a single panel image from multiple snapshots.
+     *
+     * @param snapshotsToDisplay list of images to arrange in panel
+     * @param width width of each snapshot
+     * @param height height of each snapshot
+     * @param title panel title
+     * @param name output file name
+     * @param annotationColor RGB annotation color
+     */
     private void createSinglePanel(List<ImageWrapper> snapshotsToDisplay, int width, int height, String title, String name, int[] annotationColor) {
         int cols = (int) Math.ceil(Math.sqrt(snapshotsToDisplay.size()));
         int rows = (int) Math.ceil((double) snapshotsToDisplay.size() / cols);
@@ -506,6 +669,14 @@ public class RedshiftImagesProcessor {
             });
     }
 
+    /**
+     * Creates an image containing only the legend text.
+     *
+     * @param snapWidth width of the legend image
+     * @param snapHeight height of the legend image
+     * @param legend text to render
+     * @return buffered image with legend text
+     */
     private static BufferedImage createLegendImage(int snapWidth, int snapHeight, String legend) {
         var legendImage = new BufferedImage(snapWidth, snapHeight, BufferedImage.TYPE_BYTE_GRAY);
         var graphics = legendImage.createGraphics();
@@ -517,6 +688,11 @@ public class RedshiftImagesProcessor {
         return legendImage;
     }
 
+    /**
+     * Restarts processing to generate missing pixel shift images.
+     *
+     * @param missingShifts set of pixel shifts that need to be computed
+     */
     private void restartProcessForMissingShifts(Set<Double> missingShifts) {
         LOGGER.warn(message("restarting.process.missing.shifts"), missingShifts.stream().map(d -> String.format("%.2f", d)).toList());
         // restart processing to include missing images
@@ -548,10 +724,22 @@ public class RedshiftImagesProcessor {
         solexVideoProcessor.process();
     }
 
+    /**
+     * Estimates storage requirements for processing.
+     *
+     * @param n number of pixel shift images
+     * @return estimated bytes required
+     */
     public double estimateRequiredBytesForProcessing(double n) {
         return n * imageWidth * imageHeight * BYTES_IN_FLOAT * TMP_IMAGES_COUNT * SAMPLING;
     }
 
+    /**
+     * Estimates required disk space as a formatted string.
+     *
+     * @param n number of pixel shift images
+     * @return formatted disk space requirement
+     */
     public String estimateRequiredDiskSpace(double n) {
         var size = estimateRequiredBytesForProcessing(n) / 1024 / 1024;
         if (size > 1024) {
@@ -560,17 +748,41 @@ public class RedshiftImagesProcessor {
         return String.format(message("disk.requirement"), size, "MB");
     }
 
+    /**
+     * Estimates required disk space including margin.
+     *
+     * @param margin additional pixel shifts margin
+     * @return formatted disk space requirement
+     */
     public String estimateRequiredDiskSpaceWithMargin(int margin) {
         return estimateRequiredDiskSpace(createRange(margin, redshifts.stream().mapToInt(RedshiftArea::pixelShift).max().orElse(0)).size() / SAMPLING);
     }
 
+    /**
+     * Estimates storage requirements including margin.
+     *
+     * @param margin additional pixel shifts margin
+     * @return estimated bytes required
+     */
     public double estimateRequiredBytesForProcessingWithMargin(int margin) {
         return estimateRequiredBytesForProcessing(createRange(margin, redshifts.stream().mapToInt(RedshiftArea::pixelShift).max().orElse(0)).size() / SAMPLING);
     }
 
+    /**
+     * Defines the type of output to generate for redshift visualizations.
+     */
     public enum RedshiftCreatorKind {
+        /**
+         * Generate animation output only.
+         */
         ANIMATION,
+        /**
+         * Generate panel output only.
+         */
         PANEL,
+        /**
+         * Generate both animation and panel outputs.
+         */
         ALL
     }
 }

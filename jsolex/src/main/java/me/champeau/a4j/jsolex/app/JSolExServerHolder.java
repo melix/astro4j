@@ -42,6 +42,9 @@ public class JSolExServerHolder {
     private ApplicationContext context;
     private final List<Consumer<? super Boolean>> statusChangeListeners = new CopyOnWriteArrayList<>();
 
+    /**
+     * Creates a new instance.
+     */
     public JSolExServerHolder() {
         Thread.startVirtualThread(() -> {
             while (!Thread.currentThread().isInterrupted()) {
@@ -72,28 +75,56 @@ public class JSolExServerHolder {
         }
     }
 
+    /**
+     * Adds a listener for server status changes.
+     *
+     * @param runnable the listener to add
+     */
     public void addStatusChangeListener(Consumer<? super Boolean> runnable) {
         statusChangeListeners.add(runnable);
     }
 
+    /**
+     * Removes a status change listener.
+     *
+     * @param runnable the listener to remove
+     */
     public void removeStatusChangeListener(Consumer<? super Boolean> runnable) {
         statusChangeListeners.remove(runnable);
     }
 
+    /**
+     * Checks if the server is currently started.
+     *
+     * @return true if the server is running
+     */
     public boolean isStarted() {
         return started.get();
     }
 
+    /**
+     * Returns the server port.
+     *
+     * @return the port number
+     */
     public int getPort() {
         return context.getBean(EmbeddedServer.class).getPort();
     }
 
+    /**
+     * Starts the server on the specified port.
+     *
+     * @param port the port to listen on
+     */
     public void start(int port) {
         if (command.compareAndSet(false, true)) {
             Thread.startVirtualThread(() -> context = JSolexServer.start(port, ProcessParamsIO.loadDefaults()));
         }
     }
 
+    /**
+     * Stops the server.
+     */
     public void stop() {
         if (command.compareAndSet(true, false)) {
             try {
@@ -105,6 +136,11 @@ public class JSolExServerHolder {
         }
     }
 
+    /**
+     * Returns the server URLs.
+     *
+     * @return the list of server URLs
+     */
     public List<String> getServerUrls() {
         if (context == null) {
             return List.of();
@@ -112,6 +148,11 @@ public class JSolExServerHolder {
         return JSolexServer.getServerUrls(context.getBean(EmbeddedServer.class));
     }
 
+    /**
+     * Returns the context URI.
+     *
+     * @return the optional context URI
+     */
     public Optional<URI> getContextUri() {
         if (context == null) {
             return Optional.empty();
@@ -119,6 +160,11 @@ public class JSolExServerHolder {
         return Optional.of(context.getBean(EmbeddedServer.class).getContextURI());
     }
 
+    /**
+     * Returns the processing event listeners.
+     *
+     * @return the list of listeners
+     */
     public List<ProcessingEventListener> getListeners() {
         if (context == null) {
             return List.of();

@@ -60,6 +60,8 @@ public class OpenCLContext implements AutoCloseable {
     /**
      * Attempts to create an OpenCL context.
      * Returns null if creation fails for any reason.
+     *
+     * @return an OpenCL context or null if creation fails
      */
     public static OpenCLContext tryCreate() {
         try {
@@ -209,26 +211,56 @@ public class OpenCLContext implements AutoCloseable {
         }
     }
 
+    /**
+     * Returns the OpenCL platform handle.
+     *
+     * @return the platform handle
+     */
     public long getPlatform() {
         return platform;
     }
 
+    /**
+     * Returns the OpenCL device handle.
+     *
+     * @return the device handle
+     */
     public long getDevice() {
         return device;
     }
 
+    /**
+     * Returns the OpenCL context handle.
+     *
+     * @return the context handle
+     */
     public long getContext() {
         return context;
     }
 
+    /**
+     * Returns the OpenCL command queue handle.
+     *
+     * @return the command queue handle
+     */
     public long getCommandQueue() {
         return commandQueue;
     }
 
+    /**
+     * Returns the capabilities of the selected OpenCL device.
+     *
+     * @return the device capabilities
+     */
     public DeviceCapabilities getCapabilities() {
         return capabilities;
     }
 
+    /**
+     * Returns the kernel manager for this context.
+     *
+     * @return the kernel manager
+     */
     public OpenCLKernelManager getKernelManager() {
         return kernelManager;
     }
@@ -287,6 +319,9 @@ public class OpenCLContext implements AutoCloseable {
 
     /**
      * Writes float data to a buffer.
+     *
+     * @param buffer the buffer handle
+     * @param data the data to write
      */
     public void writeBuffer(long buffer, float[] data) {
         // Use direct buffer allocation for OpenCL compatibility
@@ -305,6 +340,9 @@ public class OpenCLContext implements AutoCloseable {
 
     /**
      * Reads float data from a buffer.
+     *
+     * @param buffer the buffer handle
+     * @param data the array to read into
      */
     public void readBuffer(long buffer, float[] data) {
         // Ensure all pending kernel operations complete before reading
@@ -325,6 +363,8 @@ public class OpenCLContext implements AutoCloseable {
 
     /**
      * Releases a buffer.
+     *
+     * @param buffer the buffer handle
      */
     public void releaseBuffer(long buffer) {
         clReleaseMemObject(buffer);
@@ -390,6 +430,15 @@ public class OpenCLContext implements AutoCloseable {
         clReleaseContext(context);
     }
 
+    /**
+     * Capabilities of an OpenCL device.
+     *
+     * @param deviceName the device name
+     * @param maxWorkGroupSize maximum work group size
+     * @param maxMemAllocSize maximum memory allocation size
+     * @param maxComputeUnits number of compute units
+     * @param supportsDouble whether double precision is supported
+     */
     public record DeviceCapabilities(
             String deviceName,
             long maxWorkGroupSize,

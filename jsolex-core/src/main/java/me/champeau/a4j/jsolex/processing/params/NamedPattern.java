@@ -21,6 +21,8 @@ package me.champeau.a4j.jsolex.processing.params;
  *
  * @param label a label given to a pattern
  * @param pattern the pattern
+ * @param datetimeFormat the datetime format
+ * @param dateFormat the date format
  */
 public record NamedPattern(String label, String pattern, String datetimeFormat, String dateFormat) {
     @Override

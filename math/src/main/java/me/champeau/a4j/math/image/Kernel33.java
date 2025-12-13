@@ -15,6 +15,20 @@
  */
 package me.champeau.a4j.math.image;
 
+/**
+ * A 3x3 convolution kernel with predefined common kernels.
+ *
+ * @param factor the normalization factor
+ * @param a kernel element at position (0,0)
+ * @param b kernel element at position (0,1)
+ * @param c kernel element at position (0,2)
+ * @param d kernel element at position (1,0)
+ * @param e kernel element at position (1,1)
+ * @param f kernel element at position (1,2)
+ * @param g kernel element at position (2,0)
+ * @param h kernel element at position (2,1)
+ * @param i kernel element at position (2,2)
+ */
 public record Kernel33(
         float factor,
         float a, float b, float c,

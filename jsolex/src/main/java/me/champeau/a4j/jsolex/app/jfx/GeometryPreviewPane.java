@@ -46,6 +46,9 @@ public class GeometryPreviewPane extends BorderPane {
     private CompletableFuture<Void> currentPreview;
     private final Crop cropper = new Crop(Map.of(), Broadcaster.NO_OP);
 
+    /**
+     * Creates a new geometry preview pane.
+     */
     public GeometryPreviewPane() {
         previewView = new ZoomableImageView();
 
@@ -71,7 +74,8 @@ public class GeometryPreviewPane extends BorderPane {
     }
 
     /**
-     * Sets the original image to preview
+     * Sets the original image to preview.
+     * @param image the original image
      */
     public void setOriginalImage(ImageWrapper32 image) {
         this.originalImage = image;
@@ -84,7 +88,8 @@ public class GeometryPreviewPane extends BorderPane {
     }
 
     /**
-     * Updates the ellipse and generates a new preview
+     * Updates the ellipse and generates a new preview.
+     * @param ellipse the new ellipse
      */
     public void updateEllipse(Ellipse ellipse) {
         this.currentEllipse = ellipse;

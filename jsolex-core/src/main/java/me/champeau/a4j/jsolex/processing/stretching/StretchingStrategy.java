@@ -49,8 +49,19 @@ public sealed interface StretchingStrategy permits
         }
     }
 
+    /**
+     * Stretches a monochrome image.
+     *
+     * @param image the image to stretch
+     */
     void stretch(ImageWrapper32 image);
 
+    /**
+     * Stretches an RGB color image by converting to HSL, stretching the lightness channel,
+     * and converting back to RGB.
+     *
+     * @param image the RGB image to stretch
+     */
     default void stretch(RGBImage image) {
         var r = image.r();
         var g = image.g();

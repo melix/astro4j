@@ -20,11 +20,19 @@ import me.champeau.a4j.jsolex.processing.util.LocaleUtils;
 
 import static me.champeau.a4j.jsolex.processing.util.VersionUtil.getFullVersion;
 
+/**
+ * Helper class for opening documentation.
+ */
 public class DocsHelper {
     private DocsHelper() {
 
     }
 
+    /**
+     * Opens the help documentation at the specified section.
+     * @param hostServices the host services for opening browser
+     * @param section the documentation section to open, or null for main page
+     */
     public static void openHelp(HostServices hostServices, String section) {
         if (section == null) {
             section = "";

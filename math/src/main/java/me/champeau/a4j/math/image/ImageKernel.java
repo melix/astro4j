@@ -15,12 +15,21 @@
  */
 package me.champeau.a4j.math.image;
 
+/**
+ * A kernel derived from an image, normalized for convolution operations.
+ */
 public class ImageKernel implements Kernel {
     private final int width;
     private final int height;
     private final float[][] kernel;
     private final float factor;
 
+    /**
+     * Creates a kernel from an image by normalizing pixel values.
+     *
+     * @param image the source image
+     * @return a normalized kernel
+     */
     public static ImageKernel of(Image image) {
         var height = image.height();
         var width = image.width();

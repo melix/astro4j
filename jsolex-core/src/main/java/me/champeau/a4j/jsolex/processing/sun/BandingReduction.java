@@ -25,13 +25,36 @@ import java.util.stream.IntStream;
 
 import static me.champeau.a4j.jsolex.processing.sun.ImageUtils.bilinearSmoothing;
 
+/**
+ * Utility class for reducing banding artifacts in spectroheliographic images.
+ * Banding artifacts appear as horizontal stripes in the reconstructed images and
+ * are corrected by analyzing line averages and applying multi-scale corrections.
+ */
 public class BandingReduction {
+    /**
+     * Default number of correction passes to apply.
+     */
     public static final int DEFAULT_PASS_COUNT = 4;
+
+    /**
+     * Default band size in pixels for the correction algorithm.
+     */
     public static final int DEFAULT_BAND_SIZE = 24;
 
     private BandingReduction() {
     }
 
+    /**
+     * Reduces banding artifacts in the provided image data.
+     * The algorithm computes line averages, applies multi-scale corrections,
+     * and optionally constrains the operation within an elliptical region.
+     *
+     * @param width the image width in pixels
+     * @param height the image height in pixels
+     * @param data the image data as a 2D array (modified in place)
+     * @param bandSize the size of the bands for correction
+     * @param ellipse optional ellipse defining the region to correct, or null for full image
+     */
     public static void reduceBanding(int width, int height, float[][] data, int bandSize, Ellipse ellipse) {
         var lineAverages = lineAverages(width, height, data, ellipse);
         var corrections = computeMultiScaleCorrections(height, lineAverages, bandSize, ellipse);

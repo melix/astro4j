@@ -25,6 +25,7 @@ import java.util.Map;
  * @param width the width of the image
  * @param height the height of the image
  * @param data the image data
+ * @param metadata the image metadata
  */
 public record ImageWrapper32(
         int width,

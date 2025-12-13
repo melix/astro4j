@@ -27,11 +27,21 @@ import me.champeau.a4j.math.image.ImageMath;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
+/**
+ * Utility class for applying geometric corrections to images.
+ */
 public class Corrector {
     private Corrector() {
 
     }
 
+    /**
+     * Rotates an image by the specified angle.
+     * @param image the image to rotate
+     * @param angle the rotation angle in radians
+     * @param resize whether to resize the output to fit the rotated image
+     * @return the rotated image
+     */
     public static ImageWrapper rotate(ImageWrapper image, double angle, boolean resize) {
         return (ImageWrapper) MetadataSupport.applyMetadata(String.format(message("rotate.radians.format"), angle), () -> {
             var img = image;
@@ -54,6 +64,11 @@ public class Corrector {
         });
     }
 
+    /**
+     * Flips an image vertically.
+     * @param image the image to flip
+     * @return the vertically flipped image
+     */
     public static ImageWrapper verticalFlip(ImageWrapper image) {
         var result = (ImageWrapper) MetadataSupport.applyMetadata(message("flip.vertical"), () -> {
             var img = image;

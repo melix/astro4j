@@ -18,6 +18,8 @@ package me.champeau.a4j.jsolex.processing.util;
 /**
  * This class is used specifically to ensure compatibility with the BASS2000
  * database when saving FITS files.
+ *
+ * @param forcedWavelengthAngstroms the wavelength in angstroms to force in FITS headers
  */
 public record Bass2000Compatibility(
         double forcedWavelengthAngstroms

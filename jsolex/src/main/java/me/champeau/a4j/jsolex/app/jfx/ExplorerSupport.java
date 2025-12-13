@@ -26,6 +26,9 @@ import java.util.Locale;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
 
+/**
+ * Utility class for opening files in the system file explorer.
+ */
 public class ExplorerSupport {
     private static final Logger LOGGER = LoggerFactory.getLogger(ExplorerSupport.class);
 
@@ -33,6 +36,10 @@ public class ExplorerSupport {
 
     }
 
+    /**
+     * Opens the system file explorer and selects the specified file.
+     * @param imagePath the path to the file to show
+     */
     public static void openInExplorer(Path imagePath) {
         if (Desktop.getDesktop().isSupported(Desktop.Action.BROWSE_FILE_DIR)) {
             Desktop.getDesktop().browseFileDirectory(imagePath.toFile());

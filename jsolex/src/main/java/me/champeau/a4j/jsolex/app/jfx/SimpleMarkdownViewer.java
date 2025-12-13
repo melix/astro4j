@@ -54,16 +54,33 @@ import java.util.Objects;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
 
+/**
+ * A simple Markdown viewer component that renders Markdown content in a JavaFX modal dialog.
+ * Supports basic Markdown features including headings, paragraphs, lists, links, images, and text formatting.
+ */
 public class SimpleMarkdownViewer {
     private final String title;
     private final HostServices hostServices;
     private ScrollPane scrollPane;
 
+    /**
+     * Creates a new SimpleMarkdownViewer.
+     *
+     * @param title the title for the viewer window
+     * @param hostServices the HostServices for opening external links
+     */
     public SimpleMarkdownViewer(String title, HostServices hostServices) {
         this.title = title;
         this.hostServices = hostServices;
     }
 
+    /**
+     * Renders the Markdown content in a modal dialog.
+     *
+     * @param parent the parent scene for the modal dialog
+     * @param markdown the Markdown content to render
+     * @param onDismiss callback to execute when the dialog is dismissed
+     */
     public void render(Scene parent, String markdown, Runnable onDismiss) {
         var parser = Parser.builder().build();
         var document = parser.parse(markdown);

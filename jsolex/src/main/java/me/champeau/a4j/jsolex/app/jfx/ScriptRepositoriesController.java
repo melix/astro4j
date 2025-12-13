@@ -51,6 +51,11 @@ import java.util.ArrayList;
 import static me.champeau.a4j.jsolex.app.JSolEx.newScene;
 import static me.champeau.a4j.jsolex.app.jfx.FXUtils.*;
 
+/**
+ * Controller for managing script repositories in the JSol'Ex application.
+ * Provides UI for adding, editing, removing, and refreshing script repositories,
+ * as well as viewing available scripts from each repository.
+ */
 public class ScriptRepositoriesController {
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
         .withZone(ZoneId.systemDefault());
@@ -87,6 +92,19 @@ public class ScriptRepositoriesController {
     private ScriptRepositoryManager repositoryManager;
     private ObservableList<ScriptRepository> repositories;
 
+    /**
+     * Creates a new script repositories controller.
+     */
+    public ScriptRepositoriesController() {
+    }
+
+    /**
+     * Initializes the controller with the required dependencies and sets up the UI components.
+     * Configures table columns, cell factories, and event handlers for managing repositories.
+     *
+     * @param stage the parent stage for this controller
+     * @param configuration the application configuration containing repository settings
+     */
     public void setup(Stage stage, Configuration configuration) {
         this.stage = stage;
         this.configuration = configuration;
