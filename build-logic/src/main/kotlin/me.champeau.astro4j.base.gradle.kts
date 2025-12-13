@@ -52,6 +52,7 @@ tasks.rat {
     excludes.add("**/*.md")
     excludes.add("**/*.txt")
     excludes.add("**/*.math")
+    excludes.add("**/*.log")
     excludes.add("**/*.properties")
     excludes.add("**/*.iprof")
     excludes.add("**/*.webm")

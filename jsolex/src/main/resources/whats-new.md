@@ -1,6 +1,6 @@
 # Welcome to JSol'Ex {{version}}!
 
-- [What's New in Version 4.4.0](#whats-new-in-version-4-4-0) - 3D Spectral Profile viewer, interactive chart legend
+- [What's New in Version 4.4.0](#whats-new-in-version-4-4-0) - 3D Spectral Profile viewer, Spherical Tomography volume renderer
 - [Version 4.3.1](#whats-new-in-version-4-3-1) - New stretching functions, experimental GPU acceleration
 - [Version 4.3.0](#whats-new-in-version-4-3-0) - Faster script execution, improved stacking and bug fixes
 - [Version 4.2.1](#whats-new-in-version-4-2-1) - Bug fixes
@@ -18,6 +18,7 @@
 - Profile chart legend is now interactive: click on legend labels to show or hide individual data series
 - New 3D Spectral Line Profile viewer: visualizes spectral line intensity as a 3D surface across slit positions and wavelength offsets. Access it via the "3D Spectral Profile" button in the profile tab
 - New Spectral Evolution viewer: shows how the spectral line profile varies along the scan direction (frame by frame at disk center)
+- Spherical Tomography viewer now features a volume renderer with smooth layer blending that reveals chromospheric structures at different altitudes
 
 ## What's New in Version 4.3.1
 

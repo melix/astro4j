@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.RadioButton?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.ToggleGroup?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.RowConstraints?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane prefHeight="200.0" prefWidth="420.0" styleClass="params-dialog" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:controller="me.champeau.a4j.jsolex.app.jfx.SphericalTomographyCreator">
+    <center>
+        <VBox styleClass="parameter-panel" spacing="16">
+            <padding>
+                <Insets top="16" right="16" bottom="16" left="16"/>
+            </padding>
+
+            <!-- Instructions -->
+            <Label text="%tomography.instructions" wrapText="true" styleClass="field-label"/>
+
+            <!-- Parameters Section -->
+            <VBox styleClass="panel-section" spacing="12">
+                <GridPane styleClass="form-grid" hgap="12" vgap="12">
+                    <columnConstraints>
+                        <ColumnConstraints minWidth="200" prefWidth="200"/>
+                        <ColumnConstraints hgrow="ALWAYS" minWidth="200"/>
+                    </columnConstraints>
+                    <rowConstraints>
+                        <RowConstraints/>
+                        <RowConstraints/>
+                    </rowConstraints>
+
+                    <Label text="%depth.angstroms" styleClass="field-label" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                    <TextField fx:id="depthAngstroms" styleClass="text-field" prefWidth="80" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+
+                    <Label text="%direction" styleClass="field-label" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+                    <HBox alignment="CENTER_LEFT" spacing="16" GridPane.columnIndex="1" GridPane.rowIndex="1">
+                        <fx:define>
+                            <ToggleGroup fx:id="directionGroup"/>
+                        </fx:define>
+                        <RadioButton fx:id="redWingRadio" text="%direction.red" toggleGroup="$directionGroup" selected="true"/>
+                        <RadioButton fx:id="blueWingRadio" text="%direction.blue" toggleGroup="$directionGroup"/>
+                    </HBox>
+                </GridPane>
+            </VBox>
+        </VBox>
+    </center>
+
+    <!-- Bottom button bar -->
+    <bottom>
+        <HBox styleClass="editor-button-bar" alignment="CENTER_RIGHT" spacing="8">
+            <Button styleClass="default-button" mnemonicParsing="false" onAction="#close" text="%cancel" prefWidth="80"/>
+            <Button styleClass="primary-button" mnemonicParsing="false" onAction="#generate" text="%generate" prefWidth="80"/>
+        </HBox>
+    </bottom>
+</BorderPane>

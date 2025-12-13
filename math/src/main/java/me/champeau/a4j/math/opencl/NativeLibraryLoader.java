@@ -26,8 +26,8 @@ import java.nio.file.StandardCopyOption;
 /**
  * Extracts LWJGL native libraries from the classpath/module path at runtime.
  */
-class NativeLibraryLoader {
-    private static volatile boolean initialized = false;
+public class NativeLibraryLoader {
+
     private static volatile Path nativesDir = null;
 
     private NativeLibraryLoader() {
@@ -37,15 +37,16 @@ class NativeLibraryLoader {
      * Ensures native libraries are extracted and available.
      * Sets the org.lwjgl.librarypath system property if extraction succeeds.
      */
-    static synchronized void ensureNativesLoaded() {
-        if (initialized) {
-            return;
-        }
-        initialized = true;
-
-        // Check if librarypath is already set
-        if (System.getProperty("org.lwjgl.librarypath") != null) {
-            return;
+    public static synchronized void ensureNativesLoaded() {
+        // Check if librarypath is already set externally and contains GLFW
+        String existingPath = System.getProperty("org.lwjgl.librarypath");
+        if (existingPath != null && !existingPath.isEmpty()) {
+            Path extPath = Path.of(existingPath);
+            if (Files.exists(extPath.resolve("libglfw.so")) ||
+                Files.exists(extPath.resolve("glfw.dll")) ||
+                Files.exists(extPath.resolve("libglfw.dylib"))) {
+                return;
+            }
         }
 
         try {
@@ -54,7 +55,7 @@ class NativeLibraryLoader {
                 System.setProperty("org.lwjgl.librarypath", nativesDir.toString());
             }
         } catch (Exception e) {
-            // Failed to extract natives, LWJGL will try its default loading mechanism
+            // Silently ignore
         }
     }
 
@@ -62,49 +63,34 @@ class NativeLibraryLoader {
         String os = System.getProperty("os.name").toLowerCase();
         String arch = System.getProperty("os.arch").toLowerCase();
 
-        String libraryName;
-        String resourcePath;
+        record NativeLib(String fileName, String subDir) {}
+
+        NativeLib[] libraries;
+        String osDir;
+        String archDir = mapArch(arch);
 
         if (os.contains("linux")) {
-            libraryName = "liblwjgl.so";
-            resourcePath = "linux/" + mapArch(arch) + "/org/lwjgl/" + libraryName;
+            osDir = "linux";
+            libraries = new NativeLib[] {
+                new NativeLib("liblwjgl.so", ""),
+                new NativeLib("liblwjgl_opengl.so", "opengl/"),
+                new NativeLib("libglfw.so", "glfw/")
+            };
         } else if (os.contains("windows")) {
-            libraryName = "lwjgl.dll";
-            resourcePath = "windows/" + mapArch(arch) + "/org/lwjgl/" + libraryName;
+            osDir = "windows";
+            libraries = new NativeLib[] {
+                new NativeLib("lwjgl.dll", ""),
+                new NativeLib("lwjgl_opengl.dll", "opengl/"),
+                new NativeLib("glfw.dll", "glfw/")
+            };
         } else if (os.contains("mac")) {
-            libraryName = "liblwjgl.dylib";
-            resourcePath = "macos/" + mapArch(arch) + "/org/lwjgl/" + libraryName;
+            osDir = "macos";
+            libraries = new NativeLib[] {
+                new NativeLib("liblwjgl.dylib", ""),
+                new NativeLib("liblwjgl_opengl.dylib", "opengl/"),
+                new NativeLib("libglfw.dylib", "glfw/")
+            };
         } else {
-            return null;
-        }
-
-        // Try to find the native library from the org.lwjgl.natives module
-        InputStream resourceStream = null;
-
-        // First try to find the natives module in the module layer
-        var layer = ModuleLayer.boot();
-        var nativesModule = layer.findModule("org.lwjgl.natives");
-        if (nativesModule.isPresent()) {
-            try {
-                resourceStream = nativesModule.get().getResourceAsStream(resourcePath);
-            } catch (IOException e) {
-                // Ignore and try other methods
-            }
-        }
-
-        if (resourceStream == null) {
-            // Try using LWJGL's classloader
-            resourceStream = CL.class.getClassLoader()
-                    .getResourceAsStream(resourcePath);
-        }
-
-        if (resourceStream == null) {
-            // Try this class's classloader as fallback
-            resourceStream = NativeLibraryLoader.class.getClassLoader()
-                    .getResourceAsStream(resourcePath);
-        }
-
-        if (resourceStream == null) {
             return null;
         }
 
@@ -112,14 +98,69 @@ class NativeLibraryLoader {
         Path tempDir = Files.createTempDirectory("lwjgl-natives");
         tempDir.toFile().deleteOnExit();
 
-        Path libraryPath = tempDir.resolve(libraryName);
-        libraryPath.toFile().deleteOnExit();
+        var layer = ModuleLayer.boot();
 
-        try (var stream = resourceStream) {
-            Files.copy(stream, libraryPath, StandardCopyOption.REPLACE_EXISTING);
+        for (NativeLib lib : libraries) {
+            String resourcePath = osDir + "/" + archDir + "/org/lwjgl/" + lib.subDir + lib.fileName;
+
+            InputStream resourceStream = findResource(layer, resourcePath);
+            if (resourceStream == null) {
+                continue;
+            }
+
+            Path libraryPath = tempDir.resolve(lib.fileName);
+            libraryPath.toFile().deleteOnExit();
+
+            try (var stream = resourceStream) {
+                Files.copy(stream, libraryPath, StandardCopyOption.REPLACE_EXISTING);
+            }
         }
 
         return tempDir;
+    }
+
+    private static InputStream findResource(ModuleLayer layer, String resourcePath) {
+        // Try different native modules
+        String[] moduleNames = {
+            "org.lwjgl.natives",
+            "org.lwjgl.opengl.natives",
+            "org.lwjgl.glfw.natives"
+        };
+
+        for (String moduleName : moduleNames) {
+            var nativesModule = layer.findModule(moduleName);
+            if (nativesModule.isPresent()) {
+                try {
+                    var stream = nativesModule.get().getResourceAsStream(resourcePath);
+                    if (stream != null) {
+                        return stream;
+                    }
+                } catch (IOException e) {
+                    // Ignore and try other methods
+                }
+            }
+        }
+
+        // Try using LWJGL's classloader
+        var stream = CL.class.getClassLoader().getResourceAsStream(resourcePath);
+        if (stream != null) {
+            return stream;
+        }
+
+        // Try this class's classloader
+        stream = NativeLibraryLoader.class.getClassLoader().getResourceAsStream(resourcePath);
+        if (stream != null) {
+            return stream;
+        }
+
+        // Try thread context classloader
+        stream = Thread.currentThread().getContextClassLoader().getResourceAsStream(resourcePath);
+        if (stream != null) {
+            return stream;
+        }
+
+        // Try system classloader
+        return ClassLoader.getSystemResourceAsStream(resourcePath);
     }
 
     private static String mapArch(String arch) {

@@ -40,10 +40,14 @@ module me.champeau.a4j.jsolex {
     requires java.sql;
     // add icon pack modules
     requires org.kordamp.ikonli.fluentui;
-    // LWJGL OpenCL for GPU acceleration
+    // LWJGL for GPU acceleration (OpenCL, OpenGL, GLFW)
     requires org.lwjgl;
     requires org.lwjgl.opencl;
+    requires org.lwjgl.opengl;
+    requires org.lwjgl.glfw;
     requires org.lwjgl.natives;
+    requires org.lwjgl.opengl.natives;
+    requires org.lwjgl.glfw.natives;
     exports me.champeau.a4j.jsolex.app to javafx.graphics;
     exports me.champeau.a4j.jsolex.app.jfx.ime to javafx.fxml, javafx.graphics;
     opens me.champeau.a4j.jsolex.app.jfx.stacking to javafx.fxml, javafx.graphics;
