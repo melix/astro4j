@@ -50,6 +50,17 @@ uniform float lineCenterDepth;  // Texture depth for line center (pixel shift 0)
 const float PI = 3.14159265359;
 const float PROMINENCE_RADIUS = 1.25;
 const int MAX_STEPS = 256;
+const float UV_CLAMP_RADIUS = 0.99; // Clamp UV sampling to avoid dark edge regions
+
+// Clamp normalized position to stay inside the disk for UV sampling
+vec2 clampForUV(vec3 normal) {
+    vec2 xy = normal.xy;
+    float r = length(xy);
+    if (r > UV_CLAMP_RADIUS) {
+        xy = xy * (UV_CLAMP_RADIUS / r);
+    }
+    return xy;
+}
 
 // Sphere-ray intersection
 // Returns (tNear, tFar) or (-1, -1) if no intersection
@@ -199,10 +210,10 @@ void main() {
         if (sphereHit.x > 0.0) {
             vec3 pos = rayOrigin + sphereHit.x * rayDir;
             if (pos.z > 0.0) {
-                vec2 normalizedPos = pos.xy / effInnerRadius;
+                vec2 clampedXY = clampForUV(normalize(pos));
                 vec2 uv = vec2(
-                    diskCenterU + normalizedPos.x * diskRadiusU,
-                    diskCenterV - normalizedPos.y * diskRadiusV
+                    diskCenterU + clampedXY.x * diskRadiusU,
+                    diskCenterV - clampedXY.y * diskRadiusV
                 );
                 if (uv.x >= 0.0 && uv.x <= 1.0 && uv.y >= 0.0 && uv.y <= 1.0) {
                     float intensity = texture(volumeTexture, vec3(uv, lineCenterDepth)).r;
@@ -237,9 +248,10 @@ void main() {
                 baseFacing = abs(dot(normal, -rayDir));
 
                 // UV from surface normal (matches shell renderer)
+                vec2 clampedXY = clampForUV(normal);
                 vec2 innerUv = vec2(
-                    diskCenterU + normal.x * diskRadiusU,
-                    diskCenterV - normal.y * diskRadiusV
+                    diskCenterU + clampedXY.x * diskRadiusU,
+                    diskCenterV - clampedXY.y * diskRadiusV
                 );
                 if (innerUv.x >= 0.0 && innerUv.x <= 1.0 && innerUv.y >= 0.0 && innerUv.y <= 1.0) {
                     // Sample the far wings (photosphere) for base - use maximum (brightest)
@@ -287,9 +299,10 @@ void main() {
                 }
 
                 vec3 normal = normalize(pos);
+                vec2 clampedXY = clampForUV(normal);
                 vec2 uv = vec2(
-                    diskCenterU + normal.x * diskRadiusU,
-                    diskCenterV - normal.y * diskRadiusV
+                    diskCenterU + clampedXY.x * diskRadiusU,
+                    diskCenterV - clampedXY.y * diskRadiusV
                 );
 
                 if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
@@ -368,9 +381,10 @@ void main() {
                 }
 
                 vec3 normal = normalize(pos);
+                vec2 clampedXY = clampForUV(normal);
                 vec2 uv = vec2(
-                    diskCenterU + normal.x * diskRadiusU,
-                    diskCenterV - normal.y * diskRadiusV
+                    diskCenterU + clampedXY.x * diskRadiusU,
+                    diskCenterV - clampedXY.y * diskRadiusV
                 );
 
                 if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {

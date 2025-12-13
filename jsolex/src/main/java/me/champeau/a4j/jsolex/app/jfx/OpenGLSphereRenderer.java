@@ -773,14 +773,14 @@ public class OpenGLSphereRenderer implements SphereRenderer {
                     z4 = (float) Math.sqrt(1.0f - r4sq);
                 }
 
-                var u1 = diskCenterU + nx1 * diskRadiusU;
-                var v1 = diskCenterV - ny1 * diskRadiusV;
-                var u2 = diskCenterU + nx2 * diskRadiusU;
-                var v2 = diskCenterV - ny1 * diskRadiusV;
-                var u3 = diskCenterU + nx2 * diskRadiusU;
-                var v3 = diskCenterV - ny2 * diskRadiusV;
-                var u4 = diskCenterU + nx1 * diskRadiusU;
-                var v4 = diskCenterV - ny2 * diskRadiusV;
+                var u1 = diskCenterU + px1 * diskRadiusU;
+                var v1 = diskCenterV - py1 * diskRadiusV;
+                var u2 = diskCenterU + px2 * diskRadiusU;
+                var v2 = diskCenterV - py2 * diskRadiusV;
+                var u3 = diskCenterU + px3 * diskRadiusU;
+                var v3 = diskCenterV - py3 * diskRadiusV;
+                var u4 = diskCenterU + px4 * diskRadiusU;
+                var v4 = diskCenterV - py4 * diskRadiusV;
 
                 glTexCoord2f(u1, v1);
                 glVertex3f(px1 * radius, py1 * radius, z1 * radius);
