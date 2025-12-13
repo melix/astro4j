@@ -99,7 +99,6 @@ public class SphericalTomography3DViewer extends BorderPane {
 
     private OpenGLImageView glImageView;
     private SphereRenderer renderer;
-    private boolean useVolumeRenderer = false;
     private boolean shadersSupported = false;
 
     private double anchorX;
@@ -257,10 +256,8 @@ public class SphericalTomography3DViewer extends BorderPane {
         var currentShowProminences = renderer.isShowProminences();
         var currentContrastEnhanced = renderer.isContrastEnhanced();
 
-        useVolumeRenderer = (mode == RenderMode.VOLUME);
-
         SphereRenderer newRenderer;
-        if (useVolumeRenderer) {
+        if (mode == RenderMode.VOLUME) {
             newRenderer = new VolumeOpenGLSphereRenderer(data);
         } else {
             newRenderer = new OpenGLSphereRenderer(data);
@@ -807,7 +804,7 @@ public class SphericalTomography3DViewer extends BorderPane {
 
         var formats = animationFormats;
         var finalBasePath = basePath;
-        var currentlyUsingVolume = useVolumeRenderer;
+        var currentlyUsingVolume = renderer instanceof VolumeOpenGLSphereRenderer;
         var annotate = shouldAnnotate;
 
         new Thread(() -> {
