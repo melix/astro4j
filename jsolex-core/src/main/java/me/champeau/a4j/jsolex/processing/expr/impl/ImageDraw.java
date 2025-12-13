@@ -33,6 +33,7 @@ import me.champeau.a4j.jsolex.processing.util.NOAAActiveRegion;
 import me.champeau.a4j.jsolex.processing.util.NOAARegions;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.jsolex.processing.util.SolarParameters;
+import me.champeau.a4j.jsolex.processing.util.VersionUtil;
 import me.champeau.a4j.math.regression.Ellipse;
 
 import javax.imageio.ImageIO;
@@ -149,6 +150,7 @@ public class ImageDraw extends AbstractFunctionImpl {
                         var geoCoordinates = new GeoCoordinates(details.coordinates().a(), details.coordinates().b());
                         appendLine(geoCoordinates.toString(), sb);
                     }
+                    appendLine("JSol'Ex " + VersionUtil.getVersion(), sb);
                     writeMultiline(g, sb, x, y);
                 });
             } else {
