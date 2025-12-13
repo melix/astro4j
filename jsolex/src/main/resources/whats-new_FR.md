@@ -1,6 +1,6 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
-- [Nouveautés de la version 4.4.0](#nouveautes-de-la-version-4-4-0) - Visualiseur de profil spectral 3D, légende de graphique interactive
+- [Nouveautés de la version 4.4.0](#nouveautes-de-la-version-4-4-0) - Visualiseur de profil spectral 3D, rendu volumétrique pour la tomographie
 - [Version 4.3.1](#nouveautes-de-la-version-4-3-1) - Nouvelles fonctions d'étirement, accélération GPU expérimentale
 - [Version 4.3.0](#nouveautes-de-la-version-4-3-0) - Exécution plus rapide des scripts, amélioration du stacking et corrections de bugs
 - [Version 4.2.1](#nouveautes-de-la-version-4-2-1) - Corrections de bugs
@@ -18,6 +18,7 @@
 - La légende du graphique de profil est maintenant interactive : cliquez sur les éléments de la légende pour afficher ou masquer les séries de données
 - Nouveau visualiseur de profil spectral 3D : affiche l'intensité de la raie spectrale sous forme de surface 3D en fonction de la position sur la fente et du décalage en longueur d'onde. Accessible via le bouton "Profil spectral 3D" dans l'onglet profil
 - Nouveau visualiseur d'évolution spectrale : montre comment le profil de la raie spectrale varie le long du scan (image par image au centre du disque)
+- Le visualiseur de tomographie sphérique propose désormais un rendu volumétrique avec un lissage des couches qui révèle les structures chromosphériques à différentes altitudes
 
 ## Nouveautés de la version 4.3.1
 

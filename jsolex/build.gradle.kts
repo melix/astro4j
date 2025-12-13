@@ -26,10 +26,14 @@ dependencies {
     implementation(libs.commons.net)
     runtimeOnly(libs.sqlite)
 
-    // LWJGL OpenCL for GPU acceleration
+    // LWJGL for GPU acceleration (OpenCL, OpenGL, GLFW)
     implementation(libs.lwjgl)
     implementation(libs.lwjgl.opencl)
+    implementation(libs.lwjgl.opengl)
+    implementation(libs.lwjgl.glfw)
     implementation(variantOf(libs.lwjgl) { classifier(lwjglNatives) })
+    implementation(variantOf(libs.lwjgl.opengl) { classifier(lwjglNatives) })
+    implementation(variantOf(libs.lwjgl.glfw) { classifier(lwjglNatives) })
 }
 
 jlink {

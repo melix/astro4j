@@ -31,3 +31,5 @@ ikonli-fluentui = { module = "org.kordamp.ikonli:ikonli-fluentui-pack", version.
 sqlite = { module = "org.xerial:sqlite-jdbc", version.ref = "sqlite" }
 lwjgl = { module = "org.lwjgl:lwjgl", version.ref = "lwjgl" }
 lwjgl-opencl = { module = "org.lwjgl:lwjgl-opencl", version.ref = "lwjgl" }
+lwjgl-opengl = { module = "org.lwjgl:lwjgl-opengl", version.ref = "lwjgl" }
+lwjgl-glfw = { module = "org.lwjgl:lwjgl-glfw", version.ref = "lwjgl" }

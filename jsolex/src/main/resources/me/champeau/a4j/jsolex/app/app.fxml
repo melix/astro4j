@@ -102,12 +102,9 @@
 
                             </Tab>
 
-                            <Tab fx:id="metadataTab" text="%metadata">
-                            </Tab>
+                            <Tab fx:id="profileTab" text="%profile"/>
+                            <Tab fx:id="metadataTab" text="%metadata"/>
 
-                            <Tab fx:id="profileTab" text="%profile">
-
-                            </Tab>
                             <Tab fx:id="redshiftTab" text="%redshifts" disable="true">
                                 <BorderPane>
                                     <padding>

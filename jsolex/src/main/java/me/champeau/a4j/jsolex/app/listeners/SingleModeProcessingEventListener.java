@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.app.listeners;
 import javafx.application.Platform;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.Parent;
@@ -33,6 +34,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TextArea;
@@ -47,6 +49,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.transform.Transform;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import me.champeau.a4j.jsolex.app.AlertFactory;
@@ -56,6 +59,7 @@ import me.champeau.a4j.jsolex.app.jfx.ApplyUserRotation;
 import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
 import me.champeau.a4j.jsolex.app.jfx.CustomAnimationCreator;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
+import me.champeau.a4j.jsolex.app.jfx.SphericalTomographyCreator;
 import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
 import me.champeau.a4j.jsolex.app.jfx.ReconstructionView;
 import me.champeau.a4j.jsolex.app.jfx.RectangleSelectionListener;
@@ -63,6 +67,7 @@ import me.champeau.a4j.jsolex.app.jfx.SamplingOptionsDialog;
 import me.champeau.a4j.jsolex.app.jfx.ScriptErrorDialog;
 import me.champeau.a4j.jsolex.app.jfx.SpectralEvolution4DViewer;
 import me.champeau.a4j.jsolex.app.jfx.SpectralLineSurface3DViewer;
+import me.champeau.a4j.jsolex.app.jfx.SphericalTomography3DViewer;
 import me.champeau.a4j.jsolex.app.jfx.ZoomableImageView;
 import me.champeau.a4j.jsolex.app.script.JSolExScriptExecutor;
 import me.champeau.a4j.jsolex.processing.event.AverageImageComputedEvent;
@@ -104,11 +109,13 @@ import me.champeau.a4j.jsolex.processing.params.SpectroHeliograph;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectralLineAnalysis;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectralLineSurfaceDataExtractor;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectralProfileEvolutionExtractor;
+import me.champeau.a4j.jsolex.processing.spectrum.SphericalTomographyExtractor;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
 import me.champeau.a4j.jsolex.processing.sun.TrimmingParameters;
+import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
@@ -152,6 +159,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -160,8 +168,10 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.WeakHashMap;
 import java.lang.ref.WeakReference;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.DoubleUnaryOperator;
 import java.util.function.Supplier;
@@ -171,6 +181,7 @@ import java.util.stream.Stream;
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
 import static me.champeau.a4j.jsolex.app.JSolEx.newScene;
 import static me.champeau.a4j.jsolex.app.jfx.BatchOperations.blockingUntilResultAvailable;
+import static me.champeau.a4j.jsolex.app.jfx.FXUtils.newStage;
 import static me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper.computeSerFileBasename;
 import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectoriesIfNeeded;
 
@@ -227,6 +238,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private TrimmingParameters cachedTrimmingParameters;
     private Button show3DButton;
     private Button showEvolutionButton;
+    private Button showTomographyButton;
     private WeakReference<SpectralEvolution4DViewer> spectral4DViewer;
 
     public SingleModeProcessingEventListener(JSolExInterface owner,
@@ -969,6 +981,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         imageEmitter = payload.customImageEmitter();
         scriptExecutionContext = prepareExecutionContext(payload);
         shiftImages.putAll(payload.shiftImages());
+        Platform.runLater(this::updateSpectral3DButtonsState);
         pixelShiftRange = payload.pixelShiftRange();
         mainEllipse = payload.mainEllipse();
         imageScriptExecutor = new JSolExScriptExecutor(
@@ -1031,6 +1044,12 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         ));
         owner.prepareForGongImageDownload(processParams);
         executeSingleFileBatchScripts();
+        Platform.runLater(() -> {
+            var tabPane = profileTab.getTabPane();
+            if (tabPane != null) {
+                tabPane.getSelectionModel().select(profileTab);
+            }
+        });
     }
 
     private Map<Class, Object> prepareExecutionContext(ProcessingDoneEvent.Outcome payload) {
@@ -1470,10 +1489,15 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             showEvolutionButton.setMinSize(Button.USE_PREF_SIZE, Button.USE_PREF_SIZE);
             showEvolutionButton.setOnAction(evt -> showSpectralEvolution());
             showEvolutionButton.setDisable(cachedAverageImagePayload == null || cachedTrimmingParameters == null);
+            showTomographyButton = new Button(I18N.string(JSolEx.class, "spherical-tomography", "show.tomography"));
+            showTomographyButton.getStyleClass().add("image-viewer-button");
+            showTomographyButton.setMinSize(Button.USE_PREF_SIZE, Button.USE_PREF_SIZE);
+            showTomographyButton.setOnAction(evt -> showSphericalTomography());
+            showTomographyButton.setDisable(shiftImages.isEmpty() || cachedAverageImagePayload == null);
             var buttonBar = new HBox(10);
             buttonBar.setPadding(new Insets(5, 10, 5, 10));
-            buttonBar.setAlignment(javafx.geometry.Pos.CENTER_RIGHT);
-            buttonBar.getChildren().addAll(show3DButton, showEvolutionButton);
+            buttonBar.setAlignment(Pos.CENTER_RIGHT);
+            buttonBar.getChildren().addAll(show3DButton, showEvolutionButton, showTomographyButton);
 
             // Create the main layout with chart and statistics
             var mainPane = new BorderPane();
@@ -1504,6 +1528,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         }
         if (showEvolutionButton != null) {
             showEvolutionButton.setDisable(cachedAverageImagePayload == null || cachedTrimmingParameters == null);
+        }
+        if (showTomographyButton != null) {
+            showTomographyButton.setDisable(shiftImages.isEmpty() || cachedAverageImagePayload == null);
         }
     }
 
@@ -1646,19 +1673,195 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         });
     }
 
+    private void showSphericalTomography() {
+        if (cachedAverageImagePayload == null) {
+            return;
+        }
+        var payload = cachedAverageImagePayload;
+        var adjustedParams = payload.adjustedParams();
+        var lambda0 = adjustedParams.spectrumParams().ray().wavelength();
+        var binning = adjustedParams.observationDetails().binning();
+        var pixelSize = adjustedParams.observationDetails().pixelSize();
+        if (binning == null || pixelSize == null || lambda0.nanos() <= 0 || pixelSize <= 0 || binning <= 0) {
+            return;
+        }
+        var dispersion = SpectrumAnalyzer.computeSpectralDispersion(
+                adjustedParams.observationDetails().instrument(),
+                lambda0,
+                pixelSize * binning
+        );
+
+        // Create RedshiftImagesProcessor for generating missing images
+        var redshiftProcessor = new RedshiftImagesProcessor(
+                shiftImages,
+                adjustedParams,
+                serFile,
+                outputDirectory,
+                owner,
+                this,
+                imageEmitter,
+                List.of(),
+                polynomial,
+                averageImage,
+                rootOperation,
+                createNamingStrategy(),
+                0,
+                computeSerFileBasename(serFile)
+        );
+
+        Platform.runLater(() -> {
+            var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "spherical-tomography-params");
+            Parent node;
+            try {
+                node = fxmlLoader.load();
+            } catch (IOException e) {
+                throw new ProcessingException(e);
+            }
+            var controller = fxmlLoader.<SphericalTomographyCreator>getController();
+            var stage = newStage();
+            stage.setScene(JSolEx.newScene(node));
+            controller.setup(stage, pixelShiftRange, redshiftProcessor, (step, unused) -> {
+                double minShift = controller.getMinShift();
+                double maxShift = controller.getMaxShift();
+                double stepSize = controller.getStepSize();
+
+                // Generate images for the requested range
+                generateTomographyImages(minShift, maxShift, stepSize, dispersion, lambda0);
+            });
+            stage.setTitle(I18N.string(JSolEx.class, "spherical-tomography-params", "frame.title"));
+            stage.showAndWait();
+        });
+    }
+
+    private void generateTomographyImages(double minShift,
+                                          double maxShift,
+                                          double stepSize,
+                                          Dispersion dispersion,
+                                          Wavelen lambda0) {
+        // Create loading stage on FX thread using CountDownLatch for synchronization
+        var loadingStageRef = new AtomicReference<Stage>();
+        var latch = new CountDownLatch(1);
+        Platform.runLater(() -> {
+            var loadingStage = createLoadingStage(I18N.string(JSolEx.class, "spherical-tomography", "frame.title"));
+            loadingStageRef.set(loadingStage);
+            loadingStage.show();
+            latch.countDown();
+        });
+
+        BackgroundOperations.async(() -> {
+            try {
+                latch.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+            var loadingStage = loadingStageRef.get();
+            try {
+                // Generate the list of required shifts
+                var requiredShifts = new TreeSet<Double>();
+                for (double shift = minShift; shift <= maxShift; shift += stepSize) {
+                    requiredShifts.add(Math.round(shift * 100.0) / 100.0);
+                }
+                // Always include pixel shift 0 (line center)
+                if (minShift <= 0 && maxShift >= 0) {
+                    requiredShifts.add(0.0);
+                }
+
+                // Find missing shifts and generate them
+                var missingShifts = requiredShifts.stream()
+                        .filter(d -> !shiftImages.containsKey(new PixelShift(d)))
+                        .collect(Collectors.toCollection(LinkedHashSet::new));
+
+                if (!missingShifts.isEmpty()) {
+                    // Use the RedshiftImagesProcessor pattern to generate missing images
+                    var tmpParams = params.withRequestedImages(
+                            new RequestedImages(
+                                    Set.of(GeneratedImageKind.GEOMETRY_CORRECTED),
+                                    Stream.concat(
+                                            params.requestedImages().pixelShifts().stream(),
+                                            missingShifts.stream()
+                                    ).toList(),
+                                    missingShifts,
+                                    Set.of(),
+                                    ImageMathParams.NONE,
+                                    false,
+                                    false
+                            )
+                    ).withExtraParams(params.extraParams().withAutosave(false));
+
+                    var solexVideoProcessor = new SolexVideoProcessor(
+                            serFile, outputDirectory, 0, tmpParams,
+                            LocalDateTime.now(), false,
+                            Configuration.getInstance().getMemoryRestrictionMultiplier(),
+                            rootOperation
+                    );
+                    solexVideoProcessor.setRedshifts(new Redshifts(List.of()));
+                    solexVideoProcessor.setPolynomial(polynomial);
+                    solexVideoProcessor.setAverageImage(averageImage);
+                    solexVideoProcessor.addEventListener(new ProcessingEventListener() {
+                        @Override
+                        public void onProcessingDone(ProcessingDoneEvent e) {
+                            shiftImages.putAll(e.getPayload().shiftImages());
+                        }
+
+                        @Override
+                        public void onProgress(ProgressEvent e) {
+                            BatchOperations.submitOneOfAKind("progress", () ->
+                                    owner.updateProgress(e.getPayload().progress(), e.getPayload().task()));
+                        }
+                    });
+                    solexVideoProcessor.setIgnoreIncompleteShifts(true);
+                    solexVideoProcessor.process();
+                }
+
+                // Now extract tomography data using only the requested shifts
+                var shellImages = new LinkedHashMap<PixelShift, ImageWrapper>();
+                for (double shift : requiredShifts) {
+                    var pixelShift = new PixelShift(shift);
+                    var image = shiftImages.get(pixelShift);
+                    if (image != null) {
+                        shellImages.put(pixelShift, image);
+                    }
+                }
+
+                var tomographyData = SphericalTomographyExtractor.extract(
+                        shellImages,
+                        dispersion,
+                        lambda0,
+                        1.0,
+                        adjustedParams.contrastEnhancement(),
+                        adjustedParams.claheParams(),
+                        adjustedParams.autoStretchParams()
+                );
+
+                Platform.runLater(() -> {
+                    loadingStage.close();
+                    SphericalTomography3DViewer.show(
+                            tomographyData,
+                            I18N.string(JSolEx.class, "spherical-tomography", "frame.title")
+                    );
+                });
+            } catch (Exception e) {
+                LOGGER.error("Failed to generate spherical tomography", e);
+                Platform.runLater(loadingStage::close);
+            }
+        });
+    }
+
     private Stage createLoadingStage(String title) {
-        var progressIndicator = new javafx.scene.control.ProgressIndicator();
+        var progressIndicator = new ProgressIndicator();
         progressIndicator.setProgress(-1);
         var label = new Label(I18N.string(JSolEx.class, "spectral-surface-3d", "loading"));
         label.setMinSize(Label.USE_PREF_SIZE, Label.USE_PREF_SIZE);
         var vbox = new VBox(10, progressIndicator, label);
-        vbox.setAlignment(javafx.geometry.Pos.CENTER);
-        vbox.setPadding(new javafx.geometry.Insets(20));
+        vbox.setAlignment(Pos.CENTER);
+        vbox.setPadding(new Insets(20));
+        vbox.setMinWidth(300);
         var scene = newScene(vbox);
         var stage = new Stage();
         stage.setTitle(title);
         stage.setScene(scene);
-        stage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
+        stage.initModality(Modality.APPLICATION_MODAL);
         stage.setResizable(false);
         stage.sizeToScene();
         return stage;
