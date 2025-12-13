@@ -36,6 +36,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.Separator;
 import javafx.scene.control.Slider;
+import javafx.scene.control.Tooltip;
 import javafx.scene.image.WritableImage;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
@@ -951,7 +952,9 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
         legendTitleLabel.setText(I18N.string(JSolEx.class, "spectral-surface-3d", titleKey));
         legendHighLabel.setText(I18N.string(JSolEx.class, "spectral-surface-3d", highKey));
         legendLowLabel.setText(I18N.string(JSolEx.class, "spectral-surface-3d", lowKey));
-        legendInterpretLabel.setText(I18N.string(JSolEx.class, "spectral-surface-3d", getInterpretationKey()));
+        var interpretationText = I18N.string(JSolEx.class, "spectral-surface-3d", getInterpretationKey());
+        legendInterpretLabel.setText(interpretationText);
+        legendInterpretLabel.setTooltip(new Tooltip(interpretationText));
     }
 
     /**

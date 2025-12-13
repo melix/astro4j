@@ -31,6 +31,7 @@ import javafx.scene.control.ProgressBar;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Separator;
 import javafx.scene.control.Slider;
+import javafx.scene.control.Tooltip;
 import javafx.scene.image.WritableImage;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
@@ -509,10 +510,12 @@ public class SphericalTomography3DViewer extends BorderPane {
         layersScroll.setMaxHeight(200);
         layersScroll.setStyle("-fx-background-color: transparent;");
 
-        var interpretLabel = new Label(I18N.string(JSolEx.class, "spherical-tomography", "interpretation"));
+        var interpretationText = I18N.string(JSolEx.class, "spherical-tomography", "interpretation");
+        var interpretLabel = new Label(interpretationText);
         interpretLabel.setWrapText(true);
         interpretLabel.setStyle("-fx-text-fill: #555555; -fx-font-size: 11px;");
         interpretLabel.setMaxWidth(170);
+        interpretLabel.setTooltip(new Tooltip(interpretationText));
 
         var panel = new VBox(10,
                 renderModeLabel, renderModeCombo,
