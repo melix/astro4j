@@ -18,6 +18,12 @@ arguments:
     description:
       fr: "Coordonnée Y"
       en: "Y coordinate"
+  - name: fs
+    optional: true
+    default: -1
+    description:
+      fr: "Taille de la police (-1 pour auto)"
+      en: "Font size (-1 for auto)"
 examples:
   - "draw_obs_details(img(0), 100, 100)"
   - "draw_obs_details(img:img(0), x:100, y:100)"

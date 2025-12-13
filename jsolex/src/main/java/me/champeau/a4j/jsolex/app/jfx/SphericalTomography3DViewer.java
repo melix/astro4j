@@ -42,8 +42,13 @@ import javafx.stage.Stage;
 import javafx.util.StringConverter;
 import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.JSolEx;
+import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
+import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.spectrum.SphericalTomographyData;
+import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.AnimationFormat;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
+import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.jsolex.processing.util.VideoEncoder;
 
 import javax.imageio.ImageIO;
@@ -52,8 +57,10 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -86,6 +93,7 @@ public class SphericalTomography3DViewer extends BorderPane {
     private static final double ANIMATION_AMPLITUDE_X = 12.0;
 
     private final SphericalTomographyData data;
+    private final ProcessParams processParams;
     private final StackPane graphPane;
 
     private OpenGLImageView glImageView;
@@ -114,8 +122,11 @@ public class SphericalTomography3DViewer extends BorderPane {
         }
     }
 
-    public SphericalTomography3DViewer(SphericalTomographyData data) {
+    private record ExportOptions(Integer resolution, boolean annotate) {}
+
+    public SphericalTomography3DViewer(SphericalTomographyData data, ProcessParams processParams) {
         this.data = data;
+        this.processParams = processParams;
 
         graphPane = new StackPane();
         graphPane.setStyle("-fx-background-color: #000000;");
@@ -545,6 +556,12 @@ public class SphericalTomography3DViewer extends BorderPane {
     }
 
     private void exportToPng() {
+        // First, show export options dialog
+        var annotate = showPngExportDialog();
+        if (annotate == null) {
+            return;
+        }
+
         var fileChooser = new FileChooser();
         fileChooser.setTitle(I18N.string(JSolEx.class, "spherical-tomography", "export.title"));
         fileChooser.getExtensionFilters().add(
@@ -556,11 +573,28 @@ public class SphericalTomography3DViewer extends BorderPane {
         var file = fileChooser.showSaveDialog(stage);
         if (file != null) {
             var snapshot = graphPane.snapshot(null, null);
-            saveImage(snapshot, file);
+            var bufferedImage = new BufferedImage(
+                    (int) snapshot.getWidth(),
+                    (int) snapshot.getHeight(),
+                    BufferedImage.TYPE_INT_RGB
+            );
+            for (var y = 0; y < snapshot.getHeight(); y++) {
+                for (var x = 0; x < snapshot.getWidth(); x++) {
+                    bufferedImage.setRGB(x, y, snapshot.getPixelReader().getArgb(x, y));
+                }
+            }
+            if (annotate) {
+                bufferedImage = annotateImage(bufferedImage);
+            }
+            try {
+                ImageIO.write(bufferedImage, "png", file);
+            } catch (IOException e) {
+                // Silently ignore
+            }
         }
     }
 
-    private Integer showResolutionDialog(int nativeSize) {
+    private ExportOptions showVideoExportDialog(int nativeSize) {
         var stage = (Stage) getScene().getWindow();
 
         var resolutions = new int[] { 512, 800, 1024, 2048, nativeSize };
@@ -591,6 +625,10 @@ public class SphericalTomography3DViewer extends BorderPane {
             }
         });
 
+        var annotateCheckbox = new CheckBox(I18N.string(JSolEx.class, "spherical-tomography", "export.annotate"));
+        annotateCheckbox.setSelected(false);
+        annotateCheckbox.setDisable(processParams == null);
+
         var okButton = new Button("OK");
         okButton.setDefaultButton(true);
         var cancelButton = new Button(I18N.string(JSolEx.class, "spherical-tomography", "export.video.cancel"));
@@ -598,7 +636,7 @@ public class SphericalTomography3DViewer extends BorderPane {
         var buttonBox = new HBox(10, okButton, cancelButton);
         buttonBox.setAlignment(Pos.CENTER_RIGHT);
 
-        var content = new VBox(10, resolutionLabel, resolutionCombo, buttonBox);
+        var content = new VBox(10, resolutionLabel, resolutionCombo, annotateCheckbox, buttonBox);
         content.setPadding(new Insets(20));
         content.setAlignment(Pos.CENTER_LEFT);
 
@@ -609,9 +647,48 @@ public class SphericalTomography3DViewer extends BorderPane {
         dialogStage.setScene(new Scene(content));
         dialogStage.setResizable(false);
 
-        var result = new AtomicReference<Integer>();
+        var result = new AtomicReference<ExportOptions>();
         okButton.setOnAction(e -> {
-            result.set(resolutionCombo.getValue());
+            result.set(new ExportOptions(resolutionCombo.getValue(), annotateCheckbox.isSelected()));
+            dialogStage.close();
+        });
+        cancelButton.setOnAction(e -> {
+            result.set(null);
+            dialogStage.close();
+        });
+
+        dialogStage.showAndWait();
+        return result.get();
+    }
+
+    private Boolean showPngExportDialog() {
+        var stage = (Stage) getScene().getWindow();
+
+        var annotateCheckbox = new CheckBox(I18N.string(JSolEx.class, "spherical-tomography", "export.annotate"));
+        annotateCheckbox.setSelected(false);
+        annotateCheckbox.setDisable(processParams == null);
+
+        var okButton = new Button("OK");
+        okButton.setDefaultButton(true);
+        var cancelButton = new Button(I18N.string(JSolEx.class, "spherical-tomography", "export.video.cancel"));
+
+        var buttonBox = new HBox(10, okButton, cancelButton);
+        buttonBox.setAlignment(Pos.CENTER_RIGHT);
+
+        var content = new VBox(10, annotateCheckbox, buttonBox);
+        content.setPadding(new Insets(20));
+        content.setAlignment(Pos.CENTER_LEFT);
+
+        var dialogStage = new Stage();
+        dialogStage.initOwner(stage);
+        dialogStage.initModality(Modality.WINDOW_MODAL);
+        dialogStage.setTitle(I18N.string(JSolEx.class, "spherical-tomography", "export.title"));
+        dialogStage.setScene(new Scene(content));
+        dialogStage.setResizable(false);
+
+        var result = new AtomicReference<Boolean>();
+        okButton.setOnAction(e -> {
+            result.set(annotateCheckbox.isSelected());
             dialogStage.close();
         });
         cancelButton.setOnAction(e -> {
@@ -655,12 +732,14 @@ public class SphericalTomography3DViewer extends BorderPane {
             return;
         }
 
-        // Then ask for resolution
+        // Then ask for resolution and annotation options
         var nativeSize = calculateExportResolution();
-        var selectedSize = showResolutionDialog(nativeSize);
-        if (selectedSize == null) {
+        var exportOptions = showVideoExportDialog(nativeSize);
+        if (exportOptions == null || exportOptions.resolution() == null) {
             return;
         }
+        var selectedSize = exportOptions.resolution();
+        var shouldAnnotate = exportOptions.annotate();
 
         var animationFormats = Configuration.getInstance().getAnimationFormats();
         if (animationFormats.isEmpty()) {
@@ -726,6 +805,7 @@ public class SphericalTomography3DViewer extends BorderPane {
         var formats = animationFormats;
         var finalBasePath = basePath;
         var currentlyUsingVolume = useVolumeRenderer;
+        var annotate = shouldAnnotate;
 
         new Thread(() -> {
             // Create a dedicated export renderer and GL view
@@ -801,7 +881,13 @@ public class SphericalTomography3DViewer extends BorderPane {
                         frameCount,
                         VIDEO_FPS,
                         1000 / VIDEO_FPS,
-                        idx -> cancelled.get() ? null : captureExportFrame(idx, exportRendererRef.get(), exportGlViewRef.get()),
+                        idx -> {
+                            if (cancelled.get()) {
+                                return null;
+                            }
+                            var frame = captureExportFrame(idx, exportRendererRef.get(), exportGlViewRef.get());
+                            return annotate ? annotateImage(frame) : frame;
+                        },
                         progressCallback
                 );
 
@@ -848,6 +934,66 @@ public class SphericalTomography3DViewer extends BorderPane {
         return exportGlView.renderAndCapture();
     }
 
+    private BufferedImage annotateImage(BufferedImage image) {
+        if (processParams == null) {
+            return image;
+        }
+        // Convert BufferedImage to RGBImage with ProcessParams metadata
+        var width = image.getWidth();
+        var height = image.getHeight();
+        var r = new float[height][width];
+        var g = new float[height][width];
+        var b = new float[height][width];
+        var rgbArray = image.getRGB(0, 0, width, height, null, 0, width);
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                int rgb = rgbArray[y * width + x];
+                r[y][x] = ((rgb >> 16) & 0xFF) << 8;
+                g[y][x] = ((rgb >> 8) & 0xFF) << 8;
+                b[y][x] = (rgb & 0xFF) << 8;
+            }
+        }
+        var metadata = new HashMap<Class<?>, Object>();
+        metadata.put(ProcessParams.class, processParams);
+        var wrapper = new RGBImage(width, height, r, g, b, metadata);
+
+        // Create ImageDraw and apply annotation
+        var context = Map.<Class<?>, Object>of(ProcessParams.class, processParams);
+        var imageDraw = new ImageDraw(context, Broadcaster.NO_OP);
+        var fontSize = Math.min(width, height) / 64;
+        var annotated = (ImageWrapper) imageDraw.drawObservationDetails(Map.of(
+                "img", wrapper,
+                "fs", fontSize
+        ));
+
+        // Convert back to BufferedImage
+        return toBufferedImage(annotated);
+    }
+
+    private static BufferedImage toBufferedImage(ImageWrapper wrapper) {
+        if (wrapper instanceof RGBImage rgb) {
+            var width = rgb.width();
+            var height = rgb.height();
+            var image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+            var r = rgb.r();
+            var g = rgb.g();
+            var b = rgb.b();
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    int rv = Math.round(r[y][x]);
+                    int gv = Math.round(g[y][x]);
+                    int bv = Math.round(b[y][x]);
+                    rv = (rv >> 8) & 0xFF;
+                    gv = (gv >> 8) & 0xFF;
+                    bv = (bv >> 8) & 0xFF;
+                    image.setRGB(x, y, (rv << 16) | (gv << 8) | bv);
+                }
+            }
+            return image;
+        }
+        throw new IllegalArgumentException("Unsupported image type: " + wrapper.getClass());
+    }
+
     public void dispose() {
         // Stop the animation timer
         if (cameraAnimation != null) {
@@ -865,12 +1011,13 @@ public class SphericalTomography3DViewer extends BorderPane {
     /**
      * Shows the spherical tomography viewer in a new window.
      *
-     * @param data  the tomography data to display
-     * @param title the window title
+     * @param data          the tomography data to display
+     * @param title         the window title
+     * @param processParams the process parameters for annotation (may be null)
      */
-    public static void show(SphericalTomographyData data, String title) {
+    public static void show(SphericalTomographyData data, String title, ProcessParams processParams) {
         Platform.runLater(() -> {
-            var viewer = new SphericalTomography3DViewer(data);
+            var viewer = new SphericalTomography3DViewer(data, processParams);
             var stage = FXUtils.newStage();
             stage.setTitle(title);
             var scene = newScene(viewer, 1000, 700);

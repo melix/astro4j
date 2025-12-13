@@ -98,15 +98,20 @@ public class ImageDraw extends AbstractFunctionImpl {
         }
         var x = getArgument(Number.class, arguments, "x").map(Number::intValue).orElse(50);
         var y = getArgument(Number.class, arguments, "y").map(Number::intValue).orElse(50);
+        var fontSize = getArgument(Number.class, arguments, "fs").map(Number::intValue).orElse(-1);
         if (arg instanceof ImageWrapper img) {
             var processParams = findProcessParams(img);
             if (processParams.isPresent()) {
                 return drawOnImage(img, (g, image) -> {
-                    getEllipse(arguments, "ellipse").ifPresent(ellipse -> {
-                        var semiAxis = ellipse.semiAxis();
-                        var radius = (semiAxis.a() + semiAxis.b()) / 2;
-                        autoScaleFont(g, 1.2d, radius);
-                    });
+                    if (fontSize == -1) {
+                        getEllipse(arguments, "ellipse").ifPresentOrElse(ellipse -> {
+                            var semiAxis = ellipse.semiAxis();
+                            var radius = (semiAxis.a() + semiAxis.b()) / 2;
+                            autoScaleFont(g, 1.2d, radius);
+                        }, () -> autoScaleFont(g, 1.2d, image.width() / 2d));
+                    } else {
+                        g.setFont(g.getFont().deriveFont((float) fontSize));
+                    }
                     var sb = new StringBuilder("<b>");
                     var params = processParams.get();
                     var details = params.observationDetails();

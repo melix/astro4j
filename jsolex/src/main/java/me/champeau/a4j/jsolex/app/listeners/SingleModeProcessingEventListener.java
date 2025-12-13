@@ -1867,7 +1867,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     loadingStage.close();
                     SphericalTomography3DViewer.show(
                             tomographyData,
-                            I18N.string(JSolEx.class, "spherical-tomography", "frame.title")
+                            I18N.string(JSolEx.class, "spherical-tomography", "frame.title"),
+                            adjustedParams
                     );
                 });
             } catch (Exception e) {
