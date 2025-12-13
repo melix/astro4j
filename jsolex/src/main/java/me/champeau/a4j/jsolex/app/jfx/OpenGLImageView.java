@@ -20,7 +20,6 @@ import javafx.scene.image.ImageView;
 import javafx.scene.image.PixelBuffer;
 import javafx.scene.image.PixelFormat;
 import javafx.scene.image.WritableImage;
-import me.champeau.a4j.math.opencl.NativeLibraryLoader;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL11;
@@ -175,9 +174,6 @@ public class OpenGLImageView extends ImageView {
     }
 
     private void initOpenGL() {
-        // Ensure LWJGL native libraries are extracted and available
-        NativeLibraryLoader.ensureNativesLoaded();
-
         // Create an offscreen OpenGL context using LWJGL
         GLFW.glfwInit();
         GLFW.glfwDefaultWindowHints();

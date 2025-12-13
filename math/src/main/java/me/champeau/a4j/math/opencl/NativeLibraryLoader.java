@@ -28,6 +28,31 @@ import java.nio.file.StandardCopyOption;
  */
 public class NativeLibraryLoader {
 
+    private static final String[] MODULE_NAMES = {
+        "org.lwjgl.natives",
+        "org.lwjgl.opengl.natives",
+        "org.lwjgl.glfw.natives"
+    };
+
+    private record NativeLib(String fileName, String subDir) {}
+
+    private static final NativeLib[] LINUX_LIBS = {
+        new NativeLib("liblwjgl.so", ""),
+        new NativeLib("liblwjgl_opengl.so", "opengl/"),
+        new NativeLib("libglfw.so", "glfw/")
+    };
+    private static final NativeLib[] WINDOWS_LIBS = {
+        new NativeLib("lwjgl.dll", ""),
+        new NativeLib("lwjgl_opengl.dll", "opengl/"),
+        new NativeLib("glfw.dll", "glfw/")
+    };
+    private static final NativeLib[] MACOS_LIBS = {
+        new NativeLib("liblwjgl.dylib", ""),
+        new NativeLib("liblwjgl_opengl.dylib", "opengl/"),
+        new NativeLib("libglfw.dylib", "glfw/")
+    };
+    private static final int GLFW_INDEX = 2;
+
     private static volatile Path nativesDir = null;
 
     private NativeLibraryLoader() {
@@ -38,15 +63,8 @@ public class NativeLibraryLoader {
      * Sets the org.lwjgl.librarypath system property if extraction succeeds.
      */
     public static synchronized void ensureNativesLoaded() {
-        // Check if librarypath is already set externally and contains GLFW
-        String existingPath = System.getProperty("org.lwjgl.librarypath");
-        if (existingPath != null && !existingPath.isEmpty()) {
-            Path extPath = Path.of(existingPath);
-            if (Files.exists(extPath.resolve("libglfw.so")) ||
-                Files.exists(extPath.resolve("glfw.dll")) ||
-                Files.exists(extPath.resolve("libglfw.dylib"))) {
-                return;
-            }
+        if (hasNativesConfiguredExternally()) {
+            return;
         }
 
         try {
@@ -59,75 +77,133 @@ public class NativeLibraryLoader {
         }
     }
 
-    private static Path extractNatives() throws IOException {
-        String os = System.getProperty("os.name").toLowerCase();
-        String arch = System.getProperty("os.arch").toLowerCase();
+    /**
+     * Ensures native libraries are extracted to a specific directory.
+     * Uses a marker file to track the version and avoid re-extraction.
+     *
+     * @param targetDir the directory to extract natives to
+     * @param version   the application version for cache invalidation
+     */
+    public static synchronized void ensureNativesLoaded(Path targetDir, String version) {
+        if (hasNativesConfiguredExternally()) {
+            return;
+        }
 
-        record NativeLib(String fileName, String subDir) {}
+        try {
+            var markerFile = targetDir.resolve(".version");
+
+            // Check if already extracted for this version
+            if (Files.exists(markerFile)) {
+                var existingVersion = Files.readString(markerFile).trim();
+                if (version.equals(existingVersion) && hasRequiredLibraries(targetDir)) {
+                    nativesDir = targetDir;
+                    System.setProperty("org.lwjgl.librarypath", targetDir.toString());
+                    return;
+                }
+            }
+
+            // Clean up and re-extract
+            deleteDirectory(targetDir);
+            Files.createDirectories(targetDir);
+
+            extractNativesTo(targetDir);
+
+            // Write marker file
+            Files.writeString(markerFile, version);
+
+            nativesDir = targetDir;
+            System.setProperty("org.lwjgl.librarypath", targetDir.toString());
+        } catch (Exception e) {
+            // Fall back to temp directory extraction
+            ensureNativesLoaded();
+        }
+    }
+
+    private static boolean hasNativesConfiguredExternally() {
+        var existingPath = System.getProperty("org.lwjgl.librarypath");
+        if (existingPath != null && !existingPath.isEmpty()) {
+            return hasRequiredLibraries(Path.of(existingPath));
+        }
+        return false;
+    }
+
+    private static boolean hasRequiredLibraries(Path dir) {
+        return Files.exists(dir.resolve(LINUX_LIBS[GLFW_INDEX].fileName)) ||
+               Files.exists(dir.resolve(WINDOWS_LIBS[GLFW_INDEX].fileName)) ||
+               Files.exists(dir.resolve(MACOS_LIBS[GLFW_INDEX].fileName));
+    }
+
+    private static void deleteDirectory(Path dir) throws IOException {
+        if (!Files.exists(dir)) {
+            return;
+        }
+        try (var walker = Files.walk(dir)) {
+            walker.sorted((a, b) -> -a.compareTo(b))
+                  .forEach(path -> {
+                      try {
+                          Files.deleteIfExists(path);
+                      } catch (IOException e) {
+                          // Ignore deletion errors
+                      }
+                  });
+        }
+    }
+
+    private static Path extractNatives() throws IOException {
+        var tempDir = Files.createTempDirectory("lwjgl-natives");
+        tempDir.toFile().deleteOnExit();
+        extractNativesTo(tempDir, true);
+        return tempDir;
+    }
+
+    private static void extractNativesTo(Path targetDir) throws IOException {
+        extractNativesTo(targetDir, false);
+    }
+
+    private static void extractNativesTo(Path targetDir, boolean deleteOnExit) throws IOException {
+        var os = System.getProperty("os.name").toLowerCase();
+        var arch = System.getProperty("os.arch").toLowerCase();
 
         NativeLib[] libraries;
         String osDir;
-        String archDir = mapArch(arch);
+        var archDir = mapArch(arch);
 
         if (os.contains("linux")) {
             osDir = "linux";
-            libraries = new NativeLib[] {
-                new NativeLib("liblwjgl.so", ""),
-                new NativeLib("liblwjgl_opengl.so", "opengl/"),
-                new NativeLib("libglfw.so", "glfw/")
-            };
+            libraries = LINUX_LIBS;
         } else if (os.contains("windows")) {
             osDir = "windows";
-            libraries = new NativeLib[] {
-                new NativeLib("lwjgl.dll", ""),
-                new NativeLib("lwjgl_opengl.dll", "opengl/"),
-                new NativeLib("glfw.dll", "glfw/")
-            };
+            libraries = WINDOWS_LIBS;
         } else if (os.contains("mac")) {
             osDir = "macos";
-            libraries = new NativeLib[] {
-                new NativeLib("liblwjgl.dylib", ""),
-                new NativeLib("liblwjgl_opengl.dylib", "opengl/"),
-                new NativeLib("libglfw.dylib", "glfw/")
-            };
+            libraries = MACOS_LIBS;
         } else {
-            return null;
+            return;
         }
-
-        // Extract to temp directory
-        Path tempDir = Files.createTempDirectory("lwjgl-natives");
-        tempDir.toFile().deleteOnExit();
 
         var layer = ModuleLayer.boot();
 
-        for (NativeLib lib : libraries) {
-            String resourcePath = osDir + "/" + archDir + "/org/lwjgl/" + lib.subDir + lib.fileName;
+        for (var lib : libraries) {
+            var resourcePath = osDir + "/" + archDir + "/org/lwjgl/" + lib.subDir + lib.fileName;
 
-            InputStream resourceStream = findResource(layer, resourcePath);
+            var resourceStream = findResource(layer, resourcePath);
             if (resourceStream == null) {
                 continue;
             }
 
-            Path libraryPath = tempDir.resolve(lib.fileName);
-            libraryPath.toFile().deleteOnExit();
+            var libraryPath = targetDir.resolve(lib.fileName);
+            if (deleteOnExit) {
+                libraryPath.toFile().deleteOnExit();
+            }
 
             try (var stream = resourceStream) {
                 Files.copy(stream, libraryPath, StandardCopyOption.REPLACE_EXISTING);
             }
         }
-
-        return tempDir;
     }
 
     private static InputStream findResource(ModuleLayer layer, String resourcePath) {
-        // Try different native modules
-        String[] moduleNames = {
-            "org.lwjgl.natives",
-            "org.lwjgl.opengl.natives",
-            "org.lwjgl.glfw.natives"
-        };
-
-        for (String moduleName : moduleNames) {
+        for (var moduleName : MODULE_NAMES) {
             var nativesModule = layer.findModule(moduleName);
             if (nativesModule.isPresent()) {
                 try {

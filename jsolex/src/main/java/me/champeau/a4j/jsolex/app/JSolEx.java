@@ -151,6 +151,7 @@ import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
 import me.champeau.a4j.jsolex.processing.util.VersionUtil;
 import me.champeau.a4j.math.VectorApiSupport;
+import me.champeau.a4j.math.opencl.NativeLibraryLoader;
 import me.champeau.a4j.math.opencl.OpenCLSupport;
 import me.champeau.a4j.math.regression.Ellipse;
 import me.champeau.a4j.ser.Header;
@@ -211,6 +212,8 @@ public class JSolEx implements JSolExInterface {
             System.err.println("Detected low memory environment, limiting parallelism to 2 threads");
             System.setProperty("java.util.concurrent.ForkJoinPool.common.parallelism", "2");
         }
+        var nativeDir = VersionUtil.getJsolexDir().resolve("native").resolve(VersionUtil.getVersion());
+        NativeLibraryLoader.ensureNativesLoaded(nativeDir, VersionUtil.getVersion());
     }
 
     private static final Logger LOGGER = LoggerFactory.getLogger(JSolEx.class);
