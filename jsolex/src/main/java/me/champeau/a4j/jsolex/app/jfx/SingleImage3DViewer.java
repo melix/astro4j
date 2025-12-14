@@ -83,6 +83,7 @@ public class SingleImage3DViewer extends BorderPane {
 
     private final ImageWrapper originalImage;
     private final ProcessParams processParams;
+    private final File sourceDirectory;
     private final StackPane graphPane;
 
     private OpenGLImageView glImageView;
@@ -99,9 +100,10 @@ public class SingleImage3DViewer extends BorderPane {
 
     private record ExportOptions(Integer resolution, boolean annotate) {}
 
-    public SingleImage3DViewer(ImageWrapper image, ProcessParams processParams) {
+    public SingleImage3DViewer(ImageWrapper image, ProcessParams processParams, File sourceDirectory) {
         this.originalImage = image;
         this.processParams = processParams;
+        this.sourceDirectory = sourceDirectory;
 
         graphPane = new StackPane();
         graphPane.setStyle("-fx-background-color: #000000;");
@@ -297,8 +299,13 @@ public class SingleImage3DViewer extends BorderPane {
                 new FileChooser.ExtensionFilter("PNG", "*.png")
         );
         fileChooser.setInitialFileName("sun_3d.png");
+        if (sourceDirectory != null && sourceDirectory.isDirectory()) {
+            fileChooser.setInitialDirectory(sourceDirectory);
+        }
 
         var stage = (Stage) getScene().getWindow();
+        stage.toFront();
+        stage.requestFocus();
         var file = fileChooser.showSaveDialog(stage);
         if (file != null) {
             var snapshot = graphPane.snapshot(null, null);
@@ -431,11 +438,16 @@ public class SingleImage3DViewer extends BorderPane {
 
     private void exportToVideo() {
         var stage = (Stage) getScene().getWindow();
+        stage.toFront();
+        stage.requestFocus();
 
         var fileChooser = new FileChooser();
         fileChooser.setTitle(I18N.string(JSolEx.class, "single-image-3d", "export.video.title"));
         fileChooser.setInitialFileName("sun_3d");
         fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("All files", "*.*"));
+        if (sourceDirectory != null && sourceDirectory.isDirectory()) {
+            fileChooser.setInitialDirectory(sourceDirectory);
+        }
 
         var file = fileChooser.showSaveDialog(stage);
         if (file == null) {
@@ -706,13 +718,14 @@ public class SingleImage3DViewer extends BorderPane {
     /**
      * Shows the single image 3D viewer in a new window.
      *
-     * @param image         the image to display (mono or RGB)
-     * @param title         the window title
-     * @param processParams the process parameters for annotation (may be null)
+     * @param image           the image to display (mono or RGB)
+     * @param title           the window title
+     * @param processParams   the process parameters for annotation (may be null)
+     * @param sourceDirectory the directory where the source image is located (may be null)
      */
-    public static void show(ImageWrapper image, String title, ProcessParams processParams) {
+    public static void show(ImageWrapper image, String title, ProcessParams processParams, File sourceDirectory) {
         Platform.runLater(() -> {
-            var viewer = new SingleImage3DViewer(image, processParams);
+            var viewer = new SingleImage3DViewer(image, processParams, sourceDirectory);
             var stage = FXUtils.newStage();
             stage.setTitle(title);
             var scene = newScene(viewer, 1000, 700);

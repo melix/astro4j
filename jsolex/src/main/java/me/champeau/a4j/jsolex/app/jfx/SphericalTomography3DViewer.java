@@ -570,6 +570,8 @@ public class SphericalTomography3DViewer extends BorderPane {
         fileChooser.setInitialFileName("spherical_tomography.png");
 
         var stage = (Stage) getScene().getWindow();
+        stage.toFront();
+        stage.requestFocus();
         var file = fileChooser.showSaveDialog(stage);
         if (file != null) {
             var snapshot = graphPane.snapshot(null, null);
@@ -720,6 +722,8 @@ public class SphericalTomography3DViewer extends BorderPane {
 
     private void exportToVideo() {
         var stage = (Stage) getScene().getWindow();
+        stage.toFront();
+        stage.requestFocus();
 
         // First, choose where to save
         var fileChooser = new FileChooser();

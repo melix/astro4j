@@ -1058,6 +1058,8 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
         fileChooser.setInitialFileName(defaultFileName);
 
         var stage = (Stage) getScene().getWindow();
+        stage.toFront();
+        stage.requestFocus();
         var file = fileChooser.showSaveDialog(stage);
         if (file != null) {
             var nodeToSnapshot = exportGraphOnly ? graphPane : this;
@@ -1083,6 +1085,8 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
         fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("All files", "*.*"));
 
         var stage = (Stage) getScene().getWindow();
+        stage.toFront();
+        stage.requestFocus();
         var file = fileChooser.showSaveDialog(stage);
         if (file == null) {
             return;
