@@ -184,7 +184,6 @@ import static me.champeau.a4j.jsolex.app.JSolEx.message;
 import static me.champeau.a4j.jsolex.app.JSolEx.newScene;
 import static me.champeau.a4j.jsolex.app.jfx.BatchOperations.blockingUntilResultAvailable;
 import static me.champeau.a4j.jsolex.app.jfx.FXUtils.newModalStage;
-import static me.champeau.a4j.jsolex.app.jfx.FXUtils.newStage;
 import static me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper.computeSerFileBasename;
 import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectoriesIfNeeded;
 
@@ -997,6 +996,13 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         if (spectralRay != null && !SpectralRay.AUTO.equals(spectralRay)) {
             owner.updateSpectralLineIndicator(spectralRay, false);
         }
+        Platform.runLater(() -> {
+            var logsTab = owner.getLogsTab();
+            var tabPane = logsTab.getTabPane();
+            if (tabPane != null) {
+                tabPane.getSelectionModel().select(logsTab);
+            }
+        });
     }
 
     @Override

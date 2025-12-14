@@ -47,6 +47,12 @@ public interface JSolExInterface {
     Stage getMainStage();
 
     /**
+     * Returns the logs tab.
+     * @return the logs tab
+     */
+    Tab getLogsTab();
+
+    /**
      * Returns the statistics tab.
      * @return the stats tab
      */

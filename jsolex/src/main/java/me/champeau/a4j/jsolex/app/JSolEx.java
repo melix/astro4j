@@ -380,6 +380,11 @@ public class JSolEx implements JSolExInterface {
     }
 
     @Override
+    public Tab getLogsTab() {
+        return logsTab;
+    }
+
+    @Override
     public Tab getStatsTab() {
         return statsTab;
     }
