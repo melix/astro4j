@@ -9,7 +9,7 @@ description = "Provides some mathematical functions like linear or elliptic regr
 
 val lwjglNatives = when {
     org.gradle.internal.os.OperatingSystem.current().isWindows -> "natives-windows"
-    org.gradle.internal.os.OperatingSystem.current().isMacOsX -> "natives-macos"
+    org.gradle.internal.os.OperatingSystem.current().isMacOsX -> if (System.getProperty("os.arch") == "aarch64") "natives-macos-arm64" else "natives-macos"
     else -> "natives-linux"
 }
 
