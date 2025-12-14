@@ -865,7 +865,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             });
             var imageViewer = popupViews.get(title);
             if (imageViewer != null) {
-                imageViewer.setImage(baseName, params, imageWrapper, payload.path());
+                imageViewer.setImage(baseName, adjustedParams != null ? adjustedParams : params, imageWrapper, payload.path());
             }
         });
     }
