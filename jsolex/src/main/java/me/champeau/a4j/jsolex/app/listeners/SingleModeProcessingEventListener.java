@@ -89,6 +89,7 @@ import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.event.ReconstructionDoneEvent;
 import me.champeau.a4j.jsolex.processing.event.ScriptExecutionResultEvent;
+import me.champeau.a4j.jsolex.processing.event.GeometryDetectedEvent;
 import me.champeau.a4j.jsolex.processing.event.SpectralLineDetectedEvent;
 import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
 import me.champeau.a4j.jsolex.processing.event.TrimmingParametersDeterminedEvent;
@@ -1012,6 +1013,12 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     }
 
     @Override
+    public void onGeometryDetected(GeometryDetectedEvent e) {
+        var geometry = e.getPayload();
+        owner.updateGeometryIndicators(geometry.tiltDegrees(), geometry.xyRatio());
+    }
+
+    @Override
     public void onProcessingDone(ProcessingDoneEvent e) {
         var payload = e.getPayload();
         imageEmitter = payload.customImageEmitter();
@@ -1294,6 +1301,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             onReconstructionDone(e);
         } else if (event instanceof SpectralLineDetectedEvent e) {
             onSpectralLineDetected(e);
+        } else if (event instanceof GeometryDetectedEvent e) {
+            onGeometryDetected(e);
         }
     }
 

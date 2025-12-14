@@ -79,4 +79,8 @@ public interface ProcessingEventListener {
     default void onSpectralLineDetected(SpectralLineDetectedEvent e) {
 
     }
+
+    default void onGeometryDetected(GeometryDetectedEvent e) {
+
+    }
 }

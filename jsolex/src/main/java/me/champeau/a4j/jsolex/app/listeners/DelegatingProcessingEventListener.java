@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.app.listeners;
 import me.champeau.a4j.jsolex.processing.event.AverageImageComputedEvent;
 import me.champeau.a4j.jsolex.processing.event.EllipseFittingRequestEvent;
 import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
+import me.champeau.a4j.jsolex.processing.event.GeometryDetectedEvent;
 import me.champeau.a4j.jsolex.processing.event.GenericMessage;
 import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.NotificationEvent;
@@ -178,6 +179,13 @@ public class DelegatingProcessingEventListener implements ProcessingEventListene
     public void onSpectralLineDetected(SpectralLineDetectedEvent e) {
         for (ProcessingEventListener listener : listeners) {
             listener.onSpectralLineDetected(e);
+        }
+    }
+
+    @Override
+    public void onGeometryDetected(GeometryDetectedEvent e) {
+        for (ProcessingEventListener listener : listeners) {
+            listener.onGeometryDetected(e);
         }
     }
 }

@@ -210,6 +210,8 @@
                             <HBox spacing="10.0" AnchorPane.rightAnchor="10" alignment="CENTER">
                                 <Label fx:id="spectralLinePrefix" visible="false" managed="false"/>
                                 <Label fx:id="spectralLineIndicator" styleClass="spectral-line-badge" visible="false" managed="false"/>
+                                <Label fx:id="tiltIndicator" styleClass="geometry-badge" visible="false" managed="false"/>
+                                <Label fx:id="xyRatioIndicator" styleClass="geometry-badge" visible="false" managed="false"/>
                                 <StackPane>
                                     <ProgressBar fx:id="memory" prefWidth="200.0" progress="0.0" blendMode="SOFT_LIGHT"/>
                                     <Label fx:id="memoryLabel" style="-fx-text-fill: #666666"/>

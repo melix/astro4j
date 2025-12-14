@@ -186,4 +186,16 @@ public interface JSolExInterface {
      */
     void hideSpectralLineIndicator();
 
+    /**
+     * Updates the geometry indicators (tilt and X/Y ratio) in the UI.
+     * @param tiltDegrees the tilt angle in degrees
+     * @param xyRatio the X/Y ratio
+     */
+    void updateGeometryIndicators(double tiltDegrees, double xyRatio);
+
+    /**
+     * Hides the geometry indicators from the UI.
+     */
+    void hideGeometryIndicators();
+
 }

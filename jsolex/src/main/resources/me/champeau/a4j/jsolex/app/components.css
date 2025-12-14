@@ -1223,3 +1223,13 @@
     -fx-text-fill: white;
     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 2, 0, 0, 1);
 }
+
+/* Geometry indicator badges (tilt and X/Y ratio) */
+.geometry-badge {
+    -fx-background-radius: 8;
+    -fx-padding: 2 8;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-text-fill: white;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 2, 0, 0, 1);
+}

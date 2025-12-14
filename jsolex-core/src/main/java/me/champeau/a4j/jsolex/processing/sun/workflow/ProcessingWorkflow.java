@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.sun.workflow;
 
+import me.champeau.a4j.jsolex.processing.event.GeometryDetectedEvent;
 import me.champeau.a4j.jsolex.processing.event.OutputImageDimensionsDeterminedEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
@@ -180,6 +181,22 @@ public class ProcessingWorkflow {
             LOGGER.info(message("overriding.tilt"), String.format("%.2f", geometryParams.tilt().getAsDouble()));
         }
         Double ratio = geometryParams.xyRatio().isPresent() ? geometryParams.xyRatio().getAsDouble() : null;
+        double detectedXYRatio;
+        if (ratio != null) {
+            detectedXYRatio = ratio;
+        } else {
+            var semiAxis = ellipse.semiAxis();
+            var a = semiAxis.a();
+            var b = semiAxis.b();
+            var theta = forcedTilt == null ? ellipse.rotationAngle() : forcedTilt;
+            var m = Math.tan(-theta);
+            var cos = Math.cos(theta);
+            var sin = Math.sin(theta);
+            detectedXYRatio = Math.abs((a * b * Math.sqrt((a * a * m * m + b * b) / (a * a * sin * sin + b * b * cos * cos)) / (b * b * cos - a * a * m * sin)));
+        }
+        if (isMainShift()) {
+            broadcaster.broadcast(GeometryDetectedEvent.of(tiltDegrees, detectedXYRatio));
+        }
         var g = new GeometryCorrector(broadcaster, newOperation(message("geometry.correction")), imageSupplier(WorkflowResults.ROTATED), ellipse, forcedTilt, fps, ratio, blackPoint, processParams, imagesEmitter, state, header).get();
         var kind = GeneratedImageKind.GEOMETRY_CORRECTED;
         var geometryFixed = (ImageWrapper32) g.corrected().unwrapToMemory();

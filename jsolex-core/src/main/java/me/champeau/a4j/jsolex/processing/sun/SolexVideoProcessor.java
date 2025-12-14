@@ -22,6 +22,7 @@ import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
 import me.champeau.a4j.jsolex.processing.event.GenericMessage;
 import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.ImageLine;
+import me.champeau.a4j.jsolex.processing.event.GeometryDetectedEvent;
 import me.champeau.a4j.jsolex.processing.event.Notification;
 import me.champeau.a4j.jsolex.processing.event.NotificationEvent;
 import me.champeau.a4j.jsolex.processing.event.OutputImageDimensionsDeterminedEvent;
@@ -1788,6 +1789,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 case SpectralLineDetectedEvent e -> listener.onSpectralLineDetected(e);
                 case TrimmingParametersDeterminedEvent e -> listener.onTrimmingParametersDetermined(e);
                 case EllipseFittingRequestEvent e -> listener.onEllipseFittingRequest(e);
+                case GeometryDetectedEvent e -> listener.onGeometryDetected(e);
             }
         }
     }

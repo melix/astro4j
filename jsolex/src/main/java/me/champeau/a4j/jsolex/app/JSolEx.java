@@ -310,6 +310,12 @@ public class JSolEx implements JSolExInterface {
     private Label spectralLineIndicator;
 
     @FXML
+    private Label tiltIndicator;
+
+    @FXML
+    private Label xyRatioIndicator;
+
+    @FXML
     private ChoiceBox<Integer> redshiftBoxSize;
 
     @FXML
@@ -1000,6 +1006,48 @@ public class JSolEx implements JSolExInterface {
             spectralLinePrefix.setManaged(false);
             spectralLineIndicator.setVisible(false);
             spectralLineIndicator.setManaged(false);
+        });
+    }
+
+    @Override
+    public void updateGeometryIndicators(double tiltDegrees, double xyRatio) {
+        Platform.runLater(() -> {
+            var absTilt = Math.abs(tiltDegrees);
+            String tiltColor;
+            if (absTilt <= 1.0) {
+                tiltColor = "#28a745";
+            } else if (absTilt <= 2.0) {
+                tiltColor = "#fd7e14";
+            } else {
+                tiltColor = "#dc3545";
+            }
+            tiltIndicator.setText(String.format(message("tilt.indicator"), tiltDegrees));
+            tiltIndicator.setStyle("-fx-background-color: " + tiltColor + ";");
+            tiltIndicator.setVisible(true);
+            tiltIndicator.setManaged(true);
+
+            String xyColor;
+            if (xyRatio >= 0.9 && xyRatio <= 1.1) {
+                xyColor = "#28a745";
+            } else if ((xyRatio >= 0.5 && xyRatio < 0.9) || (xyRatio > 1.1 && xyRatio <= 2.0)) {
+                xyColor = "#fd7e14";
+            } else {
+                xyColor = "#dc3545";
+            }
+            xyRatioIndicator.setText(String.format(message("xyratio.indicator"), xyRatio));
+            xyRatioIndicator.setStyle("-fx-background-color: " + xyColor + ";");
+            xyRatioIndicator.setVisible(true);
+            xyRatioIndicator.setManaged(true);
+        });
+    }
+
+    @Override
+    public void hideGeometryIndicators() {
+        Platform.runLater(() -> {
+            tiltIndicator.setVisible(false);
+            tiltIndicator.setManaged(false);
+            xyRatioIndicator.setVisible(false);
+            xyRatioIndicator.setManaged(false);
         });
     }
 
