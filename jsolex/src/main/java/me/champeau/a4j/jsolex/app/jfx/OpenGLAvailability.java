@@ -15,12 +15,17 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
+import me.champeau.a4j.jsolex.processing.util.VersionUtil;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.opengl.GL;
+import org.lwjgl.system.Configuration;
 import org.lwjgl.system.Platform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -34,12 +39,17 @@ import static org.lwjgl.glfw.GLFW.glfwMakeContextCurrent;
 public final class OpenGLAvailability {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(OpenGLAvailability.class);
+    private static final String CRASH_MARKER_FILENAME = "opengl-init.marker";
 
     private static final AtomicBoolean CHECKED = new AtomicBoolean(false);
     private static final AtomicBoolean AVAILABLE = new AtomicBoolean(false);
     private static volatile String errorMessage = null;
 
     private OpenGLAvailability() {
+    }
+
+    private static Path getCrashMarkerPath() {
+        return VersionUtil.getJsolexDir().resolve(CRASH_MARKER_FILENAME);
     }
 
     /**
@@ -76,12 +86,29 @@ public final class OpenGLAvailability {
     private static void performCheck() {
         LOGGER.debug("Checking OpenGL availability...");
 
-        if (Platform.get() == Platform.MACOSX) {
-            // Doesn't work on MacOS, makes the app crash, so
-            // we disable it preemptively
-            errorMessage = "OpenGL support is disabled on MacOS";
-            AVAILABLE.set(false);
+        var crashMarker = getCrashMarkerPath();
+
+        // If crash marker exists, a previous initialization crashed the app
+        if (Files.exists(crashMarker)) {
+            errorMessage = "OpenGL initialization previously crashed the application - skipping. You may delete the marker file at " + crashMarker + " to retry.";
+            LOGGER.warn("OpenGL not available: {}", errorMessage);
             return;
+        }
+
+        // Create crash marker before attempting initialization
+        try {
+            Files.createFile(crashMarker);
+        } catch (IOException e) {
+            LOGGER.warn("Could not create OpenGL crash marker file: {}", e.getMessage());
+        }
+
+        if (Platform.get() == Platform.MACOSX) {
+            // On macOS, GLFW requires main thread access. Use glfw_async build
+            // which dispatches Cocoa calls to the main thread in blocking mode.
+            // This allows GLFW to work alongside JavaFX.
+            LOGGER.info("macOS detected, configuring glfw_async for JavaFX compatibility");
+            Configuration.GLFW_LIBRARY_NAME.set("glfw_async");
+            Configuration.GLFW_CHECK_THREAD0.set(false);
         }
 
         long window = 0;
@@ -118,6 +145,16 @@ public final class OpenGLAvailability {
             if (window != 0) {
                 GLFW.glfwDestroyWindow(window);
             }
+            // Delete crash marker since we completed without crashing
+            deleteCrashMarker();
+        }
+    }
+
+    private static void deleteCrashMarker() {
+        try {
+            Files.deleteIfExists(getCrashMarkerPath());
+        } catch (IOException e) {
+            LOGGER.warn("Could not delete OpenGL crash marker file: {}", e.getMessage());
         }
     }
 }

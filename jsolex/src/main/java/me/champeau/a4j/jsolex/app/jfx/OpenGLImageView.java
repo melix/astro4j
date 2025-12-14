@@ -187,6 +187,9 @@ public class OpenGLImageView extends ImageView {
     private void initOpenGL() {
         // Create an offscreen OpenGL context using LWJGL
         if (org.lwjgl.system.Platform.get() == org.lwjgl.system.Platform.MACOSX) {
+            // On macOS, use glfw_async build which dispatches Cocoa calls to the main thread
+            // This allows GLFW to work alongside JavaFX without requiring -XstartOnFirstThread
+            Configuration.GLFW_LIBRARY_NAME.set("glfw_async");
             Configuration.GLFW_CHECK_THREAD0.set(false);
         }
         GLFW.glfwInit();

@@ -49,7 +49,8 @@ public class NativeLibraryLoader {
     private static final NativeLib[] MACOS_LIBS = {
         new NativeLib("liblwjgl.dylib", ""),
         new NativeLib("liblwjgl_opengl.dylib", "opengl/"),
-        new NativeLib("libglfw.dylib", "glfw/")
+        new NativeLib("libglfw.dylib", "glfw/"),
+        new NativeLib("libglfw_async.dylib", "glfw/")
     };
     private static final int GLFW_INDEX = 2;
 
