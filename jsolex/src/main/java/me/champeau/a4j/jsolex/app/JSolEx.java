@@ -126,6 +126,7 @@ import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
 import me.champeau.a4j.jsolex.processing.expr.InvalidExpression;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParameterExtractor;
+import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.NumberParameter;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParamsIO;
@@ -993,7 +994,8 @@ public class JSolEx implements JSolExInterface {
                 spectralLinePrefix.setManaged(false);
             }
             spectralLineIndicator.setText(ray.toString());
-            spectralLineIndicator.setStyle("-fx-background-color: " + toWebColor(wavelengthToColor(ray.wavelength().nanos())) + ";");
+            var bgColor = wavelengthToColor(ray.wavelength().nanos());
+            spectralLineIndicator.setStyle("-fx-background-color: " + toWebColor(bgColor) + "; -fx-text-fill: " + contrastingTextColor(bgColor) + ";");
             spectralLineIndicator.setVisible(true);
             spectralLineIndicator.setManaged(true);
         });
@@ -1051,39 +1053,44 @@ public class JSolEx implements JSolExInterface {
         });
     }
 
-    private static javafx.scene.paint.Color wavelengthToColor(double wavelengthNm) {
+    private static Color wavelengthToColor(double wavelengthNm) {
         if (wavelengthNm <= 0) {
-            return javafx.scene.paint.Color.GRAY;
+            return Color.GRAY;
         }
         if (wavelengthNm < 380) {
-            return javafx.scene.paint.Color.rgb(148, 0, 211);
+            return Color.rgb(148, 0, 211);
         }
         if (wavelengthNm < 440) {
-            return javafx.scene.paint.Color.rgb(75, 0, 130);
+            return Color.rgb(75, 0, 130);
         }
         if (wavelengthNm < 490) {
-            return javafx.scene.paint.Color.rgb(0, 0, 255);
+            return Color.rgb(0, 0, 255);
         }
         if (wavelengthNm < 510) {
-            return javafx.scene.paint.Color.rgb(0, 255, 255);
+            return Color.rgb(0, 255, 255);
         }
         if (wavelengthNm < 580) {
-            return javafx.scene.paint.Color.rgb(0, 128, 0);
+            return Color.rgb(0, 128, 0);
         }
         if (wavelengthNm < 590) {
-            return javafx.scene.paint.Color.rgb(255, 255, 0);
+            return Color.rgb(255, 255, 0);
         }
         if (wavelengthNm < 620) {
-            return javafx.scene.paint.Color.rgb(255, 165, 0);
+            return Color.rgb(255, 165, 0);
         }
-        return javafx.scene.paint.Color.rgb(255, 0, 0);
+        return Color.rgb(255, 0, 0);
     }
 
-    private static String toWebColor(javafx.scene.paint.Color color) {
+    private static String toWebColor(Color color) {
         return String.format("#%02X%02X%02X",
                 (int) (color.getRed() * 255),
                 (int) (color.getGreen() * 255),
                 (int) (color.getBlue() * 255));
+    }
+
+    private static String contrastingTextColor(Color bgColor) {
+        double luminance = 0.299 * bgColor.getRed() + 0.587 * bgColor.getGreen() + 0.114 * bgColor.getBlue();
+        return luminance > 0.5 ? "black" : "white";
     }
 
     @Override
@@ -1282,7 +1289,7 @@ public class JSolEx implements JSolExInterface {
             var updatedParamValues = new HashMap<>(currentMathParams.parameterValues());
             var scriptFile = currentMathParams.scriptFiles().isEmpty() ? new File("") : currentMathParams.scriptFiles().getFirst();
             updatedParamValues.put(scriptFile, result);
-            var updatedMathParams = new me.champeau.a4j.jsolex.processing.params.ImageMathParams(currentMathParams.scriptFiles(), updatedParamValues);
+            var updatedMathParams = new ImageMathParams(currentMathParams.scriptFiles(), updatedParamValues);
             var updatedRequestedImages = lastExecutionProcessParams.requestedImages().withMathImages(updatedMathParams);
             lastExecutionProcessParams = new ProcessParams(
                     lastExecutionProcessParams.spectrumParams(),
