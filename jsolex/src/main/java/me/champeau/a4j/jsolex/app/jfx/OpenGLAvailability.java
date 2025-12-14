@@ -17,6 +17,8 @@ package me.champeau.a4j.jsolex.app.jfx;
 
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.opengl.GL;
+import org.lwjgl.system.Configuration;
+import org.lwjgl.system.Platform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -76,6 +78,12 @@ public final class OpenGLAvailability {
         LOGGER.debug("Checking OpenGL availability...");
         long window = 0;
         try {
+            if (Platform.get() == Platform.MACOSX) {
+                // On macOS, GLFW requires the main thread for window operations.
+                // Since we're using JavaFX (which owns the main thread) and only
+                // need offscreen OpenGL contexts, we disable the thread check.
+                Configuration.GLFW_CHECK_THREAD0.set(false);
+            }
             if (!GLFW.glfwInit()) {
                 errorMessage = "Failed to initialize GLFW";
                 LOGGER.warn("OpenGL not available: {}", errorMessage);

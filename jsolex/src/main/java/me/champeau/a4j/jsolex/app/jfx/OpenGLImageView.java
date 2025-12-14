@@ -26,6 +26,7 @@ import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL15;
 import org.lwjgl.opengl.GL20;
 import org.lwjgl.opengl.GL30;
+import org.lwjgl.system.Configuration;
 import org.lwjgl.system.MemoryUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -184,6 +185,9 @@ public class OpenGLImageView extends ImageView {
 
     private void initOpenGL() {
         // Create an offscreen OpenGL context using LWJGL
+        if (org.lwjgl.system.Platform.get() == org.lwjgl.system.Platform.MACOSX) {
+            Configuration.GLFW_CHECK_THREAD0.set(false);
+        }
         GLFW.glfwInit();
         GLFW.glfwDefaultWindowHints();
         GLFW.glfwWindowHint(GLFW.GLFW_VISIBLE, GLFW.GLFW_FALSE);
