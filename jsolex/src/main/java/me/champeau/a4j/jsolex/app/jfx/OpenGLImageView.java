@@ -71,6 +71,7 @@ public class OpenGLImageView extends ImageView {
     private final AtomicBoolean resizePending = new AtomicBoolean(false);
 
     // OpenGL resources
+    private long glfwWindow;
     private int framebuffer;
     private int colorTexture;
     private int depthRenderbuffer;
@@ -195,11 +196,11 @@ public class OpenGLImageView extends ImageView {
         GLFW.glfwWindowHint(GLFW.GLFW_CONTEXT_VERSION_MINOR, 2);
         GLFW.glfwWindowHint(GLFW.GLFW_OPENGL_PROFILE, GLFW.GLFW_OPENGL_COMPAT_PROFILE);
 
-        long window = GLFW.glfwCreateWindow(1, 1, "", 0, 0);
-        if (window == 0) {
+        glfwWindow = GLFW.glfwCreateWindow(1, 1, "", 0, 0);
+        if (glfwWindow == 0) {
             throw new RuntimeException("Failed to create GLFW window for OpenGL context");
         }
-        glfwMakeContextCurrent(window);
+        glfwMakeContextCurrent(glfwWindow);
         GL.createCapabilities();
 
         // Create framebuffer
@@ -590,7 +591,10 @@ public class OpenGLImageView extends ImageView {
         if (framebuffer != 0) {
             GL30.glDeleteFramebuffers(framebuffer);
         }
-        GLFW.glfwTerminate();
+        if (glfwWindow != 0) {
+            GLFW.glfwDestroyWindow(glfwWindow);
+            glfwWindow = 0;
+        }
         // Free the image buffer
         if (imageBuffer != null) {
             MemoryUtil.memFree(imageBuffer);

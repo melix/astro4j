@@ -589,6 +589,9 @@ public class SingleImage3DViewer extends BorderPane {
                                 return null;
                             }
                             var frame = captureExportFrame(idx, exportRendererRef.get(), exportGlViewRef.get());
+                            if (frame == null) {
+                                return null;
+                            }
                             return annotate ? annotateImage(frame) : frame;
                         },
                         progressCallback
