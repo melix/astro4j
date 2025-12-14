@@ -76,14 +76,16 @@ public final class OpenGLAvailability {
 
     private static void performCheck() {
         LOGGER.debug("Checking OpenGL availability...");
+
+        if (Platform.get() == Platform.MACOSX) {
+            // On macOS, GLFW requires the main thread for window operations.
+            // Since we're using JavaFX (which owns the main thread) and only
+            // need offscreen OpenGL contexts, we disable the thread check.
+            Configuration.GLFW_CHECK_THREAD0.set(false);
+        }
+
         long window = 0;
         try {
-            if (Platform.get() == Platform.MACOSX) {
-                // On macOS, GLFW requires the main thread for window operations.
-                // Since we're using JavaFX (which owns the main thread) and only
-                // need offscreen OpenGL contexts, we disable the thread check.
-                Configuration.GLFW_CHECK_THREAD0.set(false);
-            }
             if (!GLFW.glfwInit()) {
                 errorMessage = "Failed to initialize GLFW";
                 LOGGER.warn("OpenGL not available: {}", errorMessage);
@@ -116,7 +118,6 @@ public final class OpenGLAvailability {
             if (window != 0) {
                 GLFW.glfwDestroyWindow(window);
             }
-            GLFW.glfwTerminate();
         }
     }
 }
