@@ -33,6 +33,7 @@ import javafx.scene.control.TableView;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
 import me.champeau.a4j.jsolex.app.AlertFactory;
 import me.champeau.a4j.jsolex.app.Configuration;
@@ -193,6 +194,7 @@ public class ScriptRepositoriesController {
         try {
             var dialogStage = newStage();
             dialogStage.initOwner(stage);
+            dialogStage.initModality(Modality.APPLICATION_MODAL);
             var node = (Parent) fxmlLoader.load();
             var controller = (AddRepositoryController) fxmlLoader.getController();
             controller.setup(dialogStage, pair -> {
@@ -223,6 +225,7 @@ public class ScriptRepositoriesController {
         try {
             var dialogStage = newStage();
             dialogStage.initOwner(stage);
+            dialogStage.initModality(Modality.APPLICATION_MODAL);
             var node = (Parent) fxmlLoader.load();
             var controller = (AddRepositoryController) fxmlLoader.getController();
             controller.setupForEdit(dialogStage, selected.name(), selected.url(), pair -> {
@@ -352,6 +355,7 @@ public class ScriptRepositoriesController {
 
         var dialogStage = newStage();
         dialogStage.initOwner(stage);
+        dialogStage.initModality(Modality.APPLICATION_MODAL);
         dialogStage.setTitle(I18N.string(JSolEx.class, "script-repositories", "scripts.summary.title") + " - " + repository.name());
 
         var content = new VBox(10);

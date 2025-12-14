@@ -15,9 +15,12 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
+import javafx.scene.Parent;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
+import me.champeau.a4j.jsolex.app.JSolEx;
 
 /**
  * JavaFX utility methods.
@@ -39,6 +42,30 @@ public class FXUtils {
                 stage.close();
             }
         });
+        return stage;
+    }
+
+    /**
+     * Creates a new modal dialog stage with proper configuration for macOS compatibility.
+     * The stage is configured with:
+     * - Owner window set
+     * - Application modal modality
+     * - Non-resizable (suitable for dialogs)
+     * - Scene with JSolEx stylesheet applied
+     * - Size adjusted to content
+     * - ESCAPE key handling to close
+     *
+     * @param owner the owner stage
+     * @param content the root node for the scene
+     * @return a new modal stage
+     */
+    public static Stage newModalStage(Stage owner, Parent content) {
+        var stage = newStage();
+        stage.initOwner(owner);
+        stage.initModality(Modality.APPLICATION_MODAL);
+        stage.setResizable(false);
+        stage.setScene(JSolEx.newScene(content));
+        stage.sizeToScene();
         return stage;
     }
 

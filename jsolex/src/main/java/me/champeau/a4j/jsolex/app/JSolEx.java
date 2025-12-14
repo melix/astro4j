@@ -548,6 +548,7 @@ public class JSolEx implements JSolExInterface {
     @FXML
     private void showEmbeddedServerMenu() {
         var stage = newStage();
+        stage.initOwner(rootStage);
         var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "embedded-server");
         try {
             var node = (Parent) fxmlLoader.load();
