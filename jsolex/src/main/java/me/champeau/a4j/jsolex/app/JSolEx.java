@@ -500,9 +500,12 @@ public class JSolEx implements JSolExInterface {
                 server.start(config.getAutoStartServerPort());
             }
             LOGGER.info(message("gpu.support"), OpenCLSupport.isEnabled() ? message("gpu.enabled") : message("gpu.disabled"));
-            OpenGLAvailability.checkAsync().thenAccept(available ->
-                    LOGGER.info(message("opengl.support"), available ? message("opengl.available") : message("opengl.unavailable"))
-            );
+            OpenGLAvailability.checkAsync().thenAccept(available -> {
+                LOGGER.info(message("opengl.support"), available ? message("opengl.available") : message("opengl.unavailable"));
+                if (!available) {
+                    LOGGER.info(OpenGLAvailability.errorMessage());
+                }
+            });
             updateServerStatus(false);
             server.addStatusChangeListener(this::updateServerStatus);
             maybeShowWelcomeMessage(rootScene);

@@ -136,7 +136,6 @@ public final class OpenGLAvailability {
             GL.createCapabilities();
 
             AVAILABLE.set(true);
-            LOGGER.info("OpenGL is available");
 
         } catch (Exception e) {
             errorMessage = e.getMessage();
@@ -156,5 +155,9 @@ public final class OpenGLAvailability {
         } catch (IOException e) {
             LOGGER.warn("Could not delete OpenGL crash marker file: {}", e.getMessage());
         }
+    }
+
+    public static String errorMessage() {
+        return errorMessage;
     }
 }
