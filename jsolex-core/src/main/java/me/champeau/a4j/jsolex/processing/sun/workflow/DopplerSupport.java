@@ -46,7 +46,7 @@ public class DopplerSupport {
     }
 
     public void produceDopplerImage() {
-        if (!SpectralRay.H_ALPHA.equals(processParams.spectrumParams().ray())) {
+        if (Math.abs(SpectralRay.H_ALPHA.wavelength().angstroms() - processParams.spectrumParams().ray().wavelength().angstroms()) > 0.1) {
             return;
         }
         var dopplerShift = processParams.spectrumParams().dopplerShift();
@@ -61,12 +61,12 @@ public class DopplerSupport {
                 var height = grey1.height();
                 var metadata = MetadataMerger.merge(List.of(grey1, grey2));
                 processedImagesEmitter.newColorImage(GeneratedImageKind.DOPPLER,
-                    null, "Doppler",
-                    "doppler",
-                    message("doppler.description"),
-                    width,
-                    height,
-                    metadata, () -> DopplerSupport.toDopplerImage(width, height, grey1, grey2));
+                        null, "Doppler",
+                        "doppler",
+                        message("doppler.description"),
+                        width,
+                        height,
+                        metadata, () -> DopplerSupport.toDopplerImage(width, height, grey1, grey2));
                 if (processParams.requestedImages().isEnabled(GeneratedImageKind.DOPPLER_ECLIPSE)) {
                     produceDopplerEclipseImage(grey1, grey2, width, height);
                 }
@@ -88,16 +88,16 @@ public class DopplerSupport {
                 stretch.stretch(g2);
                 var metadata = MetadataMerger.merge(List.of(grey1, grey2));
                 processedImagesEmitter.newColorImage(GeneratedImageKind.DOPPLER_ECLIPSE,
-                    null, message("doppler.eclipse"),
-                    "doppler-eclipse",
-                    message("doppler.eclipse.description"),
-                    width,
-                    height,
-                    metadata, () -> {
-                        var dopplerImage = DopplerSupport.toDopplerImage(width, height, g1, g2);
-                        RangeExpansionStrategy.DEFAULT.stretch(new RGBImage(width, height, dopplerImage[0], dopplerImage[1], dopplerImage[2], metadata));
-                        return dopplerImage;
-                    });
+                        null, message("doppler.eclipse"),
+                        "doppler-eclipse",
+                        message("doppler.eclipse.description"),
+                        width,
+                        height,
+                        metadata, () -> {
+                            var dopplerImage = DopplerSupport.toDopplerImage(width, height, g1, g2);
+                            RangeExpansionStrategy.DEFAULT.stretch(new RGBImage(width, height, dopplerImage[0], dopplerImage[1], dopplerImage[2], metadata));
+                            return dopplerImage;
+                        });
             });
         });
     }

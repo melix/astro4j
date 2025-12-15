@@ -15,6 +15,8 @@
  */
 package me.champeau.a4j.jsolex.processing.util;
 
+import java.util.Objects;
+
 /**
  * Represents a wavelength with unit of length.
  */
@@ -51,5 +53,18 @@ public class Wavelen {
 
     public Wavelen plus(double pixels, Dispersion dispersion) {
         return plusAngstroms(pixels * dispersion.angstromsPerPixel());
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof Wavelen wavelen)) {
+            return false;
+        }
+        return Double.compare(angstroms, wavelen.angstroms) == 0;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(angstroms);
     }
 }
