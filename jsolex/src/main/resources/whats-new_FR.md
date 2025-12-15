@@ -1,6 +1,7 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
-- [Nouveautés de la version 4.4.0](#nouveautes-de-la-version-4-4-0) - Visualiseur de profil spectral 3D, rendu volumétrique pour la tomographie
+- [Version 4.4.1](#nouveautes-de-la-version-4-4-1) - Corrections de bugs
+- [Version 4.4.0](#nouveautes-de-la-version-4-4-0) - Visualiseur de profil spectral 3D, rendu volumétrique pour la tomographie
 - [Version 4.3.1](#nouveautes-de-la-version-4-3-1) - Nouvelles fonctions d'étirement, accélération GPU expérimentale
 - [Version 4.3.0](#nouveautes-de-la-version-4-3-0) - Exécution plus rapide des scripts, amélioration du stacking et corrections de bugs
 - [Version 4.2.1](#nouveautes-de-la-version-4-2-1) - Corrections de bugs
@@ -12,6 +13,10 @@
 - [Version 4.1.0](#nouveautes-de-la-version-4-1-0) - Préréglages utilisateur, création de collages
 - [Version 4.0.1](#nouveautes-de-la-version-4-0-1) - Sélection de langue, corrections
 - [Version 4.0.0](#nouveautes-de-la-version-4-0-0) - Interface améliorée, intégration BASS2000
+
+## Nouveautés de la version 4.4.1
+
+- Correction de l'image Doppler non générée lorsque la courbe de colorisation est décochée sur la raie H-alpha
 
 ## Nouveautés de la version 4.4.0
 
