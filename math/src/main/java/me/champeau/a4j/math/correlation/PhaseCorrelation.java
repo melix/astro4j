@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2023 the original author or authors.
+ * Copyright 2025-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -62,13 +62,17 @@ public class PhaseCorrelation {
         if (refTiles.length == 0) {
             return new float[0][2];
         }
+        int numTiles = refTiles.length;
         var context = OpenCLSupport.getContext();
-        if (context != null && OpenCLSupport.isEnabled() && refTiles.length >= MIN_TILES_FOR_GPU) {
+        if (context != null && OpenCLSupport.isEnabled() && numTiles >= MIN_TILES_FOR_GPU) {
             try {
-                return batchedCorrelationGPU(context, refTiles, targetTiles);
+                var result = batchedCorrelationGPU(context, refTiles, targetTiles);
+                // System.err.println("[PhaseCorrelation] GPU completed | " + context.getMemoryStats());
+                return result;
             } catch (Exception e) {
-                // Fall through to CPU
+                System.err.println("[PhaseCorrelation] GPU failed, falling back to CPU | " + context.getMemoryStats());
                 e.printStackTrace();
+                context.recordError("PhaseCorrelation.batchedCorrelation", e);
             }
         }
         return batchedCorrelationCPU(refTiles, targetTiles);
@@ -147,14 +151,23 @@ public class PhaseCorrelation {
 
                 return unflatten2D(results, numTiles, 2);
             } finally {
-                if (refBuffer != 0) {
-                    context.releaseBuffer(refBuffer);
+                // Ensure all GPU operations complete before releasing buffers
+                try {
+                    context.finish();
+                } catch (Exception e) {
+                    System.err.println("[PhaseCorrelation] finish() failed in finally block");
+                    e.printStackTrace();
                 }
-                if (targetBuffer != 0) {
-                    context.releaseBuffer(targetBuffer);
-                }
-                if (resultBuffer != 0) {
-                    context.releaseBuffer(resultBuffer);
+                // Release each buffer in its own try-catch to ensure all are released
+                safeRelease(context, refBuffer);
+                safeRelease(context, targetBuffer);
+                safeRelease(context, resultBuffer);
+                // Flush to ensure release commands are submitted to GPU
+                try {
+                    context.flush();
+                } catch (Exception e) {
+                    System.err.println("[PhaseCorrelation] flush() failed after buffer release");
+                    e.printStackTrace();
                 }
             }
         });
@@ -267,29 +280,41 @@ public class PhaseCorrelation {
 
                 return unflatten2D(results, numTiles, 2);
             } finally {
-                if (refInputBuffer != 0) {
-                    context.releaseBuffer(refInputBuffer);
+                // Ensure all GPU operations complete before releasing buffers
+                try {
+                    context.finish();
+                } catch (Exception e) {
+                    System.err.println("[PhaseCorrelation] finish() failed in finally block (large)");
+                    e.printStackTrace();
                 }
-                if (targetInputBuffer != 0) {
-                    context.releaseBuffer(targetInputBuffer);
-                }
-                if (refComplexBuffer != 0) {
-                    context.releaseBuffer(refComplexBuffer);
-                }
-                if (targetComplexBuffer != 0) {
-                    context.releaseBuffer(targetComplexBuffer);
-                }
-                if (tempBuffer != 0) {
-                    context.releaseBuffer(tempBuffer);
-                }
-                if (realBuffer != 0) {
-                    context.releaseBuffer(realBuffer);
-                }
-                if (resultBuffer != 0) {
-                    context.releaseBuffer(resultBuffer);
+                // Release each buffer in its own try-catch to ensure all are released
+                safeRelease(context, refInputBuffer);
+                safeRelease(context, targetInputBuffer);
+                safeRelease(context, refComplexBuffer);
+                safeRelease(context, targetComplexBuffer);
+                safeRelease(context, tempBuffer);
+                safeRelease(context, realBuffer);
+                safeRelease(context, resultBuffer);
+                // Flush to ensure release commands are submitted to GPU
+                try {
+                    context.flush();
+                } catch (Exception e) {
+                    System.err.println("[PhaseCorrelation] flush() failed after buffer release (large)");
+                    e.printStackTrace();
                 }
             }
         });
+    }
+
+    private static void safeRelease(OpenCLContext context, long buffer) {
+        if (buffer != 0) {
+            try {
+                context.releaseBuffer(buffer);
+            } catch (Exception e) {
+                System.err.println("[PhaseCorrelation] Failed to release GPU buffer");
+                e.printStackTrace();
+            }
+        }
     }
 
     private void fft2D(long queue, long fftRowsKernel, long transposeKernel,

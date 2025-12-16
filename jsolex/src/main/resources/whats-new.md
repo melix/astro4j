@@ -1,6 +1,6 @@
 # Welcome to JSol'Ex {{version}}!
 
-- [What's New in Version 4.4.1](#whats-new-in-version-4-4-1) - Bug fixes
+- [What's New in Version 4.4.1](#whats-new-in-version-4-4-1) - Bug fixes, performance improvements
 - [Version 4.4.0](#whats-new-in-version-4-4-0) - 3D Spectral Profile viewer, Spherical Tomography volume renderer
 - [Version 4.3.1](#whats-new-in-version-4-3-1) - New stretching functions, experimental GPU acceleration
 - [Version 4.3.0](#whats-new-in-version-4-3-0) - Faster script execution, improved stacking and bug fixes
@@ -17,6 +17,7 @@
 ## What's New in Version 4.4.1
 
 - Fixed Doppler image not being generated when the colorization curve is unchecked on H-alpha line
+- Improved performance of dedistortion
 
 ## What's New in Version 4.4.0
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2023 the original author or authors.
+ * Copyright 2025-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,8 @@ package me.champeau.a4j.jsolex.processing.expr.stacking;
 
 import me.champeau.a4j.math.MathUtils;
 import me.champeau.a4j.math.fft.FFTSupport;
+import me.champeau.a4j.math.opencl.OpenCLSupport;
+import me.champeau.a4j.math.regression.DistortionGridFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,6 +28,7 @@ import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -40,6 +43,19 @@ public class DistorsionMap {
     private static final int LUT_SIZE = 256;
     private static final double[] CUBIC_WEIGHT_LUT = precomputeCubicWeights();
     private static final double MAD_THRESHOLD = 3.0;
+
+    /**
+     * Search radius for inverse distance weighting during interpolation.
+     * The LUT covers offsets from -SEARCH_RADIUS to +SEARCH_RADIUS.
+     */
+    private static final int SEARCH_RADIUS = 3;
+
+    /**
+     * Precomputed inverse-squared distance weights for the 7×7 search pattern.
+     * Index: [dy + SEARCH_RADIUS][dx + SEARCH_RADIUS]
+     * Value: 1/(dx² + dy²), or 0 if dx=dy=0
+     */
+    private static final double[][] INVERSE_DIST_SQ_LUT = precomputeInverseDistanceSquared();
 
     private final int step;
     private final int tileSize;
@@ -61,6 +77,40 @@ public class DistorsionMap {
             }
         }
         return lut;
+    }
+
+    /**
+     * Precomputes 1/(dx² + dy²) for the fixed 7×7 search pattern.
+     * Used for inverse-distance-squared weighted interpolation of unsampled points.
+     * This eliminates sqrt() and division operations during interpolation.
+     */
+    private static double[][] precomputeInverseDistanceSquared() {
+        int size = SEARCH_RADIUS * 2 + 1;
+        var lut = new double[size][size];
+        for (int dy = -SEARCH_RADIUS; dy <= SEARCH_RADIUS; dy++) {
+            for (int dx = -SEARCH_RADIUS; dx <= SEARCH_RADIUS; dx++) {
+                if (dx == 0 && dy == 0) {
+                    lut[dy + SEARCH_RADIUS][dx + SEARCH_RADIUS] = 0;
+                } else {
+                    double distSq = dx * dx + dy * dy;
+                    lut[dy + SEARCH_RADIUS][dx + SEARCH_RADIUS] = 1.0 / distSq;
+                }
+            }
+        }
+        return lut;
+    }
+
+    /**
+     * Returns the precomputed inverse-squared distance weight for the given offset.
+     * Used for inverse-distance-squared weighted interpolation.
+     *
+     * @param dx horizontal offset from -SEARCH_RADIUS to +SEARCH_RADIUS
+     * @param dy vertical offset from -SEARCH_RADIUS to +SEARCH_RADIUS
+     * @return 1/(dx² + dy²), or 0 if dx=dy=0
+     * @throws ArrayIndexOutOfBoundsException if offsets exceed SEARCH_RADIUS
+     */
+    public static double getInverseDistanceSquaredWeight(int dx, int dy) {
+        return INVERSE_DIST_SQ_LUT[dy + SEARCH_RADIUS][dx + SEARCH_RADIUS];
     }
 
     private static double cubicWeightDirect(double t) {
@@ -606,14 +656,12 @@ public class DistorsionMap {
      * Applies outlier rejection and Gaussian smoothing to the displacement grid.
      * Should be called after all displacements are recorded, before queries.
      * Parameters are scaled based on step size to maintain consistent physical coverage.
+     * Uses GPU acceleration when available for large grids.
      */
     public void filterAndSmooth() {
         var gridWidth = dxy[0].length;
         var gridHeight = dxy.length;
         LOGGER.debug("filterAndSmooth: gridSize={}x{}, tileSize={}, step={}", gridWidth, gridHeight, tileSize, step);
-
-        interpolateUnsampledPoints();
-        LOGGER.debug("After interpolation: sampledPoints={}", countSampledPoints());
 
         var referenceStep = 64.0;
         var scaleFactor = referenceStep / step;
@@ -622,10 +670,32 @@ public class DistorsionMap {
         if (scaledWindowSize % 2 == 0) {
             scaledWindowSize++;
         }
-        scaledWindowSize = Math.max(3, scaledWindowSize);
+        scaledWindowSize = Math.max(3, Math.min(scaledWindowSize, 11));
+        var halfWindow = scaledWindowSize / 2;
 
         var scaledSigma = Math.max(0.5, scaleFactor);
         LOGGER.debug("Smoothing params: scaleFactor={}, windowSize={}, sigma={}", scaleFactor, scaledWindowSize, scaledSigma);
+
+        // Try GPU-accelerated path for large grids
+        if (gridWidth * gridHeight >= 1000) {
+            try {
+                filterAndSmoothGPU(gridWidth, gridHeight, halfWindow, (float) scaledSigma);
+                totalDistorsion = -1;
+                LOGGER.debug("After GPU smoothing: totalDistortion={}", totalDistorsion());
+                return;
+            } catch (Exception e) {
+                System.err.println("[DistorsionMap] GPU filtering failed, falling back to CPU");
+                e.printStackTrace();
+                var context = OpenCLSupport.getContext();
+                if (context != null) {
+                    context.recordError("DistorsionMap.filterAndSmooth", e);
+                }
+            }
+        }
+
+        // CPU fallback
+        interpolateUnsampledPoints();
+        LOGGER.debug("After interpolation: sampledPoints={}", countSampledPoints());
 
         removeOutliers(MAD_THRESHOLD, scaledWindowSize);
         LOGGER.debug("After outlier removal: totalDistortion={}", computeTotalDistorsion());
@@ -633,6 +703,26 @@ public class DistorsionMap {
         applyGaussianSmoothing(scaledSigma);
         totalDistorsion = -1;
         LOGGER.debug("After smoothing: totalDistortion={}", totalDistorsion());
+    }
+
+    /**
+     * GPU-accelerated filtering using DistortionGridFilter with fused pipeline.
+     */
+    private void filterAndSmoothGPU(int gridWidth, int gridHeight, int halfWindow, float sigma) {
+        var gridFilter = DistortionGridFilter.getInstance();
+
+        var gridDx = getGridDx();
+        var gridDy = getGridDy();
+
+        gridFilter.filterAndSmoothFused(gridDx, gridDy, sampled, gridWidth, gridHeight,
+            SEARCH_RADIUS, halfWindow, (float) MAD_THRESHOLD, sigma);
+
+        for (var y = 0; y < gridHeight; y++) {
+            for (var x = 0; x < gridWidth; x++) {
+                dxy[y][x][0] = gridDx[y][x];
+                dxy[y][x][1] = gridDy[y][x];
+            }
+        }
     }
 
     private int countSampledPoints() {
@@ -650,7 +740,6 @@ public class DistorsionMap {
     private void interpolateUnsampledPoints() {
         var rows = dxy.length;
         var cols = dxy[0].length;
-        var searchRadius = 3;
 
         for (var sy = 0; sy < rows; sy++) {
             for (var sx = 0; sx < cols; sx++) {
@@ -660,16 +749,18 @@ public class DistorsionMap {
                 var sumDx = 0.0;
                 var sumDy = 0.0;
                 var weightSum = 0.0;
-                for (var dy = -searchRadius; dy <= searchRadius; dy++) {
-                    for (var dx = -searchRadius; dx <= searchRadius; dx++) {
+                for (var dy = -SEARCH_RADIUS; dy <= SEARCH_RADIUS; dy++) {
+                    var ny = sy + dy;
+                    if (ny < 0 || ny >= rows) {
+                        continue;
+                    }
+                    for (var dx = -SEARCH_RADIUS; dx <= SEARCH_RADIUS; dx++) {
                         if (dx == 0 && dy == 0) {
                             continue;
                         }
-                        var ny = sy + dy;
                         var nx = sx + dx;
-                        if (ny >= 0 && ny < rows && nx >= 0 && nx < cols && sampled[ny][nx]) {
-                            var distance = Math.sqrt(dx * dx + dy * dy);
-                            var weight = 1.0 / (distance * distance);
+                        if (nx >= 0 && nx < cols && sampled[ny][nx]) {
+                            var weight = INVERSE_DIST_SQ_LUT[dy + SEARCH_RADIUS][dx + SEARCH_RADIUS];
                             sumDx += dxy[ny][nx][0] * weight;
                             sumDy += dxy[ny][nx][1] * weight;
                             weightSum += weight;
@@ -724,6 +815,8 @@ public class DistorsionMap {
         var rows = dxy.length;
         var cols = dxy[0].length;
         var halfWindow = windowSize / 2;
+        var maxNeighbors = windowSize * windowSize - 1;
+        var neighborBuffer = new double[maxNeighbors];
 
         for (var component = 0; component < 2; component++) {
             var values = new double[rows * cols];
@@ -741,11 +834,12 @@ public class DistorsionMap {
             for (var sy = 0; sy < rows; sy++) {
                 for (var sx = 0; sx < cols; sx++) {
                     var current = dxy[sy][sx][component];
-                    var neighbors = collectNeighbors(sx, sy, halfWindow, component);
-                    if (neighbors.length == 0) {
+                    var neighborCount = collectNeighborsInto(sx, sy, halfWindow, component, neighborBuffer);
+                    if (neighborCount == 0) {
                         filtered[sy][sx] = current;
                         continue;
                     }
+                    var neighbors = Arrays.copyOf(neighborBuffer, neighborCount);
                     var localMedian = MathUtils.median(neighbors);
                     var localMAD = computeMAD(neighbors, localMedian);
                     var localThreshold = madThreshold * 1.4826 * Math.max(localMAD, 0.1);
@@ -765,27 +859,25 @@ public class DistorsionMap {
         }
     }
 
-    private double[] collectNeighbors(int sx, int sy, int halfWindow, int component) {
+    /**
+     * Collects neighbor values in a single pass using a pre-sized buffer.
+     * @return actual count of collected neighbors
+     */
+    private int collectNeighborsInto(int sx, int sy, int halfWindow, int component, double[] buffer) {
         var rows = dxy.length;
         var cols = dxy[0].length;
-        var count = 0;
-        for (var ny = sy - halfWindow; ny <= sy + halfWindow; ny++) {
-            for (var nx = sx - halfWindow; nx <= sx + halfWindow; nx++) {
-                if (ny >= 0 && ny < rows && nx >= 0 && nx < cols && !(ny == sy && nx == sx)) {
-                    count++;
-                }
-            }
-        }
-        var neighbors = new double[count];
         var idx = 0;
         for (var ny = sy - halfWindow; ny <= sy + halfWindow; ny++) {
+            if (ny < 0 || ny >= rows) {
+                continue;
+            }
             for (var nx = sx - halfWindow; nx <= sx + halfWindow; nx++) {
-                if (ny >= 0 && ny < rows && nx >= 0 && nx < cols && !(ny == sy && nx == sx)) {
-                    neighbors[idx++] = dxy[ny][nx][component];
+                if (nx >= 0 && nx < cols && !(ny == sy && nx == sx)) {
+                    buffer[idx++] = dxy[ny][nx][component];
                 }
             }
         }
-        return neighbors;
+        return idx;
     }
 
     private double computeMAD(double[] values, double median) {
