@@ -30,6 +30,8 @@
                 <MenuItem onAction="#showImageMathEditor" text="%imagemath.editor"/>
                 <MenuItem onAction="#showScriptRepositories" text="%script.repositories"/>
                 <SeparatorMenuItem/>
+                <MenuItem onAction="#loadImages" text="%load.images"/>
+                <SeparatorMenuItem/>
                 <MenuItem onAction="#showEmbeddedServerMenu" text="%embedded.server"/>
             </Menu>
             <Menu text="%equipment">

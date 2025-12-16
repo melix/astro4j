@@ -19,6 +19,7 @@
 - Fixed Doppler image not being generated when the colorization curve is unchecked on H-alpha line
 - Improved performance of dedistortion
 - Support RGB images in ellipse fitting
+- Added ability to load images from the "Tools" menu
 
 ## What's New in Version 4.4.0
 
