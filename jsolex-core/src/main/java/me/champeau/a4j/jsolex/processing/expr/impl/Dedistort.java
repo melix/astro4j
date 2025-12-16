@@ -36,6 +36,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -378,19 +379,26 @@ public class Dedistort extends AbstractFunctionImpl {
                                                           int x,
                                                           int y,
                                                           int tileSize,
-                                                          float signal) {
+                                                          float signal,
+                                                          float[][] targetSignalData) {
         var copyWidth = Math.min(tileSize, width - x);
         var copyHeight = Math.min(tileSize, height - y);
         if (copyWidth > 0 && copyHeight > 0) {
-            var sum = 0f;
+            var refSum = 0f;
+            var targetSum = 0f;
             for (var yy = 0; yy < copyHeight; yy++) {
                 var srcY = y + yy;
                 for (var xx = 0; xx < copyWidth; xx++) {
-                    sum += referenceData[srcY][x + xx];
+                    refSum += referenceData[srcY][x + xx];
+                    if (targetSignalData != null) {
+                        targetSum += targetSignalData[srcY][x + xx];
+                    }
                 }
             }
-            var avgSignal = sum / (copyWidth * copyHeight);
-            if (avgSignal > signal) {
+            var pixelCount = copyWidth * copyHeight;
+            var refAvgSignal = refSum / pixelCount;
+            var targetAvgSignal = targetSignalData != null ? targetSum / pixelCount : Float.MAX_VALUE;
+            if (refAvgSignal > signal && targetAvgSignal > signal) {
                 var data = image.data();
                 var tiles = createTilesForComparison(tileSize, x, y, referenceData, data, copyWidth, copyHeight);
                 return phaseCorrelationWithPSR(tiles.referenceTile(), tiles.dataTile());
@@ -404,8 +412,9 @@ public class Dedistort extends AbstractFunctionImpl {
                                        ImageWrapper32 image,
                                        int width, int height,
                                        DistorsionMap distorsionMap,
-                                       float signal) {
-        var result = findDisplacementWithQuality(referenceData, image, width, height, x, y, tileSize, signal);
+                                       float signal,
+                                       float[][] targetSignalData) {
+        var result = findDisplacementWithQuality(referenceData, image, width, height, x, y, tileSize, signal, targetSignalData);
         var tileOffset = (int) (tileSize / 2d);
         distorsionMap.recordDistorsion(x + tileOffset, y + tileOffset, result.dx(), result.dy());
     }
@@ -597,20 +606,34 @@ public class Dedistort extends AbstractFunctionImpl {
                                                float signal,
                                                String passName,
                                                ProgressOperation parent) {
+        return computeDistortionMap(referenceData, currentImage, width, height,
+                tileSize, sampling, signal, null, passName, parent);
+    }
+
+    private DistorsionMap computeDistortionMap(float[][] referenceData,
+                                               ImageWrapper32 currentImage,
+                                               int width,
+                                               int height,
+                                               int tileSize,
+                                               double sampling,
+                                               float signal,
+                                               float[][] targetSignalData,
+                                               String passName,
+                                               ProgressOperation parent) {
         var safeTileSize = Math.max(ABSOLUTE_MIN_TILE_SIZE, tileSize);
         var increment = (int) Math.max(MIN_STEP, safeTileSize * sampling);
 
         if (OpenCLSupport.isEnabled() && (safeTileSize == 32 || safeTileSize == 64 || safeTileSize == 128)) {
             try {
                 return computeDistortionMapGPU(referenceData, currentImage, width, height,
-                        safeTileSize, increment, signal, passName, parent);
+                        safeTileSize, increment, signal, targetSignalData, passName, parent);
             } catch (Exception e) {
                 LOGGER.warn("GPU distortion map computation failed, falling back to CPU: {}", e.getMessage());
             }
         }
 
         return computeDistortionMapCPU(referenceData, currentImage, width, height,
-                safeTileSize, increment, signal, passName, parent);
+                safeTileSize, increment, signal, targetSignalData, passName, parent);
     }
 
     private DistorsionMap computeDistortionMapCPU(float[][] referenceData,
@@ -620,6 +643,7 @@ public class Dedistort extends AbstractFunctionImpl {
                                                    int safeTileSize,
                                                    int increment,
                                                    float signal,
+                                                   float[][] targetSignalData,
                                                    String passName,
                                                    ProgressOperation parent) {
         var distorsionMap = new DistorsionMap(width, height, safeTileSize, increment);
@@ -636,7 +660,7 @@ public class Dedistort extends AbstractFunctionImpl {
         for (int y = 0; y <= maxY; y += increment) {
             for (int x = 0; x <= maxX; x += increment) {
                 processWithRefinement(x, y, safeTileSize,
-                        referenceData, currentImage, width, height, distorsionMap, signal);
+                        referenceData, currentImage, width, height, distorsionMap, signal, targetSignalData);
                 var progress = progressCounter.incrementAndGet() / (double) totalPoints;
                 if (progressCounter.get() % 100 == 0) {
                     broadcaster.broadcast(progressOperation.update(progress));
@@ -659,6 +683,7 @@ public class Dedistort extends AbstractFunctionImpl {
                                                    int safeTileSize,
                                                    int increment,
                                                    float signal,
+                                                   float[][] targetSignalData,
                                                    String passName,
                                                    ProgressOperation parent) {
         var distorsionMap = new DistorsionMap(width, height, safeTileSize, increment);
@@ -684,15 +709,21 @@ public class Dedistort extends AbstractFunctionImpl {
                 var copyHeight = Math.min(safeTileSize, height - y);
 
                 if (copyWidth == safeTileSize && copyHeight == safeTileSize) {
-                    float sum = 0f;
+                    float refSum = 0f;
+                    float targetSum = 0f;
                     for (int yy = 0; yy < copyHeight; yy++) {
                         for (int xx = 0; xx < copyWidth; xx++) {
-                            sum += referenceData[y + yy][x + xx];
+                            refSum += referenceData[y + yy][x + xx];
+                            if (targetSignalData != null) {
+                                targetSum += targetSignalData[y + yy][x + xx];
+                            }
                         }
                     }
-                    float avgSignal = sum / (copyWidth * copyHeight);
+                    int pixelCount = copyWidth * copyHeight;
+                    float refAvgSignal = refSum / pixelCount;
+                    float targetAvgSignal = targetSignalData != null ? targetSum / pixelCount : Float.MAX_VALUE;
 
-                    if (avgSignal > signal) {
+                    if (refAvgSignal > signal && targetAvgSignal > signal) {
                         var refTile = new float[safeTileSize][safeTileSize];
                         var targetTile = new float[safeTileSize][safeTileSize];
                         for (int yy = 0; yy < safeTileSize; yy++) {
@@ -824,6 +855,10 @@ public class Dedistort extends AbstractFunctionImpl {
      * Since displacement(i→j) = d_j - d_i (where d_x is image x's distortion),
      * averaging over all j gives approximately -d_i. Negating this gives the correction
      * needed to map image i to the true geometry.
+     * <p>
+     * Optimization: Since distortion(i→j) = -distortion(j→i), we only compute unique
+     * pairs (i,j) where i < j and derive the inverse by negation. This cuts the number
+     * of expensive distortion map computations in half.
      */
     private List<ImageWrapper32> dedistortWithConsensusReference(List<?> listOfImages,
                                                                 Map<String, Object> arguments) {
@@ -868,22 +903,15 @@ public class Dedistort extends AbstractFunctionImpl {
             var computingMessage = message("consensus.reference.computing");
             broadcaster.broadcast(mainOperation.update((double) iteration / iterations, computingMessage + suffix));
 
-            // For each image, compute displacement to all other images and average
-            // This gives image[i] → truth directly via CLT
-            var iterationMaps = new ArrayList<DistorsionMap>(imageCount);
             var comparingOperation = mainOperation.createChild(computingMessage);
 
             // Determine how many comparisons to make per image
             var comparisonsPerImage = Math.min(imageCount - 1, MAX_CONSENSUS_COMPARISONS);
             var useSubsampling = comparisonsPerImage < imageCount - 1;
 
+            // For each image, determine which other images to compare with
+            var comparisonsPerSourceImage = new HashMap<Integer, List<Integer>>();
             for (int i = 0; i < imageCount; i++) {
-                var sourceImage = currentImages.get(i);
-                var sourceData = sourceImage.data();
-                broadcaster.broadcast(comparingOperation.update((double) i / imageCount,
-                        String.format("Image %d/%d", i + 1, imageCount)));
-
-                // Build list of target indices (excluding self)
                 var targetIndices = new ArrayList<Integer>(imageCount - 1);
                 for (int j = 0; j < imageCount; j++) {
                     if (j != i) {
@@ -891,24 +919,72 @@ public class Dedistort extends AbstractFunctionImpl {
                     }
                 }
 
-                // Subsample if needed, using a fixed seed for reproducibility
                 if (useSubsampling) {
                     var random = new Random(42L + i + (long) iteration * imageCount);
                     Collections.shuffle(targetIndices, random);
                     targetIndices = new ArrayList<>(targetIndices.subList(0, comparisonsPerImage));
                 }
 
-                // Compute displacements from image[i] to selected other images
-                var mapsToOthers = new ArrayList<DistorsionMap>(comparisonsPerImage);
-                var imageOperation = comparingOperation.createChild(message("consensus.reference.comparing"));
-                for (int j : targetIndices) {
-                    var targetImage = currentImages.get(j);
-                    var passName = String.format("Iter %d - Image %d -> %d", iteration + 1, i + 1, j + 1);
-                    var map = computeDistortionMap(sourceData, targetImage, width, height,
-                            tileSize, sampling, signal, passName, imageOperation);
-                    mapsToOthers.add(map);
+                comparisonsPerSourceImage.put(i, targetIndices);
+            }
+
+            // Collect unique pairs to compute (always store as smaller,larger)
+            var pairsToCompute = new LinkedHashSet<Long>();
+            for (int i = 0; i < imageCount; i++) {
+                for (int j : comparisonsPerSourceImage.get(i)) {
+                    int smaller = Math.min(i, j);
+                    int larger = Math.max(i, j);
+                    pairsToCompute.add(encodePair(smaller, larger, imageCount));
                 }
-                broadcaster.broadcast(imageOperation.complete());
+            }
+
+            LOGGER.debug("Consensus reference iteration {}: {} unique pairs to compute (reduced from {} total comparisons)",
+                    iteration + 1, pairsToCompute.size(),
+                    comparisonsPerSourceImage.values().stream().mapToInt(List::size).sum());
+
+            // Compute distortion maps for unique pairs only
+            var computedMaps = new HashMap<Long, DistorsionMap>();
+            int pairIndex = 0;
+            int totalPairs = pairsToCompute.size();
+            var pairOperation = comparingOperation.createChild(message("consensus.reference.comparing"));
+
+            for (long pairKey : pairsToCompute) {
+                int i = (int) (pairKey / imageCount);
+                int j = (int) (pairKey % imageCount);
+
+                broadcaster.broadcast(pairOperation.update((double) pairIndex / totalPairs,
+                        String.format("Pair %d/%d (%d→%d)", pairIndex + 1, totalPairs, i + 1, j + 1)));
+
+                var sourceImage = currentImages.get(i);
+                var targetImage = currentImages.get(j);
+                var passName = String.format("Iter %d - Image %d -> %d", iteration + 1, i + 1, j + 1);
+                // Pass both images' data for signal checking to ensure symmetric tile selection
+                var map = computeDistortionMap(sourceImage.data(), targetImage, width, height,
+                        tileSize, sampling, signal, targetImage.data(), passName, pairOperation);
+                computedMaps.put(pairKey, map);
+                pairIndex++;
+            }
+            broadcaster.broadcast(pairOperation.complete());
+
+            // For each image, gather maps (direct or negated) and compute average
+            var iterationMaps = new ArrayList<DistorsionMap>(imageCount);
+            for (int i = 0; i < imageCount; i++) {
+                var mapsToOthers = new ArrayList<DistorsionMap>(comparisonsPerImage);
+
+                for (int j : comparisonsPerSourceImage.get(i)) {
+                    int smaller = Math.min(i, j);
+                    int larger = Math.max(i, j);
+                    long pairKey = encodePair(smaller, larger, imageCount);
+                    var map = computedMaps.get(pairKey);
+
+                    if (i < j) {
+                        // We computed i → j directly
+                        mapsToOthers.add(map);
+                    } else {
+                        // We computed j → i, so negate to get i → j
+                        mapsToOthers.add(map.negate());
+                    }
+                }
 
                 // Average: average(image[i] → image[j]) ≈ -d_i (negative of image[i]'s distortion)
                 // So we negate to get the correction: image[i] → truth ≈ d_i
@@ -964,6 +1040,10 @@ public class Dedistort extends AbstractFunctionImpl {
         LOGGER.debug("Consensus reference dedistort: completed for {} images with {} iterations", imageCount, iterations);
 
         return results;
+    }
+
+    private static long encodePair(int smaller, int larger, int imageCount) {
+        return (long) smaller * imageCount + larger;
     }
 
 }
