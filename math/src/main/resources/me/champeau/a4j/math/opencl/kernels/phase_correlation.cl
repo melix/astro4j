@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2023 the original author or authors.
+ * Copyright 2025-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -173,48 +173,73 @@ void fft2d_32x32(__local float2 data[32][32], int localX, int localY, int direct
 }
 
 // Parallel reduction to find maximum value and its position
+// Tie-breaking: when values are equal, prefer peak closer to center (matches CPU behavior)
 void find_peak_32x32(__local float data[32][32],
-                     __local float* rowMax, __local int* rowMaxX,
+                     __local float* rowMax, __local int* rowMaxX, __local int* rowMaxDistSq,
                      __local int* peakY, __local int* peakX, __local float* peakVal,
-                     __local float rowData[32][32], __local int rowIdx[32][32],
-                     __local float* colData, __local int* colIdxY, __local int* colIdxX,
+                     __local float rowData[32][32], __local int rowIdx[32][32], __local int rowDistSq[32][32],
+                     __local float* colData, __local int* colIdxY, __local int* colIdxX, __local int* colDistSq,
                      int localX, int localY) {
-    // Each thread starts with its own value
+    int centerX = 16;
+    int centerY = 16;
+
+    // Each thread starts with its own value and distance to center
+    int dx = localX - centerX;
+    int dy = localY - centerY;
+    int distSq = dx * dx + dy * dy;
+
     rowData[localY][localX] = data[localY][localX];
     rowIdx[localY][localX] = localX;
+    rowDistSq[localY][localX] = distSq;
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    // Parallel reduction within row
+    // Parallel reduction within row with tie-breaking
     for (int stride = 16; stride > 0; stride >>= 1) {
         if (localX < stride) {
-            if (rowData[localY][localX + stride] > rowData[localY][localX]) {
-                rowData[localY][localX] = rowData[localY][localX + stride];
+            float valA = rowData[localY][localX];
+            float valB = rowData[localY][localX + stride];
+            int distA = rowDistSq[localY][localX];
+            int distB = rowDistSq[localY][localX + stride];
+
+            // Tie-breaking: prefer peak closer to center
+            if (valB > valA || (valB == valA && distB < distA)) {
+                rowData[localY][localX] = valB;
                 rowIdx[localY][localX] = rowIdx[localY][localX + stride];
+                rowDistSq[localY][localX] = distB;
             }
         }
         barrier(CLK_LOCAL_MEM_FENCE);
     }
 
-    // Store row maximum
+    // Store row maximum with distance
     if (localX == 0) {
         rowMax[localY] = rowData[localY][0];
         rowMaxX[localY] = rowIdx[localY][0];
+        rowMaxDistSq[localY] = rowDistSq[localY][0];
     }
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    // Find max across all rows (use row 0 threads)
+    // Find max across all rows (use row 0 threads) with tie-breaking
     if (localY == 0) {
         colData[localX] = rowMax[localX];
         colIdxY[localX] = localX;
         colIdxX[localX] = rowMaxX[localX];
+        colDistSq[localX] = rowMaxDistSq[localX];
         barrier(CLK_LOCAL_MEM_FENCE);
 
         for (int stride = 16; stride > 0; stride >>= 1) {
             if (localX < stride) {
-                if (colData[localX + stride] > colData[localX]) {
-                    colData[localX] = colData[localX + stride];
+                float valA = colData[localX];
+                float valB = colData[localX + stride];
+                int distA = colDistSq[localX];
+                int distB = colDistSq[localX + stride];
+
+                // Tie-breaking: prefer peak closer to center
+                if (valB > valA || (valB == valA && distB < distA)) {
+                    colData[localX] = valB;
                     colIdxY[localX] = colIdxY[localX + stride];
                     colIdxX[localX] = colIdxX[localX + stride];
+                    colDistSq[localX] = distB;
                 }
             }
             barrier(CLK_LOCAL_MEM_FENCE);
@@ -288,15 +313,18 @@ __kernel void batched_phase_correlation_32(
     // For peak finding
     __local float rowMax[32];
     __local int rowMaxX[32];
+    __local int rowMaxDistSq[32];  // Distance to center for tie-breaking
     __local int peakY, peakX;
     __local float peakVal;
 
     // Additional arrays for peak finding reduction
     __local float rowData[32][32];
     __local int rowIdx[32][32];
+    __local int rowDistSq[32][32];  // Distance to center for tie-breaking
     __local float colData[32];
     __local int colIdxY[32];
     __local int colIdxX[32];
+    __local int colDistSq[32];  // Distance to center for tie-breaking
 
     // Load tiles with Hann window
     int offset = tileIdx * 32 * 32 + linearIdx;
@@ -354,9 +382,9 @@ __kernel void batched_phase_correlation_32(
     realResult[dstY][dstX] = myVal;
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    // Find peak
-    find_peak_32x32(realResult, rowMax, rowMaxX, &peakY, &peakX, &peakVal,
-                    rowData, rowIdx, colData, colIdxY, colIdxX, localX, localY);
+    // Find peak with tie-breaking (prefer peak closer to center)
+    find_peak_32x32(realResult, rowMax, rowMaxX, rowMaxDistSq, &peakY, &peakX, &peakVal,
+                    rowData, rowIdx, rowDistSq, colData, colIdxY, colIdxX, colDistSq, localX, localY);
     barrier(CLK_LOCAL_MEM_FENCE);
 
     // Subpixel refinement and write result (only thread 0,0)
@@ -558,6 +586,7 @@ __kernel void fft_shift_real(
 
 // Find peak in each tile using parallel reduction
 // Work-group processes one tile
+// Tie-breaking: when values are equal, prefer peak closer to center (matches CPU behavior)
 __kernel void find_peaks(
     __global const float* data,      // [numTiles * tileSize * tileSize]
     __global float* results,         // [numTiles * 2] (dx, dy)
@@ -572,32 +601,52 @@ __kernel void find_peaks(
 
     __local float maxVals[256];
     __local int maxIdxs[256];
+    __local int maxDistSqs[256];  // Distance squared to center for tie-breaking
 
     int tileOffset = tileIdx * tileSize * tileSize;
     int tileElements = tileSize * tileSize;
+    int centerX = tileSize / 2;
+    int centerY = tileSize / 2;
 
     // Each thread finds max among its assigned elements
     float localMax = -1e30f;
     int localIdx = 0;
+    int localDistSq = 2147483647;  // INT_MAX
 
     for (int i = tid; i < tileElements; i += localSize) {
         float val = data[tileOffset + i];
-        if (val > localMax) {
+        int y = i / tileSize;
+        int x = i % tileSize;
+        int dy = y - centerY;
+        int dx = x - centerX;
+        int distSq = dy * dy + dx * dx;
+
+        // Tie-breaking: prefer peak closer to center
+        if (val > localMax || (val == localMax && distSq < localDistSq)) {
             localMax = val;
             localIdx = i;
+            localDistSq = distSq;
         }
     }
 
     maxVals[tid] = localMax;
     maxIdxs[tid] = localIdx;
+    maxDistSqs[tid] = localDistSq;
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    // Parallel reduction
+    // Parallel reduction with tie-breaking
     for (int stride = localSize / 2; stride > 0; stride >>= 1) {
         if (tid < stride) {
-            if (maxVals[tid + stride] > maxVals[tid]) {
-                maxVals[tid] = maxVals[tid + stride];
+            float valA = maxVals[tid];
+            float valB = maxVals[tid + stride];
+            int distA = maxDistSqs[tid];
+            int distB = maxDistSqs[tid + stride];
+
+            // Tie-breaking: prefer peak closer to center
+            if (valB > valA || (valB == valA && distB < distA)) {
+                maxVals[tid] = valB;
                 maxIdxs[tid] = maxIdxs[tid + stride];
+                maxDistSqs[tid] = distB;
             }
         }
         barrier(CLK_LOCAL_MEM_FENCE);
