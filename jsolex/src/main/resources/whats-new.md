@@ -20,6 +20,7 @@
 - Improved performance of dedistortion
 - Support RGB images in ellipse fitting
 - Added ability to load images from the "Tools" menu
+- Fixed 3D viewer not using the stretched image
 
 ## What's New in Version 4.4.0
 

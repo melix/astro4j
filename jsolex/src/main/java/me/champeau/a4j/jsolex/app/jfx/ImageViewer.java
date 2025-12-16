@@ -312,9 +312,8 @@ public class ImageViewer implements WithRootNode {
         }
         image.findMetadata(Ellipse.class).ifPresent(ignored -> {
             EventHandler<ActionEvent> handler = evt -> BackgroundOperations.async(() -> {
-                var prepared = applyTransformations(image.copy());
                 var sourceDir = imageFile != null ? imageFile.getParentFile() : null;
-                SingleImage3DViewer.show(prepared.unwrapToMemory(), title, processParams, sourceDir);
+                SingleImage3DViewer.show(getStretchedImage().unwrapToMemory(), title, processParams, sourceDir);
             });
             var targetNode = target.get();
             if (targetNode instanceof Button button) {

@@ -20,6 +20,7 @@
 - Amélioration de la performance de la dédistorsion
 - Support des images couleur dans la régression elliptique
 - Ajout de la possibilité de charger des images depuis le menu "Outils"
+- Correction du visualiseur 3D qui n'utilisait pas l'image étirée
 
 ## Nouveautés de la version 4.4.0
 
