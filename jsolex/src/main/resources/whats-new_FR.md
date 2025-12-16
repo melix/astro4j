@@ -19,6 +19,7 @@
 - Correction de l'image Doppler non générée lorsque la courbe de colorisation est décochée sur la raie H-alpha
 - Amélioration de la performance de la dédistorsion
 - Support des images couleur dans la régression elliptique
+- Ajout de la possibilité de charger des images depuis le menu "Outils"
 
 ## Nouveautés de la version 4.4.0
 

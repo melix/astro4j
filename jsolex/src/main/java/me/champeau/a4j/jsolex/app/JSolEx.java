@@ -89,6 +89,7 @@ import me.champeau.a4j.jsolex.app.jfx.ExplorerSupport;
 import me.champeau.a4j.jsolex.app.jfx.ExposureCalculator;
 import me.champeau.a4j.jsolex.app.jfx.ProgressHandler;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
+import me.champeau.a4j.jsolex.app.jfx.StandaloneImagesLoader;
 import me.champeau.a4j.jsolex.app.jfx.ImageMathEditor;
 import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
 import me.champeau.a4j.jsolex.app.jfx.OpenGLAvailability;
@@ -1401,6 +1402,17 @@ public class JSolEx implements JSolExInterface {
                 LOGGER.error(message("error.cannot.create.watch.service"), e);
             }
         }
+    }
+
+    @FXML
+    private void loadImages() {
+        if (imagesViewerTab == null || !mainPane.getTabs().contains(imagesViewerTab)) {
+            mainPane.getTabs().clear();
+            imagesViewerTab = new Tab(message("images"), multipleImagesViewer);
+            mainPane.getTabs().add(imagesViewerTab);
+            hideTabHeaderWhenSingleTab(mainPane);
+        }
+        new StandaloneImagesLoader(rootStage, config, multipleImagesViewer, IMAGE_FILES_EXTENSIONS, this::updateProgress).loadImages();
     }
 
     private Button addInterruptClearParamsButton() {
