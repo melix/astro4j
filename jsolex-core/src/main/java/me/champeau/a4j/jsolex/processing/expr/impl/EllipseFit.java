@@ -23,6 +23,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
+import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.math.regression.Ellipse;
 
 import java.util.List;
@@ -45,7 +46,11 @@ public class EllipseFit extends AbstractFunctionImpl {
         if (arg instanceof ImageWrapper32 image) {
             return performEllipseFitting(image);
         }
-        throw new IllegalStateException("Ellipse fitting only works on mono images");
+        var rgb = (RGBImage) arg;
+        var ellipseFitting = performEllipseFitting(rgb.toMono());
+        var rgbCopy = rgb.copy();
+        rgbCopy.metadata().put(Ellipse.class, ellipseFitting.findMetadata(Ellipse.class).orElse(null));
+        return rgbCopy;
     }
 
     public ImageWrapper32 performEllipseFitting(ImageWrapper32 image) {
