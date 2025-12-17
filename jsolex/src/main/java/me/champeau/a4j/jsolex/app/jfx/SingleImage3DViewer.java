@@ -60,6 +60,7 @@ public class SingleImage3DViewer extends BorderPane {
 
     private Viewer3DExportHelper.CameraAnimator cameraAnimator;
     private Viewer3DOverlay overlay;
+    private Viewer3DHelpOverlay helpOverlay;
 
     public SingleImage3DViewer(ImageWrapper image, ProcessParams processParams, File sourceDirectory) {
         this.originalImage = image;
@@ -123,6 +124,9 @@ public class SingleImage3DViewer extends BorderPane {
 
         overlay = new Viewer3DOverlay(cameraAnimator);
         graphPane.getChildren().add(overlay);
+
+        helpOverlay = new Viewer3DHelpOverlay(I18N_BUNDLE);
+        graphPane.getChildren().add(helpOverlay);
     }
 
     private void showOpenGLError(Throwable error) {
@@ -217,9 +221,15 @@ public class SingleImage3DViewer extends BorderPane {
         if (overlay != null) {
             overlay.setVisible(false);
         }
+        if (helpOverlay != null) {
+            helpOverlay.setVisible(false);
+        }
         Viewer3DExportHelper.exportToPng(stage, graphPane, I18N_BUNDLE, "sun_3d.png", sourceDirectory, processParams);
         if (overlay != null) {
             overlay.setVisible(true);
+        }
+        if (helpOverlay != null) {
+            helpOverlay.setVisible(true);
         }
     }
 

@@ -68,6 +68,7 @@ public class SphericalTomography3DViewer extends BorderPane {
 
     private Viewer3DExportHelper.CameraAnimator cameraAnimator;
     private Viewer3DOverlay overlay;
+    private Viewer3DHelpOverlay helpOverlay;
 
     private Label renderModeLabel;
     private ComboBox<RenderMode> renderModeCombo;
@@ -162,6 +163,9 @@ public class SphericalTomography3DViewer extends BorderPane {
 
         overlay = new Viewer3DOverlay(cameraAnimator);
         graphPane.getChildren().add(overlay);
+
+        helpOverlay = new Viewer3DHelpOverlay(I18N_BUNDLE);
+        graphPane.getChildren().add(helpOverlay);
     }
 
     private void switchRenderer(RenderMode mode) {
@@ -486,9 +490,15 @@ public class SphericalTomography3DViewer extends BorderPane {
         if (overlay != null) {
             overlay.setVisible(false);
         }
+        if (helpOverlay != null) {
+            helpOverlay.setVisible(false);
+        }
         Viewer3DExportHelper.exportToPng(stage, graphPane, I18N_BUNDLE, "spherical_tomography.png", null, processParams);
         if (overlay != null) {
             overlay.setVisible(true);
+        }
+        if (helpOverlay != null) {
+            helpOverlay.setVisible(true);
         }
     }
 
