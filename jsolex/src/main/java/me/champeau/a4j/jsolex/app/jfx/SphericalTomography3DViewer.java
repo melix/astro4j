@@ -15,58 +15,30 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
-import javafx.animation.AnimationTimer;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
-import javafx.scene.Scene;
-import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
-import javafx.scene.control.ProgressBar;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Separator;
 import javafx.scene.control.Slider;
 import javafx.scene.control.Tooltip;
-import javafx.scene.image.WritableImage;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import javafx.stage.FileChooser;
-import javafx.stage.Modality;
 import javafx.stage.Stage;
-import javafx.util.StringConverter;
-import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.JSolEx;
-import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.spectrum.SphericalTomographyData;
-import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
-import me.champeau.a4j.jsolex.processing.util.AnimationFormat;
-import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
-import me.champeau.a4j.jsolex.processing.util.RGBImage;
-import me.champeau.a4j.jsolex.processing.util.VideoEncoder;
 
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
-import java.util.EnumSet;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.newScene;
 
@@ -79,19 +51,7 @@ public class SphericalTomography3DViewer extends BorderPane {
 
     private static final int RENDER_WIDTH = 800;
     private static final int RENDER_HEIGHT = 600;
-
-    // Animation parameters
-    private static final int VIDEO_FPS = 30;
-    private static final int LIVE_CYCLE_DURATION_SECONDS = 20;
-    private static final int VIDEO_CYCLE_DURATION_SECONDS = 10;
-    // Export resolution: 1.5x the sun's diameter (square)
-    private static final double EXPORT_SIZE_FACTOR = 1.5;
-    // Different frequencies for X and Y create a Lissajous pattern
-    // Y completes 2 cycles per period, X completes 1 cycle
-    private static final double ANIMATION_FREQ_Y = 2 * Math.PI * 2 / LIVE_CYCLE_DURATION_SECONDS;
-    private static final double ANIMATION_FREQ_X = 2 * Math.PI / LIVE_CYCLE_DURATION_SECONDS;
-    private static final double ANIMATION_AMPLITUDE_Y = 15.0;
-    private static final double ANIMATION_AMPLITUDE_X = 12.0;
+    private static final String I18N_BUNDLE = "spherical-tomography";
 
     private final SphericalTomographyData data;
     private final ProcessParams processParams;
@@ -106,9 +66,8 @@ public class SphericalTomography3DViewer extends BorderPane {
     private float anchorRotationX;
     private float anchorRotationY;
 
-    private AnimationTimer cameraAnimation;
-    private volatile boolean animationActive = true;
-    private long animationStartTime;
+    private Viewer3DExportHelper.CameraAnimator cameraAnimator;
+    private Viewer3DOverlay overlay;
 
     private Label renderModeLabel;
     private ComboBox<RenderMode> renderModeCombo;
@@ -119,11 +78,9 @@ public class SphericalTomography3DViewer extends BorderPane {
 
         @Override
         public String toString() {
-            return I18N.string(JSolEx.class, "spherical-tomography", "render.mode." + name().toLowerCase());
+            return I18N.string(JSolEx.class, I18N_BUNDLE, "render.mode." + name().toLowerCase());
         }
     }
-
-    private record ExportOptions(Integer resolution, boolean annotate) {}
 
     public SphericalTomography3DViewer(SphericalTomographyData data, ProcessParams processParams) {
         this.data = data;
@@ -192,62 +149,19 @@ public class SphericalTomography3DViewer extends BorderPane {
         graphPane.getChildren().add(glImageView);
 
         setupMouseHandlers();
-        startCameraAnimation();
-    }
 
-    private void startCameraAnimation() {
-        animationActive = true;
-        animationStartTime = System.nanoTime();
-
-        cameraAnimation = new AnimationTimer() {
-            private long lastUpdate = 0;
-            private static final long FRAME_INTERVAL_NS = 33_333_333L; // ~30fps for smooth animation
-
-            @Override
-            public void handle(long now) {
-                if (!animationActive) {
-                    return;
+        cameraAnimator = new Viewer3DExportHelper.CameraAnimator(
+                renderer::setRotation,
+                glImageView::requestRender,
+                () -> {
+                    renderer.setRotation(0, 0);
+                    renderer.setCameraDistance(3.0f);
                 }
+        );
+        cameraAnimator.start();
 
-                // Limit update rate to reduce jerkiness
-                if (now - lastUpdate < FRAME_INTERVAL_NS) {
-                    return;
-                }
-                lastUpdate = now;
-
-                var elapsedSeconds = (now - animationStartTime) / 1_000_000_000.0;
-                applyAnimationRotation(elapsedSeconds);
-                glImageView.requestRender();
-            }
-        };
-        cameraAnimation.start();
-    }
-
-    private void applyAnimationRotation(double time) {
-        var rotationY = (float) (Math.sin(time * ANIMATION_FREQ_Y) * ANIMATION_AMPLITUDE_Y);
-        var rotationX = (float) (Math.sin(time * ANIMATION_FREQ_X) * ANIMATION_AMPLITUDE_X);
-        renderer.setRotation(rotationX, rotationY);
-    }
-
-    private int calculateExportResolution() {
-        // Get the sun's diameter from the first shell image
-        var firstShell = data.shells().getFirst();
-        var image = firstShell.image();
-        var diameter = Math.max(image.width(), image.height());
-        // Export at 1.5x the diameter, as a square
-        return (int) (diameter * EXPORT_SIZE_FACTOR);
-    }
-
-    private void stopCameraAnimation() {
-        animationActive = false;
-    }
-
-    private void resetAndRestartAnimation() {
-        renderer.setRotation(0, 0);
-        renderer.setCameraDistance(3.0f);
-        animationActive = true;
-        animationStartTime = System.nanoTime();
-        glImageView.requestRender();
+        overlay = new Viewer3DOverlay(cameraAnimator);
+        graphPane.getChildren().add(overlay);
     }
 
     private void switchRenderer(RenderMode mode) {
@@ -295,7 +209,7 @@ public class SphericalTomography3DViewer extends BorderPane {
         renderer = newRenderer;
 
         // Restart animation after switching
-        resetAndRestartAnimation();
+        cameraAnimator.resetAndRestart();
     }
 
     private void showOpenGLError(Throwable error) {
@@ -324,7 +238,10 @@ public class SphericalTomography3DViewer extends BorderPane {
 
     private void setupMouseHandlers() {
         glImageView.setOnMousePressed(event -> {
-            stopCameraAnimation();
+            cameraAnimator.stop();
+            if (overlay != null) {
+                overlay.updatePlayPauseState(false);
+            }
             anchorX = event.getSceneX();
             anchorY = event.getSceneY();
             anchorRotationX = renderer.getRotationX();
@@ -335,7 +252,6 @@ public class SphericalTomography3DViewer extends BorderPane {
             var dx = event.getSceneX() - anchorX;
             var dy = event.getSceneY() - anchorY;
 
-            // Drag up = rotate up (positive X rotation), drag right = rotate right
             renderer.setRotation(
                     anchorRotationX + (float) dy * 0.5f,
                     anchorRotationY + (float) dx * 0.5f
@@ -345,7 +261,10 @@ public class SphericalTomography3DViewer extends BorderPane {
         });
 
         glImageView.setOnScroll(event -> {
-            stopCameraAnimation();
+            cameraAnimator.stop();
+            if (overlay != null) {
+                overlay.updatePlayPauseState(false);
+            }
             var delta = (float) event.getDeltaY() * 0.01f;
             renderer.setCameraDistance(renderer.getCameraDistance() - delta);
             glImageView.requestRender();
@@ -542,15 +461,15 @@ public class SphericalTomography3DViewer extends BorderPane {
     }
 
     private HBox createButtonPanel() {
-        var resetButton = new Button(I18N.string(JSolEx.class, "spherical-tomography", "reset.view"));
+        var resetButton = new Button(I18N.string(JSolEx.class, I18N_BUNDLE, "reset.view"));
         resetButton.getStyleClass().add("default-button");
-        resetButton.setOnAction(e -> resetAndRestartAnimation());
+        resetButton.setOnAction(e -> cameraAnimator.resetAndRestart());
 
-        var exportButton = new Button(I18N.string(JSolEx.class, "spherical-tomography", "export.png"));
+        var exportButton = new Button(I18N.string(JSolEx.class, I18N_BUNDLE, "export.png"));
         exportButton.getStyleClass().add("default-button");
         exportButton.setOnAction(e -> exportToPng());
 
-        var exportVideoButton = new Button(I18N.string(JSolEx.class, "spherical-tomography", "export.video"));
+        var exportVideoButton = new Button(I18N.string(JSolEx.class, I18N_BUNDLE, "export.video"));
         exportVideoButton.getStyleClass().add("default-button");
         exportVideoButton.setOnAction(e -> exportToVideo());
 
@@ -563,462 +482,85 @@ public class SphericalTomography3DViewer extends BorderPane {
     }
 
     private void exportToPng() {
-        // First, show export options dialog
-        var annotate = showPngExportDialog();
-        if (annotate == null) {
-            return;
-        }
-
-        var fileChooser = new FileChooser();
-        fileChooser.setTitle(I18N.string(JSolEx.class, "spherical-tomography", "export.title"));
-        fileChooser.getExtensionFilters().add(
-                new FileChooser.ExtensionFilter("PNG", "*.png")
-        );
-        fileChooser.setInitialFileName("spherical_tomography.png");
-
         var stage = (Stage) getScene().getWindow();
-        stage.toFront();
-        stage.requestFocus();
-        var file = fileChooser.showSaveDialog(stage);
-        if (file != null) {
-            var snapshot = graphPane.snapshot(null, null);
-            var bufferedImage = new BufferedImage(
-                    (int) snapshot.getWidth(),
-                    (int) snapshot.getHeight(),
-                    BufferedImage.TYPE_INT_RGB
-            );
-            for (var y = 0; y < snapshot.getHeight(); y++) {
-                for (var x = 0; x < snapshot.getWidth(); x++) {
-                    bufferedImage.setRGB(x, y, snapshot.getPixelReader().getArgb(x, y));
-                }
-            }
-            if (annotate) {
-                bufferedImage = annotateImage(bufferedImage);
-            }
-            try {
-                ImageIO.write(bufferedImage, "png", file);
-                ExplorerSupport.openInExplorer(file.toPath());
-            } catch (IOException e) {
-                // Silently ignore
-            }
+        if (overlay != null) {
+            overlay.setVisible(false);
         }
-    }
-
-    private ExportOptions showVideoExportDialog(int nativeSize) {
-        var stage = (Stage) getScene().getWindow();
-
-        var resolutions = new int[] { 512, 800, 1024, 2048, nativeSize };
-
-        var resolutionLabel = new Label(I18N.string(JSolEx.class, "spherical-tomography", "export.video.resolution"));
-        var resolutionCombo = new ComboBox<Integer>();
-        for (var res : resolutions) {
-            if (!resolutionCombo.getItems().contains(res)) {
-                resolutionCombo.getItems().add(res);
-            }
-        }
-        resolutionCombo.setValue(512);
-        resolutionCombo.setConverter(new StringConverter<>() {
-            @Override
-            public String toString(Integer value) {
-                if (value == null) {
-                    return "";
-                }
-                if (value == nativeSize) {
-                    return String.format(I18N.string(JSolEx.class, "spherical-tomography", "export.video.resolution.native"), value, value);
-                }
-                return value + "x" + value;
-            }
-
-            @Override
-            public Integer fromString(String string) {
-                return null;
-            }
-        });
-
-        var annotateCheckbox = new CheckBox(I18N.string(JSolEx.class, "spherical-tomography", "export.annotate"));
-        annotateCheckbox.setSelected(false);
-        annotateCheckbox.setDisable(processParams == null);
-
-        var okButton = new Button("OK");
-        okButton.setDefaultButton(true);
-        var cancelButton = new Button(I18N.string(JSolEx.class, "spherical-tomography", "export.video.cancel"));
-
-        var buttonBox = new HBox(10, okButton, cancelButton);
-        buttonBox.setAlignment(Pos.CENTER_RIGHT);
-
-        var content = new VBox(10, resolutionLabel, resolutionCombo, annotateCheckbox, buttonBox);
-        content.setPadding(new Insets(20));
-        content.setAlignment(Pos.CENTER_LEFT);
-
-        var dialogStage = new Stage();
-        dialogStage.initOwner(stage);
-        dialogStage.initModality(Modality.WINDOW_MODAL);
-        dialogStage.setTitle(I18N.string(JSolEx.class, "spherical-tomography", "export.video.title"));
-        dialogStage.setScene(new Scene(content));
-        dialogStage.setResizable(false);
-
-        var result = new AtomicReference<ExportOptions>();
-        okButton.setOnAction(e -> {
-            result.set(new ExportOptions(resolutionCombo.getValue(), annotateCheckbox.isSelected()));
-            dialogStage.close();
-        });
-        cancelButton.setOnAction(e -> {
-            result.set(null);
-            dialogStage.close();
-        });
-
-        dialogStage.showAndWait();
-        return result.get();
-    }
-
-    private Boolean showPngExportDialog() {
-        var stage = (Stage) getScene().getWindow();
-
-        var annotateCheckbox = new CheckBox(I18N.string(JSolEx.class, "spherical-tomography", "export.annotate"));
-        annotateCheckbox.setSelected(false);
-        annotateCheckbox.setDisable(processParams == null);
-
-        var okButton = new Button("OK");
-        okButton.setDefaultButton(true);
-        var cancelButton = new Button(I18N.string(JSolEx.class, "spherical-tomography", "export.video.cancel"));
-
-        var buttonBox = new HBox(10, okButton, cancelButton);
-        buttonBox.setAlignment(Pos.CENTER_RIGHT);
-
-        var content = new VBox(10, annotateCheckbox, buttonBox);
-        content.setPadding(new Insets(20));
-        content.setAlignment(Pos.CENTER_LEFT);
-
-        var dialogStage = new Stage();
-        dialogStage.initOwner(stage);
-        dialogStage.initModality(Modality.WINDOW_MODAL);
-        dialogStage.setTitle(I18N.string(JSolEx.class, "spherical-tomography", "export.title"));
-        dialogStage.setScene(new Scene(content));
-        dialogStage.setResizable(false);
-
-        var result = new AtomicReference<Boolean>();
-        okButton.setOnAction(e -> {
-            result.set(annotateCheckbox.isSelected());
-            dialogStage.close();
-        });
-        cancelButton.setOnAction(e -> {
-            result.set(null);
-            dialogStage.close();
-        });
-
-        dialogStage.showAndWait();
-        return result.get();
-    }
-
-    private void saveImage(WritableImage image, File file) {
-        var bufferedImage = new BufferedImage(
-                (int) image.getWidth(),
-                (int) image.getHeight(),
-                BufferedImage.TYPE_INT_ARGB
-        );
-        for (var y = 0; y < image.getHeight(); y++) {
-            for (var x = 0; x < image.getWidth(); x++) {
-                bufferedImage.setRGB(x, y, image.getPixelReader().getArgb(x, y));
-            }
-        }
-        try {
-            ImageIO.write(bufferedImage, "png", file);
-        } catch (IOException e) {
-            // Silently ignore
+        Viewer3DExportHelper.exportToPng(stage, graphPane, I18N_BUNDLE, "spherical_tomography.png", null, processParams);
+        if (overlay != null) {
+            overlay.setVisible(true);
         }
     }
 
     private void exportToVideo() {
         var stage = (Stage) getScene().getWindow();
-        stage.toFront();
-        stage.requestFocus();
-
-        // First, choose where to save
-        var fileChooser = new FileChooser();
-        fileChooser.setTitle(I18N.string(JSolEx.class, "spherical-tomography", "export.video.title"));
-        fileChooser.setInitialFileName("spherical_tomography");
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("All files", "*.*"));
-
-        var file = fileChooser.showSaveDialog(stage);
-        if (file == null) {
-            return;
-        }
-
-        // Then ask for resolution and annotation options
-        var nativeSize = calculateExportResolution();
-        var exportOptions = showVideoExportDialog(nativeSize);
-        if (exportOptions == null || exportOptions.resolution() == null) {
-            return;
-        }
-        var selectedSize = exportOptions.resolution();
-        var shouldAnnotate = exportOptions.annotate();
-
-        var animationFormats = Configuration.getInstance().getAnimationFormats();
-        if (animationFormats.isEmpty()) {
-            animationFormats = EnumSet.of(AnimationFormat.MP4);
-        }
-
-        var basePath = file.getAbsolutePath();
-        var lastDot = basePath.lastIndexOf('.');
-        var lastSep = Math.max(basePath.lastIndexOf('/'), basePath.lastIndexOf(File.separatorChar));
-        if (lastDot > lastSep && lastDot > 0) {
-            basePath = basePath.substring(0, lastDot);
-        }
-
-        var existingFiles = new ArrayList<File>();
-        for (var format : animationFormats) {
-            var outputFile = new File(basePath + "." + format.name().toLowerCase());
-            if (outputFile.exists()) {
-                existingFiles.add(outputFile);
-            }
-        }
-
-        if (!existingFiles.isEmpty()) {
-            var fileNames = existingFiles.stream()
-                    .map(File::getName)
-                    .collect(Collectors.joining(", "));
-            var alert = new Alert(Alert.AlertType.CONFIRMATION);
-            alert.setTitle(I18N.string(JSolEx.class, "spherical-tomography", "export.video.overwrite.title"));
-            alert.setHeaderText(I18N.string(JSolEx.class, "spherical-tomography", "export.video.overwrite.header"));
-            alert.setContentText(fileNames);
-            var result = alert.showAndWait();
-            if (result.isEmpty() || result.get() != ButtonType.OK) {
-                return;
-            }
-        }
-
-        // Stop any current animation
-        stopCameraAnimation();
-
-        var frameCount = VIDEO_FPS * VIDEO_CYCLE_DURATION_SECONDS;
-        var exportSize = selectedSize;
-
-        var cancelled = new AtomicBoolean(false);
-
-        var progressBar = new ProgressBar(0);
-        progressBar.setPrefWidth(300);
-        var progressLabel = new Label(I18N.string(JSolEx.class, "spherical-tomography", "export.video.progress"));
-        var cancelButton = new Button(I18N.string(JSolEx.class, "spherical-tomography", "export.video.cancel"));
-
-        var progressBox = new VBox(10, progressLabel, progressBar, cancelButton);
-        progressBox.setAlignment(Pos.CENTER);
-        progressBox.setPadding(new Insets(20));
-
-        var progressStage = new Stage();
-        progressStage.initOwner(stage);
-        progressStage.initModality(Modality.WINDOW_MODAL);
-        progressStage.setTitle(I18N.string(JSolEx.class, "spherical-tomography", "export.video.title"));
-        progressStage.setScene(new Scene(progressBox));
-        progressStage.setResizable(false);
-        progressStage.setOnCloseRequest(e -> cancelled.set(true));
-        cancelButton.setOnAction(e -> cancelled.set(true));
-        progressStage.show();
-
-        var formats = animationFormats;
-        var finalBasePath = basePath;
+        var firstShell = data.shells().getFirst();
+        var image = firstShell.image();
+        var nativeSize = Viewer3DExportHelper.calculateExportResolution(Math.max(image.width(), image.height()));
         var currentlyUsingVolume = renderer instanceof VolumeOpenGLSphereRenderer;
-        var annotate = shouldAnnotate;
+        var radialExaggeration = renderer.getRadialExaggeration();
+        var colorMap = renderer.getColorMap();
+        var showProminences = renderer.isShowProminences();
+        var contrastEnhanced = renderer.isContrastEnhanced();
+        var animParams = cameraAnimator.getAnimationParameters();
+        var shellVisibility = new java.util.HashMap<Double, Boolean>();
+        for (var shell : data.shells()) {
+            shellVisibility.put(shell.pixelShift(), renderer.isShellVisible(shell.pixelShift()));
+        }
 
-        new Thread(() -> {
-            // Create a dedicated export renderer and GL view
-            var exportRendererRef = new AtomicReference<SphereRenderer>();
-            var exportGlViewRef = new AtomicReference<OpenGLImageView>();
-            var initLatch = new CountDownLatch(1);
-
-            Platform.runLater(() -> {
-                SphereRenderer exportRenderer;
-                if (currentlyUsingVolume) {
-                    exportRenderer = new VolumeOpenGLSphereRenderer(data);
-                } else {
-                    exportRenderer = new OpenGLSphereRenderer(data);
-                }
-
-                // Copy settings from main renderer
-                exportRenderer.setRadialExaggeration(renderer.getRadialExaggeration());
-                exportRenderer.setColorMap(renderer.getColorMap());
-                exportRenderer.setShowProminences(renderer.isShowProminences());
-                exportRenderer.setContrastEnhanced(renderer.isContrastEnhanced());
-                // Copy shell visibility
-                for (var shell : data.shells()) {
-                    exportRenderer.setShellVisible(shell.pixelShift(), renderer.isShellVisible(shell.pixelShift()));
-                }
-
-                var exportGlView = new OpenGLImageView(exportSize, exportSize,
-                        exportRenderer::loadTextures,
-                        view -> {
-                            if (exportRenderer.needsTextureReload()) {
-                                exportRenderer.reloadTextures();
-                            }
-                            exportRenderer.render(view.getRenderWidth(), view.getRenderHeight());
-                        },
-                        exportRenderer::dispose
-                );
-
-                exportRendererRef.set(exportRenderer);
-                exportGlViewRef.set(exportGlView);
-                initLatch.countDown();
-            });
-
-            try {
-                initLatch.await();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return;
-            }
-
-            // Wait for GL context to fully initialize (textures loaded, etc.)
-            var exportGlView = exportGlViewRef.get();
-            if (exportGlView == null || !exportGlView.waitForInitialization(10000)) {
-                Platform.runLater(() -> {
-                    progressStage.close();
-                    var alert = new Alert(Alert.AlertType.ERROR);
-                    alert.setTitle("Export Error");
-                    alert.setContentText("Failed to initialize OpenGL context for export");
-                    alert.showAndWait();
-                    resetAndRestartAnimation();
-                });
-                return;
-            }
-
-            List<File> outputFiles = null;
-            try {
-                Consumer<Double> progressCallback = progress -> Platform.runLater(() -> {
-                    progressBar.setProgress(progress);
-                    progressLabel.setText((int) (progress * 100) + "%");
-                });
-
-                outputFiles = VideoEncoder.encodeToMultipleFormats(
-                        finalBasePath,
-                        formats,
-                        frameCount,
-                        VIDEO_FPS,
-                        1000 / VIDEO_FPS,
-                        idx -> {
-                            if (cancelled.get()) {
-                                return null;
-                            }
-                            var frame = captureExportFrame(idx, exportRendererRef.get(), exportGlViewRef.get());
-                            return annotate ? annotateImage(frame) : frame;
-                        },
-                        progressCallback
-                );
-
-                if (cancelled.get() && outputFiles != null) {
-                    for (var outputFile : outputFiles) {
-                        if (outputFile.exists()) {
-                            outputFile.delete();
-                        }
+        Viewer3DExportHelper.exportToVideo(
+                stage,
+                I18N_BUNDLE,
+                "spherical_tomography",
+                null,
+                nativeSize,
+                processParams,
+                exportSize -> {
+                    SphereRenderer exportRenderer;
+                    if (currentlyUsingVolume) {
+                        exportRenderer = new VolumeOpenGLSphereRenderer(data);
+                    } else {
+                        exportRenderer = new OpenGLSphereRenderer(data);
                     }
-                }
-            } catch (IOException e) {
-                if (!cancelled.get()) {
-                    Platform.runLater(() -> {
-                        var alert = new Alert(Alert.AlertType.ERROR);
-                        alert.setTitle("Export Error");
-                        alert.setContentText(e.getMessage());
-                        alert.showAndWait();
-                    });
-                }
-            } finally {
-                // Dispose export GL view
-                var glViewToDispose = exportGlViewRef.get();
-                if (glViewToDispose != null) {
-                    glViewToDispose.dispose();
-                }
-                var finalOutputFiles = outputFiles;
-                Platform.runLater(() -> {
-                    progressStage.close();
-                    if (!cancelled.get() && finalOutputFiles != null && !finalOutputFiles.isEmpty()) {
-                        ExplorerSupport.openInExplorer(finalOutputFiles.getFirst().toPath());
+
+                    exportRenderer.setRadialExaggeration(radialExaggeration);
+                    exportRenderer.setColorMap(colorMap);
+                    exportRenderer.setShowProminences(showProminences);
+                    exportRenderer.setContrastEnhanced(contrastEnhanced);
+                    for (var entry : shellVisibility.entrySet()) {
+                        exportRenderer.setShellVisible(entry.getKey(), entry.getValue());
                     }
-                    // Restart animation after export
-                    resetAndRestartAnimation();
-                });
-            }
-        }).start();
-    }
 
-    private BufferedImage captureExportFrame(int frameIndex, SphereRenderer exportRenderer, OpenGLImageView exportGlView) {
-        // Map frame index to one complete cycle duration for live animation frequency
-        var elapsedSeconds = (double) frameIndex / VIDEO_FPS * LIVE_CYCLE_DURATION_SECONDS / VIDEO_CYCLE_DURATION_SECONDS;
+                    var exportGlView = new OpenGLImageView(exportSize, exportSize,
+                            exportRenderer::loadTextures,
+                            view -> {
+                                if (exportRenderer.needsTextureReload()) {
+                                    exportRenderer.reloadTextures();
+                                }
+                                exportRenderer.render(view.getRenderWidth(), view.getRenderHeight());
+                            },
+                            exportRenderer::dispose
+                    );
 
-        var rotationY = (float) (Math.sin(elapsedSeconds * ANIMATION_FREQ_Y) * ANIMATION_AMPLITUDE_Y);
-        var rotationX = (float) (Math.sin(elapsedSeconds * ANIMATION_FREQ_X) * ANIMATION_AMPLITUDE_X);
-        exportRenderer.setRotation(rotationX, rotationY);
-
-        // Use synchronous render and capture to ensure consistent results
-        return exportGlView.renderAndCapture();
-    }
-
-    private BufferedImage annotateImage(BufferedImage image) {
-        if (processParams == null) {
-            return image;
-        }
-        // Convert BufferedImage to RGBImage with ProcessParams metadata
-        var width = image.getWidth();
-        var height = image.getHeight();
-        var r = new float[height][width];
-        var g = new float[height][width];
-        var b = new float[height][width];
-        var rgbArray = image.getRGB(0, 0, width, height, null, 0, width);
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                int rgb = rgbArray[y * width + x];
-                r[y][x] = ((rgb >> 16) & 0xFF) << 8;
-                g[y][x] = ((rgb >> 8) & 0xFF) << 8;
-                b[y][x] = (rgb & 0xFF) << 8;
-            }
-        }
-        var metadata = new HashMap<Class<?>, Object>();
-        metadata.put(ProcessParams.class, processParams);
-        var wrapper = new RGBImage(width, height, r, g, b, metadata);
-
-        // Create ImageDraw and apply annotation
-        var context = Map.<Class<?>, Object>of(ProcessParams.class, processParams);
-        var imageDraw = new ImageDraw(context, Broadcaster.NO_OP);
-        var fontSize = Math.min(width, height) / 64;
-        var annotated = (ImageWrapper) imageDraw.drawObservationDetails(Map.of(
-                "img", wrapper,
-                "fs", fontSize
-        ));
-
-        // Convert back to BufferedImage
-        return toBufferedImage(annotated);
-    }
-
-    private static BufferedImage toBufferedImage(ImageWrapper wrapper) {
-        if (wrapper instanceof RGBImage rgb) {
-            var width = rgb.width();
-            var height = rgb.height();
-            var image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-            var r = rgb.r();
-            var g = rgb.g();
-            var b = rgb.b();
-            for (int y = 0; y < height; y++) {
-                for (int x = 0; x < width; x++) {
-                    int rv = Math.round(r[y][x]);
-                    int gv = Math.round(g[y][x]);
-                    int bv = Math.round(b[y][x]);
-                    rv = (rv >> 8) & 0xFF;
-                    gv = (gv >> 8) & 0xFF;
-                    bv = (bv >> 8) & 0xFF;
-                    image.setRGB(x, y, (rv << 16) | (gv << 8) | bv);
-                }
-            }
-            return image;
-        }
-        throw new IllegalArgumentException("Unsupported image type: " + wrapper.getClass());
+                    return new Viewer3DExportHelper.ExportContext(exportRenderer, exportGlView);
+                },
+                (frameIndex, duration, context) -> {
+                    var exportRenderer = (SphereRenderer) context.renderer();
+                    var rotation = Viewer3DExportHelper.calculateExportAnimationRotation(frameIndex, duration, animParams);
+                    exportRenderer.setRotation(rotation[0], rotation[1]);
+                    return context.glView().renderAndCapture();
+                },
+                cameraAnimator::stop,
+                cameraAnimator::resetAndRestart
+        );
     }
 
     public void dispose() {
-        // Stop the animation timer
-        if (cameraAnimation != null) {
-            cameraAnimation.stop();
-            cameraAnimation = null;
+        if (cameraAnimator != null) {
+            cameraAnimator.dispose();
+            cameraAnimator = null;
         }
-        animationActive = false;
 
-        // Dispose the glImageView - it will call renderer.dispose() on the OpenGL thread
         if (glImageView != null) {
             glImageView.dispose();
         }
