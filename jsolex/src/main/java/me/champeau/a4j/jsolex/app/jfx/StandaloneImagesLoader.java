@@ -25,6 +25,7 @@ import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.expr.impl.EllipseFit;
 import me.champeau.a4j.jsolex.processing.expr.impl.Loader;
+import me.champeau.a4j.jsolex.processing.params.EllipseFittingMode;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
@@ -41,6 +42,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 
 /**
@@ -55,17 +58,20 @@ public class StandaloneImagesLoader {
     private final MultipleImagesViewer multipleImagesViewer;
     private final FileChooser.ExtensionFilter imageFilesFilter;
     private final BiConsumer<Double, String> progressConsumer;
+    private final ProcessParams processParams;
 
     public StandaloneImagesLoader(Stage stage,
                                   Configuration config,
                                   MultipleImagesViewer multipleImagesViewer,
                                   FileChooser.ExtensionFilter imageFilesFilter,
-                                  BiConsumer<Double, String> progressConsumer) {
+                                  BiConsumer<Double, String> progressConsumer,
+                                  ProcessParams processParams) {
         this.stage = stage;
         this.config = config;
         this.multipleImagesViewer = multipleImagesViewer;
         this.imageFilesFilter = imageFilesFilter;
         this.progressConsumer = progressConsumer;
+        this.processParams = processParams;
     }
 
     /**
@@ -98,8 +104,8 @@ public class StandaloneImagesLoader {
             }
         };
         var rootOperation = ProgressOperation.root(message("load.images"), _ -> {});
-        var defaultParams = ProcessParams.loadDefaults();
         int totalFiles = selectedFiles.size();
+        var isManualMode = processParams.geometryParams().ellipseFittingMode() == EllipseFittingMode.MANUAL;
 
         BackgroundOperations.async(() -> {
             for (int i = 0; i < totalFiles; i++) {
@@ -107,7 +113,7 @@ public class StandaloneImagesLoader {
                 double progress = (double) i / totalFiles;
                 var fileOperation = rootOperation.createChild(file.getName());
                 broadcaster.broadcast(rootOperation.update(progress, message("loading.image") + " " + file.getName()));
-                loadAndDisplayImage(file, listener, fileOperation, defaultParams, broadcaster);
+                loadAndDisplayImage(file, listener, fileOperation, broadcaster, isManualMode, i + 1, totalFiles);
                 broadcaster.broadcast(fileOperation.complete());
             }
             broadcaster.broadcast(rootOperation.complete(message("loading.complete")));
@@ -117,8 +123,10 @@ public class StandaloneImagesLoader {
     private void loadAndDisplayImage(File file,
                                      ProcessingEventListener listener,
                                      ProgressOperation parentOperation,
-                                     ProcessParams defaultParams,
-                                     Broadcaster broadcaster) {
+                                     Broadcaster broadcaster,
+                                     boolean isManualMode,
+                                     int currentFileIndex,
+                                     int totalFiles) {
         try {
             var loadOperation = parentOperation.createChild(message("loading.image"));
             broadcaster.broadcast(loadOperation.update(0.0));
@@ -132,7 +140,7 @@ public class StandaloneImagesLoader {
                 var ellipseOperation = parentOperation.createChild(ellipseFitMessage);
                 broadcaster.broadcast(ellipseOperation.update(0.0));
                 LOGGER.info(ellipseFitMessage);
-                imageWrapper = performEllipseFitting(imageWrapper, broadcaster);
+                imageWrapper = performEllipseFitting(imageWrapper, broadcaster, isManualMode, file.getName(), currentFileIndex, totalFiles);
                 broadcaster.broadcast(ellipseOperation.complete());
             }
 
@@ -150,7 +158,7 @@ public class StandaloneImagesLoader {
                 null,
                 finalImage,
                 fileWithBaseName,
-                defaultParams,
+                processParams,
                 Map.of(),
                 new PixelShift(0),
                 viewer -> viewer,
@@ -161,7 +169,12 @@ public class StandaloneImagesLoader {
         }
     }
 
-    private ImageWrapper performEllipseFitting(ImageWrapper imageWrapper, Broadcaster broadcaster) {
+    private ImageWrapper performEllipseFitting(ImageWrapper imageWrapper,
+                                               Broadcaster broadcaster,
+                                               boolean isManualMode,
+                                               String fileName,
+                                               int currentFileIndex,
+                                               int totalFiles) {
         var context = MutableMap.<Class<?>, Object>of();
         var ellipseFit = new EllipseFit(context, broadcaster);
 
@@ -169,17 +182,67 @@ public class StandaloneImagesLoader {
             imageWrapper = fbi.unwrapToMemory();
         }
 
+        ImageWrapper32 monoImage;
         if (imageWrapper instanceof ImageWrapper32 mono) {
-            return ellipseFit.performEllipseFitting(mono);
+            monoImage = mono;
         } else if (imageWrapper instanceof RGBImage rgb) {
-            var monoResult = ellipseFit.performEllipseFitting(rgb.toMono());
+            monoImage = rgb.toMono();
+        } else {
+            return imageWrapper;
+        }
+
+        var fittedMono = ellipseFit.performEllipseFitting(monoImage);
+        var initialEllipse = fittedMono.findMetadata(Ellipse.class).orElse(null);
+
+        Ellipse finalEllipse = initialEllipse;
+        if (isManualMode && initialEllipse != null) {
+            finalEllipse = showManualEllipseFittingDialog(monoImage, initialEllipse, fileName, currentFileIndex, totalFiles);
+        }
+
+        if (imageWrapper instanceof ImageWrapper32) {
+            if (finalEllipse != null && finalEllipse != initialEllipse) {
+                monoImage.metadata().put(Ellipse.class, finalEllipse);
+                return monoImage;
+            }
+            return fittedMono;
+        } else if (imageWrapper instanceof RGBImage rgb) {
             var rgbCopy = rgb.copy();
-            monoResult.findMetadata(Ellipse.class)
-                .ifPresent(e -> rgbCopy.metadata().put(Ellipse.class, e));
+            if (finalEllipse != null) {
+                rgbCopy.metadata().put(Ellipse.class, finalEllipse);
+            }
             return rgbCopy;
         }
 
         return imageWrapper;
+    }
+
+    private Ellipse showManualEllipseFittingDialog(ImageWrapper32 image,
+                                                   Ellipse initialEllipse,
+                                                   String fileName,
+                                                   int currentFileIndex,
+                                                   int totalFiles) {
+        var resultRef = new AtomicReference<>(initialEllipse);
+        var latch = new CountDownLatch(1);
+
+        Platform.runLater(() -> {
+            var future = AssistedEllipseFittingController.showDialog(
+                stage, image, initialEllipse, fileName, currentFileIndex, totalFiles);
+            future.whenComplete((ellipse, throwable) -> {
+                if (ellipse != null) {
+                    resultRef.set(ellipse);
+                }
+                latch.countDown();
+            });
+        });
+
+        try {
+            latch.await();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            LOGGER.warn("Interrupted while waiting for ellipse fitting dialog", e);
+        }
+
+        return resultRef.get();
     }
 
     private static String message(String key) {

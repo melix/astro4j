@@ -1412,7 +1412,7 @@ public class JSolEx implements JSolExInterface {
             mainPane.getTabs().add(imagesViewerTab);
             hideTabHeaderWhenSingleTab(mainPane);
         }
-        new StandaloneImagesLoader(rootStage, config, multipleImagesViewer, IMAGE_FILES_EXTENSIONS, this::updateProgress).loadImages();
+        new StandaloneImagesLoader(rootStage, config, multipleImagesViewer, IMAGE_FILES_EXTENSIONS, this::updateProgress, ProcessParams.loadDefaults()).loadImages();
     }
 
     private Button addInterruptClearParamsButton() {
