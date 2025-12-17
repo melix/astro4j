@@ -102,6 +102,7 @@ public class RedshiftImagesProcessor {
     private final String serFileBaseName;
     private final int imageWidth;
     private final int imageHeight;
+    private final Ellipse mainEllipse;
 
     /**
      * Creates a new redshift images processor.
@@ -120,6 +121,7 @@ public class RedshiftImagesProcessor {
      * @param namingStrategy strategy for naming output files
      * @param sequenceNumber sequence number for output naming
      * @param serFileBaseName base name of the SER file
+     * @param mainEllipse the main ellipse from manual fitting (before any transformations)
      */
     public RedshiftImagesProcessor(Map<PixelShift, ImageWrapper> shiftImages,
                                    ProcessParams params,
@@ -134,7 +136,8 @@ public class RedshiftImagesProcessor {
                                    ProgressOperation operation,
                                    FileNamingStrategy namingStrategy,
                                    int sequenceNumber,
-                                   String serFileBaseName) {
+                                   String serFileBaseName,
+                                   Ellipse mainEllipse) {
         this.shiftImages = shiftImages;
         this.params = params;
         this.serFile = serFile;
@@ -149,6 +152,7 @@ public class RedshiftImagesProcessor {
         this.namingStrategy = namingStrategy;
         this.sequenceNumber = sequenceNumber;
         this.serFileBaseName = serFileBaseName;
+        this.mainEllipse = mainEllipse;
         var image = shiftImages.values().stream().findFirst();
         if (image.isPresent()) {
             imageWidth = image.get().width();
@@ -166,7 +170,7 @@ public class RedshiftImagesProcessor {
      * @return new processor instance with updated redshifts
      */
     public RedshiftImagesProcessor withRedshifts(List<RedshiftArea> redshifts) {
-        return new RedshiftImagesProcessor(shiftImages, params, serFile, outputDirectory, owner, broadcaster, imageEmitter, redshifts, polynomial, averageImage, operation, namingStrategy, sequenceNumber, serFileBaseName);
+        return new RedshiftImagesProcessor(shiftImages, params, serFile, outputDirectory, owner, broadcaster, imageEmitter, redshifts, polynomial, averageImage, operation, namingStrategy, sequenceNumber, serFileBaseName, mainEllipse);
     }
 
     /**
@@ -721,6 +725,10 @@ public class RedshiftImagesProcessor {
             }
         });
         solexVideoProcessor.setIgnoreIncompleteShifts(true);
+        // Use the main ellipse from manual fitting (before any transformations)
+        if (mainEllipse != null) {
+            solexVideoProcessor.setCachedEllipse(mainEllipse);
+        }
         solexVideoProcessor.process();
     }
 

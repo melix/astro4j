@@ -76,6 +76,7 @@ import me.champeau.a4j.jsolex.processing.event.EllipseFittingRequestEvent;
 import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
 import me.champeau.a4j.jsolex.processing.event.GenericMessage;
+import me.champeau.a4j.jsolex.processing.event.GeometryDetectedEvent;
 import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.Notification;
 import me.champeau.a4j.jsolex.processing.event.NotificationEvent;
@@ -89,7 +90,6 @@ import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.event.ReconstructionDoneEvent;
 import me.champeau.a4j.jsolex.processing.event.ScriptExecutionResultEvent;
-import me.champeau.a4j.jsolex.processing.event.GeometryDetectedEvent;
 import me.champeau.a4j.jsolex.processing.event.SpectralLineDetectedEvent;
 import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
 import me.champeau.a4j.jsolex.processing.event.TrimmingParametersDeterminedEvent;
@@ -253,14 +253,14 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     /**
      * Creates a new single mode processing event listener.
      *
-     * @param owner the JSol'Ex interface that owns this listener
-     * @param rootOperation the root progress operation for tracking overall processing progress
-     * @param baseName the base name for generated files
-     * @param serFile the SER video file being processed, or null if processing other formats
+     * @param owner           the JSol'Ex interface that owns this listener
+     * @param rootOperation   the root progress operation for tracking overall processing progress
+     * @param baseName        the base name for generated files
+     * @param serFile         the SER video file being processed, or null if processing other formats
      * @param outputDirectory the directory where processed images will be saved
-     * @param params the processing parameters
-     * @param processingDate the date and time when processing started
-     * @param popupViews map of image viewer popup windows
+     * @param params          the processing parameters
+     * @param processingDate  the date and time when processing started
+     * @param popupViews      map of image viewer popup windows
      */
     public SingleModeProcessingEventListener(JSolExInterface owner,
                                              ProgressOperation rootOperation,
@@ -693,7 +693,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                             rootOperation,
                             createNamingStrategy(),
                             0,
-                            computeSerFileBasename(serFile)
+                            computeSerFileBasename(serFile),
+                            mainEllipse
                     );
                     Platform.runLater(() -> {
                         var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "custom-anim-panel");
@@ -740,32 +741,32 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                         try {
                             var topLeft = coord.determineOriginalCoordinates(new Point2D(x, y), ReferenceCoords.NO_LIMIT);
                             var bottomRight = coord.determineOriginalCoordinates(new Point2D(x + width, y + height), ReferenceCoords.NO_LIMIT);
-                            
+
                             try (var serReader = SerFileReader.of(serFile)) {
                                 var header = serReader.header();
                                 var originalWidth = header.geometry().width();
                                 var originalHeight = header.geometry().height();
-                                
+
                                 int totalFrames = header.frameCount();
                                 double minY = Math.min(topLeft.y(), bottomRight.y());
                                 double maxY = Math.max(topLeft.y(), bottomRight.y());
                                 double minX = Math.min(topLeft.x(), bottomRight.x());
                                 double maxX = Math.max(topLeft.x(), bottomRight.x());
-                                
+
                                 int startFrame = Math.max(0, (int) Math.round(minY));
                                 int endFrame = Math.min(totalFrames - 1, (int) Math.round(maxY));
                                 int frameCount = Math.max(1, endFrame - startFrame + 1);
                                 int cropLeft = Math.max(0, (int) Math.round(minX));
                                 int cropRight = Math.min(originalWidth - 1, (int) Math.round(maxX));
-                                
+
                                 if (cropLeft > cropRight) {
                                     int temp = cropLeft;
                                     cropLeft = cropRight;
                                     cropRight = temp;
                                 }
-                                
+
                                 int cropWidth = Math.max(1, cropRight - cropLeft + 1);
-                                
+
                                 // Validate bounds
                                 if (startFrame >= totalFrames || endFrame < 0 || frameCount <= 0) {
                                     LOGGER.error(JSolEx.message("error.invalid.frame.bounds"), startFrame, endFrame, totalFrames, frameCount);
@@ -799,7 +800,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                                             "width", cropWidth,
                                             "height", originalHeight  // Use full height
                                     ));
-                                    
+
                                     frames.add(croppedFrame);
 
                                     // Update progress
@@ -1083,7 +1084,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 rootOperation,
                 createNamingStrategy(),
                 0,
-                computeSerFileBasename(serFile)
+                computeSerFileBasename(serFile),
+                mainEllipse
         ));
         owner.prepareForGongImageDownload(processParams);
         executeSingleFileBatchScripts();
@@ -1754,7 +1756,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 rootOperation,
                 createNamingStrategy(),
                 0,
-                computeSerFileBasename(serFile)
+                computeSerFileBasename(serFile),
+                mainEllipse
         );
 
         Platform.runLater(() -> {
@@ -1858,6 +1861,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                         }
                     });
                     solexVideoProcessor.setIgnoreIncompleteShifts(true);
+                    if (mainEllipse != null) {
+                        solexVideoProcessor.setCachedEllipse(mainEllipse);
+                    }
                     solexVideoProcessor.process();
                 }
 
@@ -2196,6 +2202,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     }
                 });
                 params = newParams;
+                solexVideoProcessor.setCachedEllipse(mainEllipse);
                 solexVideoProcessor.process();
             }));
             menu.show(node, event.getScreenX(), event.getScreenY());
@@ -2209,8 +2216,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
         // For the main chart, snapshot parent if it's a profile (to include stats panel)
         Supplier<Node> nodeSupplier = () -> (graphData instanceof GraphData.ProfileData && chart.getParent() != null)
-            ? chart.getParent()
-            : chart;
+                ? chart.getParent()
+                : chart;
 
         var menu = createChartContextMenu(graphData, name, nodeSupplier);
 
@@ -2348,16 +2355,16 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         var cos = Math.cos(angle);
         var sin = Math.sin(angle);
         return new Point2D(
-            center.x() + dx * cos - dy * sin,
-            center.y() + dx * sin + dy * cos
+                center.x() + dx * cos - dy * sin,
+                center.y() + dx * sin + dy * cos
         );
     }
 
     private static boolean isWithinImageBounds(Point2D topLeft, Point2D bottomRight, ImageWrapper image) {
         return topLeft.x() >= 0 && topLeft.x() < image.width() &&
-               topLeft.y() >= 0 && topLeft.y() < image.height() &&
-               bottomRight.x() >= 0 && bottomRight.x() < image.width() &&
-               bottomRight.y() >= 0 && bottomRight.y() < image.height();
+                topLeft.y() >= 0 && topLeft.y() < image.height() &&
+                bottomRight.x() >= 0 && bottomRight.x() < image.width() &&
+                bottomRight.y() >= 0 && bottomRight.y() < image.height();
     }
 
     private record NormalizedDataPoints(List<SpectrumAnalyzer.DataPoint> dataPoints, double maxIntensity) {
@@ -2369,7 +2376,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         var images = e.getPayload().imagesByLabel();
         for (Map.Entry<String, ImageWrapper> entry : images.entrySet()) {
             scriptImagesByLabel.computeIfAbsent(entry.getKey(), unused -> new ArrayList<>())
-                .add(entry.getValue());
+                    .add(entry.getValue());
         }
     }
 
@@ -2403,16 +2410,16 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             var namingStrategy = createNamingStrategy();
             var ctx = new HashMap<>(scriptExecutionContext);
             ctx.put(ImageEmitter.class, imageEmitter);
-            
+
             var batchScriptExecutor = new JSolExScriptExecutor(
-                idx -> {
-                    throw new IllegalStateException("Cannot call img() in batch outputs. Use variables to store images instead");
-                },
-                ctx,
-                this,
-                null
+                    idx -> {
+                        throw new IllegalStateException("Cannot call img() in batch outputs. Use variables to store images instead");
+                    },
+                    ctx,
+                    this,
+                    null
             );
-            
+
             for (Map.Entry<String, List<ImageWrapper>> entry : scriptImagesByLabel.entrySet()) {
                 batchScriptExecutor.putVariable(entry.getKey(), entry.getValue());
             }
@@ -2455,10 +2462,10 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         }
         var language = LocaleUtils.getConfiguredLocale().getLanguage();
         Platform.runLater(() -> {
-                var tabPane = owner.getTabs();
-                var imagesViewerTab = owner.getImagesViewerTab();
-                tabPane.getTabs().add(imagesViewerTab);
-                tabPane.getSelectionModel().select(imagesViewerTab);
+            var tabPane = owner.getTabs();
+            var imagesViewerTab = owner.getImagesViewerTab();
+            tabPane.getTabs().add(imagesViewerTab);
+            tabPane.getSelectionModel().select(imagesViewerTab);
         });
         result.imagesByLabel().entrySet().stream().parallel().forEach(entry -> {
             var label = entry.getKey();
@@ -2468,7 +2475,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             var name = namingStrategy.render(0, null, Constants.TYPE_PROCESSED, label, "batch", entry.getValue());
             var outputFile = new File(outputDirectory.toFile(), name);
             onImageGenerated(new ImageGeneratedEvent(
-                new GeneratedImage(GeneratedImageKind.IMAGE_MATH, label, outputFile.toPath(), entry.getValue(), description, displayTitle)
+                    new GeneratedImage(GeneratedImageKind.IMAGE_MATH, label, outputFile.toPath(), entry.getValue(), description, displayTitle)
             ));
         });
         result.filesByLabel().entrySet().stream().parallel().forEach(entry -> {

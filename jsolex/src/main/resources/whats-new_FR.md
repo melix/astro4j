@@ -22,6 +22,7 @@
 - Ajout de la possibilité de charger des images depuis le menu "Outils"
 - Correction du visualiseur 3D qui n'utilisait pas l'image étirée
 - Amélioration de la détection de compatibilité des cartes graphiques pour le visualiseur de tomographie sphérique : bascule automatiquement vers la vue en couches sur le matériel non supporté
+- Correction du blocage de l'interface lors de certaines opérations (tomographie, animations perso) si le mode ellipse assistée par l'utilisateur était sélectionné
 
 ## Nouveautés de la version 4.4.0
 
