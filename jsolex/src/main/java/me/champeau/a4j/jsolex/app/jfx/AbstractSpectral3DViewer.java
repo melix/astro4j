@@ -1065,6 +1065,7 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
             var nodeToSnapshot = exportGraphOnly ? graphPane : this;
             var snapshot = nodeToSnapshot.snapshot(null, null);
             saveImage(snapshot, file);
+            ExplorerSupport.openInExplorer(file.toPath());
         }
     }
 
@@ -1191,8 +1192,12 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
                     });
                 }
             } finally {
+                var finalOutputFiles = outputFiles;
                 Platform.runLater(() -> {
                     progressStage.close();
+                    if (!cancelled.get() && finalOutputFiles != null && !finalOutputFiles.isEmpty()) {
+                        ExplorerSupport.openInExplorer(finalOutputFiles.getFirst().toPath());
+                    }
                     if (onEnableControls != null) {
                         onEnableControls.run();
                     }

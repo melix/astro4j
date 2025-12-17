@@ -43,26 +43,53 @@ public class ExplorerSupport {
     public static void openInExplorer(Path imagePath) {
         if (Desktop.getDesktop().isSupported(Desktop.Action.BROWSE_FILE_DIR)) {
             Desktop.getDesktop().browseFileDirectory(imagePath.toFile());
+            return;
+        }
+        var osName = System.getProperty("os.name").toLowerCase(Locale.ENGLISH);
+        var absolutePath = imagePath.toAbsolutePath().toString();
+        if (osName.contains("windows")) {
+            runCommand("explorer.exe", "/select," + absolutePath);
+        } else if (osName.contains("mac") || osName.contains("darwin")) {
+            runCommand("open", "-R", absolutePath);
         } else {
-            // try a generic "open" call for unsupported platforms, which will
-            // open the directory but not focus on the file
-            try {
-                var builder = new ProcessBuilder();
-                builder.command("open", imagePath.getParent().toAbsolutePath().toString());
-                builder.start();
-            } catch (IOException ex) {
-                try {
-                    if (System.getProperty("os.name").toLowerCase(Locale.ENGLISH).contains("windows")) {
-                        var builder = new ProcessBuilder();
-                        builder.command("explorer.exe", "/select,\"" + imagePath.toAbsolutePath() + "\"");
-                        builder.start();
-                    } else {
-                        LOGGER.info(message("info.opening.files.not.supported"));
-                    }
-                } catch (IOException ex2) {
-                    LOGGER.info(message("info.opening.files.not.supported"));
-                }
+            openInLinuxFileManager(imagePath);
+        }
+    }
+
+    private static void openInLinuxFileManager(Path path) {
+        // Try D-Bus FileManager1 interface first (works with most modern file managers)
+        var fileUri = path.toAbsolutePath().toUri().toString();
+        boolean success = runCommandAndWait(
+                "gdbus", "call",
+                "--session",
+                "--dest", "org.freedesktop.FileManager1",
+                "--object-path", "/org/freedesktop/FileManager1",
+                "--method", "org.freedesktop.FileManager1.ShowItems",
+                "['" + fileUri + "']", ""
+        );
+        if (!success) {
+            // Fallback: open the parent directory (won't select the file)
+            runCommand("xdg-open", path.getParent().toAbsolutePath().toString());
+        }
+    }
+
+    private static void runCommand(String... command) {
+        try {
+            new ProcessBuilder(command).start();
+        } catch (IOException e) {
+            LOGGER.info(message("info.opening.files.not.supported"));
+        }
+    }
+
+    private static boolean runCommandAndWait(String... command) {
+        try {
+            int exitCode = new ProcessBuilder(command).start().waitFor();
+            return exitCode == 0;
+        } catch (IOException | InterruptedException e) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
             }
+            return false;
         }
     }
 }

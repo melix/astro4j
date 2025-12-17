@@ -597,6 +597,7 @@ public class SphericalTomography3DViewer extends BorderPane {
             }
             try {
                 ImageIO.write(bufferedImage, "png", file);
+                ExplorerSupport.openInExplorer(file.toPath());
             } catch (IOException e) {
                 // Silently ignore
             }
@@ -924,8 +925,12 @@ public class SphericalTomography3DViewer extends BorderPane {
                 if (glViewToDispose != null) {
                     glViewToDispose.dispose();
                 }
+                var finalOutputFiles = outputFiles;
                 Platform.runLater(() -> {
                     progressStage.close();
+                    if (!cancelled.get() && finalOutputFiles != null && !finalOutputFiles.isEmpty()) {
+                        ExplorerSupport.openInExplorer(finalOutputFiles.getFirst().toPath());
+                    }
                     // Restart animation after export
                     resetAndRestartAnimation();
                 });
