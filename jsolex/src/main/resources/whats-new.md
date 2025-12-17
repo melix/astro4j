@@ -21,6 +21,7 @@
 - Support RGB images in ellipse fitting
 - Added ability to load images from the "Tools" menu
 - Fixed 3D viewer not using the stretched image
+- Improved graphics card compatibility detection for the spherical tomography viewer: automatically falls back to layers view on unsupported hardware
 
 ## What's New in Version 4.4.0
 

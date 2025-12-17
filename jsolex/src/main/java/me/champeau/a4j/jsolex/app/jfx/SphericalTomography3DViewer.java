@@ -110,6 +110,7 @@ public class SphericalTomography3DViewer extends BorderPane {
     private volatile boolean animationActive = true;
     private long animationStartTime;
 
+    private Label renderModeLabel;
     private ComboBox<RenderMode> renderModeCombo;
 
     private enum RenderMode {
@@ -146,9 +147,15 @@ public class SphericalTomography3DViewer extends BorderPane {
                 () -> {
                     renderer.loadTextures();
                     shadersSupported = glImageView.areShadersSupported();
-                    // If shaders not supported, fall back to shells renderer
+                    // If shaders not supported, fall back to shells renderer and hide the selector
                     if (!shadersSupported) {
-                        Platform.runLater(() -> renderModeCombo.setValue(RenderMode.SHELLS));
+                        Platform.runLater(() -> {
+                            renderModeCombo.setValue(RenderMode.SHELLS);
+                            renderModeLabel.setVisible(false);
+                            renderModeLabel.setManaged(false);
+                            renderModeCombo.setVisible(false);
+                            renderModeCombo.setManaged(false);
+                        });
                     }
                 },
                 view -> {
@@ -362,7 +369,7 @@ public class SphericalTomography3DViewer extends BorderPane {
     }
 
     private VBox createControlPanel() {
-        var renderModeLabel = new Label(I18N.string(JSolEx.class, "spherical-tomography", "render.mode"));
+        renderModeLabel = new Label(I18N.string(JSolEx.class, "spherical-tomography", "render.mode"));
         renderModeCombo = new ComboBox<>();
         renderModeCombo.getItems().addAll(RenderMode.values());
         renderModeCombo.setValue(RenderMode.VOLUME);

@@ -246,20 +246,101 @@ public class OpenGLImageView extends ImageView {
 
     private boolean checkShaderSupport() {
         try {
-            // Try to create and compile a simple shader
+            // Test vertex shader
             int vertexShader = GL20.glCreateShader(GL20.GL_VERTEX_SHADER);
             if (vertexShader == 0) {
+                LOGGER.debug("Failed to create vertex shader");
                 return false;
             }
 
-            String testVertexSource = "#version 150 core\nin vec2 pos;\nvoid main() { gl_Position = vec4(pos, 0.0, 1.0); }";
+            String testVertexSource = "#version 150 core\nin vec2 pos;\nout vec2 vTexCoord;\nvoid main() { gl_Position = vec4(pos, 0.0, 1.0); vTexCoord = pos; }";
             GL20.glShaderSource(vertexShader, testVertexSource);
             GL20.glCompileShader(vertexShader);
 
-            int status = GL20.glGetShaderi(vertexShader, GL20.GL_COMPILE_STATUS);
-            GL20.glDeleteShader(vertexShader);
+            int vertexStatus = GL20.glGetShaderi(vertexShader, GL20.GL_COMPILE_STATUS);
+            if (vertexStatus == 0) {
+                LOGGER.debug("Vertex shader compilation failed: {}", GL20.glGetShaderInfoLog(vertexShader));
+                GL20.glDeleteShader(vertexShader);
+                return false;
+            }
 
-            return status != 0;
+            // Test fragment shader with sampler3D (critical for volume rendering)
+            int fragmentShader = GL20.glCreateShader(GL20.GL_FRAGMENT_SHADER);
+            if (fragmentShader == 0) {
+                LOGGER.debug("Failed to create fragment shader");
+                GL20.glDeleteShader(vertexShader);
+                return false;
+            }
+
+            String testFragmentSource = """
+                #version 150 core
+                in vec2 vTexCoord;
+                out vec4 fragColor;
+                uniform sampler3D volumeTexture;
+                void main() {
+                    vec3 texCoord = vec3(vTexCoord, 0.5);
+                    float value = texture(volumeTexture, texCoord).r;
+                    fragColor = vec4(value, value, value, 1.0);
+                }
+                """;
+            GL20.glShaderSource(fragmentShader, testFragmentSource);
+            GL20.glCompileShader(fragmentShader);
+
+            int fragmentStatus = GL20.glGetShaderi(fragmentShader, GL20.GL_COMPILE_STATUS);
+            if (fragmentStatus == 0) {
+                LOGGER.debug("Fragment shader with sampler3D compilation failed: {}", GL20.glGetShaderInfoLog(fragmentShader));
+                GL20.glDeleteShader(vertexShader);
+                GL20.glDeleteShader(fragmentShader);
+                return false;
+            }
+
+            // Test linking the program
+            int program = GL20.glCreateProgram();
+            if (program == 0) {
+                LOGGER.debug("Failed to create shader program");
+                GL20.glDeleteShader(vertexShader);
+                GL20.glDeleteShader(fragmentShader);
+                return false;
+            }
+
+            GL20.glAttachShader(program, vertexShader);
+            GL20.glAttachShader(program, fragmentShader);
+            GL20.glLinkProgram(program);
+
+            int linkStatus = GL20.glGetProgrami(program, GL20.GL_LINK_STATUS);
+            if (linkStatus == 0) {
+                LOGGER.debug("Shader program linking failed: {}", GL20.glGetProgramInfoLog(program));
+            }
+
+            // Cleanup
+            GL20.glDetachShader(program, vertexShader);
+            GL20.glDetachShader(program, fragmentShader);
+            GL20.glDeleteShader(vertexShader);
+            GL20.glDeleteShader(fragmentShader);
+            GL20.glDeleteProgram(program);
+
+            if (linkStatus == 0) {
+                return false;
+            }
+
+            // Test 3D texture support
+            int texture3D = GL11.glGenTextures();
+            if (texture3D == 0) {
+                LOGGER.debug("Failed to create 3D texture");
+                return false;
+            }
+
+            GL11.glBindTexture(GL30.GL_TEXTURE_3D, texture3D);
+            int error = GL11.glGetError();
+            GL11.glDeleteTextures(texture3D);
+
+            if (error != GL11.GL_NO_ERROR) {
+                LOGGER.debug("3D texture binding failed with error: {}", error);
+                return false;
+            }
+
+            LOGGER.debug("Shader support check passed: vertex, fragment with sampler3D, and 3D textures supported");
+            return true;
         } catch (Exception e) {
             LOGGER.debug("Shader support check failed", e);
             return false;
