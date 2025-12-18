@@ -1,6 +1,7 @@
 # Welcome to JSol'Ex {{version}}!
 
-- [What's New in Version 4.4.1](#whats-new-in-version-4-4-1) - Bug fixes, improvements
+- [What's New in Version 4.4.2](#whats-new-in-version-4-4-2) - Educational explanations
+- [Version 4.4.1](#whats-new-in-version-4-4-1) - Bug fixes, improvements
 - [Version 4.4.0](#whats-new-in-version-4-4-0) - 3D Spectral Profile viewer, Spherical Tomography volume renderer
 - [Version 4.3.1](#whats-new-in-version-4-3-1) - New stretching functions, experimental GPU acceleration
 - [Version 4.3.0](#whats-new-in-version-4-3-0) - Faster script execution, improved stacking and bug fixes
@@ -13,6 +14,10 @@
 - [Version 4.1.0](#whats-new-in-version-4-1-0) - User-defined presets, collage creation
 - [Version 4.0.1](#whats-new-in-version-4-0-1) - Language selection, bug fixes
 - [Version 4.0.0](#whats-new-in-version-4-0-0) - Enhanced UI, BASS2000 integration
+
+## What's New in Version 4.4.2
+
+- Added educational explanations for various features and concepts in the application. Access them via the "Help" icon which shows up on images or viewers
 
 ## What's New in Version 4.4.1
 

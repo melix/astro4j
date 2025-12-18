@@ -1,11 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.layout.BorderPane?>
-<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.StackPane?>
 <?import me.champeau.a4j.jsolex.app.jfx.ZoomableImageView?>
 <?import javafx.scene.layout.VBox?>
-<?import javafx.scene.control.TextArea?>
 <BorderPane xmlns:fx="http://javafx.com/fxml"
             style="-fx-padding: 5; "
             fx:controller="me.champeau.a4j.jsolex.app.jfx.ImageViewer">
@@ -13,9 +11,8 @@
         <VBox alignment="CENTER_LEFT" style="-fx-spacing:5; -fx-padding: 10;" fx:id="stretchingParams"/>
     </top>
     <center>
-        <ZoomableImageView fx:id="imageView"/>
+        <StackPane fx:id="imageContainer">
+            <ZoomableImageView fx:id="imageView"/>
+        </StackPane>
     </center>
-    <bottom>
-        <TextArea fx:id="descriptionArea" editable="false" wrapText="true" prefHeight="100"/>
-    </bottom>
 </BorderPane>

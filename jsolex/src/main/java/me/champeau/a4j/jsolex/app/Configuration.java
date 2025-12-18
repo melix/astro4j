@@ -19,6 +19,7 @@ import me.champeau.a4j.jsolex.processing.expr.repository.ScriptRepository;
 import me.champeau.a4j.jsolex.processing.util.AnimationFormat;
 import me.champeau.a4j.jsolex.processing.util.FitsUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
+import me.champeau.a4j.jsolex.processing.util.VersionUtil;
 import me.champeau.a4j.math.tuples.IntPair;
 
 import java.io.File;
@@ -57,6 +58,7 @@ public class Configuration {
     private static final String ANIMATION_FORMATS = "animation.formats";
     private static final String SCRIPT_REPOSITORIES = "script.repositories";
     private static final String GPU_ACCELERATION = "gpu.acceleration";
+    private static final String HELP_ANIMATION_SEEN_PREFIX = "help.animation.seen.";
 
     /**
      * The default SOLAP FTP server URL for submissions.
@@ -535,6 +537,29 @@ public class Configuration {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    /**
+     * Checks if the help animation has been seen for a specific viewer in the current version.
+     * @param viewerId the viewer identifier (e.g., "tomography", "singleimage")
+     * @return true if the animation has been seen for this viewer in this version
+     */
+    public boolean isHelpAnimationSeen(String viewerId) {
+        if (Boolean.getBoolean("jsolex.debug.animations")) {
+            return false;
+        }
+        var key = HELP_ANIMATION_SEEN_PREFIX + viewerId;
+        var seenVersion = prefs.get(key, "");
+        return seenVersion.equals(VersionUtil.getVersion());
+    }
+
+    /**
+     * Records that the help animation has been seen for a specific viewer.
+     * @param viewerId the viewer identifier (e.g., "tomography", "singleimage")
+     */
+    public void setHelpAnimationSeen(String viewerId) {
+        var key = HELP_ANIMATION_SEEN_PREFIX + viewerId;
+        prefs.put(key, VersionUtil.getVersion());
     }
 
     /** Directory kind enumeration for different file types. */

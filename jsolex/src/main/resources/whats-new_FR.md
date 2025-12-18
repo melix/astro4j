@@ -1,5 +1,6 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+- [Version 4.4.2](#nouveautes-de-la-version-4-4-2) - Explications à caractère éducatif
 - [Version 4.4.1](#nouveautes-de-la-version-4-4-1) - Corrections de bugs et améliorations
 - [Version 4.4.0](#nouveautes-de-la-version-4-4-0) - Visualiseur de profil spectral 3D, rendu volumétrique pour la tomographie
 - [Version 4.3.1](#nouveautes-de-la-version-4-3-1) - Nouvelles fonctions d'étirement, accélération GPU expérimentale
@@ -13,6 +14,10 @@
 - [Version 4.1.0](#nouveautes-de-la-version-4-1-0) - Préréglages utilisateur, création de collages
 - [Version 4.0.1](#nouveautes-de-la-version-4-0-1) - Sélection de langue, corrections
 - [Version 4.0.0](#nouveautes-de-la-version-4-0-0) - Interface améliorée, intégration BASS2000
+
+## Nouveautés de la version 4.4.2
+
+- Ajout d'explications à caractère éducatif pour diverses fonctionnalités et concepts de l'application. Accédez-y via l'icône "Aide" qui apparaît sur les images ou les visionneuses
 
 ## Nouveautés de la version 4.4.1
 

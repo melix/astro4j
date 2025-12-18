@@ -37,8 +37,9 @@ import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.Slider;
-import javafx.scene.control.TextArea;
 import javafx.scene.control.Tooltip;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.StackPane;
 import javafx.scene.image.Image;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -119,12 +120,11 @@ public class ImageViewer implements WithRootNode {
     private ZoomableImageView imageView;
 
     @FXML
-    private TextArea descriptionArea;
+    private StackPane imageContainer;
 
     private CheckBox correctAngleP;
     private Button saveButton;
     private String title;
-    private String description;
     private Runnable onDisplayUpdate;
     private Consumer<ImageWrapper> onStretchedImageUpdate;
     private int rotation;
@@ -197,17 +197,27 @@ public class ImageViewer implements WithRootNode {
         this.processParams = params;
         this.kind = kind;
         this.title = title;
-        this.description = description;
         this.siblings = siblings;
         if (kind == GeneratedImageKind.IMAGE_MATH || kind == GeneratedImageKind.COLLAGE) {
             this.stretchingMode = StretchingMode.NO_STRETCH;
         }
-        this.descriptionArea.textProperty().addListener((obs, old, newValue) -> {
-            var textElement = this.descriptionArea.lookup(".text");
-            if (textElement != null) {
-                Platform.runLater(() -> this.descriptionArea.setPrefHeight(textElement.getLayoutBounds().getHeight()));
-            }
-        });
+        if (description != null && !description.isBlank()) {
+            var helpOverlay = new ImageHelpOverlay(title, description, kind);
+            Platform.runLater(() -> {
+                // Allow BorderPane to shrink with SplitPane
+                if (root instanceof BorderPane bp) {
+                    bp.setMinSize(0, 0);
+                }
+                imageContainer.setMinSize(0, 0);
+                imageView.setMinSize(0, 0);
+                // Make entire overlay mouse-transparent, then re-enable just for button
+                helpOverlay.setMouseTransparent(true);
+                imageContainer.getChildren().add(helpOverlay);
+                // Add button separately with mouse events enabled
+                var button = helpOverlay.createStandaloneButton();
+                imageContainer.getChildren().add(button);
+            });
+        }
         if (image != null) {
             var wrapped = FileBackedImage.wrap(image);
             this.image = wrapped;
@@ -679,13 +689,6 @@ public class ImageViewer implements WithRootNode {
                 imageView.resetZoom();
             }
             saveButton.setDisable(false);
-            if (description != null) {
-                descriptionArea.setVisible(true);
-                descriptionArea.setText(description);
-            } else {
-                descriptionArea.setVisible(false);
-                descriptionArea.setPrefHeight(0);
-            }
             maybeRunOnUpdate();
         } finally {
             displayLock.unlock();
