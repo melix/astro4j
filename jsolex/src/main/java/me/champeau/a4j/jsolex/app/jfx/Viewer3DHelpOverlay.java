@@ -75,6 +75,14 @@ public class Viewer3DHelpOverlay extends AbstractHelpOverlay {
     }
 
     @Override
+    public void dispose() {
+        super.dispose();
+        if (diagramAnimation != null) {
+            diagramAnimation.stop();
+        }
+    }
+
+    @Override
     protected void onPopupShown() {
         startDiagramAnimation();
     }

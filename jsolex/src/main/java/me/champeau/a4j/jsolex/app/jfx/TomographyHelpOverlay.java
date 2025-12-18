@@ -15,12 +15,9 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
-import javafx.animation.FadeTransition;
 import javafx.animation.Interpolator;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
-import javafx.animation.PauseTransition;
-import javafx.animation.SequentialTransition;
 import javafx.animation.Timeline;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -62,7 +59,6 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
 
     private static final double DIAGRAM_WIDTH = 580;
     private static final double DIAGRAM_HEIGHT = 380;
-    private static final Duration FADE_DURATION = Duration.seconds(0.5);
     private static final Duration DISPLAY_DURATION = Duration.seconds(8);
 
     private static final String I18N_BUNDLE = "spherical-tomography";
@@ -85,11 +81,22 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
             Color.rgb(255, 100, 60)    // 1.5 Å - innermost (red - closest to photosphere)
     };
 
-    private DiagramController popupDiagramController;
-    private DiagramController maximizedController;
+    private HelpAnimationController popupDiagramController;
+    private HelpAnimationController maximizedController;
 
     public TomographyHelpOverlay() {
         super(VIEWER_ID);
+    }
+
+    @Override
+    public void dispose() {
+        super.dispose();
+        if (popupDiagramController != null) {
+            popupDiagramController.stop();
+        }
+        if (maximizedController != null) {
+            maximizedController.stop();
+        }
     }
 
     @Override
@@ -103,165 +110,6 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
     protected void onPopupHidden() {
         if (popupDiagramController != null) {
             popupDiagramController.stop();
-        }
-    }
-
-    private static class DiagramController {
-        private SequentialTransition diagramAnimation;
-        private final List<Timeline> phaseAnimations;
-        private final List<Runnable> phaseResetters;
-        private final List<Pane> phases;
-        private final HBox phaseIndicators;
-        private int currentPhase = 0;
-
-        DiagramController(SequentialTransition diagramAnimation, List<Timeline> phaseAnimations,
-                          List<Runnable> phaseResetters, List<Pane> phases, HBox phaseIndicators) {
-            this.diagramAnimation = diagramAnimation;
-            this.phaseAnimations = phaseAnimations;
-            this.phaseResetters = phaseResetters;
-            this.phases = phases;
-            this.phaseIndicators = phaseIndicators;
-        }
-
-        void start() {
-            currentPhase = 0;
-
-            // Stop any running animations first
-            if (diagramAnimation != null) {
-                diagramAnimation.stop();
-            }
-            phaseAnimations.forEach(Timeline::stop);
-
-            // Reset all phases visibility
-            if (phases != null) {
-                for (var i = 0; i < phases.size(); i++) {
-                    phases.get(i).setOpacity(i == 0 ? 1.0 : 0.0);
-                }
-            }
-
-            // Reset indicators
-            if (phaseIndicators != null) {
-                for (var i = 0; i < phaseIndicators.getChildren().size(); i++) {
-                    var dot = (Circle) phaseIndicators.getChildren().get(i);
-                    dot.setFill(i == 0 ? Color.WHITE : Color.gray(0.4));
-                }
-            }
-
-            // Reset and start first phase animation
-            if (!phaseResetters.isEmpty()) {
-                phaseResetters.getFirst().run();
-            }
-            if (!phaseAnimations.isEmpty()) {
-                phaseAnimations.getFirst().playFromStart();
-            }
-
-            // Start the main animation
-            if (diagramAnimation != null) {
-                diagramAnimation.playFromStart();
-            }
-        }
-
-        void stop() {
-            if (diagramAnimation != null) {
-                diagramAnimation.stop();
-            }
-            phaseAnimations.forEach(Timeline::stop);
-        }
-
-        void switchToPhase(int targetPhase) {
-            if (targetPhase == currentPhase) {
-                return;
-            }
-
-            // Stop current animations
-            if (diagramAnimation != null) {
-                diagramAnimation.stop();
-            }
-            phaseAnimations.forEach(Timeline::stop);
-
-            // Reset target phase elements BEFORE showing the phase
-            phaseResetters.get(targetPhase).run();
-
-            // Hide current phase, show target phase
-            phases.get(currentPhase).setOpacity(0.0);
-            phases.get(targetPhase).setOpacity(1.0);
-
-            // Update indicators
-            for (var j = 0; j < 4; j++) {
-                var dot = (Circle) phaseIndicators.getChildren().get(j);
-                dot.setFill(j == targetPhase ? Color.WHITE : Color.gray(0.4));
-            }
-
-            // Update current phase
-            currentPhase = targetPhase;
-
-            // Play the target phase's animation
-            phaseAnimations.get(targetPhase).playFromStart();
-
-            // Restart the main animation from the target phase
-            restartAnimationFromPhase(targetPhase);
-        }
-
-        private void restartAnimationFromPhase(int startPhase) {
-            diagramAnimation.stop();
-
-            var newAnimation = new SequentialTransition();
-
-            for (var i = 0; i < 4; i++) {
-                var phaseIdx = (startPhase + i) % 4;
-                var nextPhase = (phaseIdx + 1) % 4;
-
-                // Pause on current phase
-                var pause = new PauseTransition(DISPLAY_DURATION);
-
-                // Fade out current
-                var fadeOut = new FadeTransition(FADE_DURATION, phases.get(phaseIdx));
-                fadeOut.setFromValue(1.0);
-                fadeOut.setToValue(0.0);
-
-                // Reset next phase elements BEFORE fade in starts
-                fadeOut.setOnFinished(e -> phaseResetters.get(nextPhase).run());
-
-                // Fade in next
-                var fadeIn = new FadeTransition(FADE_DURATION, phases.get(nextPhase));
-                fadeIn.setFromValue(0.0);
-                fadeIn.setToValue(1.0);
-
-                // When fade completes, update indicators and start next phase animation
-                fadeIn.setOnFinished(e -> {
-                    currentPhase = nextPhase;
-                    for (var j = 0; j < 4; j++) {
-                        var dot = (Circle) phaseIndicators.getChildren().get(j);
-                        dot.setFill(j == nextPhase ? Color.WHITE : Color.gray(0.4));
-                    }
-                    phaseAnimations.get(nextPhase).playFromStart();
-                });
-
-                newAnimation.getChildren().addAll(pause, fadeOut, fadeIn);
-
-                // Add extra pause at end of cycle
-                if (phaseIdx == 3) {
-                    var endOfCyclePause = new PauseTransition(Duration.seconds(1));
-                    newAnimation.getChildren().add(endOfCyclePause);
-                }
-            }
-
-            // Don't use INDEFINITE - manually restart to ensure proper reset
-            newAnimation.setCycleCount(1);
-            newAnimation.setOnFinished(e -> {
-                currentPhase = 0;
-                for (var j = 0; j < 4; j++) {
-                    phases.get(j).setOpacity(j == 0 ? 1.0 : 0.0);
-                    var dot = (Circle) phaseIndicators.getChildren().get(j);
-                    dot.setFill(j == 0 ? Color.WHITE : Color.gray(0.4));
-                }
-                phaseResetters.getFirst().run();
-                phaseAnimations.getFirst().playFromStart();
-                newAnimation.playFromStart();
-            });
-
-            diagramAnimation = newAnimation;
-            diagramAnimation.play();
         }
     }
 
@@ -357,7 +205,7 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
         return wrapInOverlay(content);
     }
 
-    private record DiagramResult(Node diagram, DiagramController controller) {}
+    private record DiagramResult(Node diagram, HelpAnimationController controller) {}
 
     private DiagramResult createTomographyDiagramWithController() {
         var diagramPane = new StackPane();
@@ -405,13 +253,13 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
         var localPhaseIndicators = new HBox(8);
         localPhaseIndicators.setAlignment(Pos.CENTER);
 
-        // Create controller first (with null animation, will be set later)
-        var controller = new DiagramController(
-                null,
+        // Create controller
+        var controller = new HelpAnimationController(
                 localPhaseAnimations,
                 localPhaseResetters,
                 localPhases,
-                localPhaseIndicators
+                localPhaseIndicators,
+                DISPLAY_DURATION
         );
 
         // Now create the phase indicator dots with click handlers that use the controller
@@ -423,21 +271,20 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
             var phaseIndex = i;
             dot.setOnMouseClicked(e -> controller.switchToPhase(phaseIndex));
             dot.setOnMouseEntered(e -> {
-                if (phaseIndex != controller.currentPhase) {
+                if (phaseIndex != controller.getCurrentPhase()) {
                     dot.setFill(Color.gray(0.6));
                 }
             });
             dot.setOnMouseExited(e -> {
-                if (phaseIndex != controller.currentPhase) {
+                if (phaseIndex != controller.getCurrentPhase()) {
                     dot.setFill(Color.gray(0.4));
                 }
             });
             localPhaseIndicators.getChildren().add(dot);
         }
 
-        // Create the animation and set it on the controller
-        var localDiagramAnimation = createDiagramAnimation(controller);
-        controller.diagramAnimation = localDiagramAnimation;
+        // Create the animation
+        controller.createDiagramAnimation();
 
         var container = new VBox(8, diagramPane, localPhaseIndicators);
         container.setAlignment(Pos.CENTER);
@@ -445,9 +292,8 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
         return new DiagramResult(container, controller);
     }
 
-    private record PhaseResult(Pane pane, Timeline animation, Runnable resetElements) {}
 
-    private PhaseResult createPhase1Pane() {
+    private HelpAnimationController.PhaseResult createPhase1Pane() {
         // Height vs Wavelength diagram
         var pane = new Pane();
         pane.setPrefSize(DIAGRAM_WIDTH, DIAGRAM_HEIGHT);
@@ -568,36 +414,26 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
         var t = 0.5; // Initial delay before first element
 
         // Fade in Hα bar
-        for (var node : haElements) {
-            animation.getKeyFrames().add(new KeyFrame(Duration.seconds(t), new KeyValue(node.opacityProperty(), 0)));
-            animation.getKeyFrames().add(new KeyFrame(Duration.seconds(t + 0.5), new KeyValue(node.opacityProperty(), 1, Interpolator.EASE_OUT)));
-        }
+        HelpAnimationController.addFadeIn(animation, haElements, t, 0.5);
         t += 1.2;
 
-        // Fade in wings
-        for (var node : wingsElements) {
-            animation.getKeyFrames().add(new KeyFrame(Duration.seconds(t), new KeyValue(node.opacityProperty(), 0)));
-            animation.getKeyFrames().add(new KeyFrame(Duration.seconds(t + 0.5), new KeyValue(node.opacityProperty(), node == wingsLine ? 0.6 : 1, Interpolator.EASE_OUT)));
-        }
+        // Fade in wings (wingsLine has special opacity 0.6)
+        HelpAnimationController.addFadeIn(animation, wingsLabel, t, 0.5);
+        HelpAnimationController.addFadeIn(animation, wingsSubLabel, t, 0.5);
+        HelpAnimationController.addFadeInTo(animation, wingsLine, t, 0.5, 0.6);
         t += 1.2;
 
         // Fade in center
-        for (var node : centerElements) {
-            animation.getKeyFrames().add(new KeyFrame(Duration.seconds(t), new KeyValue(node.opacityProperty(), 0)));
-            animation.getKeyFrames().add(new KeyFrame(Duration.seconds(t + 0.5), new KeyValue(node.opacityProperty(), 1, Interpolator.EASE_OUT)));
-        }
+        HelpAnimationController.addFadeIn(animation, centerElements, t, 0.5);
         t += 1.2;
 
         // Fade in explanation
-        for (var node : explainElements) {
-            animation.getKeyFrames().add(new KeyFrame(Duration.seconds(t), new KeyValue(node.opacityProperty(), 0)));
-            animation.getKeyFrames().add(new KeyFrame(Duration.seconds(t + 0.5), new KeyValue(node.opacityProperty(), 1, Interpolator.EASE_OUT)));
-        }
+        HelpAnimationController.addFadeIn(animation, explainElements, t, 0.5);
 
-        return new PhaseResult(pane, animation, resetElements);
+        return new HelpAnimationController.PhaseResult(pane, animation, resetElements);
     }
 
-    private PhaseResult createPhase2Pane() {
+    private HelpAnimationController.PhaseResult createPhase2Pane() {
         // 5 images at different pixel shifts
         var pane = new Pane();
         pane.setPrefSize(DIAGRAM_WIDTH, DIAGRAM_HEIGHT);
@@ -696,33 +532,24 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
 
         // Create internal animation - images appear one by one
         var animation = new Timeline();
-        double t = 0;
+        double t = 0.3;
 
         for (var group : imageGroups) {
-            for (var node : group) {
-                animation.getKeyFrames().add(new KeyFrame(Duration.seconds(t), new KeyValue(node.opacityProperty(), 0)));
-                animation.getKeyFrames().add(new KeyFrame(Duration.seconds(t + 0.3), new KeyValue(node.opacityProperty(), 1, Interpolator.EASE_OUT)));
-            }
+            HelpAnimationController.addFadeIn(animation, group, t, 0.3);
             t += 0.4;
         }
 
         // Fade in arrow
-        for (var node : arrowElements) {
-            animation.getKeyFrames().add(new KeyFrame(Duration.seconds(t), new KeyValue(node.opacityProperty(), 0)));
-            animation.getKeyFrames().add(new KeyFrame(Duration.seconds(t + 0.3), new KeyValue(node.opacityProperty(), 1, Interpolator.EASE_OUT)));
-        }
+        HelpAnimationController.addFadeIn(animation, arrowElements, t, 0.3);
         t += 0.5;
 
         // Fade in explanation
-        for (var node : explainElements) {
-            animation.getKeyFrames().add(new KeyFrame(Duration.seconds(t), new KeyValue(node.opacityProperty(), 0)));
-            animation.getKeyFrames().add(new KeyFrame(Duration.seconds(t + 0.4), new KeyValue(node.opacityProperty(), 1, Interpolator.EASE_OUT)));
-        }
+        HelpAnimationController.addFadeIn(animation, explainElements, t, 0.4);
 
-        return new PhaseResult(pane, animation, resetElements);
+        return new HelpAnimationController.PhaseResult(pane, animation, resetElements);
     }
 
-    private PhaseResult createPhase3Pane() {
+    private HelpAnimationController.PhaseResult createPhase3Pane() {
         // Project each layer to sphere
         var pane = new Pane();
         pane.setPrefSize(DIAGRAM_WIDTH, DIAGRAM_HEIGHT);
@@ -830,33 +657,24 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
 
         // Create internal animation - layers appear from inner to outer
         var animation = new Timeline();
-        double t = 0;
+        double t = 0.3;
 
         for (var group : layerGroups) {
-            for (var node : group) {
-                animation.getKeyFrames().add(new KeyFrame(Duration.seconds(t), new KeyValue(node.opacityProperty(), 0)));
-                animation.getKeyFrames().add(new KeyFrame(Duration.seconds(t + 0.4), new KeyValue(node.opacityProperty(), 1, Interpolator.EASE_OUT)));
-            }
+            HelpAnimationController.addFadeIn(animation, group, t, 0.4);
             t += 0.5;
         }
 
         // Fade in arrow
-        for (var node : arrowElements) {
-            animation.getKeyFrames().add(new KeyFrame(Duration.seconds(t), new KeyValue(node.opacityProperty(), 0)));
-            animation.getKeyFrames().add(new KeyFrame(Duration.seconds(t + 0.3), new KeyValue(node.opacityProperty(), 1, Interpolator.EASE_OUT)));
-        }
+        HelpAnimationController.addFadeIn(animation, arrowElements, t, 0.3);
         t += 0.4;
 
         // Fade in explanation
-        for (var node : explainElements) {
-            animation.getKeyFrames().add(new KeyFrame(Duration.seconds(t), new KeyValue(node.opacityProperty(), 0)));
-            animation.getKeyFrames().add(new KeyFrame(Duration.seconds(t + 0.4), new KeyValue(node.opacityProperty(), 1, Interpolator.EASE_OUT)));
-        }
+        HelpAnimationController.addFadeIn(animation, explainElements, t, 0.4);
 
-        return new PhaseResult(pane, animation, resetElements);
+        return new HelpAnimationController.PhaseResult(pane, animation, resetElements);
     }
 
-    private PhaseResult createPhase4Pane() {
+    private HelpAnimationController.PhaseResult createPhase4Pane() {
         // Final result - layers merging into blended tomography
         var pane = new Pane();
         pane.setPrefSize(DIAGRAM_WIDTH, DIAGRAM_HEIGHT);
@@ -926,13 +744,14 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
 
         // Create animation: spheres appear, merge together, then blend into gradient disk
         var animation = new Timeline();
-        double t = 0;
+        double t = 0.3;
+
+        // Ensure elements that appear later are hidden from the start
+        HelpAnimationController.hideAtStart(animation, sunDisk);
 
         // Phase 1: Spheres fade in (staggered, outer to inner)
         for (var i = spheres.size() - 1; i >= 0; i--) {
-            var sphere = spheres.get(i);
-            animation.getKeyFrames().add(new KeyFrame(Duration.seconds(t), new KeyValue(sphere.opacityProperty(), 0)));
-            animation.getKeyFrames().add(new KeyFrame(Duration.seconds(t + 0.25), new KeyValue(sphere.opacityProperty(), 1, Interpolator.EASE_OUT)));
+            HelpAnimationController.addFadeIn(animation, spheres.get(i), t, 0.25);
             t += 0.15;
         }
         t += 0.3;
@@ -965,69 +784,9 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
         t = fadeStart + fadeDuration + 0.2;
 
         // Phase 4: Show explanation
-        animation.getKeyFrames().add(new KeyFrame(Duration.seconds(t), new KeyValue(explain.opacityProperty(), 0)));
-        animation.getKeyFrames().add(new KeyFrame(Duration.seconds(t + 0.4), new KeyValue(explain.opacityProperty(), 1, Interpolator.EASE_OUT)));
+        HelpAnimationController.addFadeIn(animation, explain, t, 0.4);
 
-        return new PhaseResult(pane, animation, resetElements);
-    }
-
-    private SequentialTransition createDiagramAnimation(DiagramController controller) {
-        var animation = new SequentialTransition();
-
-        for (var i = 0; i < 4; i++) {
-            var nextPhase = (i + 1) % 4;
-
-            // Pause on current phase
-            var pause = new PauseTransition(DISPLAY_DURATION);
-
-            // Fade out current
-            var fadeOut = new FadeTransition(FADE_DURATION, controller.phases.get(i));
-            fadeOut.setFromValue(1.0);
-            fadeOut.setToValue(0.0);
-
-            // Reset next phase elements BEFORE fade in starts
-            fadeOut.setOnFinished(e -> controller.phaseResetters.get(nextPhase).run());
-
-            // Fade in next
-            var fadeIn = new FadeTransition(FADE_DURATION, controller.phases.get(nextPhase));
-            fadeIn.setFromValue(0.0);
-            fadeIn.setToValue(1.0);
-
-            // When fade completes, update indicators and start next phase animation
-            fadeIn.setOnFinished(e -> {
-                controller.currentPhase = nextPhase;
-                for (var j = 0; j < 4; j++) {
-                    var dot = (Circle) controller.phaseIndicators.getChildren().get(j);
-                    dot.setFill(j == nextPhase ? Color.WHITE : Color.gray(0.4));
-                }
-                controller.phaseAnimations.get(nextPhase).playFromStart();
-            });
-
-            animation.getChildren().addAll(pause, fadeOut, fadeIn);
-
-            // Add extra pause at the end of each cycle
-            if (i == 3) {
-                var endOfCyclePause = new PauseTransition(Duration.seconds(2));
-                animation.getChildren().add(endOfCyclePause);
-            }
-        }
-
-        // Don't use INDEFINITE - manually restart to ensure proper reset of phase 0
-        animation.setCycleCount(1);
-        animation.setOnFinished(e -> {
-            // Reset phase 0 before restarting
-            controller.currentPhase = 0;
-            for (var j = 0; j < 4; j++) {
-                controller.phases.get(j).setOpacity(j == 0 ? 1.0 : 0.0);
-                var dot = (Circle) controller.phaseIndicators.getChildren().get(j);
-                dot.setFill(j == 0 ? Color.WHITE : Color.gray(0.4));
-            }
-            controller.phaseResetters.getFirst().run();
-            controller.phaseAnimations.getFirst().playFromStart();
-            animation.playFromStart();
-        });
-
-        return animation;
+        return new HelpAnimationController.PhaseResult(pane, animation, resetElements);
     }
 
     private void addSphereGridLines(List<Node> group, double centerX, double centerY, double radius, Color baseColor) {

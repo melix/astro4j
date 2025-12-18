@@ -34,6 +34,7 @@ import javafx.scene.control.Slider;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.Node;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.Cylinder;
@@ -92,6 +93,8 @@ public class SpectralEvolution4DViewer extends AbstractSpectral3DViewer {
     private int clickedFrameIndex = -1;
     private int clickedSlitIndex = -1;
     private boolean settingSliderProgrammatically = false;
+    private SpectralCube4DHelpOverlay helpOverlay;
+    private Node helpButton;
 
     /**
      * Creates a new 4D spectral evolution viewer.
@@ -122,8 +125,37 @@ public class SpectralEvolution4DViewer extends AbstractSpectral3DViewer {
         initClickMarker();
 
         initializeView();
+        addHelpOverlay();
         updateSliceOverlay();
         updateProfileOverlay();
+    }
+
+    private void addHelpOverlay() {
+        helpOverlay = new SpectralCube4DHelpOverlay();
+        helpOverlay.setMouseTransparent(true);
+        graphPane.getChildren().add(helpOverlay);
+        helpButton = helpOverlay.createStandaloneButton();
+        graphPane.getChildren().add(helpButton);
+    }
+
+    @Override
+    protected void beforeExport() {
+        if (helpOverlay != null) {
+            helpOverlay.setVisible(false);
+        }
+        if (helpButton != null) {
+            helpButton.setVisible(false);
+        }
+    }
+
+    @Override
+    protected void afterExport() {
+        if (helpOverlay != null) {
+            helpOverlay.setVisible(true);
+        }
+        if (helpButton != null) {
+            helpButton.setVisible(true);
+        }
     }
 
     private Label createSliceOverlayLabel() {

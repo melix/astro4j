@@ -51,6 +51,17 @@ public class ImageHelpOverlay extends AbstractHelpOverlay {
     }
 
     @Override
+    public void dispose() {
+        super.dispose();
+        if (contentProvider != null) {
+            contentProvider.onHidden();
+        }
+        if (maximizedProvider != null) {
+            maximizedProvider.onHidden();
+        }
+    }
+
+    @Override
     protected StackPane createHelpPopup() {
         contentProvider = kind != null
                 ? ImageHelpContentRegistry.getProvider(kind).orElse(null)

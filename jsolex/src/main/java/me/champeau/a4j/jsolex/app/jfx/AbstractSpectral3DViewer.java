@@ -1062,11 +1062,30 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
         stage.requestFocus();
         var file = fileChooser.showSaveDialog(stage);
         if (file != null) {
-            var nodeToSnapshot = exportGraphOnly ? graphPane : this;
-            var snapshot = nodeToSnapshot.snapshot(null, null);
-            saveImage(snapshot, file);
-            ExplorerSupport.openInExplorer(file.toPath());
+            beforeExport();
+            try {
+                var nodeToSnapshot = exportGraphOnly ? graphPane : this;
+                var snapshot = nodeToSnapshot.snapshot(null, null);
+                saveImage(snapshot, file);
+                ExplorerSupport.openInExplorer(file.toPath());
+            } finally {
+                afterExport();
+            }
         }
+    }
+
+    /**
+     * Called before taking a snapshot for export. Subclasses can override to hide overlays.
+     */
+    protected void beforeExport() {
+        // Default implementation does nothing
+    }
+
+    /**
+     * Called after taking a snapshot for export. Subclasses can override to restore overlays.
+     */
+    protected void afterExport() {
+        // Default implementation does nothing
     }
 
     /**
@@ -1130,6 +1149,7 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
         if (onDisableControls != null) {
             onDisableControls.run();
         }
+        beforeExport();
 
         var frameCount = getVideoFrameCount();
 
@@ -1195,6 +1215,7 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
                 var finalOutputFiles = outputFiles;
                 Platform.runLater(() -> {
                     progressStage.close();
+                    afterExport();
                     if (!cancelled.get() && finalOutputFiles != null && !finalOutputFiles.isEmpty()) {
                         ExplorerSupport.openInExplorer(finalOutputFiles.getFirst().toPath());
                     }

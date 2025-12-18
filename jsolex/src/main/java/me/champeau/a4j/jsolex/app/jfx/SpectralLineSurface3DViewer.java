@@ -20,6 +20,7 @@ import javafx.geometry.Orientation;
 import javafx.geometry.Point3D;
 import javafx.geometry.Pos;
 import javafx.scene.Group;
+import javafx.scene.Node;
 import javafx.scene.control.Separator;
 import javafx.scene.layout.HBox;
 import javafx.scene.paint.Color;
@@ -42,11 +43,42 @@ import static me.champeau.a4j.jsolex.app.JSolEx.newScene;
 public class SpectralLineSurface3DViewer extends AbstractSpectral3DViewer {
 
     private final SpectralLineSurfaceData data;
+    private SpectralProfile3DHelpOverlay helpOverlay;
+    private Node helpButton;
 
     public SpectralLineSurface3DViewer(SpectralLineSurfaceData data) {
         super();
         this.data = data;
         initializeView();
+        addHelpOverlay();
+    }
+
+    private void addHelpOverlay() {
+        helpOverlay = new SpectralProfile3DHelpOverlay();
+        helpOverlay.setMouseTransparent(true);
+        graphPane.getChildren().add(helpOverlay);
+        helpButton = helpOverlay.createStandaloneButton();
+        graphPane.getChildren().add(helpButton);
+    }
+
+    @Override
+    protected void beforeExport() {
+        if (helpOverlay != null) {
+            helpOverlay.setVisible(false);
+        }
+        if (helpButton != null) {
+            helpButton.setVisible(false);
+        }
+    }
+
+    @Override
+    protected void afterExport() {
+        if (helpOverlay != null) {
+            helpOverlay.setVisible(true);
+        }
+        if (helpButton != null) {
+            helpButton.setVisible(true);
+        }
     }
 
     @Override

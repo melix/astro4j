@@ -74,6 +74,26 @@ public abstract class AbstractHelpOverlay extends StackPane {
         setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
         // Don't capture mouse events on the transparent overlay itself
         setPickOnBounds(false);
+
+        // Stop animations when overlay is removed from scene
+        sceneProperty().addListener((obs, oldScene, newScene) -> {
+            if (newScene == null) {
+                dispose();
+            }
+        });
+    }
+
+    /**
+     * Stops all animations and releases resources.
+     * Called automatically when the overlay is removed from the scene.
+     * Subclasses should override this to stop their own animations.
+     */
+    public void dispose() {
+        if (attentionAnimation != null) {
+            attentionAnimation.stop();
+            attentionAnimation = null;
+        }
+        onPopupHidden();
     }
 
     /**
