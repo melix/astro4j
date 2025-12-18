@@ -125,7 +125,7 @@ public class SingleImage3DViewer extends BorderPane {
         overlay = new Viewer3DOverlay(cameraAnimator);
         graphPane.getChildren().add(overlay);
 
-        helpOverlay = new Viewer3DHelpOverlay(I18N_BUNDLE);
+        helpOverlay = new Viewer3DHelpOverlay(I18N_BUNDLE, true);
         graphPane.getChildren().add(helpOverlay);
     }
 

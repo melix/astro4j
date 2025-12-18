@@ -68,7 +68,7 @@ public class SphericalTomography3DViewer extends BorderPane {
 
     private Viewer3DExportHelper.CameraAnimator cameraAnimator;
     private Viewer3DOverlay overlay;
-    private Viewer3DHelpOverlay helpOverlay;
+    private TomographyHelpOverlay helpOverlay;
 
     private Label renderModeLabel;
     private ComboBox<RenderMode> renderModeCombo;
@@ -164,7 +164,7 @@ public class SphericalTomography3DViewer extends BorderPane {
         overlay = new Viewer3DOverlay(cameraAnimator);
         graphPane.getChildren().add(overlay);
 
-        helpOverlay = new Viewer3DHelpOverlay(I18N_BUNDLE);
+        helpOverlay = new TomographyHelpOverlay();
         graphPane.getChildren().add(helpOverlay);
     }
 
