@@ -134,14 +134,14 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
 
             // Reset all phases visibility
             if (phases != null) {
-                for (int i = 0; i < phases.size(); i++) {
+                for (var i = 0; i < phases.size(); i++) {
                     phases.get(i).setOpacity(i == 0 ? 1.0 : 0.0);
                 }
             }
 
             // Reset indicators
             if (phaseIndicators != null) {
-                for (int i = 0; i < phaseIndicators.getChildren().size(); i++) {
+                for (var i = 0; i < phaseIndicators.getChildren().size(); i++) {
                     var dot = (Circle) phaseIndicators.getChildren().get(i);
                     dot.setFill(i == 0 ? Color.WHITE : Color.gray(0.4));
                 }
@@ -187,7 +187,7 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
             phases.get(targetPhase).setOpacity(1.0);
 
             // Update indicators
-            for (int j = 0; j < 4; j++) {
+            for (var j = 0; j < 4; j++) {
                 var dot = (Circle) phaseIndicators.getChildren().get(j);
                 dot.setFill(j == targetPhase ? Color.WHITE : Color.gray(0.4));
             }
@@ -207,9 +207,9 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
 
             var newAnimation = new SequentialTransition();
 
-            for (int i = 0; i < 4; i++) {
-                int phaseIdx = (startPhase + i) % 4;
-                int nextPhase = (phaseIdx + 1) % 4;
+            for (var i = 0; i < 4; i++) {
+                var phaseIdx = (startPhase + i) % 4;
+                var nextPhase = (phaseIdx + 1) % 4;
 
                 // Pause on current phase
                 var pause = new PauseTransition(DISPLAY_DURATION);
@@ -230,7 +230,7 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
                 // When fade completes, update indicators and start next phase animation
                 fadeIn.setOnFinished(e -> {
                     currentPhase = nextPhase;
-                    for (int j = 0; j < 4; j++) {
+                    for (var j = 0; j < 4; j++) {
                         var dot = (Circle) phaseIndicators.getChildren().get(j);
                         dot.setFill(j == nextPhase ? Color.WHITE : Color.gray(0.4));
                     }
@@ -250,7 +250,7 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
             newAnimation.setCycleCount(1);
             newAnimation.setOnFinished(e -> {
                 currentPhase = 0;
-                for (int j = 0; j < 4; j++) {
+                for (var j = 0; j < 4; j++) {
                     phases.get(j).setOpacity(j == 0 ? 1.0 : 0.0);
                     var dot = (Circle) phaseIndicators.getChildren().get(j);
                     dot.setFill(j == 0 ? Color.WHITE : Color.gray(0.4));
@@ -415,12 +415,12 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
         );
 
         // Now create the phase indicator dots with click handlers that use the controller
-        for (int i = 0; i < 4; i++) {
+        for (var i = 0; i < 4; i++) {
             var dot = new Circle(6);
             dot.setFill(i == 0 ? Color.WHITE : Color.gray(0.4));
             dot.setId("phase-indicator-" + i);
             dot.setCursor(javafx.scene.Cursor.HAND);
-            int phaseIndex = i;
+            var phaseIndex = i;
             dot.setOnMouseClicked(e -> controller.switchToPhase(phaseIndex));
             dot.setOnMouseEntered(e -> {
                 if (phaseIndex != controller.currentPhase) {
@@ -452,7 +452,7 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
         var pane = new Pane();
         pane.setPrefSize(DIAGRAM_WIDTH, DIAGRAM_HEIGHT);
 
-        double centerX = DIAGRAM_WIDTH / 2;
+        var centerX = DIAGRAM_WIDTH / 2;
 
         // Title
         var title = createDiagramText(I18N.string(JSolEx.class, I18N_BUNDLE, "help.diagram.phase1.title"), centerX, 25, 13, false, Color.gray(0.75));
@@ -478,23 +478,20 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
         pane.getChildren().addAll(photosphereArc, photosphereLabel, scaleLine, title);
 
         // Height markers
-        List<Node> scaleElements = new ArrayList<>();
-        int[] heights = {0, 500, 1000, 1500, 2000};
-        for (int i = 0; i < heights.length; i++) {
-            double x = scaleStartX + (i / (double) (heights.length - 1)) * (scaleEndX - scaleStartX);
+        var heights = new int[]{0, 500, 1000, 1500, 2000};
+        for (var i = 0; i < heights.length; i++) {
+            var x = scaleStartX + (i / (double) (heights.length - 1)) * (scaleEndX - scaleStartX);
             var tick = new Line(x, scaleY - 8, x, scaleY + 8);
             tick.setStroke(COLOR_TEXT);
             tick.setStrokeWidth(2);
             var label = createDiagramText(heights[i] + " km", x, scaleY - 15, 10, false, COLOR_TEXT_DIM);
-            scaleElements.add(tick);
-            scaleElements.add(label);
             pane.getChildren().addAll(tick, label);
         }
 
         // Hα full range bar
-        double haStart = scaleStartX + 30;
-        double haEnd = scaleEndX - 30;
-        double haY = scaleY + 60;
+        var haStart = scaleStartX + 30;
+        var haEnd = scaleEndX - 30;
+        var haY = scaleY + 60;
 
         var haLine = new Line(haStart, haY, haEnd, haY);
         haLine.setStroke(COLOR_H_ALPHA);
@@ -514,8 +511,8 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
         pane.getChildren().addAll(haElements);
 
         // Hα wings (left side, lower)
-        double wingsEnd = haStart + 120;
-        double wingsY = haY + 45;
+        var wingsEnd = haStart + 120;
+        var wingsY = haY + 45;
 
         var wingsLine = new Line(haStart, wingsY, wingsEnd, wingsY);
         wingsLine.setStroke(COLOR_H_ALPHA);
@@ -529,8 +526,8 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
         pane.getChildren().addAll(wingsElements);
 
         // Hα center (right side, higher)
-        double centerStart = haEnd - 180;
-        double centerLineY = haY + 45;
+        var centerStart = haEnd - 180;
+        var centerLineY = haY + 45;
 
         var centerLine = new Line(centerStart, centerLineY, haEnd, centerLineY);
         centerLine.setStroke(COLOR_H_ALPHA);
@@ -568,7 +565,7 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
 
         // Create internal animation - phase 1 has longer delays for initial viewing
         var animation = new Timeline();
-        double t = 0.5; // Initial delay before first element
+        var t = 0.5; // Initial delay before first element
 
         // Fade in Hα bar
         for (var node : haElements) {
@@ -605,7 +602,7 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
         var pane = new Pane();
         pane.setPrefSize(DIAGRAM_WIDTH, DIAGRAM_HEIGHT);
 
-        double centerX = DIAGRAM_WIDTH / 2;
+        var centerX = DIAGRAM_WIDTH / 2;
 
         var title = createDiagramText(I18N.string(JSolEx.class, I18N_BUNDLE, "help.diagram.phase2.title"), centerX, 25, 13, false, Color.gray(0.75));
         pane.getChildren().add(title);
@@ -620,8 +617,8 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
 
         List<List<Node>> imageGroups = new ArrayList<>();
 
-        for (int i = 0; i < shifts.length; i++) {
-            double x = startX + i * spacing;
+        for (var i = 0; i < shifts.length; i++) {
+            var x = startX + i * spacing;
             List<Node> group = new ArrayList<>();
 
             // Image rectangle
@@ -637,7 +634,7 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
             group.add(sun);
 
             // Wavelength label
-            String shiftText = shifts[i] == 0 ? "0 Å" : String.format("+%.1f Å", shifts[i]);
+            var shiftText = shifts[i] == 0 ? "0 Å" : String.format("+%.1f Å", shifts[i]);
             var shiftLabel = createDiagramText(shiftText, x + imgWidth / 2, y + imgHeight + 20, 11, false, COLOR_TEXT);
             group.add(shiftLabel);
 
@@ -655,7 +652,7 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
         }
 
         // Arrow showing direction
-        double arrowY = y + imgHeight + 55;
+        var arrowY = y + imgHeight + 55;
         var arrowLine = new Line(startX + imgWidth / 2, arrowY, startX + 4 * spacing + imgWidth / 2, arrowY);
         arrowLine.setStroke(COLOR_TEXT_DIM);
         arrowLine.setStrokeWidth(2);
@@ -730,7 +727,7 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
         var pane = new Pane();
         pane.setPrefSize(DIAGRAM_WIDTH, DIAGRAM_HEIGHT);
 
-        double centerX = DIAGRAM_WIDTH / 2;
+        var centerX = DIAGRAM_WIDTH / 2;
 
         var title = createDiagramText(I18N.string(JSolEx.class, I18N_BUNDLE, "help.diagram.phase3.title"), centerX, 25, 13, false, Color.gray(0.75));
         pane.getChildren().add(title);
@@ -744,7 +741,7 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
         double imgSpacing = 55;
 
         // Animation order: inner to outer (1.5 Å first, 0 Å last)
-        int[] animOrder = {4, 3, 2, 1, 0};
+        var animOrder = new int[]{4, 3, 2, 1, 0};
 
         List<List<Node>> layerGroups = new ArrayList<>();
 
@@ -754,12 +751,12 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
         double baseRadius = 50;
         double radiusStep = 16;
 
-        for (int step = 0; step < animOrder.length; step++) {
-            int i = animOrder[step];
+        for (var step = 0; step < animOrder.length; step++) {
+            var i = animOrder[step];
             List<Node> group = new ArrayList<>();
 
             // 2D image on left
-            double imgY = imgStartY + step * imgSpacing;
+            var imgY = imgStartY + step * imgSpacing;
 
             var rect = new Rectangle(imgStartX, imgY, imgSize, imgSize);
             rect.setFill(LAYER_COLORS[i].deriveColor(0, 1, 1, 0.25));
@@ -771,13 +768,13 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
             miniSun.setFill(LAYER_COLORS[i].deriveColor(0, 1, 1, 0.6));
             group.add(miniSun);
 
-            String shiftLabel = shifts[i] == 0 ? "0 Å" : String.format("+%.1f Å", shifts[i]);
+            var shiftLabel = shifts[i] == 0 ? "0 Å" : String.format("+%.1f Å", shifts[i]);
             var label = createDiagramText(shiftLabel, imgStartX + imgSize + 35, imgY + imgSize / 2 + 4, 9, false, COLOR_TEXT);
             label.setTextAlignment(javafx.scene.text.TextAlignment.LEFT);
             group.add(label);
 
             // Sphere on right
-            double sphereRadius = baseRadius + (4 - i) * radiusStep;
+            var sphereRadius = baseRadius + (4 - i) * radiusStep;
 
             var sphere = new Circle(sphereX, sphereY, sphereRadius);
             sphere.setFill(LAYER_COLORS[i].deriveColor(0, 1, 1, 0.2));
@@ -793,7 +790,7 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
         }
 
         // Height arrow
-        double arrowX = sphereX + baseRadius + 4 * radiusStep + 25;
+        var arrowX = sphereX + baseRadius + 4 * radiusStep + 25;
         var heightLine = new Line(arrowX, sphereY + baseRadius, arrowX, sphereY - baseRadius - 4 * radiusStep);
         heightLine.setStroke(COLOR_HIGHLIGHT);
         heightLine.setStrokeWidth(2);
@@ -867,19 +864,19 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
         var title = createDiagramText(I18N.string(JSolEx.class, I18N_BUNDLE, "help.diagram.phase4.title"), DIAGRAM_WIDTH / 2, 25, 13, false, Color.gray(0.75));
         pane.getChildren().add(title);
 
-        double centerX = DIAGRAM_WIDTH / 2;
+        var centerX = DIAGRAM_WIDTH / 2;
         double centerY = 175;
         double baseRadius = 50;
         double radiusStep = 16;
-        double finalRadius = baseRadius; // Inner sphere radius - outer spheres collapse to this
+        var finalRadius = baseRadius; // Inner sphere radius - outer spheres collapse to this
 
         // Create 5 concentric spheres (will animate to merge)
         List<Circle> spheres = new ArrayList<>();
-        double[] initialRadii = new double[5];
+        var initialRadii = new double[5];
 
         // Create spheres from inner to outer (index 4 = innermost/red, index 0 = outermost/blue)
-        for (int i = 4; i >= 0; i--) {
-            double radius = baseRadius + (4 - i) * radiusStep;
+        for (var i = 4; i >= 0; i--) {
+            var radius = baseRadius + (4 - i) * radiusStep;
             initialRadii[4 - i] = radius;
 
             var sphere = new Circle(centerX, centerY, radius);
@@ -890,7 +887,7 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
         }
 
         // Add spheres in reverse order so outer ones are behind inner ones
-        for (int i = spheres.size() - 1; i >= 0; i--) {
+        for (var i = spheres.size() - 1; i >= 0; i--) {
             pane.getChildren().add(spheres.get(i));
         }
 
@@ -916,7 +913,7 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
 
         // Reset function
         Runnable resetElements = () -> {
-            for (int i = 0; i < spheres.size(); i++) {
+            for (var i = 0; i < spheres.size(); i++) {
                 var sphere = spheres.get(i);
                 sphere.setRadius(initialRadii[i]);
                 sphere.setOpacity(0);
@@ -932,7 +929,7 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
         double t = 0;
 
         // Phase 1: Spheres fade in (staggered, outer to inner)
-        for (int i = spheres.size() - 1; i >= 0; i--) {
+        for (var i = spheres.size() - 1; i >= 0; i--) {
             var sphere = spheres.get(i);
             animation.getKeyFrames().add(new KeyFrame(Duration.seconds(t), new KeyValue(sphere.opacityProperty(), 0)));
             animation.getKeyFrames().add(new KeyFrame(Duration.seconds(t + 0.25), new KeyValue(sphere.opacityProperty(), 1, Interpolator.EASE_OUT)));
@@ -941,9 +938,9 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
         t += 0.3;
 
         // Phase 2: Spheres merge (all radii animate to finalRadius)
-        double mergeStart = t;
-        double mergeDuration = 1.2;
-        for (int i = 0; i < spheres.size(); i++) {
+        var mergeStart = t;
+        var mergeDuration = 1.2;
+        for (var i = 0; i < spheres.size(); i++) {
             var sphere = spheres.get(i);
             animation.getKeyFrames().add(new KeyFrame(Duration.seconds(mergeStart),
                     new KeyValue(sphere.radiusProperty(), initialRadii[i])));
@@ -953,8 +950,8 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
         t = mergeStart + mergeDuration;
 
         // Phase 3: Cross-fade from spheres to gradient disk
-        double fadeStart = t;
-        double fadeDuration = 0.6;
+        var fadeStart = t;
+        var fadeDuration = 0.6;
         for (var sphere : spheres) {
             animation.getKeyFrames().add(new KeyFrame(Duration.seconds(fadeStart),
                     new KeyValue(sphere.opacityProperty(), 1)));
@@ -977,8 +974,8 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
     private SequentialTransition createDiagramAnimation(DiagramController controller) {
         var animation = new SequentialTransition();
 
-        for (int i = 0; i < 4; i++) {
-            int nextPhase = (i + 1) % 4;
+        for (var i = 0; i < 4; i++) {
+            var nextPhase = (i + 1) % 4;
 
             // Pause on current phase
             var pause = new PauseTransition(DISPLAY_DURATION);
@@ -999,7 +996,7 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
             // When fade completes, update indicators and start next phase animation
             fadeIn.setOnFinished(e -> {
                 controller.currentPhase = nextPhase;
-                for (int j = 0; j < 4; j++) {
+                for (var j = 0; j < 4; j++) {
                     var dot = (Circle) controller.phaseIndicators.getChildren().get(j);
                     dot.setFill(j == nextPhase ? Color.WHITE : Color.gray(0.4));
                 }
@@ -1020,7 +1017,7 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
         animation.setOnFinished(e -> {
             // Reset phase 0 before restarting
             controller.currentPhase = 0;
-            for (int j = 0; j < 4; j++) {
+            for (var j = 0; j < 4; j++) {
                 controller.phases.get(j).setOpacity(j == 0 ? 1.0 : 0.0);
                 var dot = (Circle) controller.phaseIndicators.getChildren().get(j);
                 dot.setFill(j == 0 ? Color.WHITE : Color.gray(0.4));
@@ -1034,11 +1031,11 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
     }
 
     private void addSphereGridLines(List<Node> group, double centerX, double centerY, double radius, Color baseColor) {
-        Color gridColor = baseColor.deriveColor(0, 1, 1, 0.4);
+        var gridColor = baseColor.deriveColor(0, 1, 1, 0.4);
 
         // Longitude lines (vertical ellipses at different "rotations")
-        double[] longitudeWidths = {0.0, 0.35, 0.65, 0.85};
-        for (double widthFactor : longitudeWidths) {
+        var longitudeWidths = new double[]{0.0, 0.35, 0.65, 0.85};
+        for (var widthFactor : longitudeWidths) {
             var longitude = new Ellipse(centerX, centerY, radius * widthFactor, radius);
             longitude.setFill(Color.TRANSPARENT);
             longitude.setStroke(gridColor);
@@ -1047,11 +1044,11 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
         }
 
         // Latitude lines (horizontal ellipses at different heights)
-        double[] latitudePositions = {-0.6, -0.3, 0.0, 0.3, 0.6};
-        for (double yFactor : latitudePositions) {
-            double latY = centerY + radius * yFactor;
-            double latRadiusX = radius * Math.sqrt(1 - yFactor * yFactor);
-            double latRadiusY = latRadiusX * 0.3;
+        var latitudePositions = new double[]{-0.6, -0.3, 0.0, 0.3, 0.6};
+        for (var yFactor : latitudePositions) {
+            var latY = centerY + radius * yFactor;
+            var latRadiusX = radius * Math.sqrt(1 - yFactor * yFactor);
+            var latRadiusY = latRadiusX * 0.3;
             var latitude = new Ellipse(centerX, latY, latRadiusX, latRadiusY);
             latitude.setFill(Color.TRANSPARENT);
             latitude.setStroke(gridColor);

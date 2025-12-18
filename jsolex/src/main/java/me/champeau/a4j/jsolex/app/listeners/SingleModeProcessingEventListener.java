@@ -306,7 +306,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 viewer -> {
                     var parentWidth = owner.getImagesViewer().widthProperty();
                     viewer.getImageView().getScrollPane().maxWidthProperty().bind(parentWidth);
-                    return new ReconstructionView(viewer.getImageView(), buffer, parentWidth);
+                    return new ReconstructionView(viewer.getImageView(), buffer);
                 },
                 viewer -> {
 

@@ -26,6 +26,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
@@ -68,14 +69,87 @@ public abstract class AbstractHelpOverlay extends StackPane {
 
     protected AbstractHelpOverlay(String viewerId) {
         this.viewerId = viewerId;
+        setStyle("-fx-background-color: transparent;");
+        // Ensure overlay fills its parent container
+        setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+        // Don't capture mouse events on the transparent overlay itself
         setPickOnBounds(false);
-        setMouseTransparent(false);
+    }
 
-        var helpButtonContainer = createHelpButtonWithAnimation();
-        StackPane.setAlignment(helpButtonContainer, Pos.BOTTOM_RIGHT);
-        StackPane.setMargin(helpButtonContainer, new Insets(15));
+    /**
+     * Creates a standalone button that can be added separately from the overlay.
+     * The button triggers the popup when clicked.
+     */
+    public Node createStandaloneButton() {
+        var button = new Button(HELP_ICON);
+        button.setMinSize(BUTTON_SIZE, BUTTON_SIZE);
+        button.setMaxSize(BUTTON_SIZE, BUTTON_SIZE);
+        button.setPrefSize(BUTTON_SIZE, BUTTON_SIZE);
+        button.setFont(Font.font("System", FontWeight.BOLD, 16));
+        button.setStyle(
+                "-fx-background-color: rgba(0, 0, 0, 0.6); " +
+                "-fx-text-fill: white; " +
+                "-fx-background-radius: 16; " +
+                "-fx-cursor: hand;"
+        );
+        button.setOnMouseEntered(e ->
+                button.setStyle(
+                        "-fx-background-color: rgba(0, 0, 0, 0.8); " +
+                        "-fx-text-fill: white; " +
+                        "-fx-background-radius: 16; " +
+                        "-fx-cursor: hand;"
+                )
+        );
+        button.setOnMouseExited(e ->
+                button.setStyle(
+                        "-fx-background-color: rgba(0, 0, 0, 0.6); " +
+                        "-fx-text-fill: white; " +
+                        "-fx-background-radius: 16; " +
+                        "-fx-cursor: hand;"
+                )
+        );
 
-        getChildren().add(helpButtonContainer);
+        // Create ripple circle for wave effect
+        var ripple = new Circle(BUTTON_SIZE / 2);
+        ripple.setFill(Color.TRANSPARENT);
+        ripple.setStroke(Color.rgb(255, 60, 60));
+        ripple.setStrokeWidth(3);
+        ripple.setOpacity(0);
+        ripple.setMouseTransparent(true);
+
+        // Container to hold button and ripple
+        var container = new StackPane(ripple, button);
+        container.setMaxSize(BUTTON_SIZE * 2, BUTTON_SIZE * 2);
+
+        // Enable caching for hardware-accelerated animation (avoids expensive repaints)
+        button.setCache(true);
+        button.setCacheHint(javafx.scene.CacheHint.SPEED);
+        ripple.setCache(true);
+        ripple.setCacheHint(javafx.scene.CacheHint.SPEED);
+
+        // Check if animation should be shown
+        var config = Configuration.getInstance();
+        if (!config.isHelpAnimationSeen(viewerId)) {
+            attentionAnimation = createAttentionAnimation(button, ripple);
+            attentionAnimation.play();
+        }
+
+        button.setOnAction(e -> {
+            if (attentionAnimation != null) {
+                attentionAnimation.stop();
+                attentionAnimation = null;
+                button.setScaleX(1.0);
+                button.setScaleY(1.0);
+                ripple.setOpacity(0);
+                config.setHelpAnimationSeen(viewerId);
+            }
+            setMouseTransparent(false);
+            showPopup();
+        });
+
+        StackPane.setAlignment(container, Pos.BOTTOM_RIGHT);
+        StackPane.setMargin(container, new Insets(15));
+        return container;
     }
 
     private StackPane getOrCreateHelpPopup() {
@@ -106,71 +180,6 @@ public abstract class AbstractHelpOverlay extends StackPane {
     protected void onPopupHidden() {
     }
 
-    private StackPane createHelpButtonWithAnimation() {
-        var button = new Button(HELP_ICON);
-        button.setMinSize(BUTTON_SIZE, BUTTON_SIZE);
-        button.setMaxSize(BUTTON_SIZE, BUTTON_SIZE);
-        button.setPrefSize(BUTTON_SIZE, BUTTON_SIZE);
-        button.setFont(Font.font("System", FontWeight.BOLD, 16));
-        button.setStyle(
-                "-fx-background-color: rgba(0, 0, 0, 0.6); " +
-                "-fx-text-fill: white; " +
-                "-fx-background-radius: 16; " +
-                "-fx-cursor: hand;"
-        );
-
-        button.setOnMouseEntered(e ->
-                button.setStyle(
-                        "-fx-background-color: rgba(0, 0, 0, 0.8); " +
-                        "-fx-text-fill: white; " +
-                        "-fx-background-radius: 16; " +
-                        "-fx-cursor: hand;"
-                )
-        );
-        button.setOnMouseExited(e ->
-                button.setStyle(
-                        "-fx-background-color: rgba(0, 0, 0, 0.6); " +
-                        "-fx-text-fill: white; " +
-                        "-fx-background-radius: 16; " +
-                        "-fx-cursor: hand;"
-                )
-        );
-
-        // Create ripple circle for wave effect (behind the button)
-        var ripple = new Circle(BUTTON_SIZE / 2);
-        ripple.setFill(Color.TRANSPARENT);
-        ripple.setStroke(Color.rgb(255, 60, 60));
-        ripple.setStrokeWidth(3);
-        ripple.setOpacity(0);
-
-        // Container to hold button and ripple
-        var container = new StackPane(ripple, button);
-        container.setMaxSize(BUTTON_SIZE * 2, BUTTON_SIZE * 2);
-
-        // Check if animation should be shown
-        var config = Configuration.getInstance();
-        if (!config.isHelpAnimationSeen(viewerId)) {
-            attentionAnimation = createAttentionAnimation(button, ripple);
-            attentionAnimation.play();
-        }
-
-        button.setOnAction(e -> {
-            // Stop attention animation and mark as seen
-            if (attentionAnimation != null) {
-                attentionAnimation.stop();
-                attentionAnimation = null;
-                // Reset button scale
-                button.setScaleX(1.0);
-                button.setScaleY(1.0);
-                ripple.setOpacity(0);
-            }
-            config.setHelpAnimationSeen(viewerId);
-            showPopup();
-        });
-
-        return container;
-    }
-
     private Timeline createAttentionAnimation(Button button, Circle ripple) {
         var animation = new Timeline();
 
@@ -180,6 +189,16 @@ public abstract class AbstractHelpOverlay extends StackPane {
         double bumpEnd = 0.5;
         double pauseDuration = 0.5;
         double cycleDuration = bumpEnd + pauseDuration;
+
+        // At end of each cycle, check if another instance marked animation as seen
+        Runnable checkIfSeen = () -> {
+            if (Configuration.getInstance().isHelpAnimationSeen(viewerId)) {
+                animation.stop();
+                button.setScaleX(1.0);
+                button.setScaleY(1.0);
+                ripple.setOpacity(0);
+            }
+        };
 
         animation.getKeyFrames().addAll(
                 // Start of cycle - everything at rest
@@ -212,8 +231,9 @@ public abstract class AbstractHelpOverlay extends StackPane {
                         new KeyValue(ripple.scaleXProperty(), 2.2, Interpolator.EASE_OUT),
                         new KeyValue(ripple.scaleYProperty(), 2.2, Interpolator.EASE_OUT)
                 ),
-                // Pause - hold position until cycle ends
+                // Pause - hold position until cycle ends, then check if should stop
                 new KeyFrame(Duration.seconds(cycleDuration),
+                        e -> checkIfSeen.run(),
                         new KeyValue(button.scaleXProperty(), 1.0),
                         new KeyValue(button.scaleYProperty(), 1.0),
                         new KeyValue(ripple.opacityProperty(), 0),
@@ -234,6 +254,7 @@ public abstract class AbstractHelpOverlay extends StackPane {
 
     protected void hidePopup() {
         getOrCreateHelpPopup().setVisible(false);
+        setMouseTransparent(true); // Restore mouse transparency so pan/zoom works
         onPopupHidden();
     }
 
@@ -271,6 +292,49 @@ public abstract class AbstractHelpOverlay extends StackPane {
         var content = new StackPane(borderPane);
         content.setMaxWidth(normalWidth);
         content.setMaxHeight(normalHeight);
+        content.setStyle(
+                "-fx-background-color: rgba(30, 30, 40, 0.95); " +
+                "-fx-background-radius: 12; " +
+                "-fx-border-color: rgba(255, 255, 255, 0.2); " +
+                "-fx-border-radius: 12; " +
+                "-fx-border-width: 1;"
+        );
+
+        return content;
+    }
+
+    /**
+     * Creates a styled content pane that sizes to its content with a maximum height.
+     * Scrollbar only appears when content exceeds the max height.
+     * @param scrollPane the scroll pane containing the content
+     * @param maxWidth the maximum width
+     * @param maxHeight the maximum height
+     * @return a configured StackPane with window controls
+     */
+    protected StackPane createFlexibleContentPane(ScrollPane scrollPane, double maxWidth, double maxHeight) {
+        var closeButton = new Button("\u2715");
+        closeButton.setFont(Font.font("System", FontWeight.NORMAL, 14));
+        closeButton.setMinSize(28, 28);
+        closeButton.setMaxSize(28, 28);
+        closeButton.setStyle(WINDOW_BUTTON_STYLE);
+        closeButton.setOnMouseEntered(e -> closeButton.setStyle(WINDOW_BUTTON_HOVER_STYLE));
+        closeButton.setOnMouseExited(e -> closeButton.setStyle(WINDOW_BUTTON_STYLE));
+        closeButton.setOnAction(e -> hidePopup());
+
+        var spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        var buttonBar = new HBox(4, spacer, closeButton);
+        buttonBar.setAlignment(Pos.CENTER_RIGHT);
+        buttonBar.setPadding(new Insets(8));
+
+        var borderPane = new BorderPane();
+        borderPane.setTop(buttonBar);
+        borderPane.setCenter(scrollPane);
+
+        var content = new StackPane(borderPane);
+        content.setMaxWidth(maxWidth);
+        content.setMaxHeight(maxHeight);
         content.setStyle(
                 "-fx-background-color: rgba(30, 30, 40, 0.95); " +
                 "-fx-background-radius: 12; " +
@@ -333,6 +397,12 @@ public abstract class AbstractHelpOverlay extends StackPane {
     }
 
     private void showMaximizedDiagram(Node diagram, Runnable onShown, Runnable onClosed) {
+        // Find the parent container to add the overlay to
+        var parent = getParent();
+        if (!(parent instanceof Pane parentPane)) {
+            return;
+        }
+
         var closeButton = new Button("\u2715");
         closeButton.setFont(Font.font("System", FontWeight.BOLD, 16));
         closeButton.setMinSize(36, 36);
@@ -367,8 +437,17 @@ public abstract class AbstractHelpOverlay extends StackPane {
             onShown.run();
         }
 
+        // Hide the popup while showing maximized view
+        if (helpPopup != null) {
+            helpPopup.setVisible(false);
+        }
+
         Runnable closeOverlay = () -> {
-            getChildren().remove(overlay);
+            parentPane.getChildren().remove(overlay);
+            // Restore popup visibility
+            if (helpPopup != null) {
+                helpPopup.setVisible(true);
+            }
             if (onClosed != null) {
                 onClosed.run();
             }
@@ -381,7 +460,11 @@ public abstract class AbstractHelpOverlay extends StackPane {
             }
         });
 
-        getChildren().add(overlay);
+        // Ensure overlay fills the parent
+        overlay.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+        StackPane.setAlignment(overlay, Pos.CENTER);
+        parentPane.getChildren().add(overlay);
+        overlay.toFront();
     }
 
     /**

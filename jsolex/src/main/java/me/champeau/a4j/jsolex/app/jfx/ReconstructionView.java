@@ -16,22 +16,20 @@
 package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.application.Platform;
-import javafx.beans.property.ReadOnlyDoubleProperty;
 import javafx.geometry.Bounds;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.control.ContextMenu;
-import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
-import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
+import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.math.image.Image;
 
@@ -59,9 +57,8 @@ public class ReconstructionView extends BorderPane implements WithRootNode {
      *
      * @param solarView the zoomable solar image view
      * @param solarImageData the raw solar image data
-     * @param parentWidth the parent container width property for layout binding
      */
-    public ReconstructionView(ZoomableImageView solarView, byte[] solarImageData, ReadOnlyDoubleProperty parentWidth) {
+    public ReconstructionView(ZoomableImageView solarView, byte[] solarImageData) {
         this.spectrumView = new ImageView();
         this.solarView = solarView;
         this.spectrumViewOverlay = new Canvas();
@@ -94,14 +91,21 @@ public class ReconstructionView extends BorderPane implements WithRootNode {
         solarViewOverlay.heightProperty().bind(solarView.layoutBoundsProperty().map(Bounds::getHeight));
         solarViewStack.setAlignment(Pos.BASELINE_LEFT);
         spectrumViewStack.setAlignment(Pos.BASELINE_LEFT);
-        var box = new VBox();
-        var help = new Label(message("recon.view.help"));
-        help.setAlignment(Pos.BASELINE_CENTER);
-        help.maxWidthProperty().bind(parentWidth);
-        box.getChildren().addAll(help, spectrumViewStack);
-        setTop(box);
+        solarViewStack.setMinSize(0, 0);
+        solarView.setMinSize(0, 0);
+        setTop(spectrumViewStack);
         setCenter(solarViewStack);
-        box.setOnContextMenuRequested(event -> {
+        // Add help overlay to solar view stack
+        var helpOverlay = new ImageHelpOverlay(
+                message("reconstruction"),
+                message("recon.view.help"),
+                GeneratedImageKind.RECONSTRUCTION
+        );
+        helpOverlay.setMouseTransparent(true);
+        solarViewStack.getChildren().add(helpOverlay);
+        var helpButton = helpOverlay.createStandaloneButton();
+        solarViewStack.getChildren().add(helpButton);
+        spectrumViewStack.setOnContextMenuRequested(event -> {
             var menu = new ContextMenu();
             var save = new MenuItem(message("save.image"));
             save.setOnAction(e -> Platform.runLater(() -> {
@@ -117,7 +121,7 @@ public class ReconstructionView extends BorderPane implements WithRootNode {
                 }
             }));
             menu.getItems().add(save);
-            menu.show(box, event.getScreenX(), event.getScreenY());
+            menu.show(spectrumViewStack, event.getScreenX(), event.getScreenY());
         });
     }
 

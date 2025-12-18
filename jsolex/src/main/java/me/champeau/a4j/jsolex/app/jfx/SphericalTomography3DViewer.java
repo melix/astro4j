@@ -165,7 +165,10 @@ public class SphericalTomography3DViewer extends BorderPane {
         graphPane.getChildren().add(overlay);
 
         helpOverlay = new TomographyHelpOverlay();
+        helpOverlay.setMouseTransparent(true);
         graphPane.getChildren().add(helpOverlay);
+        var helpButton = helpOverlay.createStandaloneButton();
+        graphPane.getChildren().add(helpButton);
     }
 
     private void switchRenderer(RenderMode mode) {
