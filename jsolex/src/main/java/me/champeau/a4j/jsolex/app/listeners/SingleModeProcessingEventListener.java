@@ -41,6 +41,7 @@ import javafx.scene.control.TextArea;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.PixelFormat;
 import javafx.scene.image.WritableImage;
+import javafx.scene.image.WritablePixelFormat;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
@@ -320,7 +321,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
     public void onPartialReconstruction(PartialReconstructionEvent event) {
         var payload = event.getPayload();
-        int y = payload.line();
+        var y = payload.line();
         if (reconstructionProgress == null) {
             reconstructionProgress = rootOperation.createChild(message("reconstructing"));
         }
@@ -333,15 +334,15 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         var reconstructionView = getOrCreateImageView(event);
         var imageView = reconstructionView.getSolarView();
         imageView.resetZoom();
-        WritableImage image = (WritableImage) imageView.getImage();
-        double[] line = payload.data();
-        byte[] rgb = reconstructionView.getSolarImageData();
+        var image = (WritableImage) imageView.getImage();
+        var line = payload.data();
+        var rgb = reconstructionView.getSolarImageData();
 
         // Update the current row in the rgb buffer.
-        for (int x = 0; x < line.length; x++) {
-            int v = (int) Math.round(line[x]);
-            byte c = (byte) (v >> 8);
-            int offset = 3 * (y * width + x);
+        for (var x = 0; x < line.length; x++) {
+            var v = (int) Math.round(line[x]);
+            var c = (byte) (v >> 8);
+            var offset = 3 * (y * width + x);
             rgb[offset] = c;
             rgb[offset + 1] = c;
             rgb[offset + 2] = c;
@@ -354,10 +355,10 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         if (spectrumView.getImage() == null) {
             spectrumView.setImage(new WritableImage(spectrum.width(), spectrum.height()));
         }
-        WritableImage spectrumImage = (WritableImage) spectrumView.getImage();
+        var spectrumImage = (WritableImage) spectrumView.getImage();
 
-        long currentTime = System.currentTimeMillis();
-        long lastUpdate = lastUIUpdateTime.get();
+        var currentTime = System.currentTimeMillis();
+        var lastUpdate = lastUIUpdateTime.get();
 
         if (currentTime - lastUpdate >= MIN_UI_UPDATE_INTERVAL_MS) {
             if (lastUIUpdateTime.compareAndSet(lastUpdate, currentTime)) {
@@ -407,9 +408,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                         if (solarImage != null && spectrumImage != null) {
                             var rgb = reconstructionView.getSolarImageData();
                             var pixelformat = PixelFormat.getByteRgbInstance();
-                            int imageWidth = (int) solarImage.getWidth();
-                            int imageHeight = (int) solarImage.getHeight();
-                            int expectedSize = 3 * imageWidth * imageHeight;
+                            var imageWidth = (int) solarImage.getWidth();
+                            var imageHeight = (int) solarImage.getHeight();
+                            var expectedSize = 3 * imageWidth * imageHeight;
                             if (rgb.length == expectedSize) {
                                 solarImage.getPixelWriter().setPixels(
                                         0, 0,
@@ -510,8 +511,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     var viewer = spectral4DViewer.get();
                     LOGGER.info("4D viewer from WeakReference: {}", viewer);
                     if (viewer != null) {
-                        int clickedFrame = (int) Math.round(frameNb);
-                        int clickedSlit = xIndex;
+                        var clickedFrame = (int) Math.round(frameNb);
+                        var clickedSlit = xIndex;
                         double clickedPixelShift = pixelShift;
                         LOGGER.info("Calling setPositionFromClick({}, {}, {})", clickedFrame, clickedSlit, clickedPixelShift);
                         Platform.runLater(() -> {
@@ -525,52 +526,51 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     }
 
     private void stretchReconstructionView(ZoomableImageView solarView) {
+        var image = (WritableImage) solarView.getImage();
+        var pixelReader = image.getPixelReader();
         BackgroundOperations.async(() -> {
-            Platform.runLater(() -> {
-                WritableImage image = (WritableImage) solarView.getImage();
-                var pixelReader = image.getPixelReader();
-                try {
-                    // iterate over all pixels to find max value
-                    double max = 0;
-                    for (int y = 0; y < height; y++) {
-                        for (int x = 0; x < width; x++) {
-                            var v = pixelReader.getArgb(x, y) & 0xFF;
-                            if (v > max) {
-                                max = v;
-                            }
-                        }
-                    }
+            try {
+                var pixels = new int[width * height];
+                pixelReader.getPixels(0, 0, width, height, WritablePixelFormat.getIntArgbInstance(), pixels, 0, width);
 
-                    // stretch colors
-                    for (int y = 0; y < height; y++) {
-                        for (int x = 0; x < width; x++) {
-                            var v = pixelReader.getArgb(x, y) & 0xFF;
-                            v = (int) (255 * v / max);
-                            image.getPixelWriter().setArgb(x, y, 0xFF000000 | (v << 16) | (v << 8) | v);
-                        }
+                // find max value
+                var max = 0;
+                for (var pixel : pixels) {
+                    var v = pixel & 0xFF;
+                    if (v > max) {
+                        max = v;
                     }
-                } catch (IndexOutOfBoundsException e) {
                 }
-            });
+
+                if (max > 0) {
+                    for (var i = 0; i < pixels.length; i++) {
+                        var v = (255 * (pixels[i] & 0xFF)) / max;
+                        pixels[i] = 0xFF000000 | (v << 16) | (v << 8) | v;
+                    }
+                }
+
+                Platform.runLater(() -> image.getPixelWriter().setPixels(0, 0, width, height, WritablePixelFormat.getIntArgbInstance(), pixels, 0, width));
+            } catch (IndexOutOfBoundsException e) {
+            }
         });
     }
 
     private static byte[] convertSpectrumImage(Image spectrum) {
-        int width = spectrum.width();
-        int height = spectrum.height();
+        var width = spectrum.width();
+        var height = spectrum.height();
         var spectrumBuffer = new byte[3 * width * height];
 
         // Single pass: find max and store normalized values
-        int max = 0;
-        double[] normalizedValues = new double[width * height];
-        float[][] data = spectrum.data();
+        var max = 0;
+        var normalizedValues = new double[width * height];
+        var data = spectrum.data();
 
-        for (int yy = 0; yy < height; yy++) {
-            float[] row = data[yy];
-            for (int xx = 0; xx < width; xx++) {
-                double v = 255.0 * row[xx] / Constants.MAX_PIXEL_VALUE;
+        for (var yy = 0; yy < height; yy++) {
+            var row = data[yy];
+            for (var xx = 0; xx < width; xx++) {
+                var v = 255.0 * row[xx] / Constants.MAX_PIXEL_VALUE;
                 normalizedValues[yy * width + xx] = v;
-                int intV = (int) v;
+                var intV = (int) v;
                 if (intV > max) {
                     max = intV;
                 }
@@ -578,10 +578,10 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         }
 
         // Second pass: apply stretching and convert to RGB bytes
-        double maxInverse = max > 0 ? 255.0 / max : 0.0;
-        for (int i = 0; i < normalizedValues.length; i++) {
-            byte s = (byte) (normalizedValues[i] * maxInverse);
-            int offset = 3 * i;
+        var maxInverse = max > 0 ? 255.0 / max : 0.0;
+        for (var i = 0; i < normalizedValues.length; i++) {
+            var s = (byte) (normalizedValues[i] * maxInverse);
+            var offset = 3 * i;
             spectrumBuffer[offset] = s;
             spectrumBuffer[offset + 1] = s;
             spectrumBuffer[offset + 2] = s;
@@ -624,8 +624,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                         });
                     }));
             var pixelShiftRange = imageWrapper.findMetadata(PixelShiftRange.class).orElse(new PixelShiftRange(-15, 15, .25));
-            int imageWidth = imageWrapper.width();
-            int imageHeight = imageWrapper.height();
+            var imageWidth = imageWrapper.width();
+            var imageHeight = imageWrapper.height();
             var imagePath = event.getPayload().path();
             addedImageViewer.getImageView().setRectangleSelectionListener(new RectangleSelectionListener() {
                 @Override
@@ -659,8 +659,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                             var cx = x + width / 2d;
                             var cy = y + height / 2d;
                             var orig = coord.determineOriginalCoordinates(new Point2D(cx, cy), ReferenceCoords.GEO_CORRECTION);
-                            int xx = Math.max(0, (int) orig.x() - width / 2);
-                            int yy = Math.max(0, (int) orig.y() - height / 2);
+                            var xx = Math.max(0, (int) orig.x() - width / 2);
+                            var yy = Math.max(0, (int) orig.y() - height / 2);
                             if (kind == ActionKind.IMAGEMATH_CROP) {
                                 LOGGER.info(JSolEx.message("info.script.crop"), xx, yy, width, height);
                             } else if (kind == ActionKind.CROP) {
@@ -747,25 +747,25 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                                 var originalWidth = header.geometry().width();
                                 var originalHeight = header.geometry().height();
 
-                                int totalFrames = header.frameCount();
-                                double minY = Math.min(topLeft.y(), bottomRight.y());
-                                double maxY = Math.max(topLeft.y(), bottomRight.y());
-                                double minX = Math.min(topLeft.x(), bottomRight.x());
-                                double maxX = Math.max(topLeft.x(), bottomRight.x());
+                                var totalFrames = header.frameCount();
+                                var minY = Math.min(topLeft.y(), bottomRight.y());
+                                var maxY = Math.max(topLeft.y(), bottomRight.y());
+                                var minX = Math.min(topLeft.x(), bottomRight.x());
+                                var maxX = Math.max(topLeft.x(), bottomRight.x());
 
-                                int startFrame = Math.max(0, (int) Math.round(minY));
-                                int endFrame = Math.min(totalFrames - 1, (int) Math.round(maxY));
-                                int frameCount = Math.max(1, endFrame - startFrame + 1);
-                                int cropLeft = Math.max(0, (int) Math.round(minX));
-                                int cropRight = Math.min(originalWidth - 1, (int) Math.round(maxX));
+                                var startFrame = Math.max(0, (int) Math.round(minY));
+                                var endFrame = Math.min(totalFrames - 1, (int) Math.round(maxY));
+                                var frameCount = Math.max(1, endFrame - startFrame + 1);
+                                var cropLeft = Math.max(0, (int) Math.round(minX));
+                                var cropRight = Math.min(originalWidth - 1, (int) Math.round(maxX));
 
                                 if (cropLeft > cropRight) {
-                                    int temp = cropLeft;
+                                    var temp = cropLeft;
                                     cropLeft = cropRight;
                                     cropRight = temp;
                                 }
 
-                                int cropWidth = Math.max(1, cropRight - cropLeft + 1);
+                                var cropWidth = Math.max(1, cropRight - cropLeft + 1);
 
                                 // Validate bounds
                                 if (startFrame >= totalFrames || endFrame < 0 || frameCount <= 0) {
@@ -781,7 +781,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                                 var frames = new ArrayList<ImageWrapper>();
 
                                 // Extract frames from the selected frame range with width-only cropping (preserve full height)
-                                for (int frameIndex = startFrame; frameIndex <= endFrame; frameIndex++) {
+                                for (var frameIndex = startFrame; frameIndex <= endFrame; frameIndex++) {
                                     serReader.seekFrame(frameIndex);
                                     var frame = serReader.currentFrame();
 
@@ -805,8 +805,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
                                     // Update progress
                                     if ((frameIndex - startFrame) % 10 == 0) {
-                                        int totalFramesToExtract = endFrame - startFrame + 1;
-                                        int currentFrame = frameIndex - startFrame + 1;
+                                        var totalFramesToExtract = endFrame - startFrame + 1;
+                                        var currentFrame = frameIndex - startFrame + 1;
                                         var progressOp = rootOperation.createChild("Extracting frame " + currentFrame + "/" + totalFramesToExtract);
                                         progressOp.update(currentFrame / (double) totalFramesToExtract, "Extracting frame " + currentFrame + "/" + totalFramesToExtract);
                                         broadcast(progressOp);
@@ -900,8 +900,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             } else if (imageWrapper instanceof RGBImage rgbImage) {
                 var rgb = new float[][][]{rgbImage.r(), rgbImage.g(), rgbImage.b()};
                 List<CachedHistogram> result = new ArrayList<>(rgb.length);
-                for (int i = 0; i < rgb.length; i++) {
-                    float[][] channel = rgb[i];
+                for (var i = 0; i < rgb.length; i++) {
+                    var channel = rgb[i];
                     result.add(new CachedHistogram(Histogram.of(
                             new Image(rgbImage.width(), rgbImage.height(), channel), BINS
                     ), RGB_COLORS[i]));
@@ -934,14 +934,14 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
     private static void addSeries(BarChart<String, Number> chart, Histogram histogram, String color) {
         var series = new XYChart.Series<String, Number>();
-        for (int i = 0; i < histogram.values().length; i++) {
+        for (var i = 0; i < histogram.values().length; i++) {
             var d = new XYChart.Data<String, Number>(String.valueOf(i), histogram.values()[i]);
             series.getData().add(d);
         }
 
         // Add the series to the bar chart
         chart.getData().add(series);
-        for (XYChart.Data<String, Number> d : series.getData()) {
+        for (var d : series.getData()) {
             d.getNode().setStyle("-fx-bar-fill: " + color + ";");
         }
     }
@@ -1032,7 +1032,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 shift -> {
                     var minShift = shiftImages.keySet().stream().mapToDouble(PixelShift::pixelShift).min().orElse(0d);
                     var maxShift = shiftImages.keySet().stream().mapToDouble(PixelShift::pixelShift).max().orElse(0d);
-                    double lookup = shift.pixelShift();
+                    var lookup = shift.pixelShift();
                     if (lookup < minShift) {
                         LOGGER.warn(String.format(message("cropping.window.invalid.shift"), lookup, minShift));
                         lookup = minShift;
@@ -1051,11 +1051,11 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         }
         ed = payload.timestamp();
         var duration = java.time.Duration.ofNanos(ed - sd);
-        double seconds = duration.toMillis() / 1000d;
+        var seconds = duration.toMillis() / 1000d;
         var sb = new StringBuilder();
         if (!suggestions.isEmpty()) {
             sb.append(message("suggestions") + " :\n");
-            for (String suggestion : suggestions.values()) {
+            for (var suggestion : suggestions.values()) {
                 sb.append("    - ").append(suggestion).append("\n");
             }
         }
@@ -1139,7 +1139,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     public ImageMathScriptResult execute(String script, SectionKind kind) {
         var sd = System.nanoTime();
         // perform a first pass just to check if they are missing image shifts
-        Set<Double> missingShifts = determineShiftsRequiredInScript(script);
+        var missingShifts = determineShiftsRequiredInScript(script);
         shiftImages.keySet().stream().map(PixelShift::pixelShift).toList().forEach(missingShifts::remove);
         if (!missingShifts.isEmpty()) {
             restartProcessForMissingShifts(missingShifts);
@@ -1352,11 +1352,11 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             for (var pixelShift = range.minPixelShift(); pixelShift < range.maxPixelShift(); pixelShift++) {
                 double cpt = 0;
                 double val = 0;
-                for (int x = start; x < end; x++) {
+                for (var x = start; x < end; x++) {
                     var v = polynomial.applyAsDouble(x);
                     var exactNy = v + pixelShift;
-                    int lowerNy = (int) Math.floor(exactNy);
-                    int upperNy = (int) Math.ceil(exactNy);
+                    var lowerNy = (int) Math.floor(exactNy);
+                    var upperNy = (int) Math.ceil(exactNy);
 
                     if (lowerNy >= 0 && upperNy < height) {
                         var lowerValue = data[lowerNy][x];
@@ -1368,7 +1368,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     }
                 }
                 if (cpt > 0) {
-                    Wavelen wl = canDrawReference ? computeWavelength(pixelShift, lambda0, dispersion) : Wavelen.ofAngstroms(0);
+                    var wl = canDrawReference ? computeWavelength(pixelShift, lambda0, dispersion) : Wavelen.ofAngstroms(0);
                     dataPoints.add(new SpectrumAnalyzer.DataPoint(wl, pixelShift, val / cpt));
                 }
             }
@@ -1412,11 +1412,11 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 for (var pixelShift = range.minPixelShift(); pixelShift < range.maxPixelShift(); pixelShift++) {
                     double cpt = 0;
                     double val = 0;
-                    for (int x = start; x < end; x++) {
+                    for (var x = start; x < end; x++) {
                         var v = polynomial.applyAsDouble(x);
                         var exactNy = v + pixelShift;
-                        int lowerNy = (int) Math.floor(exactNy);
-                        int upperNy = (int) Math.ceil(exactNy);
+                        var lowerNy = (int) Math.floor(exactNy);
+                        var upperNy = (int) Math.ceil(exactNy);
 
                         if (lowerNy >= 0 && upperNy < height) {
                             var lowerValue = currentSpectrumFrameData[lowerNy][x];
@@ -1428,7 +1428,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                         }
                     }
                     if (cpt > 0) {
-                        Wavelen wl = canDrawReference ? computeWavelength(pixelShift, lambda0, dispersion) : Wavelen.ofAngstroms(0);
+                        var wl = canDrawReference ? computeWavelength(pixelShift, lambda0, dispersion) : Wavelen.ofAngstroms(0);
                         frameDataPoints.add(new SpectrumAnalyzer.DataPoint(wl, pixelShift, val / cpt));
                     }
                 }
@@ -1437,15 +1437,15 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     int x = currentColumn;
                     var v = polynomial.applyAsDouble(x);
                     var exactNy = v + pixelShift;
-                    int lowerNy = (int) Math.floor(exactNy);
-                    int upperNy = (int) Math.ceil(exactNy);
+                    var lowerNy = (int) Math.floor(exactNy);
+                    var upperNy = (int) Math.ceil(exactNy);
 
                     if (lowerNy >= 0 && upperNy < height) {
                         var lowerValue = currentSpectrumFrameData[lowerNy][x];
                         var upperValue = currentSpectrumFrameData[upperNy][x];
                         var interpolatedValue = lowerValue + (upperValue - lowerValue) * (exactNy - lowerNy);
 
-                        Wavelen wl = canDrawReference ? computeWavelength(pixelShift, lambda0, dispersion) : Wavelen.ofAngstroms(0);
+                        var wl = canDrawReference ? computeWavelength(pixelShift, lambda0, dispersion) : Wavelen.ofAngstroms(0);
                         lineDataPoints.add(new SpectrumAnalyzer.DataPoint(wl, pixelShift, interpolatedValue));
                     }
                 }
@@ -1608,7 +1608,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         }
 
         var depthBox = createStatItem(message("line.depth"), String.format(Locale.US, "%.2f%%", stats.lineDepth() * 100));
-        String fwhmValue = stats.hasFWHMData()
+        var fwhmValue = stats.hasFWHMData()
                 ? (hasWavelength ? String.format(Locale.US, "%.3f Å", stats.fwhm()) : String.format(Locale.US, "%.2f px", stats.fwhm()))
                 : "N/A";
         var fwhmBox = createStatItem(message("line.fwhm"), fwhmValue);
@@ -1771,9 +1771,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             var controller = fxmlLoader.<SphericalTomographyCreator>getController();
             var stage = newModalStage(owner.getMainStage(), node);
             controller.setup(stage, pixelShiftRange, redshiftProcessor, (step, unused) -> {
-                double minShift = controller.getMinShift();
-                double maxShift = controller.getMaxShift();
-                double stepSize = controller.getStepSize();
+                var minShift = controller.getMinShift();
+                var maxShift = controller.getMaxShift();
+                var stepSize = controller.getStepSize();
 
                 // Generate images for the requested range
                 generateTomographyImages(minShift, maxShift, stepSize, dispersion, lambda0);
@@ -1809,7 +1809,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             try {
                 // Generate the list of required shifts
                 var requiredShifts = new TreeSet<Double>();
-                for (double shift = minShift; shift <= maxShift; shift += stepSize) {
+                for (var shift = minShift; shift <= maxShift; shift += stepSize) {
                     requiredShifts.add(Math.round(shift * 100.0) / 100.0);
                 }
                 // Always include pixel shift 0 (line center)
@@ -1936,8 +1936,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         }
 
         // Get the first and last data point labels for spanning horizontal lines
-        String firstLabel = formatWavelength(dataPoints.getFirst().pixelShift(), dataPoints.getFirst().wavelen());
-        String lastLabel = formatWavelength(dataPoints.getLast().pixelShift(), dataPoints.getLast().wavelen());
+        var firstLabel = formatWavelength(dataPoints.getFirst().pixelShift(), dataPoints.getFirst().wavelen());
+        var lastLabel = formatWavelength(dataPoints.getLast().pixelShift(), dataPoints.getLast().wavelen());
 
         // Add continuum (baseline) horizontal line - green dashed
         var continuumSeries = new XYChart.Series<String, Number>();
@@ -1957,20 +1957,20 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         XYChart.Series<String, Number> halfMaxSeries = null;
         String blueLabel = null;
         String redLabel = null;
-        double halfMaxIntensity = stats.halfMaxIntensity();
+        var halfMaxIntensity = stats.halfMaxIntensity();
 
         if (stats.hasFWHMData()) {
             // Use direct crossing measurements
             double blueWl = stats.blueHalfMaxWavelength();
             double redWl = stats.redHalfMaxWavelength();
 
-            double minBlueDist = Double.MAX_VALUE;
-            double minRedDist = Double.MAX_VALUE;
+            var minBlueDist = Double.MAX_VALUE;
+            var minRedDist = Double.MAX_VALUE;
 
             for (var dp : dataPoints) {
-                double wl = dp.wavelen().angstroms();
-                double blueDist = Math.abs(wl - blueWl);
-                double redDist = Math.abs(wl - redWl);
+                var wl = dp.wavelen().angstroms();
+                var blueDist = Math.abs(wl - blueWl);
+                var redDist = Math.abs(wl - redWl);
 
                 if (blueDist < minBlueDist) {
                     minBlueDist = blueDist;
@@ -2030,8 +2030,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             for (var node : chart.lookupAll(".chart-legend-item-symbol")) {
                 for (var styleClass : node.getStyleClass()) {
                     if (styleClass.startsWith("series")) {
-                        int seriesIndex = Integer.parseInt(styleClass.substring(6));
-                        int dataSeriesCount = chart.getData().size();
+                        var seriesIndex = Integer.parseInt(styleClass.substring(6));
+                        var dataSeriesCount = chart.getData().size();
                         // The stats series are added after the data series
                         // Continuum is at dataSeriesCount - 3 (or -2 if no FWHM)
                         // Min is at dataSeriesCount - 2 (or -1 if no FWHM)
@@ -2080,7 +2080,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private static void toggleSeriesVisibility(XYChart.Series<?, ?> series, Label legendLabel) {
         var node = series.getNode();
         if (node != null) {
-            boolean visible = !node.isVisible();
+            var visible = !node.isVisible();
             node.setVisible(visible);
             for (var data : series.getData()) {
                 if (data.getNode() != null) {
@@ -2330,7 +2330,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         if (binning != null && pixelSize != null && lambda0 != null) {
             double pixSize = pixelSize;
             if (lambda0.angstroms() > 0 && pixSize > 0) {
-                double disp = SpectrumAnalyzer.computeSpectralDispersion(instrument, lambda0, pixelSize * binning).angstromsPerPixel();
+                var disp = SpectrumAnalyzer.computeSpectralDispersion(instrument, lambda0, pixelSize * binning).angstromsPerPixel();
                 return String.format(message("intensity.legend"), pixelSize, binning, disp);
             }
         }
@@ -2338,8 +2338,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     }
 
     private static NormalizedDataPoints normalizeDatapoints(List<SpectrumAnalyzer.DataPoint> dataPoints, Double maxIntensity) {
-        double maxSeriesIntensity = dataPoints.stream().mapToDouble(SpectrumAnalyzer.DataPoint::intensity).max().orElse(0);
-        double maxRef = maxIntensity != null ? maxIntensity : maxSeriesIntensity;
+        var maxSeriesIntensity = dataPoints.stream().mapToDouble(SpectrumAnalyzer.DataPoint::intensity).max().orElse(0);
+        var maxRef = maxIntensity != null ? maxIntensity : maxSeriesIntensity;
         return new NormalizedDataPoints(dataPoints.stream()
                 .map(dataPoint -> new SpectrumAnalyzer.DataPoint(dataPoint.wavelen(), dataPoint.pixelShift(), 100 * dataPoint.intensity() / maxRef))
                 .toList(),
@@ -2374,7 +2374,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     @Override
     public void onScriptExecutionResult(ScriptExecutionResultEvent e) {
         var images = e.getPayload().imagesByLabel();
-        for (Map.Entry<String, ImageWrapper> entry : images.entrySet()) {
+        for (var entry : images.entrySet()) {
             scriptImagesByLabel.computeIfAbsent(entry.getKey(), unused -> new ArrayList<>())
                     .add(entry.getValue());
         }
@@ -2420,12 +2420,12 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     null
             );
 
-            for (Map.Entry<String, List<ImageWrapper>> entry : scriptImagesByLabel.entrySet()) {
+            for (var entry : scriptImagesByLabel.entrySet()) {
                 batchScriptExecutor.putVariable(entry.getKey(), entry.getValue());
             }
 
             var parameterValues = adjustedParams.combinedImageMathParams().parameterValues();
-            for (File scriptFile : scriptFiles) {
+            for (var scriptFile : scriptFiles) {
                 var fileParams = parameterValues.get(scriptFile);
                 if (fileParams != null) {
                     for (var entry : fileParams.entrySet()) {
