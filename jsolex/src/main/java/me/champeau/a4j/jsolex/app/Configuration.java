@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -546,11 +547,20 @@ public class Configuration {
      */
     public boolean isHelpAnimationSeen(String viewerId) {
         if (Boolean.getBoolean("jsolex.debug.animations")) {
+            try {
+                for (var key : prefs.keys()) {
+                    if (key.startsWith(HELP_ANIMATION_SEEN_PREFIX)) {
+                        prefs.remove(key);
+                    }
+                }
+            } catch (BackingStoreException e) {
+                throw new RuntimeException(e);
+            }
             return false;
         }
         var key = HELP_ANIMATION_SEEN_PREFIX + viewerId;
         var seenVersion = prefs.get(key, "");
-        return seenVersion.equals(VersionUtil.getVersion());
+        return seenVersion.equals(VersionUtil.ANIMATION_VERSION);
     }
 
     /**
@@ -559,7 +569,7 @@ public class Configuration {
      */
     public void setHelpAnimationSeen(String viewerId) {
         var key = HELP_ANIMATION_SEEN_PREFIX + viewerId;
-        prefs.put(key, VersionUtil.getVersion());
+        prefs.put(key, VersionUtil.ANIMATION_VERSION);
     }
 
     /** Directory kind enumeration for different file types. */

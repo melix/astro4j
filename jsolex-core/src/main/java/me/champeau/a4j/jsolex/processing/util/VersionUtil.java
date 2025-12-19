@@ -24,6 +24,10 @@ import java.util.Properties;
 import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectoriesIfNeeded;
 
 public class VersionUtil {
+    // This is the version of the internal documentation animations/explanations
+    // We should bump this version when changing these or when adding new ones
+    public static final String ANIMATION_VERSION = "1.0.0";
+
     private static Path TEMPORARY_HOME;
 
     private VersionUtil() {

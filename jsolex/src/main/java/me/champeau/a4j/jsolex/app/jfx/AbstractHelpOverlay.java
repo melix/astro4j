@@ -66,6 +66,8 @@ public abstract class AbstractHelpOverlay extends StackPane {
     private final String viewerId;
     private StackPane helpPopup;
     private Timeline attentionAnimation;
+    private Button attentionButton;
+    private Circle attentionRipple;
 
     protected AbstractHelpOverlay(String viewerId) {
         this.viewerId = viewerId;
@@ -75,12 +77,43 @@ public abstract class AbstractHelpOverlay extends StackPane {
         // Don't capture mouse events on the transparent overlay itself
         setPickOnBounds(false);
 
-        // Stop animations when overlay is removed from scene
+        // Handle scene changes: stop animations when removed, restart when re-added
         sceneProperty().addListener((obs, oldScene, newScene) -> {
             if (newScene == null) {
-                dispose();
+                stopAttentionAnimation();
+            } else if (oldScene == null) {
+                maybeRestartAttentionAnimation();
             }
         });
+    }
+
+    /**
+     * Stops the attention animation and resets visual state.
+     */
+    private void stopAttentionAnimation() {
+        if (attentionAnimation != null) {
+            attentionAnimation.stop();
+            attentionAnimation = null;
+        }
+        if (attentionButton != null) {
+            attentionButton.setScaleX(1.0);
+            attentionButton.setScaleY(1.0);
+        }
+        if (attentionRipple != null) {
+            attentionRipple.setOpacity(0);
+        }
+    }
+
+    /**
+     * Restarts the attention animation if it hasn't been seen yet.
+     */
+    private void maybeRestartAttentionAnimation() {
+        if (attentionButton != null && attentionRipple != null
+                && attentionAnimation == null
+                && !Configuration.getInstance().isHelpAnimationSeen(viewerId)) {
+            attentionAnimation = createAttentionAnimation(attentionButton, attentionRipple);
+            attentionAnimation.play();
+        }
     }
 
     /**
@@ -89,10 +122,7 @@ public abstract class AbstractHelpOverlay extends StackPane {
      * Subclasses should override this to stop their own animations.
      */
     public void dispose() {
-        if (attentionAnimation != null) {
-            attentionAnimation.stop();
-            attentionAnimation = null;
-        }
+        stopAttentionAnimation();
         onPopupHidden();
     }
 
@@ -136,6 +166,9 @@ public abstract class AbstractHelpOverlay extends StackPane {
         ripple.setStrokeWidth(3);
         ripple.setOpacity(0);
         ripple.setMouseTransparent(true);
+
+        this.attentionButton = button;
+        this.attentionRipple = ripple;
 
         // Container to hold button and ripple
         var container = new StackPane(ripple, button);
@@ -262,7 +295,7 @@ public abstract class AbstractHelpOverlay extends StackPane {
                 )
         );
 
-        animation.setCycleCount(Timeline.INDEFINITE);
+        animation.setCycleCount(50);
 
         return animation;
     }
