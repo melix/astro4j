@@ -19,28 +19,48 @@ import javafx.animation.Interpolator;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
+import javafx.application.Platform;
+import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.CacheHint;
 import javafx.scene.Node;
+import javafx.scene.Scene;
+import javafx.scene.SnapshotParameters;
 import javafx.scene.control.Button;
+import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.image.WritableImage;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
+import javafx.stage.FileChooser;
+import javafx.stage.Stage;
+import javafx.stage.StageStyle;
 import javafx.util.Duration;
 import me.champeau.a4j.jsolex.app.Configuration;
+import me.champeau.a4j.jsolex.processing.util.AnimatedGifWriter;
 
+import javax.imageio.stream.FileImageOutputStream;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
 /**
@@ -176,9 +196,9 @@ public abstract class AbstractHelpOverlay extends StackPane {
 
         // Enable caching for hardware-accelerated animation (avoids expensive repaints)
         button.setCache(true);
-        button.setCacheHint(javafx.scene.CacheHint.SPEED);
+        button.setCacheHint(CacheHint.SPEED);
         ripple.setCache(true);
-        ripple.setCacheHint(javafx.scene.CacheHint.SPEED);
+        ripple.setCacheHint(CacheHint.SPEED);
 
         // Check if animation should be shown
         var config = Configuration.getInstance();
@@ -237,11 +257,11 @@ public abstract class AbstractHelpOverlay extends StackPane {
         var animation = new Timeline();
 
         // Animation: ripple appears first, then button bumps, then pause
-        double ripplePeak = 0.15;
-        double bumpPeak = 0.25;
-        double bumpEnd = 0.5;
-        double pauseDuration = 0.5;
-        double cycleDuration = bumpEnd + pauseDuration;
+        var ripplePeak = 0.15;
+        var bumpPeak = 0.25;
+        var bumpEnd = 0.5;
+        var pauseDuration = 0.5;
+        var cycleDuration = bumpEnd + pauseDuration;
 
         // At end of each cycle, check if another instance marked animation as seen
         Runnable checkIfSeen = () -> {
@@ -406,7 +426,7 @@ public abstract class AbstractHelpOverlay extends StackPane {
      * @param createDiagramCopy a supplier that creates a fresh copy of the diagram for the maximized view
      * @return a StackPane containing the diagram and maximize button
      */
-    protected StackPane createScalableDiagram(Node diagram, java.util.function.Supplier<Node> createDiagramCopy) {
+    protected StackPane createScalableDiagram(Node diagram, Supplier<Node> createDiagramCopy) {
         return createScalableDiagram(diagram, createDiagramCopy, null);
     }
 
@@ -418,7 +438,7 @@ public abstract class AbstractHelpOverlay extends StackPane {
      * @param onMaximized optional callback invoked after the maximized view is shown (e.g., to start animations)
      * @return a StackPane containing the diagram and maximize button
      */
-    protected StackPane createScalableDiagram(Node diagram, java.util.function.Supplier<Node> createDiagramCopy, Runnable onMaximized) {
+    protected StackPane createScalableDiagram(Node diagram, Supplier<Node> createDiagramCopy, Runnable onMaximized) {
         return createScalableDiagram(diagram, createDiagramCopy, onMaximized, null);
     }
 
@@ -431,7 +451,7 @@ public abstract class AbstractHelpOverlay extends StackPane {
      * @param onClosed optional callback invoked when the maximized view is closed (e.g., to stop animations)
      * @return a StackPane containing the diagram and maximize button
      */
-    protected StackPane createScalableDiagram(Node diagram, java.util.function.Supplier<Node> createDiagramCopy, Runnable onMaximized, Runnable onClosed) {
+    protected StackPane createScalableDiagram(Node diagram, Supplier<Node> createDiagramCopy, Runnable onMaximized, Runnable onClosed) {
         var maximizeButton = new Button("\u26F6");
         maximizeButton.setFont(Font.font("System", FontWeight.NORMAL, 12));
         maximizeButton.setMinSize(24, 24);
@@ -440,7 +460,7 @@ public abstract class AbstractHelpOverlay extends StackPane {
         maximizeButton.setOnMouseEntered(e -> maximizeButton.setStyle(WINDOW_BUTTON_HOVER_STYLE));
         maximizeButton.setOnMouseExited(e -> maximizeButton.setStyle(WINDOW_BUTTON_STYLE));
 
-        maximizeButton.setOnAction(e -> showMaximizedDiagram(createDiagramCopy.get(), onMaximized, onClosed));
+        maximizeButton.setOnAction(e -> showMaximizedDiagram(createDiagramCopy.get(), createDiagramCopy, onMaximized, onClosed));
 
         var container = new StackPane(diagram, maximizeButton);
         StackPane.setAlignment(maximizeButton, Pos.TOP_RIGHT);
@@ -449,7 +469,7 @@ public abstract class AbstractHelpOverlay extends StackPane {
         return container;
     }
 
-    private void showMaximizedDiagram(Node diagram, Runnable onShown, Runnable onClosed) {
+    private void showMaximizedDiagram(Node diagram, Supplier<Node> diagramSupplier, Runnable onShown, Runnable onClosed) {
         // Find the parent container to add the overlay to
         var parent = getParent();
         if (!(parent instanceof Pane parentPane)) {
@@ -476,11 +496,11 @@ public abstract class AbstractHelpOverlay extends StackPane {
             if (newBounds.getWidth() > 0 && newBounds.getHeight() > 0) {
                 var diagramBounds = diagram.getBoundsInLocal();
                 double padding = 120;
-                double availableWidth = newBounds.getWidth() - padding;
-                double availableHeight = newBounds.getHeight() - padding;
-                double scaleX = availableWidth / diagramBounds.getWidth();
-                double scaleY = availableHeight / diagramBounds.getHeight();
-                double scale = Math.min(scaleX, scaleY);
+                var availableWidth = newBounds.getWidth() - padding;
+                var availableHeight = newBounds.getHeight() - padding;
+                var scaleX = availableWidth / diagramBounds.getWidth();
+                var scaleY = availableHeight / diagramBounds.getHeight();
+                var scale = Math.min(scaleX, scaleY);
                 diagram.setScaleX(scale);
                 diagram.setScaleY(scale);
             }
@@ -513,11 +533,174 @@ public abstract class AbstractHelpOverlay extends StackPane {
             }
         });
 
+        // Undocumented keyboard shortcut: Ctrl+S to export animation as GIF
+        var saveShortcut = new KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN);
+        overlay.setOnKeyPressed(e -> {
+            if (saveShortcut.match(e)) {
+                e.consume();
+                exportDiagramToGif(diagramSupplier, overlay);
+            }
+        });
+        overlay.setFocusTraversable(true);
+
         // Ensure overlay fills the parent
         overlay.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
         StackPane.setAlignment(overlay, Pos.CENTER);
         parentPane.getChildren().add(overlay);
         overlay.toFront();
+        overlay.requestFocus();
+    }
+
+    private void exportDiagramToGif(Supplier<Node> diagramSupplier, Pane progressParent) {
+        var fileChooser = new FileChooser();
+        fileChooser.setTitle("Export Animation as GIF");
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("GIF files", "*.gif"));
+        fileChooser.setInitialFileName("help_animation.gif");
+
+        var window = progressParent.getScene() != null ? progressParent.getScene().getWindow() : null;
+        if (window == null) {
+            return;
+        }
+
+        var file = fileChooser.showSaveDialog(window);
+        if (file == null) {
+            return;
+        }
+
+        // Create a fresh diagram in an off-screen scene for capture
+        captureAnimationToGif(diagramSupplier, file, progressParent);
+    }
+
+    private void captureAnimationToGif(Supplier<Node> diagramSupplier, File outputFile, Pane progressParent) {
+        // Show progress indicator FIRST on the visible overlay
+        var fps = 10;
+        var durationSeconds = 40;
+        var totalFrames = fps * durationSeconds;
+        var delayMs = 1000 / fps;
+
+        var progressLabel = new Label("Preparing export...");
+        progressLabel.setFont(Font.font("System", FontWeight.BOLD, 14));
+        progressLabel.setTextFill(Color.WHITE);
+        progressLabel.setStyle(
+                "-fx-background-color: rgba(0, 0, 0, 0.8); " +
+                "-fx-padding: 10 20 10 20; " +
+                "-fx-background-radius: 6;"
+        );
+        progressParent.getChildren().add(progressLabel);
+        StackPane.setAlignment(progressLabel, Pos.BOTTOM_CENTER);
+        StackPane.setMargin(progressLabel, new Insets(0, 0, 50, 0));
+
+        // Create a fresh diagram for capture
+        var freshDiagram = diagramSupplier.get();
+
+        // Find the actual diagram pane (first child if it's a VBox container)
+        Region diagramToCapture;
+        if (freshDiagram instanceof VBox vbox && !vbox.getChildren().isEmpty()
+                && vbox.getChildren().getFirst() instanceof Region r) {
+            diagramToCapture = r;
+        } else if (freshDiagram instanceof Region r) {
+            diagramToCapture = r;
+        } else {
+            progressLabel.setText("Export failed: invalid diagram");
+            return;
+        }
+
+        var width = (int) diagramToCapture.getPrefWidth();
+        var height = (int) diagramToCapture.getPrefHeight();
+
+        // Remove from current parent and place in capture container
+        if (diagramToCapture.getParent() instanceof Pane parentPane) {
+            parentPane.getChildren().remove(diagramToCapture);
+        }
+
+        var capturePane = new StackPane(diagramToCapture);
+        capturePane.setStyle("-fx-background-color: #1a1a24;");
+        capturePane.setMinSize(width, height);
+        capturePane.setMaxSize(width, height);
+        capturePane.setPrefSize(width, height);
+
+        // Create off-screen stage positioned outside visible area
+        var captureScene = new Scene(capturePane, width, height);
+        var captureStage = new Stage();
+        captureStage.initStyle(StageStyle.UNDECORATED);
+        captureStage.setScene(captureScene);
+        captureStage.setX(-2000);
+        captureStage.setY(-2000);
+        captureStage.show();
+
+        // Force layout
+        capturePane.applyCss();
+        capturePane.layout();
+
+        var frames = new ArrayList<BufferedImage>();
+        var params = new SnapshotParameters();
+        params.setFill(Color.rgb(26, 26, 36));
+
+        // Create WritableImage with EXACT dimensions
+        var snapshotImage = new WritableImage(width, height);
+
+        var captureTimeline = new Timeline();
+        for (var i = 0; i < totalFrames; i++) {
+            var frameIndex = i;
+            captureTimeline.getKeyFrames().add(new KeyFrame(
+                    Duration.millis((long) i * delayMs),
+                    e -> {
+                        progressLabel.setText("Capturing frame " + (frameIndex + 1) + "/" + totalFrames);
+                        // Snapshot the capture pane with exact dimensions
+                        capturePane.snapshot(params, snapshotImage);
+                        frames.add(SwingFXUtils.fromFXImage(snapshotImage, null));
+                    }
+            ));
+        }
+
+        captureTimeline.setOnFinished(e -> {
+            captureStage.close();
+            progressLabel.setText("Writing GIF...");
+
+            new Thread(() -> {
+                try {
+                    writeGif(frames, outputFile, delayMs);
+                    Platform.runLater(() -> {
+                        progressLabel.setText("Export complete!");
+                        var removeDelay = new Timeline(new KeyFrame(Duration.seconds(2), evt ->
+                            progressParent.getChildren().remove(progressLabel)
+                        ));
+                        removeDelay.play();
+                    });
+                } catch (IOException ex) {
+                    ex.printStackTrace();
+                    Platform.runLater(() -> {
+                        progressLabel.setText("Export failed!");
+                        var removeDelay = new Timeline(new KeyFrame(Duration.seconds(3), evt ->
+                            progressParent.getChildren().remove(progressLabel)
+                        ));
+                        removeDelay.play();
+                    });
+                }
+            }).start();
+        });
+
+        captureTimeline.play();
+    }
+
+    private void writeGif(List<BufferedImage> frames, File outputFile, int delayMs) throws IOException {
+        if (frames.isEmpty()) {
+            return;
+        }
+
+        try (var outputStream = new FileImageOutputStream(outputFile);
+             var writer = new AnimatedGifWriter(outputStream, BufferedImage.TYPE_INT_RGB, delayMs, true)) {
+            for (var frame : frames) {
+                // Convert to RGB if needed
+                if (frame.getType() != BufferedImage.TYPE_INT_RGB) {
+                    var rgbImage = new BufferedImage(frame.getWidth(), frame.getHeight(), BufferedImage.TYPE_INT_RGB);
+                    rgbImage.createGraphics().drawImage(frame, 0, 0, null);
+                    writer.writeToSequence(rgbImage);
+                } else {
+                    writer.writeToSequence(frame);
+                }
+            }
+        }
     }
 
     /**
@@ -555,7 +738,7 @@ public abstract class AbstractHelpOverlay extends StackPane {
         List<Node> nodes = new ArrayList<>();
         text = text.replace("\\n", "\n");
         var matcher = BOLD_PATTERN.matcher(text);
-        int lastEnd = 0;
+        var lastEnd = 0;
 
         while (matcher.find()) {
             if (matcher.start() > lastEnd) {
