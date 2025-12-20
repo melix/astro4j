@@ -79,8 +79,10 @@ public final class Viewer3DExportHelper {
     /**
      * Lissajous pattern frequency multipliers [X, Y].
      * All values are integers to ensure perfect looping.
+     * The first pattern is horizontal-only for users who prefer simple left-right motion.
      */
     public static final double[][] LISSAJOUS_PATTERNS = {
+            {0, 1},  // horizontal only - left-right sweep
             {1, 2},  // 2:1 - classic figure-8
             {2, 3},  // 3:2 - trefoil
             {1, 3},  // 3:1 - complex figure-8
@@ -106,41 +108,83 @@ public final class Viewer3DExportHelper {
     ) {
         /**
          * Creates randomized animation parameters with a random Lissajous pattern and phase offsets.
+         * For horizontal-only pattern, phaseX is fixed at 0 to keep the preview line centered.
          */
         public static AnimationParameters randomize() {
             var random = new Random();
             int index = random.nextInt(LISSAJOUS_PATTERNS.length);
             var pattern = LISSAJOUS_PATTERNS[index];
+            // For horizontal-only (freqMultiplierX == 0), phaseX must be 0 to keep the preview line centered
+            double phaseX = (pattern[0] == 0) ? 0 : random.nextDouble() * 2 * Math.PI;
             return new AnimationParameters(
                     index,
                     pattern[0],
                     pattern[1],
-                    random.nextDouble() * 2 * Math.PI,
+                    phaseX,
                     random.nextDouble() * 2 * Math.PI
             );
         }
 
         /**
-         * Creates parameters for a specific pattern index with random phase offsets.
+         * Creates parameters for a specific pattern index with fixed phase offsets.
+         * This ensures deterministic behavior when users cycle through patterns.
          */
         public static AnimationParameters forPattern(int patternIndex) {
-            var random = new Random();
             int index = patternIndex % LISSAJOUS_PATTERNS.length;
             var pattern = LISSAJOUS_PATTERNS[index];
             return new AnimationParameters(
                     index,
                     pattern[0],
                     pattern[1],
-                    random.nextDouble() * 2 * Math.PI,
-                    random.nextDouble() * 2 * Math.PI
+                    0,
+                    0
             );
         }
 
         /**
+         * Returns true if this is the horizontal-only pattern (no vertical movement).
+         */
+        public boolean isHorizontalOnly() {
+            return freqMultiplierX == 0;
+        }
+
+        /**
          * Returns parameters for the next pattern in sequence.
+         * If coming from a random state (non-zero phases), starts the cycle from pattern 0.
+         * When completing a full cycle, randomizes phases for the next cycle.
          */
         public AnimationParameters nextPattern() {
-            return forPattern(patternIndex + 1);
+            boolean isRandomState = phaseX != 0 || phaseY != 0;
+            if (isRandomState) {
+                // First click after random: go to pattern 0, unless already on 0
+                int nextIndex = (patternIndex == 0) ? 1 : 0;
+                return forPattern(nextIndex);
+            }
+            int nextIndex = (patternIndex + 1) % LISSAJOUS_PATTERNS.length;
+            if (nextIndex == 0) {
+                // Completed a cycle, randomize phases for the next round
+                return forPatternWithRandomPhases(0);
+            }
+            return forPattern(nextIndex);
+        }
+
+        /**
+         * Creates parameters for a specific pattern index with random phase offsets.
+         * For horizontal-only pattern, phaseX is fixed at 0 to keep the line centered.
+         */
+        private static AnimationParameters forPatternWithRandomPhases(int patternIndex) {
+            var random = new Random();
+            int index = patternIndex % LISSAJOUS_PATTERNS.length;
+            var pattern = LISSAJOUS_PATTERNS[index];
+            // For horizontal-only (freqMultiplierX == 0), phaseX must be 0 to keep the preview line centered
+            double phaseX = (pattern[0] == 0) ? 0 : random.nextDouble() * 2 * Math.PI;
+            return new AnimationParameters(
+                    index,
+                    pattern[0],
+                    pattern[1],
+                    phaseX,
+                    random.nextDouble() * 2 * Math.PI
+            );
         }
 
         /**
