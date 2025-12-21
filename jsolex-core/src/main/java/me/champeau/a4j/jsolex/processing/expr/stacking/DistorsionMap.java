@@ -130,8 +130,8 @@ public class DistorsionMap {
         this.tileSize = tileSize;
         var xSamples = ((width + tileSize) / step) + 1;
         var ySamples = ((height + tileSize) / step) + 1;
-        this.dxy = new double[xSamples][ySamples][2];
-        this.sampled = new boolean[xSamples][ySamples];
+        this.dxy = new double[ySamples][xSamples][2];
+        this.sampled = new boolean[ySamples][xSamples];
         this.gridYSize = dxy.length;
         this.gridXSize = dxy[0].length;
     }
