@@ -23,6 +23,37 @@ inline float2 cmul(float2 a, float2 b) {
     return (float2)(a.x * b.x - a.y * b.y, a.x * b.y + a.y * b.x);
 }
 
+// Pre-computed twiddle factors for 32-point FFT
+// twiddle32[k] = (cos(-π*k/16), sin(-π*k/16)) for forward FFT
+// For inverse FFT, use (twiddle32[k].x, -twiddle32[k].y)
+__constant float2 twiddle32[16] = {
+    (float2)(1.0f, 0.0f),                          // k=0:  cos(0), sin(0)
+    (float2)(0.98078528040323043f, -0.19509032201612825f),  // k=1:  cos(-π/16), sin(-π/16)
+    (float2)(0.92387953251128674f, -0.38268343236508978f),  // k=2:  cos(-π/8), sin(-π/8)
+    (float2)(0.83146961230254524f, -0.55557023301960218f),  // k=3:  cos(-3π/16), sin(-3π/16)
+    (float2)(0.70710678118654752f, -0.70710678118654752f),  // k=4:  cos(-π/4), sin(-π/4)
+    (float2)(0.55557023301960218f, -0.83146961230254524f),  // k=5:  cos(-5π/16), sin(-5π/16)
+    (float2)(0.38268343236508978f, -0.92387953251128674f),  // k=6:  cos(-3π/8), sin(-3π/8)
+    (float2)(0.19509032201612825f, -0.98078528040323043f),  // k=7:  cos(-7π/16), sin(-7π/16)
+    (float2)(0.0f, -1.0f),                         // k=8:  cos(-π/2), sin(-π/2)
+    (float2)(-0.19509032201612825f, -0.98078528040323043f), // k=9:  cos(-9π/16), sin(-9π/16)
+    (float2)(-0.38268343236508978f, -0.92387953251128674f), // k=10: cos(-5π/8), sin(-5π/8)
+    (float2)(-0.55557023301960218f, -0.83146961230254524f), // k=11: cos(-11π/16), sin(-11π/16)
+    (float2)(-0.70710678118654752f, -0.70710678118654752f), // k=12: cos(-3π/4), sin(-3π/4)
+    (float2)(-0.83146961230254524f, -0.55557023301960218f), // k=13: cos(-13π/16), sin(-13π/16)
+    (float2)(-0.92387953251128674f, -0.38268343236508978f), // k=14: cos(-7π/8), sin(-7π/8)
+    (float2)(-0.98078528040323043f, -0.19509032201612825f)  // k=15: cos(-15π/16), sin(-15π/16)
+};
+
+// Get twiddle factor with direction support
+// For forward FFT (direction=-1): returns twiddle32[k]
+// For inverse FFT (direction=+1): returns conjugate (cos, -sin) = (cos, sin) with negated sin
+inline float2 get_twiddle(int k, int direction) {
+    float2 w = twiddle32[k];
+    // For inverse FFT, we need positive angles, which is the conjugate
+    return (direction < 0) ? w : (float2)(w.x, -w.y);
+}
+
 // Bit-reverse a 5-bit number (for N=32)
 inline int bitrev5(int n) {
     int r = 0;
@@ -39,8 +70,6 @@ inline int bitrev5(int n) {
 // All 32 threads must call this together
 // direction: -1 for forward FFT, +1 for inverse FFT
 void fft32_inplace(__local float2* data, int tid, int direction) {
-    float sign = (float)direction;
-
     // Step 1: Bit-reversal permutation
     // Each thread swaps its element with its bit-reversed partner (if needed)
     barrier(CLK_LOCAL_MEM_FENCE);
@@ -72,6 +101,7 @@ void fft32_inplace(__local float2* data, int tid, int direction) {
     barrier(CLK_LOCAL_MEM_FENCE);
 
     // Stage 2: butterflies of size 4 (stride=2)
+    // Twiddle indices: pos * 8 (stride 8 in table)
     {
         int group = tid >> 2;     // which group of 4 (0-7)
         int pos = tid & 3;        // position in group (0-3)
@@ -80,8 +110,7 @@ void fft32_inplace(__local float2* data, int tid, int direction) {
         if (pos < 2) {
             int i = base + pos;
             int j = base + pos + 2;
-            float angle = sign * M_PI_F * pos / 2.0f;
-            float2 w = (float2)(cos(angle), sin(angle));
+            float2 w = get_twiddle(pos * 8, direction);
 
             float2 a = data[i];
             float2 b = cmul(w, data[j]);
@@ -92,6 +121,7 @@ void fft32_inplace(__local float2* data, int tid, int direction) {
     barrier(CLK_LOCAL_MEM_FENCE);
 
     // Stage 3: butterflies of size 8 (stride=4)
+    // Twiddle indices: pos * 4 (stride 4 in table)
     {
         int group = tid >> 3;     // which group of 8 (0-3)
         int pos = tid & 7;        // position in group (0-7)
@@ -100,8 +130,7 @@ void fft32_inplace(__local float2* data, int tid, int direction) {
         if (pos < 4) {
             int i = base + pos;
             int j = base + pos + 4;
-            float angle = sign * M_PI_F * pos / 4.0f;
-            float2 w = (float2)(cos(angle), sin(angle));
+            float2 w = get_twiddle(pos * 4, direction);
 
             float2 a = data[i];
             float2 b = cmul(w, data[j]);
@@ -112,6 +141,7 @@ void fft32_inplace(__local float2* data, int tid, int direction) {
     barrier(CLK_LOCAL_MEM_FENCE);
 
     // Stage 4: butterflies of size 16 (stride=8)
+    // Twiddle indices: pos * 2 (stride 2 in table)
     {
         int group = tid >> 4;     // which group of 16 (0-1)
         int pos = tid & 15;       // position in group (0-15)
@@ -120,8 +150,7 @@ void fft32_inplace(__local float2* data, int tid, int direction) {
         if (pos < 8) {
             int i = base + pos;
             int j = base + pos + 8;
-            float angle = sign * M_PI_F * pos / 8.0f;
-            float2 w = (float2)(cos(angle), sin(angle));
+            float2 w = get_twiddle(pos * 2, direction);
 
             float2 a = data[i];
             float2 b = cmul(w, data[j]);
@@ -132,12 +161,12 @@ void fft32_inplace(__local float2* data, int tid, int direction) {
     barrier(CLK_LOCAL_MEM_FENCE);
 
     // Stage 5: butterflies of size 32 (stride=16)
+    // Twiddle indices: tid * 1 (stride 1 in table)
     {
         if (tid < 16) {
             int i = tid;
             int j = tid + 16;
-            float angle = sign * M_PI_F * tid / 16.0f;
-            float2 w = (float2)(cos(angle), sin(angle));
+            float2 w = get_twiddle(tid, direction);
 
             float2 a = data[i];
             float2 b = cmul(w, data[j]);

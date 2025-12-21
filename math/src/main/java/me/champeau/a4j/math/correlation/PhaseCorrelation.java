@@ -147,28 +147,14 @@ public class PhaseCorrelation {
                 }
 
                 context.finish();
-                context.readBuffer(resultBuffer, results);
+                context.readBufferNoSync(resultBuffer, results);
 
                 return unflatten2D(results, numTiles, 2);
             } finally {
-                // Ensure all GPU operations complete before releasing buffers
-                try {
-                    context.finish();
-                } catch (Exception e) {
-                    System.err.println("[PhaseCorrelation] finish() failed in finally block");
-                    e.printStackTrace();
-                }
                 // Release each buffer in its own try-catch to ensure all are released
                 safeRelease(context, refBuffer);
                 safeRelease(context, targetBuffer);
                 safeRelease(context, resultBuffer);
-                // Flush to ensure release commands are submitted to GPU
-                try {
-                    context.flush();
-                } catch (Exception e) {
-                    System.err.println("[PhaseCorrelation] flush() failed after buffer release");
-                    e.printStackTrace();
-                }
             }
         });
     }
@@ -276,17 +262,10 @@ public class PhaseCorrelation {
                 }
 
                 context.finish();
-                context.readBuffer(resultBuffer, results);
+                context.readBufferNoSync(resultBuffer, results);
 
                 return unflatten2D(results, numTiles, 2);
             } finally {
-                // Ensure all GPU operations complete before releasing buffers
-                try {
-                    context.finish();
-                } catch (Exception e) {
-                    System.err.println("[PhaseCorrelation] finish() failed in finally block (large)");
-                    e.printStackTrace();
-                }
                 // Release each buffer in its own try-catch to ensure all are released
                 safeRelease(context, refInputBuffer);
                 safeRelease(context, targetInputBuffer);
@@ -295,13 +274,6 @@ public class PhaseCorrelation {
                 safeRelease(context, tempBuffer);
                 safeRelease(context, realBuffer);
                 safeRelease(context, resultBuffer);
-                // Flush to ensure release commands are submitted to GPU
-                try {
-                    context.flush();
-                } catch (Exception e) {
-                    System.err.println("[PhaseCorrelation] flush() failed after buffer release (large)");
-                    e.printStackTrace();
-                }
             }
         });
     }

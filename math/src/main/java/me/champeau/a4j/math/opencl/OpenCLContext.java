@@ -22,6 +22,7 @@ import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.MemoryUtil;
 
 import java.nio.ByteBuffer;
+import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -63,6 +64,10 @@ public class OpenCLContext implements AutoCloseable {
     private final AtomicInteger consecutiveErrors = new AtomicInteger(0);
     private final AtomicInteger totalErrors = new AtomicInteger(0);
     private volatile GPUError lastError;
+
+    // Cache for writeBuffer operations - reused across calls
+    // Safe because gpuLock ensures sequential access
+    private FloatBuffer writeCache;
 
     /**
      * Records a GPU error with the given message and cause.
@@ -423,6 +428,23 @@ public class OpenCLContext implements AutoCloseable {
     }
 
     /**
+     * Gets or grows the write cache to hold at least minCapacity floats.
+     * The cache is reused across writeBuffer calls to avoid repeated allocations.
+     */
+    private FloatBuffer getOrGrowWriteCache(int minCapacity) {
+        if (writeCache == null || writeCache.capacity() < minCapacity) {
+            if (writeCache != null) {
+                MemoryUtil.memFree(writeCache);
+            }
+            // Round up to power of 2 for efficient reuse
+            int newCapacity = Integer.highestOneBit(minCapacity - 1) << 1;
+            newCapacity = Math.max(newCapacity, 64 * 1024); // Min 64K floats (~256KB)
+            writeCache = MemoryUtil.memAllocFloat(newCapacity);
+        }
+        return writeCache;
+    }
+
+    /**
      * Writes float data to a buffer.
      * Must be called within {@link #executeWithLock(Supplier)} or {@link #executeWithLock(Runnable)}.
      *
@@ -432,20 +454,17 @@ public class OpenCLContext implements AutoCloseable {
      */
     public void writeBuffer(long buffer, float[] data) {
         requireLock();
-        // Use direct buffer allocation for OpenCL compatibility
-        var floatBuffer = MemoryUtil.memAllocFloat(data.length);
-        try {
-            floatBuffer.put(data).flip();
-            // blocking=true ensures the write completes before returning
-            int err = clEnqueueWriteBuffer(commandQueue, buffer, true, 0, floatBuffer, null, null);
-            if (err != CL_SUCCESS) {
-                var ex = new OpenCLException("Failed to write buffer: " + err + " | " + getMemoryStats());
-                recordError("writeBuffer", ex);
-                throw ex;
-            }
-        } finally {
-            MemoryUtil.memFree(floatBuffer);
+        var floatBuffer = getOrGrowWriteCache(data.length);
+        floatBuffer.clear();
+        floatBuffer.put(data).flip();
+        // blocking=true ensures the write completes before returning
+        int err = clEnqueueWriteBuffer(commandQueue, buffer, true, 0, floatBuffer, null, null);
+        if (err != CL_SUCCESS) {
+            var ex = new OpenCLException("Failed to write buffer: " + err + " | " + getMemoryStats());
+            recordError("writeBuffer", ex);
+            throw ex;
         }
+        // Don't free - keep for reuse
     }
 
     /**
@@ -473,7 +492,7 @@ public class OpenCLContext implements AutoCloseable {
     }
 
     /**
-     * Reads float data from a buffer.
+     * Reads float data from a buffer, ensuring all pending operations complete first.
      * Must be called within {@link #executeWithLock(Supplier)} or {@link #executeWithLock(Runnable)}.
      *
      * @param buffer the buffer handle
@@ -489,6 +508,21 @@ public class OpenCLContext implements AutoCloseable {
             recordError("readBuffer.clFinish", ex);
             System.err.println("[OpenCLContext] " + ex.getMessage());
         }
+        readBufferNoSync(buffer, data);
+    }
+
+    /**
+     * Reads float data from a buffer without synchronizing first.
+     * Caller must ensure all kernel operations affecting this buffer have completed
+     * (typically by calling {@link #finish()} once before multiple reads).
+     * Must be called within {@link #executeWithLock(Supplier)} or {@link #executeWithLock(Runnable)}.
+     *
+     * @param buffer the buffer handle
+     * @param data the array to read into
+     * @throws IllegalStateException if not called within executeWithLock
+     */
+    public void readBufferNoSync(long buffer, float[] data) {
+        requireLock();
         var floatBuffer = MemoryUtil.memAllocFloat(data.length);
         try {
             // blocking=true ensures the read completes before returning
@@ -627,6 +661,10 @@ public class OpenCLContext implements AutoCloseable {
 
     @Override
     public void close() {
+        if (writeCache != null) {
+            MemoryUtil.memFree(writeCache);
+            writeCache = null;
+        }
         kernelManager.close();
         clReleaseCommandQueue(commandQueue);
         clReleaseContext(context);

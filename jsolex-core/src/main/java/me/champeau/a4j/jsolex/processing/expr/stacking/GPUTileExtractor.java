@@ -211,15 +211,15 @@ public class GPUTileExtractor {
 
                 context.finish();
 
-                // Read results
+                // Read results - use NoSync variants since we just finished
                 float[] refTilesFlat = new float[validCount * tileSizeSq];
                 float[] targetTilesFlat = new float[validCount * tileSizeSq];
                 int[] gridXArr = new int[totalPositions];
                 int[] gridYArr = new int[totalPositions];
                 int[] validMaskArr = new int[totalPositions];
 
-                context.readBuffer(refTilesBuf, refTilesFlat);
-                context.readBuffer(targetTilesBuf, targetTilesFlat);
+                context.readBufferNoSync(refTilesBuf, refTilesFlat);
+                context.readBufferNoSync(targetTilesBuf, targetTilesFlat);
                 readBufferInt(context, gridXBuf, gridXArr);
                 readBufferInt(context, gridYBuf, gridYArr);
                 readBufferInt(context, validMaskBuf, validMaskArr);
@@ -475,15 +475,15 @@ public class GPUTileExtractor {
 
             context.finish();
 
-            // Read results
+            // Read results - use NoSync variants since we just finished
             float[] refTilesFlat = new float[validCount * tileSizeSq];
             float[] targetTilesFlat = new float[validCount * tileSizeSq];
             int[] gridXArr = new int[totalPositions];
             int[] gridYArr = new int[totalPositions];
             int[] validMaskArr = new int[totalPositions];
 
-            context.readBuffer(refTilesBuf, refTilesFlat);
-            context.readBuffer(targetTilesBuf, targetTilesFlat);
+            context.readBufferNoSync(refTilesBuf, refTilesFlat);
+            context.readBufferNoSync(targetTilesBuf, targetTilesFlat);
             readBufferInt(context, gridXBuf, gridXArr);
             readBufferInt(context, gridYBuf, gridYArr);
             readBufferInt(context, validMaskBuf, validMaskArr);
