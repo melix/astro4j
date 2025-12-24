@@ -19,6 +19,8 @@
 ## Nouveautés de la version 4.4.3
 
 - Les vues 3D proposent désormais plusieurs motifs d'animation : cliquez sur l'icône de prévisualisation pour parcourir les options, dont un simple mouvement gauche-droite
+- Ajout de la fonction `SIDE_BY_SIDE` : combine deux images horizontalement (gauche et droite)
+- Ajout de la fonction `TOP_BOTTOM` : combine deux images verticalement (haut et bas)
 
 ## Nouveautés de la version 4.4.2
 

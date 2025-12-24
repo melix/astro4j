@@ -41,6 +41,7 @@ import me.champeau.a4j.jsolex.processing.expr.impl.EllipseFit;
 import me.champeau.a4j.jsolex.processing.expr.impl.Filtering;
 import me.champeau.a4j.jsolex.processing.expr.impl.FixBanding;
 import me.champeau.a4j.jsolex.processing.expr.impl.GeometryCorrection;
+import me.champeau.a4j.jsolex.processing.expr.impl.ImageCombination;
 import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
 import me.champeau.a4j.jsolex.processing.expr.impl.ImageStatistics;
 import me.champeau.a4j.jsolex.processing.expr.impl.Inverse;
@@ -129,6 +130,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     private final FixBanding fixBanding;
     private final ArtifificialFlatCorrector flatCorrector;
     private final GeometryCorrection geometryCorrection;
+    private final ImageCombination imageCombination;
     private final ImageDraw imageDraw;
     private final ImageStatistics imageStatistics;
     private final Inverse inverse;
@@ -166,6 +168,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         this.fixBanding = new FixBanding(context, broadcaster);
         this.flatCorrector = new ArtifificialFlatCorrector(context, broadcaster);
         this.geometryCorrection = new GeometryCorrection(context, broadcaster, ellipseFit);
+        this.imageCombination = new ImageCombination(context, broadcaster);
         this.imageDraw = new ImageDraw(context, broadcaster);
         this.imageStatistics = new ImageStatistics(context, broadcaster);
         this.inverse = new Inverse(context, broadcaster);
@@ -381,6 +384,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case RGB -> RGBCombination.combine(arguments);
             case SATURATE -> saturation.saturate(arguments);
             case SHARPEN -> convolution.sharpen(arguments);
+            case SIDE_BY_SIDE -> imageCombination.sideBySide(arguments);
             case SIGMOID_STRETCH -> stretching.sigmoidStretch(arguments);
             case MTF -> stretching.mtf(arguments);
             case MTF_AUTOSTRETCH -> stretching.mtfAutostretch(arguments);
@@ -389,6 +393,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case STACK_REF -> stacking.chooseReference(arguments);
             case STACK_DEDIS -> stacking.stackDedistorted(arguments);
             case SORT -> utilities.sort(arguments);
+            case TOP_BOTTOM -> imageCombination.topBottom(arguments);
             case TRANSITION -> animate.transition(arguments);
             case UNSHARP_MASK -> convolution.unsharpMask(arguments);
             case AR_OVERLAY -> imageDraw.activeRegionsOverlay(arguments);
