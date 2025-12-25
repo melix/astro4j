@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.expr
 import me.champeau.a4j.jsolex.expr.ast.Identifier
 import me.champeau.a4j.jsolex.expr.ast.MetaBlock
 import me.champeau.a4j.jsolex.expr.ast.ParameterObject
+import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor
 import me.champeau.a4j.jsolex.processing.params.ImageMathParameterExtractor
 import spock.lang.Specification
 
@@ -95,7 +96,7 @@ result = adjust_gamma(img(0), brightness)"""
         root != null
         def paramsSection = root.findParamsSection()
         paramsSection.isPresent()
-        def singleSections = root.findSections(me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor.SectionKind.SINGLE)
+        def singleSections = root.findSections(ImageMathScriptExecutor.SectionKind.SINGLE)
         singleSections.size() == 1
     }
 
@@ -120,7 +121,7 @@ result = adjust_gamma(img(0), brightness)"""
 
 [[single]]
 result = img(0)"""
-        def extractor = new me.champeau.a4j.jsolex.processing.params.ImageMathParameterExtractor()
+        def extractor = new ImageMathParameterExtractor()
 
         when:
         def result = extractor.extractParameters(script)

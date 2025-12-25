@@ -20,7 +20,6 @@ import me.champeau.a4j.jsolex.processing.expr.stacking.DistorsionMap
 import me.champeau.a4j.jsolex.processing.expr.stacking.SignalEvaluator
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32
-import me.champeau.a4j.math.correlation.PhaseCorrelation
 import me.champeau.a4j.math.image.Image
 import me.champeau.a4j.math.image.ImageMath
 import me.champeau.a4j.math.opencl.OpenCLContext
@@ -81,28 +80,14 @@ class DedistortOptimizationTest extends Specification {
         noGPUErrors()
     }
 
-    def "GPU operations work correctly in sequence - phase correlation then filters (half window = #half)"() {
-        given: "tiles for phase correlation"
-        int numTiles = 774
-        int tileSize = 64
-        def refTiles = new float[numTiles][tileSize][tileSize]
-        def targetTiles = new float[numTiles][tileSize][tileSize]
-        def random = new Random(42)
-        for (int i = 0; i < numTiles; i++) {
-            for (int y = 0; y < tileSize; y++) {
-                for (int x = 0; x < tileSize; x++) {
-                    refTiles[i][y][x] = random.nextFloat() * 1000
-                    targetTiles[i][y][x] = random.nextFloat() * 1000
-                }
-            }
-        }
-
-        and: "a grid for filter operations (> 1000 points for GPU)"
+    def "GPU filter operations work correctly in sequence (half window = #half)"() {
+        given: "a grid for filter operations (> 1000 points for GPU)"
         int gridWidth = 37
         int gridHeight = 37
         def gridDx = new float[gridHeight][gridWidth]
         def gridDy = new float[gridHeight][gridWidth]
         def sampled = new boolean[gridHeight][gridWidth]
+        def random = new Random(42)
         for (int y = 0; y < gridHeight; y++) {
             for (int x = 0; x < gridWidth; x++) {
                 sampled[y][x] = random.nextFloat() < 0.7f
@@ -113,14 +98,10 @@ class DedistortOptimizationTest extends Specification {
             }
         }
 
-        when: "phase correlation runs first"
-        def phaseCorr = PhaseCorrelation.getInstance()
-        phaseCorr.batchedCorrelation(refTiles, targetTiles)
-
-        and: "then interpolateUnsampled is called"
+        when: "interpolateUnsampled is called"
         DistortionGridFilter.getInstance().interpolateUnsampled(gridDx, gridDy, sampled, gridWidth, gridHeight, 3)
 
-        and: "then madFilter is called with halfWindow=2 (supported by GPU kernel)"
+        and: "then madFilter is called"
         DistortionGridFilter.getInstance().madFilter(gridDx, gridDy, gridWidth, gridHeight, half, 3.0f)
 
         then: "no GPU errors occurred"
@@ -310,7 +291,7 @@ class DedistortOptimizationTest extends Specification {
 
         when: "dedistort is called on a virtual thread (mimicking real app behavior)"
         def result = CompletableFuture.supplyAsync({
-            dedistort.dedistort(reference, target, 64, 0.5d, 1000d, 1, false)
+            dedistort.dedistort(reference, target, 64, 0.5d, 1000d, 1, false, false)
         }, Executors.newVirtualThreadPerTaskExecutor()).get()
 
         then: "no GPU errors occur and result is returned"
@@ -340,7 +321,7 @@ class DedistortOptimizationTest extends Specification {
 
         when: "dedistort is called with multiple iterations (more GPU operations)"
         def result = CompletableFuture.supplyAsync({
-            dedistort.dedistort(reference, target, 64, 0.5d, 500d, 3, false)
+            dedistort.dedistort(reference, target, 64, 0.5d, 500d, 3, false, false)
         }, Executors.newVirtualThreadPerTaskExecutor()).get()
 
         then: "no GPU errors occur"
@@ -362,7 +343,7 @@ class DedistortOptimizationTest extends Specification {
 
         when: "dedistort is called on a REGULAR thread (not virtual)"
         def result = CompletableFuture.supplyAsync({
-            dedistort.dedistort(reference, target, 64, 0.25d, 500d, 1, false)
+            dedistort.dedistort(reference, target, 64, 0.25d, 500d, 1, false, false)
         }, Executors.newSingleThreadExecutor()).get()
 
         then: "no GPU errors occur"
@@ -384,7 +365,7 @@ class DedistortOptimizationTest extends Specification {
 
         when: "dedistort is called on a virtual thread"
         def result = CompletableFuture.supplyAsync({
-            dedistort.dedistort(reference, target, 64, 0.25d, 500d, 1, false)
+            dedistort.dedistort(reference, target, 64, 0.25d, 500d, 1, false, false)
         }, Executors.newVirtualThreadPerTaskExecutor()).get()
 
         then: "no GPU errors occur"
@@ -467,7 +448,7 @@ class DedistortOptimizationTest extends Specification {
             def target = new ImageWrapper32(width, height, targetData, [:])
 
             def result = CompletableFuture.supplyAsync({
-                dedistort.dedistort(reference, target, 64, 0.5d, 1000d, 1, false)
+                dedistort.dedistort(reference, target, 64, 0.5d, 1000d, 1, false, false)
             }, executor).get()
             results.add(result)
         }

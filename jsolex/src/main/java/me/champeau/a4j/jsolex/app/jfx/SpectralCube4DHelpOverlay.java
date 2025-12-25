@@ -21,6 +21,7 @@ import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -34,6 +35,7 @@ import javafx.scene.paint.CycleMethod;
 import javafx.scene.paint.RadialGradient;
 import javafx.scene.paint.Stop;
 import javafx.scene.shape.Circle;
+import javafx.scene.shape.Ellipse;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.Polygon;
 import javafx.scene.shape.Polyline;
@@ -227,7 +229,7 @@ public class SpectralCube4DHelpOverlay extends AbstractHelpOverlay {
             var dot = new Circle(6);
             dot.setFill(i == 0 ? Color.WHITE : Color.gray(0.4));
             dot.setId("phase-indicator-" + i);
-            dot.setCursor(javafx.scene.Cursor.HAND);
+            dot.setCursor(Cursor.HAND);
             var phaseIndex = i;
             dot.setOnMouseClicked(e -> controller.switchToPhase(phaseIndex));
             dot.setOnMouseEntered(e -> {
@@ -289,7 +291,7 @@ public class SpectralCube4DHelpOverlay extends AbstractHelpOverlay {
         pane.getChildren().addAll(arrow1);
 
         // Disk result
-        var diskOval = new javafx.scene.shape.Ellipse(rightX + 60, startY + 40, 45, 28);
+        var diskOval = new Ellipse(rightX + 60, startY + 40, 45, 28);
         diskOval.setFill(new RadialGradient(0, 0, 0.5, 0.5, 0.5, true, CycleMethod.NO_CYCLE,
                 new Stop(0, Color.rgb(100, 255, 100)),
                 new Stop(0.7, Color.rgb(50, 200, 50)),
@@ -445,7 +447,7 @@ public class SpectralCube4DHelpOverlay extends AbstractHelpOverlay {
                 new Stop(0.85, Color.rgb(50, 150, 200)),
                 new Stop(1.0, Color.rgb(30, 80, 150))
         );
-        var diskSurface = new javafx.scene.shape.Ellipse(diskCX, diskCY, diskRX, diskRY);
+        var diskSurface = new Ellipse(diskCX, diskCY, diskRX, diskRY);
         diskSurface.setFill(diskGradient);
         diskSurface.setStroke(Color.rgb(100, 200, 100));
         diskSurface.setStrokeWidth(2);

@@ -17,10 +17,12 @@ package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.animation.AnimationTimer;
 import javafx.animation.PauseTransition;
+import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Point3D;
 import javafx.geometry.Pos;
+import javafx.scene.Cursor;
 import javafx.scene.Group;
 import javafx.scene.SnapshotParameters;
 import javafx.scene.canvas.Canvas;
@@ -892,7 +894,7 @@ public class SpectralEvolution4DViewer extends AbstractSpectral3DViewer {
                 String.format(Locale.US, "%.2f Å", data.centerWavelength().angstroms()),
                 Color.GRAY
         );
-        wavelengthLabel.setCursor(javafx.scene.Cursor.HAND);
+        wavelengthLabel.setCursor(Cursor.HAND);
         wavelengthLabel.setOnMouseClicked(e -> resetToCenter());
 
         axisInfo.getChildren().addAll(xAxisLabel, zAxisLabel, yAxisLabel, new Separator(Orientation.VERTICAL), wavelengthLabel);
@@ -997,7 +999,7 @@ public class SpectralEvolution4DViewer extends AbstractSpectral3DViewer {
             sliceModeCombo.setDisable(false);
             invalidateMesh();
             // Use Platform.runLater to ensure any pending animation frame has completed
-            javafx.application.Platform.runLater(this::buildSurface);
+            Platform.runLater(this::buildSurface);
         } else {
             sliceSlider.setDisable(true);
             sliceModeCombo.setDisable(true);

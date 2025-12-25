@@ -2,16 +2,18 @@ name: DEDISTORT
 category: STACKING
 concurrent: false
 description:
-  fr: "Permet de corriger la distorsion d’une image. Elle dispose de 2 modes d’utilisation distincts.
-  Dans le premier mode, on lui fournit une image de référence et une image à corriger, ainsi que 3 paramètres optionnels : la taille des tuiles, l’échantillonnage et la valeur du fond de ciel.
-  L’image renvoyée sera corrigée en s’approchant au possible de l’image de référence, la rendant par exemple utilisable pour du stacking.
-  Dans le second mode, on lui fournit une liste d’images à corriger (1er paramètre) et une liste d’images déja corrigées, auquel cas les paramètres de correction de chaque image est pris en utilisant l’image de même index dans la liste des images déja corrigées.
-  Ceci peut-être utile par exemple lorsqu’on calcule la distorsion sur le centre de la raie (décalage 0) et qu’on souhaite appliquer les mêmes corrections à des images de décalage différent."
+  fr: "Permet de corriger la distorsion d'une image. Elle dispose de 2 modes d'utilisation distincts.
+  Dans le premier mode, on lui fournit une image de référence et une image à corriger, ainsi que 3 paramètres optionnels : la taille des tuiles, l'échantillonnage et la valeur du fond de ciel.
+  L'image renvoyée sera corrigée en s'approchant au possible de l'image de référence, la rendant par exemple utilisable pour du stacking.
+  Dans le second mode, on lui fournit une liste d'images à corriger (1er paramètre) et une liste d'images déja corrigées, auquel cas les paramètres de correction de chaque image est pris en utilisant l'image de même index dans la liste des images déja corrigées.
+  Ceci peut-être utile par exemple lorsqu'on calcule la distorsion sur le centre de la raie (décalage 0) et qu'on souhaite appliquer les mêmes corrections à des images de décalage différent.
+  Pour de meilleurs résultats, utilisez le mode de référence par consensus (stack_ref avec select='consensus') combiné avec sparse=1."
   en: "Allows to correct the distortion of an image. It has 2 distinct modes of use.
   In the first mode, it takes a reference image and an image to correct, as well as 3 optional parameters: the tile size, the sampling, and the sky background value.
    The returned image will be corrected as closely as possible to the reference image, making it usable for stacking, for example.
    In the second mode, it takes a list of images to correct and a list of already corrected images, in which case the correction parameters for each image are taken using the same index image in the list of already corrected images.
-   This can be useful, for example, when calculating the distortion at the center of the line (shift 0) and wanting to apply the same corrections to images with different shifts."
+   This can be useful, for example, when calculating the distortion at the center of the line (shift 0) and wanting to apply the same corrections to images with different shifts.
+   For best results, use consensus reference mode (stack_ref with select='consensus') combined with sparse=1."
 arguments:
   - name: ref
     description:
@@ -44,12 +46,18 @@ arguments:
     description:
       fr: "Nombre d'itérations de correction de distorsion. Chaque itération applique une correction supplémentaire en comparant le résultat à l'image de référence originale."
       en: "Number of distortion correction iterations. Each iteration applies an additional correction by comparing the result to the original reference image."
-  - name: refine
+  - name: sparse
     optional: true
-    default: true
+    default: 0
     description:
-      fr: "Active le raffinement hiérarchique. Lorsqu'activé, une seconde passe avec des tuiles plus petites (moitié de la taille) est effectuée pour capturer les distorsions locales fines."
-      en: "Enable hierarchical refinement. When enabled, a second pass with smaller tiles (half the size) is performed to capture fine local distortions."
+      fr: "Active l'échantillonnage clairsemé basé sur les points d'intérêt (1=activé, 0=désactivé). Les points d'intérêt sont sélectionnés automatiquement en fonction du gradient de l'image. Lorsque ce paramètre est actif, le paramètre 'sampling' est ignoré."
+      en: "Enables sparse interest-point based sampling (1=enabled, 0=disabled). Interest points are automatically selected based on image gradient. When this parameter is active, the 'sampling' parameter is ignored."
+  - name: multiscale
+    optional: true
+    default: 0
+    description:
+      fr: "Active le mode multi-échelle (1=activé, 0=désactivé). Lorsqu'activé, des tuiles de différentes tailles sont utilisées : grandes tuiles dans les zones à faible gradient, petites tuiles dans les zones à fort gradient. Nécessite sparse > 0."
+      en: "Enables multi-scale mode (1=enabled, 0=disabled). When enabled, tiles of different sizes are used: large tiles in low-gradient areas, small tiles in high-gradient areas. Requires sparse > 0."
 examples:
   - "crop_rect(img(0), 1024, 1024)"
   - "crop_rect(img: img(0), width: 200, height: 200)"

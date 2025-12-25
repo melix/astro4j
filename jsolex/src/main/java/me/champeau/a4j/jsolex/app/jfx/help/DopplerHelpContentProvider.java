@@ -31,6 +31,7 @@ import javafx.scene.paint.Stop;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.Polygon;
+import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
@@ -239,7 +240,7 @@ public class DopplerHelpContentProvider implements ImageHelpContentProvider {
     private Group createChannelBox(double x, double y, String label, Color color) {
         var group = new Group();
 
-        var box = new javafx.scene.shape.Rectangle(x - 25, y - 20, 50, 40);
+        var box = new Rectangle(x - 25, y - 20, 50, 40);
         box.setFill(color.deriveColor(0, 1, 1, 0.3));
         box.setStroke(color);
         box.setStrokeWidth(2);

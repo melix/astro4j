@@ -21,6 +21,7 @@
 - 3D viewers now offer multiple animation patterns: click the pattern preview icon to cycle through options including a simple left-right movement
 - Added `SIDE_BY_SIDE` function: combines two images horizontally (left and right)
 - Added `TOP_BOTTOM` function: combines two images vertically (top and bottom)
+- Made `CONSENSUS` mode the default for stacking and added a sparse mode option, which makes stacking faster
 
 ## What's New in Version 4.4.2
 

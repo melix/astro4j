@@ -26,13 +26,11 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
-import javafx.scene.control.TextFormatter;
 import javafx.scene.control.TitledPane;
 import javafx.scene.input.TransferMode;
 import javafx.scene.layout.FlowPane;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
-import javafx.util.converter.DoubleStringConverter;
 import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
@@ -92,25 +90,17 @@ public class StackingAndMosaicController {
     @FXML
     private Slider stackTileSize;
     @FXML
-    private TextField stackSampling;
-    @FXML
     private CheckBox stackForceRecomputeEllipse;
     @FXML
     private CheckBox stackFixGeometry;
     @FXML
     private Label stackTileSizeLabel;
     @FXML
-    private Label samplingLabel;
-    @FXML
     private TextField stackPostProcessingScript;
     @FXML
     private Slider mosaicTileSize;
     @FXML
-    private TextField mosaicSampling;
-    @FXML
     private Label mosaicTileSizeLabel;
-    @FXML
-    private Label mosaicTileSamplingLabel;
     @FXML
     private CheckBox createMosaic;
     @FXML
@@ -189,28 +179,14 @@ public class StackingAndMosaicController {
         saveJpg.setSelected(imageFormats.contains(ImageFormat.JPG));
         savePng.setSelected(imageFormats.contains(ImageFormat.PNG));
         saveTif.setSelected(imageFormats.contains(ImageFormat.TIF));
-        stackSampling.setTextFormatter(createSamplingFormatter());
         stackTileSizeLabel.textProperty().bind(Bindings.createStringBinding(() -> {
             var value = stackTileSize.getValue();
             return String.format("%s (%dpx)", I18N.string(JSolEx.class, "mosaic-params", "tile.size"), (int) value);
         }, stackTileSize.valueProperty()));
-        samplingLabel.textProperty().bind(Bindings.createStringBinding(() -> {
-            var value = Double.parseDouble(stackSampling.getText());
-            var tileSize = stackTileSize.getValue();
-            int dist = (int) (value * tileSize);
-            return String.format("(%dpx)", dist);
-        }, stackSampling.textProperty(), stackTileSize.valueProperty()));
-        mosaicSampling.setTextFormatter(createSamplingFormatter());
         mosaicTileSizeLabel.textProperty().bind(Bindings.createStringBinding(() -> {
             var value = mosaicTileSize.getValue();
             return String.format("%s (%dpx)", I18N.string(JSolEx.class, "mosaic-params", "tile.size"), (int) value);
         }, mosaicTileSize.valueProperty()));
-        mosaicTileSamplingLabel.textProperty().bind(Bindings.createStringBinding(() -> {
-            var value = Double.parseDouble(mosaicSampling.getText());
-            var tileSize = mosaicTileSize.getValue();
-            int dist = (int) (value * tileSize);
-            return String.format("(%dpx)", dist);
-        }, mosaicSampling.textProperty(), mosaicTileSize.valueProperty()));
         createMosaic.setSelected(true);
         stackForceRecomputeEllipse.selectedProperty().addListener((obs, old, val) -> {
             if (Boolean.TRUE.equals(val)) {
@@ -223,40 +199,20 @@ public class StackingAndMosaicController {
         readDefaultsFromPreviousSession();
     }
 
-    private static TextFormatter<Double> createSamplingFormatter() {
-        return new TextFormatter<>(new DoubleStringConverter() {
-            @Override
-            public Double fromString(String s) {
-                try {
-                    var v = super.fromString(s);
-                    if (v < 0.05) {
-                        return 0.05;
-                    }
-                    return v;
-                } catch (NumberFormatException e) {
-                    return (double) Stacking.DEFAULT_SAMPLING;
-                }
-            }
-        });
-    }
-
     private void readDefaultsFromPreviousSession() {
         var defaultParams = StackingParamsIO.loadDefaults();
         stackTileSize.setValue(defaultParams.stackingTileSize());
-        stackSampling.setText(String.valueOf(defaultParams.stackingSampling()));
         stackForceRecomputeEllipse.setSelected(defaultParams.forceEllipseFit());
         stackFixGeometry.setSelected(defaultParams.fixGeometry());
         stackPostProcessingScriptFile = defaultParams.stackPostProcessingScriptFile();
         stackPostProcessingScript.setText(stackPostProcessingScriptFile == null ? "" : stackPostProcessingScriptFile.getName());
         createMosaic.setSelected(defaultParams.createMosaic());
         mosaicTileSize.setValue(defaultParams.mosaicTileSize());
-        mosaicSampling.setText(String.valueOf(defaultParams.mosaicSampling()));
         mosaicPostProcessingScriptFile = defaultParams.mosaicPostProcessingScriptFile();
         mosaicPostProcessingScript.setText(mosaicPostProcessingScriptFile == null ? "" : mosaicPostProcessingScriptFile.getName());
     }
 
     public void resetStackingParams() {
-        stackSampling.setText(String.valueOf(Stacking.DEFAULT_SAMPLING));
         stackTileSize.setValue(Stacking.DEFAULT_TILE_SIZE);
         stackForceRecomputeEllipse.setSelected(false);
         stackFixGeometry.setSelected(false);
@@ -266,7 +222,6 @@ public class StackingAndMosaicController {
 
     public void resetMosaicParams() {
         createMosaic.setSelected(true);
-        mosaicSampling.setText(String.valueOf(MosaicComposition.DEFAULT_SAMPLING));
         mosaicTileSize.setValue(MosaicComposition.DEFAULT_TILE_SIZE);
         mosaicPostProcessingScriptFile = null;
         mosaicPostProcessingScript.setText("");
@@ -311,13 +266,11 @@ public class StackingAndMosaicController {
         );
         var params = new StackingWorkflow.Parameters(
             (int) stackTileSize.getValue(),
-            Float.parseFloat(stackSampling.getText()),
             stackForceRecomputeEllipse.isSelected(),
             stackFixGeometry.isSelected(),
             stackPostProcessingScriptFile,
             createMosaic.isSelected(),
             (int) mosaicTileSize.getValue(),
-            Float.parseFloat(mosaicSampling.getText()),
             mosaicPostProcessingScriptFile
         );
         StackingParamsIO.saveDefaults(params);

@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ChoiceBox;
@@ -23,6 +24,7 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import me.champeau.a4j.jsolex.processing.params.ChoiceParameter;
 import me.champeau.a4j.jsolex.processing.params.NumberParameter;
 import me.champeau.a4j.jsolex.processing.params.ScriptParameter;
@@ -74,7 +76,7 @@ public class ScriptParameterUIBuilder {
 
             var initialValue = initialValues != null ? initialValues.get(param.getName()) : null;
             var controlWithReset = createParameterControlWithReset(param, initialValue, validationCallback, valueChangeCallback);
-            GridPane.setHgrow(controlWithReset, javafx.scene.layout.Priority.ALWAYS);
+            GridPane.setHgrow(controlWithReset, Priority.ALWAYS);
             grid.add(controlWithReset, 1, row);
 
             var description = param.getDescription(currentLanguage);
@@ -111,8 +113,8 @@ public class ScriptParameterUIBuilder {
         });
 
         var hbox = new HBox(4, control, resetButton);
-        hbox.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
-        HBox.setHgrow(control, javafx.scene.layout.Priority.ALWAYS);
+        hbox.setAlignment(Pos.CENTER_LEFT);
+        HBox.setHgrow(control, Priority.ALWAYS);
 
         return hbox;
     }

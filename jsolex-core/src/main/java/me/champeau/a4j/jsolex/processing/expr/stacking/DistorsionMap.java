@@ -22,6 +22,9 @@ import me.champeau.a4j.math.regression.DistortionGridFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -30,6 +33,7 @@ import java.nio.channels.Channels;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -39,10 +43,56 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 public class DistorsionMap {
     private static final Logger LOGGER = LoggerFactory.getLogger(DistorsionMap.class);
+
+
+    static {
+//        ((ch.qos.logback.classic.Logger) LoggerFactory.getLogger(DistorsionMap.class)).setLevel(Level.DEBUG);
+    }
+
     private static final int FORMAT_VERSION = 2;
     private static final int LUT_SIZE = 256;
     private static final double[] CUBIC_WEIGHT_LUT = precomputeCubicWeights();
-    private static final double MAD_THRESHOLD = 3.0;
+
+    /**
+     * Threshold for MAD-based outlier rejection (number of scaled MADs from median).
+     */
+    private static final double MAD_THRESHOLD = 1.5;
+
+    /**
+     * Reference step size used to scale filtering parameters.
+     * Parameters are tuned for this step size and scaled proportionally for other sizes.
+     */
+    private static final double REFERENCE_STEP_FOR_SCALING = 64.0;
+
+    /**
+     * Base window size for outlier detection (before scaling by step ratio).
+     */
+    private static final int BASE_OUTLIER_WINDOW_SIZE = 5;
+
+    /**
+     * Minimum window size for outlier detection after scaling.
+     */
+    private static final int MIN_OUTLIER_WINDOW_SIZE = 3;
+
+    /**
+     * Maximum window size for outlier detection after scaling.
+     */
+    private static final int MAX_OUTLIER_WINDOW_SIZE = 11;
+
+    /**
+     * Minimum Gaussian sigma for smoothing (prevents over-sharpening at large step sizes).
+     */
+    private static final double MIN_SMOOTHING_SIGMA = 0.5;
+
+    /**
+     * Minimum grid size (width × height) to trigger GPU-accelerated filtering.
+     */
+    private static final int GPU_GRID_SIZE_THRESHOLD = 1000;
+
+    /**
+     * Counter for generating unique debug image filenames.
+     */
+    private static final AtomicInteger DEBUG_IMAGE_COUNTER = new AtomicInteger(0);
 
     /**
      * Search radius for inverse distance weighting during interpolation.
@@ -661,35 +711,58 @@ public class DistorsionMap {
     public void filterAndSmooth() {
         var gridWidth = dxy[0].length;
         var gridHeight = dxy.length;
-        LOGGER.debug("filterAndSmooth: gridSize={}x{}, tileSize={}, step={}", gridWidth, gridHeight, tileSize, step);
 
-        var referenceStep = 64.0;
-        var scaleFactor = referenceStep / step;
+        // Log statistics before filtering
+        double beforeTotalDist = computeTotalDistorsion();
+        double beforeMaxDx = 0, beforeMaxDy = 0;
+        for (var row : dxy) {
+            for (var d : row) {
+                beforeMaxDx = Math.max(beforeMaxDx, Math.abs(d[0]));
+                beforeMaxDy = Math.max(beforeMaxDy, Math.abs(d[1]));
+            }
+        }
+        LOGGER.debug("filterAndSmooth: gridSize={}x{}, tileSize={}, step={}, BEFORE: totalDist={}, maxDx={}, maxDy={}",
+                gridWidth, gridHeight, tileSize, step,
+                String.format("%.4f", beforeTotalDist),
+                String.format("%.4f", beforeMaxDx),
+                String.format("%.4f", beforeMaxDy));
 
-        var scaledWindowSize = (int) Math.round(5 * scaleFactor);
+        var scaleFactor = REFERENCE_STEP_FOR_SCALING / step;
+
+        var scaledWindowSize = (int) Math.round(BASE_OUTLIER_WINDOW_SIZE * scaleFactor);
         if (scaledWindowSize % 2 == 0) {
             scaledWindowSize++;
         }
-        scaledWindowSize = Math.max(3, Math.min(scaledWindowSize, 11));
+        scaledWindowSize = Math.max(MIN_OUTLIER_WINDOW_SIZE, Math.min(scaledWindowSize, MAX_OUTLIER_WINDOW_SIZE));
         var halfWindow = scaledWindowSize / 2;
 
-        var scaledSigma = Math.max(0.5, scaleFactor);
+        var scaledSigma = Math.max(MIN_SMOOTHING_SIGMA, scaleFactor);
         LOGGER.debug("Smoothing params: scaleFactor={}, windowSize={}, sigma={}", scaleFactor, scaledWindowSize, scaledSigma);
 
         // Try GPU-accelerated path for large grids
-        if (gridWidth * gridHeight >= 1000) {
+        var openclContext = OpenCLSupport.getContext();
+        if (openclContext != null && OpenCLSupport.isEnabled() && gridWidth * gridHeight >= GPU_GRID_SIZE_THRESHOLD) {
             try {
                 filterAndSmoothGPU(gridWidth, gridHeight, halfWindow, (float) scaledSigma);
                 totalDistorsion = -1;
-                LOGGER.debug("After GPU smoothing: totalDistortion={}", totalDistorsion());
+
+                // Log statistics after GPU filtering
+                double afterMaxDx = 0, afterMaxDy = 0;
+                for (var row : dxy) {
+                    for (var d : row) {
+                        afterMaxDx = Math.max(afterMaxDx, Math.abs(d[0]));
+                        afterMaxDy = Math.max(afterMaxDy, Math.abs(d[1]));
+                    }
+                }
+                LOGGER.debug("filterAndSmooth AFTER (GPU): totalDist={}, maxDx={}, maxDy={}",
+                        String.format("%.4f", totalDistorsion()),
+                        String.format("%.4f", afterMaxDx),
+                        String.format("%.4f", afterMaxDy));
                 return;
             } catch (Exception e) {
                 System.err.println("[DistorsionMap] GPU filtering failed, falling back to CPU");
                 e.printStackTrace();
-                var context = OpenCLSupport.getContext();
-                if (context != null) {
-                    context.recordError("DistorsionMap.filterAndSmooth", e);
-                }
+                openclContext.recordError("DistorsionMap.filterAndSmooth", e);
             }
         }
 
@@ -697,12 +770,30 @@ public class DistorsionMap {
         interpolateUnsampledPoints();
         LOGGER.debug("After interpolation: sampledPoints={}", countSampledPoints());
 
-        removeOutliers(MAD_THRESHOLD, scaledWindowSize);
-        LOGGER.debug("After outlier removal: totalDistortion={}", computeTotalDistorsion());
+        var rejected = removeOutliers(MAD_THRESHOLD, scaledWindowSize);
+        var rejectedCount = countRejected(rejected);
+        LOGGER.debug("After outlier removal: totalDistortion={}, rejectedSamples={}",
+                computeTotalDistorsion(), rejectedCount);
+
+        if (LOGGER.isDebugEnabled() && rejectedCount > 0) {
+            saveDebugImage(rejected, rejectedCount);
+        }
 
         applyGaussianSmoothing(scaledSigma);
         totalDistorsion = -1;
-        LOGGER.debug("After smoothing: totalDistortion={}", totalDistorsion());
+
+        // Log statistics after filtering
+        double afterMaxDx = 0, afterMaxDy = 0;
+        for (var row : dxy) {
+            for (var d : row) {
+                afterMaxDx = Math.max(afterMaxDx, Math.abs(d[0]));
+                afterMaxDy = Math.max(afterMaxDy, Math.abs(d[1]));
+            }
+        }
+        LOGGER.debug("filterAndSmooth AFTER: totalDist={}, maxDx={}, maxDy={}",
+                String.format("%.4f", totalDistorsion()),
+                String.format("%.4f", afterMaxDx),
+                String.format("%.4f", afterMaxDy));
     }
 
     /**
@@ -735,6 +826,43 @@ public class DistorsionMap {
             }
         }
         return count;
+    }
+
+    private static int countRejected(boolean[][] rejected) {
+        var count = 0;
+        for (var row : rejected) {
+            for (var r : row) {
+                if (r) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    private void saveDebugImage(boolean[][] rejected, int rejectedCount) {
+        try {
+            var debugData = createDebugImage(rejected);
+            var imgHeight = debugData.length;
+            var imgWidth = debugData[0].length;
+
+            var image = new BufferedImage(imgWidth, imgHeight, BufferedImage.TYPE_INT_RGB);
+            for (var y = 0; y < imgHeight; y++) {
+                for (var x = 0; x < imgWidth; x++) {
+                    image.setRGB(x, y, debugData[y][x]);
+                }
+            }
+
+            var counter = DEBUG_IMAGE_COUNTER.incrementAndGet();
+            var debugFile = new File(System.getProperty("java.io.tmpdir"),
+                    String.format("dedistort/distorsion_map_debug_%03d.png", counter));
+            debugFile.getParentFile().mkdirs();
+            ImageIO.write(image, "png", debugFile);
+            LOGGER.debug("Saved distortion map debug image: {} ({}x{}, {} rejected samples)",
+                    debugFile.getAbsolutePath(), imgWidth, imgHeight, rejectedCount);
+        } catch (IOException e) {
+            LOGGER.warn("Failed to save distortion map debug image", e);
+        }
     }
 
     private void interpolateUnsampledPoints() {
@@ -811,12 +939,18 @@ public class DistorsionMap {
         return result;
     }
 
-    private void removeOutliers(double madThreshold, int windowSize) {
+    /**
+     * Removes outliers and returns a map of rejected samples for debugging.
+     *
+     * @return boolean array where true indicates the sample was rejected as outlier
+     */
+    private boolean[][] removeOutliers(double madThreshold, int windowSize) {
         var rows = dxy.length;
         var cols = dxy[0].length;
         var halfWindow = windowSize / 2;
         var maxNeighbors = windowSize * windowSize - 1;
         var neighborBuffer = new double[maxNeighbors];
+        var rejected = new boolean[rows][cols];
 
         for (var component = 0; component < 2; component++) {
             var values = new double[rows * cols];
@@ -847,7 +981,12 @@ public class DistorsionMap {
                     var isLocalOutlier = Math.abs(current - localMedian) > localThreshold;
                     var isGlobalOutlier = Math.abs(current - globalMedian) > globalThreshold;
 
-                    filtered[sy][sx] = (isLocalOutlier || isGlobalOutlier) ? localMedian : current;
+                    if (isLocalOutlier || isGlobalOutlier) {
+                        filtered[sy][sx] = localMedian;
+                        rejected[sy][sx] = true;
+                    } else {
+                        filtered[sy][sx] = current;
+                    }
                 }
             }
 
@@ -857,6 +996,133 @@ public class DistorsionMap {
                 }
             }
         }
+
+        return rejected;
+    }
+
+    /**
+     * Creates a debug image showing the distortion map with rejected samples highlighted.
+     * Uses colors: blue gradient for magnitude, red for rejected samples, cyan for arrows.
+     *
+     * @param rejected boolean array marking rejected samples
+     * @return RGB image data as packed integers (height × width)
+     */
+    private int[][] createDebugImage(boolean[][] rejected) {
+        var rows = dxy.length;
+        var cols = dxy[0].length;
+
+        // Scale up for visibility: each grid cell becomes a small block
+        var scale = 8;
+        var imgHeight = rows * scale;
+        var imgWidth = cols * scale;
+        var image = new int[imgHeight][imgWidth];
+
+        // Find max magnitude for normalization
+        var maxMag = 0.0;
+        for (var row : dxy) {
+            for (var d : row) {
+                maxMag = Math.max(maxMag, Math.hypot(d[0], d[1]));
+            }
+        }
+        if (maxMag < 1e-10) {
+            maxMag = 1.0;
+        }
+
+        // Draw distortion magnitude with color gradient (dark blue to bright yellow)
+        for (var gy = 0; gy < rows; gy++) {
+            for (var gx = 0; gx < cols; gx++) {
+                var mag = Math.hypot(dxy[gy][gx][0], dxy[gy][gx][1]);
+                var t = mag / maxMag;
+
+                // Color gradient: dark blue (low) -> cyan -> yellow (high)
+                int r, g, b;
+                if (t < 0.5) {
+                    // Dark blue to cyan
+                    var s = t * 2;
+                    r = (int) (20 * s);
+                    g = (int) (40 + 180 * s);
+                    b = (int) (80 + 100 * s);
+                } else {
+                    // Cyan to yellow
+                    var s = (t - 0.5) * 2;
+                    r = (int) (20 + 235 * s);
+                    g = (int) (220 + 35 * s);
+                    b = (int) (180 - 150 * s);
+                }
+                var bgColor = (r << 16) | (g << 8) | b;
+
+                // Fill the block with background color
+                for (var dy = 0; dy < scale; dy++) {
+                    for (var dx = 0; dx < scale; dx++) {
+                        var py = gy * scale + dy;
+                        var px = gx * scale + dx;
+                        if (py < imgHeight && px < imgWidth) {
+                            image[py][px] = bgColor;
+                        }
+                    }
+                }
+
+                // Draw grid lines (subtle dark)
+                for (var d = 0; d < scale; d++) {
+                    var py = gy * scale;
+                    var px = gx * scale + d;
+                    if (py < imgHeight && px < imgWidth) {
+                        image[py][px] = darken(image[py][px], 0.7);
+                    }
+                    py = gy * scale + d;
+                    px = gx * scale;
+                    if (py < imgHeight && px < imgWidth) {
+                        image[py][px] = darken(image[py][px], 0.7);
+                    }
+                }
+
+                // Draw rejected samples with bright red cross
+                if (rejected != null && rejected[gy][gx]) {
+                    var cy = gy * scale + scale / 2;
+                    var cx = gx * scale + scale / 2;
+                    var red = 0xFF3030;
+                    for (var d = -scale / 3; d <= scale / 3; d++) {
+                        if (cy + d >= 0 && cy + d < imgHeight && cx >= 0 && cx < imgWidth) {
+                            image[cy + d][cx] = red;
+                        }
+                        if (cy >= 0 && cy < imgHeight && cx + d >= 0 && cx + d < imgWidth) {
+                            image[cy][cx + d] = red;
+                        }
+                    }
+                }
+
+                // Draw direction arrow for non-rejected samples with significant displacement
+                if ((rejected == null || !rejected[gy][gx]) && mag > maxMag * 0.1) {
+                    var ddx = dxy[gy][gx][0];
+                    var ddy = dxy[gy][gx][1];
+                    var arrowLen = scale / 2.0;
+                    var nx = ddx / mag;
+                    var ny = ddy / mag;
+
+                    var cy = gy * scale + scale / 2;
+                    var cx = gx * scale + scale / 2;
+
+                    // Draw arrow line in white
+                    var white = 0xFFFFFF;
+                    for (var tt = 0.0; tt <= arrowLen; tt += 0.5) {
+                        var px = (int) (cx + nx * tt);
+                        var py = (int) (cy + ny * tt);
+                        if (py >= 0 && py < imgHeight && px >= 0 && px < imgWidth) {
+                            image[py][px] = white;
+                        }
+                    }
+                }
+            }
+        }
+
+        return image;
+    }
+
+    private static int darken(int rgb, double factor) {
+        var r = (int) (((rgb >> 16) & 0xFF) * factor);
+        var g = (int) (((rgb >> 8) & 0xFF) * factor);
+        var b = (int) ((rgb & 0xFF) * factor);
+        return (r << 16) | (g << 8) | b;
     }
 
     /**

@@ -188,6 +188,30 @@ class AbstractFunctionImpl {
     }
 
     /**
+     * Gets a boolean argument with default value.
+     * Supports both numeric values (0=false, non-zero=true) and string values ("true"/"false").
+     *
+     * @param arguments the arguments map
+     * @param key the argument key
+     * @param defaultValue the default value
+     * @return the argument value or default
+     */
+    protected boolean booleanArg(Map<String, Object> arguments, String key, boolean defaultValue) {
+        if (!arguments.containsKey(key)) {
+            return defaultValue;
+        }
+        var obj = arguments.get(key);
+        if (obj instanceof Boolean bool) {
+            return bool;
+        } else if (obj instanceof Number num) {
+            return num.doubleValue() != 0;
+        } else if (obj instanceof CharSequence str) {
+            return Boolean.parseBoolean(str.toString());
+        }
+        throw new IllegalStateException("Expected to find a boolean argument for argument " + key + " but it was a " + obj.getClass());
+    }
+
+    /**
      * Gets an argument as a Number.
      *
      * @param arguments the arguments map

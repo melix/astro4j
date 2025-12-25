@@ -21,6 +21,7 @@ import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -254,7 +255,7 @@ public class Viewer3DHelpOverlay extends AbstractHelpOverlay {
             var dot = new Circle(6);
             dot.setFill(i == 0 ? Color.WHITE : Color.gray(0.4));
             dot.setId("phase-indicator-" + i);
-            dot.setCursor(javafx.scene.Cursor.HAND);
+            dot.setCursor(Cursor.HAND);
             var phaseIndex = i;
             dot.setOnMouseClicked(e -> controller.switchToPhase(phaseIndex));
             dot.setOnMouseEntered(e -> {

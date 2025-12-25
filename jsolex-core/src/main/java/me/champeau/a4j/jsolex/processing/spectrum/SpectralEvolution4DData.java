@@ -18,6 +18,8 @@ package me.champeau.a4j.jsolex.processing.spectrum;
 import me.champeau.a4j.jsolex.processing.util.Dispersion;
 import me.champeau.a4j.jsolex.processing.util.Wavelen;
 
+import java.util.Locale;
+
 /**
  * Holds 4D spectral evolution data for animated visualization.
  * The data represents intensity as a function of frame number, wavelength offset,
@@ -127,7 +129,7 @@ public record SpectralEvolution4DData(
         return switch (mode) {
             case SLIT -> slitPositions[index] + " px";
             case FRAME -> "Frame " + frameIndices[index];
-            case WAVELENGTH -> String.format(java.util.Locale.US, "%.2f Å", centerWavelength.angstroms() + wavelengthOffsets[index]);
+            case WAVELENGTH -> String.format(Locale.US, "%.2f Å", centerWavelength.angstroms() + wavelengthOffsets[index]);
         };
     }
 

@@ -39,24 +39,22 @@ import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
+import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.math.regression.Ellipse;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static java.util.stream.Collectors.groupingBy;
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
 public class StackingWorkflow {
     private final Broadcaster broadcaster;
     private final FileNamingStrategy namingStrategy;
     private final Crop crop;
-    private final Scaling scaling;
     private final EllipseFit ellipseFit;
     private final Stacking stacking;
     private final GeometryCorrection geometryCorrector;
@@ -70,7 +68,7 @@ public class StackingWorkflow {
         this.crop = new Crop(context, broadcaster);
         this.ellipseFit = new EllipseFit(context, broadcaster);
         this.geometryCorrector = new GeometryCorrection(context, broadcaster, ellipseFit);
-        this.scaling = new Scaling(context, broadcaster, crop);
+        Scaling scaling = new Scaling(context, broadcaster, crop);
         this.stacking = new Stacking(context, scaling, crop, new SimpleFunctionCall(context, broadcaster), new ImageDraw(context, broadcaster), new Utilities(context, broadcaster), broadcaster);
         this.mosaicComposition = new MosaicComposition(context, broadcaster, stacking, ellipseFit, scaling);
     }
@@ -92,9 +90,9 @@ public class StackingWorkflow {
     private void executeScript(File scriptFile, File outputDirectory, Object images) {
         Map<Class, Object> ctx = new HashMap<>(context);
         var evaluator = new DefaultImageScriptExecutor(
-            d -> ImageWrapper32.createEmpty(),
-            ctx,
-            broadcaster
+                d -> ImageWrapper32.createEmpty(),
+                ctx,
+                broadcaster
         );
         try {
             evaluator.putVariable("image", images);
@@ -111,45 +109,45 @@ public class StackingWorkflow {
         var errorCount = invalidExpressions.size();
         if (errorCount > 0) {
             String message = invalidExpressions.stream()
-                .map(invalidExpression -> "Expression '" + invalidExpression.label() + "' (" + invalidExpression.expression() + ") : " + invalidExpression.error().getMessage())
-                .collect(Collectors.joining(System.lineSeparator()));
+                    .map(invalidExpression -> "Expression '" + invalidExpression.label() + "' (" + invalidExpression.expression() + ") : " + invalidExpression.error().getMessage())
+                    .collect(Collectors.joining(System.lineSeparator()));
             broadcaster.broadcast(new NotificationEvent(new Notification(
-                Notification.AlertType.ERROR,
-                message("error.processing.script"),
-                message("script.errors." + (errorCount == 1 ? "single" : "many")),
-                message
+                    Notification.AlertType.ERROR,
+                    message("error.processing.script"),
+                    message("script.errors." + (errorCount == 1 ? "single" : "many")),
+                    message
             )));
         }
     }
 
     private List<ImageWrapper32> performStacking(Parameters parameters, List<Panel> panels) {
         return panels.stream()
-            .map(Panel::asImages)
-            .filter(l -> !l.isEmpty())
-            .map(p -> stackPanel(p, parameters))
-            .toList();
+                .map(Panel::asImages)
+                .filter(l -> !l.isEmpty())
+                .map(p -> stackPanel(p, parameters))
+                .toList();
     }
 
     private ImageWrapper32 performStitching(Parameters parameters, File outputDirectory, List<ImageWrapper32> stackedImages) {
         var cropped = crop.autocrop2(Map.of("img", stackedImages));
         if (cropped instanceof List<?> list) {
             var croppedImages = list.stream()
-                .filter(ImageWrapper.class::isInstance)
-                .map(ImageWrapper.class::cast)
-                .map(ImageWrapper::unwrapToMemory)
-                .filter(ImageWrapper32.class::isInstance)
-                .map(ImageWrapper32.class::cast)
-                .toList();
+                    .filter(ImageWrapper.class::isInstance)
+                    .map(ImageWrapper.class::cast)
+                    .map(ImageWrapper::unwrapToMemory)
+                    .filter(ImageWrapper32.class::isInstance)
+                    .map(ImageWrapper32.class::cast)
+                    .toList();
             var fileName = namingStrategy.render(0, null, Constants.TYPE_PROCESSED, "mosaic", "standalone", null);
-            var mosaic = mosaicComposition.mosaic(croppedImages, parameters.mosaicTileSize(), parameters.mosaicSampling());
+            var mosaic = mosaicComposition.mosaic(croppedImages, parameters.mosaicTileSize(), MosaicComposition.DEFAULT_SAMPLING);
             broadcaster.broadcast(new ImageGeneratedEvent(
-                new GeneratedImage(
-                    GeneratedImageKind.COMPOSITION,
-                    "mosaic",
-                    outputDirectory.toPath().resolve(fileName),
-                    FileBackedImage.wrap(mosaic),
-                    message("mosaic.description")
-                )
+                    new GeneratedImage(
+                            GeneratedImageKind.COMPOSITION,
+                            "mosaic",
+                            outputDirectory.toPath().resolve(fileName),
+                            FileBackedImage.wrap(mosaic),
+                            message("mosaic.description")
+                    )
             ));
             return mosaic;
         } else if (cropped instanceof ImageWrapper32 image) {
@@ -164,98 +162,66 @@ public class StackingWorkflow {
             var stackedImage = stackedImages.get(i);
             var fileName = namingStrategy.render(i, null, Constants.TYPE_PROCESSED, label, "standalone", stackedImage);
             broadcaster.broadcast(new ImageGeneratedEvent(
-                new GeneratedImage(
-                    GeneratedImageKind.COMPOSITION,
-                    label,
-                    outputDirectory.toPath().resolve(fileName),
-                    FileBackedImage.wrap(stackedImage),
-                    null
-                )
+                    new GeneratedImage(
+                            GeneratedImageKind.COMPOSITION,
+                            label,
+                            outputDirectory.toPath().resolve(fileName),
+                            FileBackedImage.wrap(stackedImage),
+                            null
+                    )
             ));
         }
     }
 
     private ImageWrapper32 stackPanel(List<ImageWrapper32> panel, Parameters parameters) {
         var images = panel
-            .stream()
-            .parallel()
-            .map(img -> {
-                if (parameters.forceEllipseFit() || img.findMetadata(Ellipse.class).isEmpty()) {
-                    return ellipseFit.performEllipseFitting(img);
-                }
-                return img;
-            })
-            .toList();
+                .stream()
+                .parallel()
+                .map(img -> {
+                    if (parameters.forceEllipseFit() || img.findMetadata(Ellipse.class).isEmpty()) {
+                        return ellipseFit.performEllipseFitting(img);
+                    }
+                    return img;
+                })
+                .toList();
         if (parameters.fixGeometry()) {
             images = images.stream()
-                .parallel()
-                .map(geometryCorrector::fixGeometry)
-                .toList();
+                    .parallel()
+                    .map(geometryCorrector::fixGeometry)
+                    .toList();
         }
-        return stacking.stack(images, parameters.stackingTileSize(), parameters.stackingSampling(), Stacking.ReferenceSelection.SHARPNESS);
+        return stacking.stack(images, parameters.stackingTileSize(), Stacking.DEFAULT_SAMPLING, Stacking.ReferenceSelection.CONSENSUS);
     }
 
     public record Parameters(
-        int stackingTileSize,
-        float stackingSampling,
-        boolean forceEllipseFit,
-        boolean fixGeometry,
-        File stackPostProcessingScriptFile,
-        boolean createMosaic,
-        int mosaicTileSize,
-        float mosaicSampling,
-        File mosaicPostProcessingScriptFile
-        ) {
-
-        public Parameters withStackingSampling(float defaultSampling) {
-            return new Parameters(
-                stackingTileSize,
-                defaultSampling,
-                forceEllipseFit,
-                fixGeometry,
-                stackPostProcessingScriptFile,
-                createMosaic,
-                mosaicTileSize,
-                mosaicSampling,
-                mosaicPostProcessingScriptFile
-            );
-        }
-
-        public Parameters withMosaicSampling(float defaultSampling) {
-            return new Parameters(
-                stackingTileSize,
-                stackingSampling,
-                forceEllipseFit,
-                fixGeometry,
-                stackPostProcessingScriptFile,
-                createMosaic,
-                mosaicTileSize,
-                defaultSampling,
-                mosaicPostProcessingScriptFile
-            );
-        }
+            int stackingTileSize,
+            boolean forceEllipseFit,
+            boolean fixGeometry,
+            File stackPostProcessingScriptFile,
+            boolean createMosaic,
+            int mosaicTileSize,
+            File mosaicPostProcessingScriptFile
+    ) {
     }
 
     public record Panel(
-        List<File> files
+            List<File> files
     ) {
+
+        private static ImageWrapper32 toMono(ImageWrapper image) {
+            return switch (image) {
+                case ImageWrapper32 img32 -> img32;
+                case FileBackedImage img -> toMono(img.unwrapToMemory());
+                case RGBImage rgbImage -> rgbImage.toMono();
+            };
+        }
+
         public List<ImageWrapper32> asImages() {
-            var perKind = files.stream()
-                .parallel()
-                .map(Loader::loadImage)
-                .collect(groupingBy(ImageWrapper::getClass));
-            var monoImages = perKind.get(ImageWrapper32.class);
-            var unexpectedKinds = new HashSet<>(perKind.keySet());
-            unexpectedKinds.remove(ImageWrapper32.class);
-            if (!unexpectedKinds.isEmpty()) {
-                throw new ProcessingException(message("error.mosaic.non.mono"));
-            }
-            if (monoImages == null) {
-                return List.of();
-            }
-            return monoImages.stream()
-                .map(ImageWrapper32.class::cast)
-                .toList();
+            return files.stream()
+                    .parallel()
+                    .map(Loader::loadImage)
+                    .map(Panel::toMono)
+                    .toList();
         }
     }
 }
