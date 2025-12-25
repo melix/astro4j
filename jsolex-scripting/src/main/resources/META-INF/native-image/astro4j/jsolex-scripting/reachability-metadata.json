@@ -896,6 +896,97 @@
       "type": "java.math.BigInteger"
     },
     {
+      "type": "java.nio.Buffer",
+      "fields": [
+        {
+          "name": "address"
+        },
+        {
+          "name": "capacity"
+        },
+        {
+          "name": "limit"
+        },
+        {
+          "name": "mark"
+        },
+        {
+          "name": "position"
+        }
+      ]
+    },
+    {
+      "type": "java.nio.ByteBuffer",
+      "fields": [
+        {
+          "name": "offset"
+        }
+      ]
+    },
+    {
+      "type": "java.nio.DirectByteBuffer",
+      "unsafeAllocated": true,
+      "fields": [
+        {
+          "name": "att"
+        }
+      ]
+    },
+    {
+      "type": "java.nio.DirectCharBufferU",
+      "fields": [
+        {
+          "name": "att"
+        }
+      ]
+    },
+    {
+      "type": "java.nio.DirectDoubleBufferU",
+      "fields": [
+        {
+          "name": "att"
+        }
+      ]
+    },
+    {
+      "type": "java.nio.DirectFloatBufferU",
+      "unsafeAllocated": true,
+      "fields": [
+        {
+          "name": "att"
+        }
+      ]
+    },
+    {
+      "type": "java.nio.DirectIntBufferU",
+      "unsafeAllocated": true,
+      "fields": [
+        {
+          "name": "att"
+        }
+      ]
+    },
+    {
+      "type": "java.nio.DirectLongBufferU",
+      "unsafeAllocated": true,
+      "fields": [
+        {
+          "name": "att"
+        }
+      ]
+    },
+    {
+      "type": "java.nio.DirectShortBufferU",
+      "fields": [
+        {
+          "name": "att"
+        }
+      ]
+    },
+    {
+      "type": "java.nio.MappedByteBuffer"
+    },
+    {
       "type": "java.nio.file.Path"
     },
     {
@@ -1548,6 +1639,9 @@
     },
     {
       "type": "org.jcodec.containers.mp4.boxes.PixelAspectExt[]"
+    },
+    {
+      "type": "org.lwjgl.system.jemalloc.JEmallocAllocator"
     },
     {
       "type": "picocli.CommandLine$AutoHelpMixin",
@@ -2541,6 +2635,14 @@
       ]
     },
     {
+      "type": "sun.misc.Unsafe",
+      "fields": [
+        {
+          "name": "theUnsafe"
+        }
+      ]
+    },
+    {
       "type": "sun.rmi.transport.DGCImpl_Skel",
       "methods": [
         {
@@ -2604,64 +2706,7 @@
   ],
   "resources": [
     {
-      "glob": "META-INF/micronaut"
-    },
-    {
-      "glob": "META-INF/services/ch.qos.logback.classic.spi.Configurator"
-    },
-    {
-      "glob": "META-INF/services/io.micronaut.context.ApplicationContextConfigurer"
-    },
-    {
-      "glob": "META-INF/services/io.micronaut.context.env.PropertySourceLoader"
-    },
-    {
-      "glob": "META-INF/services/io.micronaut.core.beans.BeanIntrospectionReference"
-    },
-    {
-      "glob": "META-INF/services/io.micronaut.core.convert.TypeConverterRegistrar"
-    },
-    {
-      "glob": "META-INF/services/io.micronaut.core.optim.StaticOptimizations$Loader"
-    },
-    {
-      "glob": "META-INF/services/java.net.spi.InetAddressResolverProvider"
-    },
-    {
-      "glob": "META-INF/services/java.nio.file.spi.FileSystemProvider"
-    },
-    {
-      "glob": "META-INF/services/java.time.zone.ZoneRulesProvider"
-    },
-    {
-      "glob": "META-INF/services/java.util.spi.ResourceBundleControlProvider"
-    },
-    {
-      "glob": "META-INF/services/javax.imageio.spi.ImageInputStreamSpi"
-    },
-    {
-      "glob": "META-INF/services/javax.imageio.spi.ImageOutputStreamSpi"
-    },
-    {
-      "glob": "META-INF/services/javax.imageio.spi.ImageReaderSpi"
-    },
-    {
-      "glob": "META-INF/services/javax.imageio.spi.ImageTranscoderSpi"
-    },
-    {
-      "glob": "META-INF/services/javax.imageio.spi.ImageWriterSpi"
-    },
-    {
-      "glob": "META-INF/services/javax.management.remote.JMXConnectorServerProvider"
-    },
-    {
-      "glob": "META-INF/services/javax.xml.parsers.SAXParserFactory"
-    },
-    {
-      "glob": "META-INF/services/nom.tam.fits.compress.ICompressProvider"
-    },
-    {
-      "glob": "META-INF/services/org.slf4j.spi.SLF4JServiceProvider"
+      "glob": "META-INF/**"
     },
     {
       "glob": "application-cli.properties"
@@ -2674,6 +2719,18 @@
     },
     {
       "glob": "logback-test.scmo"
+    },
+    {
+      "glob": "libOpenCL.so"
+    },
+    {
+      "glob": "linux/x64/org/lwjgl/glfw/libglfw.so"
+    },
+    {
+      "glob": "linux/x64/org/lwjgl/liblwjgl.so"
+    },
+    {
+      "glob": "linux/x64/org/lwjgl/opengl/liblwjgl_opengl.so"
     },
     {
       "glob": "logback-test.xml"
@@ -2692,6 +2749,12 @@
     },
     {
       "glob": "me/champeau/a4j/jsolex/processing/util/messages_en_US.properties"
+    },
+    {
+      "glob": "me/champeau/a4j/math/opencl/kernels/correlation.cl"
+    },
+    {
+      "glob": "me/champeau/a4j/math/opencl/kernels/selftest.cl"
     },
     {
       "glob": "version.txt"
