@@ -1,6 +1,9 @@
 {
   "reflection": [
     {
+      "type": "me.champeau.a4j.math.image.OpenCLImageMath"
+    },
+    {
       "type": "boolean[]"
     },
     {
