@@ -21,6 +21,7 @@ import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -41,6 +42,7 @@ import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
+import javafx.scene.text.TextAlignment;
 import javafx.util.Duration;
 import me.champeau.a4j.jsolex.app.JSolEx;
 
@@ -267,7 +269,7 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
             var dot = new Circle(6);
             dot.setFill(i == 0 ? Color.WHITE : Color.gray(0.4));
             dot.setId("phase-indicator-" + i);
-            dot.setCursor(javafx.scene.Cursor.HAND);
+            dot.setCursor(Cursor.HAND);
             var phaseIndex = i;
             dot.setOnMouseClicked(e -> controller.switchToPhase(phaseIndex));
             dot.setOnMouseEntered(e -> {
@@ -597,7 +599,7 @@ public class TomographyHelpOverlay extends AbstractHelpOverlay {
 
             var shiftLabel = shifts[i] == 0 ? "0 Å" : String.format("+%.1f Å", shifts[i]);
             var label = createDiagramText(shiftLabel, imgStartX + imgSize + 35, imgY + imgSize / 2 + 4, 9, false, COLOR_TEXT);
-            label.setTextAlignment(javafx.scene.text.TextAlignment.LEFT);
+            label.setTextAlignment(TextAlignment.LEFT);
             group.add(label);
 
             // Sphere on right

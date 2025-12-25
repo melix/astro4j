@@ -15,11 +15,12 @@
  */
 package me.champeau.a4j.math.correlation
 
+import me.champeau.a4j.math.opencl.OpenCLContext
 import me.champeau.a4j.math.opencl.OpenCLSupport
 import spock.lang.Requires
 import spock.lang.Specification
 
-class PhaseCorrelationTest extends Specification {
+class CorrelationToolsTest extends Specification {
 
     def "CPU phase correlation detects known shift"() {
         given:
@@ -28,13 +29,13 @@ class PhaseCorrelationTest extends Specification {
         def target = createShiftedGaussianTile(tileSize, shiftX, shiftY)
 
         when:
-        def result = PhaseCorrelation.phaseCorrelationShiftFFT(ref, target)
+        def result = CorrelationTools.correlationShiftFFTWithConfidence(ref, target, true)
 
         then:
         // Phase correlation returns the shift needed to align target with reference,
         // which is the negative of the shift we applied to create the target
-        Math.abs(result.a() + shiftY) < 1.5
-        Math.abs(result.b() + shiftX) < 1.5
+        Math.abs(result.dy() + shiftY) < 1.5
+        Math.abs(result.dx() + shiftX) < 1.5
 
         where:
         shiftX | shiftY
@@ -65,7 +66,7 @@ class PhaseCorrelationTest extends Specification {
         }
 
         when:
-        def results = PhaseCorrelation.getInstance().batchedCorrelation(refTiles, targetTiles)
+        def results = CorrelationTools.getInstance().batchedCorrelation(refTiles, targetTiles, true)
 
         then:
         results.length == numTiles
@@ -293,9 +294,9 @@ class PhaseCorrelationTest extends Specification {
         int n = refTiles.length
         def results = new float[n][2]
         for (int i = 0; i < n; i++) {
-            def shift = PhaseCorrelation.phaseCorrelationShiftFFT(refTiles[i], targetTiles[i])
-            results[i][0] = (float) -shift.b()
-            results[i][1] = (float) -shift.a()
+            def shift = CorrelationTools.correlationShiftFFTWithConfidence(refTiles[i], targetTiles[i], true)
+            results[i][0] = (float) -shift.dx()
+            results[i][1] = (float) -shift.dy()
         }
         return results
     }
@@ -306,14 +307,14 @@ class PhaseCorrelationTest extends Specification {
             return null
         }
 
-        def instance = PhaseCorrelation.getInstance()
+        def instance = CorrelationTools.getInstance()
 
         // Force GPU path by directly calling GPU method via reflection
         try {
-            def method = PhaseCorrelation.class.getDeclaredMethod("batchedCorrelationGPU",
-                    me.champeau.a4j.math.opencl.OpenCLContext.class, float[][][].class, float[][][].class)
+            def method = CorrelationTools.class.getDeclaredMethod("batchedCorrelationGPU",
+                    OpenCLContext, float[][][].class, float[][][].class, boolean.class)
             method.setAccessible(true)
-            return (float[][]) method.invoke(instance, context, refTiles, targetTiles)
+            return (float[][]) method.invoke(instance, context, refTiles, targetTiles, true)
         } catch (Exception e) {
             System.err.println("Failed to invoke GPU method: " + e.getMessage())
             e.printStackTrace()

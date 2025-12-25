@@ -28,7 +28,7 @@ import java.util.concurrent.atomic.AtomicReference
  * Run with: ./gradlew :math:test --tests "PhaseCorrelationMemoryTest" -POPENCL_ENABLED=true
  */
 @Requires({ OpenCLSupport.available })
-class PhaseCorrelationMemoryTest extends Specification {
+class CorrelationToolsMemoryTest extends Specification {
 
     def "should handle GPU operations on virtual threads without error"() {
         given: "OpenCL is available"
@@ -55,7 +55,7 @@ class PhaseCorrelationMemoryTest extends Specification {
 
         when: "we run GPU operations on virtual threads (like the real app)"
         def errorRef = new AtomicReference<Throwable>()
-        def phaseCorr = PhaseCorrelation.getInstance()
+        def phaseCorr = CorrelationTools.getInstance()
         def gridFilter = DistortionGridFilter.getInstance()
 
         // This mimics how the real app runs - on virtual threads
@@ -71,7 +71,7 @@ class PhaseCorrelationMemoryTest extends Specification {
                     println "Virtual thread iteration ${iteration + 1}/${numIterations} - Thread: ${Thread.currentThread()}"
 
                     // Phase correlation batch
-                    def results = phaseCorr.batchedCorrelation(refTiles, targetTiles)
+                    def results = phaseCorr.batchedPhaseCorrelation(refTiles, targetTiles)
                     println "  PhaseCorrelation completed: ${results.length} results"
 
                     // Distortion grid filtering (mimics what happens after phase correlation)
@@ -125,7 +125,7 @@ class PhaseCorrelationMemoryTest extends Specification {
 
         when: "we simulate multiple dedistort passes on virtual threads"
         def errorRef = new AtomicReference<Throwable>()
-        def phaseCorr = PhaseCorrelation.getInstance()
+        def phaseCorr = CorrelationTools.getInstance()
         def gridFilter = DistortionGridFilter.getInstance()
 
         // Simulate multiple dedistort passes (each pass = 6 phase correlation batches + filtering)
@@ -147,10 +147,10 @@ class PhaseCorrelationMemoryTest extends Specification {
 
                     // 5 full batches + 1 smaller batch (exactly like real app)
                     for (int batch = 0; batch < 5; batch++) {
-                        def results = phaseCorr.batchedCorrelation(refTiles, targetTiles)
+                        def results = phaseCorr.batchedPhaseCorrelation(refTiles, targetTiles)
                         println "  Batch ${batch + 1}/6: ${results.length} results"
                     }
-                    def lastResults = phaseCorr.batchedCorrelation(smallRefTiles, smallTargetTiles)
+                    def lastResults = phaseCorr.batchedPhaseCorrelation(smallRefTiles, smallTargetTiles)
                     println "  Batch 6/6: ${lastResults.length} results"
 
                     // Now do grid filtering (where the error occurs in real app)
@@ -202,7 +202,7 @@ class PhaseCorrelationMemoryTest extends Specification {
 
         when: "we run until we exceed 640 allocations (like real app before failure)"
         def errorRef = new AtomicReference<Throwable>()
-        def phaseCorr = PhaseCorrelation.getInstance()
+        def phaseCorr = CorrelationTools.getInstance()
         def gridFilter = DistortionGridFilter.getInstance()
 
         // The real app fails around 640 allocations
@@ -227,12 +227,12 @@ class PhaseCorrelationMemoryTest extends Specification {
 
                     // 5 full batches + 1 smaller batch
                     for (int batch = 0; batch < 5; batch++) {
-                        def results = phaseCorr.batchedCorrelation(refTiles, targetTiles)
+                        def results = phaseCorr.batchedPhaseCorrelation(refTiles, targetTiles)
                         if (batch == 0) {
                             println "  Batch ${batch + 1}/6 completed"
                         }
                     }
-                    phaseCorr.batchedCorrelation(smallRefTiles, smallTargetTiles)
+                    phaseCorr.batchedPhaseCorrelation(smallRefTiles, smallTargetTiles)
                     println "  All 6 batches completed"
 
                     // Grid filtering
@@ -284,7 +284,7 @@ class PhaseCorrelationMemoryTest extends Specification {
 
         when: "we run GPU operations from multiple virtual threads"
         def errorRef = new AtomicReference<Throwable>()
-        def phaseCorr = PhaseCorrelation.getInstance()
+        def phaseCorr = CorrelationTools.getInstance()
 
         // Run multiple batches of work, each in separate virtual threads
         int numBatches = 10
@@ -300,7 +300,7 @@ class PhaseCorrelationMemoryTest extends Specification {
                 Thread.startVirtualThread {
                     try {
                         println "Batch ${batchNum}, iteration ${iterNum} - Thread: ${Thread.currentThread()}"
-                        def results = phaseCorr.batchedCorrelation(refTiles, targetTiles)
+                        def results = phaseCorr.batchedPhaseCorrelation(refTiles, targetTiles)
                         println "  Completed: ${results.length} results"
                     } catch (Throwable t) {
                         println "ERROR: ${t.message}"
@@ -342,12 +342,12 @@ class PhaseCorrelationMemoryTest extends Specification {
         def targetTiles = createRandomTiles(numTiles, tileSize)
 
         when: "we run batched correlation multiple times"
-        def phaseCorr = PhaseCorrelation.getInstance()
+        def phaseCorr = CorrelationTools.getInstance()
         int numIterations = 20  // Should trigger the leak after ~6 iterations based on logs
 
         for (int i = 0; i < numIterations; i++) {
             println "Iteration ${i + 1}/${numIterations}..."
-            def results = phaseCorr.batchedCorrelation(refTiles, targetTiles)
+            def results = phaseCorr.batchedPhaseCorrelation(refTiles, targetTiles)
             println "  Completed, got ${results.length} results"
 
             // Force GC to rule out Java heap issues
@@ -373,14 +373,14 @@ class PhaseCorrelationMemoryTest extends Specification {
         def targetTiles = createRandomTiles(numTiles, tileSize)
 
         when: "we run many iterations"
-        def phaseCorr = PhaseCorrelation.getInstance()
+        def phaseCorr = CorrelationTools.getInstance()
         int numIterations = 50
 
         for (int i = 0; i < numIterations; i++) {
             if (i % 10 == 0) {
                 println "Iteration ${i + 1}/${numIterations}..."
             }
-            def results = phaseCorr.batchedCorrelation(refTiles, targetTiles)
+            def results = phaseCorr.batchedPhaseCorrelation(refTiles, targetTiles)
         }
 
         then: "no exception is thrown"
@@ -402,14 +402,14 @@ class PhaseCorrelationMemoryTest extends Specification {
         def targetTiles = createRandomTiles(numTiles, tileSize)
 
         when: "we run many iterations"
-        def phaseCorr = PhaseCorrelation.getInstance()
+        def phaseCorr = CorrelationTools.getInstance()
         int numIterations = 30
 
         for (int i = 0; i < numIterations; i++) {
             if (i % 5 == 0) {
                 println "Iteration ${i + 1}/${numIterations}..."
             }
-            def results = phaseCorr.batchedCorrelation(refTiles, targetTiles)
+            def results = phaseCorr.batchedPhaseCorrelation(refTiles, targetTiles)
         }
 
         then: "no exception is thrown"
@@ -450,13 +450,13 @@ class PhaseCorrelationMemoryTest extends Specification {
         def sampled = createSampledMask(gridWidth, gridHeight)
 
         when: "we simulate the dedistort pipeline"
-        def phaseCorr = PhaseCorrelation.getInstance()
-        def gridFilter = me.champeau.a4j.math.regression.DistortionGridFilter.getInstance()
+        def phaseCorr = CorrelationTools.getInstance()
+        def gridFilter = DistortionGridFilter.getInstance()
 
         long totalMemoryUsed = 0
         for (int batch = 0; batch < totalBatches; batch++) {
             // PhaseCorrelation batch
-            def results = phaseCorr.batchedCorrelation(refTiles, targetTiles)
+            def results = phaseCorr.batchedPhaseCorrelation(refTiles, targetTiles)
             totalMemoryUsed += memoryPerBatchMB
             println "Batch ${batch + 1}/${totalBatches}: PhaseCorrelation completed (total memory cycled: ${totalMemoryUsed} MB)"
 

@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.processing.spectrum;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.regression.Ellipse;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.IntStream;
 
@@ -192,7 +193,7 @@ public final class SpectralLineAnalysis {
         }
 
         var halfWindow = windowSize / 2;
-        var smoothed = new java.util.ArrayList<SpectrumAnalyzer.DataPoint>(profile.size());
+        var smoothed = new ArrayList<SpectrumAnalyzer.DataPoint>(profile.size());
 
         for (var i = 0; i < profile.size(); i++) {
             var start = Math.max(0, i - halfWindow);

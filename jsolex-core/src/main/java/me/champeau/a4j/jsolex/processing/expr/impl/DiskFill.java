@@ -94,12 +94,9 @@ public class DiskFill extends AbstractFunctionImpl {
             if (ellipse.isPresent()) {
                 float insideFill = 1;
                 float outsideFill = 0;
-                if (arguments.size() == 2) {
-                    int mode = intArg(arguments, "invert", 0);
-                    if (mode == 1) {
-                        insideFill = 0;
-                        outsideFill = 1;
-                    }
+                if (arguments.size() == 2 && booleanArg(arguments, "invert", false)) {
+                    insideFill = 0;
+                    outsideFill = 1;
                 }
                 return doFillAnyImageKind(img, ellipse.get(), insideFill, outsideFill);
             } else {

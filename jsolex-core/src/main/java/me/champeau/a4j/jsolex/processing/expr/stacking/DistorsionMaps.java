@@ -15,6 +15,8 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.stacking;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -78,7 +80,7 @@ public record DistorsionMaps(List<DistorsionMap> maps) {
             channel.write(headerBuffer);
 
             for (var map : maps.maps()) {
-                var baos = new java.io.ByteArrayOutputStream();
+                var baos = new ByteArrayOutputStream();
                 DistorsionMap.saveTo(baos, map);
                 var mapBytes = baos.toByteArray();
 
@@ -119,7 +121,7 @@ public record DistorsionMaps(List<DistorsionMap> maps) {
 
                 var mapBytes = new byte[mapSize];
                 mapBuffer.get(mapBytes);
-                maps.add(DistorsionMap.loadFrom(new java.io.ByteArrayInputStream(mapBytes)));
+                maps.add(DistorsionMap.loadFrom(new ByteArrayInputStream(mapBytes)));
             }
 
             return new DistorsionMaps(maps);

@@ -1,5 +1,6 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+- [Version 4.4.3](#nouveautes-de-la-version-4-4-3) - Options d'animation des vues 3D
 - [Version 4.4.2](#nouveautes-de-la-version-4-4-2) - Explications à caractère éducatif
 - [Version 4.4.1](#nouveautes-de-la-version-4-4-1) - Corrections de bugs et améliorations
 - [Version 4.4.0](#nouveautes-de-la-version-4-4-0) - Visualiseur de profil spectral 3D, rendu volumétrique pour la tomographie
@@ -14,6 +15,13 @@
 - [Version 4.1.0](#nouveautes-de-la-version-4-1-0) - Préréglages utilisateur, création de collages
 - [Version 4.0.1](#nouveautes-de-la-version-4-0-1) - Sélection de langue, corrections
 - [Version 4.0.0](#nouveautes-de-la-version-4-0-0) - Interface améliorée, intégration BASS2000
+
+## Nouveautés de la version 4.4.3
+
+- Les vues 3D proposent désormais plusieurs motifs d'animation : cliquez sur l'icône de prévisualisation pour parcourir les options, dont un simple mouvement gauche-droite
+- Ajout de la fonction `SIDE_BY_SIDE` : combine deux images horizontalement (gauche et droite)
+- Ajout de la fonction `TOP_BOTTOM` : combine deux images verticalement (haut et bas)
+- Le mode `consensus` pour l'empilement est désormais le mode par défaut et une option de mode échantillonage automatique a été ajoutée, ce qui rend l'empilement plus rapide
 
 ## Nouveautés de la version 4.4.2
 

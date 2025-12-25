@@ -37,6 +37,7 @@ import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.spectrum.SphericalTomographyData;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 
@@ -516,7 +517,7 @@ public class SphericalTomography3DViewer extends BorderPane {
         var showProminences = renderer.isShowProminences();
         var contrastEnhanced = renderer.isContrastEnhanced();
         var animParams = cameraAnimator.getAnimationParameters();
-        var shellVisibility = new java.util.HashMap<Double, Boolean>();
+        var shellVisibility = new HashMap<Double, Boolean>();
         for (var shell : data.shells()) {
             shellVisibility.put(shell.pixelShift(), renderer.isShellVisible(shell.pixelShift()));
         }

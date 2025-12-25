@@ -19,6 +19,8 @@ import me.champeau.a4j.math.opencl.OpenCLSupport
 import spock.lang.Requires
 import spock.lang.Specification
 
+import java.util.concurrent.atomic.AtomicInteger
+
 /**
  * Tests for OpenCLImageMath that force GPU execution without fallback.
  * These tests verify that the OpenCL implementation produces correct results.
@@ -857,7 +859,7 @@ class OpenCLImageMathTest extends Specification {
         def threadCount = 16
         def iterationsPerThread = 20
         def images = (0..<threadCount).collect { createTestImage(64, 64, (it * 100) as float) }
-        def successCount = new java.util.concurrent.atomic.AtomicInteger(0)
+        def successCount = new AtomicInteger(0)
         def errors = Collections.synchronizedList([])
 
         when:

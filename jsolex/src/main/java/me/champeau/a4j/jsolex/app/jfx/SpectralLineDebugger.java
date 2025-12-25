@@ -34,6 +34,7 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.image.Image;
+import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
@@ -185,7 +186,7 @@ public class SpectralLineDebugger {
         var toggleGroup = new ToggleGroup();
         average.setToggleGroup(toggleGroup);
         frames.setToggleGroup(toggleGroup);
-        canvasScrollPane.addEventFilter(javafx.scene.input.ScrollEvent.SCROLL, event -> {
+        canvasScrollPane.addEventFilter(ScrollEvent.SCROLL, event -> {
             if (event.isControlDown()) {
                 double deltaY = event.getDeltaY();
                 if (deltaY != 0 && image != null) {

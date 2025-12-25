@@ -20,6 +20,8 @@ import me.champeau.a4j.math.opencl.OpenCLSupport;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.MemoryUtil;
 
+import java.util.ArrayList;
+
 import static org.lwjgl.opencl.CL10.*;
 
 /**
@@ -211,15 +213,15 @@ public class GPUTileExtractor {
 
                 context.finish();
 
-                // Read results
+                // Read results - use NoSync variants since we just finished
                 float[] refTilesFlat = new float[validCount * tileSizeSq];
                 float[] targetTilesFlat = new float[validCount * tileSizeSq];
                 int[] gridXArr = new int[totalPositions];
                 int[] gridYArr = new int[totalPositions];
                 int[] validMaskArr = new int[totalPositions];
 
-                context.readBuffer(refTilesBuf, refTilesFlat);
-                context.readBuffer(targetTilesBuf, targetTilesFlat);
+                context.readBufferNoSync(refTilesBuf, refTilesFlat);
+                context.readBufferNoSync(targetTilesBuf, targetTilesFlat);
                 readBufferInt(context, gridXBuf, gridXArr);
                 readBufferInt(context, gridYBuf, gridYArr);
                 readBufferInt(context, validMaskBuf, validMaskArr);
@@ -300,10 +302,10 @@ public class GPUTileExtractor {
                                                 float signalThreshold, int gridWidth, int gridHeight) {
         var signalEvaluator = new SignalEvaluator(referenceData, targetData, width, height);
 
-        var refTilesList = new java.util.ArrayList<float[]>();
-        var targetTilesList = new java.util.ArrayList<float[]>();
-        var gridXList = new java.util.ArrayList<Integer>();
-        var gridYList = new java.util.ArrayList<Integer>();
+        var refTilesList = new ArrayList<float[]>();
+        var targetTilesList = new ArrayList<float[]>();
+        var gridXList = new ArrayList<Integer>();
+        var gridYList = new ArrayList<Integer>();
 
         int maxY = height - tileSize;
         int maxX = width - tileSize;
@@ -475,15 +477,15 @@ public class GPUTileExtractor {
 
             context.finish();
 
-            // Read results
+            // Read results - use NoSync variants since we just finished
             float[] refTilesFlat = new float[validCount * tileSizeSq];
             float[] targetTilesFlat = new float[validCount * tileSizeSq];
             int[] gridXArr = new int[totalPositions];
             int[] gridYArr = new int[totalPositions];
             int[] validMaskArr = new int[totalPositions];
 
-            context.readBuffer(refTilesBuf, refTilesFlat);
-            context.readBuffer(targetTilesBuf, targetTilesFlat);
+            context.readBufferNoSync(refTilesBuf, refTilesFlat);
+            context.readBufferNoSync(targetTilesBuf, targetTilesFlat);
             readBufferInt(context, gridXBuf, gridXArr);
             readBufferInt(context, gridYBuf, gridYArr);
             readBufferInt(context, validMaskBuf, validMaskArr);

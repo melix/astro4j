@@ -17,29 +17,42 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
+import me.champeau.a4j.jsolex.processing.expr.stacking.ConsensusReference;
 import me.champeau.a4j.jsolex.processing.expr.stacking.DistorsionMap;
 import me.champeau.a4j.jsolex.processing.expr.stacking.DistorsionMaps;
-import me.champeau.a4j.jsolex.processing.expr.stacking.ConsensusReference;
 import me.champeau.a4j.jsolex.processing.expr.stacking.GPUDedistort;
 import me.champeau.a4j.jsolex.processing.expr.stacking.GPUDistortionGrid;
 import me.champeau.a4j.jsolex.processing.expr.stacking.GPUImage;
-import me.champeau.a4j.jsolex.processing.expr.stacking.GPUTileExtractor;
-import me.champeau.a4j.jsolex.processing.expr.stacking.SignalEvaluator;
+import me.champeau.a4j.jsolex.processing.expr.stacking.GridSamplingStrategy;
+import me.champeau.a4j.jsolex.processing.expr.stacking.InterestPointSamplingStrategy;
+import me.champeau.a4j.jsolex.processing.expr.stacking.SamplingStrategy;
+import me.champeau.a4j.jsolex.processing.expr.stacking.SparseDistortionField;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.MetadataTable;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
-import me.champeau.a4j.math.correlation.PhaseCorrelation;
+import me.champeau.a4j.math.correlation.CorrelationStrategy;
+import me.champeau.a4j.math.correlation.NCCCorrelationStrategy;
 import me.champeau.a4j.math.fft.FFTSupport;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
+import me.champeau.a4j.math.correlation.CorrelationTools;
+import me.champeau.a4j.math.opencl.GPUImageCache;
+import me.champeau.a4j.math.opencl.GPUMemoryBudget;
+import me.champeau.a4j.math.opencl.OpenCLContext;
 import me.champeau.a4j.math.opencl.OpenCLSupport;
 import me.champeau.a4j.math.tuples.DoublePair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferUShort;
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -59,6 +72,7 @@ public class Dedistort extends AbstractFunctionImpl {
     private static final String DEDISTORT = message("dedistorting");
     private static final Map<Integer, float[][]> HANN_WINDOW_CACHE = new ConcurrentHashMap<>();
     private static final ImageMath IMAGE_MATH = ImageMath.newInstance();
+    private static final AtomicInteger DEBUG_IMAGE_COUNTER = new AtomicInteger(0);
 
     // By the Central Limit Theorem, the sample mean converges to the true mean with standard
     // error proportional to σ/√n. With 30 samples, we get a good approximation (σ/√30 ≈ 0.18σ)
@@ -67,6 +81,15 @@ public class Dedistort extends AbstractFunctionImpl {
 
     // Minimum relative improvement threshold for convergence
     private static final double CONVERGENCE_THRESHOLD = 0.01;
+
+    // Reject bottom N% of samples by confidence (adaptive filtering)
+    private static final double CONFIDENCE_REJECTION_PERCENTILE = 0.50;
+
+    private final CorrelationStrategy correlationStrategy = NCCCorrelationStrategy.INSTANCE;
+
+    static {
+//        ((ch.qos.logback.classic.Logger) LoggerFactory.getLogger(Dedistort.class)).setLevel(Level.DEBUG);
+    }
 
     public Dedistort(Map<Class<?>, Object> context, Broadcaster broadcaster) {
         super(context, broadcaster);
@@ -382,94 +405,8 @@ public class Dedistort extends AbstractFunctionImpl {
         return (float) linearInterpolation(i0, i1, yy - y0); // interpolate between the results on the y-axis
     }
 
-    static DisplacementResult findDisplacementWithQuality(float[][] referenceData,
-                                                          ImageWrapper32 image,
-                                                          int width,
-                                                          int height,
-                                                          int x,
-                                                          int y,
-                                                          int tileSize,
-                                                          float signal,
-                                                          float[][] targetSignalData) {
-        var copyWidth = Math.min(tileSize, width - x);
-        var copyHeight = Math.min(tileSize, height - y);
-        if (copyWidth > 0 && copyHeight > 0) {
-            var refSum = 0f;
-            var targetSum = 0f;
-            for (var yy = 0; yy < copyHeight; yy++) {
-                var srcY = y + yy;
-                for (var xx = 0; xx < copyWidth; xx++) {
-                    refSum += referenceData[srcY][x + xx];
-                    if (targetSignalData != null) {
-                        targetSum += targetSignalData[srcY][x + xx];
-                    }
-                }
-            }
-            var pixelCount = copyWidth * copyHeight;
-            var refAvgSignal = refSum / pixelCount;
-            var targetAvgSignal = targetSignalData != null ? targetSum / pixelCount : Float.MAX_VALUE;
-            if (refAvgSignal > signal && targetAvgSignal > signal) {
-                var data = image.data();
-                var tiles = createTilesForComparison(tileSize, x, y, referenceData, data, copyWidth, copyHeight);
-                return phaseCorrelationWithPSR(tiles.referenceTile(), tiles.dataTile());
-            }
-        }
-        return new DisplacementResult(0, 0);
-    }
-
-    /**
-     * Optimized version using SignalEvaluator for O(1) signal threshold checking.
-     */
-    static DisplacementResult findDisplacementWithQuality(float[][] referenceData,
-                                                          ImageWrapper32 image,
-                                                          int x,
-                                                          int y,
-                                                          int tileSize,
-                                                          float signal,
-                                                          SignalEvaluator signalEvaluator) {
-        if (signalEvaluator.passesThreshold(x, y, tileSize, tileSize, signal)) {
-            var data = image.data();
-            var tiles = createTilesForComparison(tileSize, x, y, referenceData, data, tileSize, tileSize);
-            return phaseCorrelationWithPSR(tiles.referenceTile(), tiles.dataTile());
-        }
-        return new DisplacementResult(0, 0);
-    }
-
-    /**
-     * Optimized version using SignalEvaluator for O(1) signal threshold checking.
-     */
-    private void processWithRefinement(int x, int y, int tileSize,
-                                       float[][] referenceData,
-                                       ImageWrapper32 image,
-                                       DistorsionMap distorsionMap,
-                                       float signal,
-                                       SignalEvaluator signalEvaluator) {
-        var result = findDisplacementWithQuality(referenceData, image, x, y, tileSize, signal, signalEvaluator);
-        var tileOffset = (int) (tileSize / 2d);
-        distorsionMap.recordDistorsion(x + tileOffset, y + tileOffset, result.dx(), result.dy());
-    }
-
-    private static final int MIN_TILE_SIZE = 32;
     private static final int MIN_STEP = 8;
     private static final int ABSOLUTE_MIN_TILE_SIZE = 16;
-
-    private static int computeRefinementTileSize(int coarseTileSize) {
-        return coarseTileSize / 2;
-    }
-
-    private static boolean canRefine(int tileSize) {
-        return tileSize > MIN_TILE_SIZE;
-    }
-
-    private static int countRefinementLevels(int tileSize) {
-        int levels = 0;
-        int currentSize = tileSize;
-        while (currentSize > MIN_TILE_SIZE) {
-            levels++;
-            currentSize /= 2;
-        }
-        return levels;
-    }
 
     public Object dedistort(Map<String, Object> arguments) {
         BuiltinFunction.DEDISTORT.validateArgs(arguments);
@@ -497,11 +434,21 @@ public class Dedistort extends AbstractFunctionImpl {
                 var sampling = doubleArg(arguments, "sampling", Stacking.DEFAULT_SAMPLING);
                 var threshold = doubleArg(arguments, "threshold", -1);
                 var iterations = intArg(arguments, "iterations", 1);
-                var refine = intArg(arguments, "refine", 1) != 0;
+                var useSparse = booleanArg(arguments, "sparse", false);
+                var multiscale = booleanArg(arguments, "multiscale", false);
                 if (iterations < 1) {
                     iterations = 1;
                 }
-                return dedistort(mono, image, tileSize, sampling, threshold == -1 ? null : threshold, iterations, refine);
+                // Warn if both sampling and sparse are set (sparse takes precedence)
+                if (useSparse && sampling != Stacking.DEFAULT_SAMPLING) {
+                    LOGGER.warn(message("dedistort.sparse.overrides.sampling"));
+                }
+                // Warn if multiscale is set without sparse
+                if (multiscale && !useSparse) {
+                    LOGGER.warn(message("dedistort.multiscale.requires.sparse"));
+                    multiscale = false;
+                }
+                return dedistort(mono, image, tileSize, sampling, threshold == -1 ? null : threshold, iterations, useSparse, multiscale);
             }
             throw new IllegalArgumentException("dedistort 2d argument must be a mono image");
         } else if (arg instanceof List<?>) {
@@ -543,7 +490,8 @@ public class Dedistort extends AbstractFunctionImpl {
                                     double sampling,
                                     Double backgroundThreshold,
                                     int iterations,
-                                    boolean refine) {
+                                    boolean useSparse,
+                                    boolean multiscale) {
         var width = reference.width();
         var height = reference.height();
         if (image.width() != width || image.height() != height) {
@@ -552,15 +500,18 @@ public class Dedistort extends AbstractFunctionImpl {
         var referenceData = reference.data();
         var signal = backgroundThreshold != null ? backgroundThreshold.floatValue() : 1;
 
-        var refinementLevels = refine ? countRefinementLevels(tileSize) : 0;
-
-        LOGGER.debug("Dedistort: image={}x{}, tileSize={}, sampling={}, iterations={}, refine={}, refinementLevels={}",
-                width, height, tileSize, sampling, iterations, refine, refinementLevels);
+        LOGGER.debug("Dedistort: image={}x{}, tileSize={}, sampling={}, iterations={}, sparse={}, multiscale={}",
+                width, height, tileSize, sampling, iterations, useSparse, multiscale);
 
         var distorsionMapList = new ArrayList<DistorsionMap>();
         var currentImage = image;
         var iterationOperation = newOperation().createChild(DEDISTORT);
         var previousDistortion = Double.MAX_VALUE;
+
+        // Create the sampling strategy once - it handles multi-scale internally
+        SamplingStrategy strategy = useSparse
+                ? new InterestPointSamplingStrategy(tileSize, multiscale)
+                : new GridSamplingStrategy(sampling);
 
         for (int iteration = 0; iteration < iterations; iteration++) {
             LOGGER.debug("Iteration {}/{}", iteration + 1, iterations);
@@ -568,53 +519,14 @@ public class Dedistort extends AbstractFunctionImpl {
             broadcaster.broadcast(iterationOperation.update((double) iteration / iterations, DEDISTORT + suffix));
 
             var iterationInputImage = currentImage;
-            List<DistorsionMap> levelMaps = null;
-            var iterationDistortions = new ArrayList<Double>();
 
-            // Try GPU-resident refinement first (more efficient for multi-level refinement)
-            if (refine && canRefine(tileSize)) {
-                levelMaps = performGPUResidentRefinement(referenceData, currentImage.data(),
-                        width, height, tileSize, sampling, signal, refine, iteration);
-            }
+            var passName = String.format("Iteration %d [%s]", iteration + 1, strategy.getName());
 
-            // Fallback to standard path if GPU-resident refinement not available or failed
-            if (levelMaps == null) {
-                levelMaps = new ArrayList<>();
-                var currentTileSize = tileSize;
-                var level = 1;
+            var iterationMap = computeDistortionMapWithStrategy(
+                    referenceData, currentImage, width, height,
+                    tileSize, sampling, signal, strategy, passName, iterationOperation);
 
-                while (true) {
-                    var passName = String.format("Iteration %d - Level %d (tile=%d)", iteration + 1, level, currentTileSize);
-                    var map = computeDistortionMap(
-                            referenceData, currentImage, width, height,
-                            currentTileSize, sampling, signal, passName, iterationOperation);
-                    levelMaps.add(map);
-                    iterationDistortions.add(map.totalDistorsion());
-
-                    if (!refine || !canRefine(currentTileSize)) {
-                        break;
-                    }
-
-                    currentImage = dedistortSingleWithoutMetadata(currentImage, map, iterationOperation, height, width);
-                    currentTileSize = computeRefinementTileSize(currentTileSize);
-                    level++;
-                }
-            } else {
-                // GPU-resident path succeeded - collect distortions
-                for (var map : levelMaps) {
-                    iterationDistortions.add(map.totalDistorsion());
-                }
-            }
-
-            DistorsionMap iterationMap;
-            if (levelMaps.size() == 1) {
-                iterationMap = levelMaps.getFirst();
-            } else {
-                iterationMap = DistorsionMap.synthesize(levelMaps, width, height);
-                LOGGER.debug("Iteration {} synthesized {} level maps into one", iteration + 1, levelMaps.size());
-            }
-
-            // Check convergence: stop if distortion increased or improvement < 0.1%
+            // Check convergence: stop if distortion increased or improvement < threshold
             var currentDistortion = iterationMap.totalDistorsion();
             var relativeImprovement = (previousDistortion - currentDistortion) / previousDistortion;
             if (currentDistortion > previousDistortion) {
@@ -622,7 +534,7 @@ public class Dedistort extends AbstractFunctionImpl {
                 break;
             }
             if (relativeImprovement < CONVERGENCE_THRESHOLD && iteration > 0) {
-                LOGGER.info(message("dedistort.iteration.converged"), iteration + 1, String.format("%.2f", relativeImprovement * 100), CONVERGENCE_THRESHOLD * 100);
+                LOGGER.debug(message("dedistort.iteration.converged"), iteration + 1, String.format("%.2f", relativeImprovement * 100), CONVERGENCE_THRESHOLD * 100);
                 distorsionMapList.add(iterationMap);
                 break;
             }
@@ -678,140 +590,86 @@ public class Dedistort extends AbstractFunctionImpl {
                                                float[][] targetSignalData,
                                                String passName,
                                                ProgressOperation parent) {
+        // Default to grid sampling strategy
+        var strategy = new GridSamplingStrategy(sampling);
+        return computeDistortionMapWithStrategy(referenceData, currentImage, width, height,
+                tileSize, sampling, signal, strategy, passName, parent);
+    }
+
+    /**
+     * Computes a distortion map using the specified sampling strategy.
+     * This is the unified algorithm used by both grid and interest-point sampling.
+     * The same algorithm runs on CPU or GPU - only the tile extraction and
+     * correlation steps differ in implementation.
+     */
+    private DistorsionMap computeDistortionMapWithStrategy(float[][] referenceData,
+                                                            ImageWrapper32 currentImage,
+                                                            int width,
+                                                            int height,
+                                                            int tileSize,
+                                                            double sampling,
+                                                            float signal,
+                                                            SamplingStrategy strategy,
+                                                            String passName,
+                                                            ProgressOperation parent) {
         var safeTileSize = Math.max(ABSOLUTE_MIN_TILE_SIZE, tileSize);
-        var increment = (int) Math.max(MIN_STEP, safeTileSize * sampling);
-
-        if (OpenCLSupport.isEnabled() && (safeTileSize == 32 || safeTileSize == 64 || safeTileSize == 128)) {
-            try {
-                return computeDistortionMapGPU(referenceData, currentImage, width, height,
-                        safeTileSize, increment, signal, targetSignalData, passName, parent);
-            } catch (Exception e) {
-                System.err.println("[Dedistort] GPU distortion map computation failed, falling back to CPU");
-                e.printStackTrace();
-                var context = OpenCLSupport.getContext();
-                if (context != null) {
-                    context.recordError("Dedistort.computeDistortionMap", e);
-                }
-            }
-        }
-
-        return computeDistortionMapCPU(referenceData, currentImage, width, height,
-                safeTileSize, increment, signal, targetSignalData, passName, parent);
-    }
-
-    private DistorsionMap computeDistortionMapCPU(float[][] referenceData,
-                                                   ImageWrapper32 currentImage,
-                                                   int width,
-                                                   int height,
-                                                   int safeTileSize,
-                                                   int increment,
-                                                   float signal,
-                                                   float[][] targetSignalData,
-                                                   String passName,
-                                                   ProgressOperation parent) {
-        var distorsionMap = new DistorsionMap(width, height, safeTileSize, increment);
-
-        var maxY = height - safeTileSize;
-        var maxX = width - safeTileSize;
-        var totalPoints = ((maxY / increment) + 1) * ((maxX / increment) + 1);
-
-        LOGGER.debug("{}: tileSize={}, increment={}, gridPoints={} (CPU)", passName, safeTileSize, increment, totalPoints);
-
-        // Use SignalEvaluator for O(1) signal threshold checks instead of O(tileSize²) loops
-        var signalEvaluator = new SignalEvaluator(referenceData, targetSignalData, width, height);
-
-        var progressCounter = new AtomicInteger();
-        var progressOperation = parent.createChild(FIND_CORRESP_MESSAGE);
-
-        for (int y = 0; y <= maxY; y += increment) {
-            for (int x = 0; x <= maxX; x += increment) {
-                processWithRefinement(x, y, safeTileSize,
-                        referenceData, currentImage, distorsionMap, signal, signalEvaluator);
-                var progress = progressCounter.incrementAndGet() / (double) totalPoints;
-                if (progressCounter.get() % 100 == 0) {
-                    broadcaster.broadcast(progressOperation.update(progress));
-                }
-            }
-        }
-
-        broadcaster.broadcast(progressOperation.complete());
-        distorsionMap.filterAndSmooth();
-
-        LOGGER.debug("{}: totalDistortion={}", passName, distorsionMap.totalDistorsion());
-
-        return distorsionMap;
-    }
-
-    private DistorsionMap computeDistortionMapGPU(float[][] referenceData,
-                                                   ImageWrapper32 currentImage,
-                                                   int width,
-                                                   int height,
-                                                   int safeTileSize,
-                                                   int increment,
-                                                   float signal,
-                                                   float[][] targetSignalData,
-                                                   String passName,
-                                                   ProgressOperation parent) {
-        var distorsionMap = new DistorsionMap(width, height, safeTileSize, increment);
-        var data = currentImage.data();
-        var tileOffset = safeTileSize / 2;
 
         var progressOperation = parent.createChild(FIND_CORRESP_MESSAGE);
 
-        // Use GPU tile extractor for full pipeline: integral images, signal filtering, tile extraction
-        var targetData = targetSignalData != null ? targetSignalData : data;
-        var extraction = GPUTileExtractor.extract(referenceData, targetData, width, height,
-                safeTileSize, increment, signal);
+        // Select sample positions using the strategy
+        broadcaster.broadcast(progressOperation.update(0.0, "Selecting sample positions"));
+        var positions = strategy.selectPositions(referenceData, width, height, safeTileSize, signal);
 
-        LOGGER.debug("{}: tileSize={}, increment={}, validTiles={}/{} (GPU extracted)",
-                passName, safeTileSize, increment, extraction.validCount(),
-                extraction.gridWidth() * extraction.gridHeight());
-
-        if (extraction.validCount() > 0) {
-            // Process tiles in batches for phase correlation
-            int batchSize = computeBatchSize(safeTileSize);
-            var gridPositions = new ArrayList<int[]>(batchSize);
-            var refTilesList = new ArrayList<float[][]>(batchSize);
-            var targetTilesList = new ArrayList<float[][]>(batchSize);
-
-            for (int i = 0; i < extraction.validCount(); i++) {
-                int x = extraction.gridX()[i];
-                int y = extraction.gridY()[i];
-
-                // Convert 1D tile to 2D for phase correlation
-                var refTile = new float[safeTileSize][safeTileSize];
-                var targetTile = new float[safeTileSize][safeTileSize];
-                float[] refFlat = extraction.refTiles()[i];
-                float[] targetFlat = extraction.targetTiles()[i];
-
-                for (int row = 0; row < safeTileSize; row++) {
-                    System.arraycopy(refFlat, row * safeTileSize, refTile[row], 0, safeTileSize);
-                    System.arraycopy(targetFlat, row * safeTileSize, targetTile[row], 0, safeTileSize);
-                }
-
-                gridPositions.add(new int[]{x + tileOffset, y + tileOffset});
-                refTilesList.add(refTile);
-                targetTilesList.add(targetTile);
-
-                if (refTilesList.size() >= batchSize) {
-                    processBatch(distorsionMap, gridPositions, refTilesList, targetTilesList);
-                    gridPositions.clear();
-                    refTilesList.clear();
-                    targetTilesList.clear();
-                }
-
-                if (i % 1000 == 0) {
-                    broadcaster.broadcast(progressOperation.update((double) i / extraction.validCount()));
-                }
-            }
-
-            if (!refTilesList.isEmpty()) {
-                processBatch(distorsionMap, gridPositions, refTilesList, targetTilesList);
-            }
+        // Save debug image showing interest points when debug logging is enabled
+        if (LoggerFactory.getLogger(InterestPointSamplingStrategy.class).isDebugEnabled() && strategy instanceof InterestPointSamplingStrategy) {
+            saveInterestPointDebugImage(referenceData, positions, width, height, passName);
         }
 
+        return computeDistortionMapWithPositions(referenceData, currentImage, width, height,
+                tileSize, sampling, strategy, positions, passName, progressOperation);
+    }
+
+    /**
+     * Computes a distortion map using pre-selected sample positions.
+     * Use this when the same positions should be reused across multiple comparisons.
+     */
+    private DistorsionMap computeDistortionMapWithPositions(float[][] referenceData,
+                                                             ImageWrapper32 currentImage,
+                                                             int width,
+                                                             int height,
+                                                             int tileSize,
+                                                             double sampling,
+                                                             SamplingStrategy strategy,
+                                                             SamplingStrategy.SamplePositions positions,
+                                                             String passName,
+                                                             ProgressOperation progressOperation) {
+        var safeTileSize = Math.max(ABSOLUTE_MIN_TILE_SIZE, tileSize);
+        var outputGridStep = strategy.getOutputGridStep(safeTileSize, sampling);
+
+        LOGGER.debug("{}: strategy={}, samples={}, tileSize={}, outputGridStep={}",
+                passName, strategy.getName(), positions.count(), safeTileSize, outputGridStep);
+
+        if (positions.count() == 0) {
+            LOGGER.warn("{}: no valid sample positions, returning empty distortion map", passName);
+            broadcaster.broadcast(progressOperation.complete());
+            var emptyMap = new DistorsionMap(width, height, safeTileSize, outputGridStep);
+            emptyMap.filterAndSmooth();
+            return emptyMap;
+        }
+
+        // Extract tiles and compute phase correlations
+        broadcaster.broadcast(progressOperation.update(0.1, "Computing displacements"));
+        var sparseField = computeDisplacementsAtPositions(
+                referenceData, currentImage.data(), width, height,
+                safeTileSize, positions, progressOperation);
+
+        LOGGER.debug("{}: sparse field has {} samples", passName, sparseField.getSampleCount());
+
+        // Convert sparse field to regular grid for warping
+        broadcaster.broadcast(progressOperation.update(0.9, "Building distortion grid"));
+        var distorsionMap = sparseField.toRegularGrid(outputGridStep);
+
         broadcaster.broadcast(progressOperation.complete());
-        distorsionMap.filterAndSmooth();
 
         LOGGER.debug("{}: totalDistortion={}", passName, distorsionMap.totalDistorsion());
 
@@ -819,78 +677,163 @@ public class Dedistort extends AbstractFunctionImpl {
     }
 
     /**
-     * Computes distortion map using GPU-resident images.
-     * Must be called within OpenCLContext.executeWithLock.
-     *
-     * @param refImage      GPU-resident reference image
-     * @param targetImage   GPU-resident target image
-     * @param width         image width
-     * @param height        image height
-     * @param safeTileSize  tile size
-     * @param increment     grid increment
-     * @param signal        signal threshold
-     * @param passName      name for logging
-     * @return distortion map
+     * Computes displacements at the specified positions using phase correlation.
+     * Uses GPU if available, falls back to CPU otherwise.
+     * Tiles are grouped by size to ensure GPU batches contain uniform tile sizes.
      */
-    private DistorsionMap computeDistortionMapGPUResident(GPUImage refImage, GPUImage targetImage,
-                                                          int width, int height, int safeTileSize,
-                                                          int increment, float signal, String passName) {
-        var distorsionMap = new DistorsionMap(width, height, safeTileSize, increment);
-        var context = refImage.getContext();
-        var tileOffset = safeTileSize / 2;
+    private SparseDistortionField computeDisplacementsAtPositions(float[][] referenceData,
+                                                                    float[][] targetData,
+                                                                    int width,
+                                                                    int height,
+                                                                    int baseTileSize,
+                                                                    SamplingStrategy.SamplePositions positions,
+                                                                    ProgressOperation progressOperation) {
+        // Verify reference and target are different arrays
+        boolean sameData = (referenceData == targetData);
+        if (sameData) {
+            LOGGER.warn("Reference and target data are the same array! Displacements will be zero.");
+        } else {
+            // Check if the data content is actually different
+            double sumDiff = 0;
+            int sampleCount = 0;
+            int sampleStep = Math.max(1, Math.min(width, height) / 100);
+            for (int y = 0; y < height && sampleCount < 1000; y += sampleStep) {
+                for (int x = 0; x < width && sampleCount < 1000; x += sampleStep) {
+                    sumDiff += Math.abs(referenceData[y][x] - targetData[y][x]);
+                    sampleCount++;
+                }
+            }
+            double avgDiff = sampleCount > 0 ? sumDiff / sampleCount : 0;
+            LOGGER.debug("Reference vs target: avgDiff={} (sampled {} points)", String.format("%.4f", avgDiff), sampleCount);
+            if (avgDiff < 0.001) {
+                LOGGER.warn("Reference and target appear nearly identical (avgDiff={})", String.format("%.6f", avgDiff));
+            }
+        }
 
-        // Use GPU tile extractor with GPU-resident images
-        var extraction = GPUTileExtractor.extractFromGPU(context, refImage, targetImage,
-                width, height, safeTileSize, increment, signal);
+        // Group tiles by size for GPU batching (GPU requires uniform tile sizes per batch)
+        var tilesBySize = new HashMap<Integer, TileBatch>();
 
-        LOGGER.debug("{}: tileSize={}, increment={}, validTiles={}/{} (GPU resident)",
-                passName, safeTileSize, increment, extraction.validCount(),
-                extraction.gridWidth() * extraction.gridHeight());
+        for (int i = 0; i < positions.count(); i++) {
+            int px = positions.x()[i];
+            int py = positions.y()[i];
+            int ts = positions.tileSize()[i];
+            int tileOffset = ts / 2;
 
-        if (extraction.validCount() > 0) {
-            // Process tiles in batches for phase correlation
-            int batchSize = computeBatchSize(safeTileSize);
+            int x = px - tileOffset;
+            int y = py - tileOffset;
+
+            if (x < 0 || y < 0 || x + ts > width || y + ts > height) {
+                continue;
+            }
+
+            var referenceTile = new float[ts][ts];
+            var dataTile = new float[ts][ts];
+
+            for (int yy = 0; yy < ts; yy++) {
+                System.arraycopy(referenceData[y + yy], x, referenceTile[yy], 0, ts);
+                System.arraycopy(targetData[y + yy], x, dataTile[yy], 0, ts);
+            }
+
+            var batch = tilesBySize.computeIfAbsent(ts, TileBatch::new);
+            batch.add(px, py, referenceTile, dataTile);
+        }
+
+        // Process each tile size group and collect all samples
+        var allSamples = new ArrayList<DisplacementSample>();
+        int totalTiles = tilesBySize.values().stream().mapToInt(b -> b.positions.size()).sum();
+        int processedTiles = 0;
+
+        for (var entry : tilesBySize.entrySet()) {
+            int tileSize = entry.getKey();
+            var batch = entry.getValue();
+            int batchSize = computeBatchSize(tileSize);
+
+            LOGGER.debug("Processing {} tiles of size {}", batch.positions.size(), tileSize);
+
             var gridPositions = new ArrayList<int[]>(batchSize);
             var refTilesList = new ArrayList<float[][]>(batchSize);
             var targetTilesList = new ArrayList<float[][]>(batchSize);
 
-            for (int i = 0; i < extraction.validCount(); i++) {
-                int x = extraction.gridX()[i];
-                int y = extraction.gridY()[i];
-
-                // Convert 1D tile to 2D for phase correlation
-                var refTile = new float[safeTileSize][safeTileSize];
-                var targetTile = new float[safeTileSize][safeTileSize];
-                float[] refFlat = extraction.refTiles()[i];
-                float[] targetFlat = extraction.targetTiles()[i];
-
-                for (int row = 0; row < safeTileSize; row++) {
-                    System.arraycopy(refFlat, row * safeTileSize, refTile[row], 0, safeTileSize);
-                    System.arraycopy(targetFlat, row * safeTileSize, targetTile[row], 0, safeTileSize);
-                }
-
-                gridPositions.add(new int[]{x + tileOffset, y + tileOffset});
-                refTilesList.add(refTile);
-                targetTilesList.add(targetTile);
+            for (int i = 0; i < batch.positions.size(); i++) {
+                gridPositions.add(batch.positions.get(i));
+                refTilesList.add(batch.refTiles.get(i));
+                targetTilesList.add(batch.targetTiles.get(i));
 
                 if (refTilesList.size() >= batchSize) {
-                    processBatch(distorsionMap, gridPositions, refTilesList, targetTilesList);
+                    allSamples.addAll(processBatchToSamples(gridPositions, refTilesList, targetTilesList, tileSize));
                     gridPositions.clear();
                     refTilesList.clear();
                     targetTilesList.clear();
                 }
+
+                processedTiles++;
+                if (processedTiles % 100 == 0) {
+                    broadcaster.broadcast(progressOperation.update(0.1 + 0.7 * processedTiles / totalTiles));
+                }
             }
 
             if (!refTilesList.isEmpty()) {
-                processBatch(distorsionMap, gridPositions, refTilesList, targetTilesList);
+                allSamples.addAll(processBatchToSamples(gridPositions, refTilesList, targetTilesList, tileSize));
             }
         }
 
-        distorsionMap.filterAndSmooth();
+        // Compute confidence threshold at Nth percentile
+        float confidenceThreshold = 0f;
+        int rejectedCount = 0;
+        if (!allSamples.isEmpty()) {
+            var sortedConfidences = allSamples.stream()
+                    .map(DisplacementSample::confidence)
+                    .sorted()
+                    .toList();
+            int thresholdIndex = (int) (sortedConfidences.size() * CONFIDENCE_REJECTION_PERCENTILE);
+            thresholdIndex = Math.min(thresholdIndex, sortedConfidences.size() - 1);
+            confidenceThreshold = sortedConfidences.get(thresholdIndex);
+        }
 
-        LOGGER.debug("{}: totalDistortion={}", passName, distorsionMap.totalDistorsion());
+        // Add only samples above threshold to sparse field
+        var sparseField = SparseDistortionField.builder(width, height)
+                .neighborsK(12)
+                .baseTileSize(baseTileSize)
+                .useTileWeighting(true)
+                .interpolationMethod(SparseDistortionField.InterpolationMethod.RBF_THIN_PLATE);
 
-        return distorsionMap;
+        for (var sample : allSamples) {
+            if (sample.confidence() >= confidenceThreshold) {
+                sparseField.addSample(sample.x(), sample.y(), sample.dx(), sample.dy(),
+                        sample.tileSize(), sample.confidence());
+            } else {
+                rejectedCount++;
+            }
+        }
+
+        LOGGER.debug("Confidence filtering: threshold={} ({}th percentile), rejected {}/{} samples",
+                String.format("%.4f", confidenceThreshold),
+                (int) (CONFIDENCE_REJECTION_PERCENTILE * 100),
+                rejectedCount, allSamples.size());
+
+        broadcaster.broadcast(progressOperation.update(0.9));
+
+        return sparseField.build();
+    }
+
+    private static class TileBatch {
+        final int tileSize;
+        final List<int[]> positions = new ArrayList<>();
+        final List<float[][]> refTiles = new ArrayList<>();
+        final List<float[][]> targetTiles = new ArrayList<>();
+
+        TileBatch(int tileSize) {
+            this.tileSize = tileSize;
+        }
+
+        void add(int px, int py, float[][] refTile, float[][] targetTile) {
+            positions.add(new int[]{px, py});
+            refTiles.add(refTile);
+            targetTiles.add(targetTile);
+        }
+    }
+
+    private record DisplacementSample(int x, int y, float dx, float dy, int tileSize, float confidence) {
     }
 
     private static int computeBatchSize(int tileSize) {
@@ -921,19 +864,50 @@ public class Dedistort extends AbstractFunctionImpl {
         return batchSize;
     }
 
-    private void processBatch(DistorsionMap distorsionMap,
-                              List<int[]> gridPositions,
-                              List<float[][]> refTilesList,
-                              List<float[][]> targetTilesList) {
+    private List<DisplacementSample> processBatchToSamples(List<int[]> gridPositions,
+                                                            List<float[][]> refTilesList,
+                                                            List<float[][]> targetTilesList,
+                                                            int tileSize) {
         var refTiles = refTilesList.toArray(new float[0][][]);
         var targetTiles = targetTilesList.toArray(new float[0][][]);
 
-        var displacements = PhaseCorrelation.getInstance().batchedCorrelation(refTiles, targetTiles);
+        var displacements = correlationStrategy.batchedCorrelation(refTiles, targetTiles);
+
+        var samples = new ArrayList<DisplacementSample>(displacements.length);
+
+        // Track displacement statistics for debugging
+        double sumDx = 0, sumDy = 0, maxDx = 0, maxDy = 0;
+        double sumConfidence = 0;
+        int nonZeroCount = 0;
 
         for (int i = 0; i < displacements.length; i++) {
             var pos = gridPositions.get(i);
-            distorsionMap.recordDistorsion(pos[0], pos[1], displacements[i][0], displacements[i][1]);
+            float dx = displacements[i][0];
+            float dy = displacements[i][1];
+            float confidence = displacements[i][2];
+            samples.add(new DisplacementSample(pos[0], pos[1], dx, dy, tileSize, confidence));
+
+            sumDx += Math.abs(dx);
+            sumDy += Math.abs(dy);
+            sumConfidence += confidence;
+            maxDx = Math.max(maxDx, Math.abs(dx));
+            maxDy = Math.max(maxDy, Math.abs(dy));
+            if (dx != 0 || dy != 0) {
+                nonZeroCount++;
+            }
         }
+
+        if (displacements.length > 0) {
+            LOGGER.debug("Batch displacements: count={}, nonZero={}, avgDx={}, avgDy={}, maxDx={}, maxDy={}, avgConf={}",
+                    displacements.length, nonZeroCount,
+                    String.format("%.4f", sumDx / displacements.length),
+                    String.format("%.4f", sumDy / displacements.length),
+                    String.format("%.4f", maxDx),
+                    String.format("%.4f", maxDy),
+                    String.format("%.4f", sumConfidence / displacements.length));
+        }
+
+        return samples;
     }
 
     private ImageWrapper32 applyDistorsionMaps(ImageWrapper32 image, DistorsionMaps distorsionMaps) {
@@ -970,119 +944,6 @@ public class Dedistort extends AbstractFunctionImpl {
         return new ImageWrapper32(width, height, resultImage.data(), MutableMap.of());
     }
 
-    /**
-     * Performs GPU-resident refinement.
-     * Uploads images to GPU, runs refinement loop keeping images GPU-resident,
-     * and returns synthesized distortion maps.
-     *
-     * @param referenceData reference image data
-     * @param targetData    target image data
-     * @param width         image width
-     * @param height        image height
-     * @param tileSize      starting tile size
-     * @param sampling      sampling factor
-     * @param signal        signal threshold
-     * @param refine        whether to do multi-level refinement
-     * @param iteration     current iteration number (for logging)
-     * @return list of distortion maps for each level
-     */
-    private List<DistorsionMap> performGPUResidentRefinement(float[][] referenceData, float[][] targetData,
-                                                              int width, int height, int tileSize,
-                                                              double sampling, float signal, boolean refine,
-                                                              int iteration) {
-        var levelMaps = new ArrayList<DistorsionMap>();
-        var context = OpenCLSupport.getContext();
-
-        if (context == null) {
-            return null; // Fallback to non-GPU path
-        }
-
-        var safeTileSize = Math.max(ABSOLUTE_MIN_TILE_SIZE, tileSize);
-        if (safeTileSize != 32 && safeTileSize != 64 && safeTileSize != 128) {
-            return null; // GPU only supports these tile sizes
-        }
-
-        var increment = (int) Math.max(MIN_STEP, safeTileSize * sampling);
-
-        try {
-            return context.executeWithLock(() -> {
-                GPUImage refGpu = null;
-                GPUImage currentTargetGpu = null;
-                List<GPUImage> intermediateImages = new ArrayList<>();
-
-                try {
-                    // Upload images once
-                    refGpu = GPUImage.upload(referenceData, width, height, context);
-                    currentTargetGpu = GPUImage.upload(targetData, width, height, context);
-
-                    var currentTileSize = safeTileSize;
-                    var level = 1;
-
-                    while (true) {
-                        var currentIncrement = (int) Math.max(MIN_STEP, currentTileSize * sampling);
-                        var passName = String.format("Iteration %d - Level %d (tile=%d, GPU-resident)",
-                                iteration + 1, level, currentTileSize);
-
-                        // Compute distortion map using GPU-resident images
-                        var map = computeDistortionMapGPUResident(refGpu, currentTargetGpu,
-                                width, height, currentTileSize, currentIncrement, signal, passName);
-                        levelMaps.add(map);
-
-                        if (!refine || !canRefine(currentTileSize)) {
-                            break;
-                        }
-
-                        // Upload grid and warp on GPU
-                        try (var gpuGrid = GPUDistortionGrid.fromDistorsionMap(map, context)) {
-                            var warpedGpu = dedistortGPUResident(currentTargetGpu, gpuGrid, true);
-
-                            // Track current target for cleanup if it's not the original
-                            if (!intermediateImages.isEmpty() && currentTargetGpu == intermediateImages.getLast()) {
-                                // Current target is already tracked
-                            } else if (currentTargetGpu != null) {
-                                intermediateImages.add(currentTargetGpu);
-                            }
-                            currentTargetGpu = warpedGpu;
-                            intermediateImages.add(warpedGpu);
-                        }
-
-                        currentTileSize = computeRefinementTileSize(currentTileSize);
-                        level++;
-                    }
-
-                    return levelMaps;
-
-                } finally {
-                    // Cleanup GPU resources
-                    if (refGpu != null) {
-                        refGpu.close();
-                    }
-                    for (var img : intermediateImages) {
-                        if (img != null && !img.isClosed()) {
-                            img.close();
-                        }
-                    }
-                }
-            });
-        } catch (Exception e) {
-            LOGGER.warn("GPU-resident refinement failed, falling back to standard path", e);
-            return null;
-        }
-    }
-
-    /**
-     * Performs GPU-resident dedistortion.
-     * Both input and output remain on GPU memory to avoid transfers.
-     * Must be called within OpenCLContext.executeWithLock.
-     *
-     * @param gpuImage    GPU-resident input image
-     * @param gpuGrid     GPU-resident distortion grid
-     * @param useLanczos  true for Lanczos interpolation, false for bilinear
-     * @return new GPU-resident image (caller must close)
-     */
-    private GPUImage dedistortGPUResident(GPUImage gpuImage, GPUDistortionGrid gpuGrid, boolean useLanczos) {
-        return GPUDedistort.dedistort(gpuImage, gpuGrid, useLanczos);
-    }
 
     public record DisplacementResult(double dx, double dy) {
     }
@@ -1124,14 +985,30 @@ public class Dedistort extends AbstractFunctionImpl {
         var threshold = doubleArg(arguments, "threshold", -1);
         var signal = threshold == -1 ? 1f : (float) threshold;
         var iterations = intArg(arguments, "iterations", 1);
+        var useSparse = booleanArg(arguments, "sparse", false);
+        var multiscale = booleanArg(arguments, "multiscale", false);
         if (iterations < 1) {
             iterations = 1;
         }
+        // Warn if both sampling and sparse are set (sparse takes precedence)
+        if (useSparse && sampling != Stacking.DEFAULT_SAMPLING) {
+            LOGGER.warn(message("dedistort.sparse.overrides.sampling"));
+        }
+        // Warn if multiscale is set without sparse
+        if (multiscale && !useSparse) {
+            LOGGER.warn(message("dedistort.multiscale.requires.sparse"));
+            multiscale = false;
+        }
+
+        // Create the sampling strategy once - it handles multi-scale internally
+        SamplingStrategy strategy = useSparse
+                ? new InterestPointSamplingStrategy(tileSize, multiscale)
+                : new GridSamplingStrategy(sampling);
 
         var width = images.getFirst().width();
         var height = images.getFirst().height();
-        LOGGER.debug("Consensus dedistort: images={}, tileSize={}, sampling={}, iterations={}",
-                imageCount, tileSize, sampling, iterations);
+        LOGGER.debug("Consensus dedistort: images={}, tileSize={}, sampling={}, iterations={}, sparse={}, multiscale={}",
+                imageCount, tileSize, sampling, iterations, useSparse, multiscale);
 
         var mainOperation = newOperation().createChild(DEDISTORT);
 
@@ -1145,6 +1022,41 @@ public class Dedistort extends AbstractFunctionImpl {
         var currentImages = new ArrayList<>(images);
         var previousAvgDistortion = Double.MAX_VALUE;
 
+        // Determine GPU-resident mode settings (outside iteration loop for cross-iteration caching)
+        var safeTileSize = Math.max(ABSOLUTE_MIN_TILE_SIZE, tileSize);
+        var context = OpenCLSupport.getContext();
+        boolean supportedTileSize = (safeTileSize == 32 || safeTileSize == 64 || safeTileSize == 128);
+        boolean gpuAvailable = context != null && supportedTileSize;
+
+        // For GPU-resident warping, we need all images to fit in cache
+        // This avoids complexity of hybrid CPU/GPU warping with cache eviction
+        GPUImageCache gpuCache = null;
+        boolean useGPUResidentWarping = false;
+
+        if (gpuAvailable && iterations > 1) {
+            var budget = new GPUMemoryBudget(context, safeTileSize, 10000);
+            int maxResidentImages = budget.maxResidentImages(width, height);
+
+            if (maxResidentImages >= imageCount) {
+                // All images fit in cache - enable GPU-resident warping
+                useGPUResidentWarping = true;
+                LOGGER.debug("GPU-resident warping enabled: all {} images fit in cache (max={}), {}",
+                        imageCount, maxResidentImages, budget);
+
+                List<ImageWrapper32> imageListForCache = currentImages;
+                gpuCache = new GPUImageCache(
+                        context,
+                        imageCount,
+                        width,
+                        height,
+                        idx -> flattenImageData(imageListForCache.get(idx).data())
+                );
+            } else {
+                LOGGER.debug("GPU-resident warping disabled: {} images, max resident={}", imageCount, maxResidentImages);
+            }
+        }
+
+        try {
         for (int iteration = 0; iteration < iterations; iteration++) {
             var suffix = iterations > 1 ? " (" + (iteration + 1) + "/" + iterations + ")" : "";
             LOGGER.debug("Consensus reference iteration {}/{}: computing distortion maps for {} images",
@@ -1177,19 +1089,45 @@ public class Dedistort extends AbstractFunctionImpl {
                 comparisonsPerSourceImage.put(i, targetIndices);
             }
 
-            // Collect unique pairs to compute (always store as smaller,larger)
+            // Collect directed pairs to compute (i → j means distortion from i's perspective)
+            // We compute BOTH directions so each image uses its own interest points
             var pairsToCompute = new LinkedHashSet<Long>();
             for (int i = 0; i < imageCount; i++) {
                 for (int j : comparisonsPerSourceImage.get(i)) {
-                    int smaller = Math.min(i, j);
-                    int larger = Math.max(i, j);
-                    pairsToCompute.add(encodePair(smaller, larger, imageCount));
+                    // Add both directions: i→j and j→i
+                    pairsToCompute.add(encodeDirectedPair(i, j, imageCount));
+                    pairsToCompute.add(encodeDirectedPair(j, i, imageCount));
                 }
             }
 
-            LOGGER.debug("Consensus reference iteration {}: {} unique pairs to compute (reduced from {} total comparisons)",
+            LOGGER.debug("Consensus reference iteration {}: {} directed pairs to compute (from {} comparisons)",
                     iteration + 1, pairsToCompute.size(),
                     comparisonsPerSourceImage.values().stream().mapToInt(List::size).sum());
+
+            // Pre-compute interest points for each unique source image
+            var positionsPerSource = new ConcurrentHashMap<Integer, SamplingStrategy.SamplePositions>();
+            var sourceIndices = pairsToCompute.stream()
+                    .mapToInt(pairKey -> (int) (pairKey / imageCount)) // source index from directed pair
+                    .distinct()
+                    .toArray();
+            int finalIteration = iteration;
+            Arrays.stream(sourceIndices)
+                    .parallel()
+                    .forEach(srcIdx -> {
+                        var srcData = currentImages.get(srcIdx).data();
+                        var positions = strategy.selectPositions(srcData, width, height, safeTileSize, signal);
+                        positionsPerSource.put(srcIdx, positions);
+
+                        // Save debug image showing interest points when debug logging is enabled
+                        if (LoggerFactory.getLogger(InterestPointSamplingStrategy.class).isDebugEnabled()
+                                && strategy instanceof InterestPointSamplingStrategy) {
+                            var passName = String.format("Iter_%d_Src_%d", finalIteration + 1, srcIdx + 1);
+                            saveInterestPointDebugImage(srcData, positions, width, height, passName);
+
+                        }
+                    });
+            LOGGER.debug("Consensus reference iteration {}: computed interest points for {} source images",
+                    iteration + 1, positionsPerSource.size());
 
             // Compute distortion maps for unique pairs only
             var computedMaps = new HashMap<Long, DistorsionMap>();
@@ -1197,44 +1135,129 @@ public class Dedistort extends AbstractFunctionImpl {
             int totalPairs = pairsToCompute.size();
             var pairOperation = comparingOperation.createChild(message("consensus.reference.comparing"));
 
-            for (long pairKey : pairsToCompute) {
-                int i = (int) (pairKey / imageCount);
-                int j = (int) (pairKey % imageCount);
+            // Use outer GPU cache if available, otherwise create per-iteration cache for correlation only
+            boolean useGPUResident = gpuAvailable;
+            GPUImageCache iterationCache = null;
+            GPUImageCache effectiveCache = gpuCache; // Use outer cache if GPU-resident warping enabled
 
-                broadcaster.broadcast(pairOperation.update((double) pairIndex / totalPairs,
-                        String.format("Pair %d/%d (%d→%d)", pairIndex + 1, totalPairs, i + 1, j + 1)));
+            if (useGPUResident && effectiveCache == null) {
+                // Create per-iteration cache for correlation (no cross-iteration warping)
+                var budget = new GPUMemoryBudget(context, safeTileSize, 10000);
+                int maxResidentImages = budget.maxResidentImages(width, height);
+                useGPUResident = maxResidentImages >= 2;
 
-                var sourceImage = currentImages.get(i);
-                var targetImage = currentImages.get(j);
+                if (useGPUResident) {
+                    int cacheCapacity = Math.min(maxResidentImages, imageCount);
+                    if (iteration == 0) {
+                        LOGGER.debug("Using GPU-resident image correlation: cache capacity={}/{} images, tileSize={}, multiscale={}, {}",
+                                cacheCapacity, imageCount, safeTileSize, multiscale, budget);
+                    }
 
-                // Compute single distortion map (no refinement in consensus mode)
-                var passName = String.format("Iter %d - Pair %d→%d (tile=%d)",
-                        iteration + 1, i + 1, j + 1, tileSize);
-                var pairMap = computeDistortionMap(sourceImage.data(), targetImage, width, height,
-                        tileSize, sampling, signal, targetImage.data(), passName, pairOperation);
-                computedMaps.put(pairKey, pairMap);
-                pairIndex++;
+                    iterationCache = new GPUImageCache(
+                            context,
+                            cacheCapacity,
+                            width,
+                            height,
+                            idx -> flattenImageData(currentImages.get(idx).data())
+                    );
+                    effectiveCache = iterationCache;
+                } else if (iteration == 0) {
+                    LOGGER.debug("GPU memory insufficient for resident images (max={}, need>=2)", maxResidentImages);
+                }
+            } else if (!gpuAvailable && iteration == 0) {
+                if (context == null) {
+                    LOGGER.debug("GPU not available, using CPU correlation");
+                } else {
+                    LOGGER.debug("GPU-resident correlation requires tile size 32, 64, or 128, using CPU (tile size={})", safeTileSize);
+                }
+            }
+
+            try {
+                GPUImageCache finalGpuCache = effectiveCache;
+
+                if (useGPUResident) {
+                    // GPU-resident path: process ALL pairs in one lock session
+                    // This eliminates per-pair lock overhead (100-300 lock calls → 1 call)
+                    var outputGridStep = strategy.getOutputGridStep(safeTileSize, sampling);
+                    int finalPairIndex = pairIndex;
+
+                    var gpuResults = context.executeWithLock(() -> {
+                        var results = new HashMap<Long, DistorsionMap>();
+                        int localPairIndex = finalPairIndex;
+
+                        for (long pairKey : pairsToCompute) {
+                            int i = (int) (pairKey / imageCount);
+                            int j = (int) (pairKey % imageCount);
+
+                            broadcaster.broadcast(pairOperation.update((double) localPairIndex / totalPairs,
+                                    String.format("Pair %d/%d (%d→%d)", localPairIndex + 1, totalPairs, i + 1, j + 1)));
+
+                            var positions = positionsPerSource.get(i);
+
+                            long refBuffer = finalGpuCache.getImage(i);
+                            long targetBuffer = finalGpuCache.getImage(j);
+
+                            // Get CPU data for fallback on unsupported tile sizes
+                            var refData = currentImages.get(i).data();
+                            var targetDataArray = currentImages.get(j).data();
+
+                            var sparseField = computeDisplacementsGPUResident(
+                                    context, refBuffer, targetBuffer,
+                                    refData, targetDataArray,
+                                    width, height, safeTileSize, positions);
+
+                            results.put(pairKey, sparseField.toRegularGrid(outputGridStep));
+                            localPairIndex++;
+                        }
+                        return results;
+                    });
+
+                    computedMaps.putAll(gpuResults);
+                    pairIndex += pairsToCompute.size();
+                } else {
+                    // CPU path: process pairs individually
+                    for (long pairKey : pairsToCompute) {
+                        int i = (int) (pairKey / imageCount);
+                        int j = (int) (pairKey % imageCount);
+
+                        broadcaster.broadcast(pairOperation.update((double) pairIndex / totalPairs,
+                                String.format("Pair %d/%d (%d→%d)", pairIndex + 1, totalPairs, i + 1, j + 1)));
+
+                        var sourceImage = currentImages.get(i);
+                        var targetImage = currentImages.get(j);
+                        var positions = positionsPerSource.get(i);
+
+                        var passName = String.format("Iter %d - Pair %d→%d (tile=%d, %s)",
+                                iteration + 1, i + 1, j + 1, tileSize, strategy.getName());
+                        var pairMap = computeDistortionMapWithPositions(sourceImage.data(), targetImage, width, height,
+                                tileSize, sampling, strategy, positions, passName, pairOperation);
+
+                        computedMaps.put(pairKey, pairMap);
+                        pairIndex++;
+                    }
+                }
+
+                if (finalGpuCache != null) {
+                    LOGGER.debug("GPU image cache stats: {}", finalGpuCache);
+                }
+            } finally {
+                // Clean up only per-iteration cache (outer cache is cleaned up in outer finally)
+                if (iterationCache != null) {
+                    context.executeWithLock(iterationCache::close);
+                }
             }
             broadcaster.broadcast(pairOperation.complete());
 
-            // For each image, gather maps (direct or negated) and compute average
+            // For each image, gather maps and compute average
+            // Each map is now computed directly (i → j uses i's interest points)
             var iterationMaps = new ArrayList<DistorsionMap>(imageCount);
             for (int i = 0; i < imageCount; i++) {
                 var mapsToOthers = new ArrayList<DistorsionMap>(comparisonsPerImage);
 
                 for (int j : comparisonsPerSourceImage.get(i)) {
-                    int smaller = Math.min(i, j);
-                    int larger = Math.max(i, j);
-                    long pairKey = encodePair(smaller, larger, imageCount);
+                    long pairKey = encodeDirectedPair(i, j, imageCount);
                     var map = computedMaps.get(pairKey);
-
-                    if (i < j) {
-                        // We computed i → j directly
-                        mapsToOthers.add(map);
-                    } else {
-                        // We computed j → i, so negate to get i → j
-                        mapsToOthers.add(map.negate());
-                    }
+                    mapsToOthers.add(map);
                 }
 
                 // Average: average(image[i] → image[j]) ≈ -d_i (negative of image[i]'s distortion)
@@ -1265,21 +1288,21 @@ public class Dedistort extends AbstractFunctionImpl {
             }
             if (relativeImprovement < CONVERGENCE_THRESHOLD && iteration > 0) {
                 LOGGER.info(message("consensus.reference.converged"), iteration + 1, String.format("%.2f", relativeImprovement * 100), CONVERGENCE_THRESHOLD * 100);
-                for (int i = 0; i < imageCount; i++) {
-                    var map = iterationMaps.get(i);
-                    accumulatedMaps.set(i, accumulatedMaps.get(i).append(map));
-                    currentImages.set(i, dedistortSingleWithoutMetadata(currentImages.get(i), map, mainOperation, height, width));
-                }
+                warpImagesAfterIteration(iterationMaps, accumulatedMaps, currentImages, mainOperation,
+                        height, width, imageCount, useGPUResidentWarping, gpuCache, context);
                 break;
             }
 
             previousAvgDistortion = avgDistortion;
 
             // Warp each image and accumulate its distortion map
-            for (int i = 0; i < imageCount; i++) {
-                var map = iterationMaps.get(i);
-                accumulatedMaps.set(i, accumulatedMaps.get(i).append(map));
-                currentImages.set(i, dedistortSingleWithoutMetadata(currentImages.get(i), map, mainOperation, height, width));
+            warpImagesAfterIteration(iterationMaps, accumulatedMaps, currentImages, mainOperation,
+                    height, width, imageCount, useGPUResidentWarping, gpuCache, context);
+        }
+        } finally {
+            // Clean up outer GPU cache (used for cross-iteration warping)
+            if (gpuCache != null) {
+                context.executeWithLock(gpuCache::close);
             }
         }
 
@@ -1306,8 +1329,283 @@ public class Dedistort extends AbstractFunctionImpl {
         return results;
     }
 
-    private static long encodePair(int smaller, int larger, int imageCount) {
-        return (long) smaller * imageCount + larger;
+    /**
+     * Warps all images using the computed distortion maps after an iteration.
+     * Uses GPU-resident warping when available (all images fit in cache).
+     */
+    private void warpImagesAfterIteration(List<DistorsionMap> iterationMaps,
+                                           List<DistorsionMaps> accumulatedMaps,
+                                           List<ImageWrapper32> currentImages,
+                                           ProgressOperation mainOperation,
+                                           int height,
+                                           int width,
+                                           int imageCount,
+                                           boolean useGPUResidentWarping,
+                                           GPUImageCache gpuCache,
+                                           OpenCLContext context) {
+        if (useGPUResidentWarping && gpuCache != null && context != null) {
+            // GPU-resident warping: warp all images on GPU and update cache buffers
+            context.executeWithLock(() -> {
+                for (int i = 0; i < imageCount; i++) {
+                    var map = iterationMaps.get(i);
+                    accumulatedMaps.set(i, accumulatedMaps.get(i).append(map));
+
+                    // Get current GPU buffer for this image
+                    long imageBuffer = gpuCache.getImage(i);
+
+                    // Upload distortion grid to GPU
+                    try (var gpuGrid = GPUDistortionGrid.fromDistorsionMap(map, context)) {
+                        // Wrap image buffer in GPUImage for warping
+                        var gpuImage = GPUImage.fromBuffer(imageBuffer, width, height, context);
+
+                        // Warp on GPU (creates new buffer with result)
+                        var warpedGpuImage = GPUDedistort.dedistort(gpuImage, gpuGrid, true);
+
+                        // Replace buffer in cache with warped buffer
+                        long warpedBuffer = warpedGpuImage.getBuffer();
+                        gpuCache.replaceBuffer(i, warpedBuffer);
+
+                        // Download warped image for final results
+                        var warpedData = warpedGpuImage.download();
+                        currentImages.set(i, new ImageWrapper32(width, height, warpedData, MutableMap.of()));
+                    }
+                }
+            });
+            LOGGER.debug("GPU-resident warping completed for {} images", imageCount);
+        } else {
+            // CPU warping: use existing method
+            for (int i = 0; i < imageCount; i++) {
+                var map = iterationMaps.get(i);
+                accumulatedMaps.set(i, accumulatedMaps.get(i).append(map));
+                currentImages.set(i, dedistortSingleWithoutMetadata(currentImages.get(i), map, mainOperation, height, width));
+            }
+        }
+    }
+
+    private static long encodeDirectedPair(int source, int target, int imageCount) {
+        return (long) source * imageCount + target;
+    }
+
+    /**
+     * Flattens a 2D float array to a 1D array for GPU upload.
+     */
+    private static float[] flattenImageData(float[][] data) {
+        int height = data.length;
+        int width = data[0].length;
+        var flat = new float[height * width];
+        for (int y = 0; y < height; y++) {
+            System.arraycopy(data[y], 0, flat, y * width, width);
+        }
+        return flat;
+    }
+
+    /**
+     * Computes distortion map using GPU-resident images.
+     * This method extracts tiles directly on GPU, avoiding CPU-GPU transfer overhead.
+     * Supports multiscale mode by grouping positions by tile size.
+     * Falls back to CPU correlation for tile sizes not supported by GPU (e.g., 256).
+     */
+    private SparseDistortionField computeDisplacementsGPUResident(OpenCLContext context,
+                                                                   long refImageBuffer,
+                                                                   long targetImageBuffer,
+                                                                   float[][] refData,
+                                                                   float[][] targetData,
+                                                                   int width,
+                                                                   int height,
+                                                                   int baseTileSize,
+                                                                   SamplingStrategy.SamplePositions positions) {
+        int numPositions = positions.count();
+        if (numPositions == 0) {
+            return SparseDistortionField.builder(width, height)
+                    .baseTileSize(baseTileSize)
+                    .build();
+        }
+
+        var correlationTools = CorrelationTools.getInstance();
+
+        // Group positions by tile size for efficient batching
+        var positionsByTileSize = new HashMap<Integer, List<Integer>>();
+        for (int i = 0; i < numPositions; i++) {
+            int ts = positions.tileSize()[i];
+            positionsByTileSize.computeIfAbsent(ts, k -> new ArrayList<>()).add(i);
+        }
+
+        // Process each tile size group and collect all displacements
+        var allDisplacements = new float[numPositions][3];
+        for (var entry : positionsByTileSize.entrySet()) {
+            int tileSize = entry.getKey();
+            var indices = entry.getValue();
+
+            // Build position array for this tile size
+            var tilePositions = new int[indices.size()][2];
+            for (int i = 0; i < indices.size(); i++) {
+                int idx = indices.get(i);
+                tilePositions[i][0] = positions.x()[idx];
+                tilePositions[i][1] = positions.y()[idx];
+            }
+
+            // Correlate using GPU-resident images with appropriate tile size
+            float[][] displacements;
+            if (tileSize == 32 || tileSize == 64 || tileSize == 128) {
+                displacements = correlationTools.correlateResidentImagesNCC(
+                        context, refImageBuffer, targetImageBuffer,
+                        width, height, tilePositions, tileSize);
+            } else {
+                // Fallback to CPU correlation for unsupported tile sizes (e.g., 256)
+                LOGGER.debug("Using CPU fallback for tile size {} ({} positions)", tileSize, indices.size());
+                displacements = correlateTilesCPU(refData, targetData, width, height, tilePositions, tileSize);
+            }
+
+            // Copy results back to original indices
+            for (int i = 0; i < indices.size(); i++) {
+                int idx = indices.get(i);
+                allDisplacements[idx] = displacements[i];
+            }
+        }
+
+        // Compute confidence threshold at Nth percentile
+        float confidenceThreshold = 0f;
+        var validConfidences = new ArrayList<Float>();
+        for (int i = 0; i < numPositions; i++) {
+            if (allDisplacements[i] != null && allDisplacements[i].length == 3) {
+                validConfidences.add(allDisplacements[i][2]);
+            }
+        }
+        if (!validConfidences.isEmpty()) {
+            validConfidences.sort(Float::compare);
+            int thresholdIndex = (int) (validConfidences.size() * CONFIDENCE_REJECTION_PERCENTILE);
+            thresholdIndex = Math.min(thresholdIndex, validConfidences.size() - 1);
+            confidenceThreshold = validConfidences.get(thresholdIndex);
+        }
+
+        // Build sparse field from results
+        var sparseField = SparseDistortionField.builder(width, height)
+                .neighborsK(12)
+                .baseTileSize(baseTileSize)
+                .useTileWeighting(true)
+                .interpolationMethod(SparseDistortionField.InterpolationMethod.RBF_THIN_PLATE);
+
+        int rejectedCount = 0;
+        int processedCount = 0;
+        for (int i = 0; i < numPositions; i++) {
+            if (allDisplacements[i] == null || allDisplacements[i].length != 3) {
+                continue;
+            }
+            processedCount++;
+
+            float dx = allDisplacements[i][0];
+            float dy = allDisplacements[i][1];
+            float confidence = allDisplacements[i][2];
+
+            if (confidence >= confidenceThreshold) {
+                int px = positions.x()[i];
+                int py = positions.y()[i];
+                int ts = positions.tileSize()[i];
+                sparseField.addSample(px, py, dx, dy, ts, confidence);
+            } else {
+                rejectedCount++;
+            }
+        }
+
+        LOGGER.debug("GPU-resident correlation: {} samples ({} tile sizes), {} rejected (threshold={})",
+                processedCount, positionsByTileSize.size(), rejectedCount, String.format("%.4f", confidenceThreshold));
+
+        return sparseField.build();
+    }
+
+    /**
+     * CPU fallback for tile correlation when GPU doesn't support the tile size.
+     * Extracts tiles at the given positions and correlates using the CPU strategy.
+     */
+    private float[][] correlateTilesCPU(float[][] refData,
+                                         float[][] targetData,
+                                         int width,
+                                         int height,
+                                         int[][] positions,
+                                         int tileSize) {
+        int tileOffset = tileSize / 2;
+        var refTiles = new ArrayList<float[][]>(positions.length);
+        var targetTiles = new ArrayList<float[][]>(positions.length);
+        var validPositions = new ArrayList<int[]>(positions.length);
+
+        for (int[] pos : positions) {
+            int px = pos[0];
+            int py = pos[1];
+            int x = px - tileOffset;
+            int y = py - tileOffset;
+
+            // Skip tiles that don't fit
+            if (x < 0 || y < 0 || x + tileSize > width || y + tileSize > height) {
+                continue;
+            }
+
+            var refTile = new float[tileSize][tileSize];
+            var targetTile = new float[tileSize][tileSize];
+
+            for (int yy = 0; yy < tileSize; yy++) {
+                System.arraycopy(refData[y + yy], x, refTile[yy], 0, tileSize);
+                System.arraycopy(targetData[y + yy], x, targetTile[yy], 0, tileSize);
+            }
+
+            refTiles.add(refTile);
+            targetTiles.add(targetTile);
+            validPositions.add(pos);
+        }
+
+        if (refTiles.isEmpty()) {
+            return new float[positions.length][3];
+        }
+
+        var displacements = correlationStrategy.batchedCorrelation(
+                refTiles.toArray(new float[0][][]),
+                targetTiles.toArray(new float[0][][]));
+
+        // Map results back to original position indices
+        var result = new float[positions.length][3];
+        var validIndex = 0;
+        for (int i = 0; i < positions.length; i++) {
+            if (validIndex < validPositions.size() &&
+                    positions[i][0] == validPositions.get(validIndex)[0] &&
+                    positions[i][1] == validPositions.get(validIndex)[1]) {
+                result[i] = displacements[validIndex];
+                validIndex++;
+            }
+        }
+
+        return result;
+    }
+
+    private void saveInterestPointDebugImage(float[][] referenceData,
+                                              SamplingStrategy.SamplePositions positions,
+                                              int width,
+                                              int height,
+                                              String passName) {
+        try {
+            var debugData = InterestPointSamplingStrategy.createDebugImage(referenceData, positions, width, height);
+
+            // Convert float[][] to 16-bit grayscale BufferedImage
+            var image = new BufferedImage(width, height, BufferedImage.TYPE_USHORT_GRAY);
+            short[] pixels = ((DataBufferUShort) image.getRaster().getDataBuffer()).getData();
+
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    // Scale 0-1 float to 0-65535 short
+                    float val = Math.max(0, Math.min(1, debugData[y][x]));
+                    pixels[y * width + x] = (short) (val * 65535);
+                }
+            }
+
+            // Save to temp directory with unique name
+            int counter = DEBUG_IMAGE_COUNTER.incrementAndGet();
+            String safeName = passName.replaceAll("[^a-zA-Z0-9_-]", "_");
+            var debugFile = new File(System.getProperty("java.io.tmpdir"),
+                    String.format("dedistort/dedistort_debug_%03d_%s.png", counter, safeName));
+            debugFile.getParentFile().mkdirs();
+            ImageIO.write(image, "png", debugFile);
+            LOGGER.debug("Saved interest point debug image: {}", debugFile.getAbsolutePath());
+        } catch (IOException e) {
+            LOGGER.warn("Failed to save interest point debug image", e);
+        }
     }
 
 }

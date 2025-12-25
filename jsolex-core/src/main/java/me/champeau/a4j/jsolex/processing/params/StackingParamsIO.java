@@ -19,6 +19,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
@@ -60,6 +61,7 @@ public class StackingParamsIO {
     private static Gson newGson() {
         var builder = new Gson().newBuilder();
         builder.registerTypeAdapter(File.class, new FileSerializer());
+        builder.registerTypeAdapter(StackingWorkflow.Parameters.class, new ParametersDeserializer());
         return builder.create();
     }
 
@@ -77,14 +79,7 @@ public class StackingParamsIO {
         Gson gson = newGson();
         if (Files.exists(configFile)) {
             try (var reader = FilesUtils.newTextReader(configFile)) {
-                var parameters = gson.fromJson(reader, StackingWorkflow.Parameters.class);
-                if (parameters.stackingSampling() == 0) {
-                    parameters = parameters.withStackingSampling(Stacking.DEFAULT_SAMPLING);
-                }
-                if (parameters.mosaicSampling() == 0) {
-                    parameters = parameters.withMosaicSampling(MosaicComposition.DEFAULT_SAMPLING);
-                }
-                return parameters;
+                return gson.fromJson(reader, StackingWorkflow.Parameters.class);
             } catch (IOException e) {
                 // fallback to default params
             }
@@ -95,13 +90,11 @@ public class StackingParamsIO {
     public static StackingWorkflow.Parameters predefined() {
         return new StackingWorkflow.Parameters(
             Stacking.DEFAULT_TILE_SIZE,
-            Stacking.DEFAULT_SAMPLING,
             false,
             false,
             null,
             true,
             MosaicComposition.DEFAULT_TILE_SIZE,
-            MosaicComposition.DEFAULT_SAMPLING,
             null
         );
     }
@@ -133,6 +126,24 @@ public class StackingParamsIO {
         @Override
         public JsonElement serialize(File src, Type typeOfSrc, JsonSerializationContext context) {
             return new JsonPrimitive(src.getAbsolutePath());
+        }
+    }
+
+    private static class ParametersDeserializer implements JsonDeserializer<StackingWorkflow.Parameters> {
+        @Override
+        public StackingWorkflow.Parameters deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
+            JsonObject obj = json.getAsJsonObject();
+            return new StackingWorkflow.Parameters(
+                obj.has("stackingTileSize") ? obj.get("stackingTileSize").getAsInt() : Stacking.DEFAULT_TILE_SIZE,
+                obj.has("forceEllipseFit") && obj.get("forceEllipseFit").getAsBoolean(),
+                obj.has("fixGeometry") && obj.get("fixGeometry").getAsBoolean(),
+                obj.has("stackPostProcessingScriptFile") && !obj.get("stackPostProcessingScriptFile").isJsonNull()
+                    ? new File(obj.get("stackPostProcessingScriptFile").getAsString()) : null,
+                !obj.has("createMosaic") || obj.get("createMosaic").getAsBoolean(),
+                obj.has("mosaicTileSize") ? obj.get("mosaicTileSize").getAsInt() : MosaicComposition.DEFAULT_TILE_SIZE,
+                obj.has("mosaicPostProcessingScriptFile") && !obj.get("mosaicPostProcessingScriptFile").isJsonNull()
+                    ? new File(obj.get("mosaicPostProcessingScriptFile").getAsString()) : null
+            );
         }
     }
 }

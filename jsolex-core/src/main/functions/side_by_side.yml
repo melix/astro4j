@@ -1,0 +1,18 @@
+name: SIDE_BY_SIDE
+category: UTILS
+description:
+  fr: "Combine deux images cote a cote (gauche et droite)."
+  en: "Combines two images side by side (left and right)."
+arguments:
+  - name: left
+    description:
+      fr: "Image(s) de gauche"
+      en: "Left image(s)"
+  - name: right
+    description:
+      fr: "Image(s) de droite"
+      en: "Right image(s)"
+examples:
+  - "side_by_side(img1; img2)"
+  - "side_by_side(left: img1, right: img2)"
+  - "side_by_side(list1; list2)"

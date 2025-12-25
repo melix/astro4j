@@ -1,8 +1,8 @@
 name: STACK_REF
 category: STACKING
 description:
-  fr: "Sélectionne une image de référence pour le stacking."
-  en: "Selects a reference image for stacking."
+  fr: "Sélectionne une image de référence pour le stacking. Pour de meilleurs résultats, utilisez le mode `consensus` combiné avec `sparse=1` dans la fonction dedistort."
+  en: "Selects a reference image for stacking. For best results, use `consensus` mode combined with `sparse=1` in the dedistort function."
 arguments:
   - name: images
     description:

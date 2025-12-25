@@ -16,10 +16,12 @@
 package me.champeau.a4j.math.opencl;
 
 import org.lwjgl.system.MemoryStack;
+import org.lwjgl.system.MemoryUtil;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -98,10 +100,10 @@ public class OpenCLKernelManager implements AutoCloseable {
     private String getBuildLog(long program, long device) {
         try (var stack = MemoryStack.stackPush()) {
             var sizeBuf = stack.mallocPointer(1);
-            clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, (java.nio.ByteBuffer) null, sizeBuf);
+            clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, (ByteBuffer) null, sizeBuf);
             var logBuf = stack.malloc((int) sizeBuf.get(0));
             clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, logBuf, null);
-            return org.lwjgl.system.MemoryUtil.memUTF8(logBuf);
+            return MemoryUtil.memUTF8(logBuf);
         }
     }
 

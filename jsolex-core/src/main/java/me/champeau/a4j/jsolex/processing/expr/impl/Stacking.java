@@ -138,7 +138,7 @@ public class Stacking extends AbstractFunctionImpl {
                 return List.of();
             }
             var ratio = Math.clamp(doubleArg(arguments, "best", DEFAULT_SELECTION_RATIO), 0, 1);
-            var useLocalWeights = intArg(arguments, "local", 0) != 0;
+            var useLocalWeights = booleanArg(arguments, "local", false);
             var imagesWithError = images.stream()
                     .filter(img -> img.findMetadata(DistorsionMaps.class).isPresent())
                     .map(img -> {

@@ -19,6 +19,7 @@ import javafx.application.HostServices;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
@@ -1153,7 +1154,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
 
                     if (description != null && !description.isEmpty()) {
                         var container = new HBox(5);
-                        container.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+                        container.setAlignment(Pos.CENTER_LEFT);
                         container.getChildren().add(checkBox);
 
                         var helpIcon = new Label("?");

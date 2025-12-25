@@ -49,6 +49,11 @@ class LogbackConfigurer {
         THREAD_NAME_TO_PID.clear();
     }
 
+    public static void configureLevel(Class<?> clazz, Level level) {
+        var logger = (Logger) LoggerFactory.getLogger(clazz);
+        logger.setLevel(level);
+    }
+
     static void configureLogger(StyleClassedTextArea console) {
         var numberFactory = LineNumberFactory.get(console, i -> "");
         console.setParagraphGraphicFactory(node -> {
