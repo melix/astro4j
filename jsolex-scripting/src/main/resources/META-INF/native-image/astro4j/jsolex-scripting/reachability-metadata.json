@@ -2727,14 +2727,8 @@
       "glob": "libOpenCL.so"
     },
     {
-      "glob": "linux/x64/org/lwjgl/glfw/libglfw.so"
-    },
-    {
-      "glob": "linux/x64/org/lwjgl/liblwjgl.so"
-    },
-    {
-      "glob": "linux/x64/org/lwjgl/opengl/liblwjgl_opengl.so"
-    },
+      "glob": "*/*/org/lwjgl/**"
+    }
     {
       "glob": "logback-test.xml"
     },
