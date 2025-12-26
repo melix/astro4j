@@ -510,7 +510,9 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_mono">MONO</a></li>
 <li><a href="#_remote_scriptgen">REMOTE_SCRIPTGEN</a></li>
 <li><a href="#_rgb">RGB</a></li>
+<li><a href="#_side_by_side">SIDE_BY_SIDE</a></li>
 <li><a href="#_sort">SORT</a></li>
+<li><a href="#_top_bottom">TOP_BOTTOM</a></li>
 <li><a href="#_video_datetime">VIDEO_DATETIME</a></li>
 <li><a href="#_wavelen">WAVELEN</a></li>
 <li><a href="#_workdir">WORKDIR</a></li>
@@ -2395,6 +2397,61 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </div>
 </div>
 <div class="sect2">
+<h3 id="_side_by_side">SIDE_BY_SIDE</h3>
+<div class="paragraph">
+<p>Combine deux images cote a cote (gauche et droite).</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 13.6363%;">
+<col style="width: 13.6363%;">
+<col style="width: 59.0909%;">
+<col style="width: 13.6365%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Argument</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Requis ?</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Description</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Valeur par défaut</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>left</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Image(s) de gauche</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>right</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Image(s) de droite</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p><strong>Exemples</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>side_by_side(img1; img2)</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>side_by_side(left: img1, right: img2)</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>side_by_side(list1; list2)</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
 <h3 id="_sort">SORT</h3>
 <div class="paragraph">
 <p>Trie une liste d&#8217;images</p>
@@ -2446,6 +2503,61 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <div class="listingblock">
 <div class="content">
 <pre>sort(images: images, order: 'date desc')</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_top_bottom">TOP_BOTTOM</h3>
+<div class="paragraph">
+<p>Combine deux images verticalement (haut et bas).</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 13.6363%;">
+<col style="width: 13.6363%;">
+<col style="width: 59.0909%;">
+<col style="width: 13.6365%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Argument</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Requis ?</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Description</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Valeur par défaut</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>top</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Image(s) du haut</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>bottom</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Image(s) du bas</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p><strong>Exemples</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>top_bottom(img1; img2)</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>top_bottom(top: img1, bottom: img2)</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>top_bottom(list1; list2)</pre>
 </div>
 </div>
 </div>
@@ -5972,7 +6084,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <div class="sect2">
 <h3 id="_dedistort">DEDISTORT</h3>
 <div class="paragraph">
-<p>Permet de corriger la distorsion d’une image. Elle dispose de 2 modes d’utilisation distincts. Dans le premier mode, on lui fournit une image de référence et une image à corriger, ainsi que 3 paramètres optionnels : la taille des tuiles, l’échantillonnage et la valeur du fond de ciel. L’image renvoyée sera corrigée en s’approchant au possible de l’image de référence, la rendant par exemple utilisable pour du stacking. Dans le second mode, on lui fournit une liste d’images à corriger (1er paramètre) et une liste d’images déja corrigées, auquel cas les paramètres de correction de chaque image est pris en utilisant l’image de même index dans la liste des images déja corrigées. Ceci peut-être utile par exemple lorsqu’on calcule la distorsion sur le centre de la raie (décalage 0) et qu’on souhaite appliquer les mêmes corrections à des images de décalage différent.</p>
+<p>Permet de corriger la distorsion d&#8217;une image. Elle dispose de 2 modes d&#8217;utilisation distincts. Dans le premier mode, on lui fournit une image de référence et une image à corriger, ainsi que 3 paramètres optionnels : la taille des tuiles, l&#8217;échantillonnage et la valeur du fond de ciel. L&#8217;image renvoyée sera corrigée en s&#8217;approchant au possible de l&#8217;image de référence, la rendant par exemple utilisable pour du stacking. Dans le second mode, on lui fournit une liste d&#8217;images à corriger (1er paramètre) et une liste d&#8217;images déja corrigées, auquel cas les paramètres de correction de chaque image est pris en utilisant l&#8217;image de même index dans la liste des images déja corrigées. Ceci peut-être utile par exemple lorsqu&#8217;on calcule la distorsion sur le centre de la raie (décalage 0) et qu&#8217;on souhaite appliquer les mêmes corrections à des images de décalage différent. Pour de meilleurs résultats, utilisez le mode de référence par consensus (stack_ref avec select='consensus') combiné avec sparse=1.</p>
 </div>
 <table class="tableblock frame-all grid-all stretch">
 <colgroup>
@@ -6025,10 +6137,16 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <td class="tableblock halign-left valign-top"><p class="tableblock">1</p></td>
 </tr>
 <tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>refine</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>sparse</code></p></td>
 <td class="tableblock halign-center valign-top"></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Active le raffinement hiérarchique. Lorsqu&#8217;activé, une seconde passe avec des tuiles plus petites (moitié de la taille) est effectuée pour capturer les distorsions locales fines.</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">true</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Active l&#8217;échantillonnage clairsemé basé sur les points d&#8217;intérêt (1=activé, 0=désactivé). Les points d&#8217;intérêt sont sélectionnés automatiquement en fonction du gradient de l&#8217;image. Lorsque ce paramètre est actif, le paramètre 'sampling' est ignoré.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">0</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>multiscale</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Active le mode multi-échelle (1=activé, 0=désactivé). Lorsqu&#8217;activé, des tuiles de différentes tailles sont utilisées : grandes tuiles dans les zones à faible gradient, petites tuiles dans les zones à fort gradient. Nécessite sparse &gt; 0.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">0</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
@@ -6236,7 +6354,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <div class="sect2">
 <h3 id="_stack_ref">STACK_REF</h3>
 <div class="paragraph">
-<p>Sélectionne une image de référence pour le stacking.</p>
+<p>Sélectionne une image de référence pour le stacking. Pour de meilleurs résultats, utilisez le mode <code>consensus</code> combiné avec <code>sparse=1</code> dans la fonction dedistort.</p>
 </div>
 <table class="tableblock frame-all grid-all stretch">
 <colgroup>
