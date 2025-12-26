@@ -6,12 +6,6 @@ plugins {
 
 description = "A Sol'Ex spectroheliographic video file processor (JavaFX version)"
 
-val lwjglNatives = when {
-    org.gradle.internal.os.OperatingSystem.current().isWindows -> "natives-windows"
-    org.gradle.internal.os.OperatingSystem.current().isMacOsX -> if (System.getProperty("os.arch") == "aarch64") "natives-macos-arm64" else "natives-macos"
-    else -> "natives-linux"
-}
-
 dependencies {
     implementation(projects.jsolexCore)
     implementation(projects.jsolexServer)

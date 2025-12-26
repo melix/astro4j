@@ -18,6 +18,14 @@ dependencies {
     implementation(mn.picocli)
     implementation("io.micronaut.picocli:micronaut-picocli")
     runtimeOnly(libs.logback)
+
+    implementation(libs.lwjgl)
+    implementation(libs.lwjgl.opencl)
+    implementation(libs.lwjgl.opengl)
+    implementation(libs.lwjgl.glfw)
+    implementation(variantOf(libs.lwjgl) { classifier(lwjglNatives) })
+    implementation(variantOf(libs.lwjgl.opengl) { classifier(lwjglNatives) })
+    implementation(variantOf(libs.lwjgl.glfw) { classifier(lwjglNatives) })
 }
 
 application {
