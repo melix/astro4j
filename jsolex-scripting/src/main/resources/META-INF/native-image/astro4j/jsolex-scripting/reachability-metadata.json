@@ -2728,7 +2728,7 @@
     },
     {
       "glob": "*/*/org/lwjgl/**"
-    }
+    },
     {
       "glob": "logback-test.xml"
     },
