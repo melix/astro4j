@@ -37,8 +37,7 @@ import me.champeau.a4j.jsolex.processing.util.AnimationFormat;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.ImageSaver;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
-import me.champeau.a4j.jsolex.processing.util.VersionUtil;
-import me.champeau.a4j.math.opencl.NativeLibraryLoader;
+import me.champeau.a4j.jsolex.processing.util.NativeLibrariesUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine.Command;
@@ -73,8 +72,7 @@ public class ScriptingEntryPoint implements Runnable {
     private static final Logger LOGGER = LoggerFactory.getLogger(ScriptingEntryPoint.class);
 
     static {
-        var nativeDir = VersionUtil.getJsolexDir().resolve("native").resolve(VersionUtil.getVersion());
-        NativeLibraryLoader.ensureNativesLoaded(nativeDir, VersionUtil.getVersion());
+        NativeLibrariesUtils.ensureNativesLoaded();
     }
 
     /** Creates a new instance. Required by Picocli. */

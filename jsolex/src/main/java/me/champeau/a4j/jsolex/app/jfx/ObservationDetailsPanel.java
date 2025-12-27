@@ -33,11 +33,13 @@ import me.champeau.a4j.jsolex.processing.params.Setup;
 import me.champeau.a4j.jsolex.processing.params.SpectroHeliograph;
 import me.champeau.a4j.jsolex.processing.params.SpectroHeliographsIO;
 import me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper;
+import me.champeau.a4j.jsolex.processing.util.EquipmentDatabaseUtils;
 import me.champeau.a4j.math.tuples.DoublePair;
 import me.champeau.a4j.ser.Header;
 
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
+import java.util.Optional;
 
 /**
  * A panel for editing observation details including observer information, location, and equipment configuration.
@@ -366,5 +368,48 @@ public class ObservationDetailsPanel extends BaseParameterPanel {
      */
     public void updateInstrument(SpectroHeliograph selectedInstrument) {
         instrument.setValue(selectedInstrument);
+    }
+
+    /**
+     * Checks if the entered pixel size matches what can be inferred from the camera name.
+     *
+     * @return an optional containing mismatch info if there's a discrepancy, empty otherwise
+     */
+    public Optional<PixelSizeMismatch> checkPixelSizeMismatch() {
+        var cameraName = camera.getText();
+        if (cameraName == null || cameraName.isBlank()) {
+            return Optional.empty();
+        }
+        var inferredPixelSize = EquipmentDatabaseUtils.cameraToPixelSizeMicrons(cameraName);
+        if (inferredPixelSize == null) {
+            return Optional.empty();
+        }
+        var enteredPixelSize = parseDoubleOrNull(pixelSize.getText());
+        if (enteredPixelSize == null) {
+            return Optional.of(new PixelSizeMismatch(cameraName, null, inferredPixelSize));
+        }
+        if (Math.abs(enteredPixelSize - inferredPixelSize) > 0.01) {
+            return Optional.of(new PixelSizeMismatch(cameraName, enteredPixelSize, inferredPixelSize));
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Updates the pixel size field with the given value.
+     *
+     * @param newPixelSize the new pixel size value
+     */
+    public void updatePixelSize(double newPixelSize) {
+        pixelSize.setText(String.valueOf(newPixelSize));
+    }
+
+    /**
+     * Record representing a pixel size mismatch between entered value and inferred value.
+     *
+     * @param cameraName the camera name
+     * @param enteredValue the value entered by the user (null if empty)
+     * @param inferredValue the value inferred from the camera name
+     */
+    public record PixelSizeMismatch(String cameraName, Double enteredValue, double inferredValue) {
     }
 }
