@@ -40,7 +40,6 @@ import me.champeau.a4j.jsolex.processing.util.Bass2000Compatibility;
 import me.champeau.a4j.jsolex.processing.util.Bass2000UploadHistoryService;
 import me.champeau.a4j.jsolex.processing.util.FitsUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
-import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.Wavelen;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.regression.Ellipse;
@@ -622,46 +621,6 @@ public class Bass2000SubmissionController {
         };
     }
 
-    private String generateInstrumentId(ProcessParams params) {
-        var observationDetails = params.observationDetails();
-        var instrument = observationDetails.instrument();
-
-        var spectrographName = instrument.bass2000Id();
-        if ("UNKNOWN".equals(spectrographName)) {
-            throw new ProcessingException(instrument.label() + " is not supported. Use either a Sol'Ex or the SHG 700");
-        }
-        var aperture = observationDetails.aperture();
-        var telescopeFocalLength = observationDetails.focalLength();
-        var focalReducer = step3Handler.hasFocalReducer() ? "O" : "N";
-        var telescope = observationDetails.telescope();
-        var camera = observationDetails.camera();
-
-        var telescopeParts = toBrandAndModel(telescope);
-        var cameraParts = toBrandAndModel(camera);
-        var mountParts = toBrandAndModel(observationDetails.mount());
-
-        return String.format("%s_%s_%s_%s_%s_%s_%s",
-                spectrographName,
-                aperture,
-                telescopeFocalLength,
-                focalReducer,
-                telescopeParts,
-                cameraParts,
-                mountParts
-        );
-    }
-
-    private static String toBrandAndModel(String value) {
-        if (value == null || value.isBlank() || value.length() < 3) {
-            throw new ProcessingException("You need to set both the brand and model, separated with a space, with 3 characters each minimally");
-        }
-        var uc = value.toUpperCase(Locale.US);
-        var parts = uc.split("\\s+");
-        var brand = uc.substring(0, 3);
-        var model = parts[1].replaceAll("[^A-Z0-9]", "");
-        return brand + "-" + model;
-    }
-
     private void loadUserImage() {
         Platform.runLater(() -> {
             nextButton.setDisable(true);
@@ -785,9 +744,8 @@ public class Bass2000SubmissionController {
         var processParams = findProcessParams();
         var updatedObservationDetails = step3Handler.getObservationDetails();
         var selectedSpectralRay = step3Handler.getSelectedWavelength();
-        var instrumentId = generateInstrumentId(processParams.withObservationDetails(updatedObservationDetails));
         var updatedSpectrumParams = processParams
-                .withObservationDetails(updatedObservationDetails.withInstrument(updatedObservationDetails.instrument().withLabel(instrumentId)))
+                .withObservationDetails(updatedObservationDetails)
                 .withSpectrumParams(processParams.spectrumParams().withRay(selectedSpectralRay));
         generatedBass2000Image.metadata().put(ProcessParams.class, updatedSpectrumParams);
         if (generatedOffBandImage != null) {

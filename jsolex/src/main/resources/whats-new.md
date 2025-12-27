@@ -22,6 +22,7 @@
 - Added `SIDE_BY_SIDE` function: combines two images horizontally (left and right)
 - Added `TOP_BOTTOM` function: combines two images vertically (top and bottom)
 - Made `CONSENSUS` mode the default for stacking and added a sparse mode option, which makes stacking faster
+- Added a database of equipment to correct metadata entry errors (pixel size, BASS2000, etc.)
 
 ## What's New in Version 4.4.2
 

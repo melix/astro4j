@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.util;
 
-public class HardwareDatabaseUtils {
+public class EquipmentDatabaseUtils {
     public static Vendor normalizeVendor(String name) {
         if (name == null) {
             return new Vendor("Unknown", "UNK");

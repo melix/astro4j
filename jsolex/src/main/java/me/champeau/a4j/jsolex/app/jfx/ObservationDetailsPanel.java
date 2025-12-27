@@ -33,7 +33,7 @@ import me.champeau.a4j.jsolex.processing.params.Setup;
 import me.champeau.a4j.jsolex.processing.params.SpectroHeliograph;
 import me.champeau.a4j.jsolex.processing.params.SpectroHeliographsIO;
 import me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper;
-import me.champeau.a4j.jsolex.processing.util.HardwareDatabaseUtils;
+import me.champeau.a4j.jsolex.processing.util.EquipmentDatabaseUtils;
 import me.champeau.a4j.math.tuples.DoublePair;
 import me.champeau.a4j.ser.Header;
 
@@ -380,7 +380,7 @@ public class ObservationDetailsPanel extends BaseParameterPanel {
         if (cameraName == null || cameraName.isBlank()) {
             return Optional.empty();
         }
-        var inferredPixelSize = HardwareDatabaseUtils.cameraToPixelSizeMicrons(cameraName);
+        var inferredPixelSize = EquipmentDatabaseUtils.cameraToPixelSizeMicrons(cameraName);
         if (inferredPixelSize == null) {
             return Optional.empty();
         }
