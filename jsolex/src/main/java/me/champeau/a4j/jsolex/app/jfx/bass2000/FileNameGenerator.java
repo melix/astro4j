@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.app.jfx.bass2000;
 import javafx.scene.control.CheckBox;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
+import me.champeau.a4j.jsolex.processing.util.EquipmentDatabaseUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.Wavelen;
@@ -142,7 +143,12 @@ class FileNameGenerator {
         }
         var uc = value.toUpperCase(Locale.US);
         var parts = uc.split("\\s+");
-        var brand = uc.substring(0, 3);
+        if (parts.length < 2) {
+            throw new ProcessingException("You need to set both the brand and model, separated with a space, with 3 characters each minimally");
+        }
+        var brandInput = parts[0];
+        var vendor = EquipmentDatabaseUtils.normalizeVendor(brandInput);
+        var brand = vendor.code();
         var model = parts[1].replaceAll("[^A-Z0-9]", "");
         return brand + "-" + model;
     }

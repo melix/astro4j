@@ -22,6 +22,7 @@
 - Ajout de la fonction `SIDE_BY_SIDE` : combine deux images horizontalement (gauche et droite)
 - Ajout de la fonction `TOP_BOTTOM` : combine deux images verticalement (haut et bas)
 - Le mode `consensus` pour l'empilement est désormais le mode par défaut et une option de mode échantillonage automatique a été ajoutée, ce qui rend l'empilement plus rapide
+- Ajout d'une BDD de matériel pour corriger les erreurs de saisie dans les métadonnées (taille d pixels, BASS2000, etc.)
 
 ## Nouveautés de la version 4.4.2
 

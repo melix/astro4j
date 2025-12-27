@@ -349,11 +349,56 @@ public class ProcessParamsController {
                 }
             }
         }
-        
+
+        // Check pixel size mismatch
+        var pixelSizeMismatch = observationPanel.checkPixelSizeMismatch();
+        if (pixelSizeMismatch.isPresent()) {
+            var mismatch = pixelSizeMismatch.get();
+            if (!handlePixelSizeMismatch(mismatch)) {
+                return;
+            }
+        }
+
         collectParameters();
         ProcessParams.saveDefaults(processParams);
         completed = true;
         stage.close();
+    }
+
+    private boolean handlePixelSizeMismatch(ObservationDetailsPanel.PixelSizeMismatch mismatch) {
+        var inferredStr = String.valueOf(mismatch.inferredValue());
+        var fixButtonLabel = I18N.string(JSolEx.class, "process-params", "pixelsize.mismatch.fix")
+                .replace("{inferred}", inferredStr);
+        var fixButton = new ButtonType(fixButtonLabel);
+        var continueButton = new ButtonType(I18N.string(JSolEx.class, "process-params", "pixelsize.mismatch.continue"));
+
+        String message;
+        if (mismatch.enteredValue() == null) {
+            message = I18N.string(JSolEx.class, "process-params", "pixelsize.mismatch.empty")
+                    .replace("{camera}", mismatch.cameraName())
+                    .replace("{inferred}", inferredStr);
+        } else {
+            message = I18N.string(JSolEx.class, "process-params", "pixelsize.mismatch.different")
+                    .replace("{camera}", mismatch.cameraName())
+                    .replace("{entered}", String.valueOf(mismatch.enteredValue()))
+                    .replace("{inferred}", inferredStr);
+        }
+
+        var alert = AlertFactory.warning(message);
+        alert.initOwner(stage);
+        alert.setTitle(I18N.string(JSolEx.class, "process-params", "pixelsize.mismatch.title"));
+        alert.getButtonTypes().setAll(fixButton, continueButton, ButtonType.CANCEL);
+
+        var result = alert.showAndWait();
+        if (result.isPresent()) {
+            if (result.get() == fixButton) {
+                observationPanel.updatePixelSize(mismatch.inferredValue());
+                return true;
+            } else if (result.get() == continueButton) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void collectParameters() {
