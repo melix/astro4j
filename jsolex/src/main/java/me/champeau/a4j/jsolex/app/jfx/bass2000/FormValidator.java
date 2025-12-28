@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.app.jfx.bass2000;
 import javafx.scene.Node;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.util.Duration;
@@ -25,9 +26,13 @@ import me.champeau.a4j.jsolex.processing.params.SpectroHeliograph;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
 import me.champeau.a4j.jsolex.app.JSolEx;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 class FormValidator {
+
+    private final Map<Node, Label> errorLabels = new HashMap<>();
 
     interface ValidationCallback {
         void onValidationChanged(boolean isValid);
@@ -55,6 +60,43 @@ class FormValidator {
     private List<ComboBox<String>> requiredComboBoxes;
 
     FormValidator() {
+    }
+
+    Label createErrorLabel() {
+        var label = new Label();
+        label.getStyleClass().add("field-error-label");
+        label.setVisible(false);
+        label.setManaged(false);
+        return label;
+    }
+
+    void registerFieldWithErrorLabel(Node field, Label errorLabel) {
+        errorLabels.put(field, errorLabel);
+    }
+
+    String computeErrorMessage(TextField field) {
+        if (field.getText() == null || field.getText().trim().isEmpty()) {
+            return message("validation.error.required");
+        }
+        if (field == mountNameField || field == cameraNameField || field == telescopeNameField) {
+            return message("validation.error.brand.model");
+        }
+        if (field == spectrographNameField) {
+            return message("validation.error.spectrograph");
+        }
+        if (field == siteLatitudeField) {
+            return message("validation.error.latitude");
+        }
+        if (field == siteLongitudeField) {
+            return message("validation.error.longitude");
+        }
+        if (field == observerEmailField) {
+            return message("validation.error.email");
+        }
+        if (field == orderField) {
+            return message("validation.error.positive.integer");
+        }
+        return message("validation.error.positive.number");
     }
 
     void setRequiredFields(List<TextField> requiredFields, List<CheckBox> requiredCheckboxes, List<ComboBox<String>> requiredComboBoxes) {
@@ -234,6 +276,18 @@ class FormValidator {
                     tooltip.setShowDelay(Duration.millis(100));
                     textField.setTooltip(tooltip);
                 }
+            }
+        }
+
+        var errorLabel = errorLabels.get(field);
+        if (errorLabel != null) {
+            if (isValid) {
+                errorLabel.setVisible(false);
+                errorLabel.setManaged(false);
+            } else if (field instanceof TextField textField) {
+                errorLabel.setText(computeErrorMessage(textField));
+                errorLabel.setVisible(true);
+                errorLabel.setManaged(true);
             }
         }
     }

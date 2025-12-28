@@ -265,82 +265,27 @@ class Step3FormDataHandler implements StepHandler {
 
         addFormField(formGrid, message("instrument.wavelength.label"), wavelengthField, 0, row++, true);
 
-
-        var nameContainer = new VBox(3);
-        var nameLabel = new Label(message("observer.name.label"));
-        nameLabel.getStyleClass().add("field-label");
-        nameLabel.setStyle("-fx-font-weight: bold;");
-        observerNameField.getStyleClass().add("text-field");
         observerNameField.setPromptText(message("observer.name.prompt"));
         observerNameField.setPrefWidth(300);
-        requiredFields.add(observerNameField);
-        observerNameField.textProperty().addListener((observable, oldValue, newValue) -> {
-            var isValid = formValidator.isFieldValid(observerNameField);
-            formValidator.updateFieldValidationStyle(observerNameField, isValid);
-            if (validationChangeListener != null) {
-                validationChangeListener.run();
-            }
-        });
-        nameContainer.getChildren().addAll(nameLabel, observerNameField);
+        var nameContainer = createValidatedTextField(message("observer.name.label"), observerNameField, true, null);
 
-        var emailContainer = new VBox(3);
-        var emailLabel = new Label(message("observer.email.label"));
-        emailLabel.getStyleClass().add("field-label");
-        emailLabel.setStyle("-fx-font-weight: bold;");
-        observerEmailField.getStyleClass().add("text-field");
         observerEmailField.setPromptText(message("observer.email.prompt"));
         observerEmailField.setPrefWidth(300);
-        requiredFields.add(observerEmailField);
-        observerEmailField.textProperty().addListener((observable, oldValue, newValue) -> {
-            var isValid = formValidator.isFieldValid(observerEmailField);
-            formValidator.updateFieldValidationStyle(observerEmailField, isValid);
-            if (validationChangeListener != null) {
-                validationChangeListener.run();
-            }
-        });
-        emailContainer.getChildren().addAll(emailLabel, observerEmailField);
-
+        var emailContainer = createValidatedTextField(message("observer.email.label"), observerEmailField, true, null);
 
         var observerContainer = new VBox(5);
         observerContainer.getChildren().addAll(nameContainer, emailContainer);
         formGrid.add(observerContainer, 0, row);
 
-        var coordinatesContainer = new VBox(5);
-        var latitudeContainer = new VBox(3);
-        var latitudeLabel = new Label(message("site.latitude.label"));
-        latitudeLabel.getStyleClass().add("field-label");
-        latitudeLabel.setStyle("-fx-font-weight: bold;");
-        siteLatitudeField.getStyleClass().add("text-field");
         siteLatitudeField.setPromptText(message("site.latitude.prompt"));
         siteLatitudeField.setPrefWidth(150);
-        requiredFields.add(siteLatitudeField);
-        siteLatitudeField.textProperty().addListener((observable, oldValue, newValue) -> {
-            var isValid = formValidator.isFieldValid(siteLatitudeField);
-            formValidator.updateFieldValidationStyle(siteLatitudeField, isValid);
-            updateMapCoordinates();
-            if (validationChangeListener != null) {
-                validationChangeListener.run();
-            }
-        });
-        latitudeContainer.getChildren().addAll(latitudeLabel, siteLatitudeField);
+        var latitudeContainer = createValidatedTextField(message("site.latitude.label"), siteLatitudeField, true, this::updateMapCoordinates);
 
-        var longitudeContainer = new VBox(3);
-        var longitudeLabel = new Label(message("site.longitude.label"));
-        longitudeLabel.getStyleClass().add("field-label");
-        longitudeLabel.setStyle("-fx-font-weight: bold;");
-        siteLongitudeField.getStyleClass().add("text-field");
         siteLongitudeField.setPromptText(message("site.longitude.prompt"));
         siteLongitudeField.setPrefWidth(150);
-        requiredFields.add(siteLongitudeField);
-        siteLongitudeField.textProperty().addListener((observable, oldValue, newValue) -> {
-            var isValid = formValidator.isFieldValid(siteLongitudeField);
-            formValidator.updateFieldValidationStyle(siteLongitudeField, isValid);
-            updateMapCoordinates();
-            if (validationChangeListener != null) {
-                validationChangeListener.run();
-            }
-        });
-        longitudeContainer.getChildren().addAll(longitudeLabel, siteLongitudeField);
+        var longitudeContainer = createValidatedTextField(message("site.longitude.label"), siteLongitudeField, true, this::updateMapCoordinates);
+
+        var coordinatesContainer = new VBox(5);
 
         var decimalHint = new Label(message("site.coordinates.decimal.hint"));
         decimalHint.setWrapText(true);
@@ -440,36 +385,66 @@ class Step3FormDataHandler implements StepHandler {
         grid.add(headerLabel, 0, row, 3, 1);
     }
 
+    private VBox createValidatedTextField(String labelText, TextField field, boolean required, Runnable extraValidationAction) {
+        var container = new VBox(3);
+        container.setMaxWidth(Double.MAX_VALUE);
+
+        var label = new Label(labelText);
+        label.setMaxWidth(Double.MAX_VALUE);
+        label.setPrefWidth(Region.USE_COMPUTED_SIZE);
+        label.setStyle(required ?
+            "-fx-font-weight: bold; -fx-font-size: 12px; -fx-text-fill: #495057;" :
+            "-fx-font-size: 12px; -fx-text-fill: #495057;");
+
+        field.getStyleClass().add("text-field");
+
+        container.getChildren().add(label);
+        container.getChildren().add(field);
+
+        if (required) {
+            requiredFields.add(field);
+            var errorLabel = formValidator.createErrorLabel();
+            formValidator.registerFieldWithErrorLabel(field, errorLabel);
+            container.getChildren().add(errorLabel);
+
+            field.textProperty().addListener((obs, old, val) -> {
+                var isValid = formValidator.isFieldValid(field);
+                formValidator.updateFieldValidationStyle(field, isValid);
+                if (extraValidationAction != null) {
+                    extraValidationAction.run();
+                }
+                if (validationChangeListener != null) {
+                    validationChangeListener.run();
+                }
+            });
+        }
+
+        return container;
+    }
+
     private void addFormField(GridPane grid, String labelText, Node field, int column, int row, boolean required) {
+        if (field instanceof TextField textField) {
+            textField.setPrefWidth(180);
+            var fieldContainer = createValidatedTextField(labelText, textField, required, null);
+            if (field instanceof Region region) {
+                region.setMaxWidth(Double.MAX_VALUE);
+            }
+            grid.add(fieldContainer, column, row);
+            return;
+        }
+
         var fieldContainer = new VBox(3);
         fieldContainer.setMaxWidth(Double.MAX_VALUE);
 
         var label = new Label(labelText);
         label.setMaxWidth(Double.MAX_VALUE);
         label.setPrefWidth(Region.USE_COMPUTED_SIZE);
-        if (required) {
-            label.setStyle("-fx-font-weight: bold; -fx-font-size: 12px; -fx-text-fill: #495057;");
-        } else {
-            label.setStyle("-fx-font-size: 12px; -fx-text-fill: #495057;");
-        }
+        label.setStyle(required ?
+            "-fx-font-weight: bold; -fx-font-size: 12px; -fx-text-fill: #495057;" :
+            "-fx-font-size: 12px; -fx-text-fill: #495057;");
 
         if (field instanceof Region region) {
             region.setMaxWidth(Double.MAX_VALUE);
-        }
-        if (field instanceof TextField textField) {
-            textField.getStyleClass().add("text-field");
-            textField.setPrefWidth(180);
-
-            if (required) {
-                requiredFields.add(textField);
-                textField.textProperty().addListener((observable, oldValue, newValue) -> {
-                    var isValid = formValidator.isFieldValid(textField);
-                    formValidator.updateFieldValidationStyle(textField, isValid);
-                    if (validationChangeListener != null) {
-                        validationChangeListener.run();
-                    }
-                        });
-            }
         }
         if (field instanceof CheckBox checkBox) {
             checkBox.getStyleClass().add("check-box");
@@ -481,7 +456,7 @@ class Step3FormDataHandler implements StepHandler {
                     if (validationChangeListener != null) {
                         validationChangeListener.run();
                     }
-                        });
+                });
             }
         }
         if (field instanceof ComboBox<?> comboBox) {
@@ -496,7 +471,7 @@ class Step3FormDataHandler implements StepHandler {
                     if (validationChangeListener != null) {
                         validationChangeListener.run();
                     }
-                        });
+                });
             }
         }
         if (field instanceof ChoiceBox<?> choiceBox) {

@@ -620,6 +620,12 @@
     -fx-wrap-text: true;
 }
 
+.field-error-label {
+    -fx-font-size: 11px;
+    -fx-text-fill: #dc3545;
+    -fx-padding: 2 0 0 0;
+}
+
 .enhanced-tooltip {
     -fx-background-color: #212529;
     -fx-background-radius: 8;
