@@ -45,7 +45,8 @@ public final class GammaStrategy implements StretchingStrategy {
     public void stretch(ImageWrapper32 image) {
         var context = OpenCLSupport.getContext();
         int n = image.width() * image.height();
-        if (context != null && OpenCLSupport.isEnabled() && n >= GPU_THRESHOLD) {
+        if (context != null && OpenCLSupport.isEnabled() && n >= GPU_THRESHOLD
+                && context.getCapabilities().maxWorkGroupSize() >= WORK_GROUP_SIZE) {
             try {
                 stretchGPU(context, image);
                 return;

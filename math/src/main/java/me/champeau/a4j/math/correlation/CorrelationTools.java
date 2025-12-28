@@ -94,10 +94,12 @@ public class CorrelationTools {
 
     private float[][] batchedCorrelationGPU(OpenCLContext context, float[][][] refTiles, float[][][] targetTiles, boolean normalize) {
         int tileSize = refTiles[0].length;
+        long maxWorkGroupSize = context.getCapabilities().maxWorkGroupSize();
 
-        if (tileSize == 32) {
+        // Check if device supports required work group sizes before attempting GPU path
+        if (tileSize == 32 && maxWorkGroupSize >= 1024) {
             return batchedCorrelationGPU32(context, refTiles, targetTiles, normalize);
-        } else if (tileSize == 64 || tileSize == 128) {
+        } else if ((tileSize == 64 || tileSize == 128) && maxWorkGroupSize >= 256) {
             return batchedCorrelationGPULarge(context, refTiles, targetTiles, tileSize, normalize);
         } else {
             return batchedCorrelationCPU(refTiles, targetTiles, normalize);
@@ -1247,6 +1249,27 @@ public class CorrelationTools {
     }
 
     /**
+     * Checks if GPU-resident correlation is supported for the given tile size.
+     * <p>
+     * This checks both whether the tile size is supported algorithmically and whether
+     * the device has sufficient resources (e.g., work group size) to execute the kernel.
+     *
+     * @param context  the OpenCL context
+     * @param tileSize tile size to check (32, 64, or 128)
+     * @return true if GPU-resident correlation is supported for this tile size
+     */
+    public boolean isGpuResidentCorrelationSupported(OpenCLContext context, int tileSize) {
+        if (tileSize != 32 && tileSize != 64 && tileSize != 128) {
+            return false;
+        }
+        long maxWorkGroupSize = context.getCapabilities().maxWorkGroupSize();
+        // NCC32 uses 32x32 work groups = 1024 work items
+        // NCC64/128 use smaller work groups (typically 256 or less for statistics passes)
+        long requiredWorkGroupSize = (tileSize == 32) ? 1024 : 256;
+        return maxWorkGroupSize >= requiredWorkGroupSize;
+    }
+
+    /**
      * Performs NCC correlation directly from GPU-resident images.
      * Automatically selects the appropriate implementation based on tile size.
      * <p>
@@ -1260,6 +1283,7 @@ public class CorrelationTools {
      * @param tilePositions     tile center positions as [N][2] array of (x, y) pairs
      * @param tileSize          tile size (32, 64, or 128)
      * @return displacements [N][3] containing (dx, dy, confidence) per tile
+     * @throws UnsupportedOperationException if the device does not support the required work group size
      */
     public float[][] correlateResidentImagesNCC(OpenCLContext context,
                                                  long refImageBuffer,
@@ -1268,14 +1292,19 @@ public class CorrelationTools {
                                                  int imageHeight,
                                                  int[][] tilePositions,
                                                  int tileSize) {
+        if (!isGpuResidentCorrelationSupported(context, tileSize)) {
+            long maxWorkGroupSize = context.getCapabilities().maxWorkGroupSize();
+            long required = (tileSize == 32) ? 1024 : 256;
+            throw new UnsupportedOperationException(
+                    String.format("GPU does not support tile size %d: requires work group size %d but device supports max %d",
+                            tileSize, required, maxWorkGroupSize));
+        }
         if (tileSize == 32) {
             return correlateResidentImagesNCC32(context, refImageBuffer, targetImageBuffer,
                     imageWidth, imageHeight, tilePositions);
-        } else if (tileSize == 64 || tileSize == 128) {
+        } else {
             return correlateResidentImagesNCCLarge(context, refImageBuffer, targetImageBuffer,
                     imageWidth, imageHeight, tilePositions, tileSize);
-        } else {
-            throw new IllegalArgumentException("Unsupported tile size for GPU-resident correlation: " + tileSize);
         }
     }
 }

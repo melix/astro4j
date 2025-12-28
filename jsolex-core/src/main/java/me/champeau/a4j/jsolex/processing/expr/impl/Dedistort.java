@@ -1446,12 +1446,12 @@ public class Dedistort extends AbstractFunctionImpl {
 
             // Correlate using GPU-resident images with appropriate tile size
             float[][] displacements;
-            if (tileSize == 32 || tileSize == 64 || tileSize == 128) {
+            if (correlationTools.isGpuResidentCorrelationSupported(context, tileSize)) {
                 displacements = correlationTools.correlateResidentImagesNCC(
                         context, refImageBuffer, targetImageBuffer,
                         width, height, tilePositions, tileSize);
             } else {
-                // Fallback to CPU correlation for unsupported tile sizes (e.g., 256)
+                // Fallback to CPU correlation for unsupported tile sizes or insufficient GPU resources
                 LOGGER.debug("Using CPU fallback for tile size {} ({} positions)", tileSize, indices.size());
                 displacements = correlateTilesCPU(refData, targetData, width, height, tilePositions, tileSize);
             }
