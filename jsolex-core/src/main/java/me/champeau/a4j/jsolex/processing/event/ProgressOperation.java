@@ -24,12 +24,14 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
 public class ProgressOperation {
+    private final static boolean ENSURE_VALID_PROGRESS = Boolean.getBoolean("jsolex.debug.progress");
     private final static Cleaner CLEANER = Cleaner.create();
 
     private final ProgressOperation parent;
     private final Consumer<? super ProgressOperation> onChildrenFinished;
     private final ReentrantLock lock = new ReentrantLock();
     private final List<WeakReference<ProgressOperation>> children = new ArrayList<>();
+    private final long createdAt;
 
     private String task;
     private double progress;
@@ -38,6 +40,7 @@ public class ProgressOperation {
         this.parent = parent;
         this.task = task;
         this.onChildrenFinished = onChildrenFinished;
+        this.createdAt = System.currentTimeMillis();
     }
 
     public static ProgressOperation root(String task, Consumer<? super ProgressOperation> onChildrenFinished) {
@@ -47,17 +50,24 @@ public class ProgressOperation {
     public ProgressOperation update(double progress) {
         lock.lock();
         try {
-            this.progress = progress;
+            this.progress = ensureValidProgress(progress);
         } finally {
             lock.unlock();
         }
         return this;
     }
 
+    private static double ensureValidProgress(double progress) {
+        if (ENSURE_VALID_PROGRESS && (progress < 0.0 || progress > 1.0)) {
+            throw new IllegalArgumentException("Progress must be between 0.0 and 1.0, got: " + progress);
+        }
+        return Math.clamp(progress, 0.0, 1.0);
+    }
+
     public ProgressOperation update(double progress, String task) {
         lock.lock();
         try {
-            this.progress = progress;
+            this.progress = ensureValidProgress(progress);
             this.task = task;
         } finally {
             lock.unlock();
@@ -104,17 +114,6 @@ public class ProgressOperation {
         return this;
     }
 
-    private void remove(ProgressOperation child) {
-        lock.lock();
-        try {
-            if (children.removeIf(ref -> ref.get() == child)) {
-                onChildrenFinished.accept(this);
-            }
-        } finally {
-            lock.unlock();
-        }
-    }
-
     public ProgressOperation parent() {
         return parent;
     }
@@ -143,13 +142,23 @@ public class ProgressOperation {
     }
 
     public boolean hasNoChild() {
-        return children.isEmpty();
+        lock.lock();
+        try {
+            return children.isEmpty();
+        } finally {
+            lock.unlock();
+        }
     }
 
     public List<ProgressOperation> children() {
-        return children.stream()
-                .map(WeakReference::get)
-                .filter(Objects::nonNull)
-                .toList();
+        lock.lock();
+        try {
+            return children.stream()
+                    .map(WeakReference::get)
+                    .filter(Objects::nonNull)
+                    .toList();
+        } finally {
+            lock.unlock();
+        }
     }
 }

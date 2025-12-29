@@ -83,6 +83,7 @@ import me.champeau.a4j.jsolex.app.jfx.AdvancedParamsController;
 import me.champeau.a4j.jsolex.app.jfx.ApplyUserRotation;
 import me.champeau.a4j.jsolex.app.jfx.AssistedEllipseFittingController;
 import me.champeau.a4j.jsolex.app.jfx.BatchItem;
+import me.champeau.a4j.jsolex.app.jfx.CustomTooltip;
 import me.champeau.a4j.jsolex.app.jfx.DocsHelper;
 import me.champeau.a4j.jsolex.app.jfx.EmbeddedServerController;
 import me.champeau.a4j.jsolex.app.jfx.ExplorerSupport;
@@ -96,6 +97,7 @@ import me.champeau.a4j.jsolex.app.jfx.NamingPatternEditor;
 import me.champeau.a4j.jsolex.app.jfx.OpenGLAvailability;
 import me.champeau.a4j.jsolex.app.jfx.ProcessParamsController;
 import me.champeau.a4j.jsolex.app.jfx.ProgressHandler;
+import me.champeau.a4j.jsolex.app.jfx.ProgressTreeBuilder;
 import me.champeau.a4j.jsolex.app.jfx.ScriptParametersDialog;
 import me.champeau.a4j.jsolex.app.jfx.ScriptRepositoriesController;
 import me.champeau.a4j.jsolex.app.jfx.SerFileTrimmerController;
@@ -145,6 +147,7 @@ import me.champeau.a4j.jsolex.processing.util.AnimationFormat;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.jsolex.processing.util.Bass2000ConfigService;
 import me.champeau.a4j.jsolex.processing.util.Constants;
+import me.champeau.a4j.jsolex.processing.util.DurationFormatter;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import me.champeau.a4j.jsolex.processing.util.GONG;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -259,6 +262,9 @@ public class JSolEx implements JSolExInterface {
 
     @FXML
     private Label progressLabel;
+
+    @FXML
+    private Label progressBarLabel;
 
     @FXML
     private HBox workButtons;
@@ -439,13 +445,41 @@ public class JSolEx implements JSolExInterface {
         configureMemoryStatus();
         try {
             var root = (Parent) fxmlLoader.load();
+            progressHandler = new ProgressHandler(snapshot -> {
+                if (snapshot.taskCount() == 0 && snapshot.currentTaskLabel().isEmpty()) {
+                    // Nothing to show - hide everything
+                    progressBar.setProgress(0);
+                    progressLabel.setText("");
+                    progressBar.setVisible(false);
+                    progressBarLabel.setText("");
+                } else {
+                    // Show progress bar and message
+                    progressBar.setVisible(true);
+                    progressBar.setProgress(snapshot.progress());
+                    progressLabel.setText(snapshot.currentTaskLabel());
+
+                    // Show task count in progress bar when multiple active tasks
+                    if (snapshot.taskCount() > 1) {
+                        progressBarLabel.setText(snapshot.taskCount() + " " + message("tasks"));
+                    } else {
+                        progressBarLabel.setText("");
+                    }
+                }
+            });
+            // Attach tooltip to progress bar to show operation tree on hover
+            var progressTooltip = new CustomTooltip(new Label(message("no.active.operations")));
+            progressTooltip.setOnBeforeShow(() -> {
+                var treeView = ProgressTreeBuilder.buildTreeView(progressHandler.getActiveRoots());
+                progressTooltip.setContent(treeView);
+            });
+            progressTooltip.enableAutoRefresh(500);
+            progressTooltip.attachTo(progressBar);
+            progressTooltip.addTriggerNode(progressLabel);
             configureIsolatedScriptExecution();
             imageMathScript.setPrefHeight(10000);
             imageMathScript.setAutoFoldMetaBlocks(true);
             var preferredDimensions = config.getPreferredDimensions();
-            Scene rootScene = new Scene(root, preferredDimensions.a(), preferredDimensions.b());
-            rootScene.getStylesheets().add(JSolEx.class.getResource("syntax.css").toExternalForm());
-            rootScene.getStylesheets().add(JSolEx.class.getResource("components.css").toExternalForm());
+            var rootScene = newScene(root, preferredDimensions.a(), preferredDimensions.b());
             var pause = new PauseTransition(Duration.seconds(1));
             rootScene.widthProperty().addListener((observable, oldValue, newValue) -> {
                 pause.setOnFinished(e -> config.setPreferredWidth(newValue.intValue()));
@@ -454,19 +488,6 @@ public class JSolEx implements JSolExInterface {
             rootScene.heightProperty().addListener((observable, oldValue, newValue) -> {
                 pause.setOnFinished(e -> config.setPreferredHeigth(newValue.intValue()));
                 pause.playFromStart();
-            });
-            progressHandler = new ProgressHandler((progress, message) -> {
-                if (progress == 0 && message.isEmpty()) {
-                    progressBar.setProgress(0);
-                    progressLabel.setText("");
-                    progressBar.setVisible(false);
-                } else {
-                    progressBar.setVisible(true);
-                    if (progress >= 0) {
-                        progressBar.setProgress(progress);
-                        progressLabel.setText(message);
-                    }
-                }
             });
             hideProgress();
             String version = VersionUtil.getFullVersion();
@@ -587,6 +608,7 @@ public class JSolEx implements JSolExInterface {
     public static Scene newScene(Parent root, int width, int height) {
         var scene = new Scene(root, width, height);
         scene.getStylesheets().add(JSolEx.class.getResource("components.css").toExternalForm());
+        scene.getStylesheets().add(JSolEx.class.getResource("syntax.css").toExternalForm());
         return scene;
     }
 
@@ -971,15 +993,28 @@ public class JSolEx implements JSolExInterface {
     }
 
     public void showProgress() {
-        progressHandler.update(-1, "");
+        progressHandler.markDirty();
     }
 
     public void updateProgress(double progress, String message) {
-        progressHandler.update(progress, message);
+        if (progress >= 1.0 && message != null && !message.isEmpty()) {
+            progressHandler.setCompletionMessage(message);
+        } else {
+            progressHandler.markDirty();
+        }
     }
 
-    private void updateProgress(ProgressOperation operation) {
-        updateProgress(operation.progress(), operation.taskPath());
+    @Override
+    public void updateProgress(ProgressOperation operation) {
+        // If a root operation completes with a message, show it as the completion message
+        if (operation.parent() == null && operation.progress() >= 1.0) {
+            var task = operation.task();
+            if (task != null && !task.isEmpty()) {
+                progressHandler.setCompletionMessage(task);
+                return;
+            }
+        }
+        progressHandler.ensureTracked(operation);
     }
 
     @Override
@@ -1106,10 +1141,12 @@ public class JSolEx implements JSolExInterface {
             }
             config.findLastOpenDirectory(Configuration.DirectoryKind.IMAGE_MATH).ifPresent(executor::setIncludesDir);
             BackgroundOperations.async(() -> {
-                var section = shouldRunBothSections ? ImageMathScriptExecutor.SectionKind.SINGLE : sectionKind;
-                var operation = rootOperation.createChild("ImageMath Script");
-                executor.putInContext(ProgressOperation.class, operation);
+                var startTime = System.nanoTime();
+                // Create a fresh progress operation for this execution
+                var scriptOperation = createRootOperation(message("script.execution"));
+                executor.putInContext(ProgressOperation.class, scriptOperation);
                 executor.putInContext(AnimationFormat.class, config.getAnimationFormats());
+                var section = shouldRunBothSections ? ImageMathScriptExecutor.SectionKind.SINGLE : sectionKind;
                 var parameters = extractScriptParameters(text);
                 var parameterValues = getScriptParameterValues(parameters);
                 for (var entry : parameterValues.entrySet()) {
@@ -1126,8 +1163,6 @@ public class JSolEx implements JSolExInterface {
                     try {
                         // simulate single element batch mode
                         result.imagesByLabel().forEach((key, image) -> executor.putVariable(key, List.of(image)));
-                        operation = rootOperation.createChild("ImageMath Script");
-                        executor.putInContext(ProgressOperation.class, operation);
                         executor.execute(text, ImageMathScriptExecutor.SectionKind.BATCH);
                     } finally {
                         for (var key : previousKeys) {
@@ -1139,7 +1174,9 @@ public class JSolEx implements JSolExInterface {
                         }
                     }
                 }
-
+                // Mark script operation complete after all sections have finished
+                var formatted = DurationFormatter.formatNanos(System.nanoTime() - startTime);
+                updateProgress(scriptOperation.complete(String.format(message("script.completed.in.format"), formatted)));
             });
         });
 
@@ -1634,13 +1671,17 @@ public class JSolEx implements JSolExInterface {
         var processingDate = LocalDateTime.now();
         var listener = delegatingListener(new SingleModeProcessingEventListener(this, rootOperation, "", null, outputDirectory.toPath(), params, processingDate, popupViewers));
         var namingStrategy = new FileNamingStrategy(params.extraParams().fileNamePattern(), params.extraParams().datetimeFormat(), params.extraParams().dateFormat(), processingDate, createFakeHeader(processingDate));
+        // Create a child operation for script execution so the root doesn't get marked complete prematurely
+        var scriptOperation = rootOperation.createChild("Script");
         var imageScriptExecutor = new JSolExScriptExecutor(img -> {
             throw new ProcessingException("img() is not available in standalone image math scripts. Use load or load_many to load images");
-        }, MutableMap.of(), (Broadcaster) listener, null) {
+        }, MutableMap.of(ProgressOperation.class, scriptOperation), (Broadcaster) listener, null) {
             @Override
             public ImageMathScriptResult execute(String script, SectionKind kind) {
                 var result = super.execute(script, kind);
                 processResult(result);
+                // Mark root complete only after all post-processing is done
+                updateProgress(rootOperation.complete(message("script.completed")));
                 return result;
             }
 
@@ -1779,7 +1820,7 @@ public class JSolEx implements JSolExInterface {
                 })));
         interruptButton.setOnAction(e -> {
             Platform.runLater(() -> {
-                updateProgress(0, message("interrupted"));
+                hideProgress();
                 workButtons.getChildren().remove(interruptButton);
                 imageMathRun.setDisable(false);
             });
@@ -1989,14 +2030,16 @@ public class JSolEx implements JSolExInterface {
     }
 
     private ProgressOperation createRootOperation(String name) {
-        return ProgressOperation.root(name, op -> {
-            var parent = op.parent();
-            if (parent == null || parent.hasNoChild()) {
-                hideProgress();
-            } else {
-                parent.children().stream().findFirst().ifPresentOrElse(this::updateProgress, () -> updateProgress(parent));
+        var root = ProgressOperation.root(name, op -> {
+            // This callback is called when a child of 'op' is removed
+            if (op.hasNoChild() && op.parent() == null) {
+                // Root operation has no more children, unregister it
+                progressHandler.unregisterRoot(op);
             }
+            progressHandler.markDirty();
         });
+        progressHandler.registerRoot(root);
+        return root;
     }
 
     private void startBatchProcess(Header header, ProgressOperation progressOperation, ProcessParams params, List<File> selectedFiles, boolean autoTrimSerFile) {
@@ -2110,33 +2153,35 @@ public class JSolEx implements JSolExInterface {
                         var selectedFile = selectedFiles.get(fileIdx);
                         var singleOperation = progressOperation.createChild(selectedFile.getName());
                         updateProgress(singleOperation);
-                        try {
-                            int finalFileIdx = fileIdx;
-                            executor.submit(() -> processSingleFile(params, singleOperation.update(((double) finalFileIdx) / selectedFiles.size()), selectedFile, true, finalFileIdx, batchContext, header, () -> {
-                                if (autoTrimSerFile && !interrupted.get()) {
-                                    var outputFile = toTrimmedFile(trimmingParameters.serFile());
-                                    SerFileTrimmer.trimFile(
-                                            trimmingParameters.serFile(),
-                                            outputFile,
-                                            trimmingParameters.firstFrame(),
-                                            trimmingParameters.lastFrame(),
-                                            trimmingParameters.pixelsUp(),
-                                            trimmingParameters.pixelsDown(),
-                                            trimmingParameters.minX(),
-                                            trimmingParameters.maxX(),
-                                            trimmingParameters.polynomial(),
-                                            trimmingParameters.verticalFlip(),
-                                            progress -> updateProgress(
-                                                    progress,
-                                                    I18N.string(JSolEx.class, "ser-trimmer", "trimming")
-                                            )
-                                    );
-                                    SerFileTrimmerController.maybeCopyMetadata(trimmingParameters.serFile());
-                                }
-                            }));
-                        } finally {
-                            updateProgress(singleOperation.complete());
-                        }
+                        int finalFileIdx = fileIdx;
+                        executor.submit(() -> {
+                            try {
+                                processSingleFile(params, singleOperation.update(((double) finalFileIdx) / selectedFiles.size()), selectedFile, true, finalFileIdx, batchContext, header, () -> {
+                                    if (autoTrimSerFile && !interrupted.get()) {
+                                        var outputFile = toTrimmedFile(trimmingParameters.serFile());
+                                        SerFileTrimmer.trimFile(
+                                                trimmingParameters.serFile(),
+                                                outputFile,
+                                                trimmingParameters.firstFrame(),
+                                                trimmingParameters.lastFrame(),
+                                                trimmingParameters.pixelsUp(),
+                                                trimmingParameters.pixelsDown(),
+                                                trimmingParameters.minX(),
+                                                trimmingParameters.maxX(),
+                                                trimmingParameters.polynomial(),
+                                                trimmingParameters.verticalFlip(),
+                                                progress -> updateProgress(
+                                                        progress,
+                                                        I18N.string(JSolEx.class, "ser-trimmer", "trimming")
+                                                )
+                                        );
+                                        SerFileTrimmerController.maybeCopyMetadata(trimmingParameters.serFile());
+                                    }
+                                });
+                            } finally {
+                                updateProgress(singleOperation.complete());
+                            }
+                        });
                     }
                 }
             } finally {
@@ -2151,7 +2196,7 @@ public class JSolEx implements JSolExInterface {
             interruptButton.setDisable(true);
             BackgroundOperations.interrupt();
             batchThread.interrupt();
-            updateProgress(0, message("batch.interrupted"));
+            hideProgress();
             Platform.runLater(() -> imageMathRun.setDisable(false));
         });
         batchThread.start();

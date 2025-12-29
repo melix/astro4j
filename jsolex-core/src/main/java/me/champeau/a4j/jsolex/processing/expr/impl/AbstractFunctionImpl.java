@@ -50,8 +50,6 @@ class AbstractFunctionImpl {
      */
     protected final Broadcaster broadcaster;
 
-    private final ProgressOperation operation;
-
     /**
      * Creates a new function implementation.
      *
@@ -61,10 +59,17 @@ class AbstractFunctionImpl {
     protected AbstractFunctionImpl(Map<Class<?>, Object> context, Broadcaster broadcaster) {
         this.context = context;
         this.broadcaster = broadcaster;
-        this.operation = newProgress("");
     }
 
-    private ProgressOperation newProgress(String name) {
+    /**
+     * Creates a new child progress operation with the given name.
+     * The parent is looked up from context each time to ensure we use
+     * the correctly-populated ProgressOperation from script execution.
+     *
+     * @param name the name for the operation
+     * @return a new progress operation
+     */
+    protected ProgressOperation newOperation(String name) {
         var parent = (ProgressOperation) context.get(ProgressOperation.class);
         if (parent == null) {
             return ProgressOperation.root(name, e -> {
@@ -74,12 +79,12 @@ class AbstractFunctionImpl {
     }
 
     /**
-     * Creates a new child progress operation.
+     * Creates a new child progress operation with an empty name.
      *
      * @return a new progress operation
      */
     protected ProgressOperation newOperation() {
-        return operation.createChild(operation.task());
+        return newOperation("");
     }
 
     /**
@@ -250,7 +255,7 @@ class AbstractFunctionImpl {
                 .mapToObj(i -> new IndexedObject(array[i], i))
                 .toList();
         var progress = new AtomicInteger(0);
-        var parallelOperation = operation.createChild("ImageMath: " + currentFunction);
+        var parallelOperation = newOperation("ImageMath: " + currentFunction);
         var processed = itemsToProcess.stream()
                 .parallel()
                 .map(o -> {

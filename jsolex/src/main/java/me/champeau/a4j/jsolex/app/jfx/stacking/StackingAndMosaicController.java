@@ -51,12 +51,12 @@ import me.champeau.a4j.jsolex.processing.params.RequestedImages;
 import me.champeau.a4j.jsolex.processing.params.StackingParamsIO;
 import me.champeau.a4j.jsolex.processing.sun.workflow.StackingWorkflow;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
+import me.champeau.a4j.jsolex.processing.util.DurationFormatter;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.EnumSet;
 import java.util.List;
@@ -280,10 +280,7 @@ public class StackingAndMosaicController {
                 var workflow = new StackingWorkflow(broadcaster, namingStrategy);
                 workflow.execute(params, panels, outputDirectory);
             } finally {
-                long ed = System.nanoTime();
-                var duration = Duration.ofNanos(ed - sd);
-                double seconds = duration.toMillis() / 1000d;
-                LOGGER.info(message(String.format(message("finished.in"), seconds)));
+                LOGGER.info(String.format(message("finished.in"), DurationFormatter.formatNanos(System.nanoTime() - sd)));
             }
         });
         stage.close();

@@ -201,10 +201,13 @@
         </SplitPane>
     </center>
     <bottom>
-        <HBox spacing="10.0">
+        <HBox spacing="10.0" alignment="CENTER_LEFT">
             <children>
-                <HBox fx:id="workButtons" spacing="10.0" HBox.hgrow="SOMETIMES"/>
-                <ProgressBar fx:id="progressBar" prefWidth="200.0" progress="0.0"/>
+                <HBox fx:id="workButtons" spacing="10.0" alignment="CENTER_LEFT" HBox.hgrow="SOMETIMES"/>
+                <StackPane>
+                    <ProgressBar fx:id="progressBar" prefWidth="200.0" progress="0.0"/>
+                    <Label fx:id="progressBarLabel" styleClass="progress-bar-label" mouseTransparent="true"/>
+                </StackPane>
                 <Label fx:id="progressLabel"/>
                 <HBox spacing="10.0" HBox.hgrow="ALWAYS">
                     <AnchorPane prefWidth="200.0" HBox.hgrow="ALWAYS">

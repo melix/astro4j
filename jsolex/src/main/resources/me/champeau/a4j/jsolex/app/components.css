@@ -895,6 +895,28 @@
     -fx-max-width: 300;
 }
 
+/* Progress tree tooltip styles */
+.progress-tree-tooltip {
+    -fx-font-family: monospace;
+    -fx-font-size: 12px;
+    -fx-min-width: 280;
+    -fx-max-width: 500;
+    -fx-padding: 4 6 4 6;
+}
+
+.progress-tree-tooltip .label {
+    -fx-max-width: 500;
+}
+
+.progress-tree-tooltip .in-progress {
+    -fx-text-fill: #ff9500;
+    -fx-font-weight: bold;
+}
+
+.progress-tree-tooltip .pending {
+    -fx-text-fill: #5dade2;
+}
+
 /* SpectralLineDebugger specific styles */
 .progress-overlay {
     -fx-background-color: rgba(255, 255, 255, 0.95);
@@ -1238,4 +1260,12 @@
     -fx-font-weight: bold;
     -fx-text-fill: white;
     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 2, 0, 0, 1);
+}
+
+/* Task count label centered on progress bar */
+.progress-bar-label {
+    -fx-font-size: 10px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #333333;
+    -fx-effect: dropshadow(gaussian, white, 2, 1, 0, 0);
 }

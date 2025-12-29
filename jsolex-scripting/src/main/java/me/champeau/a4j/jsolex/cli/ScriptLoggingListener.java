@@ -26,12 +26,11 @@ import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.stretching.RangeExpansionStrategy;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
+import me.champeau.a4j.jsolex.processing.util.DurationFormatter;
 import me.champeau.a4j.jsolex.processing.util.ImageSaver;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -93,9 +92,8 @@ public class ScriptLoggingListener implements ProcessingEventListener {
 
     @Override
     public void onProcessingDone(ProcessingDoneEvent e) {
-        var duration = Duration.ofNanos(e.getPayload().timestamp() - sd);
-        double seconds = duration.toMillis() / 1000d;
-        LOGGER.info("Finished in {}s", seconds);
+        var formatted = DurationFormatter.formatNanos(e.getPayload().timestamp() - sd);
+        LOGGER.info("Finished in {}", formatted);
         if (!suggestions.isEmpty()) {
             var sb = new StringBuilder();
             sb.append("Suggestions :\n");

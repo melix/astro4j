@@ -37,11 +37,11 @@ import me.champeau.a4j.jsolex.processing.util.AnimationFormat;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.DurationFormatter;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.SolarParameters;
 
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -81,7 +81,6 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     private final AtomicInteger executionCount = new AtomicInteger(0);
     private final Broadcaster broadcaster;
     private final Map<String, Object> variables = new LinkedHashMap<>();
-    private final ProgressOperation operation;
 
     private Path includesDir;
     private boolean outputLogging = true;
@@ -92,14 +91,13 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         this.imagesByShift = imageSupplier;
         this.context = context;
         this.broadcaster = broadcaster;
-        this.operation = createOperation(context);
     }
 
     public boolean isCollectingShifts() {
         return ShiftCollectingImageExpressionEvaluator.isShiftCollecting(imagesByShift);
     }
 
-    private static ProgressOperation createOperation(Map<Class, Object> context) {
+    private ProgressOperation getProgressOperation() {
         var progressOperation = (ProgressOperation) context.get(ProgressOperation.class);
         if (progressOperation == null) {
             progressOperation = ProgressOperation.root("ImageScript evaluation", unused -> {
@@ -130,18 +128,16 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     @Override
     public ImageMathScriptResult execute(String script, SectionKind kind) {
         long nanoTime = System.nanoTime();
-        var scriptOperation = operation.createChild("ImageScript");
+        var operation = getProgressOperation();
         try {
             var index = executionCount.getAndIncrement();
             var evaluator = new MemoizingExpressionEvaluator(broadcaster);
-            populateContext(evaluator);
-            return doExecuteScript(script, index, evaluator, kind);
+            populateContext(evaluator, operation);
+            return doExecuteScript(script, index, evaluator, kind, operation);
         } finally {
             if (!isCollectingShifts() && outputLogging) {
-                var dur = Duration.ofNanos(System.nanoTime() - nanoTime);
-                LOGGER.info(message("script.completed.in"), dur.toSeconds(), dur.toMillisPart() / 100);
-                var secs = dur.toSeconds() + (dur.toMillisPart() / 1000d);
-                broadcaster.broadcast(scriptOperation.complete(String.format(message("script.completed.in.format"), secs)));
+                var formatted = DurationFormatter.formatNanos(System.nanoTime() - nanoTime);
+                LOGGER.info(message("script.completed.in"), formatted);
             }
         }
     }
@@ -212,7 +208,8 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     private ImageMathScriptResult doExecuteScript(String script,
                                                   int index,
                                                   MemoizingExpressionEvaluator evaluator,
-                                                  SectionKind kind) {
+                                                  SectionKind kind,
+                                                  ProgressOperation parentOperation) {
         var cpt = new AtomicInteger();
         var parser = new ImageMathParser(script);
         parser.setIncludeDir(includesDir);
@@ -266,93 +263,87 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         Map<String, FileOutputResult> filesByLabel = new LinkedHashMap<>();
         List<InvalidExpression> invalidExpressions = new ArrayList<>();
         var resultsLock = new ReentrantLock();
-        var progressOperation = operation.createChild("ImageScript evaluation");
-        broadcaster.broadcast(progressOperation);
         var internalShifts = new TreeSet<Double>();
-        try {
-            var assignmentsBySectionName = new LinkedHashMap<String, List<Assignment>>();
-            var outputAssignments = new HashSet<Assignment>();
-            var nonAssignmentsBySectionIndex = new LinkedHashMap<Integer, List<Expression>>();
+        var assignmentsBySectionName = new LinkedHashMap<String, List<Assignment>>();
+        var outputAssignments = new HashSet<Assignment>();
+        var nonAssignmentsBySectionIndex = new LinkedHashMap<Integer, List<Expression>>();
 
-            for (int i = 0; i < sections.size(); i++) {
-                var section = sections.get(i);
-                var sectionName = section.name().orElse("");
-                var expressions = section.childrenOfType(Expression.class);
+        for (int i = 0; i < sections.size(); i++) {
+            var section = sections.get(i);
+            var sectionName = section.name().orElse("");
+            var expressions = section.childrenOfType(Expression.class);
 
-                var assignments = expressions.stream()
-                        .filter(expr -> expr instanceof Assignment)
-                        .map(expr -> (Assignment) expr)
-                        .toList();
-                assignmentsBySectionName.computeIfAbsent(sectionName, k -> new ArrayList<>()).addAll(assignments);
+            var assignments = expressions.stream()
+                    .filter(expr -> expr instanceof Assignment)
+                    .map(expr -> (Assignment) expr)
+                    .toList();
+            assignmentsBySectionName.computeIfAbsent(sectionName, k -> new ArrayList<>()).addAll(assignments);
 
-                if (section == outputSection) {
-                    outputAssignments.addAll(assignments);
-                }
-
-                var nonAssignments = expressions.stream()
-                        .filter(expr -> !(expr instanceof Assignment))
-                        .toList();
-                nonAssignmentsBySectionIndex.put(i, nonAssignments);
+            if (section == outputSection) {
+                outputAssignments.addAll(assignments);
             }
 
-            for (int i = 0; i < sections.size(); i++) {
-                var section = sections.get(i);
-                var isOutputSection = section == outputSection;
-                if (isOutputSection) {
-                    internalShifts.addAll(evaluator.getShifts());
-                    evaluator.clearShifts();
-                }
-
-                var nonAssignments = nonAssignmentsBySectionIndex.get(i);
-                for (var expr : nonAssignments) {
-                    try {
-                        evaluator.evaluate(expr);
-                    } catch (Exception ex) {
-                        var invalidExpression = new InvalidExpression(
-                                expr.toString(),
-                                expr.toString(),
-                                ex
-                        );
-                        invalidExpressions.add(invalidExpression);
-                    }
-                }
-            }
-
-            if (!assignmentsBySectionName.isEmpty()) {
-                var parameterNames = evaluator.getVariables().keySet();
-                var analyzer = new ExpressionDependencyAnalyzer(parameterNames);
-                var dependencyInfos = new ArrayList<ExpressionDependencyAnalyzer.DependencyInfo>();
-
-                for (var entry : assignmentsBySectionName.entrySet()) {
-                    var sectionName = entry.getKey();
-                    var assignments = entry.getValue();
-                    for (var assignment : assignments) {
-                        dependencyInfos.add(analyzer.analyze(assignment, sectionName));
-                    }
-                }
-
-                var dag = ExpressionDAG.build(dependencyInfos);
-                var executionLevels = dag.computeExecutionLevels();
-                if (LOGGER.isDebugEnabled()) {
-                    LOGGER.debug("Expression DAG for {} sections:\n{}", kind, dag.toDotFormat());
-                }
-
-                for (var level : executionLevels) {
-                    if (level.canRunInParallel()) {
-                        executeExpressionsInParallel(index, evaluator, level.assignments(), outputAssignments, cpt, imagesByLabel, filesByLabel, invalidExpressions, resultsLock);
-                    } else {
-                        for (var assignment : level.assignments()) {
-                            var isFromOutputSection = outputAssignments.contains(assignment);
-                            executeSingleExpression(index, evaluator, assignment, isFromOutputSection, cpt, imagesByLabel, filesByLabel, invalidExpressions, resultsLock);
-                        }
-                    }
-                }
-            }
-
-            return new ImageMathScriptResult(imagesByLabel, filesByLabel, invalidExpressions, internalShifts, evaluator.getShifts(), Collections.emptySet(), evaluator.usesAutoContinuum());
-        } finally {
-            broadcaster.broadcast(progressOperation.complete());
+            var nonAssignments = expressions.stream()
+                    .filter(expr -> !(expr instanceof Assignment))
+                    .toList();
+            nonAssignmentsBySectionIndex.put(i, nonAssignments);
         }
+
+        for (int i = 0; i < sections.size(); i++) {
+            var section = sections.get(i);
+            var isOutputSection = section == outputSection;
+            if (isOutputSection) {
+                internalShifts.addAll(evaluator.getShifts());
+                evaluator.clearShifts();
+            }
+
+            var nonAssignments = nonAssignmentsBySectionIndex.get(i);
+            for (var expr : nonAssignments) {
+                try {
+                    evaluator.evaluate(expr);
+                } catch (Exception ex) {
+                    var invalidExpression = new InvalidExpression(
+                            expr.toString(),
+                            expr.toString(),
+                            ex
+                    );
+                    invalidExpressions.add(invalidExpression);
+                }
+            }
+        }
+
+        if (!assignmentsBySectionName.isEmpty()) {
+            var parameterNames = evaluator.getVariables().keySet();
+            var analyzer = new ExpressionDependencyAnalyzer(parameterNames);
+            var dependencyInfos = new ArrayList<ExpressionDependencyAnalyzer.DependencyInfo>();
+
+            for (var entry : assignmentsBySectionName.entrySet()) {
+                var sectionName = entry.getKey();
+                var assignments = entry.getValue();
+                for (var assignment : assignments) {
+                    dependencyInfos.add(analyzer.analyze(assignment, sectionName));
+                }
+            }
+
+            var dag = ExpressionDAG.build(dependencyInfos);
+            var executionLevels = dag.computeExecutionLevels();
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("Expression DAG for {} sections:\n{}", kind, dag.toDotFormat());
+            }
+
+            for (var level : executionLevels) {
+                if (level.canRunInParallel()) {
+                    executeExpressionsInParallel(index, evaluator, level.assignments(), outputAssignments, cpt, imagesByLabel, filesByLabel, invalidExpressions, resultsLock, parentOperation);
+                } else {
+                    for (var assignment : level.assignments()) {
+                        var isFromOutputSection = outputAssignments.contains(assignment);
+                        executeSingleExpression(index, evaluator, assignment, isFromOutputSection, cpt, imagesByLabel, filesByLabel, invalidExpressions, resultsLock, parentOperation);
+                    }
+                }
+            }
+        }
+
+        return new ImageMathScriptResult(imagesByLabel, filesByLabel, invalidExpressions, internalShifts, evaluator.getShifts(), Collections.emptySet(), evaluator.usesAutoContinuum());
     }
 
 
@@ -396,28 +387,33 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
 
         for (var level : executionLevels) {
             if (level.canRunInParallel()) {
-                executeExpressionsInParallel(index, evaluator, level.assignments(), new HashSet<>(assignments), cpt, imagesByLabel, filesByLabel, invalidExpressions, resultsLock);
+                executeExpressionsInParallel(index, evaluator, level.assignments(), new HashSet<>(assignments), cpt, imagesByLabel, filesByLabel, invalidExpressions, resultsLock, null);
             } else {
                 for (var assignment : level.assignments()) {
-                    executeSingleExpression(index, evaluator, assignment, true, cpt, imagesByLabel, filesByLabel, invalidExpressions, resultsLock);
+                    executeSingleExpression(index, evaluator, assignment, true, cpt, imagesByLabel, filesByLabel, invalidExpressions, resultsLock, null);
                 }
             }
         }
     }
 
-    private void executeExpressionsInParallel(int index, MemoizingExpressionEvaluator evaluator, List<Assignment> assignments, Set<Assignment> outputAssignments, AtomicInteger cpt, Map<String, ImageWrapper> imagesByLabel, Map<String, FileOutputResult> filesByLabel, List<InvalidExpression> invalidExpressions, ReentrantLock resultsLock) {
+    private void executeExpressionsInParallel(int index, MemoizingExpressionEvaluator evaluator, List<Assignment> assignments, Set<Assignment> outputAssignments, AtomicInteger cpt, Map<String, ImageWrapper> imagesByLabel, Map<String, FileOutputResult> filesByLabel, List<InvalidExpression> invalidExpressions, ReentrantLock resultsLock, ProgressOperation progressOperation) {
         var forkJoinPool = ForkJoinPool.commonPool();
         try {
             forkJoinPool.submit(() -> assignments.parallelStream().forEach(assignment -> {
                 var isFromOutputSection = outputAssignments != null && outputAssignments.contains(assignment);
-                executeSingleExpression(index, evaluator, assignment, isFromOutputSection, cpt, imagesByLabel, filesByLabel, invalidExpressions, resultsLock);
+                executeSingleExpression(index, evaluator, assignment, isFromOutputSection, cpt, imagesByLabel, filesByLabel, invalidExpressions, resultsLock, progressOperation);
             })).get();
         } catch (InterruptedException | ExecutionException ex) {
             LOGGER.warn("Parallel execution interrupted: " + ex.getMessage());
         }
     }
 
-    private void executeSingleExpression(int index, MemoizingExpressionEvaluator evaluator, Assignment assignment, boolean isOutputSection, AtomicInteger cpt, Map<String, ImageWrapper> imagesByLabel, Map<String, FileOutputResult> filesByLabel, List<InvalidExpression> invalidExpressions, ReentrantLock resultsLock) {
+    private void executeSingleExpression(int index, MemoizingExpressionEvaluator evaluator, Assignment assignment, boolean isOutputSection, AtomicInteger cpt, Map<String, ImageWrapper> imagesByLabel, Map<String, FileOutputResult> filesByLabel, List<InvalidExpression> invalidExpressions, ReentrantLock resultsLock, ProgressOperation progressOperation) {
+        ProgressOperation exprOperation = null;
+        if (progressOperation != null) {
+            exprOperation = progressOperation.createChild("Evaluating " + assignment);
+            broadcaster.broadcast(exprOperation);
+        }
         try {
             var result = evaluator.evaluate(assignment);
             if (assignment.isAnonymous() && isOutputSection) {
@@ -445,6 +441,10 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
             } finally {
                 resultsLock.unlock();
             }
+        } finally {
+            if (exprOperation != null) {
+                broadcaster.broadcast(exprOperation.complete());
+            }
         }
     }
 
@@ -469,7 +469,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         return Collections.unmodifiableList(userFunctions);
     }
 
-    protected void populateContext(AbstractImageExpressionEvaluator evaluator) {
+    protected void populateContext(AbstractImageExpressionEvaluator evaluator, ProgressOperation executionOperation) {
         var imageStats = (ImageStats) context.get(ImageStats.class);
         if (imageStats != null) {
             evaluator.putVariable(BLACK_POINT_VAR, String.format(Locale.US, "%.3f", imageStats.blackpoint()));
@@ -498,7 +498,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
             evaluator.putVariable(key, value);
         }
         evaluator.putInContext(Broadcaster.class, broadcaster);
-        evaluator.putInContext(ProgressOperation.class, operation);
+        evaluator.putInContext(ProgressOperation.class, executionOperation);
         if (context.containsKey(AnimationFormat.class)) {
             evaluator.putInContext(AnimationFormat.class, context.get(AnimationFormat.class));
         }
@@ -551,27 +551,21 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                 }
                 return o;
             }
-            var progressOperation = operation.createChild("Evaluating " + expression);
-            broadcaster.broadcast(progressOperation);
-            try {
-                var result = super.doEvaluate(expression);
-                if (result instanceof ImageWrapper image) {
-                    TransformationHistory.recordTransform(image, "ImageMath: " + expression);
-                    result = FileBackedImage.wrap(image);
-                } else if (result instanceof List<?> list) {
-                    if (list.stream().allMatch(ImageWrapper.class::isInstance)) {
-                        result = list.stream()
-                                .map(ImageWrapper.class::cast)
-                                .map(image -> TransformationHistory.recordTransform(image, "ImageMath: " + expression))
-                                .map(FileBackedImage::wrap)
-                                .toList();
-                    }
+            var result = super.doEvaluate(expression);
+            if (result instanceof ImageWrapper image) {
+                TransformationHistory.recordTransform(image, "ImageMath: " + expression);
+                result = FileBackedImage.wrap(image);
+            } else if (result instanceof List<?> list) {
+                if (list.stream().allMatch(ImageWrapper.class::isInstance)) {
+                    result = list.stream()
+                            .map(ImageWrapper.class::cast)
+                            .map(image -> TransformationHistory.recordTransform(image, "ImageMath: " + expression))
+                            .map(FileBackedImage::wrap)
+                            .toList();
                 }
-                memoizeCache.put(cacheKey, result);
-                return result;
-            } finally {
-                broadcaster.broadcast(progressOperation.complete());
             }
+            memoizeCache.put(cacheKey, result);
+            return result;
         }
 
         public void clearCache() {
