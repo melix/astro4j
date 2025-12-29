@@ -208,7 +208,7 @@ public class RedshiftImagesProcessor {
         var requiredShifts = createRange(margin, redshifts.stream().mapToInt(RedshiftArea::pixelShift).max().orElse(0));
         var missingShifts = requiredShifts.stream().filter(d -> !shiftImages.containsKey(new PixelShift(d))).toList();
         if (!missingShifts.isEmpty()) {
-            restartProcessForMissingShifts(new LinkedHashSet<>(missingShifts));
+            restartProcessForMissingShifts(new LinkedHashSet<>(missingShifts), operation);
         }
         var progressOperation = operation.createChild("Producing redshift animations and panels");
         broadcaster.broadcast(progressOperation);
@@ -360,14 +360,19 @@ public class RedshiftImagesProcessor {
      * @param annotationColor RGB color for annotations
      */
     public void generateStandaloneAnimation(int x, int y, int width, int height, double minShift, double maxShift, String title, String name, boolean annotate, int delay, int[] annotationColor) {
+        var rootOperation = ProgressOperation.root("", op -> {});
+        var progressOperation = rootOperation.createChild(message("generating.custom.animation"));
+        broadcaster.broadcast(progressOperation);
         var crop = new Crop(Map.of(), broadcaster);
         var contrast = new AdjustContrast(Map.of(), broadcaster);
         var animate = new Animate(Map.of(AnimationFormat.class, Configuration.getInstance().getAnimationFormats()), broadcaster);
         var range = createMinMaxRange(minShift, maxShift, .25);
         var missingShifts = range.stream().filter(d -> !shiftImages.containsKey(new PixelShift(d))).toList();
         if (!missingShifts.isEmpty()) {
-            restartProcessForMissingShifts(new LinkedHashSet<>(missingShifts));
+            broadcaster.broadcast(progressOperation.update(0.1, message("computing.missing.shifts")));
+            restartProcessForMissingShifts(new LinkedHashSet<>(missingShifts), rootOperation);
         }
+        broadcaster.broadcast(progressOperation.update(0.3, message("adjusting.contrast")));
         var initialImages = range.stream().map(s -> shiftImages.get(new PixelShift(s))).toList();
         var maxWidth = initialImages.stream().mapToInt(ImageWrapper::width).max().orElse(0);
         var maxHeight = initialImages.stream().mapToInt(ImageWrapper::height).max().orElse(0);
@@ -375,14 +380,18 @@ public class RedshiftImagesProcessor {
         var cropWidth = Math.min(width, maxWidth - x);
         var cropHeight = Math.min(height, maxHeight - y);
         var constrastAdjusted = contrast.autoContrast(Map.of("img", initialImages, "gamma", params.autoStretchParams().gamma()));
+        broadcaster.broadcast(progressOperation.update(0.5, message("cropping.images")));
         var cropped = crop.crop(Map.of("img", constrastAdjusted, "left", x, "top", y, "width", cropWidth, "height", cropHeight));
         var scaling = new Scaling(Map.of(), broadcaster, crop);
         var annotationColorHex = toHex(annotationColor);
-        List<ImageWrapper> frames = createFrames(cropWidth, cropHeight, annotate, cropped, scaling, annotationColorHex);
+        broadcaster.broadcast(progressOperation.update(0.6, message("creating.frames")));
+        List<ImageWrapper> frames = createFrames(progressOperation, cropWidth, cropHeight, annotate, cropped, scaling, annotationColorHex);
+        broadcaster.broadcast(progressOperation.update(0.8, message("encoding.animation")));
         var anim = (FileOutputResult) animate.createAnimation(Map.of("images", frames, "delay", delay));
         var displayFile = anim.displayFile();
 
         // Save non-display files manually without firing display events
+        broadcaster.broadcast(progressOperation.update(0.9, message("saving.animation")));
         var baseName = namingStrategy.render(sequenceNumber, null,
             GeneratedImageKind.CROPPED.directoryKind().name().toLowerCase(Locale.US),
             name, serFileBaseName, null);
@@ -399,6 +408,7 @@ public class RedshiftImagesProcessor {
             name,
             null,
             displayFile);
+        broadcaster.broadcast(progressOperation.complete());
     }
 
     /**
@@ -414,6 +424,7 @@ public class RedshiftImagesProcessor {
     /**
      * Creates animation frames with optional annotations.
      *
+     * @param parentOperation the parent progress operation for tracking
      * @param width frame width
      * @param height frame height
      * @param annotate whether to add wavelength annotations
@@ -422,7 +433,7 @@ public class RedshiftImagesProcessor {
      * @param annotationColorHex hexadecimal color for annotations
      * @return list of processed image frames
      */
-    private List<ImageWrapper> createFrames(int width, int height, boolean annotate, Object cropped, Scaling scaling, String annotationColorHex) {
+    private List<ImageWrapper> createFrames(ProgressOperation parentOperation, int width, int height, boolean annotate, Object cropped, Scaling scaling, String annotationColorHex) {
         List<ImageWrapper> frames;
         if (annotate && cropped instanceof List list) {
             var lambda0 = params.spectrumParams().ray().wavelength();
@@ -443,7 +454,7 @@ public class RedshiftImagesProcessor {
             }
             var fontSize = finalWidth / 16f;
             var progress = new AtomicInteger(0);
-            var progressOperation = operation.createChild("Annotating frames");
+            var progressOperation = parentOperation.createChild("Annotating frames");
             broadcaster.broadcast(progressOperation);
             double totalImages = list.size();
             frames = ((List<Object>)list).stream()
@@ -481,18 +492,24 @@ public class RedshiftImagesProcessor {
      * @param annotationColor RGB color for annotations
      */
     public void generateStandalonePanel(int x, int y, int width, int height, double minShift, double maxShift, String title, String name, int[] annotationColor) {
+        var rootOperation = ProgressOperation.root("", op -> {});
+        var progressOperation = rootOperation.createChild(message("generating.custom.panel"));
+        broadcaster.broadcast(progressOperation);
         var crop = new Crop(Map.of(), broadcaster);
         var contrast = new AdjustContrast(Map.of(), broadcaster);
         var range = createMinMaxRange(minShift, maxShift, 1);
         var missingShifts = range.stream().filter(d -> !shiftImages.containsKey(new PixelShift(d))).toList();
         if (!missingShifts.isEmpty()) {
-            restartProcessForMissingShifts(new LinkedHashSet<>(missingShifts));
+            broadcaster.broadcast(progressOperation.update(0.1, message("computing.missing.shifts")));
+            restartProcessForMissingShifts(new LinkedHashSet<>(missingShifts), rootOperation);
         }
+        broadcaster.broadcast(progressOperation.update(0.3, message("adjusting.contrast")));
         var initialImages = range.stream().map(s -> shiftImages.get(new PixelShift(s))).toList();
         var constrastAdjusted = contrast.autoContrast(Map.of("img", initialImages, "gamma", params.autoStretchParams().gamma()));
         // make sure that x+width <= maxWidth and y+height <= maxHeight
         var cropWidth = Math.min(width, initialImages.stream().mapToInt(ImageWrapper::width).max().orElse(0) - x);
         var cropHeight = Math.min(height, initialImages.stream().mapToInt(ImageWrapper::height).max().orElse(0) - y);
+        broadcaster.broadcast(progressOperation.update(0.5, message("cropping.images")));
         var cropped = crop.crop(Map.of("img", constrastAdjusted, "left", x, "top", y, "width", cropWidth, "height", cropHeight));
         // compute individual width/height so that the final image width doesn't exceed 7680 pixels
         var maxWidth = MAX_PANEL_SIZE / Math.sqrt(initialImages.size());
@@ -501,6 +518,7 @@ public class RedshiftImagesProcessor {
         int finalWidth;
         int finalHeight;
         List<ImageWrapper> frames;
+        broadcaster.broadcast(progressOperation.update(0.6, message("scaling.images")));
         if (cropWidth < 128 || cropHeight < 128) {
             // rescale so that drawing text is readable and final image not too big
             var scaling = new Scaling(Map.of(), broadcaster, crop);
@@ -520,7 +538,9 @@ public class RedshiftImagesProcessor {
             finalHeight = cropHeight;
         }
 
+        broadcaster.broadcast(progressOperation.update(0.8, message("creating.panel")));
         createSinglePanel(frames, finalWidth, finalHeight, title, name, annotationColor);
+        broadcaster.broadcast(progressOperation.complete());
     }
 
     /**
@@ -536,7 +556,7 @@ public class RedshiftImagesProcessor {
      * @param annotationColorHex hexadecimal annotation color
      */
     private void generateAnim(RedshiftArea redshift, Animate animate, Object cropped, boolean annotateAnimations, int width, int height, Scaling scaling, String annotationColorHex) {
-        var frames = createFrames(width, height, annotateAnimations, cropped, scaling, annotationColorHex);
+        var frames = createFrames(operation, width, height, annotateAnimations, cropped, scaling, annotationColorHex);
         var anim = (FileOutputResult) animate.createAnimation(Map.of("images", frames, "delay", 25));
         var displayFile = anim.displayFile();
         var name = "redshift-" + redshift.id();
@@ -696,8 +716,9 @@ public class RedshiftImagesProcessor {
      * Restarts processing to generate missing pixel shift images.
      *
      * @param missingShifts set of pixel shifts that need to be computed
+     * @param rootOperation the root progress operation for tracking processing progress
      */
-    private void restartProcessForMissingShifts(Set<Double> missingShifts) {
+    private void restartProcessForMissingShifts(Set<Double> missingShifts, ProgressOperation rootOperation) {
         LOGGER.warn(message("restarting.process.missing.shifts"), missingShifts.stream().map(d -> String.format("%.2f", d)).toList());
         // restart processing to include missing images
         var tmpParams = params.withRequestedImages(
@@ -709,7 +730,7 @@ public class RedshiftImagesProcessor {
                 false,
                 false)
         ).withExtraParams(params.extraParams().withAutosave(false));
-        var solexVideoProcessor = new SolexVideoProcessor(serFile, outputDirectory, 0, tmpParams, LocalDateTime.now(), false, Configuration.getInstance().getMemoryRestrictionMultiplier(), operation);
+        var solexVideoProcessor = new SolexVideoProcessor(serFile, outputDirectory, 0, tmpParams, LocalDateTime.now(), false, Configuration.getInstance().getMemoryRestrictionMultiplier(), rootOperation);
         solexVideoProcessor.setRedshifts(new Redshifts(redshifts));
         solexVideoProcessor.setPolynomial(polynomial);
         solexVideoProcessor.setAverageImage(averageImage);
