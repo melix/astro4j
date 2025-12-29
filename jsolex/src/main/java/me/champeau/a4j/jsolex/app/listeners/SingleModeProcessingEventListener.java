@@ -196,7 +196,7 @@ import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectorie
  * This listener manages the visualization of processed images, histograms, spectral profiles,
  * and provides script execution capabilities through the ImageMath language.
  */
-public class SingleModeProcessingEventListener implements ProcessingEventListener, ImageMathScriptExecutor, Broadcaster {
+public class SingleModeProcessingEventListener implements ProcessingEventListener, ImageMathScriptExecutor, Broadcaster, Spectral3DVisualizationHelper.DataProvider {
     private static final Logger LOGGER = LoggerFactory.getLogger(SingleModeProcessingEventListener.class);
     private static final String[] RGB_COLORS = {"red", "green", "blue"};
     private static final int BINS = 256;
@@ -249,7 +249,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private Button show3DButton;
     private Button showEvolutionButton;
     private Button showTomographyButton;
-    private WeakReference<SpectralEvolution4DViewer> spectral4DViewer;
+    private final Spectral3DVisualizationHelper spectral3DHelper;
 
     /**
      * Creates a new single mode processing event listener.
@@ -283,12 +283,99 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         this.popupViews = popupViews;
         this.shiftImages = new HashMap<>();
         this.processingDate = processingDate;
+        this.spectral3DHelper = new Spectral3DVisualizationHelper(this);
         imageViews = new HashMap<>();
         sd = 0;
         width = 0;
         height = 0;
     }
 
+    // DataProvider interface implementation
+    @Override
+    public JSolExInterface getOwner() {
+        return owner;
+    }
+
+    @Override
+    public File getSerFile() {
+        return serFile;
+    }
+
+    @Override
+    public Path getOutputDirectory() {
+        return outputDirectory;
+    }
+
+    @Override
+    public ProcessParams getParams() {
+        return params;
+    }
+
+    @Override
+    public ProcessParams getAdjustedParams() {
+        return adjustedParams;
+    }
+
+    @Override
+    public ProgressOperation getRootOperation() {
+        return rootOperation;
+    }
+
+    @Override
+    public Map<PixelShift, ImageWrapper> getShiftImages() {
+        return shiftImages;
+    }
+
+    @Override
+    public DoubleUnaryOperator getPolynomial() {
+        return polynomial;
+    }
+
+    @Override
+    public float[][] getAverageImage() {
+        return averageImage;
+    }
+
+    @Override
+    public Ellipse getMainEllipse() {
+        return mainEllipse;
+    }
+
+    @Override
+    public AverageImageComputedEvent.AverageImage getCachedAverageImagePayload() {
+        return cachedAverageImagePayload;
+    }
+
+    @Override
+    public TrimmingParameters getCachedTrimmingParameters() {
+        return cachedTrimmingParameters;
+    }
+
+    @Override
+    public PixelShiftRange getPixelShiftRange() {
+        return pixelShiftRange;
+    }
+
+    @Override
+    public RedshiftImagesProcessor createRedshiftProcessor() {
+        return new RedshiftImagesProcessor(
+                shiftImages,
+                adjustedParams,
+                serFile,
+                outputDirectory,
+                owner,
+                this,
+                imageEmitter,
+                List.of(),
+                polynomial,
+                averageImage,
+                rootOperation,
+                createNamingStrategy(),
+                0,
+                computeSerFileBasename(serFile),
+                mainEllipse
+        );
+    }
 
     @Override
     public void onOutputImageDimensionsDetermined(OutputImageDimensionsDeterminedEvent event) {
@@ -368,7 +455,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 var lock = reconstructionView.getLock();
                 if (lock.tryAcquire()) {
                     Thread.startVirtualThread(() -> {
-                        var spectrumBuffer = convertSpectrumImage(spectrum);
+                        var spectrumBuffer = SpectrumImageConverter.convertSpectrumImage(spectrum);
                         Platform.runLater(() -> {
                             try {
                                 spectrumImage.getPixelWriter().setPixels(
@@ -493,7 +580,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     var buffer = converter.createBuffer(geometry);
                     converter.convert((int) frameNb, currentFrame, geometry, buffer);
                     var spectrum = new Image(geometry.width(), geometry.height(), buffer);
-                    var imageBytes = convertSpectrumImage(spectrum);
+                    var imageBytes = SpectrumImageConverter.convertSpectrumImage(spectrum);
                     view.setSpectrumImage(spectrum);
                     Platform.runLater(() -> {
                         var pixelWriter = ((WritableImage) view.getSpectrumView().getImage()).getPixelWriter();
@@ -512,20 +599,17 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     throw new ProcessingException(ex);
                 }
                 // Synchronize with 4D viewer if open
+                var spectral4DViewer = spectral3DHelper.getSpectral4DViewer();
                 LOGGER.info("Checking 4D viewer sync: spectral4DViewer={}", spectral4DViewer);
                 if (spectral4DViewer != null) {
-                    var viewer = spectral4DViewer.get();
-                    LOGGER.info("4D viewer from WeakReference: {}", viewer);
-                    if (viewer != null) {
-                        var clickedFrame = (int) Math.round(frameNb);
-                        var clickedSlit = xIndex;
-                        double clickedPixelShift = pixelShift;
-                        LOGGER.info("Calling setPositionFromClick({}, {}, {})", clickedFrame, clickedSlit, clickedPixelShift);
-                        Platform.runLater(() -> {
-                            viewer.setPositionFromClick(clickedFrame, clickedSlit, clickedPixelShift);
-                            viewer.bringToFront();
-                        });
-                    }
+                    var clickedFrame = (int) Math.round(frameNb);
+                    var clickedSlit = xIndex;
+                    double clickedPixelShift = pixelShift;
+                    LOGGER.info("Calling setPositionFromClick({}, {}, {})", clickedFrame, clickedSlit, clickedPixelShift);
+                    Platform.runLater(() -> {
+                        spectral4DViewer.setPositionFromClick(clickedFrame, clickedSlit, clickedPixelShift);
+                        spectral4DViewer.bringToFront();
+                    });
                 }
             });
         });
@@ -561,40 +645,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         });
     }
 
-    private static byte[] convertSpectrumImage(Image spectrum) {
-        var width = spectrum.width();
-        var height = spectrum.height();
-        var spectrumBuffer = new byte[3 * width * height];
-
-        // Single pass: find max and store normalized values
-        var max = 0;
-        var normalizedValues = new double[width * height];
-        var data = spectrum.data();
-
-        for (var yy = 0; yy < height; yy++) {
-            var row = data[yy];
-            for (var xx = 0; xx < width; xx++) {
-                var v = 255.0 * row[xx] / Constants.MAX_PIXEL_VALUE;
-                normalizedValues[yy * width + xx] = v;
-                var intV = (int) v;
-                if (intV > max) {
-                    max = intV;
-                }
-            }
-        }
-
-        // Second pass: apply stretching and convert to RGB bytes
-        var maxInverse = max > 0 ? 255.0 / max : 0.0;
-        for (var i = 0; i < normalizedValues.length; i++) {
-            var s = (byte) (normalizedValues[i] * maxInverse);
-            var offset = 3 * i;
-            spectrumBuffer[offset] = s;
-            spectrumBuffer[offset + 1] = s;
-            spectrumBuffer[offset + 2] = s;
-        }
-
-        return spectrumBuffer;
-    }
 
     private synchronized ReconstructionView getOrCreateImageView(PartialReconstructionEvent event) {
         return imageViews.computeIfAbsent(event.getPayload().pixelShift(), this::createImageView);
@@ -1150,7 +1200,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         }
         var result = imageScriptExecutor.execute(script, kind);
         var namingStrategy = createNamingStrategy();
-        var outputsMetadata = extractOutputsMetadata(script);
+        var outputsMetadata = ScriptExecutionHelper.extractOutputsMetadata(script);
         var language = LocaleUtils.getConfiguredLocale().getLanguage();
         ImageMathScriptExecutor.render(result, imageEmitter, (outputLabel, fileOutput) -> {
             var baseName = namingStrategy.render(0, null, Constants.TYPE_CUSTOM, outputLabel, computeSerFileBasename(serFile), null);
@@ -1173,13 +1223,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         return result;
     }
 
-    private static Map<String, OutputMetadata> extractOutputsMetadata(String script) {
-        return ImageMathParameterExtractor.extractOutputsMetadataOnly(script);
-    }
-
-    private static Map<String, OutputMetadata> extractOutputsMetadata(File scriptFile) {
-        return ImageMathParameterExtractor.extractOutputsMetadataOnly(scriptFile.toPath());
-    }
 
     @Override
     public void removeVariable(String variable) {
@@ -1346,7 +1389,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             var binning = params.observationDetails().binning();
             var pixelSize = params.observationDetails().pixelSize();
             var canDrawReference = binning != null && pixelSize != null && lambda0.nanos() > 0 && pixelSize > 0 && binning > 0;
-            series.setName(formatLegend(params.observationDetails().instrument(), lambda0, binning, pixelSize));
+            series.setName(SpectralProfileHelper.formatLegend(params.observationDetails().instrument(), lambda0, binning, pixelSize));
             var dispersion = canDrawReference ? SpectrumAnalyzer.computeSpectralDispersion(params.observationDetails().instrument(), lambda0, pixelSize * binning) : null;
             var range = PixelShiftRange.computePixelShiftRange(start, end, height, polynomial);
             var dataPoints = new ArrayList<SpectrumAnalyzer.DataPoint>();
@@ -1369,7 +1412,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     }
                 }
                 if (cpt > 0) {
-                    var wl = canDrawReference ? computeWavelength(pixelShift, lambda0, dispersion) : Wavelen.ofAngstroms(0);
+                    var wl = canDrawReference ? SpectralProfileHelper.computeWavelength(pixelShift, lambda0, dispersion) : Wavelen.ofAngstroms(0);
                     dataPoints.add(new SpectrumAnalyzer.DataPoint(wl, pixelShift, val / cpt));
                 }
             }
@@ -1380,14 +1423,14 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 var referenceSeries = new XYChart.Series<String, Number>();
                 referenceSeries.setName(message("reference.intensity"));
                 lineChart.getData().add(referenceSeries);
-                referenceDataPoints = normalizeDatapoints(SpectrumAnalyzer.findReferenceDatapoints(dataPoints), null).dataPoints();
+                referenceDataPoints = SpectralProfileHelper.normalizeDatapoints(SpectrumAnalyzer.findReferenceDatapoints(dataPoints), null).dataPoints();
                 for (var dataPoint : referenceDataPoints) {
                     addDataPointToSeries(dataPoint, referenceSeries);
                 }
             } else {
                 referenceDataPoints = null;
             }
-            var normalizedDataPoints = normalizeDatapoints(dataPoints, null);
+            var normalizedDataPoints = SpectralProfileHelper.normalizeDatapoints(dataPoints, null);
             for (var dataPoint : normalizedDataPoints.dataPoints()) {
                 addDataPointToSeries(dataPoint, series);
             }
@@ -1398,8 +1441,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             // Add FWHM visualization to the chart
             addFWHMVisualization(lineChart, currentLineStatistics, normalizedDataPoints.dataPoints());
 
-            NormalizedDataPoints normalizedFrameDataPoints;
-            NormalizedDataPoints normalizedLineDataPoints;
+            SpectralProfileHelper.NormalizedDataPoints normalizedFrameDataPoints;
+            SpectralProfileHelper.NormalizedDataPoints normalizedLineDataPoints;
             SpectralLineAnalysis.LineStatistics frameLineStatistics = null;
             if (currentColumn != null && currentColumn >= start && currentColumn < end) {
                 var frameDataPoints = new ArrayList<SpectrumAnalyzer.DataPoint>();
@@ -1429,7 +1472,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                         }
                     }
                     if (cpt > 0) {
-                        var wl = canDrawReference ? computeWavelength(pixelShift, lambda0, dispersion) : Wavelen.ofAngstroms(0);
+                        var wl = canDrawReference ? SpectralProfileHelper.computeWavelength(pixelShift, lambda0, dispersion) : Wavelen.ofAngstroms(0);
                         frameDataPoints.add(new SpectrumAnalyzer.DataPoint(wl, pixelShift, val / cpt));
                     }
                 }
@@ -1446,12 +1489,12 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                         var upperValue = currentSpectrumFrameData[upperNy][x];
                         var interpolatedValue = lowerValue + (upperValue - lowerValue) * (exactNy - lowerNy);
 
-                        var wl = canDrawReference ? computeWavelength(pixelShift, lambda0, dispersion) : Wavelen.ofAngstroms(0);
+                        var wl = canDrawReference ? SpectralProfileHelper.computeWavelength(pixelShift, lambda0, dispersion) : Wavelen.ofAngstroms(0);
                         lineDataPoints.add(new SpectrumAnalyzer.DataPoint(wl, pixelShift, interpolatedValue));
                     }
                 }
 
-                normalizedFrameDataPoints = normalizeDatapoints(frameDataPoints, null);
+                normalizedFrameDataPoints = SpectralProfileHelper.normalizeDatapoints(frameDataPoints, null);
                 for (var dataPoint : normalizedFrameDataPoints.dataPoints()) {
                     addDataPointToSeries(dataPoint, frameSeries);
                 }
@@ -1461,7 +1504,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 String lineLabel;
                 if (canDrawReference) {
                     var columnPixelShift = polynomial.applyAsDouble(currentColumn);
-                    var wavelength = computeWavelength(columnPixelShift, lambda0, dispersion);
+                    var wavelength = SpectralProfileHelper.computeWavelength(columnPixelShift, lambda0, dispersion);
                     lineLabel = message("line.intensity") + " (" + String.format(Locale.US, "%.2f Å", wavelength.angstroms()) + ")";
                 } else {
                     lineLabel = message("line.intensity") + " (" + currentColumn + ")";
@@ -1470,7 +1513,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 lineChart.getData().add(lineSeries);
 
                 // Normalize line data independently
-                normalizedLineDataPoints = normalizeDatapoints(lineDataPoints, null);
+                normalizedLineDataPoints = SpectralProfileHelper.normalizeDatapoints(lineDataPoints, null);
                 for (var dataPoint : normalizedLineDataPoints.dataPoints()) {
                     addDataPointToSeries(dataPoint, lineSeries);
                 }
@@ -1530,17 +1573,17 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             show3DButton = new Button(I18N.string(JSolEx.class, "spectral-surface-3d", "show.3d.profile"));
             show3DButton.getStyleClass().add("image-viewer-button");
             show3DButton.setMinSize(Button.USE_PREF_SIZE, Button.USE_PREF_SIZE);
-            show3DButton.setOnAction(evt -> show3DSpectralProfile());
+            show3DButton.setOnAction(evt -> spectral3DHelper.show3DSpectralProfile());
             show3DButton.setDisable(cachedAverageImagePayload == null);
             showEvolutionButton = new Button(I18N.string(JSolEx.class, "spectral-surface-3d", "show.spectral.cube"));
             showEvolutionButton.getStyleClass().add("image-viewer-button");
             showEvolutionButton.setMinSize(Button.USE_PREF_SIZE, Button.USE_PREF_SIZE);
-            showEvolutionButton.setOnAction(evt -> showSpectralEvolution());
+            showEvolutionButton.setOnAction(evt -> spectral3DHelper.showSpectralEvolution());
             showEvolutionButton.setDisable(cachedAverageImagePayload == null || cachedTrimmingParameters == null);
             showTomographyButton = new Button(I18N.string(JSolEx.class, "spherical-tomography", "show.tomography"));
             showTomographyButton.getStyleClass().add("image-viewer-button");
             showTomographyButton.setMinSize(Button.USE_PREF_SIZE, Button.USE_PREF_SIZE);
-            showTomographyButton.setOnAction(evt -> showSphericalTomography());
+            showTomographyButton.setOnAction(evt -> spectral3DHelper.showSphericalTomography());
             var openGLAvailable = OpenGLAvailability.isAvailable();
             showTomographyButton.setVisible(openGLAvailable);
             showTomographyButton.setManaged(openGLAvailable);
@@ -1622,305 +1665,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         return statsBox;
     }
 
-    private void show3DSpectralProfile() {
-        if (cachedAverageImagePayload == null) {
-            return;
-        }
-        BackgroundOperations.async(() -> {
-            var payload = cachedAverageImagePayload;
-            var params = payload.adjustedParams();
-            var lambda0 = params.spectrumParams().ray().wavelength();
-            var binning = params.observationDetails().binning();
-            var pixelSize = params.observationDetails().pixelSize();
-            if (binning == null || pixelSize == null || lambda0.nanos() <= 0 || pixelSize <= 0 || binning <= 0) {
-                return;
-            }
-            var dispersion = SpectrumAnalyzer.computeSpectralDispersion(
-                    params.observationDetails().instrument(),
-                    lambda0,
-                    pixelSize * binning
-            );
-            var surfaceData = SpectralLineSurfaceDataExtractor.extractSurfaceData(
-                    payload.image().data(),
-                    payload.polynomial(),
-                    payload.leftBorder(),
-                    payload.rightBorder(),
-                    payload.image().height(),
-                    lambda0,
-                    dispersion,
-                    150,
-                    100
-            );
-            Platform.runLater(() -> SpectralLineSurface3DViewer.show(
-                    surfaceData,
-                    I18N.string(JSolEx.class, "spectral-surface-3d", "frame.title")
-            ));
-        });
-    }
-
-    private void showSpectralEvolution() {
-        if (cachedTrimmingParameters == null || cachedAverageImagePayload == null) {
-            return;
-        }
-        var trimParams = cachedTrimmingParameters;
-        var payload = cachedAverageImagePayload;
-        var params = payload.adjustedParams();
-        var lambda0 = params.spectrumParams().ray().wavelength();
-        var binning = params.observationDetails().binning();
-        var pixelSize = params.observationDetails().pixelSize();
-        if (binning == null || pixelSize == null || lambda0.nanos() <= 0 || pixelSize <= 0 || binning <= 0) {
-            return;
-        }
-        var dispersion = SpectrumAnalyzer.computeSpectralDispersion(
-                params.observationDetails().instrument(),
-                lambda0,
-                pixelSize * binning
-        );
-
-        var dialog = new SamplingOptionsDialog();
-        var optionsOpt = dialog.showAndWait(owner.getMainStage());
-        if (optionsOpt.isEmpty()) {
-            return;
-        }
-        var options = optionsOpt.get();
-
-        var loadingStage = createLoadingStage(I18N.string(JSolEx.class, "spectral-surface-3d", "evolution.title"));
-        loadingStage.show();
-
-        BackgroundOperations.async(() -> {
-            try (var reader = SerFileReader.of(trimParams.serFile())) {
-                var geometry = reader.header().geometry();
-                var evolutionData = SpectralProfileEvolutionExtractor.extractEvolution4D(
-                        reader,
-                        geometry,
-                        trimParams.polynomial(),
-                        0,
-                        geometry.width(),
-                        trimParams.minX(),
-                        trimParams.maxX(),
-                        trimParams.firstFrame(),
-                        trimParams.lastFrame(),
-                        lambda0,
-                        dispersion,
-                        options.spatialResolution(),
-                        options.wavelengthResolution(),
-                        trimParams.verticalFlip(),
-                        null
-                );
-                var ellipseForViewer = mainEllipse;
-                Platform.runLater(() -> {
-                    loadingStage.close();
-                    var viewer = SpectralEvolution4DViewer.show(
-                            evolutionData,
-                            ellipseForViewer,
-                            I18N.string(JSolEx.class, "spectral-surface-3d", "evolution.title")
-                    );
-                    spectral4DViewer = new WeakReference<>(viewer);
-                });
-            } catch (Exception e) {
-                LOGGER.error("Failed to extract spectral evolution", e);
-                Platform.runLater(loadingStage::close);
-            }
-        });
-    }
-
-    private void showSphericalTomography() {
-        if (cachedAverageImagePayload == null) {
-            return;
-        }
-        var payload = cachedAverageImagePayload;
-        var adjustedParams = payload.adjustedParams();
-        var lambda0 = adjustedParams.spectrumParams().ray().wavelength();
-        var binning = adjustedParams.observationDetails().binning();
-        var pixelSize = adjustedParams.observationDetails().pixelSize();
-        if (binning == null || pixelSize == null || lambda0.nanos() <= 0 || pixelSize <= 0 || binning <= 0) {
-            return;
-        }
-        var dispersion = SpectrumAnalyzer.computeSpectralDispersion(
-                adjustedParams.observationDetails().instrument(),
-                lambda0,
-                pixelSize * binning
-        );
-
-        // Create RedshiftImagesProcessor for generating missing images
-        var redshiftProcessor = new RedshiftImagesProcessor(
-                shiftImages,
-                adjustedParams,
-                serFile,
-                outputDirectory,
-                owner,
-                this,
-                imageEmitter,
-                List.of(),
-                polynomial,
-                averageImage,
-                rootOperation,
-                createNamingStrategy(),
-                0,
-                computeSerFileBasename(serFile),
-                mainEllipse
-        );
-
-        Platform.runLater(() -> {
-            var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "spherical-tomography-params");
-            Parent node;
-            try {
-                node = fxmlLoader.load();
-            } catch (IOException e) {
-                throw new ProcessingException(e);
-            }
-            var controller = fxmlLoader.<SphericalTomographyCreator>getController();
-            var stage = newModalStage(owner.getMainStage(), node);
-            controller.setup(stage, pixelShiftRange, redshiftProcessor, (step, unused) -> {
-                var minShift = controller.getMinShift();
-                var maxShift = controller.getMaxShift();
-                var stepSize = controller.getStepSize();
-
-                // Generate images for the requested range
-                generateTomographyImages(minShift, maxShift, stepSize, dispersion, lambda0);
-            });
-            stage.setTitle(I18N.string(JSolEx.class, "spherical-tomography-params", "frame.title"));
-            stage.showAndWait();
-        });
-    }
-
-    private void generateTomographyImages(double minShift,
-                                          double maxShift,
-                                          double stepSize,
-                                          Dispersion dispersion,
-                                          Wavelen lambda0) {
-        // Create loading stage on FX thread using CountDownLatch for synchronization
-        var loadingStageRef = new AtomicReference<Stage>();
-        var latch = new CountDownLatch(1);
-        Platform.runLater(() -> {
-            var loadingStage = createLoadingStage(I18N.string(JSolEx.class, "spherical-tomography", "frame.title"));
-            loadingStageRef.set(loadingStage);
-            loadingStage.show();
-            latch.countDown();
-        });
-
-        BackgroundOperations.async(() -> {
-            try {
-                latch.await();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return;
-            }
-            var loadingStage = loadingStageRef.get();
-            try {
-                // Generate the list of required shifts
-                var requiredShifts = new TreeSet<Double>();
-                for (var shift = minShift; shift <= maxShift; shift += stepSize) {
-                    requiredShifts.add(Math.round(shift * 100.0) / 100.0);
-                }
-                // Always include pixel shift 0 (line center)
-                if (minShift <= 0 && maxShift >= 0) {
-                    requiredShifts.add(0.0);
-                }
-
-                // Find missing shifts and generate them
-                var missingShifts = requiredShifts.stream()
-                        .filter(d -> !shiftImages.containsKey(new PixelShift(d)))
-                        .collect(Collectors.toCollection(LinkedHashSet::new));
-
-                if (!missingShifts.isEmpty()) {
-                    // Use the RedshiftImagesProcessor pattern to generate missing images
-                    var tmpParams = params.withRequestedImages(
-                            new RequestedImages(
-                                    Set.of(GeneratedImageKind.GEOMETRY_CORRECTED),
-                                    Stream.concat(
-                                            params.requestedImages().pixelShifts().stream(),
-                                            missingShifts.stream()
-                                    ).toList(),
-                                    missingShifts,
-                                    Set.of(),
-                                    ImageMathParams.NONE,
-                                    false,
-                                    false
-                            )
-                    ).withExtraParams(params.extraParams().withAutosave(false));
-
-                    var solexVideoProcessor = new SolexVideoProcessor(
-                            serFile, outputDirectory, 0, tmpParams,
-                            LocalDateTime.now(), false,
-                            Configuration.getInstance().getMemoryRestrictionMultiplier(),
-                            rootOperation
-                    );
-                    solexVideoProcessor.setRedshifts(new Redshifts(List.of()));
-                    solexVideoProcessor.setPolynomial(polynomial);
-                    solexVideoProcessor.setAverageImage(averageImage);
-                    solexVideoProcessor.addEventListener(new ProcessingEventListener() {
-                        @Override
-                        public void onProcessingDone(ProcessingDoneEvent e) {
-                            shiftImages.putAll(e.getPayload().shiftImages());
-                        }
-
-                        @Override
-                        public void onProgress(ProgressEvent e) {
-                            BatchOperations.submitOneOfAKind("progress", () -> owner.updateProgress(e.getPayload()));
-                        }
-                    });
-                    solexVideoProcessor.setIgnoreIncompleteShifts(true);
-                    if (mainEllipse != null) {
-                        solexVideoProcessor.setCachedEllipse(mainEllipse);
-                    }
-                    solexVideoProcessor.process();
-                }
-
-                // Now extract tomography data using only the requested shifts
-                var shellImages = new LinkedHashMap<PixelShift, ImageWrapper>();
-                for (double shift : requiredShifts) {
-                    var pixelShift = new PixelShift(shift);
-                    var image = shiftImages.get(pixelShift);
-                    if (image != null) {
-                        shellImages.put(pixelShift, image);
-                    }
-                }
-
-                var tomographyData = SphericalTomographyExtractor.extract(
-                        shellImages,
-                        dispersion,
-                        lambda0,
-                        1.0,
-                        adjustedParams.contrastEnhancement(),
-                        adjustedParams.claheParams(),
-                        adjustedParams.autoStretchParams()
-                );
-
-                Platform.runLater(() -> {
-                    loadingStage.close();
-                    SphericalTomography3DViewer.show(
-                            tomographyData,
-                            I18N.string(JSolEx.class, "spherical-tomography", "frame.title"),
-                            adjustedParams
-                    );
-                });
-            } catch (Exception e) {
-                LOGGER.error("Failed to generate spherical tomography", e);
-                Platform.runLater(loadingStage::close);
-            }
-        });
-    }
-
-    private Stage createLoadingStage(String title) {
-        var progressIndicator = new ProgressIndicator();
-        progressIndicator.setProgress(-1);
-        var label = new Label(I18N.string(JSolEx.class, "spectral-surface-3d", "loading"));
-        label.setMinSize(Label.USE_PREF_SIZE, Label.USE_PREF_SIZE);
-        var vbox = new VBox(10, progressIndicator, label);
-        vbox.setAlignment(Pos.CENTER);
-        vbox.setPadding(new Insets(20));
-        vbox.setMinWidth(300);
-        var scene = newScene(vbox);
-        var stage = new Stage();
-        stage.setTitle(title);
-        stage.setScene(scene);
-        stage.initModality(Modality.APPLICATION_MODAL);
-        stage.setResizable(false);
-        stage.sizeToScene();
-        return stage;
-    }
-
     private VBox createStatItem(String label, String value) {
         var labelNode = new Label(label);
         labelNode.setStyle("-fx-font-size: 10px; -fx-text-fill: #666666;");
@@ -1936,8 +1680,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         }
 
         // Get the first and last data point labels for spanning horizontal lines
-        var firstLabel = formatWavelength(dataPoints.getFirst().pixelShift(), dataPoints.getFirst().wavelen());
-        var lastLabel = formatWavelength(dataPoints.getLast().pixelShift(), dataPoints.getLast().wavelen());
+        var firstLabel = SpectralProfileHelper.formatWavelength(dataPoints.getFirst().pixelShift(), dataPoints.getFirst().wavelen());
+        var lastLabel = SpectralProfileHelper.formatWavelength(dataPoints.getLast().pixelShift(), dataPoints.getLast().wavelen());
 
         // Add continuum (baseline) horizontal line - green dashed
         var continuumSeries = new XYChart.Series<String, Number>();
@@ -1974,11 +1718,11 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
                 if (blueDist < minBlueDist) {
                     minBlueDist = blueDist;
-                    blueLabel = formatWavelength(dp.pixelShift(), dp.wavelen());
+                    blueLabel = SpectralProfileHelper.formatWavelength(dp.pixelShift(), dp.wavelen());
                 }
                 if (redDist < minRedDist) {
                     minRedDist = redDist;
-                    redLabel = formatWavelength(dp.pixelShift(), dp.wavelen());
+                    redLabel = SpectralProfileHelper.formatWavelength(dp.pixelShift(), dp.wavelen());
                 }
             }
         }
@@ -2056,49 +1800,19 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 }
             }
 
-            addLegendToggleHandlers(chart);
+            ChartExportHelper.addLegendToggleHandlers(chart);
         });
     }
 
-    private static void addLegendToggleHandlers(XYChart<?, ?> chart) {
-        for (var node : chart.lookupAll(".chart-legend-item")) {
-            if (node instanceof Label legendLabel) {
-                legendLabel.setCursor(Cursor.HAND);
-                var seriesName = legendLabel.getText();
-                legendLabel.setOnMouseClicked(event -> {
-                    for (var s : chart.getData()) {
-                        if (s.getName().equals(seriesName)) {
-                            toggleSeriesVisibility(s, legendLabel);
-                            break;
-                        }
-                    }
-                });
-            }
-        }
-    }
-
-    private static void toggleSeriesVisibility(XYChart.Series<?, ?> series, Label legendLabel) {
-        var node = series.getNode();
-        if (node != null) {
-            var visible = !node.isVisible();
-            node.setVisible(visible);
-            for (var data : series.getData()) {
-                if (data.getNode() != null) {
-                    data.getNode().setVisible(visible);
-                }
-            }
-            legendLabel.setOpacity(visible ? 1.0 : 0.4);
-        }
-    }
 
     private LineChart<String, Number> createProfileChart(
             ProcessParams params,
             AverageImageComputedEvent.AverageImage payload,
             PixelShiftRange range,
-            NormalizedDataPoints normalizedDataPoints,
+            SpectralProfileHelper.NormalizedDataPoints normalizedDataPoints,
             List<SpectrumAnalyzer.DataPoint> referenceDataPoints,
-            NormalizedDataPoints normalizedFrameDataPoints,
-            NormalizedDataPoints normalizedLineDataPoints,
+            SpectralProfileHelper.NormalizedDataPoints normalizedFrameDataPoints,
+            SpectralProfileHelper.NormalizedDataPoints normalizedLineDataPoints,
             SpectralLineAnalysis.LineStatistics stats,
             boolean canDrawReference,
             Dispersion dispersion,
@@ -2114,7 +1828,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         var series = new XYChart.Series<String, Number>();
         var binning = params.observationDetails().binning();
         var pixelSize = params.observationDetails().pixelSize();
-        series.setName(formatLegend(params.observationDetails().instrument(), lambda0, binning, pixelSize));
+        series.setName(SpectralProfileHelper.formatLegend(params.observationDetails().instrument(), lambda0, binning, pixelSize));
         chart.getData().add(series);
 
         for (var dataPoint : normalizedDataPoints.dataPoints()) {
@@ -2147,7 +1861,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             String lineLabel;
             if (canDrawReference) {
                 var columnPixelShift = payload.polynomial().applyAsDouble(currentColumn);
-                var wavelength = computeWavelength(columnPixelShift, lambda0, dispersion);
+                var wavelength = SpectralProfileHelper.computeWavelength(columnPixelShift, lambda0, dispersion);
                 lineLabel = message("line.intensity") + " (" + String.format(Locale.US, "%.2f Å", wavelength.angstroms()) + ")";
             } else {
                 lineLabel = message("line.intensity") + " (" + currentColumn + ")";
@@ -2166,7 +1880,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     }
 
     private void addDataPointToSeries(SpectrumAnalyzer.DataPoint dataPoint, XYChart.Series<String, Number> series) {
-        var label = formatWavelength(dataPoint.pixelShift(), dataPoint.wavelen());
+        var label = SpectralProfileHelper.formatWavelength(dataPoint.pixelShift(), dataPoint.wavelen());
         var d = new XYChart.Data<String, Number>(label, dataPoint.intensity());
         var tooltipText = new StringBuilder();
         tooltipText.append(label).append(" ");
@@ -2219,7 +1933,11 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 ? chart.getParent()
                 : chart;
 
-        var menu = createChartContextMenu(graphData, name, nodeSupplier);
+        Consumer<? super PrintWriter> csvWriter = (graphData instanceof GraphData.ProfileData profileData)
+                ? profileData.csvWriter()
+                : null;
+
+        var menu = ChartExportHelper.createChartContextMenu(name, nodeSupplier, csvWriter, outputDirectory, baseName, this::createNamingStrategy);
 
         var openInNewWindow = new MenuItem(message("open.in.new.window"));
         openInNewWindow.setOnAction(evt -> Platform.runLater(() -> {
@@ -2234,117 +1952,23 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 pane.setBottom(createStatisticsPanel(profileData.statistics(), profileData.hasWavelength()));
             }
 
-            var popupMenu = createChartContextMenu(graphData, name, () -> pane);
+            Consumer<? super PrintWriter> popupCsvWriter = (graphData instanceof GraphData.ProfileData profileData)
+                    ? profileData.csvWriter()
+                    : null;
+            var popupMenu = ChartExportHelper.createChartContextMenu(name, () -> pane, popupCsvWriter, outputDirectory, baseName, this::createNamingStrategy);
             newChart.setOnContextMenuRequested(menuEvt -> popupMenu.show(newChart, menuEvt.getScreenX(), menuEvt.getScreenY()));
 
             var scene = new Scene(pane, 800, 600);
             newWindow.setScene(scene);
             newWindow.show();
 
-            Platform.runLater(() -> addLegendToggleHandlers(newChart));
+            Platform.runLater(() -> ChartExportHelper.addLegendToggleHandlers(newChart));
         }));
 
         menu.getItems().add(openInNewWindow);
         chart.setOnContextMenuRequested(menuEvent -> menu.show(chart, menuEvent.getScreenX(), menuEvent.getScreenY()));
     }
 
-    private ContextMenu createChartContextMenu(GraphData graphData, String name, Supplier<Node> nodeToSnapshot) {
-        var menu = new ContextMenu();
-
-        var saveToFile = new MenuItem(message("save.to.file"));
-        saveToFile.setOnAction(evt -> saveChartToFile(name, nodeToSnapshot.get()));
-        menu.getItems().add(saveToFile);
-
-        if (graphData instanceof GraphData.ProfileData profileData) {
-            var exportToCsv = new MenuItem(message("export.to.csv"));
-            exportToCsv.setOnAction(evt -> exportProfileToCsv(name, profileData));
-            menu.getItems().add(exportToCsv);
-        }
-
-        return menu;
-    }
-
-    private void saveChartToFile(String name, Node node) {
-        var snapshotParameters = new SnapshotParameters();
-        snapshotParameters.setTransform(Transform.scale(2, 2));
-        var writable = node.snapshot(snapshotParameters, null);
-        try {
-            var namingStrategy = createNamingStrategy();
-            var outputFile = outputDirectory.resolve(namingStrategy.render(0, null, Constants.TYPE_DEBUG, name, baseName, null) + ".png");
-            var bufferedImage = SwingFXUtils.fromFXImage(writable, null);
-            createDirectoriesIfNeeded(outputFile.getParent());
-            ImageIO.write(bufferedImage, "png", outputFile.toFile());
-            LOGGER.info(message("chart.saved"), outputFile);
-            showFileSavedAlert(message("chart.saved.title"), "Chart saved to: " + outputFile);
-        } catch (IOException ex) {
-            throw new ProcessingException(ex);
-        }
-    }
-
-    private void exportProfileToCsv(String name, GraphData.ProfileData profileData) {
-        var namingStrategy = createNamingStrategy();
-        var outputFile = outputDirectory.resolve(namingStrategy.render(0, null, Constants.TYPE_DEBUG, name, baseName, null) + ".csv");
-        try {
-            createDirectoriesIfNeeded(outputFile.getParent());
-            try (var writer = new PrintWriter(new FileWriter(outputFile.toFile(), StandardCharsets.UTF_8))) {
-                profileData.csvWriter().accept(writer);
-                LOGGER.info(message("csv.saved"), outputFile);
-                showFileSavedAlert(message("csv.saved.title"), "CSV saved to: " + outputFile);
-            }
-        } catch (IOException e) {
-            throw new ProcessingException(e);
-        }
-    }
-
-    private static void showFileSavedAlert(String title, String message) {
-        var alert = AlertFactory.info();
-        alert.setTitle(title);
-        var textArea = new TextArea(message);
-        textArea.setEditable(false);
-        textArea.setWrapText(true);
-        textArea.setMaxHeight(Region.USE_PREF_SIZE);
-        textArea.setStyle("-fx-background-color: transparent; -fx-background-insets: 0; -fx-padding: 0;");
-        textArea.setPrefRowCount(1);
-        textArea.setMaxWidth(Double.MAX_VALUE);
-        textArea.setFocusTraversable(false);
-        alert.getDialogPane().setContent(textArea);
-        alert.setHeaderText(null);
-        alert.showAndWait();
-    }
-
-    private static String formatWavelength(double pixelShift, Wavelen wavelength) {
-        if (wavelength.angstroms() > 0) {
-            return String.format(Locale.US, "%.2f", wavelength.angstroms());
-        }
-        return String.format(Locale.US, "%.2fpx", pixelShift);
-    }
-
-    private static Wavelen computeWavelength(double pixelShift, Wavelen lambda, Dispersion dispersion) {
-        if (dispersion == null) {
-            return lambda;
-        }
-        return lambda.plus(pixelShift, dispersion);
-    }
-
-    private static String formatLegend(SpectroHeliograph instrument, Wavelen lambda0, Integer binning, Double pixelSize) {
-        if (binning != null && pixelSize != null && lambda0 != null) {
-            double pixSize = pixelSize;
-            if (lambda0.angstroms() > 0 && pixSize > 0) {
-                var disp = SpectrumAnalyzer.computeSpectralDispersion(instrument, lambda0, pixelSize * binning).angstromsPerPixel();
-                return String.format(message("intensity.legend"), pixelSize, binning, disp);
-            }
-        }
-        return message("intensity");
-    }
-
-    private static NormalizedDataPoints normalizeDatapoints(List<SpectrumAnalyzer.DataPoint> dataPoints, Double maxIntensity) {
-        var maxSeriesIntensity = dataPoints.stream().mapToDouble(SpectrumAnalyzer.DataPoint::intensity).max().orElse(0);
-        var maxRef = maxIntensity != null ? maxIntensity : maxSeriesIntensity;
-        return new NormalizedDataPoints(dataPoints.stream()
-                .map(dataPoint -> new SpectrumAnalyzer.DataPoint(dataPoint.wavelen(), dataPoint.pixelShift(), 100 * dataPoint.intensity() / maxRef))
-                .toList(),
-                maxSeriesIntensity);
-    }
 
     private record CachedHistogram(Histogram histogram, String color) {
     }
@@ -2367,9 +1991,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 bottomRight.y() >= 0 && bottomRight.y() < image.height();
     }
 
-    private record NormalizedDataPoints(List<SpectrumAnalyzer.DataPoint> dataPoints, double maxIntensity) {
-
-    }
 
     @Override
     public void onScriptExecutionResult(ScriptExecutionResultEvent e) {
@@ -2448,8 +2069,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             throw new ProcessingException(e);
         }
         try {
-            processScriptErrors(result);
-            var outputsMetadata = extractOutputsMetadata(scriptFile);
+            ScriptExecutionHelper.processScriptErrors(result);
+            var outputsMetadata = ScriptExecutionHelper.extractOutputsMetadata(scriptFile);
             renderSingleFileBatchOutputs(namingStrategy, result, outputsMetadata);
         } finally {
             owner.updateProgress(1, String.format(message("executing.script"), scriptFile));
@@ -2497,12 +2118,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         });
     }
 
-    private void processScriptErrors(ImageMathScriptResult result) {
-        var invalidExpressions = result.invalidExpressions();
-        if (!invalidExpressions.isEmpty()) {
-            Platform.runLater(() -> ScriptErrorDialog.showErrors(invalidExpressions));
-        }
-    }
 
     /**
      * Checks if a SER video file is associated with this processing session.

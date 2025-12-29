@@ -24,12 +24,8 @@ import javafx.application.HostServices;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
-import javafx.beans.property.SimpleDoubleProperty;
-import javafx.beans.property.SimpleIntegerProperty;
-import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
-import javafx.embed.swing.SwingFXUtils;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -41,8 +37,6 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.ContextMenu;
-import javafx.scene.control.DatePicker;
-import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
@@ -52,22 +46,16 @@ import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.SplitMenuButton;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
-import javafx.scene.control.TableCell;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
 import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
-import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.scene.text.Text;
@@ -75,18 +63,16 @@ import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
-import javafx.util.Callback;
 import javafx.util.Duration;
 import javafx.util.StringConverter;
 import javafx.util.converter.IntegerStringConverter;
 import me.champeau.a4j.jsolex.app.jfx.AdvancedParamsController;
 import me.champeau.a4j.jsolex.app.jfx.ApplyUserRotation;
 import me.champeau.a4j.jsolex.app.jfx.AssistedEllipseFittingController;
-import me.champeau.a4j.jsolex.app.jfx.BatchItem;
+import me.champeau.a4j.jsolex.app.jfx.BatchProcessingHelper;
 import me.champeau.a4j.jsolex.app.jfx.CustomTooltip;
 import me.champeau.a4j.jsolex.app.jfx.DocsHelper;
 import me.champeau.a4j.jsolex.app.jfx.EmbeddedServerController;
-import me.champeau.a4j.jsolex.app.jfx.ExplorerSupport;
 import me.champeau.a4j.jsolex.app.jfx.ExposureCalculator;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
 import me.champeau.a4j.jsolex.app.jfx.ImageMathEditor;
@@ -98,6 +84,7 @@ import me.champeau.a4j.jsolex.app.jfx.OpenGLAvailability;
 import me.champeau.a4j.jsolex.app.jfx.ProcessParamsController;
 import me.champeau.a4j.jsolex.app.jfx.ProgressHandler;
 import me.champeau.a4j.jsolex.app.jfx.ProgressTreeBuilder;
+import me.champeau.a4j.jsolex.app.jfx.ReferenceImageHelper;
 import me.champeau.a4j.jsolex.app.jfx.ScriptParametersDialog;
 import me.champeau.a4j.jsolex.app.jfx.ScriptRepositoriesController;
 import me.champeau.a4j.jsolex.app.jfx.SerFileTrimmerController;
@@ -136,7 +123,6 @@ import me.champeau.a4j.jsolex.processing.params.ProcessParamsIO;
 import me.champeau.a4j.jsolex.processing.params.RotationKind;
 import me.champeau.a4j.jsolex.processing.params.ScriptParameter;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
-import me.champeau.a4j.jsolex.processing.spectrum.SerFileTrimmer;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper;
 import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
@@ -149,7 +135,6 @@ import me.champeau.a4j.jsolex.processing.util.Bass2000ConfigService;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.DurationFormatter;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
-import me.champeau.a4j.jsolex.processing.util.GONG;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.LocaleUtils;
 import me.champeau.a4j.jsolex.processing.util.LoggingSupport;
@@ -168,7 +153,6 @@ import org.fxmisc.richtext.StyleClassedTextArea;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.imageio.ImageIO;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -180,11 +164,8 @@ import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.text.MessageFormat;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -197,22 +178,19 @@ import java.util.Scanner;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 import static java.nio.file.StandardWatchEventKinds.OVERFLOW;
 import static me.champeau.a4j.jsolex.app.jfx.FXUtils.newStage;
-import static me.champeau.a4j.jsolex.app.jfx.SerFileTrimmerController.toTrimmedFile;
 import static me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper.findMetadataFile;
 import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.logError;
 
 /**
  * Main JavaFX application for processing Sol'Ex spectroheliographic video files.
  */
-public class JSolEx implements JSolExInterface {
+public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchContext {
 
     private static final long MINIMAL_MEMORY = 6 * 1024 * 1024 * 1024L;
 
@@ -380,6 +358,8 @@ public class JSolEx implements JSolExInterface {
     private Path outputDirectory;
     private final RepositoryUpdateService repositoryUpdateService = new RepositoryUpdateService();
     private ProgressHandler progressHandler;
+    private ReferenceImageHelper referenceImageHelper;
+    private final BatchProcessingHelper batchProcessingHelper = new BatchProcessingHelper();
 
     /**
      * Creates a new instance. Required by JavaFX.
@@ -499,7 +479,8 @@ public class JSolEx implements JSolExInterface {
             addIcons(stage);
             hideTabHeaderWhenSingleTab(mainPane);
             configureRedshiftControls();
-            initializeReferenceImageTab();
+            referenceImageHelper = new ReferenceImageHelper(rootStage, referenceImageTab);
+            referenceImageHelper.initialize();
             bass2000Button.setVisible(true);
             stage.show();
             refreshRecentItemsMenu();
@@ -666,157 +647,6 @@ public class JSolEx implements JSolExInterface {
         }));
         pixelShiftMargin.setText("2");
         Platform.runLater(() -> redshiftCreatorKind.getSelectionModel().select(RedshiftImagesProcessor.RedshiftCreatorKind.ANIMATION));
-    }
-
-    private void initializeReferenceImageTab() {
-        createReferenceImageInterface(null);
-    }
-
-    private void createReferenceImageInterface(ZonedDateTime serFileDate) {
-        var vbox = new VBox();
-        vbox.setAlignment(Pos.CENTER);
-        vbox.setSpacing(10);
-        vbox.setPadding(new Insets(10));
-
-        var titleLabel = new Label(message("reference.image.selector"));
-        titleLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
-
-        var datePickerBox = new HBox();
-        datePickerBox.setAlignment(Pos.CENTER);
-        datePickerBox.setSpacing(10);
-
-        var dateLabel = new Label(message("select.date"));
-        dateLabel.setMinWidth(Region.USE_PREF_SIZE);
-        var defaultDate = serFileDate != null ? serFileDate.toLocalDate() : LocalDate.now();
-        var datePicker = new DatePicker(defaultDate);
-        datePicker.setPrefWidth(120);
-        datePicker.setMaxWidth(120);
-
-        var timeLabel = new Label(message("select.time"));
-        timeLabel.setMinWidth(Region.USE_PREF_SIZE);
-        var defaultTime = serFileDate != null ? serFileDate.toLocalTime() : LocalTime.now(ZoneId.of("UTC"));
-        var hourField = new TextField();
-        hourField.setPrefColumnCount(2);
-        hourField.setPrefWidth(30);
-        hourField.setMaxWidth(30);
-        hourField.setMinWidth(30);
-        hourField.setStyle("-fx-pref-width: 30px; -fx-max-width: 30px; -fx-min-width: 30px;");
-        hourField.setTextFormatter(new TextFormatter<>(new IntegerStringConverter() {
-            @Override
-            public Integer fromString(String value) {
-                var asInt = super.fromString(value);
-                if (asInt == null) {
-                    return defaultTime.getHour();
-                }
-                return Math.max(0, Math.min(23, asInt));
-            }
-
-            @Override
-            public String toString(Integer value) {
-                return value == null ? "00" : String.format("%02d", value);
-            }
-        }));
-        hourField.setText(String.format("%02d", defaultTime.getHour()));
-
-        var minuteField = new TextField();
-        minuteField.setPrefColumnCount(2);
-        minuteField.setPrefWidth(30);
-        minuteField.setMaxWidth(30);
-        minuteField.setMinWidth(30);
-        minuteField.setStyle("-fx-pref-width: 30px; -fx-max-width: 30px; -fx-min-width: 30px;");
-        minuteField.setTextFormatter(new TextFormatter<>(new IntegerStringConverter() {
-            @Override
-            public Integer fromString(String value) {
-                var asInt = super.fromString(value);
-                if (asInt == null) {
-                    return defaultTime.getMinute();
-                }
-                return Math.max(0, Math.min(59, asInt));
-            }
-
-            @Override
-            public String toString(Integer value) {
-                return value == null ? "00" : String.format("%02d", value);
-            }
-        }));
-        minuteField.setText(String.format("%02d", defaultTime.getMinute()));
-        var colonLabel = new Label(":");
-        var timeBox = new HBox(5);
-        timeBox.setAlignment(Pos.CENTER);
-        timeBox.getChildren().addAll(hourField, colonLabel, minuteField);
-
-        datePickerBox.getChildren().addAll(dateLabel, datePicker, timeLabel, timeBox);
-
-        var downloadButton = new Button(message("download.gong.image"));
-        downloadButton.getStyleClass().add("primary-button");
-        var message = new Label();
-        var imageView = new ImageView();
-        imageView.setPreserveRatio(true);
-        imageView.setFitWidth(400);
-        imageView.setFitHeight(400);
-
-        downloadButton.setOnAction(e -> {
-            downloadButton.setText(message("downloading.gong.image"));
-            downloadButton.setDisable(true);
-
-            var selectedDate = datePicker.getValue();
-            var hour = Integer.parseInt(hourField.getText());
-            var minute = Integer.parseInt(minuteField.getText());
-            var localDateTime = LocalDateTime.of(selectedDate, LocalTime.of(hour, minute));
-            var zonedDateTime = ZonedDateTime.of(localDateTime, ZoneId.of("UTC"));
-
-            BackgroundOperations.async(() -> {
-                var optionalURL = GONG.fetchGongImage(zonedDateTime);
-                Platform.runLater(() -> {
-                    message.setManaged(false);
-                    message.setText("");
-                    optionalURL.ifPresentOrElse(
-                            url -> {
-                                imageView.setImage(new Image(url.toExternalForm()));
-                                var contextMenu = new ContextMenu();
-                                var save = new MenuItem(message("save.gong.image"));
-                                save.setOnAction(ev -> saveGongImage(imageView.getImage()));
-                                contextMenu.getItems().add(save);
-                                imageView.setOnContextMenuRequested(ev -> contextMenu.show(imageView, ev.getScreenX(), ev.getScreenY()));
-                            },
-                            () -> {
-                                message.setManaged(true);
-                                message.setText(message("no.image.available"));
-                                imageView.setImage(null);
-                            });
-                    downloadButton.setText(message("download.gong.image"));
-                    downloadButton.setDisable(false);
-                });
-            });
-        });
-
-        vbox.getChildren().addAll(titleLabel, datePickerBox, downloadButton, message, imageView);
-
-        var scrollPane = new ScrollPane(vbox);
-        scrollPane.setFitToWidth(true);
-        scrollPane.setFitToHeight(true);
-
-        Platform.runLater(() -> referenceImageTab.setContent(scrollPane));
-    }
-
-    private void saveGongImage(Image image) {
-        var fileChooser = new FileChooser();
-        fileChooser.getExtensionFilters().add(IMAGE_FILES_EXTENSIONS);
-        var file = fileChooser.showSaveDialog(rootStage);
-        if (file != null) {
-            BackgroundOperations.async(() -> {
-                try {
-                    var outputFile = file;
-                    var extIndex = outputFile.getName().lastIndexOf(".");
-                    if (extIndex == -1) {
-                        outputFile = new File(file.getParent(), file.getName() + ".png");
-                    }
-                    ImageIO.write(SwingFXUtils.fromFXImage(image, null), outputFile.getName().substring(outputFile.getName().lastIndexOf(".") + 1), outputFile);
-                } catch (IOException ex) {
-                    LOGGER.error(message("error.cannot.save.image"), ex);
-                }
-            });
-        }
     }
 
     private void maybeShowWelcomeMessage(Scene current) throws IOException {
@@ -1915,7 +1745,7 @@ public class JSolEx implements JSolExInterface {
 
     @Override
     public void prepareForGongImageDownload(ProcessParams processParams) {
-        createReferenceImageInterface(processParams.observationDetails().date());
+        referenceImageHelper.createReferenceImageInterface(processParams.observationDetails().date());
     }
 
     @Override
@@ -2043,170 +1873,51 @@ public class JSolEx implements JSolExInterface {
     }
 
     private void startBatchProcess(Header header, ProgressOperation progressOperation, ProcessParams params, List<File> selectedFiles, boolean autoTrimSerFile) {
-        newSession();
-        LOGGER.info(message("batch.mode.info"));
-        var tab = new Tab(message("batch.process"));
-        var table = new TableView<BatchItem>();
-        var batchItems = new ArrayList<BatchItem>(selectedFiles.size());
-        for (int i = 0; i < selectedFiles.size(); i++) {
-            var selectedFile = selectedFiles.get(i);
-            batchItems.add(new BatchItem(i, selectedFile, new SimpleDoubleProperty(0), FXCollections.synchronizedObservableList(FXCollections.observableArrayList()), new SimpleStringProperty(message("batch.pending")), new SimpleIntegerProperty(),
-                    new SimpleDoubleProperty(), new SimpleIntegerProperty(), new SimpleIntegerProperty(), new StringBuilder()));
-        }
-        table.getItems().addAll(batchItems);
-        var idColumn = new TableColumn<BatchItem, String>();
-        idColumn.setText("#");
-        idColumn.setCellValueFactory(param -> new SimpleStringProperty(String.format("%04d", param.getValue().id())));
-        var fnColumn = new TableColumn<BatchItem, String>();
-        fnColumn.setText(message("filename"));
-        fnColumn.setCellValueFactory(param -> new SimpleStringProperty(param.getValue().file().getName()));
-        var progressColumn = new TableColumn<BatchItem, Number>();
-        progressColumn.setText(message("reconstruction"));
-        progressColumn.setCellValueFactory(param -> param.getValue().reconstructionProgress());
-        progressColumn.setCellFactory(new ProgressCellFactory());
-        var images = new TableColumn<BatchItem, List<File>>();
-        images.setText(message("images"));
-        images.setCellValueFactory(param -> Bindings.createObjectBinding(() -> new ArrayList<>(param.getValue().generatedFiles()), param.getValue().generatedFiles()));
-        images.setCellFactory(new ImageLinksFactory());
-        var statusColumn = new TableColumn<BatchItem, String>();
-        statusColumn.setText(message("status"));
-        statusColumn.setCellValueFactory(param -> param.getValue().status());
-        var detectedActiveRegions = new TableColumn<BatchItem, Integer>();
-        detectedActiveRegions.setText(message("detected.active.regions"));
-        detectedActiveRegions.setCellValueFactory(param -> param.getValue().detectedActiveRegions().asObject());
-        var maxRedshiftKmPerSec = new TableColumn<BatchItem, Double>();
-        maxRedshiftKmPerSec.setText(message("max.redshift.km.per.sec"));
-        maxRedshiftKmPerSec.setCellValueFactory(param -> param.getValue().maxRedshiftKmPerSec().asObject());
-        maxRedshiftKmPerSec.setCellFactory(new RedshiftCellFactory());
-        var ellermanBombs = new TableColumn<BatchItem, Integer>();
-        ellermanBombs.setText(message("ellerman.bombs"));
-        ellermanBombs.setCellValueFactory(param -> param.getValue().ellermanBombs().asObject());
-        var flares = new TableColumn<BatchItem, Integer>();
-        flares.setText(message("flares"));
-        flares.setCellValueFactory(param -> param.getValue().flares().asObject());
-        var firstColumnsWidth = idColumn.widthProperty()
-                .add(fnColumn.widthProperty()
-                        .add(progressColumn.widthProperty()))
-                .add(statusColumn.widthProperty())
-                .add(20);
-        if (params.requestedImages().isEnabled(GeneratedImageKind.ACTIVE_REGIONS)) {
-            firstColumnsWidth = firstColumnsWidth.add(detectedActiveRegions.widthProperty());
-        }
-        if (params.requestedImages().isEnabled(GeneratedImageKind.REDSHIFT)) {
-            firstColumnsWidth = firstColumnsWidth.add(maxRedshiftKmPerSec.widthProperty());
-        }
-        if (params.requestedImages().isEnabled(GeneratedImageKind.ELLERMAN_BOMBS)) {
-            firstColumnsWidth = firstColumnsWidth.add(ellermanBombs.widthProperty());
-        }
-        if (params.requestedImages().isEnabled(GeneratedImageKind.FLARES)) {
-            firstColumnsWidth = firstColumnsWidth.add(flares.widthProperty());
-        }
-        images.prefWidthProperty().bind(table.widthProperty().subtract(firstColumnsWidth));
-        var columns = table.getColumns();
-        columns.setAll(idColumn, fnColumn, progressColumn, images);
-        if (params.requestedImages().isEnabled(GeneratedImageKind.ACTIVE_REGIONS)) {
-            columns.add(detectedActiveRegions);
-        }
-        if (params.requestedImages().isEnabled(GeneratedImageKind.REDSHIFT)) {
-            columns.add(maxRedshiftKmPerSec);
-        }
-        if (params.requestedImages().isEnabled(GeneratedImageKind.ELLERMAN_BOMBS)) {
-            columns.add(ellermanBombs);
-        }
-        if (params.requestedImages().isEnabled(GeneratedImageKind.FLARES)) {
-            columns.add(flares);
-        }
-        columns.add(statusColumn);
-        tab.setContent(table);
-        var tabs = mainPane.getTabs();
-        tabs.clear();
-        tabs.add(tab);
-        mainPane.getSelectionModel().select(0);
-        var interruptButton = addInterruptButton();
-        var interrupted = new AtomicBoolean();
-        Platform.runLater(() -> imageMathRun.setDisable(true));
-        var batchThread = new Thread(() -> {
-            try {
-                var batchContext = new BatchProcessingContext(
-                        batchItems,
-                        new HashSet<>(),
-                        new HashSet<>(),
-                        new AtomicBoolean(),
-                        selectedFiles.getFirst().getParentFile(),
-                        LocalDateTime.now(),
-                        new HashMap<>(),
-                        new HashMap<>(),
-                        new HashMap<>(),
-                        new HashMap<>(),
-                        new HashMap<>(),
-                        header,
-                        new HashMap<>(),
-                        new HashMap<>(),
-                        new ReentrantReadWriteLock());
-                try (var executor = Executors.newFixedThreadPool(2)) {
-                    for (int fileIdx = 0; fileIdx < selectedFiles.size(); fileIdx++) {
-                        if (Thread.currentThread().isInterrupted() || interrupted.get()) {
-                            Thread.currentThread().interrupt();
-                            interrupted.set(true);
-                            break;
-                        }
-                        var selectedFile = selectedFiles.get(fileIdx);
-                        var singleOperation = progressOperation.createChild(selectedFile.getName());
-                        updateProgress(singleOperation);
-                        int finalFileIdx = fileIdx;
-                        executor.submit(() -> {
-                            try {
-                                processSingleFile(params, singleOperation.update(((double) finalFileIdx) / selectedFiles.size()), selectedFile, true, finalFileIdx, batchContext, header, () -> {
-                                    if (autoTrimSerFile && !interrupted.get()) {
-                                        var outputFile = toTrimmedFile(trimmingParameters.serFile());
-                                        SerFileTrimmer.trimFile(
-                                                trimmingParameters.serFile(),
-                                                outputFile,
-                                                trimmingParameters.firstFrame(),
-                                                trimmingParameters.lastFrame(),
-                                                trimmingParameters.pixelsUp(),
-                                                trimmingParameters.pixelsDown(),
-                                                trimmingParameters.minX(),
-                                                trimmingParameters.maxX(),
-                                                trimmingParameters.polynomial(),
-                                                trimmingParameters.verticalFlip(),
-                                                progress -> updateProgress(
-                                                        progress,
-                                                        I18N.string(JSolEx.class, "ser-trimmer", "trimming")
-                                                )
-                                        );
-                                        SerFileTrimmerController.maybeCopyMetadata(trimmingParameters.serFile());
-                                    }
-                                });
-                            } finally {
-                                updateProgress(singleOperation.complete());
-                            }
-                        });
-                    }
-                }
-            } finally {
-                Platform.runLater(() -> {
-                    workButtons.getChildren().remove(interruptButton);
-                    imageMathRun.setDisable(false);
-                });
-            }
-        });
-        interruptButton.setOnAction(e -> {
-            interrupted.set(true);
-            interruptButton.setDisable(true);
-            BackgroundOperations.interrupt();
-            batchThread.interrupt();
-            hideProgress();
-            Platform.runLater(() -> imageMathRun.setDisable(false));
-        });
-        batchThread.start();
+        batchProcessingHelper.startBatchProcess(this, header, progressOperation, params, selectedFiles, autoTrimSerFile);
     }
 
-    private Button addInterruptButton() {
+    @Override
+    public Button addInterruptButton() {
         var interruptButton = new Button(message("interrupt"));
         interruptButton.getStyleClass().add("default-button");
         Platform.runLater(() -> workButtons.getChildren().add(interruptButton));
         return interruptButton;
+    }
+
+    @Override
+    public void removeInterruptButton(Button button) {
+        Platform.runLater(() -> workButtons.getChildren().remove(button));
+    }
+
+    @Override
+    public TabPane getMainPane() {
+        return mainPane;
+    }
+
+    @Override
+    public void setImageMathRunDisabled(boolean disabled) {
+        Platform.runLater(() -> imageMathRun.setDisable(disabled));
+    }
+
+    @Override
+    public TrimmingParameters getTrimmingParameters() {
+        return trimmingParameters;
+    }
+
+    @Override
+    public File toTrimmedFile(File serFile) {
+        return SerFileTrimmerController.toTrimmedFile(serFile);
+    }
+
+    @Override
+    public void processSingleFile(ProcessParams params,
+                                  ProgressOperation operation,
+                                  File selectedFile,
+                                  int sequenceNumber,
+                                  BatchProcessingContext context,
+                                  Header header,
+                                  Runnable onComplete) {
+        processSingleFile(params, operation, selectedFile, true, sequenceNumber, context, header, onComplete);
     }
 
     private void processSingleFile(ProcessParams params,
@@ -2541,64 +2252,6 @@ public class JSolEx implements JSolExInterface {
             copyItem.setDisable(!hasSelection);
             pasteItem.setDisable(!hasClipboardText);
         });
-    }
-
-    private static class ProgressCellFactory implements Callback<TableColumn<BatchItem, Number>, TableCell<BatchItem, Number>> {
-        @Override
-        public TableCell<BatchItem, Number> call(TableColumn<BatchItem, Number> param) {
-            var cell = new TableCell<BatchItem, Number>();
-            cell.itemProperty().addListener((observable, oldValue, newValue) -> {
-                if (newValue != null) {
-                    var node = cell.graphicProperty().get();
-                    if (node instanceof ProgressBar progress) {
-                        progress.setProgress(newValue.doubleValue());
-                    } else {
-                        var progress = new ProgressBar(newValue.doubleValue());
-                        cell.graphicProperty().set(progress);
-                    }
-                }
-            });
-            return cell;
-        }
-    }
-
-    private static class RedshiftCellFactory implements Callback<TableColumn<BatchItem, Double>, TableCell<BatchItem, Double>> {
-
-        @Override
-        public TableCell<BatchItem, Double> call(TableColumn<BatchItem, Double> column) {
-            var cell = new TableCell<BatchItem, Double>();
-            cell.itemProperty().addListener((observable, oldValue, newValue) -> {
-                if (newValue != null) {
-                    cell.graphicProperty().set(new Label(String.format("%.2f km/s", newValue)));
-                }
-            });
-            return cell;
-        }
-    }
-
-    private static class ImageLinksFactory implements Callback<TableColumn<BatchItem, List<File>>, TableCell<BatchItem, List<File>>> {
-
-        @Override
-        public TableCell<BatchItem, List<File>> call(TableColumn<BatchItem, List<File>> param) {
-            var cell = new TableCell<BatchItem, List<File>>();
-            cell.itemProperty().addListener((observable, oldValue, newValue) -> {
-                if (newValue != null && !newValue.isEmpty()) {
-                    var vbox = (VBox) cell.graphicProperty().get();
-                    if (vbox == null) {
-                        vbox = new VBox();
-                        cell.graphicProperty().set(vbox);
-                    } else {
-                        vbox.getChildren().clear();
-                    }
-                    for (File file : newValue) {
-                        var link = new Hyperlink(file.getName());
-                        link.setOnAction(e -> ExplorerSupport.openInExplorer(file.toPath()));
-                        vbox.getChildren().add(link);
-                    }
-                }
-            });
-            return cell;
-        }
     }
 
 }
