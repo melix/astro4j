@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.spectrum;
 
 import me.champeau.a4j.jsolex.processing.util.Constants;
+import me.champeau.a4j.jsolex.processing.util.DurationFormatter;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.ser.ColorMode;
 import me.champeau.a4j.ser.Header;
@@ -28,7 +29,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.time.Duration;
 import java.util.function.Consumer;
 import java.util.function.DoubleUnaryOperator;
 
@@ -125,9 +125,7 @@ public class SerFileTrimmer {
         } catch (Exception ex) {
             throw new ProcessingException("Error while rewriting SER file", ex);
         }
-        var ed = System.nanoTime();
-        var dur = Duration.ofNanos(ed - sd);
-        LOGGER.info(message("ser.trim.duration"), dur.toSeconds(), dur.toMillisPart());
+        LOGGER.info(message("ser.trim.duration"), DurationFormatter.formatNanos(System.nanoTime() - sd));
     }
 
     private static SerFileWriter createWriter(File outputSerFile, Header header, int newWidth, int newHeight) throws IOException {

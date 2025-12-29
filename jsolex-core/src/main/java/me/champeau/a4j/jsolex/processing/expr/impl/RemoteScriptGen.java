@@ -20,6 +20,7 @@ import me.champeau.a4j.jsolex.expr.ExpressionEvaluator;
 import me.champeau.a4j.jsolex.processing.expr.AbstractImageExpressionEvaluator;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
+import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 
 import java.net.URI;
@@ -66,8 +67,8 @@ public class RemoteScriptGen extends AbstractFunctionImpl {
                                 broadcaster
                         ) {
                             @Override
-                            protected void populateContext(AbstractImageExpressionEvaluator evaluator) {
-                                super.populateContext(evaluator);
+                            protected void populateContext(AbstractImageExpressionEvaluator evaluator, ProgressOperation executionOperation) {
+                                super.populateContext(evaluator, executionOperation);
                                 userFunctions.forEach(evaluator::putFunction);
                             }
                         };

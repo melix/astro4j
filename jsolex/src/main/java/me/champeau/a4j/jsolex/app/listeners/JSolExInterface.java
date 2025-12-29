@@ -106,6 +106,12 @@ public interface JSolExInterface {
     void updateProgress(double progress, String text);
 
     /**
+     * Updates the progress indicator with a progress operation.
+     * @param operation the progress operation to display
+     */
+    void updateProgress(ProgressOperation operation);
+
+    /**
      * Prepares the UI for script execution.
      * @param executor the script executor
      * @param params the processing parameters

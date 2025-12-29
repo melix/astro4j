@@ -721,7 +721,7 @@ public class RedshiftImagesProcessor {
 
             @Override
             public void onProgress(ProgressEvent e) {
-                BatchOperations.submitOneOfAKind("progress", () -> owner.updateProgress(e.getPayload().progress(), e.getPayload().task()));
+                BatchOperations.submitOneOfAKind("progress", () -> owner.updateProgress(e.getPayload()));
             }
         });
         solexVideoProcessor.setIgnoreIncompleteShifts(true);

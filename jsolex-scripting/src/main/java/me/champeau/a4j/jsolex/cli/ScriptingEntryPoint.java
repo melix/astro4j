@@ -37,6 +37,7 @@ import me.champeau.a4j.jsolex.processing.util.AnimationFormat;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.ImageSaver;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
+import me.champeau.a4j.jsolex.processing.util.DurationFormatter;
 import me.champeau.a4j.jsolex.processing.util.NativeLibrariesUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,7 +49,6 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Files;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -176,8 +176,7 @@ public class ScriptingEntryPoint implements Runnable {
             LOGGER.error("An error happened during processing", ex);
             System.exit(-1);
         } finally {
-            var dur = Duration.ofNanos(System.nanoTime() - sd);
-            System.out.println("Total time: " + dur.toSeconds() + "s" + dur.toMillisPart() + "ms");
+            System.out.println("Total time: " + DurationFormatter.formatNanos(System.nanoTime() - sd));
         }
         System.exit(0);
     }

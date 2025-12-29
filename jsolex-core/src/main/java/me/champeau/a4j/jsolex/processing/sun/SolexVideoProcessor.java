@@ -504,6 +504,7 @@ public class SolexVideoProcessor implements Broadcaster {
                             broadcast(generationOperation.update(((double) progress.incrementAndGet()) / runnables.size()));
                         }
                     });
+            broadcast(generationOperation.complete());
         } else {
             LOGGER.error(message("unable.find.spectral.line"));
         }
@@ -654,6 +655,7 @@ public class SolexVideoProcessor implements Broadcaster {
                     prepareImageForCorrections(i, header, initialFit.orElse(null), imageEmitterFactory.newEmitter(this, outputDirectory));
                     broadcast(prepareOperation.update(pg));
                 });
+        broadcast(prepareOperation.complete());
         var fitting = performEllipseFitting(imageList, imageEmitterFactory);
         IntStream.range(0, imageList.size()).parallel().forEach(i -> {
             var state = imageList.get(i);
@@ -813,7 +815,7 @@ public class SolexVideoProcessor implements Broadcaster {
         var ellipse = e != null ? e.rotate(-Math.PI / 2, reconstructed.width(), reconstructed.height(), width, height) : null;
         for (int i = 0; i < passes; i++) {
             BandingReduction.reduceBanding(width, height, buffer, bandSize, ellipse);
-            broadcast(operation.update((i + 1d / passes)));
+            broadcast(operation.update((i + 1d) / passes));
         }
         broadcast(operation.complete());
         // rotate back to original orientation
@@ -1473,6 +1475,8 @@ public class SolexVideoProcessor implements Broadcaster {
         try (var detectionPool = Executors.newFixedThreadPool(Math.max(2, Runtime.getRuntime().availableProcessors() / 2))) {
             try (var conversionPool = Executors.newFixedThreadPool(Math.max(2, conversionProcs))) {
                 var reconstructedImages = new float[images.length][totalLines][width];
+                var reconstructionOperation = newOperation(message("reconstruction"));
+                var completedFrames = new AtomicInteger(0);
                 for (int i = start, j = 0; i < end; i++, j += 1) {
                     semaphore.acquire();
                     var currentFrame = reader.currentFrame().data().array();
@@ -1484,7 +1488,6 @@ public class SolexVideoProcessor implements Broadcaster {
                     int frameId = i;
                     ops.countUp();
                     conversionPool.submit(() -> {
-                        var progressOperation = newOperation(message("reconstruction"));
                         try {
                             // The converter makes sure we only have a single channel
                             converter.convert(frameId, ByteBuffer.wrap(copy), geometry, original);
@@ -1494,39 +1497,36 @@ public class SolexVideoProcessor implements Broadcaster {
                             for (int idx = 0; idx < images.length; idx++) {
                                 var state = images[idx];
                                 var buffer = reconstructedImages[idx];
-                                try {
-                                    var truncationDetails = new TruncationDetails();
-                                    processSingleFrame(state.isInternal(), width, height, buffer, y, original, polynomial, state.pixelShift(), totalLines, jSolexSer, truncationDetails);
-                                    state.setTruncationDetails(truncationDetails);
-                                    if (detectPhenomena && state.pixelShift() == 0) {
-                                        ops.countUp();
-                                        detectionPool.submit(() -> {
-                                            try {
-                                                phenomenaDetector.setDetectBorders(detectBorders);
-                                                phenomenaDetector.setDetectRedshifts(detectRedshifts);
-                                                phenomenaDetector.setDetectEllermanBombsOrFlares(detectEllermanBombs);
-                                                phenomenaDetector.setDetectActiveRegions(detectActiveRegions);
-                                                phenomenaDetector.performDetection(frameId, width, height, original, polynomial, reader.header());
-                                                hasRedshifts.set(hasRedshifts.get() || phenomenaDetector.isRedShiftDetectionEnabled());
-                                                hasActiveRegions.set(hasActiveRegions.get() || phenomenaDetector.isActiveRegionsDetectionEnabled());
-                                                hasFlares.set(hasFlares.get() || phenomenaDetector.isEllermanBombsDetectionEnabled());
-                                            } finally {
-                                                ops.countDown();
-                                            }
-                                        });
-                                    }
-                                } finally {
-                                    broadcast(progressOperation.update(((double) processedCount.incrementAndGet()) / totalCount));
+                                var truncationDetails = new TruncationDetails();
+                                processSingleFrame(state.isInternal(), width, height, buffer, y, original, polynomial, state.pixelShift(), totalLines, jSolexSer, truncationDetails);
+                                state.setTruncationDetails(truncationDetails);
+                                if (detectPhenomena && state.pixelShift() == 0) {
+                                    ops.countUp();
+                                    detectionPool.submit(() -> {
+                                        try {
+                                            phenomenaDetector.setDetectBorders(detectBorders);
+                                            phenomenaDetector.setDetectRedshifts(detectRedshifts);
+                                            phenomenaDetector.setDetectEllermanBombsOrFlares(detectEllermanBombs);
+                                            phenomenaDetector.setDetectActiveRegions(detectActiveRegions);
+                                            phenomenaDetector.performDetection(frameId, width, height, original, polynomial, reader.header());
+                                            hasRedshifts.set(hasRedshifts.get() || phenomenaDetector.isRedShiftDetectionEnabled());
+                                            hasActiveRegions.set(hasActiveRegions.get() || phenomenaDetector.isActiveRegionsDetectionEnabled());
+                                            hasFlares.set(hasFlares.get() || phenomenaDetector.isEllermanBombsDetectionEnabled());
+                                        } finally {
+                                            ops.countDown();
+                                        }
+                                    });
                                 }
                             }
                         } finally {
                             semaphore.release();
-                            broadcast(progressOperation.complete());
+                            broadcast(reconstructionOperation.update((double) completedFrames.incrementAndGet() / totalLines));
                             ops.countDown();
                         }
                     });
                 }
                 ops.awaitZero();
+                broadcast(reconstructionOperation.complete());
                 if (hasRedshifts.get() && !phenomenaDetector.hasRedshifts()) {
                     LOGGER.warn(message("no.redshifts.detected"));
                 }

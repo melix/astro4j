@@ -57,6 +57,7 @@ import me.champeau.a4j.jsolex.app.AlertFactory;
 import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.app.jfx.ApplyUserRotation;
+import me.champeau.a4j.jsolex.processing.util.DurationFormatter;
 import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
 import me.champeau.a4j.jsolex.app.jfx.CustomAnimationCreator;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
@@ -226,7 +227,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private ImageMathScriptExecutor imageScriptExecutor;
     private final Map<String, Object> pendingVariables = new HashMap<>();
     private long sd;
-    private long ed;
     private final Map<PixelShift, ImageWrapper> shiftImages;
     private int width;
     private int height;
@@ -285,7 +285,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         this.processingDate = processingDate;
         imageViews = new HashMap<>();
         sd = 0;
-        ed = 0;
         width = 0;
         height = 0;
     }
@@ -322,10 +321,14 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     public void onPartialReconstruction(PartialReconstructionEvent event) {
         var payload = event.getPayload();
         var y = payload.line();
+        var totalLines = payload.totalLines();
         if (reconstructionProgress == null) {
             reconstructionProgress = rootOperation.createChild(message("reconstructing"));
         }
-        onProgress(ProgressEvent.of(reconstructionProgress.update((y + 1d) / height, message("reconstructing"))));
+        // Use totalLines from the payload, not the height field which can be overwritten
+        // by geometry correction events during reconstruction
+        var progress = totalLines > 0 ? (y + 1d) / totalLines : 0;
+        onProgress(ProgressEvent.of(reconstructionProgress.update(progress, message("reconstructing"))));
 
         if (!payload.display()) {
             return;
@@ -436,6 +439,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         var frameCount = serFileReader.header().frameCount();
         var converter = ImageUtils.createImageConverter(params.videoParams().colorMode(), params.geometryParams().isSpectrumVFlip());
         var pixelformat = PixelFormat.getByteRgbInstance();
+        if (reconstructionProgress != null) {
+            onProgress(ProgressEvent.of(reconstructionProgress.complete()));
+        }
         reconstructionProgress = null;
 
         // Force final UI updates for all reconstruction views to ensure complete display
@@ -779,6 +785,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
                                 // Create a list to hold the extracted frames
                                 var frames = new ArrayList<ImageWrapper>();
+                                var totalFramesToExtract = endFrame - startFrame + 1;
+                                var extractionOp = rootOperation.createChild("Extracting frames");
 
                                 // Extract frames from the selected frame range with width-only cropping (preserve full height)
                                 for (var frameIndex = startFrame; frameIndex <= endFrame; frameIndex++) {
@@ -803,15 +811,13 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
                                     frames.add(croppedFrame);
 
-                                    // Update progress
+                                    // Update progress every 10 frames
                                     if ((frameIndex - startFrame) % 10 == 0) {
-                                        var totalFramesToExtract = endFrame - startFrame + 1;
                                         var currentFrame = frameIndex - startFrame + 1;
-                                        var progressOp = rootOperation.createChild("Extracting frame " + currentFrame + "/" + totalFramesToExtract);
-                                        progressOp.update(currentFrame / (double) totalFramesToExtract, "Extracting frame " + currentFrame + "/" + totalFramesToExtract);
-                                        broadcast(progressOp);
+                                        broadcast(extractionOp.update(currentFrame / (double) totalFramesToExtract, "Extracting frame " + currentFrame + "/" + totalFramesToExtract));
                                     }
                                 }
+                                broadcast(extractionOp.complete());
 
                                 if (frames.isEmpty()) {
                                     throw new IllegalStateException("No frames were extracted - cannot create animation");
@@ -1049,9 +1055,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         for (var entry : pendingVariables.entrySet()) {
             imageScriptExecutor.putVariable(entry.getKey(), entry.getValue());
         }
-        ed = payload.timestamp();
-        var duration = java.time.Duration.ofNanos(ed - sd);
-        var seconds = duration.toMillis() / 1000d;
         var sb = new StringBuilder();
         if (!suggestions.isEmpty()) {
             sb.append(message("suggestions") + " :\n");
@@ -1059,13 +1062,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 sb.append("    - ").append(suggestion).append("\n");
             }
         }
-        LOGGER.info(message("processing.done"));
-        var finishedString = String.format(message("finished.in"), seconds);
-        LOGGER.info(finishedString);
         owner.prepareForScriptExecution(this, params, rootOperation, SectionKind.SINGLE);
         suggestions.clear();
         System.gc();
-        broadcast(rootOperation.update(1, finishedString));
         var redshifts = payload.redshifts();
         var polynomial = payload.polynomial();
         var averageImage = payload.averageImage();
@@ -1089,6 +1088,11 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         ));
         owner.prepareForGongImageDownload(processParams);
         executeSingleFileBatchScripts();
+        // Calculate duration after all work is done (including scripts)
+        var finishedString = String.format(message("finished.in"), DurationFormatter.formatNanos(System.nanoTime() - sd));
+        LOGGER.info(message("processing.done"));
+        LOGGER.info(finishedString);
+        broadcast(rootOperation.update(1, finishedString));
         Platform.runLater(() -> {
             var tabPane = profileTab.getTabPane();
             if (tabPane != null) {
@@ -1110,12 +1114,13 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         context.put(ImageEmitter.class, payload.customImageEmitter());
         context.put(PixelShiftRange.class, payload.pixelShiftRange());
         context.put(AnimationFormat.class, Configuration.getInstance().getAnimationFormats());
+        context.put(ProgressOperation.class, rootOperation);
         return context;
     }
 
     @Override
     public void onProgress(ProgressEvent e) {
-        owner.updateProgress(e.getPayload().progress(), e.getPayload().taskPath());
+        owner.updateProgress(e.getPayload());
     }
 
     @Override
@@ -1137,7 +1142,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
     @Override
     public ImageMathScriptResult execute(String script, SectionKind kind) {
-        var sd = System.nanoTime();
         // perform a first pass just to check if they are missing image shifts
         var missingShifts = determineShiftsRequiredInScript(script);
         shiftImages.keySet().stream().map(PixelShift::pixelShift).toList().forEach(missingShifts::remove);
@@ -1166,9 +1170,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         if (!invalidExpressions.isEmpty()) {
             Platform.runLater(() -> ScriptErrorDialog.showErrors(invalidExpressions));
         }
-        var dur = java.time.Duration.ofNanos(System.nanoTime() - sd);
-        var secs = dur.toSeconds() + (dur.toMillisPart() / 1000d);
-        onProgress(ProgressEvent.of(rootOperation.complete(String.format(Constants.message("script.completed.in.format"), secs))));
         return result;
     }
 
@@ -1221,7 +1222,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
             @Override
             public void onProgress(ProgressEvent e) {
-                BatchOperations.submitOneOfAKind("progress", () -> owner.updateProgress(e.getPayload().progress(), e.getPayload().task()));
+                BatchOperations.submitOneOfAKind("progress", () -> owner.updateProgress(e.getPayload()));
             }
         });
         solexVideoProcessor.setForceDetectActiveRegions(params.requestedImages().isEnabled(GeneratedImageKind.ACTIVE_REGIONS));
@@ -1856,8 +1857,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
                         @Override
                         public void onProgress(ProgressEvent e) {
-                            BatchOperations.submitOneOfAKind("progress", () ->
-                                    owner.updateProgress(e.getPayload().progress(), e.getPayload().task()));
+                            BatchOperations.submitOneOfAKind("progress", () -> owner.updateProgress(e.getPayload()));
                         }
                     });
                     solexVideoProcessor.setIgnoreIncompleteShifts(true);
@@ -2198,7 +2198,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
                     @Override
                     public void onProgress(ProgressEvent e) {
-                        BatchOperations.submitOneOfAKind("progress", () -> owner.updateProgress(e.getPayload().progress(), e.getPayload().task()));
+                        BatchOperations.submitOneOfAKind("progress", () -> owner.updateProgress(e.getPayload()));
                     }
                 });
                 params = newParams;

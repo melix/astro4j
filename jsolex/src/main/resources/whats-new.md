@@ -1,6 +1,6 @@
 # Welcome to JSol'Ex {{version}}!
 
-- [What's New in Version 4.4.3](#whats-new-in-version-4-4-3) - 3D viewer animation options
+- [What's New in Version 4.4.3](#whats-new-in-version-4-4-3) - UI improvements, new functions
 - [Version 4.4.2](#whats-new-in-version-4-4-2) - Educational explanations
 - [Version 4.4.1](#whats-new-in-version-4-4-1) - Bug fixes, improvements
 - [Version 4.4.0](#whats-new-in-version-4-4-0) - 3D Spectral Profile viewer, Spherical Tomography volume renderer
@@ -23,6 +23,7 @@
 - Added `TOP_BOTTOM` function: combines two images vertically (top and bottom)
 - Made `CONSENSUS` mode the default for stacking and added a sparse mode option, which makes stacking faster
 - Added a database of equipment to correct metadata entry errors (pixel size, BASS2000, etc.)
+- Reworked progress handling to be more responsive and informative during long operations
 
 ## What's New in Version 4.4.2
 

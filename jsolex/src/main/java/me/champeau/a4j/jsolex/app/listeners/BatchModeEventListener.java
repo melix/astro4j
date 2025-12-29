@@ -38,6 +38,7 @@ import me.champeau.a4j.jsolex.processing.event.PartialReconstructionEvent;
 import me.champeau.a4j.jsolex.processing.event.ProcessingDoneEvent;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProcessingStartEvent;
+import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.event.ScriptExecutionResultEvent;
 import me.champeau.a4j.jsolex.processing.event.SpectralLineDetectedEvent;
@@ -65,6 +66,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.RenamingImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.SourceInfo;
 import me.champeau.a4j.jsolex.processing.util.AnimationFormat;
 import me.champeau.a4j.jsolex.processing.util.Constants;
+import me.champeau.a4j.jsolex.processing.util.DurationFormatter;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageSaver;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
@@ -79,7 +81,6 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -490,20 +491,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     }
 
     private void batchFinished() {
-        var ed = System.nanoTime();
-        var duration = Duration.ofNanos(ed - sd);
-        long hours = duration.toHours();
-        long minutes = duration.minusHours(hours).toMinutes();
-        long seconds = duration.minusHours(hours).minusMinutes(minutes).getSeconds();
-        var millis = duration.minusHours(hours).minusMinutes(minutes).minusSeconds(seconds).toMillis();
-        var sb = new StringBuffer();
-        if (hours > 0) {
-            sb.append(hours).append("h ");
-        }
-        sb.append(minutes).append("m ");
-        sb.append(seconds).append("s ");
-        sb.append(millis).append("ms");
-        owner.updateProgress(1, String.format(message("batch.finished"), sb.toString()));
+        owner.updateProgress(1, String.format(message("batch.finished"), DurationFormatter.formatNanos(System.nanoTime() - sd)));
     }
 
     private boolean hasBatchScriptExpressions() {
@@ -768,6 +756,11 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                 owner.updateProgress(prog, String.format(message("batch.progress"), done, (int) totalItems));
             }
         });
+    }
+
+    @Override
+    public void onProgress(ProgressEvent e) {
+        owner.updateProgress(e.getPayload());
     }
 
     @Override
