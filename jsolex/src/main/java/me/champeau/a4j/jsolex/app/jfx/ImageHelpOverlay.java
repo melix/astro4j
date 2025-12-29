@@ -28,6 +28,8 @@ import me.champeau.a4j.jsolex.app.jfx.help.ImageHelpContentProvider;
 import me.champeau.a4j.jsolex.app.jfx.help.ImageHelpContentRegistry;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 
+import static me.champeau.a4j.jsolex.app.JSolEx.message;
+
 /**
  * Help overlay for image viewers that displays a text description and
  * optionally rich animated content for specific image kinds.
@@ -74,15 +76,31 @@ public class ImageHelpOverlay extends AbstractHelpOverlay {
         titleLabel.setTextFill(Color.rgb(255, 200, 100));
         titleLabel.setWrapText(true);
 
-        var descriptionFlow = parseFormattedText(description);
-        descriptionFlow.setPadding(new Insets(10, 0, 0, 0));
-
         var contentBox = new VBox(10);
         contentBox.setPadding(new Insets(20));
         contentBox.setAlignment(Pos.TOP_LEFT);
-        contentBox.getChildren().addAll(titleLabel, descriptionFlow);
+        contentBox.getChildren().add(titleLabel);
+
+        if (hasRichContent && kind == GeneratedImageKind.RECONSTRUCTION) {
+            var usageHeader = new Label(message("recon.view.usage.title"));
+            usageHeader.setFont(Font.font("System", FontWeight.BOLD, 14));
+            usageHeader.setTextFill(Color.rgb(220, 220, 220));
+            usageHeader.setPadding(new Insets(10, 0, 0, 0));
+            contentBox.getChildren().add(usageHeader);
+        }
+
+        var descriptionFlow = parseFormattedText(description);
+        descriptionFlow.setPadding(new Insets(5, 0, 0, 0));
+        contentBox.getChildren().add(descriptionFlow);
 
         if (hasRichContent) {
+            if (kind == GeneratedImageKind.RECONSTRUCTION) {
+                var explanationHeader = new Label(message("recon.view.explanation.title"));
+                explanationHeader.setFont(Font.font("System", FontWeight.BOLD, 14));
+                explanationHeader.setTextFill(Color.rgb(220, 220, 220));
+                explanationHeader.setPadding(new Insets(10, 0, 0, 0));
+                contentBox.getChildren().add(explanationHeader);
+            }
             var diagramContent = contentProvider.createContent();
             // Wrap with scalable diagram for fullscreen support
             var scalableDiagram = createScalableDiagram(
