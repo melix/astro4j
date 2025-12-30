@@ -24,6 +24,7 @@
 - Le mode `consensus` pour l'empilement est désormais le mode par défaut et une option de mode échantillonage automatique a été ajoutée, ce qui rend l'empilement plus rapide
 - Ajout d'une BDD de matériel pour corriger les erreurs de saisie dans les métadonnées (taille d pixels, BASS2000, etc.)
 - Amélioration de la barre de progression pour les opérations longues
+- Correction de la barre "statistiques" qui pouvait afficher une longueur d'onde incorrecte pour le centre de raie
 
 ## Nouveautés de la version 4.4.2
 

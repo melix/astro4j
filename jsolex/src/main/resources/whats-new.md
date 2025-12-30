@@ -24,6 +24,7 @@
 - Made `CONSENSUS` mode the default for stacking and added a sparse mode option, which makes stacking faster
 - Added a database of equipment to correct metadata entry errors (pixel size, BASS2000, etc.)
 - Reworked progress handling to be more responsive and informative during long operations
+- Fixed statistics bar which could show incorrect center wavelength in some cases
 
 ## What's New in Version 4.4.2
 

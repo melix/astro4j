@@ -16,14 +16,11 @@
 package me.champeau.a4j.jsolex.app.listeners;
 
 import javafx.application.Platform;
-import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.SnapshotParameters;
 import javafx.scene.chart.BarChart;
 import javafx.scene.chart.CategoryAxis;
 import javafx.scene.chart.LineChart;
@@ -34,7 +31,6 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
-import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TextArea;
@@ -44,20 +40,15 @@ import javafx.scene.image.WritableImage;
 import javafx.scene.image.WritablePixelFormat;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
-import javafx.scene.transform.Transform;
-import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Duration;
-import me.champeau.a4j.jsolex.app.AlertFactory;
 import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.app.jfx.ApplyUserRotation;
-import me.champeau.a4j.jsolex.processing.util.DurationFormatter;
 import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
 import me.champeau.a4j.jsolex.app.jfx.CustomAnimationCreator;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
@@ -65,12 +56,7 @@ import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
 import me.champeau.a4j.jsolex.app.jfx.OpenGLAvailability;
 import me.champeau.a4j.jsolex.app.jfx.ReconstructionView;
 import me.champeau.a4j.jsolex.app.jfx.RectangleSelectionListener;
-import me.champeau.a4j.jsolex.app.jfx.SamplingOptionsDialog;
 import me.champeau.a4j.jsolex.app.jfx.ScriptErrorDialog;
-import me.champeau.a4j.jsolex.app.jfx.SpectralEvolution4DViewer;
-import me.champeau.a4j.jsolex.app.jfx.SpectralLineSurface3DViewer;
-import me.champeau.a4j.jsolex.app.jfx.SphericalTomography3DViewer;
-import me.champeau.a4j.jsolex.app.jfx.SphericalTomographyCreator;
 import me.champeau.a4j.jsolex.app.jfx.ZoomableImageView;
 import me.champeau.a4j.jsolex.app.script.JSolExScriptExecutor;
 import me.champeau.a4j.jsolex.processing.event.AverageImageComputedEvent;
@@ -104,23 +90,17 @@ import me.champeau.a4j.jsolex.processing.expr.ShiftCollectingImageExpressionEval
 import me.champeau.a4j.jsolex.processing.expr.impl.Animate;
 import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
-import me.champeau.a4j.jsolex.processing.params.ImageMathParameterExtractor;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.OutputMetadata;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.RequestedImages;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
-import me.champeau.a4j.jsolex.processing.params.SpectroHeliograph;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectralLineAnalysis;
-import me.champeau.a4j.jsolex.processing.spectrum.SpectralLineSurfaceDataExtractor;
-import me.champeau.a4j.jsolex.processing.spectrum.SpectralProfileEvolutionExtractor;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
-import me.champeau.a4j.jsolex.processing.spectrum.SphericalTomographyExtractor;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
 import me.champeau.a4j.jsolex.processing.sun.TrimmingParameters;
-import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
@@ -131,6 +111,7 @@ import me.champeau.a4j.jsolex.processing.util.AnimationFormat;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.Dispersion;
+import me.champeau.a4j.jsolex.processing.util.DurationFormatter;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import me.champeau.a4j.jsolex.processing.util.Histogram;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
@@ -150,13 +131,9 @@ import me.champeau.a4j.ser.SerFileReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.imageio.ImageIO;
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.lang.ref.WeakReference;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -165,7 +142,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -173,10 +149,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.WeakHashMap;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.DoubleUnaryOperator;
 import java.util.function.Supplier;
@@ -184,11 +158,9 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
-import static me.champeau.a4j.jsolex.app.JSolEx.newScene;
 import static me.champeau.a4j.jsolex.app.jfx.BatchOperations.blockingUntilResultAvailable;
 import static me.champeau.a4j.jsolex.app.jfx.FXUtils.newModalStage;
 import static me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper.computeSerFileBasename;
-import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectoriesIfNeeded;
 
 /**
  * Event listener for single mode processing that handles processing events,
@@ -1436,7 +1408,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             }
 
             // Compute line statistics from the normalized data, using reference for continuum if available
-            currentLineStatistics = SpectralLineAnalysis.computeStatistics(normalizedDataPoints.dataPoints(), referenceDataPoints);
+            // Pass the real line center (selected wavelength) for accurate reporting
+            var realLineCenter = canDrawReference ? lambda0.nanos() : null;
+            currentLineStatistics = SpectralLineAnalysis.computeStatistics(normalizedDataPoints.dataPoints(), referenceDataPoints, realLineCenter);
 
             // Add FWHM visualization to the chart
             addFWHMVisualization(lineChart, currentLineStatistics, normalizedDataPoints.dataPoints());
@@ -1519,7 +1493,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 }
 
                 // Compute statistics for the line profile at clicked position, using reference for continuum if available
-                frameLineStatistics = SpectralLineAnalysis.computeStatistics(normalizedLineDataPoints.dataPoints(), referenceDataPoints);
+                frameLineStatistics = SpectralLineAnalysis.computeStatistics(normalizedLineDataPoints.dataPoints(), referenceDataPoints, realLineCenter);
             } else {
                 normalizedFrameDataPoints = null;
                 normalizedLineDataPoints = null;

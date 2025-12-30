@@ -93,7 +93,7 @@ public final class SpectralLineAnalysis {
      * @return the computed line statistics
      */
     public static LineStatistics computeStatistics(List<SpectrumAnalyzer.DataPoint> profile) {
-        return computeStatistics(profile, null);
+        return computeStatistics(profile, null, null);
     }
 
     /**
@@ -106,6 +106,23 @@ public final class SpectralLineAnalysis {
      */
     public static LineStatistics computeStatistics(List<SpectrumAnalyzer.DataPoint> profile,
                                                    List<SpectrumAnalyzer.DataPoint> referenceData) {
+        return computeStatistics(profile, referenceData, null);
+    }
+
+    /**
+     * Computes comprehensive statistics for a spectral line profile.
+     * When reference data is provided, uses it for line center estimation.
+     * When a real line center is provided, it is used as the reported line center wavelength.
+     *
+     * @param profile            the list of data points (wavelength, intensity)
+     * @param referenceData      optional reference spectrum (e.g., BASS2000) for line center estimation
+     * @param realLineCenterNano the real line center wavelength in nanometers (e.g., from selected spectral ray),
+     *                           or null to use the detected line center
+     * @return the computed line statistics
+     */
+    public static LineStatistics computeStatistics(List<SpectrumAnalyzer.DataPoint> profile,
+                                                   List<SpectrumAnalyzer.DataPoint> referenceData,
+                                                   Double realLineCenterNano) {
         if (profile == null || profile.size() < 3) {
             return LineStatistics.empty();
         }
@@ -113,15 +130,20 @@ public final class SpectralLineAnalysis {
         // Smooth the profile to reduce noise effects
         var smoothedProfile = smoothProfile(profile, 5);
 
-        // Find line center: prefer reference (BASS2000) for accuracy, else use smoothed profile
-        double lineCenterWavelength;
+        // Find detected line center for internal calculations (window filtering, etc.)
+        double detectedLineCenter;
         if (referenceData != null && !referenceData.isEmpty()) {
             var refMinPoint = findMinimumPoint(referenceData);
-            lineCenterWavelength = refMinPoint.wavelen().angstroms();
+            detectedLineCenter = refMinPoint.wavelen().angstroms();
         } else {
             var minPoint = findMinimumPoint(smoothedProfile);
-            lineCenterWavelength = minPoint.wavelen().angstroms();
+            detectedLineCenter = minPoint.wavelen().angstroms();
         }
+
+        // Use real line center (if provided) for reporting, otherwise use detected
+        double reportedLineCenter = realLineCenterNano != null
+            ? realLineCenterNano * 10.0  // convert nm to Angstroms
+            : detectedLineCenter;
 
         // Estimate continuum from the maximum intensity in the smoothed profile.
         // This works for both narrow (Ha) and broad (Ca K) lines since the profile edges
@@ -131,11 +153,11 @@ public final class SpectralLineAnalysis {
             .max()
             .orElse(0);
 
-        // Find minimum intensity from the raw profile within a window around line center.
+        // Find minimum intensity from the raw profile within a window around detected line center.
         // Use raw profile (not smoothed) to get the actual observed minimum at the line core.
         // Use ±2 Å window to account for wavelength calibration uncertainties.
         var minIntensity = profile.stream()
-            .filter(p -> Math.abs(p.wavelen().angstroms() - lineCenterWavelength) < 2.0)
+            .filter(p -> Math.abs(p.wavelen().angstroms() - detectedLineCenter) < 2.0)
             .mapToDouble(SpectrumAnalyzer.DataPoint::intensity)
             .min()
             .orElseGet(() -> findMinimumPoint(profile).intensity());
@@ -147,14 +169,14 @@ public final class SpectralLineAnalysis {
 
         // Determine adaptive fitting window based on profile shape
 
-        // Filter profile to fitting window around line center to avoid fitting secondary features
+        // Filter profile to fitting window around detected line center to avoid fitting secondary features
         var finalFitWindowHalfWidth = computeAdaptiveWindowHalfWidth(
-            smoothedProfile, lineCenterWavelength, continuum, minIntensity);
+            smoothedProfile, detectedLineCenter, continuum, minIntensity);
         var fittingProfile = profile.stream()
-            .filter(p -> Math.abs(p.wavelen().angstroms() - lineCenterWavelength) <= finalFitWindowHalfWidth)
+            .filter(p -> Math.abs(p.wavelen().angstroms() - detectedLineCenter) <= finalFitWindowHalfWidth)
             .toList();
 
-        var voigtFit = VoigtFitter.fit(fittingProfile, continuum, lineCenterWavelength);
+        var voigtFit = VoigtFitter.fit(fittingProfile, continuum, detectedLineCenter);
 
         double measuredFwhm = 0;
         Double blueHalfMax = null;
@@ -169,7 +191,7 @@ public final class SpectralLineAnalysis {
 
         return new LineStatistics(
             continuum,
-            lineCenterWavelength,
+            reportedLineCenter,
             minIntensity,
             lineDepth,
             measuredFwhm,
