@@ -4,9 +4,6 @@ import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.testing.Test
 import org.gradle.kotlin.dsl.withType
 import org.javamodularity.moduleplugin.extensions.TestModuleOptions
-import java.time.LocalDateTime
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 
 plugins {
     id("me.champeau.astro4j.base")
@@ -15,16 +12,14 @@ plugins {
     id("me.champeau.astro4j.modularity")
 }
 
-val date = LocalDateTime.now()
-    .atZone(ZoneId.of("UTC"))
-    .format(DateTimeFormatter.ofPattern("yyyyMMddHHmm"))
-
 // We can safely enable preview features because it's
 // an application, so no consumers except for the final
 // deliverable
 
+val sharedJvmArgs = listOf("--enable-preview", "--enable-native-access=javafx.graphics", "--enable-native-access=org.lwjgl.opengl", "--enable-native-access=org.lwjgl")
+
 application {
-    applicationDefaultJvmArgs = listOf("--enable-preview", "--enable-native-access=javafx.graphics")
+    applicationDefaultJvmArgs = sharedJvmArgs
 }
 
 tasks.withType<JavaExec>().configureEach {
@@ -32,7 +27,7 @@ tasks.withType<JavaExec>().configureEach {
     providers.systemPropertiesPrefixedBy("sysprop.").get().forEach { s, p ->
         systemProperty(s.substringAfter("sysprop."), p)
     }
-    jvmArgs("--enable-preview", "--enable-native-access=javafx.graphics")
+    jvmArgs(sharedJvmArgs)
 }
 
 tasks.withType<JavaCompile>().configureEach {
@@ -55,7 +50,7 @@ graalvmNative {
                 restrictToProjectDependencies.set(false)
             }
         }
-        jvmArgs("--enable-preview", "--enable-native-access=javafx.graphics")
+        jvmArgs(sharedJvmArgs)
     }
 }
 

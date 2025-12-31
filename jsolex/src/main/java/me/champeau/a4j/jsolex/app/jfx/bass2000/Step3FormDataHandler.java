@@ -72,6 +72,7 @@ class Step3FormDataHandler implements StepHandler {
     private TextField cameraLensFocalLengthField;
     private TextField orderField;
     private TextField totalAngleField;
+    private Label filenamePreviewLabel;
 
     private final List<TextField> requiredFields = new ArrayList<>();
     private final List<CheckBox> requiredCheckboxes = new ArrayList<>();
@@ -118,6 +119,7 @@ class Step3FormDataHandler implements StepHandler {
         cameraLensFocalLengthField = new TextField();
         orderField = new TextField();
         totalAngleField = new TextField();
+        filenamePreviewLabel = new Label();
 
         // Set up focal reducer for file name generator
         fileNameGenerator.setFocalReducerCheckbox(focalReducerCheckbox);
@@ -155,6 +157,7 @@ class Step3FormDataHandler implements StepHandler {
     public void load() {
         populateFormFromProcessParams();
         formValidator.validateAllFieldsVisually();
+        updateFilenamePreview();
     }
 
     @Override
@@ -311,6 +314,23 @@ class Step3FormDataHandler implements StepHandler {
         formGrid.add(mapContainer, 2, row);
         row++;
 
+        addSectionHeader(formGrid, message("filename.preview.section.title"), row++);
+
+        var filenamePreviewContainer = new VBox(5);
+        var filenameLabel = new Label(message("filename.preview.label"));
+        filenameLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 12px; -fx-text-fill: #495057;");
+
+        filenamePreviewLabel.setStyle("-fx-font-family: monospace; -fx-font-size: 11px; -fx-padding: 8; -fx-background-color: #f8f9fa; -fx-border-color: #dee2e6; -fx-border-radius: 4; -fx-background-radius: 4;");
+        filenamePreviewLabel.setWrapText(true);
+        filenamePreviewLabel.setMaxWidth(Double.MAX_VALUE);
+
+        var filenameHint = new Label(message("filename.preview.hint"));
+        filenameHint.setWrapText(true);
+        filenameHint.setStyle("-fx-font-size: 11px; -fx-text-fill: #666; -fx-font-style: italic;");
+
+        filenamePreviewContainer.getChildren().addAll(filenameLabel, filenamePreviewLabel, filenameHint);
+        formGrid.add(filenamePreviewContainer, 0, row++, 3, 1);
+
         addSectionHeader(formGrid, message("instrument.section.title"), row++);
 
         focalReducerCheckbox.setText(message("instrument.focal.reducer.checkbox"));
@@ -374,6 +394,8 @@ class Step3FormDataHandler implements StepHandler {
 
         totalAngleField.setPromptText(message("spectrograph.total.angle.prompt"));
         addFormField(formGrid, message("spectrograph.total.angle.label"), totalAngleField, 1, row++, true);
+
+        setupFilenamePreviewListeners();
 
         return formGrid;
     }
@@ -622,6 +644,50 @@ class Step3FormDataHandler implements StepHandler {
         if (latitude != 0.0 || longitude != 0.0) {
             siteLatitudeField.setText(String.format(Locale.US, "%.4f", latitude));
             siteLongitudeField.setText(String.format(Locale.US, "%.4f", longitude));
+        }
+    }
+
+    private void setupFilenamePreviewListeners() {
+        wavelengthField.valueProperty().addListener((obs, old, val) -> updateFilenamePreview());
+        focalReducerCheckbox.selectedProperty().addListener((obs, old, val) -> updateFilenamePreview());
+        mountNameField.textProperty().addListener((obs, old, val) -> updateFilenamePreview());
+        telescopeNameField.textProperty().addListener((obs, old, val) -> updateFilenamePreview());
+        telescopeFocalLengthField.textProperty().addListener((obs, old, val) -> updateFilenamePreview());
+        apertureField.textProperty().addListener((obs, old, val) -> updateFilenamePreview());
+        cameraNameField.textProperty().addListener((obs, old, val) -> updateFilenamePreview());
+        spectrographNameField.textProperty().addListener((obs, old, val) -> updateFilenamePreview());
+    }
+
+    private void updateFilenamePreview() {
+        try {
+            var processParams = processParamsSupplier.findProcessParams();
+            if (processParams == null) {
+                filenamePreviewLabel.setText(message("filename.preview.incomplete"));
+                return;
+            }
+
+            var selectedWavelength = wavelengthField.getValue();
+            if (selectedWavelength == null) {
+                filenamePreviewLabel.setText(message("filename.preview.incomplete"));
+                return;
+            }
+
+            var updatedParams = processParams
+                    .withObservationDetails(getObservationDetails())
+                    .withSpectrumParams(processParams.spectrumParams().withRay(selectedWavelength));
+
+            var tempImage = new me.champeau.a4j.jsolex.processing.util.ImageWrapper32(1, 1, new float[][]{{0}}, java.util.Map.of(
+                    me.champeau.a4j.jsolex.processing.params.ProcessParams.class, updatedParams
+            ));
+
+            var maybeFilename = fileNameGenerator.generateFileName(tempImage);
+            if (maybeFilename.isPresent()) {
+                filenamePreviewLabel.setText(maybeFilename.get() + ".fits");
+            } else {
+                filenamePreviewLabel.setText(message("filename.preview.incomplete"));
+            }
+        } catch (Exception e) {
+            filenamePreviewLabel.setText(message("filename.preview.incomplete"));
         }
     }
 }
