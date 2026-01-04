@@ -1,6 +1,6 @@
 # Welcome to JSol'Ex {{version}}!
 
-- [What's New in Version 4.4.3](#whats-new-in-version-4-4-3) - UI improvements, new functions
+- [What's New in Version 4.4.3](#whats-new-in-version-4-4-3) - UI improvements, new functions, BASS2000 validation
 - [Version 4.4.2](#whats-new-in-version-4-4-2) - Educational explanations
 - [Version 4.4.1](#whats-new-in-version-4-4-1) - Bug fixes, improvements
 - [Version 4.4.0](#whats-new-in-version-4-4-0) - 3D Spectral Profile viewer, Spherical Tomography volume renderer
