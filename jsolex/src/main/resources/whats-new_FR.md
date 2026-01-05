@@ -1,5 +1,6 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+- [Version 4.4.4](#nouveautes-de-la-version-4-4-3) - Correction de l'interface en anglais
 - [Version 4.4.3](#nouveautes-de-la-version-4-4-3) - Améliorations d'interfaces et nouvelles fonctions, validation BASS2000 améliorée
 - [Version 4.4.2](#nouveautes-de-la-version-4-4-2) - Explications à caractère éducatif
 - [Version 4.4.1](#nouveautes-de-la-version-4-4-1) - Corrections de bugs et améliorations
