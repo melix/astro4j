@@ -538,7 +538,7 @@ public class Bass2000SubmissionController {
                 var lineCenterFileName = baseFileName + ".fits";
                 Files.createDirectories(outputDirectory);
                 var lineCenterFile = outputDirectory.resolve(lineCenterFileName).toFile();
-                FitsUtils.writeFitsFile(generatedBass2000Image, lineCenterFile, findProcessParams(), false);
+                FitsUtils.writeFitsFile(generatedBass2000Image, lineCenterFile, withGeneratedInstrumentId(findProcessParams()), false);
                 step4Handler.setSavedFilePath(lineCenterFile);
 
                 if (generatedOffBandImage != null) {
@@ -552,7 +552,7 @@ public class Bass2000SubmissionController {
 
                     var offBandFileName = offBandBaseFileName + ".fits";
                     var offBandFile = outputDirectory.resolve(offBandFileName).toFile();
-                    FitsUtils.writeFitsFile(generatedOffBandImage, offBandFile, generatedOffBandImage.findMetadata(ProcessParams.class).orElseThrow(), false);
+                    FitsUtils.writeFitsFile(generatedOffBandImage, offBandFile, withGeneratedInstrumentId(generatedOffBandImage.findMetadata(ProcessParams.class).orElseThrow()), false);
                     step4Handler.setSavedOffBandFilePath(offBandFile);
                 }
 
@@ -597,6 +597,13 @@ public class Bass2000SubmissionController {
 
     private ProcessParams findProcessParams() {
         return generatedBass2000Image.findMetadata(ProcessParams.class).orElse(null);
+    }
+
+    private ProcessParams withGeneratedInstrumentId(ProcessParams params) {
+        var instrumentId = fileNameGenerator.generateInstrumentId(params);
+        var observationDetails = params.observationDetails();
+        var updatedInstrument = observationDetails.instrument().withLabel(instrumentId);
+        return params.withObservationDetails(observationDetails.withInstrument(updatedInstrument));
     }
 
     private void updateNextButtonState() {

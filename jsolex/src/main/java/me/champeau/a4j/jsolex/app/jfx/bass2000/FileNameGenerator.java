@@ -108,7 +108,7 @@ class FileNameGenerator {
                 .orElseThrow();
     }
 
-    private String generateInstrumentId(ProcessParams params) {
+    String generateInstrumentId(ProcessParams params) {
         var observationDetails = params.observationDetails();
         var instrument = observationDetails.instrument();
 

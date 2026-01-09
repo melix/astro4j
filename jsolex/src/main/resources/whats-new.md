@@ -1,5 +1,6 @@
 # Welcome to JSol'Ex {{version}}!
 
+- [Version 4.4.5](#whats-new-in-version-4-4-5) - BASS2000 submission fix
 - [Version 4.4.4](#whats-new-in-version-4-4-3) - Fix process params dialog empty in English
 - [Version 4.4.3](#whats-new-in-version-4-4-3) - UI improvements, new functions, BASS2000 validation
 - [Version 4.4.2](#whats-new-in-version-4-4-2) - Educational explanations
@@ -16,6 +17,10 @@
 - [Version 4.1.0](#whats-new-in-version-4-1-0) - User-defined presets, collage creation
 - [Version 4.0.1](#whats-new-in-version-4-0-1) - Language selection, bug fixes
 - [Version 4.0.0](#whats-new-in-version-4-0-0) - Enhanced UI, BASS2000 integration
+
+## What's New in Version 4.4.5
+
+- Fixed INSTRUME FITS header value not being properly set in BASS2000 submissions
 
 ## What's New in Version 4.4.3
 

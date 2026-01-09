@@ -1,5 +1,6 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+- [Version 4.4.5](#nouveautes-de-la-version-4-4-5) - Correction soumission BASS2000
 - [Version 4.4.4](#nouveautes-de-la-version-4-4-3) - Correction de l'interface en anglais
 - [Version 4.4.3](#nouveautes-de-la-version-4-4-3) - Améliorations d'interfaces et nouvelles fonctions, validation BASS2000 améliorée
 - [Version 4.4.2](#nouveautes-de-la-version-4-4-2) - Explications à caractère éducatif
@@ -16,6 +17,10 @@
 - [Version 4.1.0](#nouveautes-de-la-version-4-1-0) - Préréglages utilisateur, création de collages
 - [Version 4.0.1](#nouveautes-de-la-version-4-0-1) - Sélection de langue, corrections
 - [Version 4.0.0](#nouveautes-de-la-version-4-0-0) - Interface améliorée, intégration BASS2000
+
+## Nouveautés de la version 4.4.5
+
+- Correction de la valeur du champ FITS INSTRUME qui n'était pas correctement renseignée dans les soumissions BASS2000
 
 ## Nouveautés de la version 4.4.3
 
