@@ -29,15 +29,18 @@ public class ExpressionDAG {
     private final Map<String, DependencyInfo> nodes;
     private final Map<String, Set<String>> adjacencyList;
     private final Map<String, Integer> inDegree;
+    private final Map<String, List<DependencyInfo>> allDefinitions;
 
     public ExpressionDAG() {
         this.nodes = new HashMap<>();
         this.adjacencyList = new HashMap<>();
         this.inDegree = new HashMap<>();
+        this.allDefinitions = new HashMap<>();
     }
 
     public void addNode(DependencyInfo info) {
         var varName = info.variableName();
+        allDefinitions.computeIfAbsent(varName, k -> new ArrayList<>()).add(info);
         nodes.put(varName, info);
         adjacencyList.putIfAbsent(varName, new HashSet<>());
         inDegree.putIfAbsent(varName, 0);
@@ -79,7 +82,7 @@ public class ExpressionDAG {
                 var remaining = nodes.keySet().stream()
                         .filter(v -> !processed.contains(v))
                         .toList();
-                throw new IllegalStateException("Circular dependency detected among variables: " + remaining);
+                throw new IllegalStateException(buildCircularDependencyMessage(remaining));
             }
 
             if (!parallelizable.isEmpty()) {
@@ -101,6 +104,46 @@ public class ExpressionDAG {
         }
 
         return levels;
+    }
+
+    private String buildCircularDependencyMessage(List<String> remainingVariables) {
+        var sb = new StringBuilder();
+
+        var duplicates = remainingVariables.stream()
+                .filter(v -> allDefinitions.getOrDefault(v, List.of()).size() > 1)
+                .toList();
+
+        if (!duplicates.isEmpty()) {
+            sb.append("Variable name conflict detected. The following variables are defined multiple times in different sections:\n\n");
+            for (var varName : duplicates) {
+                var definitions = allDefinitions.get(varName);
+                sb.append("  '").append(varName).append("' is defined in:\n");
+                for (var def : definitions) {
+                    var section = def.sectionName().isEmpty() ? "(default)" : "[" + def.sectionName() + "]";
+                    sb.append("    - ").append(section).append(": ").append(varName).append(" = ").append(def.assignment().expression()).append("\n");
+                }
+            }
+            sb.append("\nWhen a variable is defined in both [tmp] and [outputs] sections, the [outputs] definition shadows ");
+            sb.append("the [tmp] one, but other variables may still reference the [tmp] version, creating a conflict.\n\n");
+            sb.append("To fix this, rename the variable in one of the sections. For example, rename '")
+                    .append(duplicates.getFirst())
+                    .append("' in [tmp] to '")
+                    .append(duplicates.getFirst())
+                    .append("_tmp'.");
+        } else {
+            sb.append("Circular dependency detected among variables: ").append(remainingVariables).append("\n\n");
+            sb.append("The following dependencies form a cycle:\n");
+            for (var varName : remainingVariables) {
+                var info = nodes.get(varName);
+                var deps = info.dependencies().stream()
+                        .filter(remainingVariables::contains)
+                        .toList();
+                if (!deps.isEmpty()) {
+                    sb.append("  ").append(varName).append(" depends on: ").append(deps).append("\n");
+                }
+            }
+        }
+        return sb.toString();
     }
 
     public record ExecutionLevel(
