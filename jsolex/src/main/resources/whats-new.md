@@ -1,5 +1,6 @@
 # Welcome to JSol'Ex {{version}}!
 
+- [Version 4.4.6](#whats-new-in-version-4-4-6) - Script evaluation fix
 - [Version 4.4.5](#whats-new-in-version-4-4-5) - BASS2000 submission fix
 - [Version 4.4.4](#whats-new-in-version-4-4-3) - Fix process params dialog empty in English
 - [Version 4.4.3](#whats-new-in-version-4-4-3) - UI improvements, new functions, BASS2000 validation
@@ -17,6 +18,11 @@
 - [Version 4.1.0](#whats-new-in-version-4-1-0) - User-defined presets, collage creation
 - [Version 4.0.1](#whats-new-in-version-4-0-1) - Language selection, bug fixes
 - [Version 4.0.0](#whats-new-in-version-4-0-0) - Enhanced UI, BASS2000 integration
+
+## What's New in Version 4.4.6
+
+- Fixed script evaluation incorrectly treating the first unnamed section as output when an explicit `[outputs]` section is present
+- Clarified error message when variables are redefined in different sections
 
 ## What's New in Version 4.4.5
 

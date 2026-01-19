@@ -490,4 +490,25 @@ result = adjust_gamma(img(0), gamma)"""
         result.getOutputMetadata("result").isPresent()
         result.getOutputMetadata("result").get().getDisplayTitle("en") == "Result Image"
     }
+
+    def "section named outputs is correctly identified"() {
+        def script = """a=img(0)
+b=img(10)
+
+[outputs]
+my=anim(list(a;b))"""
+        def parser = new ImageMathParser(script)
+
+        when:
+        def root = parser.parseAndInlineIncludes()
+        def sections = root.findSections(ImageMathScriptExecutor.SectionKind.SINGLE)
+
+        then:
+        sections.size() == 2
+        // First section is unnamed
+        sections[0].name().isEmpty()
+        // Second section should be named "outputs"
+        sections[1].name().isPresent()
+        sections[1].name().get() == "outputs"
+    }
 }

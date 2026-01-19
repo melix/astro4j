@@ -182,11 +182,14 @@ import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
         if (identifier != null) {
             return java.util.Optional.of(identifier.toString());
         }
-        // Check if it's the special "params" case
+        // Check if it's the special "params" or "outputs" case
         var tokens = header.childrenOfType(Token.class);
         for (var token : tokens) {
             if (token.getType() == Token.TokenType.PARAMS) {
                 return java.util.Optional.of("params");
+            }
+            if (token.getType() == Token.TokenType.OUTPUTS) {
+                return java.util.Optional.of("outputs");
             }
         }
         return java.util.Optional.empty();
