@@ -15,12 +15,8 @@
  */
 package me.champeau.a4j.jsolex.processing.spectrum;
 
-import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
-import me.champeau.a4j.math.regression.Ellipse;
-
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.IntStream;
 
 /**
  * Provides spectral line analysis algorithms including line statistics,
@@ -131,13 +127,13 @@ public final class SpectralLineAnalysis {
         var smoothedProfile = smoothProfile(profile, 5);
 
         // Find detected line center for internal calculations (window filtering, etc.)
+        // Use sub-pixel interpolation for more accurate center detection, especially
+        // important when comparing profiles with small Doppler shifts
         double detectedLineCenter;
         if (referenceData != null && !referenceData.isEmpty()) {
-            var refMinPoint = findMinimumPoint(referenceData);
-            detectedLineCenter = refMinPoint.wavelen().angstroms();
+            detectedLineCenter = findMinimumWavelengthSubPixel(referenceData);
         } else {
-            var minPoint = findMinimumPoint(smoothedProfile);
-            detectedLineCenter = minPoint.wavelen().angstroms();
+            detectedLineCenter = findMinimumWavelengthSubPixel(smoothedProfile);
         }
 
         // Use real line center (if provided) for reporting, otherwise use detected
@@ -203,6 +199,114 @@ public final class SpectralLineAnalysis {
     }
 
     /**
+     * Computes statistics specifically for Doppler measurements.
+     * This method uses a narrower fitting window than the standard computeStatistics() to
+     * focus on the line core for more accurate Doppler shift measurements.
+     *
+     * @param profile                  the list of data points (wavelength, intensity)
+     * @param windowHalfWidthAngstroms half-width of the fitting window around the line center
+     * @return the computed line statistics with Voigt fit centered on the line core
+     */
+    public static LineStatistics computeStatisticsForDoppler(List<SpectrumAnalyzer.DataPoint> profile,
+                                                               double windowHalfWidthAngstroms) {
+        if (profile == null || profile.size() < 3) {
+            return LineStatistics.empty();
+        }
+
+        // Find initial line center estimate from RAW profile (not smoothed) for accuracy
+        var initialCenterEstimate = findMinimumWavelengthSubPixel(profile);
+
+        // Estimate continuum from the maximum intensity in the profile
+        var continuum = profile.stream()
+            .mapToDouble(SpectrumAnalyzer.DataPoint::intensity)
+            .max()
+            .orElse(0);
+
+        // Find minimum intensity within the narrow window
+        var minIntensity = profile.stream()
+            .filter(p -> Math.abs(p.wavelen().angstroms() - initialCenterEstimate) < windowHalfWidthAngstroms)
+            .mapToDouble(SpectrumAnalyzer.DataPoint::intensity)
+            .min()
+            .orElseGet(() -> findMinimumPoint(profile).intensity());
+
+        var lineDepth = continuum > 0 ? (continuum - minIntensity) / continuum : 0;
+        var halfMaxIntensity = (continuum + minIntensity) / 2.0;
+
+        var fittingProfile = profile.stream()
+            .filter(p -> Math.abs(p.wavelen().angstroms() - initialCenterEstimate) <= windowHalfWidthAngstroms)
+            .toList();
+
+        var voigtFit = VoigtFitter.fit(fittingProfile, continuum, initialCenterEstimate);
+
+        double measuredFwhm = 0;
+        Double blueHalfMax = null;
+        Double redHalfMax = null;
+        // Use Voigt-fitted center if available, otherwise fall back to initial estimate
+        double finalLineCenter = initialCenterEstimate;
+
+        if (voigtFit.converged()) {
+            measuredFwhm = voigtFit.fwhm();
+            var halfFwhm = measuredFwhm / 2.0;
+            finalLineCenter = voigtFit.center();
+            blueHalfMax = finalLineCenter - halfFwhm;
+            redHalfMax = finalLineCenter + halfFwhm;
+        }
+
+        return new LineStatistics(
+            continuum,
+            finalLineCenter,
+            minIntensity,
+            lineDepth,
+            measuredFwhm,
+            halfMaxIntensity,
+            blueHalfMax,
+            redHalfMax,
+            voigtFit.converged() ? voigtFit : null
+        );
+    }
+
+    /**
+     * Computes the center of gravity (first moment) of an absorption line profile.
+     * The profile is inverted (continuum - intensity) so that the absorption dip
+     * becomes a peak, then the weighted mean wavelength is computed.
+     * Only points within the given window around the initial center estimate are used.
+     *
+     * @param profile the spectral line profile
+     * @param windowHalfWidthAngstroms half-width of the window around the line center
+     * @return the center-of-gravity wavelength in Angstroms, or NaN if computation fails
+     */
+    public static double computeCenterOfGravity(List<SpectrumAnalyzer.DataPoint> profile, double windowHalfWidthAngstroms) {
+        if (profile == null || profile.size() < 3) {
+            return Double.NaN;
+        }
+        var centerEstimate = findMinimumWavelengthSubPixel(profile);
+        var continuum = profile.stream()
+            .mapToDouble(SpectrumAnalyzer.DataPoint::intensity)
+            .max()
+            .orElse(0);
+        if (continuum <= 0) {
+            return Double.NaN;
+        }
+        double sumWeight = 0;
+        double sumWeightedWl = 0;
+        for (var point : profile) {
+            var wl = point.wavelen().angstroms();
+            if (Math.abs(wl - centerEstimate) > windowHalfWidthAngstroms) {
+                continue;
+            }
+            var weight = continuum - point.intensity();
+            if (weight > 0) {
+                sumWeight += weight;
+                sumWeightedWl += weight * wl;
+            }
+        }
+        if (sumWeight <= 0) {
+            return Double.NaN;
+        }
+        return sumWeightedWl / sumWeight;
+    }
+
+    /**
      * Smooths a profile using a moving average.
      *
      * @param profile    the profile to smooth
@@ -235,59 +339,67 @@ public final class SpectralLineAnalysis {
         return smoothed;
     }
 
-    /**
-     * Computes center-to-limb variation from a solar disk image.
-     *
-     * @param image   the solar disk image
-     * @param ellipse the fitted ellipse describing the disk
-     * @param numBins the number of mu bins
-     * @return the list of CLV data points
-     */
-    public static List<CLVDataPoint> computeCLV(ImageWrapper32 image, Ellipse ellipse, int numBins) {
-        if (image == null || ellipse == null || numBins < 2) {
-            return List.of();
-        }
-
-        var bins = new double[numBins];
-        var counts = new long[numBins];
-
-        var cx = ellipse.center().a();
-        var cy = ellipse.center().b();
-        var semiA = ellipse.semiAxis().a();
-        var semiB = ellipse.semiAxis().b();
-
-        var data = image.data();
-        var height = image.height();
-        var width = image.width();
-
-        for (var y = 0; y < height; y++) {
-            for (var x = 0; x < width; x++) {
-                var dx = (x - cx) / semiA;
-                var dy = (y - cy) / semiB;
-                var rhoSquared = dx * dx + dy * dy;
-
-                if (rhoSquared < 1.0) {
-                    var mu = Math.sqrt(1 - rhoSquared);
-                    var bin = Math.min((int) (mu * numBins), numBins - 1);
-                    bins[bin] += data[y][x];
-                    counts[bin]++;
-                }
-            }
-        }
-
-        return IntStream.range(0, numBins)
-            .filter(i -> counts[i] > 0)
-            .mapToObj(i -> new CLVDataPoint(
-                (i + 0.5) / numBins,
-                bins[i] / counts[i]
-            ))
-            .toList();
-    }
-
     private static SpectrumAnalyzer.DataPoint findMinimumPoint(List<SpectrumAnalyzer.DataPoint> profile) {
         return profile.stream()
             .min((a, b) -> Double.compare(a.intensity(), b.intensity()))
             .orElse(profile.getFirst());
+    }
+
+    /**
+     * Finds the wavelength of the minimum intensity with sub-pixel precision using parabolic interpolation.
+     * This is more accurate than just taking the wavelength of the data point with minimum intensity.
+     *
+     * @param profile the spectral profile
+     * @return the interpolated wavelength at the true minimum
+     */
+    private static double findMinimumWavelengthSubPixel(List<SpectrumAnalyzer.DataPoint> profile) {
+        if (profile.size() < 3) {
+            return findMinimumPoint(profile).wavelen().angstroms();
+        }
+
+        // Find the index of the minimum intensity point
+        int minIndex = 0;
+        double minIntensity = Double.MAX_VALUE;
+        for (int i = 0; i < profile.size(); i++) {
+            double intensity = profile.get(i).intensity();
+            if (intensity < minIntensity) {
+                minIntensity = intensity;
+                minIndex = i;
+            }
+        }
+
+        // If minimum is at the edge, can't interpolate
+        if (minIndex == 0 || minIndex == profile.size() - 1) {
+            return profile.get(minIndex).wavelen().angstroms();
+        }
+
+        // Parabolic interpolation using the three points around the minimum
+        var p0 = profile.get(minIndex - 1);
+        var p1 = profile.get(minIndex);
+        var p2 = profile.get(minIndex + 1);
+
+        double y0 = p0.intensity();
+        double y1 = p1.intensity();
+        double y2 = p2.intensity();
+
+        double wl0 = p0.wavelen().angstroms();
+        double wl1 = p1.wavelen().angstroms();
+        double wl2 = p2.wavelen().angstroms();
+
+        // Parabolic fit: the offset from wl1 to the true minimum
+        // Using formula: offset = (y0 - y2) / (2 * (y0 - 2*y1 + y2))
+        // where the offset is in units of the wavelength step
+        double denominator = 2 * (y0 - 2 * y1 + y2);
+        if (Math.abs(denominator) > 1e-10) {
+            // The offset is a fraction of the wavelength step
+            double wavelengthStep = (wl2 - wl0) / 2.0;  // Average step size
+            double offset = (y0 - y2) / denominator;
+            // Clamp offset to avoid extrapolation beyond neighboring points
+            offset = Math.max(-1.0, Math.min(1.0, offset));
+            return wl1 + offset * wavelengthStep;
+        }
+
+        return wl1;
     }
 
     private static double computeAdaptiveWindowHalfWidth(

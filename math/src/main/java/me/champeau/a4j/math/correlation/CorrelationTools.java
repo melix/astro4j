@@ -1249,6 +1249,92 @@ public class CorrelationTools {
     }
 
     /**
+     * Computes the sub-pixel cross-correlation shift between two 1D signals.
+     * Uses mean-subtracted cross-correlation with parabolic sub-pixel interpolation.
+     * <p>
+     * The shift is measured as the displacement of the target signal relative to the
+     * reference signal. A positive shift means the target is shifted to the right.
+     * The confidence is the peak normalized cross-correlation value, clamped to [0,1].
+     *
+     * @param reference the reference signal
+     * @param target    the target signal (must have the same length as reference)
+     * @return the sub-pixel shift (in dx field) and confidence in [0,1]
+     */
+    public static ShiftResult crossCorrelation1D(float[] reference, float[] target) {
+        return crossCorrelation1D(reference, target, reference.length / 4);
+    }
+
+    public static ShiftResult crossCorrelation1D(float[] reference, float[] target, int maxLag) {
+        int n = reference.length;
+        if (n != target.length) {
+            throw new IllegalArgumentException("Signals must have the same length");
+        }
+        if (n < 4) {
+            return new ShiftResult(0, 0, 0);
+        }
+
+        double meanRef = 0;
+        double meanTarget = 0;
+        for (int i = 0; i < n; i++) {
+            meanRef += reference[i];
+            meanTarget += target[i];
+        }
+        meanRef /= n;
+        meanTarget /= n;
+
+        double sumSqRef = 0;
+        double sumSqTarget = 0;
+        for (int i = 0; i < n; i++) {
+            double r = reference[i] - meanRef;
+            double t = target[i] - meanTarget;
+            sumSqRef += r * r;
+            sumSqTarget += t * t;
+        }
+        double globalNorm = Math.sqrt(sumSqRef * sumSqTarget);
+        if (globalNorm < 1e-10) {
+            return new ShiftResult(0, 0, 0);
+        }
+
+        maxLag = Math.min(maxLag, n / 4);
+        var corr = new double[2 * maxLag + 1];
+
+        for (int lag = -maxLag; lag <= maxLag; lag++) {
+            double sum = 0;
+            int start = Math.max(0, -lag);
+            int end = Math.min(n, n - lag);
+            for (int i = start; i < end; i++) {
+                sum += (reference[i] - meanRef) * (target[i + lag] - meanTarget);
+            }
+            corr[lag + maxLag] = sum / globalNorm;
+        }
+
+        int bestIdx = 0;
+        double maxCorr = corr[0];
+        for (int i = 1; i < corr.length; i++) {
+            if (corr[i] > maxCorr) {
+                maxCorr = corr[i];
+                bestIdx = i;
+            }
+        }
+
+        double subPixelOffset = 0;
+        if (bestIdx > 0 && bestIdx < corr.length - 1) {
+            double left = corr[bestIdx - 1];
+            double center = corr[bestIdx];
+            double right = corr[bestIdx + 1];
+            double denom = 2 * center - left - right;
+            if (Math.abs(denom) > 1e-10) {
+                subPixelOffset = 0.5 * (left - right) / denom;
+                subPixelOffset = Math.max(-1, Math.min(1, subPixelOffset));
+            }
+        }
+
+        double shift = (bestIdx - maxLag) + subPixelOffset;
+        double confidence = Math.max(0, Math.min(1, maxCorr));
+        return new ShiftResult(0, shift, confidence);
+    }
+
+    /**
      * Checks if GPU-resident correlation is supported for the given tile size.
      * <p>
      * This checks both whether the tile size is supported algorithmically and whether

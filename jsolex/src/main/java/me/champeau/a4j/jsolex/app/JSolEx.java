@@ -233,6 +233,9 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     private Menu recentFilesMenu;
 
     @FXML
+    private StackPane rootStackPane;
+
+    @FXML
     private TabPane mainPane;
 
     @FXML
@@ -275,6 +278,9 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
 
     @FXML
     private Tab profileTab;
+
+    @FXML
+    private Tab analysisTab;
 
     @FXML
     private Tab metadataTab;
@@ -385,6 +391,16 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     @Override
     public Tab getProfileTab() {
         return profileTab;
+    }
+
+    @Override
+    public Tab getAnalysisTab() {
+        return analysisTab;
+    }
+
+    @Override
+    public StackPane getRootStackPane() {
+        return rootStackPane;
     }
 
     @Override

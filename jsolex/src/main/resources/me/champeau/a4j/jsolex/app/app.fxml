@@ -6,7 +6,8 @@
 <?import me.champeau.a4j.jsolex.app.jfx.ime.ImageMathTextArea?>
 <?import org.fxmisc.flowless.VirtualizedScrollPane?>
 <?import org.fxmisc.richtext.StyleClassedTextArea?>
-<BorderPane xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1">
+<StackPane xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:id="rootStackPane">
+<BorderPane>
     <top>
         <MenuBar>
             <Menu text="%file">
@@ -105,6 +106,7 @@
                             </Tab>
 
                             <Tab fx:id="profileTab" text="%profile"/>
+                            <Tab fx:id="analysisTab" text="%analysis"/>
                             <Tab fx:id="metadataTab" text="%metadata"/>
 
                             <Tab fx:id="redshiftTab" text="%redshifts" disable="true">
@@ -237,3 +239,4 @@
         </HBox>
     </bottom>
 </BorderPane>
+</StackPane>
