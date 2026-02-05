@@ -277,7 +277,7 @@ public class DifferentialVelocityHelpOverlay extends AbstractHelpOverlay {
         lineOfSight.getStrokeDashArray().addAll(10.0, 5.0);
         pane.getChildren().add(lineOfSight);
 
-        var earthLabel = createDiagramText("Earth", observerX, observerY + 35, 10, false, COLOR_TEXT_DIM);
+        var earthLabel = createDiagramText(I18N.string(JSolEx.class, I18N_BUNDLE, "analysis.differential.velocity.help.earth"), observerX, observerY + 35, 10, false, COLOR_TEXT_DIM);
         pane.getChildren().add(earthLabel);
 
         List<Line> latitudeLines = new ArrayList<>();
@@ -394,10 +394,10 @@ public class DifferentialVelocityHelpOverlay extends AbstractHelpOverlay {
         explainBox.setStroke(Color.rgb(100, 100, 120, 0.5));
         explainBox.setStrokeWidth(1);
 
-        var explain1 = createDiagramText("The Sun rotates. From Earth, we see:", 290, 293, 11, false, COLOR_TEXT);
-        var explain2 = createDiagramText("East limb: plasma moves toward us → blue shift", 290, 313, 11, false, COLOR_EAST);
-        var explain3 = createDiagramText("West limb: plasma moves away from us → red shift", 290, 333, 11, false, COLOR_WEST);
-        var explain4 = createDiagramText("Δv = v_west - v_east = 2 × rotational velocity", 290, 355, 11, true, COLOR_HIGHLIGHT);
+        var explain1 = createDiagramText(I18N.string(JSolEx.class, I18N_BUNDLE, "analysis.differential.velocity.help.phase1.explain1"), 290, 293, 11, false, COLOR_TEXT);
+        var explain2 = createDiagramText(I18N.string(JSolEx.class, I18N_BUNDLE, "analysis.differential.velocity.help.phase1.explain2"), 290, 313, 11, false, COLOR_EAST);
+        var explain3 = createDiagramText(I18N.string(JSolEx.class, I18N_BUNDLE, "analysis.differential.velocity.help.phase1.explain3"), 290, 333, 11, false, COLOR_WEST);
+        var explain4 = createDiagramText(I18N.string(JSolEx.class, I18N_BUNDLE, "analysis.differential.velocity.help.phase1.explain4"), 290, 355, 11, true, COLOR_HIGHLIGHT);
 
         var explainElements = List.of(explainBox, explain1, explain2, explain3, explain4);
         pane.getChildren().addAll(explainElements);
@@ -482,15 +482,15 @@ public class DifferentialVelocityHelpOverlay extends AbstractHelpOverlay {
         yAxis.setStroke(COLOR_TEXT_DIM);
         yAxis.setStrokeWidth(2);
 
-        var xLabel = createDiagramText("Wavelength (λ)", chartX + chartWidth / 2, chartY + chartHeight + 20, 10, false, COLOR_TEXT);
-        var yLabel = createDiagramText("Intensity", chartX - 30, chartY + chartHeight / 2, 10, false, COLOR_TEXT);
+        var xLabel = createDiagramText(I18N.string(JSolEx.class, I18N_BUNDLE, "analysis.differential.velocity.help.wavelength") + " (λ)", chartX + chartWidth / 2, chartY + chartHeight + 20, 10, false, COLOR_TEXT);
+        var yLabel = createDiagramText(I18N.string(JSolEx.class, I18N_BUNDLE, "analysis.differential.velocity.help.intensity"), chartX - 30, chartY + chartHeight / 2, 10, false, COLOR_TEXT);
 
         var chartElements = List.of(chartBg, xAxis, yAxis, xLabel, yLabel);
         pane.getChildren().addAll(chartElements);
 
         // Continuum level - the wings of the Voigt profiles will be at this level
         var continuumY = chartY + 25;
-        var continuumLabel = createDiagramText("continuum", chartX + chartWidth - 45, continuumY - 8, 9, false, COLOR_TEXT_DIM);
+        var continuumLabel = createDiagramText(I18N.string(JSolEx.class, I18N_BUNDLE, "analysis.differential.velocity.help.continuum"), chartX + chartWidth - 45, continuumY - 8, 9, false, COLOR_TEXT_DIM);
         var continuumElements = List.of(continuumLabel);
         pane.getChildren().addAll(continuumElements);
 
@@ -541,7 +541,7 @@ public class DifferentialVelocityHelpOverlay extends AbstractHelpOverlay {
                 blueArrowEnd + 3, arrowY + 3
         );
         blueArrowHead.setFill(COLOR_EAST);
-        var blueShiftLabel = createDiagramText("Δλ (East)", lambda0X - 60, arrowY + 4, 9, false, COLOR_EAST);
+        var blueShiftLabel = createDiagramText("Δλ (E)", lambda0X - 60, arrowY + 4, 9, false, COLOR_EAST);
         var blueArrowElements = List.of(blueArrow, blueArrowHead, blueShiftLabel);
         pane.getChildren().addAll(blueArrowElements);
 
@@ -557,16 +557,16 @@ public class DifferentialVelocityHelpOverlay extends AbstractHelpOverlay {
                 redArrowEnd - 3, arrowY + 12 + 3
         );
         redArrowHead.setFill(COLOR_WEST);
-        var redShiftLabel = createDiagramText("Δλ (West)", lambda0X + 60, arrowY + 16, 9, false, COLOR_WEST);
+        var redShiftLabel = createDiagramText("Δλ (W)", lambda0X + 60, arrowY + 16, 9, false, COLOR_WEST);
         var redArrowElements = List.of(redArrow, redArrowHead, redShiftLabel);
         pane.getChildren().addAll(redArrowElements);
 
         // Legend - positioned well outside the chart on the right
         var legendX = chartX + chartWidth + 50;
         var legendY = chartY + 50;
-        var refLegend = createDiagramText("— Reference (λ₀)", legendX, legendY, 8, false, COLOR_TEXT_DIM);
-        var blueLegend = createDiagramText("— East (blue shift)", legendX, legendY + 15, 8, false, COLOR_EAST);
-        var redLegend = createDiagramText("— West (red shift)", legendX, legendY + 30, 8, false, COLOR_WEST);
+        var refLegend = createDiagramText("— " + I18N.string(JSolEx.class, I18N_BUNDLE, "analysis.differential.velocity.help.legend.reference") + " (λ₀)", legendX, legendY, 8, false, COLOR_TEXT_DIM);
+        var blueLegend = createDiagramText("— " + I18N.string(JSolEx.class, I18N_BUNDLE, "analysis.differential.velocity.help.legend.east"), legendX, legendY + 15, 8, false, COLOR_EAST);
+        var redLegend = createDiagramText("— " + I18N.string(JSolEx.class, I18N_BUNDLE, "analysis.differential.velocity.help.legend.west"), legendX, legendY + 30, 8, false, COLOR_WEST);
         var legendElements = List.of(refLegend, blueLegend, redLegend);
         pane.getChildren().addAll(legendElements);
 
@@ -576,10 +576,10 @@ public class DifferentialVelocityHelpOverlay extends AbstractHelpOverlay {
         explainBox.setStroke(Color.rgb(100, 100, 120, 0.5));
         explainBox.setStrokeWidth(1);
 
-        var explain1 = createDiagramText("Each point's spectrum is fitted with a Voigt profile", 290, 285, 11, false, COLOR_TEXT);
-        var explain2 = createDiagramText("The line center position reveals the Doppler shift", 290, 305, 11, false, COLOR_TEXT);
+        var explain1 = createDiagramText(I18N.string(JSolEx.class, I18N_BUNDLE, "analysis.differential.velocity.help.phase2.explain1"), 290, 285, 11, false, COLOR_TEXT);
+        var explain2 = createDiagramText(I18N.string(JSolEx.class, I18N_BUNDLE, "analysis.differential.velocity.help.phase2.explain2"), 290, 305, 11, false, COLOR_TEXT);
         var explain3 = createDiagramText("Δv = c × (λ_west - λ_east) / λ₀", 290, 330, 11, true, COLOR_HIGHLIGHT);
-        var explain4 = createDiagramText("This gives twice the rotational velocity at that latitude", 290, 350, 11, false, COLOR_TEXT_DIM);
+        var explain4 = createDiagramText(I18N.string(JSolEx.class, I18N_BUNDLE, "analysis.differential.velocity.help.phase2.explain4"), 290, 350, 11, false, COLOR_TEXT_DIM);
 
         var explainElements = List.of(explainBox, explain1, explain2, explain3, explain4);
         pane.getChildren().addAll(explainElements);
@@ -867,7 +867,7 @@ public class DifferentialVelocityHelpOverlay extends AbstractHelpOverlay {
         }
 
         // Counter label showing measurement number
-        var counterLabel = createDiagramText("Measurement 1/" + numPairs, centerX, measureY - 20, 10, true, COLOR_HIGHLIGHT);
+        var counterLabel = createDiagramText(java.text.MessageFormat.format(I18N.string(JSolEx.class, I18N_BUNDLE, "analysis.differential.velocity.help.measurement"), 1, numPairs), centerX, measureY - 20, 10, true, COLOR_HIGHLIGHT);
         pane.getChildren().add(counterLabel);
 
         var medianArrow = new Line(centerX - 50, 255, centerX + 50, 255);
@@ -881,7 +881,7 @@ public class DifferentialVelocityHelpOverlay extends AbstractHelpOverlay {
         arrowHead2.setStroke(COLOR_HIGHLIGHT);
         arrowHead2.setStrokeWidth(3);
 
-        var arrowLabel = createDiagramText("Median averaging", centerX, 275, 12, true, COLOR_HIGHLIGHT);
+        var arrowLabel = createDiagramText(I18N.string(JSolEx.class, I18N_BUNDLE, "analysis.differential.velocity.help.median.averaging"), centerX, 275, 12, true, COLOR_HIGHLIGHT);
         var arrowElements = List.of(medianArrow, arrowHead1, arrowHead2, arrowLabel);
         pane.getChildren().addAll(arrowElements);
 
@@ -890,9 +890,9 @@ public class DifferentialVelocityHelpOverlay extends AbstractHelpOverlay {
         explainBox.setStroke(Color.rgb(100, 100, 120, 0.5));
         explainBox.setStrokeWidth(1);
 
-        var explain1 = createDiagramText("Multiple E/W pairs measured at same latitude", 290, 315, 11, false, COLOR_TEXT);
-        var explain2 = createDiagramText("Median averaging reduces noise from bad frames", 290, 335, 11, false, COLOR_TEXT);
-        var explain3 = createDiagramText("Process repeated for each latitude band", 290, 355, 11, false, COLOR_HIGHLIGHT);
+        var explain1 = createDiagramText(I18N.string(JSolEx.class, I18N_BUNDLE, "analysis.differential.velocity.help.phase3.explain1"), 290, 315, 11, false, COLOR_TEXT);
+        var explain2 = createDiagramText(I18N.string(JSolEx.class, I18N_BUNDLE, "analysis.differential.velocity.help.phase3.explain2"), 290, 335, 11, false, COLOR_TEXT);
+        var explain3 = createDiagramText(I18N.string(JSolEx.class, I18N_BUNDLE, "analysis.differential.velocity.help.phase3.explain3"), 290, 355, 11, false, COLOR_HIGHLIGHT);
 
         var explainElements = List.of(explainBox, explain1, explain2, explain3);
         pane.getChildren().addAll(explainElements);
@@ -928,7 +928,7 @@ public class DifferentialVelocityHelpOverlay extends AbstractHelpOverlay {
             // Update counter text
             var finalT = t;
             animation.getKeyFrames().add(new KeyFrame(Duration.seconds(finalT),
-                    e -> counterLabel.setText("Measurement " + measureNum + "/" + numPairs)));
+                    e -> counterLabel.setText(java.text.MessageFormat.format(I18N.string(JSolEx.class, I18N_BUNDLE, "analysis.differential.velocity.help.measurement"), measureNum, numPairs))));
 
             if (i == 0) {
                 // First pair: fade in counter too
@@ -982,8 +982,8 @@ public class DifferentialVelocityHelpOverlay extends AbstractHelpOverlay {
         yAxis.setStroke(COLOR_TEXT_DIM);
         yAxis.setStrokeWidth(2);
 
-        var xLabel = createDiagramText("Latitude (°)", chartX + chartWidth / 2, chartY + chartHeight + 25, 11, false, COLOR_TEXT);
-        var yLabel = createDiagramText("Velocity", chartX - 35, chartY + chartHeight / 2, 11, false, COLOR_TEXT);
+        var xLabel = createDiagramText(I18N.string(JSolEx.class, I18N_BUNDLE, "analysis.differential.velocity.help.latitude") + " (°)", chartX + chartWidth / 2, chartY + chartHeight + 25, 11, false, COLOR_TEXT);
+        var yLabel = createDiagramText(I18N.string(JSolEx.class, I18N_BUNDLE, "analysis.differential.velocity.help.velocity"), chartX - 35, chartY + chartHeight / 2, 11, false, COLOR_TEXT);
 
         var chartElements = List.of(chartBg, xAxis, yAxis, xLabel, yLabel);
         pane.getChildren().addAll(chartElements);
@@ -1021,8 +1021,8 @@ public class DifferentialVelocityHelpOverlay extends AbstractHelpOverlay {
         legendBox.setFill(Color.rgb(40, 40, 50, 0.8));
         legendBox.setStroke(Color.rgb(100, 100, 120, 0.5));
 
-        var legendMeasured = createDiagramText("● Measured", chartX + chartWidth - 80, chartY + 28, 10, false, COLOR_HIGHLIGHT);
-        var legendTheory = createDiagramText("-- Theory", chartX + chartWidth - 80, chartY + 45, 10, false, COLOR_EAST);
+        var legendMeasured = createDiagramText("● " + I18N.string(JSolEx.class, I18N_BUNDLE, "analysis.differential.velocity.help.legend.measured"), chartX + chartWidth - 80, chartY + 28, 10, false, COLOR_HIGHLIGHT);
+        var legendTheory = createDiagramText("-- " + I18N.string(JSolEx.class, I18N_BUNDLE, "analysis.differential.velocity.help.legend.theory"), chartX + chartWidth - 80, chartY + 45, 10, false, COLOR_EAST);
 
         var legendElements = List.of(legendBox, legendMeasured, legendTheory);
         pane.getChildren().addAll(legendElements);
@@ -1032,10 +1032,10 @@ public class DifferentialVelocityHelpOverlay extends AbstractHelpOverlay {
         explainBox.setStroke(Color.rgb(100, 100, 120, 0.5));
         explainBox.setStrokeWidth(1);
 
-        var explain1 = createDiagramText("Result: velocity vs. latitude chart", 290, 300, 11, false, COLOR_TEXT);
-        var explain2 = createDiagramText("Compared with Snodgrass & Ulrich (1990)", 290, 320, 11, false, COLOR_TEXT);
-        var explain3 = createDiagramText("Solar differential rotation:", 290, 340, 11, false, COLOR_HIGHLIGHT);
-        var explain4 = createDiagramText("Equator rotates faster than poles", 290, 358, 11, false, COLOR_TEXT_DIM);
+        var explain1 = createDiagramText(I18N.string(JSolEx.class, I18N_BUNDLE, "analysis.differential.velocity.help.phase4.explain1"), 290, 300, 11, false, COLOR_TEXT);
+        var explain2 = createDiagramText(I18N.string(JSolEx.class, I18N_BUNDLE, "analysis.differential.velocity.help.phase4.explain2"), 290, 320, 11, false, COLOR_TEXT);
+        var explain3 = createDiagramText(I18N.string(JSolEx.class, I18N_BUNDLE, "analysis.differential.velocity.help.phase4.explain3"), 290, 340, 11, false, COLOR_HIGHLIGHT);
+        var explain4 = createDiagramText(I18N.string(JSolEx.class, I18N_BUNDLE, "analysis.differential.velocity.help.phase4.explain4"), 290, 358, 11, false, COLOR_TEXT_DIM);
 
         var explainElements = List.of(explainBox, explain1, explain2, explain3, explain4);
         pane.getChildren().addAll(explainElements);
