@@ -60,6 +60,7 @@ public class ZoomableImageView extends HBox {
         }
     };
     private BiConsumer<? super Double, ? super Double> onCoordinatesListener;
+    private BiConsumer<? super Integer, ? super Integer> onClickListener;
     private Consumer<? super Double> onZoomChanged;
     private Ellipse solardisk;
 
@@ -93,14 +94,20 @@ public class ZoomableImageView extends HBox {
 
         scrollPane.addEventFilter(ScrollEvent.SCROLL, this::handleScroll);
         imageView.setOnMouseClicked(evt -> {
-            if (evt.getButton().equals(MouseButton.PRIMARY) && evt.getClickCount() == 2) {
-                if (zoom == 1.0) {
-                    zoom = getWidth() / imageView.getImage().getWidth();
-                } else {
-                    zoom = 1.0;
+            if (evt.getButton().equals(MouseButton.PRIMARY)) {
+                if (evt.getClickCount() == 2) {
+                    if (zoom == 1.0) {
+                        zoom = getWidth() / imageView.getImage().getWidth();
+                    } else {
+                        zoom = 1.0;
+                    }
+                    applyZoom();
+                    triggerOnZoomChanged();
+                } else if (evt.getClickCount() == 1 && onClickListener != null) {
+                    int imageX = (int) Math.round(evt.getX() / zoom);
+                    int imageY = (int) Math.round(evt.getY() / zoom);
+                    onClickListener.accept(imageX, imageY);
                 }
-                applyZoom();
-                triggerOnZoomChanged();
             }
         });
         widthProperty().addListener((observable, oldValue, newValue) -> {
@@ -549,6 +556,10 @@ public class ZoomableImageView extends HBox {
 
     public void setCoordinatesListener(BiConsumer<? super Double, ? super Double> consumer) {
         onCoordinatesListener = consumer;
+    }
+
+    public void setClickListener(BiConsumer<? super Integer, ? super Integer> listener) {
+        this.onClickListener = listener;
     }
 
     public void resetZoom() {

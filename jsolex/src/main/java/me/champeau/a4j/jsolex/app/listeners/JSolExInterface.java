@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.app.listeners;
 import javafx.application.HostServices;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
+import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 import me.champeau.a4j.jsolex.app.jfx.ApplyUserRotation;
 import me.champeau.a4j.jsolex.app.jfx.MultipleImagesViewer;
@@ -63,6 +64,18 @@ public interface JSolExInterface {
      * @return the profile tab
      */
     Tab getProfileTab();
+
+    /**
+     * Returns the analysis tab.
+     * @return the analysis tab
+     */
+    Tab getAnalysisTab();
+
+    /**
+     * Returns the root StackPane for adding overlays.
+     * @return the root stack pane
+     */
+    StackPane getRootStackPane();
 
     /**
      * Returns the metadata tab.

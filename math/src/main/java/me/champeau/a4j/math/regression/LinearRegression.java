@@ -125,6 +125,48 @@ public abstract class LinearRegression {
     }
 
     /**
+     * Computes the second order regression of a series of points with weights.
+     *
+     * @param series the series of points
+     * @param weights the weights associated to each point of the series
+     * @return the coefficients of the regression for the form y = a * x^2 + b * x + c
+     */
+    public static DoubleTriplet secondOrderRegression(Point2D[] series, double[] weights) {
+        double sumW = 0;
+        double sumX = 0;
+        double sumY = 0;
+        double sumXX = 0;
+        double sumXY = 0;
+        double sumXXY = 0;
+        double sumXXX = 0;
+        double sumXXXX = 0;
+        for (int i = 0; i < series.length; i++) {
+            double x = series[i].x();
+            double y = series[i].y();
+            double w = weights[i];
+            sumW += w;
+            sumX += w * x;
+            sumY += w * y;
+            sumXX += w * x * x;
+            sumXY += w * x * y;
+            sumXXX += w * x * x * x;
+            sumXXXX += w * x * x * x * x;
+            sumXXY += w * x * x * y;
+        }
+
+        double sxx = sumXX - sumX * sumX / sumW;
+        double sxy = sumXY - sumX * sumY / sumW;
+        double sxx2 = sumXXX - sumX * sumXX / sumW;
+        double sx2y = sumXXY - sumXX * sumY / sumW;
+        double sx2x2 = sumXXXX - sumXX * sumXX / sumW;
+
+        double a = (sx2y * sxx - sxy * sxx2) / (sxx * sx2x2 - sxx2 * sxx2);
+        double b = (sxy * sx2x2 - sx2y * sxx2) / (sxx * sx2x2 - sxx2 * sxx2);
+        double c = (sumY / sumW - b * sumX / sumW - a * sumXX / sumW);
+        return new DoubleTriplet(a, b, c);
+    }
+
+    /**
      * Computes the third order regression of a series of points using the method of least squares.
      *
      * @param series the series of points

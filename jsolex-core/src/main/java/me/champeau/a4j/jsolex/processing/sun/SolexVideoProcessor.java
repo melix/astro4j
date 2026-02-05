@@ -1304,6 +1304,16 @@ public class SolexVideoProcessor implements Broadcaster {
                 });
                 rotated.metadata().put(Flares.class, flippedFlares);
             });
+            rotated.findMetadata(ReferenceCoords.class).ifPresent(coords -> {
+                var updated = coords;
+                if (hflip) {
+                    updated = updated.addHFlip(width);
+                }
+                if (vflip) {
+                    updated = updated.addVFlip(height);
+                }
+                rotated.metadata().put(ReferenceCoords.class, updated);
+            });
             System.arraycopy(flipped, 0, original, 0, original.length);
             TransformationHistory.recordTransform(rotated, message("flip"));
         }
