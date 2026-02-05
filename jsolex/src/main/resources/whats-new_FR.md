@@ -1,6 +1,6 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
-- [Version 4.4.6](#nouveautes-de-la-version-4-4-6) - Correction évaluation des scripts
+- [Version 4.5.0](#nouveautes-de-la-version-4-4-6) - Rotation différentielle, correction évaluation des scripts
 - [Version 4.4.5](#nouveautes-de-la-version-4-4-5) - Correction soumission BASS2000
 - [Version 4.4.4](#nouveautes-de-la-version-4-4-3) - Correction de l'interface en anglais
 - [Version 4.4.3](#nouveautes-de-la-version-4-4-3) - Améliorations d'interfaces et nouvelles fonctions, validation BASS2000 améliorée
@@ -19,8 +19,9 @@
 - [Version 4.0.1](#nouveautes-de-la-version-4-0-1) - Sélection de langue, corrections
 - [Version 4.0.0](#nouveautes-de-la-version-4-0-0) - Interface améliorée, intégration BASS2000
 
-## Nouveautés de la version 4.4.6
+## Nouveautés de la version 4.5.0
 
+- Nouvel outil de calcul de rotation différentielle : mesure la rotation différentielle du Soleil par corrélation des profils spectraux des limbes Est et Ouest, avec moyennage par zone de latitude pour une meilleure précision
 - Correction de l'évaluation des scripts qui traitait incorrectement la première section non nommée comme sortie lorsqu'une section `[outputs]` explicite est présente
 - Clarification du message d'erreur lorsqu'une variable est redéfinie dans une autre section
 

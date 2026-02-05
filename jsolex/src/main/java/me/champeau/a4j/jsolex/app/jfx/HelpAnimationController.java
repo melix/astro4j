@@ -426,4 +426,37 @@ public class HelpAnimationController {
                 new KeyValue(node.opacityProperty(), targetOpacity, Interpolator.EASE_OUT)
         ));
     }
+
+    /**
+     * Adds a fade-out animation for a single node.
+     *
+     * @param animation the timeline to add keyframes to
+     * @param node the node to animate
+     * @param startTime the time (in seconds) when the fade-out should start
+     * @param fadeDuration the duration (in seconds) of the fade-out effect
+     */
+    public static void addFadeOut(Timeline animation, Node node, double startTime, double fadeDuration) {
+        animation.getKeyFrames().add(new KeyFrame(
+                Duration.seconds(startTime),
+                new KeyValue(node.opacityProperty(), 1)
+        ));
+        animation.getKeyFrames().add(new KeyFrame(
+                Duration.seconds(startTime + fadeDuration),
+                new KeyValue(node.opacityProperty(), 0, Interpolator.EASE_IN)
+        ));
+    }
+
+    /**
+     * Adds a fade-out animation for multiple nodes, all starting at the same time.
+     *
+     * @param animation the timeline to add keyframes to
+     * @param nodes the nodes to animate
+     * @param startTime the time (in seconds) when the animation should start
+     * @param fadeDuration the duration (in seconds) of the fade-out effect
+     */
+    public static void addFadeOut(Timeline animation, Collection<? extends Node> nodes, double startTime, double fadeDuration) {
+        for (var node : nodes) {
+            addFadeOut(animation, node, startTime, fadeDuration);
+        }
+    }
 }
