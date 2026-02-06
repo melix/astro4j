@@ -27,7 +27,7 @@ repositories {
 }
 
 dependencies {
-    testImplementation("org.spockframework:spock-core:2.3-groovy-4.0")
+    testImplementation("org.spockframework:spock-core:2.4-groovy-5.0")
     testImplementation("org.apache.groovy:groovy:4.0.30")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
