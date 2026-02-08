@@ -818,6 +818,237 @@ meta {
 }
 ----
 
+[[python-scripting]]
+=== Scripts Python
+
+JSol'Ex utilise https://www.graalvm.org/python/[GraalPy] pour exécuter du code Python dans vos scripts ImageMath via la fonction `python()`.
+Cela donne accès aux structures de contrôle Python (boucles, conditions, gestion des exceptions) tout en permettant d'appeler toutes les fonctions ImageMath via le module `jsolex`.
+
+Par défaut, seul le code Python pur avec la bibliothèque standard est supporté.
+Les bibliothèques externes comme NumPy nécessitent la configuration d'un environnement virtuel GraalPy (voir <<external-python-libraries>>).
+
+==== Utilisation de base
+
+Le code Python peut être spécifié en ligne :
+
+[source]
+----
+[outputs]
+result = python('''
+img = jsolex.funcs.img(0)
+result = jsolex.funcs.sharpen(img, 1.5)
+''')
+----
+
+Ou en référençant un fichier Python externe :
+
+[source]
+----
+[outputs]
+result = python_file("scripts/process.py")
+----
+
+==== Appeler des fonctions ImageMath avec jsolex.funcs
+
+Une des fonctionnalités les plus intéressantes est la possibilité d'appeler n'importe quelle fonction ImageMath depuis Python, permettant ainsi une interaction complète bidirectionnelle entre les 2 langages :
+
+[source,python]
+----
+# Appeler n'importe quelle fonction ImageMath : jsolex.funcs.NOM_FONCTION(args)
+img = jsolex.funcs.img(0)                      # Récupérer l'image au décalage 0
+sharpened = jsolex.funcs.sharpen(img, 1.5)     # Accentuer l'image
+enhanced = jsolex.funcs.clahe(sharpened, 8, 2) # Appliquer CLAHE
+colorized = jsolex.funcs.colorize(enhanced, "H-alpha")
+
+# Les fonctions peuvent être appelées avec des arguments positionnels ou nommés
+result = jsolex.funcs.crop(img, x=100, y=100, width=500, height=500)
+----
+
+Toutes les fonctions ImageMath sont disponibles via `jsolex.funcs`, en majuscules ou minuscules :
+
+[source,python]
+----
+# Les deux fonctionnent de manière identique
+img1 = jsolex.funcs.IMG(0)
+img2 = jsolex.funcs.img(0)
+----
+
+==== Accéder aux variables avec jsolex.vars
+
+Les variables ImageMath sont accessibles via `jsolex.vars` :
+
+[source,python]
+----
+# Lire des variables
+continuum = jsolex.vars.continuum
+doppler = jsolex.vars.doppler
+
+# Écrire des variables (doit être déclarée d'abord dans ImageMath)
+jsolex.vars.my_result = processed_image
+----
+
+==== Le module jsolex
+
+Les scripts Python ont accès au module `jsolex`, disponible en global ou via import :
+
+[source,python]
+----
+# En global (dans les scripts en ligne)
+img = jsolex.funcs.img(0)
+
+# Via import (dans les fichiers externes)
+import jsolex
+img = jsolex.funcs.img(0)
+
+# Import sélectif
+from jsolex import funcs, vars
+img = funcs.img(0)
+----
+
+==== Fonctions utilitaires
+
+Le module `jsolex` fournit également des fonctions utilitaires :
+
+[%header,cols="35%,65%"]
+|===
+|Fonction|Description
+|`load(path)`|Charge une image depuis un fichier
+|`save(img, path)`|Sauvegarde une image en fichier FITS
+|`emit(img, title, ...)`|Émet une image vers l'interface JSol'Ex pendant l'exécution
+|`getProcessParams()`|Récupère les paramètres de traitement courants
+|`toNumpy(img)`|Convertit l'image en tableau NumPy (nécessite des bibliothèques externes)
+|`fromNumpy(data)`|Crée une image à partir d'un tableau NumPy (nécessite des bibliothèques externes)
+|===
+
+==== Émettre des images
+
+Les scripts Python peuvent émettre des images directement vers l'interface JSol'Ex :
+
+[source,python]
+----
+# Émettre une image avec juste un titre
+jsolex.emit(img, "Mon Image")
+
+# Émettre avec des paramètres optionnels
+jsolex.emit(img, "Améliorée",
+            name="amelioree_v1",
+            category="Traitement",
+            description="Luminosité x1.5")
+----
+
+==== Retourner des valeurs
+
+Les scripts Python doivent assigner leur résultat à la variable `result` :
+
+[source,python]
+----
+img = jsolex.funcs.img(0)
+result = jsolex.funcs.sharpen(img, 1.5)
+----
+
+Pour retourner plusieurs valeurs, définissez directement des variables ImageMath :
+
+[source,python]
+----
+img = jsolex.funcs.img(0)
+jsolex.vars.processed = jsolex.funcs.sharpen(img, 1.5)
+jsolex.vars.quality = 0.95
+result = jsolex.vars.processed
+----
+
+==== Structures de contrôle
+
+Python fournit les structures de contrôle qui manquent à ImageMath :
+
+[source,python]
+----
+# Boucles
+total = 0
+for i in range(5):
+    total += i
+
+# Conditions
+if img.width() > 1500:
+    result = jsolex.funcs.rescale_rel(img, 0.5)
+else:
+    result = img
+
+# Gestion des exceptions
+try:
+    result = jsolex.funcs.load("/chemin/vers/fichier.fits")
+except:
+    result = jsolex.funcs.img(0)
+----
+
+==== Appeler des fonctions ImageMath définies par l'utilisateur
+
+Les fonctions utilisateur définies dans ImageMath sont également accessibles via `jsolex.funcs` :
+
+[source]
+----
+[fun:enhance img]
+   result = sharpen(clahe(img, 8, 2.0), 1.5)
+
+[outputs]
+continuum = img(15)
+
+processed = python('''
+    img = jsolex.vars.continuum
+    result = jsolex.funcs.enhance(img)
+''')
+----
+
+==== Exemple : Pipeline de traitement
+
+[source]
+----
+[outputs]
+processed = python('''
+    # Récupérer l'image de base
+    img = jsolex.funcs.img(0)
+
+    # Appliquer la chaîne de traitement
+    enhanced = jsolex.funcs.clahe(img, 8, 2.0)
+    sharpened = jsolex.funcs.sharpen(enhanced, 1.5)
+
+    # Traitement conditionnel selon la taille de l'image
+    if img.width() > 2000:
+        result = jsolex.funcs.rescale_rel(sharpened, 0.5)
+    else:
+        result = sharpened
+''')
+----
+
+[[external-python-libraries]]
+==== Utiliser des bibliothèques Python externes (NumPy, etc.)
+
+Pour utiliser des bibliothèques externes comme NumPy, vous devez configurer un environnement virtuel GraalPy :
+
+1. Installez GraalPy (par ex. via pyenv : `pyenv install graalpy`)
+2. Créez un environnement virtuel : `python -m venv /chemin/vers/venv`
+3. Installez les packages : `/chemin/vers/venv/bin/pip install numpy pyarrow`
+4. Dans JSol'Ex : **Fichier → Paramètres avancés → Scripting Python**, naviguez vers `/chemin/vers/venv/bin/python`
+5. Redémarrez JSol'Ex
+
+Une fois configuré, vous pouvez utiliser NumPy dans vos scripts :
+
+[source,python]
+----
+import numpy as np
+
+img = jsolex.funcs.img(0)
+data = jsolex.toNumpy(img)
+enhanced = np.clip(data * 1.5, 0, 65535).astype(np.float32)
+result = jsolex.fromNumpy(enhanced)
+----
+
+TIP: Installez PyArrow (`pip install pyarrow`) pour un transfert de données plus rapide sur les grandes images.
+
+==== Limitations
+
+- Pour les opérations simples, les fonctions ImageMath natives sont plus rapides que le code Python équivalent.
+- Tous les packages Python ne fonctionnent pas avec GraalPy. NumPy et PyArrow sont testés et supportés.
+
 [[trimming-ser-files]]
 == Réduire la taille des fichiers SER
 

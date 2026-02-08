@@ -24,6 +24,13 @@ dependencies {
     implementation(libs.jcodec)
     implementation(libs.lwjgl)
     implementation(libs.lwjgl.opencl)
+    implementation(libs.graalpy.polyglot)
+    implementation(libs.graalpy.python.language)
+    implementation(libs.graalpy.python.resources)
+    implementation(libs.arrow.memory)
+    implementation(libs.arrow.memory.unsafe)
+    implementation(libs.arrow.vector)
+    implementation(libs.arrow.c.data)
     testImplementation(testFixtures(projects.jserfile))
 }
 

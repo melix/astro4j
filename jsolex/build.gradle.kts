@@ -1,4 +1,5 @@
 import com.github.vlsi.gradle.license.api.SpdxLicense
+import me.champeau.astro4j.PythonStubsGenerator
 
 plugins {
     id("me.champeau.astro4j.jfxapp")
@@ -55,8 +56,16 @@ jlink {
     forceMerge(
         "commons-compress",
         "logback-core", "logback-classic",
-        "sqlite-jdbc"
+        "sqlite-jdbc",
+        "jackson-core", "jackson-databind", "jackson-annotations",
+        "python-community", "python-language", "python-resources",
+        "truffle-nfi-libffi", "truffle-nfi-panama", "truffle-nfi", "truffle-api",
+        "polyglot"
     )
+    options.add("--ignore-signing-information")
+    launcher {
+        jvmArgs.add("-Dpolyglotimpl.DisableMultiReleaseCheck=true")
+    }
 }
 
 application {
@@ -75,10 +84,16 @@ tasks.gatherLicenses {
     }
 }
 
+val generatePythonStubs = tasks.register<PythonStubsGenerator>("generatePythonStubs") {
+    yamlDirectory = project(":jsolex-core").file("src/main/functions")
+    outputDirectory = layout.buildDirectory.dir("generated-resources")
+}
+
 sourceSets {
     main {
         resources {
             srcDir(tasks.generateLicense.map { it.outputFile.get().asFile.parentFile })
+            srcDir(generatePythonStubs.flatMap { it.outputDirectory })
         }
     }
 }

@@ -42,6 +42,9 @@
             <Menu text="%help">
                 <MenuItem onAction="#showHelp" text="%documentation"/>
                 <MenuItem onAction="#openDiscord" text="%discord"/>
+                <SeparatorMenuItem/>
+                <MenuItem onAction="#exportPythonStubs" text="%export.python.stubs"/>
+                <SeparatorMenuItem/>
                 <MenuItem onAction="#donate" text="%donate"/>
                 <MenuItem onAction="#about" text="%about"/>
             </Menu>

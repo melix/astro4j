@@ -48,6 +48,7 @@ import me.champeau.a4j.jsolex.processing.expr.impl.Inverse;
 import me.champeau.a4j.jsolex.processing.expr.impl.Loader;
 import me.champeau.a4j.jsolex.processing.expr.impl.MathFunctions;
 import me.champeau.a4j.jsolex.processing.expr.impl.MosaicComposition;
+import me.champeau.a4j.jsolex.processing.expr.impl.PythonScript;
 import me.champeau.a4j.jsolex.processing.expr.impl.RGBCombination;
 import me.champeau.a4j.jsolex.processing.expr.impl.RemoteScriptGen;
 import me.champeau.a4j.jsolex.processing.expr.impl.Rotate;
@@ -137,6 +138,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     private final Loader loader;
     private final MathFunctions math;
     private final MosaicComposition mosaicComposition;
+    private final PythonScript pythonScript;
     private final RemoteScriptGen remoteScriptGen;
     private final Rotate rotate;
     private final Saturation saturation;
@@ -174,6 +176,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         this.inverse = new Inverse(context, broadcaster);
         this.loader = new Loader(context, broadcaster);
         this.math = new MathFunctions(context, broadcaster);
+        this.pythonScript = new PythonScript(this, context, broadcaster);
         this.remoteScriptGen = new RemoteScriptGen(this, context, broadcaster);
         this.rotate = new Rotate(context, broadcaster);
         this.saturation = new Saturation(context, broadcaster);
@@ -194,6 +197,16 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
      */
     public <T> void putInContext(Class<T> key, Object value) {
         context.put(key, value);
+    }
+
+    /**
+     * Returns whether this evaluator is in shift-collecting mode.
+     * In this mode, Python scripts should not be executed as images are dummy 0-sized placeholders.
+     *
+     * @return true if in shift-collecting mode
+     */
+    public boolean isShiftCollecting() {
+        return false;
     }
 
     @Override
@@ -380,6 +393,8 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case ROTATE_RIGHT -> rotate.rotateRight(arguments);
             case ROTATE_DEG -> rotate.rotateDegrees(arguments);
             case ROTATE_RAD -> rotate.rotateRadians(arguments);
+            case PYTHON -> pythonScript.executePython(arguments);
+            case PYTHON_FILE -> pythonScript.executePythonFile(arguments);
             case REMOTE_SCRIPTGEN -> remoteScriptGen.callRemoteScriptGen(arguments);
             case RGB -> RGBCombination.combine(arguments);
             case SATURATE -> saturation.saturate(arguments);

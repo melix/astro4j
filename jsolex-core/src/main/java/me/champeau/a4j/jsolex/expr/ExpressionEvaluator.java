@@ -120,7 +120,9 @@ public abstract class ExpressionEvaluator {
         }
         if (expression instanceof Assignment assignment) {
             var value = doEvaluate(assignment.expression());
-            assignment.variableName().ifPresent(name -> variables.put(name, value));
+            if (value != null) {
+                assignment.variableName().ifPresent(name -> variables.put(name, value));
+            }
             return value;
         }
         if (expression instanceof Identifier) {

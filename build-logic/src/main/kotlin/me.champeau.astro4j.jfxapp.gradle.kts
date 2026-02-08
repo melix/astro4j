@@ -20,7 +20,13 @@ val jvmMemorySettings = listOf(
 )
 
 application {
-    applicationDefaultJvmArgs = jvmMemorySettings + listOf("--enable-preview", "--enable-native-access=javafx.graphics")
+    applicationDefaultJvmArgs = jvmMemorySettings + listOf(
+        "--enable-preview",
+        "--enable-native-access=javafx.graphics",
+        // Required for Apache Arrow memory allocation
+        "--add-opens=java.base/java.nio=org.apache.arrow.memory.core",
+        "--add-opens=java.base/java.nio=ALL-UNNAMED"
+    )
 }
 
 jlink {
@@ -86,4 +92,7 @@ tasks.register("allDistributions") {
 
 tasks.withType<JavaExec>().configureEach {
     jvmArgs(jvmMemorySettings)
+    // Required for Apache Arrow memory allocation
+    jvmArgs("--add-opens=java.base/java.nio=org.apache.arrow.memory.core")
+    jvmArgs("--add-opens=java.base/java.nio=ALL-UNNAMED")
 }

@@ -1,5 +1,6 @@
 # Welcome to JSol'Ex {{version}}!
 
+- [Version 4.5.1](#whats-new-in-version-4-5-1) - Python scripting support in ImageMath
 - [Version 4.5.0](#whats-new-in-version-4-5.0) - Doppler shift measurement, rotation profile, script evaluation fix
 - [Version 4.4.5](#whats-new-in-version-4-4-5) - BASS2000 submission fix
 - [Version 4.4.4](#whats-new-in-version-4-4-3) - Fix process params dialog empty in English
@@ -18,6 +19,82 @@
 - [Version 4.1.0](#whats-new-in-version-4-1-0) - User-defined presets, collage creation
 - [Version 4.0.1](#whats-new-in-version-4-0-1) - Language selection, bug fixes
 - [Version 4.0.0](#whats-new-in-version-4-0-0) - Enhanced UI, BASS2000 integration
+
+## What's New in Version 4.5.1
+
+### Python Scripting Support
+
+You can now use Python code within ImageMath scripts using the new `python()` function.
+This provides access to Python's control structures (loops, conditionals, exception handling) that ImageMath lacks, while still being able to call all ImageMath functions.
+
+Example:
+```
+[outputs]
+result = python('''
+    images = []
+    for shift in range(-5, 6):
+        img = jsolex.call("IMG", {"shift": shift})
+        img = jsolex.sharpen(img, 1.0 + abs(shift) * 0.1)
+        images.append(img)
+    result = images
+''')
+```
+
+Key features:
+- Bidirectional integration: Python scripts can call ImageMath functions and access ImageMath variables
+- Standard Python imports: use `import jsolex` or `from jsolex import ...` in external `.py` files
+- Context persistence: Python context is reused within a session for better performance
+
+See the [Python Scripting documentation](jsolex.html#python-scripting) for details.
+
+#### Using External Python Libraries (NumPy, Astropy, etc.)
+
+By default, the Python scripting engine only lets you execute pure Python scripts.
+If you want to use external libraries like NumPy or Astropy, you need to install GraalPy and create a virtual environment.
+
+**Important:** We cannot guarantee that this will work on all systems, as some Python libraries need to be compiled from source.
+
+**Linux/macOS Setup:**
+
+```bash
+# Install GraalPy using pyenv
+pyenv install graalpy
+pyenv shell graalpy
+
+# Create a virtual environment
+python -m venv /path/to/venv
+
+# Activate and install packages
+source /path/to/venv/bin/activate
+pip install numpy astropy
+```
+
+**Windows Setup:**
+
+```powershell
+# Install GraalPy using pyenv-win
+pyenv install graalpy
+pyenv shell graalpy
+
+# Create a virtual environment
+python -m venv C:\path\to\venv
+
+# Activate and install packages
+C:\path\to\venv\Scripts\activate
+pip install numpy astropy
+```
+
+**Configure JSol'Ex:**
+
+In JSol'Ex, go to **File → Advanced Parameters**, then in the **Python Scripting** section, browse to your virtual environment's Python executable:
+- Linux/macOS: `/path/to/venv/bin/python`
+- Windows: `C:\path\to\venv\Scripts\python.exe`
+
+**Important:** Point to the virtual environment's `python` executable, **not** the GraalPy executable itself.
+
+After configuring, restart JSol'Ex to use external libraries in your scripts.
+
+See the [Python Scripting documentation](jsolex.html#python-scripting) for details and examples.
 
 ## What's New in Version 4.5.0
 

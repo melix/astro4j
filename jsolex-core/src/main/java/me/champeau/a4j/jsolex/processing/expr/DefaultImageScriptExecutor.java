@@ -411,7 +411,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     private void executeSingleExpression(int index, MemoizingExpressionEvaluator evaluator, Assignment assignment, boolean isOutputSection, AtomicInteger cpt, Map<String, ImageWrapper> imagesByLabel, Map<String, FileOutputResult> filesByLabel, List<InvalidExpression> invalidExpressions, ReentrantLock resultsLock, ProgressOperation progressOperation) {
         ProgressOperation exprOperation = null;
         if (progressOperation != null) {
-            exprOperation = progressOperation.createChild("Evaluating " + assignment);
+            exprOperation = progressOperation.createChild("Evaluating " + truncateForProgress(assignment.toString()));
             broadcaster.broadcast(exprOperation);
         }
         try {
@@ -532,9 +532,12 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                     }
                 }
             }
+            // Skip caching for functions with side effects (e.g., python scripts)
+            boolean hasSideEffect = expression instanceof FunctionCall funCall
+                    && funCall.getBuiltinFunction().map(BuiltinFunction::hasSideEffect).orElse(false);
             // Not using `computeIfAbsent` to avoid recursive update
             var cacheKey = expression.getAllTokens(false).stream().map(Objects::toString).collect(Collectors.joining());
-            if (memoizeCache.containsKey(cacheKey)) {
+            if (!hasSideEffect && memoizeCache.containsKey(cacheKey)) {
                 var o = memoizeCache.get(cacheKey);
                 if (o instanceof ImageWrapper image) {
                     return image.copy();
@@ -564,7 +567,9 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                             .toList();
                 }
             }
-            memoizeCache.put(cacheKey, result);
+            if (!hasSideEffect && result != null) {
+                memoizeCache.put(cacheKey, result);
+            }
             return result;
         }
 
@@ -595,6 +600,17 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
 
     public Map<String, Object> getVariables() {
         return Collections.unmodifiableMap(variables);
+    }
+
+    private static String truncateForProgress(String text) {
+        var firstLine = text.lines().findFirst().orElse(text);
+        if (firstLine.length() > 80) {
+            return firstLine.substring(0, 77) + "...";
+        }
+        if (!firstLine.equals(text)) {
+            return firstLine + "...";
+        }
+        return firstLine;
     }
 
     public static class SyntaxError extends Exception {

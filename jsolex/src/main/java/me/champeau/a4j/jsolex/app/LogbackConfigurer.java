@@ -54,6 +54,11 @@ class LogbackConfigurer {
         logger.setLevel(level);
     }
 
+    public static void configureLevel(String loggerName, Level level) {
+        var logger = (Logger) LoggerFactory.getLogger(loggerName);
+        logger.setLevel(level);
+    }
+
     static void configureLogger(StyleClassedTextArea console) {
         var numberFactory = LineNumberFactory.get(console, i -> "");
         console.setParagraphGraphicFactory(node -> {
@@ -64,6 +69,9 @@ class LogbackConfigurer {
         Logger logbackLogger = findRootLogger();
         logbackLogger.setLevel(Level.INFO);
         logbackLogger.detachAndStopAllAppenders();
+
+        // Suppress verbose Arrow library logging
+        configureLevel("org.apache.arrow", Level.WARN);
         AppenderBase<ILoggingEvent> appender = new AppenderBase<>() {
             @Override
             protected void append(ILoggingEvent eventObject) {

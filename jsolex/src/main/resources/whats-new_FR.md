@@ -1,6 +1,7 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
-- [Version 4.5.0](#nouveautes-de-la-version-4-4-6) - Rotation différentielle, correction évaluation des scripts
+- [Version 4.5.1](#nouveautes-de-la-version-4-5-1) - Support des scripts Python dans ImageMath
+- [Version 4.5.0](#nouveautes-de-la-version-4-5-0) - Rotation différentielle, correction évaluation des scripts
 - [Version 4.4.5](#nouveautes-de-la-version-4-4-5) - Correction soumission BASS2000
 - [Version 4.4.4](#nouveautes-de-la-version-4-4-3) - Correction de l'interface en anglais
 - [Version 4.4.3](#nouveautes-de-la-version-4-4-3) - Améliorations d'interfaces et nouvelles fonctions, validation BASS2000 améliorée
@@ -18,6 +19,82 @@
 - [Version 4.1.0](#nouveautes-de-la-version-4-1-0) - Préréglages utilisateur, création de collages
 - [Version 4.0.1](#nouveautes-de-la-version-4-0-1) - Sélection de langue, corrections
 - [Version 4.0.0](#nouveautes-de-la-version-4-0-0) - Interface améliorée, intégration BASS2000
+
+## Nouveautés de la version 4.5.1
+
+### Support des scripts Python
+
+Vous pouvez désormais utiliser du code Python dans les scripts ImageMath grâce à la nouvelle fonction `python()`.
+Cela permet d'accéder aux structures de contrôle de Python (boucles, conditions, gestion des exceptions) qui manquent à ImageMath, tout en pouvant appeler toutes les fonctions ImageMath.
+
+Exemple :
+```
+[outputs]
+result = python('''
+    images = []
+    for shift in range(-5, 6):
+        img = jsolex.call("IMG", {"shift": shift})
+        img = jsolex.sharpen(img, 1.0 + abs(shift) * 0.1)
+        images.append(img)
+    result = images
+''')
+```
+
+Caractéristiques principales :
+- Intégration bidirectionnelle : les scripts Python peuvent appeler les fonctions ImageMath et accéder aux variables ImageMath
+- Imports Python standards : utilisez `import jsolex` ou `from jsolex import ...` dans les fichiers `.py` externes
+- Persistance du contexte : le contexte Python est réutilisé au sein d'une session pour de meilleures performances
+
+Voir la [documentation sur les scripts Python](jsolex.html#python-scripting) pour plus de détails.
+
+#### Utilisation de bibliothèques Python externes (NumPy, Astropy, etc.)
+
+Par défaut, le moteur de scripts Python ne permet d'exécuter que des scripts Python purs.
+Si vous souhaitez utiliser des bibliothèques externes comme NumPy ou Astropy, vous devez installer GraalPy et créer un environnement virtuel.
+
+**Important :** Nous ne pouvons pas garantir que cela fonctionnera sur tous les systèmes, car certaines bibliothèques Python doivent être compilées à partir des sources.
+
+**Installation sous Linux/macOS :**
+
+```bash
+# Installer GraalPy avec pyenv
+pyenv install graalpy
+pyenv shell graalpy
+
+# Créer un environnement virtuel
+python -m venv /chemin/vers/venv
+
+# Activer et installer les paquets
+source /chemin/vers/venv/bin/activate
+pip install numpy astropy
+```
+
+**Installation sous Windows :**
+
+```powershell
+# Installer GraalPy avec pyenv-win
+pyenv install graalpy
+pyenv shell graalpy
+
+# Créer un environnement virtuel
+python -m venv C:\chemin\vers\venv
+
+# Activer et installer les paquets
+C:\chemin\vers\venv\Scripts\activate
+pip install numpy astropy
+```
+
+**Configurer JSol'Ex :**
+
+Dans JSol'Ex, allez dans **Fichier → Paramètres avancés**, puis dans la section **Scripting Python**, naviguez vers l'exécutable Python de votre environnement virtuel :
+- Linux/macOS : `/chemin/vers/venv/bin/python`
+- Windows : `C:\chemin\vers\venv\Scripts\python.exe`
+
+**Important :** Pointez vers l'exécutable `python` de l'environnement virtuel, **pas** vers l'exécutable GraalPy lui-même.
+
+Après la configuration, redémarrez JSol'Ex pour utiliser les bibliothèques externes dans vos scripts.
+
+Voir la [documentation sur les scripts Python](jsolex.html#python-scripting) pour plus de détails et des exemples.
 
 ## Nouveautés de la version 4.5.0
 

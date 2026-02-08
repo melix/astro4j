@@ -83,19 +83,18 @@ public class ScriptErrorDialog {
 
         var content = createContent();
         alert.getDialogPane().setContent(content);
-        alert.getDialogPane().setPrefSize(600, 400);
+        alert.getDialogPane().setPrefSize(700, 500);
+        alert.getDialogPane().setMinSize(500, 300);
 
-        var copyButton = new Button(I18N.string(ScriptErrorDialog.class, BUNDLE, "copy"));
-        copyButton.setOnAction(e -> copyToClipboard());
-        alert.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
-        alert.getDialogPane().lookupButton(ButtonType.CLOSE).setVisible(false);
+        // Add copy button alongside OK
+        var copyButtonType = new ButtonType(I18N.string(ScriptErrorDialog.class, BUNDLE, "copy"));
+        alert.getButtonTypes().addFirst(copyButtonType);
 
-        var buttonBar = alert.getDialogPane().lookup(".button-bar");
-        if (buttonBar != null && buttonBar.getParent() instanceof HBox hbox) {
-            hbox.getChildren().addFirst(copyButton);
-        }
-
-        alert.showAndWait();
+        alert.showAndWait().ifPresent(result -> {
+            if (result == copyButtonType) {
+                copyToClipboard();
+            }
+        });
     }
 
     private VBox createContent() {
@@ -109,8 +108,8 @@ public class ScriptErrorDialog {
         var summaryArea = new TextArea(formatSimpleErrors());
         summaryArea.setEditable(false);
         summaryArea.setWrapText(true);
-        summaryArea.setPrefRowCount(Math.min(5, invalidExpressions.size()));
-        summaryArea.setMaxHeight(150);
+        summaryArea.setPrefRowCount(Math.min(8, invalidExpressions.size() * 3));
+        VBox.setVgrow(summaryArea, Priority.SOMETIMES);
         vbox.getChildren().add(summaryArea);
 
         var detailsPane = new TitledPane();
@@ -125,7 +124,7 @@ public class ScriptErrorDialog {
         var scrollPane = new ScrollPane(detailsArea);
         scrollPane.setFitToWidth(true);
         scrollPane.setFitToHeight(true);
-        scrollPane.setPrefViewportHeight(200);
+        scrollPane.setPrefViewportHeight(250);
 
         detailsPane.setContent(scrollPane);
         VBox.setVgrow(detailsPane, Priority.ALWAYS);
@@ -137,11 +136,30 @@ public class ScriptErrorDialog {
 
     private String formatSimpleErrors() {
         return invalidExpressions.stream()
-                .map(expr -> String.format("• %s (%s): %s",
-                        expr.label(),
-                        expr.expression(),
-                        expr.error().getMessage()))
-                .collect(Collectors.joining(System.lineSeparator()));
+                .map(expr -> {
+                    var expression = truncateExpression(expr.expression());
+                    var errorMessage = expr.error().getMessage();
+                    return String.format("• %s%n  Expression: %s%n  Error: %s",
+                            expr.label(),
+                            expression,
+                            errorMessage != null ? errorMessage : "Unknown error");
+                })
+                .collect(Collectors.joining(System.lineSeparator() + System.lineSeparator()));
+    }
+
+    private String truncateExpression(String expression) {
+        if (expression == null) {
+            return "";
+        }
+        // Take first line only, and truncate if too long
+        var firstLine = expression.lines().findFirst().orElse(expression);
+        if (firstLine.length() > 60) {
+            firstLine = firstLine.substring(0, 57) + "...";
+        }
+        if (!firstLine.equals(expression)) {
+            firstLine = firstLine + " ...";
+        }
+        return firstLine;
     }
 
     private String formatDetailedErrors() {

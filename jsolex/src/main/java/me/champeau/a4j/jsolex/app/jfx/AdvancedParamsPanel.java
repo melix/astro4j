@@ -27,7 +27,9 @@ import javafx.scene.control.TextFormatter;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import javafx.stage.FileChooser;
 import javafx.util.converter.IntegerStringConverter;
 import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.JSolEx;
@@ -35,6 +37,7 @@ import me.champeau.a4j.jsolex.processing.util.AnimationFormat;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.LocaleUtils;
 
+import java.nio.file.Path;
 import java.util.EnumSet;
 
 /**
@@ -54,10 +57,14 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
     private final CheckBox generateMp4;
     private final CheckBox generateGif;
     private final CheckBox gpuAcceleration;
+    private final TextField graalPyExecutable;
+    private final Button browseGraalPy;
+    private final Button clearGraalPy;
 
     private int initialMemoryRestriction;
     private String initialLanguage;
     private boolean initialGpuAcceleration;
+    private String initialGraalPyExecutable;
 
     /** Creates a new advanced parameters panel with default settings. */
     public AdvancedParamsPanel() {
@@ -78,6 +85,10 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
         generateMp4 = createCheckBox("MP4", I18N.string(JSolEx.class, "advanced-params", "generate.mp4.files"));
         generateGif = createCheckBox("GIF", I18N.string(JSolEx.class, "advanced-params", "generate.gif.files"));
         gpuAcceleration = createCheckBox("", I18N.string(JSolEx.class, "advanced-params", "gpu.acceleration.tooltip"));
+        graalPyExecutable = createTextField("", I18N.string(JSolEx.class, "advanced-params", "graalpy.executable.tooltip"));
+        graalPyExecutable.setEditable(false);
+        browseGraalPy = new Button(I18N.string(JSolEx.class, "advanced-params", "browse"));
+        clearGraalPy = new Button(I18N.string(JSolEx.class, "advanced-params", "clear"));
 
         setupLayout();
         loadConfiguration();
@@ -163,6 +174,26 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
 
         performanceSection.getChildren().add(performanceGrid);
 
+        var pythonSection = createSection("python.section");
+        var pythonGrid = createGrid();
+
+        graalPyExecutable.setPrefWidth(300);
+        browseGraalPy.setOnAction(e -> browseForPythonExecutable());
+        clearGraalPy.setOnAction(e -> {
+            graalPyExecutable.setText("");
+            updateClearButtonState();
+        });
+
+        var graalPyBox = new HBox(8, graalPyExecutable, browseGraalPy, clearGraalPy);
+        HBox.setHgrow(graalPyExecutable, Priority.ALWAYS);
+
+        addGridRow(pythonGrid, 0,
+                I18N.string(JSolEx.class, "advanced-params", "graalpy.executable"),
+                graalPyBox,
+                "graalpy.executable.tooltip");
+
+        pythonSection.getChildren().add(pythonGrid);
+
         var dataSection = createSection("data.section");
         var dataGrid = createGrid();
 
@@ -185,7 +216,7 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
 
         dataSection.getChildren().add(dataGrid);
 
-        getChildren().addAll(localizationSection, outputSection, performanceSection, dataSection);
+        getChildren().addAll(localizationSection, outputSection, performanceSection, pythonSection, dataSection);
     }
 
     private void loadConfiguration() {
@@ -226,6 +257,12 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
 
         initialGpuAcceleration = config.isGpuAccelerationEnabled();
         gpuAcceleration.setSelected(initialGpuAcceleration);
+
+        initialGraalPyExecutable = config.getGraalPyExecutable()
+                .map(Path::toString)
+                .orElse("");
+        graalPyExecutable.setText(initialGraalPyExecutable);
+        updateClearButtonState();
     }
 
     /** Saves the current panel settings to the application configuration. */
@@ -267,6 +304,13 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
         config.setAnimationFormats(animationFormats);
 
         config.setGpuAccelerationEnabled(gpuAcceleration.isSelected());
+
+        var execPath = graalPyExecutable.getText();
+        if (execPath == null || execPath.isEmpty()) {
+            config.setGraalPyExecutable(null);
+        } else {
+            config.setGraalPyExecutable(Path.of(execPath));
+        }
     }
 
     /**
@@ -282,8 +326,9 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
         var memoryChanged = initialMemoryRestriction != newMemoryRestriction;
         var languageChanged = !newLanguage.equals(initialLanguage);
         var gpuChanged = initialGpuAcceleration != gpuAcceleration.isSelected();
+        var graalPyChanged = !graalPyExecutable.getText().equals(initialGraalPyExecutable);
 
-        return memoryChanged || languageChanged || gpuChanged;
+        return memoryChanged || languageChanged || gpuChanged || graalPyChanged;
     }
 
     private String computeMemoryUsageHelpLabel(Number value) {
@@ -331,5 +376,23 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
         section.getChildren().add(titleLabel);
 
         return section;
+    }
+
+    private void browseForPythonExecutable() {
+        var fileChooser = new FileChooser();
+        fileChooser.setTitle(I18N.string(JSolEx.class, "advanced-params", "select.python"));
+        if (System.getProperty("os.name").toLowerCase().contains("win")) {
+            fileChooser.getExtensionFilters().add(
+                    new FileChooser.ExtensionFilter("Executable", "*.exe"));
+        }
+        var file = fileChooser.showOpenDialog(getScene().getWindow());
+        if (file != null) {
+            graalPyExecutable.setText(file.getAbsolutePath());
+            updateClearButtonState();
+        }
+    }
+
+    private void updateClearButtonState() {
+        clearGraalPy.setDisable(graalPyExecutable.getText().isEmpty());
     }
 }
