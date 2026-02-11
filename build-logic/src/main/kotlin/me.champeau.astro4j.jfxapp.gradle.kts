@@ -16,7 +16,8 @@ val jvmMemorySettings = listOf(
     providers.systemProperty("memory.settings").getOrElse("-XX:MaxRAMPercentage=80"),
     "-XX:+UseG1GC",
     "-XX:+HeapDumpOnOutOfMemoryError",
-    "-XX:+UseCompactObjectHeaders"
+    "-XX:+UseCompactObjectHeaders",
+    "-Dpolyglotimpl.DisableMultiReleaseCheck=true"
 )
 
 application {

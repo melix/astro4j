@@ -28,7 +28,6 @@ import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
-import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
@@ -218,21 +217,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     // Record to hold velocity measurement with its position data for weighted averaging
     private record VelocityMeasurement(double velocity, double longitudeFraction) {}
 
-    public enum ProfileMode {
-        SPECTRAL_PROFILE("mode.spectral.profile");
-
-        private final String messageKey;
-
-        ProfileMode(String messageKey) {
-            this.messageKey = messageKey;
-        }
-
-        @Override
-        public String toString() {
-            return message(messageKey);
-        }
-    }
-
     private final Map<SuggestionEvent.SuggestionKind, String> suggestions = Collections.synchronizedMap(new LinkedHashMap<>());
     private final Map<Double, ReconstructionView> imageViews;
     private final JSolExInterface owner;
@@ -277,7 +261,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private SpectralLineAnalysis.LineStatistics currentLineStatistics;
     private Integer currentColumn;
     private float[][] currentSpectrumFrameData;
-    private ProfileMode currentProfileMode = ProfileMode.SPECTRAL_PROFILE;
     private AverageImageComputedEvent.AverageImage cachedAverageImagePayload;
     private TrimmingParameters cachedTrimmingParameters;
     private Button show3DButton;
@@ -2040,19 +2023,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         polynomial = payload.polynomial();
         averageImage = payload.image().data();
         profileViewFactory = () -> {
-            // Create mode selector combo box
-            var modeSelector = new ComboBox<ProfileMode>();
-            modeSelector.getItems().addAll(ProfileMode.values());
-            modeSelector.setValue(currentProfileMode);
-            modeSelector.getStyleClass().add("image-viewer-button");
-            modeSelector.setOnAction(evt -> {
-                var selected = modeSelector.getValue();
-                if (selected != currentProfileMode) {
-                    currentProfileMode = selected;
-                    Platform.runLater(() -> profileTab.setContent(profileViewFactory.get()));
-                }
-            });
-
             // Spectral profile mode
             var xAxis = new CategoryAxis();
             var yAxis = new NumberAxis();
@@ -2279,7 +2249,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
             var topBar = new BorderPane();
             topBar.setPadding(new Insets(5, 10, 5, 10));
-            topBar.setLeft(modeSelector);
             topBar.setRight(rightButtons);
 
             // Create the main layout with chart and statistics

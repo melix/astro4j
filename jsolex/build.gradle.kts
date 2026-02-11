@@ -37,6 +37,19 @@ jlink {
         additive = true
         uses("nom.tam.fits.compress.ICompressProvider")
         uses("ch.qos.logback.classic.spi.Configurator")
+        uses("ch.qos.logback.classic.util.ClassicEnvUtil")
+        uses("org.apache.commons.compress.archivers.ArchiveStreamFactory")
+        uses("org.apache.commons.compress.compressors.CompressorStreamFactory")
+        uses("org.apache.commons.compress.utils.ServiceLoaderIterator")
+        uses("org.graalvm.polyglot.Engine")
+        uses("com.fasterxml.jackson.databind.cfg.MapperBuilder")
+        uses("com.fasterxml.jackson.databind.ObjectMapper")
+        uses("com.oracle.truffle.api.Truffle")
+        uses("com.oracle.truffle.api.impl.DefaultTruffleRuntime")
+        uses("nom.tam.fits.compress.CompressionManager")
+        uses("nom.tam.fits.compression.provider.CompressorProvider")
+        uses("com.oracle.truffle.api.library.provider.DefaultExportProvider")
+        uses("com.oracle.truffle.api.strings.provider.JCodingsProvider")
         excludeProvides(
             mapOf(
                 "servicePattern" to "reactor.blockhound.integration.*"
@@ -63,9 +76,6 @@ jlink {
         "polyglot"
     )
     options.add("--ignore-signing-information")
-    launcher {
-        jvmArgs.add("-Dpolyglotimpl.DisableMultiReleaseCheck=true")
-    }
 }
 
 application {

@@ -25,6 +25,7 @@ dependencies {
     implementation(libs.lwjgl)
     implementation(libs.lwjgl.opencl)
     implementation(libs.graalpy.polyglot)
+    implementation(libs.graalpy.python)
     implementation(libs.graalpy.python.language)
     implementation(libs.graalpy.python.resources)
     implementation(libs.arrow.memory)

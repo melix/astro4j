@@ -36,6 +36,7 @@ lwjgl-opencl = { module = "org.lwjgl:lwjgl-opencl", version.ref = "lwjgl" }
 lwjgl-opengl = { module = "org.lwjgl:lwjgl-opengl", version.ref = "lwjgl" }
 lwjgl-glfw = { module = "org.lwjgl:lwjgl-glfw", version.ref = "lwjgl" }
 graalpy-polyglot = { module = "org.graalvm.polyglot:polyglot", version.ref = "graalpy" }
+graalpy-python = { module = "org.graalvm.python:python", version.ref = "graalpy" }
 graalpy-python-language = { module = "org.graalvm.python:python-language", version.ref = "graalpy" }
 graalpy-python-resources = { module = "org.graalvm.python:python-resources", version.ref = "graalpy" }
 arrow-memory = { module = "org.apache.arrow:arrow-memory-core", version.ref = "arrow" }
