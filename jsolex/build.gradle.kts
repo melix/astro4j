@@ -50,6 +50,11 @@ jlink {
         uses("nom.tam.fits.compression.provider.CompressorProvider")
         uses("com.oracle.truffle.api.library.provider.DefaultExportProvider")
         uses("com.oracle.truffle.api.strings.provider.JCodingsProvider")
+        uses("com.oracle.truffle.runtime.TruffleTypes")
+        uses("com.oracle.truffle.runtime.LoopNodeFactory")
+        uses("com.oracle.truffle.runtime.EngineCacheSupport")
+        uses("com.oracle.truffle.runtime.FloodControlHandler")
+        uses("com.oracle.truffle.runtime.jfr.EventFactory\$Provider")
         excludeProvides(
             mapOf(
                 "servicePattern" to "reactor.blockhound.integration.*"
@@ -73,7 +78,7 @@ jlink {
         "jackson-core", "jackson-databind", "jackson-annotations",
         "python-community", "python-language", "python-resources",
         "truffle-nfi-libffi", "truffle-nfi-panama", "truffle-nfi", "truffle-api",
-        "polyglot"
+        "polyglot", "profiler-tool", "shadowed", "truffle-compiler", "truffle-runtime"
     )
     options.add("--ignore-signing-information")
 }
