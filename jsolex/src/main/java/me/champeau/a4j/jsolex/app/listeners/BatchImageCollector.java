@@ -32,6 +32,7 @@ import java.util.function.Supplier;
 final class BatchImageCollector {
 
     private final Map<String, List<ImageWrapper>> imagesByLabel;
+    private final Map<String, List<Object>> valuesByLabel;
     private final Map<Integer, List<ImageWrapper>> imageWrappersByIndex;
     private final Map<Integer, List<CandidateImageDescriptor>> imagesByIndex;
     private final Map<Integer, List<File>> filesByIndex;
@@ -39,11 +40,13 @@ final class BatchImageCollector {
 
     BatchImageCollector(
             Map<String, List<ImageWrapper>> imagesByLabel,
+            Map<String, List<Object>> valuesByLabel,
             Map<Integer, List<ImageWrapper>> imageWrappersByIndex,
             Map<Integer, List<CandidateImageDescriptor>> imagesByIndex,
             Map<Integer, List<File>> filesByIndex,
             ReentrantReadWriteLock dataLock) {
         this.imagesByLabel = imagesByLabel;
+        this.valuesByLabel = valuesByLabel;
         this.imageWrappersByIndex = imageWrappersByIndex;
         this.imagesByIndex = imagesByIndex;
         this.filesByIndex = filesByIndex;
@@ -56,6 +59,7 @@ final class BatchImageCollector {
     static BatchImageCollector fromContext(BatchProcessingContext context) {
         return new BatchImageCollector(
                 context.imagesByLabel(),
+                context.valuesByLabel(),
                 context.imageWrappersByIndex(),
                 context.imagesByIndex(),
                 context.filesByIndex(),
@@ -94,6 +98,18 @@ final class BatchImageCollector {
         dataLock.writeLock().lock();
         try {
             imagesByLabel.computeIfAbsent(label, unused -> new ArrayList<>()).add(image);
+        } finally {
+            dataLock.writeLock().unlock();
+        }
+    }
+
+    /**
+     * Adds a value by label.
+     */
+    void addValueByLabel(String label, Object value) {
+        dataLock.writeLock().lock();
+        try {
+            valuesByLabel.computeIfAbsent(label, unused -> new ArrayList<>()).add(value);
         } finally {
             dataLock.writeLock().unlock();
         }
@@ -140,6 +156,13 @@ final class BatchImageCollector {
      */
     Map<String, List<ImageWrapper>> getImagesByLabel() {
         return imagesByLabel;
+    }
+
+    /**
+     * Returns the values by label map. Caller must hold the appropriate lock.
+     */
+    Map<String, List<Object>> getValuesByLabel() {
+        return valuesByLabel;
     }
 
     /**

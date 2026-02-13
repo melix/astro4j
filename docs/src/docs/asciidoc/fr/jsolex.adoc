@@ -818,6 +818,8 @@ meta {
 }
 ----
 
+include::python-scripting.adoc[]
+
 [[trimming-ser-files]]
 == Réduire la taille des fichiers SER
 

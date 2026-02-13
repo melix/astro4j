@@ -473,7 +473,6 @@ public class ImageViewer implements WithRootNode {
             fitToCenter.disableProperty().bind(imageView.canFitToCenterProperty().map(e -> !e));
             fitToCenter.setOnAction(evt -> imageView.fitToCenter());
             var oneToOneFit = createButton("1:1");
-            oneToOneFit.disableProperty().bind(imageView.canFitToCenterProperty().map(e -> !e));
             oneToOneFit.setOnAction(evt -> imageView.oneToOneZoomAndCenter());
             var leftRotate = createButton("↶");
             leftRotate.setOnAction(evt -> {

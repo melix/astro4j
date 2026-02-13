@@ -27,12 +27,14 @@ import javafx.scene.Group;
 import javafx.scene.SnapshotParameters;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.control.Button;
+import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.image.WritableImage;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Separator;
 import javafx.scene.control.Slider;
+import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
@@ -66,7 +68,8 @@ public class SpectralEvolution4DViewer extends AbstractSpectral3DViewer {
     private SliceMode currentSliceMode = SliceMode.WAVELENGTH;
     private AnimationTimer animationTimer;
     private Slider sliceSlider;
-    private Label slicePositionLabel;
+    private TextField slicePositionField;
+    private Label sliceUnitLabel;
     private Button playButton;
     private ComboBox<SliceMode> sliceModeCombo;
     private boolean animationMode = false;
@@ -552,7 +555,7 @@ public class SpectralEvolution4DViewer extends AbstractSpectral3DViewer {
 
         // Rebuild surface and update marker
         buildSurface();
-        updateSlicePositionLabel();
+        updateSlicePositionField();
         updateSliceOverlay();
         updateProfileOverlay();
         updateClickMarkerPosition();
@@ -924,7 +927,7 @@ public class SpectralEvolution4DViewer extends AbstractSpectral3DViewer {
                 invalidateMesh();
                 buildSurface();
                 rebuildAxes();
-                updateSlicePositionLabel();
+                updateSlicePositionField();
                 updateSliceOverlay();
                 updateProfileOverlay();
                 updateLegendLabels();
@@ -938,7 +941,7 @@ public class SpectralEvolution4DViewer extends AbstractSpectral3DViewer {
         sliceSlider.setPrefWidth(150);
         sliceSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
             currentSliceFraction = newVal.doubleValue();
-            updateSlicePositionLabel();
+            updateSlicePositionField();
             updateSliceOverlay();
             updateProfileOverlay();
             // Clear marker if user manually moved the slider
@@ -955,10 +958,24 @@ public class SpectralEvolution4DViewer extends AbstractSpectral3DViewer {
             sliderDebounce.stop();
             buildSurface();
         });
-        slicePositionLabel = new Label();
-        slicePositionLabel.setMinSize(Label.USE_PREF_SIZE, Label.USE_PREF_SIZE);
-        updateSlicePositionLabel();
-        var sliceBox = new HBox(5, sliceSlider, slicePositionLabel);
+        slicePositionField = new TextField();
+        slicePositionField.setPrefColumnCount(8);
+        slicePositionField.setOnAction(e -> applyTextFieldValue());
+        slicePositionField.focusedProperty().addListener((obs, wasFocused, isFocused) -> {
+            if (!isFocused) {
+                applyTextFieldValue();
+            }
+        });
+        slicePositionField.setOnKeyPressed(e -> {
+            if (e.getCode() == KeyCode.ESCAPE) {
+                updateSlicePositionField();
+                sliceSlider.requestFocus();
+            }
+        });
+        sliceUnitLabel = new Label();
+        sliceUnitLabel.setMinSize(Label.USE_PREF_SIZE, Label.USE_PREF_SIZE);
+        updateSlicePositionField();
+        var sliceBox = new HBox(5, sliceSlider, slicePositionField, sliceUnitLabel);
         sliceBox.setAlignment(Pos.CENTER_LEFT);
 
         playButton = createStyledButton(I18N.string(JSolEx.class, "spectral-surface-3d", "play"));
@@ -972,9 +989,88 @@ public class SpectralEvolution4DViewer extends AbstractSpectral3DViewer {
         );
     }
 
-    private void updateSlicePositionLabel() {
+    private void updateSlicePositionField() {
+        if (slicePositionField == null) {
+            return;
+        }
         var index = getCurrentSliceIndex();
-        slicePositionLabel.setText(data.getSliceLabel(currentSliceMode.toDataSliceMode(), index));
+        switch (currentSliceMode) {
+            case SLIT -> {
+                slicePositionField.setText(String.valueOf(data.slitPositions()[index]));
+                if (sliceUnitLabel != null) {
+                    sliceUnitLabel.setText("px");
+                }
+            }
+            case FRAME -> {
+                slicePositionField.setText(String.valueOf(data.frameIndices()[index]));
+                if (sliceUnitLabel != null) {
+                    sliceUnitLabel.setText("");
+                }
+            }
+            case WAVELENGTH -> {
+                slicePositionField.setText(String.format(Locale.US, "%.2f", data.centerWavelength().angstroms() + data.wavelengthOffsets()[index]));
+                if (sliceUnitLabel != null) {
+                    sliceUnitLabel.setText("\u00c5");
+                }
+            }
+        }
+    }
+
+    private void applyTextFieldValue() {
+        var text = slicePositionField.getText().trim();
+        try {
+            var fraction = switch (currentSliceMode) {
+                case FRAME -> {
+                    var value = Integer.parseInt(text);
+                    yield findFractionForFrame(value);
+                }
+                case SLIT -> {
+                    var value = Integer.parseInt(text);
+                    yield findFractionForSlit(value);
+                }
+                case WAVELENGTH -> {
+                    var value = Double.parseDouble(text);
+                    yield findFractionForWavelength(value);
+                }
+            };
+            currentSliceFraction = fraction;
+            settingSliderProgrammatically = true;
+            sliceSlider.setValue(fraction);
+            settingSliderProgrammatically = false;
+            clearClickMarker();
+            buildSurface();
+            updateSliceOverlay();
+            updateProfileOverlay();
+        } catch (NumberFormatException ignored) {
+        }
+        updateSlicePositionField();
+    }
+
+    private double findFractionForFrame(int frameNumber) {
+        var frameIndices = data.frameIndices();
+        var closest = findClosestIndex(frameIndices, frameNumber);
+        return frameIndices.length > 1 ? (double) closest / (frameIndices.length - 1) : 0;
+    }
+
+    private double findFractionForSlit(int slitPosition) {
+        var slitPositions = data.slitPositions();
+        var closest = findClosestIndex(slitPositions, slitPosition);
+        return slitPositions.length > 1 ? (double) closest / (slitPositions.length - 1) : 0;
+    }
+
+    private double findFractionForWavelength(double wavelength) {
+        var offset = wavelength - data.centerWavelength().angstroms();
+        var offsets = data.wavelengthOffsets();
+        var closest = 0;
+        var minDiff = Math.abs(offsets[0] - offset);
+        for (var i = 1; i < offsets.length; i++) {
+            var diff = Math.abs(offsets[i] - offset);
+            if (diff < minDiff) {
+                minDiff = diff;
+                closest = i;
+            }
+        }
+        return offsets.length > 1 ? (double) closest / (offsets.length - 1) : 0;
     }
 
     private void resetToCenter() {
@@ -997,12 +1093,14 @@ public class SpectralEvolution4DViewer extends AbstractSpectral3DViewer {
             playButton.setText(I18N.string(JSolEx.class, "spectral-surface-3d", "play"));
             sliceSlider.setDisable(false);
             sliceModeCombo.setDisable(false);
+            slicePositionField.setDisable(false);
             invalidateMesh();
             // Use Platform.runLater to ensure any pending animation frame has completed
             Platform.runLater(this::buildSurface);
         } else {
             sliceSlider.setDisable(true);
             sliceModeCombo.setDisable(true);
+            slicePositionField.setDisable(true);
             playButton.setText(I18N.string(JSolEx.class, "spectral-surface-3d", "stop"));
 
             animationMode = true;
@@ -1100,7 +1198,7 @@ public class SpectralEvolution4DViewer extends AbstractSpectral3DViewer {
         var fraction = sliceCount > 1 ? (double) index / (sliceCount - 1) : 0;
         currentSliceFraction = fraction;
         sliceSlider.setValue(fraction);
-        updateSlicePositionLabel();
+        updateSlicePositionField();
         updateSliceOverlay();
         buildSurface();
     }
@@ -1117,10 +1215,12 @@ public class SpectralEvolution4DViewer extends AbstractSpectral3DViewer {
                 () -> {
                     sliceSlider.setDisable(true);
                     sliceModeCombo.setDisable(true);
+                    slicePositionField.setDisable(true);
                 },
                 () -> {
                     sliceSlider.setDisable(false);
                     sliceModeCombo.setDisable(false);
+                    slicePositionField.setDisable(false);
                 }
         );
     }

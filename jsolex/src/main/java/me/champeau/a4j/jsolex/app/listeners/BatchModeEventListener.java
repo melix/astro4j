@@ -545,6 +545,9 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                     var images = entry.getValue().stream().filter(img -> !discarded.contains(img)).toList();
                     batchScriptExecutor.putVariable(entry.getKey(), images);
                 }
+                for (Map.Entry<String, List<Object>> entry : imageCollector.getValuesByLabel().entrySet()) {
+                    batchScriptExecutor.putVariable(entry.getKey(), entry.getValue());
+                }
             } finally {
                 dataLock.readLock().unlock();
             }
@@ -657,6 +660,10 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         for (Map.Entry<String, ImageWrapper> entry : images.entrySet()) {
             imageCollector.addImageByLabel(entry.getKey(), entry.getValue());
             imageCollector.addImageByIndex(sequenceNumber, entry.getValue());
+        }
+        var values = e.getPayload().valuesByLabel();
+        for (Map.Entry<String, Object> entry : values.entrySet()) {
+            imageCollector.addValueByLabel(entry.getKey(), entry.getValue());
         }
     }
 

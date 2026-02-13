@@ -624,22 +624,32 @@ public class ZoomableImageView extends HBox {
     }
 
     public void oneToOneZoomAndCenter() {
-        if (!canFitToCenter()) {
+        var image = imageView.getImage();
+        if (image == null) {
             return;
         }
 
-        var image = imageView.getImage();
-        var center = solardisk.center();
         var width = getWidth();
         var height = getHeight();
 
         setZoom(1.0);
 
-        // Calculate the coordinates to center the sun in the viewport
-        var x = center.a() - width / 2;
-        var y = center.b() - height / 2;
+        // Center on solar disk if available, otherwise center on image
+        double centerX, centerY;
+        if (solardisk != null) {
+            var center = solardisk.center();
+            centerX = center.a();
+            centerY = center.b();
+        } else {
+            centerX = image.getWidth() / 2;
+            centerY = image.getHeight() / 2;
+        }
 
-        // Set the scroll values to center the sun
+        // Calculate the coordinates to center in the viewport
+        var x = centerX - width / 2;
+        var y = centerY - height / 2;
+
+        // Set the scroll values to center
         scrollPane.setHvalue(x / (image.getWidth() - width));
         scrollPane.setVvalue(y / (image.getHeight() - height));
     }

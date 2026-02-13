@@ -1,0 +1,63 @@
+name: PYTHON
+category: UTILS
+hasSideEffect: true
+concurrent: false
+description:
+  fr: "Exécute du code Python inline et retourne le résultat. Le script peut utiliser 'import jsolex' ou 'from jsolex import ...' pour accéder aux fonctions ImageMath."
+  en: "Executes inline Python code and returns the result. The script can use 'import jsolex' or 'from jsolex import ...' to access ImageMath functions."
+arguments:
+  - name: script
+    description:
+      fr: Code Python à exécuter (chaîne)
+      en: Python code to execute (string)
+examples:
+  - |
+    python('''
+    img = jsolex.vars.continuum
+    result = jsolex.funcs.SHARPEN(img=img, amount=1.5)
+    ''')
+extraDocs:
+  en: |
+    The Python script has access to all ImageMath functions and variables:
+
+    Variable access (Pythonic):
+    - jsolex.vars.name - read a variable
+    - jsolex.vars.name = value - write a variable (must be declared first in ImageMath)
+
+    Function calls (Pythonic):
+    - jsolex.funcs.FUNC_NAME(arg1, arg2, ...) - call any ImageMath builtin function
+    - jsolex.user_funcs.func_name(...) - call user-defined ImageMath functions
+
+    Alternative syntax:
+    - jsolex.getVariable('name'), jsolex.setVariable('name', value)
+    - jsolex.call('FUNC_NAME', {'arg': value})
+
+    Convenience functions:
+    - jsolex.load(path), jsolex.save(img, path)
+    - jsolex.width(img), jsolex.height(img)
+    - jsolex.getPixel(img, x, y), jsolex.setPixel(img, x, y, value)
+
+    To return a value, assign it to the 'result' variable:
+    result = jsolex.funcs.SHARPEN(img=img, amount=1.5)
+  fr: |
+    Le script Python a accès à toutes les fonctions et variables ImageMath :
+
+    Accès aux variables (Pythonique) :
+    - jsolex.vars.name - lire une variable
+    - jsolex.vars.name = value - écrire une variable (doit être déclarée d'abord dans ImageMath)
+
+    Appels de fonctions (Pythonique) :
+    - jsolex.funcs.FUNC_NAME(arg1, arg2, ...) - appeler n'importe quelle fonction ImageMath builtin
+    - jsolex.user_funcs.func_name(...) - appeler les fonctions ImageMath définies par l'utilisateur
+
+    Syntaxe alternative :
+    - jsolex.getVariable('name'), jsolex.setVariable('name', value)
+    - jsolex.call('FUNC_NAME', {'arg': value})
+
+    Fonctions utilitaires :
+    - jsolex.load(path), jsolex.save(img, path)
+    - jsolex.width(img), jsolex.height(img)
+    - jsolex.getPixel(img, x, y), jsolex.setPixel(img, x, y, value)
+
+    Pour retourner une valeur, assignez-la à la variable 'result' :
+    result = jsolex.funcs.SHARPEN(img=img, amount=1.5)

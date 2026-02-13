@@ -35,6 +35,7 @@ class BatchImageCollectorTest extends Specification {
         def filesByIndex = new ConcurrentHashMap<Integer, List<File>>()
         def collector = new BatchImageCollector(
             new ConcurrentHashMap<String, List<ImageWrapper>>(),
+            new ConcurrentHashMap<String, List<Object>>(),
             new ConcurrentHashMap<Integer, List<ImageWrapper>>(),
             new ConcurrentHashMap<Integer, List<CandidateImageDescriptor>>(),
             filesByIndex,
@@ -60,6 +61,7 @@ class BatchImageCollectorTest extends Specification {
         def imagesByIndex = new ConcurrentHashMap<Integer, List<CandidateImageDescriptor>>()
         def collector = new BatchImageCollector(
             new ConcurrentHashMap<String, List<ImageWrapper>>(),
+            new ConcurrentHashMap<String, List<Object>>(),
             new ConcurrentHashMap<Integer, List<ImageWrapper>>(),
             imagesByIndex,
             new ConcurrentHashMap<Integer, List<File>>(),
@@ -83,6 +85,7 @@ class BatchImageCollectorTest extends Specification {
         def imagesByLabel = new ConcurrentHashMap<String, List<ImageWrapper>>()
         def collector = new BatchImageCollector(
             imagesByLabel,
+            new ConcurrentHashMap<String, List<Object>>(),
             new ConcurrentHashMap<Integer, List<ImageWrapper>>(),
             new ConcurrentHashMap<Integer, List<CandidateImageDescriptor>>(),
             new ConcurrentHashMap<Integer, List<File>>(),
@@ -106,6 +109,7 @@ class BatchImageCollectorTest extends Specification {
         def imageWrappersByIndex = new ConcurrentHashMap<Integer, List<ImageWrapper>>()
         def collector = new BatchImageCollector(
             new ConcurrentHashMap<String, List<ImageWrapper>>(),
+            new ConcurrentHashMap<String, List<Object>>(),
             imageWrappersByIndex,
             new ConcurrentHashMap<Integer, List<CandidateImageDescriptor>>(),
             new ConcurrentHashMap<Integer, List<File>>(),
@@ -129,6 +133,7 @@ class BatchImageCollectorTest extends Specification {
         def imagesByLabel = new ConcurrentHashMap<String, List<ImageWrapper>>()
         def collector = new BatchImageCollector(
             imagesByLabel,
+            new ConcurrentHashMap<String, List<Object>>(),
             new ConcurrentHashMap<Integer, List<ImageWrapper>>(),
             new ConcurrentHashMap<Integer, List<CandidateImageDescriptor>>(),
             new ConcurrentHashMap<Integer, List<File>>(),
@@ -148,6 +153,7 @@ class BatchImageCollectorTest extends Specification {
         def imagesByLabel = new ConcurrentHashMap<String, List<ImageWrapper>>()
         def collector = new BatchImageCollector(
             imagesByLabel,
+            new ConcurrentHashMap<String, List<Object>>(),
             new ConcurrentHashMap<Integer, List<ImageWrapper>>(),
             new ConcurrentHashMap<Integer, List<CandidateImageDescriptor>>(),
             new ConcurrentHashMap<Integer, List<File>>(),
@@ -168,6 +174,7 @@ class BatchImageCollectorTest extends Specification {
         def filesByIndex = new ConcurrentHashMap<Integer, List<File>>()
         def collector = new BatchImageCollector(
             new ConcurrentHashMap<String, List<ImageWrapper>>(),
+            new ConcurrentHashMap<String, List<Object>>(),
             new ConcurrentHashMap<Integer, List<ImageWrapper>>(),
             new ConcurrentHashMap<Integer, List<CandidateImageDescriptor>>(),
             filesByIndex,
@@ -197,11 +204,13 @@ class BatchImageCollectorTest extends Specification {
     def "getters return underlying maps"() {
         given:
         def imagesByLabel = new ConcurrentHashMap<String, List<ImageWrapper>>()
+        def valuesByLabel = new ConcurrentHashMap<String, List<Object>>()
         def imageWrappersByIndex = new ConcurrentHashMap<Integer, List<ImageWrapper>>()
         def imagesByIndex = new ConcurrentHashMap<Integer, List<CandidateImageDescriptor>>()
         def filesByIndex = new ConcurrentHashMap<Integer, List<File>>()
         def collector = new BatchImageCollector(
             imagesByLabel,
+            valuesByLabel,
             imageWrappersByIndex,
             imagesByIndex,
             filesByIndex,
@@ -210,6 +219,7 @@ class BatchImageCollectorTest extends Specification {
 
         expect:
         collector.getImagesByLabel().is(imagesByLabel)
+        collector.getValuesByLabel().is(valuesByLabel)
         collector.getImageWrappersByIndex().is(imageWrappersByIndex)
         collector.getImagesByIndex().is(imagesByIndex)
         collector.getFilesByIndex().is(filesByIndex)

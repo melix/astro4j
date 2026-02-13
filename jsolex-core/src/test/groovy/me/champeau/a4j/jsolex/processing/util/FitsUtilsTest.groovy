@@ -17,6 +17,8 @@ package me.champeau.a4j.jsolex.processing.util
 
 import me.champeau.a4j.jsolex.processing.params.ProcessParams
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift
+import me.champeau.a4j.jsolex.processing.sun.workflow.SpectralLinePolynomial
+import me.champeau.a4j.math.tuples.DoubleQuadruplet
 import spock.lang.Specification
 import spock.lang.TempDir
 
@@ -101,6 +103,71 @@ class FitsUtilsTest extends Specification {
                 assert diff < 2.0f: "Mismatch at [${y}][${x}]: original=${originalValue}, read=${readValue}, diff=${diff}"
             }
         }
+    }
+
+    def "should write and read back SpectralLinePolynomial metadata correctly"() {
+        given: "an image with SpectralLinePolynomial metadata"
+        def width = 10
+        def height = 10
+        def data = new float[height][width]
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                data[y][x] = 5000.0f
+            }
+        }
+
+        def coefficients = new DoubleQuadruplet(0.001, -0.02, 0.5, 100.0)
+        def polynomial = new SpectralLinePolynomial(coefficients)
+        def metadata = [
+            (PixelShift): new PixelShift(0.0),
+            (SpectralLinePolynomial): polynomial
+        ] as Map<Class<?>, Object>
+
+        def originalImage = new ImageWrapper32(width, height, data, metadata)
+        def processParams = ProcessParams.loadDefaults()
+        def fitsFile = tempDir.resolve("polynomial_test.fits").toFile()
+
+        when: "writing and reading the image"
+        FitsUtils.writeFitsFile(originalImage, fitsFile, processParams)
+        def readImage = FitsUtils.readFitsFile(fitsFile)
+
+        then: "the SpectralLinePolynomial metadata is preserved"
+        readImage.findMetadata(SpectralLinePolynomial).isPresent()
+        def readPolynomial = readImage.findMetadata(SpectralLinePolynomial).get()
+
+        and: "the polynomial coefficients match"
+        def readCoeffs = readPolynomial.coefficients()
+        Math.abs(readCoeffs.a() - coefficients.a()) < 1e-10
+        Math.abs(readCoeffs.b() - coefficients.b()) < 1e-10
+        Math.abs(readCoeffs.c() - coefficients.c()) < 1e-10
+        Math.abs(readCoeffs.d() - coefficients.d()) < 1e-10
+    }
+
+    def "SpectralLinePolynomial computes correct y position"() {
+        given: "a polynomial with known coefficients"
+        // y = 0.001x³ - 0.02x² + 0.5x + 100
+        def coefficients = new DoubleQuadruplet(0.001, -0.02, 0.5, 100.0)
+        def polynomial = new SpectralLinePolynomial(coefficients)
+
+        when: "computing y for x = 100"
+        def y = polynomial.applyAsDouble(100.0)
+
+        then: "the result matches expected value"
+        // 0.001 * 1000000 - 0.02 * 10000 + 0.5 * 100 + 100
+        // = 1000 - 200 + 50 + 100 = 950
+        Math.abs(y - 950.0) < 1e-10
+    }
+
+    def "SpectralLinePolynomial.computeYInFrame adds pixel shift correctly"() {
+        given: "a simple polynomial (y = x)"
+        def coefficients = new DoubleQuadruplet(0.0, 0.0, 1.0, 0.0)
+        def polynomial = new SpectralLinePolynomial(coefficients)
+
+        when: "computing yInFrame with a pixel shift"
+        def yInFrame = polynomial.computeYInFrame(50.0, 5.0)
+
+        then: "the result is x + pixelShift"
+        Math.abs(yInFrame - 55.0) < 1e-10
     }
 
     private static float[][] generateRandomImageData(int width, int height) {

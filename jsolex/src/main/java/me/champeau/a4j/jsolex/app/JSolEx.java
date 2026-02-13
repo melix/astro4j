@@ -76,6 +76,7 @@ import me.champeau.a4j.jsolex.app.jfx.EmbeddedServerController;
 import me.champeau.a4j.jsolex.app.jfx.ExposureCalculator;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
 import me.champeau.a4j.jsolex.app.jfx.ImageMathEditor;
+import me.champeau.a4j.jsolex.app.jfx.ScriptErrorDialog;
 import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
 import me.champeau.a4j.jsolex.app.jfx.MetadataEditor;
 import me.champeau.a4j.jsolex.app.jfx.MultipleImagesViewer;
@@ -1001,7 +1002,9 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
                 var result = executor.execute(text, section);
                 if (shouldRunBothSections) {
                     var previousVariables = new HashMap<String, Object>();
-                    var previousKeys = result.imagesByLabel().keySet();
+                    var previousKeys = new HashSet<String>();
+                    previousKeys.addAll(result.imagesByLabel().keySet());
+                    previousKeys.addAll(result.valuesByLabel().keySet());
                     for (var key : previousKeys) {
                         var value = executor.getVariable(key);
                         value.ifPresent(v -> previousVariables.put(key, v));
@@ -1009,6 +1012,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
                     try {
                         // simulate single element batch mode
                         result.imagesByLabel().forEach((key, image) -> executor.putVariable(key, List.of(image)));
+                        result.valuesByLabel().forEach((key, value) -> executor.putVariable(key, List.of(value)));
                         executor.execute(text, ImageMathScriptExecutor.SectionKind.BATCH);
                     } finally {
                         for (var key : previousKeys) {
@@ -1621,6 +1625,34 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     private void donate() {
         var lang = LocaleUtils.getConfiguredLanguageCode();
         getHostServices().showDocument("https://melix.github.io/astro4j/latest/" + lang + "/jsolex.html#donate");
+    }
+
+    @FXML
+    private void exportPythonStubs() {
+        var fileChooser = new FileChooser();
+        fileChooser.setTitle(I18N.string(getClass(), "messages", "export.python.stubs.title"));
+        fileChooser.setInitialFileName("jsolex.pyi");
+        fileChooser.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter("Python Stub Files", "*.pyi"));
+        var file = fileChooser.showSaveDialog(rootStage);
+        if (file != null) {
+            try (var input = JSolEx.class.getResourceAsStream("/python-stubs/jsolex.pyi");
+                 var output = new java.io.FileOutputStream(file)) {
+                if (input == null) {
+                    throw new IllegalStateException("Python stubs resource not found");
+                }
+                input.transferTo(output);
+                var alert = AlertFactory.info();
+                alert.setTitle(I18N.string(getClass(), "messages", "export.python.stubs.success.title"));
+                alert.setHeaderText(I18N.string(getClass(), "messages", "export.python.stubs.success.header"));
+                alert.setContentText(MessageFormat.format(I18N.string(getClass(), "messages", "export.python.stubs.success.content"), file.getAbsolutePath()));
+                alert.showAndWait();
+            } catch (Exception e) {
+                var alert = AlertFactory.error(e.getMessage());
+                alert.setTitle(I18N.string(getClass(), "messages", "export.python.stubs.error.title"));
+                alert.showAndWait();
+            }
+        }
     }
 
     private void doOpen(File selectedFile, boolean rememberProcessParams, ProcessParams forcedParams) {

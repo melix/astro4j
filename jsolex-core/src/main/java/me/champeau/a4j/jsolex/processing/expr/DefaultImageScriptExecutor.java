@@ -132,6 +132,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         try {
             var index = executionCount.getAndIncrement();
             var evaluator = new MemoizingExpressionEvaluator(broadcaster);
+            evaluator.setIncludesDir(includesDir);
             populateContext(evaluator, operation);
             return doExecuteScript(script, index, evaluator, kind, operation);
         } finally {
@@ -149,16 +150,18 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
 
     public ImageMathScriptResult execute(List<Expression> expressions, List<UserFunction> userFunctions) {
         var evaluator = new MemoizingExpressionEvaluator(broadcaster);
+        evaluator.setIncludesDir(includesDir);
         context.forEach(evaluator::putInContext);
         variables.forEach(evaluator::putVariable);
         userFunctions.forEach(fn -> {
-            var prep = fn.prepare(imagesByShift, context, evaluator::addShift, broadcaster);
+            var prep = fn.prepare(imagesByShift, context, evaluator::addShift, broadcaster, includesDir);
             evaluator.putFunction(fn.name(), prep);
         });
         var imagesByLabel = new LinkedHashMap<String, ImageWrapper>();
         var filesByLabel = new LinkedHashMap<String, FileOutputResult>();
+        var valuesByLabel = new LinkedHashMap<String, Object>();
         var invalidExpressions = new ArrayList<InvalidExpression>();
-        executeExpressions(executionCount.getAndIncrement(), evaluator, expressions, new AtomicInteger(), imagesByLabel, filesByLabel, invalidExpressions);
+        executeExpressions(executionCount.getAndIncrement(), evaluator, expressions, new AtomicInteger(), imagesByLabel, filesByLabel, valuesByLabel, invalidExpressions);
         evaluator.getVariables().forEach((k, v) -> {
             if (!variables.containsKey(k)) {
                 variables.put(k, v);
@@ -167,6 +170,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         return new ImageMathScriptResult(
                 imagesByLabel,
                 filesByLabel,
+                valuesByLabel,
                 invalidExpressions,
                 Collections.emptySet(),
                 evaluator.getShifts(),
@@ -175,30 +179,45 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         );
     }
 
-    private void extractResults(Map<String, ImageWrapper> producedImages, Map<String, FileOutputResult> producedFiles, String variableName, Object result) {
+    private void extractResults(Map<String, ImageWrapper> producedImages, Map<String, FileOutputResult> producedFiles, Map<String, Object> producedValues, String variableName, Object result) {
         switch (result) {
             case ImageWrapper image -> producedImages.put(variableName, image);
             case SingleFileOutput singleFile -> producedFiles.put(variableName, singleFile);
             case MultiFileOutput multiFile -> producedFiles.put(variableName, multiFile);
-            case List<?> images -> {
-                int img = 0;
-                for (Object o : images) {
-                    if (o instanceof ImageWrapper image) {
-                        producedImages.put(variableName + "_" + img++, image);
-                    } else if (o instanceof SingleFileOutput singleFile) {
-                        producedFiles.put(variableName + "_" + img++, singleFile);
+            case List<?> items -> {
+                int idx = 0;
+                boolean allImages = true;
+                boolean allFiles = true;
+                for (Object o : items) {
+                    if (!(o instanceof ImageWrapper)) {
+                        allImages = false;
                     }
+                    if (!(o instanceof SingleFileOutput) && !(o instanceof MultiFileOutput)) {
+                        allFiles = false;
+                    }
+                }
+                if (allImages || allFiles) {
+                    for (Object o : items) {
+                        if (o instanceof ImageWrapper image) {
+                            producedImages.put(variableName + "_" + idx++, image);
+                        } else if (o instanceof SingleFileOutput singleFile) {
+                            producedFiles.put(variableName + "_" + idx++, singleFile);
+                        }
+                    }
+                } else {
+                    producedValues.put(variableName, result);
                 }
             }
             case ExpressionEvaluator.NestedInvocationResult nestedResult -> {
                 nestedResult.variables().forEach((key, value) -> {
-                    extractResults(producedImages, producedFiles, key, value);
+                    extractResults(producedImages, producedFiles, producedValues, key, value);
                 });
             }
             case null -> {
             }
             default -> {
-                if (outputLogging && !(result instanceof ExpressionEvaluator.NestedInvocationResult)) {
+                producedValues.put(variableName, result);
+                if (outputLogging) {
                     LOGGER.info(variableName + " = " + result);
                 }
             }
@@ -228,7 +247,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         }
         var functions = readUserFunctions(root);
         functions.forEach(function -> {
-            var prep = function.prepare(imagesByShift, context, evaluator::addShift, broadcaster);
+            var prep = function.prepare(imagesByShift, context, evaluator::addShift, broadcaster, includesDir);
             evaluator.putFunction(function.name(), prep);
         });
         int outputSectionCount = 0;
@@ -261,6 +280,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                 .orElseThrow(() -> new ProcessingException(new SyntaxError("No [outputs] section found")));
         Map<String, ImageWrapper> imagesByLabel = new LinkedHashMap<>();
         Map<String, FileOutputResult> filesByLabel = new LinkedHashMap<>();
+        Map<String, Object> valuesByLabel = new LinkedHashMap<>();
         List<InvalidExpression> invalidExpressions = new ArrayList<>();
         var resultsLock = new ReentrantLock();
         var internalShifts = new TreeSet<Double>();
@@ -333,21 +353,21 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
 
             for (var level : executionLevels) {
                 if (level.canRunInParallel()) {
-                    executeExpressionsInParallel(index, evaluator, level.assignments(), outputAssignments, cpt, imagesByLabel, filesByLabel, invalidExpressions, resultsLock, parentOperation);
+                    executeExpressionsInParallel(index, evaluator, level.assignments(), outputAssignments, cpt, imagesByLabel, filesByLabel, valuesByLabel, invalidExpressions, resultsLock, parentOperation);
                 } else {
                     for (var assignment : level.assignments()) {
                         var isFromOutputSection = outputAssignments.contains(assignment);
-                        executeSingleExpression(index, evaluator, assignment, isFromOutputSection, cpt, imagesByLabel, filesByLabel, invalidExpressions, resultsLock, parentOperation);
+                        executeSingleExpression(index, evaluator, assignment, isFromOutputSection, cpt, imagesByLabel, filesByLabel, valuesByLabel, invalidExpressions, resultsLock, parentOperation);
                     }
                 }
             }
         }
 
-        return new ImageMathScriptResult(imagesByLabel, filesByLabel, invalidExpressions, internalShifts, evaluator.getShifts(), Collections.emptySet(), evaluator.usesAutoContinuum());
+        return new ImageMathScriptResult(imagesByLabel, filesByLabel, valuesByLabel, invalidExpressions, internalShifts, evaluator.getShifts(), Collections.emptySet(), evaluator.usesAutoContinuum());
     }
 
 
-    private void executeExpressions(int index, MemoizingExpressionEvaluator evaluator, List<Expression> expressions, AtomicInteger cpt, Map<String, ImageWrapper> imagesByLabel, Map<String, FileOutputResult> filesByLabel, List<InvalidExpression> invalidExpressions) {
+    private void executeExpressions(int index, MemoizingExpressionEvaluator evaluator, List<Expression> expressions, AtomicInteger cpt, Map<String, ImageWrapper> imagesByLabel, Map<String, FileOutputResult> filesByLabel, Map<String, Object> valuesByLabel, List<InvalidExpression> invalidExpressions) {
         var assignments = expressions.stream()
                 .filter(expr -> expr instanceof Assignment)
                 .map(expr -> (Assignment) expr)
@@ -387,31 +407,31 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
 
         for (var level : executionLevels) {
             if (level.canRunInParallel()) {
-                executeExpressionsInParallel(index, evaluator, level.assignments(), new HashSet<>(assignments), cpt, imagesByLabel, filesByLabel, invalidExpressions, resultsLock, null);
+                executeExpressionsInParallel(index, evaluator, level.assignments(), new HashSet<>(assignments), cpt, imagesByLabel, filesByLabel, valuesByLabel, invalidExpressions, resultsLock, null);
             } else {
                 for (var assignment : level.assignments()) {
-                    executeSingleExpression(index, evaluator, assignment, true, cpt, imagesByLabel, filesByLabel, invalidExpressions, resultsLock, null);
+                    executeSingleExpression(index, evaluator, assignment, true, cpt, imagesByLabel, filesByLabel, valuesByLabel, invalidExpressions, resultsLock, null);
                 }
             }
         }
     }
 
-    private void executeExpressionsInParallel(int index, MemoizingExpressionEvaluator evaluator, List<Assignment> assignments, Set<Assignment> outputAssignments, AtomicInteger cpt, Map<String, ImageWrapper> imagesByLabel, Map<String, FileOutputResult> filesByLabel, List<InvalidExpression> invalidExpressions, ReentrantLock resultsLock, ProgressOperation progressOperation) {
+    private void executeExpressionsInParallel(int index, MemoizingExpressionEvaluator evaluator, List<Assignment> assignments, Set<Assignment> outputAssignments, AtomicInteger cpt, Map<String, ImageWrapper> imagesByLabel, Map<String, FileOutputResult> filesByLabel, Map<String, Object> valuesByLabel, List<InvalidExpression> invalidExpressions, ReentrantLock resultsLock, ProgressOperation progressOperation) {
         var forkJoinPool = ForkJoinPool.commonPool();
         try {
             forkJoinPool.submit(() -> assignments.parallelStream().forEach(assignment -> {
                 var isFromOutputSection = outputAssignments != null && outputAssignments.contains(assignment);
-                executeSingleExpression(index, evaluator, assignment, isFromOutputSection, cpt, imagesByLabel, filesByLabel, invalidExpressions, resultsLock, progressOperation);
+                executeSingleExpression(index, evaluator, assignment, isFromOutputSection, cpt, imagesByLabel, filesByLabel, valuesByLabel, invalidExpressions, resultsLock, progressOperation);
             })).get();
         } catch (InterruptedException | ExecutionException ex) {
             LOGGER.warn("Parallel execution interrupted: " + ex.getMessage());
         }
     }
 
-    private void executeSingleExpression(int index, MemoizingExpressionEvaluator evaluator, Assignment assignment, boolean isOutputSection, AtomicInteger cpt, Map<String, ImageWrapper> imagesByLabel, Map<String, FileOutputResult> filesByLabel, List<InvalidExpression> invalidExpressions, ReentrantLock resultsLock, ProgressOperation progressOperation) {
+    private void executeSingleExpression(int index, MemoizingExpressionEvaluator evaluator, Assignment assignment, boolean isOutputSection, AtomicInteger cpt, Map<String, ImageWrapper> imagesByLabel, Map<String, FileOutputResult> filesByLabel, Map<String, Object> valuesByLabel, List<InvalidExpression> invalidExpressions, ReentrantLock resultsLock, ProgressOperation progressOperation) {
         ProgressOperation exprOperation = null;
         if (progressOperation != null) {
-            exprOperation = progressOperation.createChild("Evaluating " + assignment);
+            exprOperation = progressOperation.createChild("Evaluating " + truncateForProgress(assignment.toString()));
             broadcaster.broadcast(exprOperation);
         }
         try {
@@ -424,7 +444,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                 var variableName = assignment.variableName().get();
                 resultsLock.lock();
                 try {
-                    extractResults(imagesByLabel, filesByLabel, variableName, result);
+                    extractResults(imagesByLabel, filesByLabel, valuesByLabel, variableName, result);
                 } finally {
                     resultsLock.unlock();
                 }
@@ -464,7 +484,8 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                         d -> {
                         },
                         broadcaster,
-                        userFunctions
+                        userFunctions,
+                        null // includesDir is set later via prepare()
                 )).forEach(userFunctions::add);
         return Collections.unmodifiableList(userFunctions);
     }
@@ -532,9 +553,11 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                     }
                 }
             }
+            // Skip caching for functions with side effects (e.g., python scripts)
+            boolean hasSideEffect = hasSideEffects(expression);
             // Not using `computeIfAbsent` to avoid recursive update
             var cacheKey = expression.getAllTokens(false).stream().map(Objects::toString).collect(Collectors.joining());
-            if (memoizeCache.containsKey(cacheKey)) {
+            if (!hasSideEffect && memoizeCache.containsKey(cacheKey)) {
                 var o = memoizeCache.get(cacheKey);
                 if (o instanceof ImageWrapper image) {
                     return image.copy();
@@ -564,13 +587,50 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                             .toList();
                 }
             }
-            memoizeCache.put(cacheKey, result);
+            if (!hasSideEffect && result != null) {
+                memoizeCache.put(cacheKey, result);
+            }
             return result;
         }
 
         public void clearCache() {
             super.clearCache();
             memoizeCache.clear();
+        }
+
+        private boolean hasSideEffects(Node expression) {
+            if (expression instanceof FunctionCall funCall) {
+                var builtin = funCall.getBuiltinFunction();
+                if (builtin.isPresent()) {
+                    return builtin.get().hasSideEffect();
+                }
+                var userFun = getUserFunctions().get(funCall.getFunctionName());
+                if (userFun != null) {
+                    return userFunctionHasSideEffects(userFun, new HashSet<>());
+                }
+            }
+            return false;
+        }
+
+        private boolean userFunctionHasSideEffects(UserFunction fn, Set<String> visited) {
+            if (!visited.add(fn.name())) {
+                return false;
+            }
+            for (var expr : fn.body()) {
+                for (var call : expr.descendantsOfType(FunctionCall.class)) {
+                    var builtin = call.getBuiltinFunction();
+                    if (builtin.isPresent() && builtin.get().hasSideEffect()) {
+                        return true;
+                    }
+                    if (builtin.isEmpty()) {
+                        var nestedFn = getUserFunctions().get(call.getFunctionName());
+                        if (nestedFn != null && userFunctionHasSideEffects(nestedFn, visited)) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
         }
     }
 
@@ -595,6 +655,17 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
 
     public Map<String, Object> getVariables() {
         return Collections.unmodifiableMap(variables);
+    }
+
+    private static String truncateForProgress(String text) {
+        var firstLine = text.lines().findFirst().orElse(text);
+        if (firstLine.length() > 80) {
+            return firstLine.substring(0, 77) + "...";
+        }
+        if (!firstLine.equals(text)) {
+            return firstLine + "...";
+        }
+        return firstLine;
     }
 
     public static class SyntaxError extends Exception {

@@ -23,6 +23,8 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShiftRange;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.math.regression.Ellipse;
+import me.champeau.a4j.math.tuples.DoubleQuadruplet;
+import me.champeau.a4j.ser.SerFileReader;
 
 import java.util.Collections;
 import java.util.List;
@@ -48,7 +50,9 @@ public final class ProcessingDoneEvent extends ProcessingEvent<ProcessingDoneEve
         PixelShiftRange pixelShiftRange,
         int detectedActiveRegions,
         int ellermanBombs,
-        int flares) {
+        int flares,
+        SerFileReader serFileReader,
+        DoubleQuadruplet polynomialCoefficients) {
 
     }
 
@@ -65,7 +69,9 @@ public final class ProcessingDoneEvent extends ProcessingEvent<ProcessingDoneEve
                                          PixelShiftRange pixelShiftRange,
                                          int detectedActiveRegions,
                                          int ellermanBombs,
-                                         int flares) {
-        return new ProcessingDoneEvent(new Outcome(timestamp, Collections.unmodifiableMap(images), customImageEmitter, mainEllipse, ellipse, imageStats, redshifts, polynomial, averageImage, processParams, pixelShiftRange, detectedActiveRegions, ellermanBombs, flares));
+                                         int flares,
+                                         SerFileReader serFileReader,
+                                         DoubleQuadruplet polynomialCoefficients) {
+        return new ProcessingDoneEvent(new Outcome(timestamp, Collections.unmodifiableMap(images), customImageEmitter, mainEllipse, ellipse, imageStats, redshifts, polynomial, averageImage, processParams, pixelShiftRange, detectedActiveRegions, ellermanBombs, flares, serFileReader, polynomialCoefficients));
     }
 }

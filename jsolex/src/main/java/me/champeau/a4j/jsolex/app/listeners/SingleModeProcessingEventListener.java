@@ -28,7 +28,6 @@ import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
-import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
@@ -113,6 +112,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShiftRange;
+import me.champeau.a4j.jsolex.processing.sun.workflow.SpectralLinePolynomial;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
 import me.champeau.a4j.jsolex.processing.util.AnimationFormat;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
@@ -218,21 +218,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     // Record to hold velocity measurement with its position data for weighted averaging
     private record VelocityMeasurement(double velocity, double longitudeFraction) {}
 
-    public enum ProfileMode {
-        SPECTRAL_PROFILE("mode.spectral.profile");
-
-        private final String messageKey;
-
-        ProfileMode(String messageKey) {
-            this.messageKey = messageKey;
-        }
-
-        @Override
-        public String toString() {
-            return message(messageKey);
-        }
-    }
-
     private final Map<SuggestionEvent.SuggestionKind, String> suggestions = Collections.synchronizedMap(new LinkedHashMap<>());
     private final Map<Double, ReconstructionView> imageViews;
     private final JSolExInterface owner;
@@ -269,6 +254,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private final AtomicInteger cropCount = new AtomicInteger();
     private final AtomicInteger animCount = new AtomicInteger();
     private final Map<String, List<ImageWrapper>> scriptImagesByLabel = new HashMap<>();
+    private final Map<String, List<Object>> scriptValuesByLabel = new HashMap<>();
 
     private static final long MIN_UI_UPDATE_INTERVAL_MS = 50;
     private final AtomicLong lastUIUpdateTime = new AtomicLong(0);
@@ -277,7 +263,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private SpectralLineAnalysis.LineStatistics currentLineStatistics;
     private Integer currentColumn;
     private float[][] currentSpectrumFrameData;
-    private ProfileMode currentProfileMode = ProfileMode.SPECTRAL_PROFILE;
     private AverageImageComputedEvent.AverageImage cachedAverageImagePayload;
     private TrimmingParameters cachedTrimmingParameters;
     private Button show3DButton;
@@ -1715,6 +1700,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         sd = payload.timestamp();
         owner.getRedshiftTab().setDisable(true);
         scriptImagesByLabel.clear();
+        scriptValuesByLabel.clear();
         var spectralRay = params.spectrumParams().ray();
         if (spectralRay != null && !SpectralRay.AUTO.equals(spectralRay)) {
             owner.updateSpectralLineIndicator(spectralRay, false);
@@ -1834,6 +1820,12 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         context.put(PixelShiftRange.class, payload.pixelShiftRange());
         context.put(AnimationFormat.class, Configuration.getInstance().getAnimationFormats());
         context.put(ProgressOperation.class, rootOperation);
+        if (payload.serFileReader() != null) {
+            context.put(SerFileReader.class, payload.serFileReader());
+        }
+        if (payload.polynomialCoefficients() != null) {
+            context.put(SpectralLinePolynomial.class, new SpectralLinePolynomial(payload.polynomialCoefficients()));
+        }
         return context;
     }
 
@@ -2040,19 +2032,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         polynomial = payload.polynomial();
         averageImage = payload.image().data();
         profileViewFactory = () -> {
-            // Create mode selector combo box
-            var modeSelector = new ComboBox<ProfileMode>();
-            modeSelector.getItems().addAll(ProfileMode.values());
-            modeSelector.setValue(currentProfileMode);
-            modeSelector.getStyleClass().add("image-viewer-button");
-            modeSelector.setOnAction(evt -> {
-                var selected = modeSelector.getValue();
-                if (selected != currentProfileMode) {
-                    currentProfileMode = selected;
-                    Platform.runLater(() -> profileTab.setContent(profileViewFactory.get()));
-                }
-            });
-
             // Spectral profile mode
             var xAxis = new CategoryAxis();
             var yAxis = new NumberAxis();
@@ -2279,7 +2258,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
             var topBar = new BorderPane();
             topBar.setPadding(new Insets(5, 10, 5, 10));
-            topBar.setLeft(modeSelector);
             topBar.setRight(rightButtons);
 
             // Create the main layout with chart and statistics
@@ -2857,6 +2835,11 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             scriptImagesByLabel.computeIfAbsent(entry.getKey(), unused -> new ArrayList<>())
                     .add(entry.getValue());
         }
+        var values = e.getPayload().valuesByLabel();
+        for (var entry : values.entrySet()) {
+            scriptValuesByLabel.computeIfAbsent(entry.getKey(), unused -> new ArrayList<>())
+                    .add(entry.getValue());
+        }
     }
 
     private boolean hasBatchScriptExpressions() {
@@ -2900,6 +2883,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             );
 
             for (var entry : scriptImagesByLabel.entrySet()) {
+                batchScriptExecutor.putVariable(entry.getKey(), entry.getValue());
+            }
+            for (var entry : scriptValuesByLabel.entrySet()) {
                 batchScriptExecutor.putVariable(entry.getKey(), entry.getValue());
             }
 
