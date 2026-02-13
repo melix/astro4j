@@ -27,8 +27,8 @@ import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 public class DirectoryListingParser {
     private static final Logger LOGGER = LoggerFactory.getLogger(DirectoryListingParser.class);
 
-    private static final Pattern HREF_PATTERN = Pattern.compile("href=[\"']([^\"']*\\.math)[\"']", Pattern.CASE_INSENSITIVE);
-    private static final Pattern A_TAG_PATTERN = Pattern.compile("<a[^>]*>([^<]*\\.math)</a>", Pattern.CASE_INSENSITIVE);
+    private static final Pattern HREF_PATTERN = Pattern.compile("href=[\"']([^\"']*\\.(math|zip))[\"']", Pattern.CASE_INSENSITIVE);
+    private static final Pattern A_TAG_PATTERN = Pattern.compile("<a[^>]*>([^<]*\\.(math|zip))</a>", Pattern.CASE_INSENSITIVE);
 
     public List<String> parseHtmlListing(String html) {
         var scriptFiles = new ArrayList<String>();
@@ -64,7 +64,7 @@ public class DirectoryListingParser {
             if (trimmed.isEmpty() || trimmed.startsWith("#")) {
                 continue;
             }
-            if (trimmed.endsWith(".math")) {
+            if (trimmed.endsWith(".math") || trimmed.endsWith(".zip")) {
                 scriptFiles.add(trimmed);
             }
         }

@@ -970,6 +970,45 @@ http://example.com/scripts/
 
 JSol'Ex essaiera d'abord de télécharger `scripts.txt`, et se rabattra sur l'analyse des listes de répertoires HTML si le fichier n'est pas trouvé.
 
+==== Support des fichiers Zip
+
+Pour les scripts nécessitant des fichiers supplémentaires (comme des modules Python), vous pouvez les regrouper dans une archive `.zip`.
+JSol'Ex extraira automatiquement le contenu lors du téléchargement depuis un dépôt.
+
+**Structure du fichier zip :**
+
+[source]
+----
+mon-script.zip
+├── mon-script.math      # Script principal
+├── main.txt             # Optionnel : spécifie le script principal (requis si plusieurs fichiers .math)
+├── utils.py             # Modules Python
+└── helpers.py
+----
+
+**Règles pour déterminer le script principal :**
+
+1. S'il n'y a qu'un seul fichier `.math` dans le zip, il est automatiquement utilisé comme script principal
+2. S'il y a plusieurs fichiers `.math`, vous devez inclure un fichier `main.txt` contenant le nom du script principal
+
+La structure des répertoires à l'intérieur du zip est préservée, permettant aux scripts de référencer des fichiers avec des chemins relatifs comme `python_file("utils.py")`.
+
+**Exemple de `main.txt` :**
+
+[source]
+----
+mon-script.math
+----
+
+Listez les fichiers zip dans `scripts.txt` aux côtés des fichiers `.math` :
+
+[source]
+----
+# Mon dépôt
+script-simple.math
+script-avec-modules.zip
+----
+
 ==== Exigences pour les scripts
 
 Pour qu'un script soit disponible dans un dépôt, il doit :
