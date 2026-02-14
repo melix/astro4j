@@ -42,6 +42,9 @@
             <Menu text="%help">
                 <MenuItem onAction="#showHelp" text="%documentation"/>
                 <MenuItem onAction="#openDiscord" text="%discord"/>
+                <SeparatorMenuItem/>
+                <MenuItem onAction="#exportPythonStubs" text="%export.python.stubs"/>
+                <SeparatorMenuItem/>
                 <MenuItem onAction="#donate" text="%donate"/>
                 <MenuItem onAction="#about" text="%about"/>
             </Menu>
@@ -178,11 +181,19 @@
                             <children>
                                 <TitledPane text="%imagemath.script">
                                     <BorderPane>
+                                        <top>
+                                            <HBox alignment="CENTER_LEFT" spacing="8">
+                                                <padding>
+                                                    <Insets bottom="4"/>
+                                                </padding>
+                                                <ChoiceBox fx:id="scriptLanguageChoice" prefWidth="100"/>
+                                            </HBox>
+                                        </top>
                                         <center>
                                             <ImageMathTextArea fx:id="imageMathScript"/>
                                         </center>
                                         <bottom>
-                                            <HBox alignment="CENTER_LEFT">
+                                            <HBox alignment="CENTER_LEFT" spacing="8">
                                                 <CheckBox fx:id="clearImagesCheckbox" text="%clear.images"/>
                                                 <ButtonBar prefHeight="40.0">
                                                     <buttons>

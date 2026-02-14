@@ -545,6 +545,9 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                     var images = entry.getValue().stream().filter(img -> !discarded.contains(img)).toList();
                     batchScriptExecutor.putVariable(entry.getKey(), images);
                 }
+                for (Map.Entry<String, List<Object>> entry : imageCollector.getValuesByLabel().entrySet()) {
+                    batchScriptExecutor.putVariable(entry.getKey(), entry.getValue());
+                }
             } finally {
                 dataLock.readLock().unlock();
             }
@@ -658,6 +661,10 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             imageCollector.addImageByLabel(entry.getKey(), entry.getValue());
             imageCollector.addImageByIndex(sequenceNumber, entry.getValue());
         }
+        var values = e.getPayload().valuesByLabel();
+        for (Map.Entry<String, Object> entry : values.entrySet()) {
+            imageCollector.addValueByLabel(entry.getKey(), entry.getValue());
+        }
     }
 
     private void maybeWriteLogs() {
@@ -737,6 +744,15 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         var result = batchScriptExecutor.execute(script, SectionKind.BATCH);
         ScriptExecutionHelper.processScriptErrors(result);
         var outputsMetadata = ScriptExecutionHelper.extractOutputsMetadata(script);
+        renderBatchOutputs(createNamingStrategy(), result, outputsMetadata);
+        return result;
+    }
+
+    @Override
+    public ImageMathScriptResult executePythonScript(String script, SectionKind kind) {
+        var result = batchScriptExecutor.executePythonScript(script, SectionKind.BATCH);
+        ScriptExecutionHelper.processScriptErrors(result);
+        var outputsMetadata = ScriptExecutionHelper.extractOutputsMetadata(script, "script.py");
         renderBatchOutputs(createNamingStrategy(), result, outputsMetadata);
         return result;
     }

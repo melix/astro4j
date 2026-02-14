@@ -31,7 +31,14 @@ module me.champeau.a4j.jsolex.core {
     requires java.sql;
     requires static org.lwjgl;
     requires static org.lwjgl.opencl;
+    requires org.graalvm.polyglot;
+    requires org.apache.arrow.memory.core;
+    requires org.apache.arrow.memory.unsafe;
+    requires org.apache.arrow.vector;
+    requires org.apache.arrow.c;
+    uses org.apache.arrow.memory.AllocationManager.Factory;
     exports me.champeau.a4j.jsolex.expr;
+    exports me.champeau.a4j.jsolex.processing.expr.python;
     exports me.champeau.a4j.jsolex.expr.ast;
     exports me.champeau.a4j.jsolex.processing.color;
     exports me.champeau.a4j.jsolex.processing.expr;

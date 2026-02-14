@@ -21,6 +21,7 @@ import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -38,6 +39,7 @@ public class UserFunction {
     private final Consumer<? super Double> shiftCollector;
     private final Broadcaster broadcaster;
     private final List<UserFunction> userFunctions;
+    private final Path includesDir;
 
     public UserFunction(String name,
                         List<String> arguments,
@@ -46,7 +48,8 @@ public class UserFunction {
                         Map<Class, Object> context,
                         Consumer<? super Double> shiftCollector,
                         Broadcaster broadcaster,
-                        List<UserFunction> userFunctions
+                        List<UserFunction> userFunctions,
+                        Path includesDir
     ) {
         this.name = name;
         this.arity = arguments.size();
@@ -57,6 +60,7 @@ public class UserFunction {
         this.shiftCollector = shiftCollector;
         this.broadcaster = broadcaster;
         this.userFunctions = userFunctions;
+        this.includesDir = includesDir;
     }
 
     public String name() {
@@ -67,11 +71,16 @@ public class UserFunction {
         return Collections.unmodifiableList(arguments);
     }
 
+    public List<Expression> body() {
+        return Collections.unmodifiableList(body);
+    }
+
     public UserFunction prepare(
         Function<PixelShift, ImageWrapper> imageSupplier,
         Map<Class, Object> context,
         Consumer<? super Double> shiftCollector,
-        Broadcaster broadcaster
+        Broadcaster broadcaster,
+        Path includesDir
     ) {
         return new UserFunction(
             name,
@@ -81,7 +90,8 @@ public class UserFunction {
             context,
             shiftCollector,
             broadcaster,
-            userFunctions
+            userFunctions,
+            includesDir
         );
     }
 
@@ -120,6 +130,7 @@ public class UserFunction {
             broadcaster
         );
         evaluator.disableOutputLogging();
+        evaluator.setIncludesDir(includesDir);
         for (var entry : args.entrySet()) {
             evaluator.putVariable(entry.getKey(), entry.getValue());
 

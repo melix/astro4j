@@ -274,4 +274,222 @@ result=img(0)
         and: "outputs section is recognized"
         sections.any { it.name().orElse("") == "outputs" }
     }
+
+    def "minimal batch mode test without multiline strings"() {
+        given: "a simple batch script without multiline strings"
+        def script = '''[outputs]
+a = img(0)
+b = img(1)
+
+[[batch]]
+[outputs]
+c = median(a)
+'''
+        def parser = new ImageMathParser(script)
+
+        when:
+        def root = parser.parseAndInlineIncludes()
+        def singleSections = root.findSections(ImageMathScriptExecutor.SectionKind.SINGLE)
+        def batchSections = root.findSections(ImageMathScriptExecutor.SectionKind.BATCH)
+
+        then: "single section has a and b"
+        singleSections.size() == 1
+        singleSections[0].childrenOfType(me.champeau.a4j.jsolex.expr.ast.Assignment).size() == 2
+
+        and: "batch has [[batch]] and [outputs] with c"
+        batchSections.size() == 2
+    }
+
+    def "batch mode with one multiline Python string"() {
+        given: "script with one multiline Python string before batch"
+        def script = '''[outputs]
+a = python("""
+result = 1 + 2
+""")
+b = img(1)
+
+[[batch]]
+[outputs]
+c = median(a)
+'''
+        def parser = new ImageMathParser(script)
+
+        when:
+        def root = parser.parseAndInlineIncludes()
+        def singleSections = root.findSections(ImageMathScriptExecutor.SectionKind.SINGLE)
+        def batchSections = root.findSections(ImageMathScriptExecutor.SectionKind.BATCH)
+
+        then: "single section has a and b"
+        singleSections.size() == 1
+        singleSections[0].childrenOfType(me.champeau.a4j.jsolex.expr.ast.Assignment).size() == 2
+
+        and: "batch has [[batch]] and [outputs] with c"
+        batchSections.size() == 2
+    }
+
+    def "two consecutive multiline strings without batch"() {
+        given: "script with two multiline strings - no batch section"
+        def script = '''[outputs]
+a = python("""
+result = 1
+""")
+b = python("""
+result = 2
+""")
+'''
+        def parser = new ImageMathParser(script)
+
+        when:
+        def root = parser.parseAndInlineIncludes()
+        def singleSections = root.findSections(ImageMathScriptExecutor.SectionKind.SINGLE)
+
+        then: "section has a and b"
+        singleSections.size() == 1
+        def singleAssignments = singleSections[0].childrenOfType(me.champeau.a4j.jsolex.expr.ast.Assignment)
+        singleAssignments.size() == 2
+        singleAssignments.collect { it.variableName().orElse('<anon>') } as Set == ["a", "b"] as Set
+    }
+
+    def "batch mode with Python multiline strings correctly separates sections"() {
+        given: "the exact script from the documentation"
+        def script = '''[outputs]
+# Process each file with Python, compute and print statistics
+processed = python("""
+import jsolex
+import numpy as np
+
+img = jsolex.funcs.img(ps=0)
+data = jsolex.toNumpy(img)
+ellipse = jsolex.getEllipseParams(img)
+source = jsolex.getSourceInfo()
+
+# Compute statistics within the solar disk
+cx, cy = int(ellipse["centerX"]), int(ellipse["centerY"])
+radius = int(ellipse["radius"] * 0.95)
+
+y, x = np.ogrid[:data.shape[0], :data.shape[1]]
+mask = (x - cx)**2 + (y - cy)**2 <= radius**2
+disk_data = data[mask]
+
+mean_val = np.mean(disk_data)
+std_val = np.std(disk_data)
+contrast = std_val / mean_val
+
+# Print statistics for this file
+print(f"{source['fileName']}: mean={mean_val:.1f}, std={std_val:.1f}, contrast={contrast:.4f}")
+
+# Return autocropped image for stacking
+result = jsolex.funcs.autocrop2(img, 1.1, 32)
+""")
+
+# Return statistics as separate variables (will become lists in batch section)
+mean_intensity = python("""
+import jsolex
+import numpy as np
+img = jsolex.funcs.img(ps=0)
+data = jsolex.toNumpy(img)
+ellipse = jsolex.getEllipseParams(img)
+cx, cy = int(ellipse["centerX"]), int(ellipse["centerY"])
+radius = int(ellipse["radius"] * 0.95)
+y, x = np.ogrid[:data.shape[0], :data.shape[1]]
+mask = (x - cx)**2 + (y - cy)**2 <= radius**2
+result = float(np.mean(data[mask]))
+""")
+
+contrast = python("""
+import jsolex
+import numpy as np
+img = jsolex.funcs.img(ps=0)
+data = jsolex.toNumpy(img)
+ellipse = jsolex.getEllipseParams(img)
+cx, cy = int(ellipse["centerX"]), int(ellipse["centerY"])
+radius = int(ellipse["radius"] * 0.95)
+y, x = np.ogrid[:data.shape[0], :data.shape[1]]
+mask = (x - cx)**2 + (y - cy)**2 <= radius**2
+disk_data = data[mask]
+result = float(np.std(disk_data) / np.mean(disk_data))
+""")
+
+[[batch]]
+[outputs]
+# Generate summary graph from collected statistics
+summary = python("""
+import jsolex
+import numpy as np
+import matplotlib.pyplot as plt
+from io import BytesIO
+from PIL import Image
+
+# Get aggregated statistics (lists, one value per file)
+means = jsolex.vars.mean_intensity
+contrasts = jsolex.vars.contrast
+
+# Create summary plot
+fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
+
+x = range(len(means))
+ax1.bar(x, means, color='steelblue')
+ax1.set_ylabel('Mean Intensity')
+ax1.set_title('Batch Statistics Summary')
+ax1.set_xticks(x)
+ax1.set_xticklabels([f'File {i+1}' for i in x], rotation=45)
+
+ax2.bar(x, contrasts, color='coral')
+ax2.set_ylabel('Contrast (std/mean)')
+ax2.set_xlabel('File')
+ax2.set_xticks(x)
+ax2.set_xticklabels([f'File {i+1}' for i in x], rotation=45)
+
+plt.tight_layout()
+
+# Convert plot to image
+buf = BytesIO()
+plt.savefig(buf, format='png', dpi=150)
+buf.seek(0)
+plot_img = np.array(Image.open(buf))[:, :, :3]
+plt.close()
+
+# Convert to grayscale and scale to 0-65535
+gray = plot_img.mean(axis=2).astype(np.float32) * 257.0
+jsolex.emit(jsolex.fromNumpy(gray), "Batch Statistics")
+""")
+
+# Combine all processed images using median stacking
+stacked = sharpen(median(processed))
+'''
+        def parser = new ImageMathParser(script)
+
+        when:
+        def root = parser.parseAndInlineIncludes()
+        def singleSections = root.findSections(ImageMathScriptExecutor.SectionKind.SINGLE)
+        def batchSections = root.findSections(ImageMathScriptExecutor.SectionKind.BATCH)
+
+        then: "single mode has exactly one section (outputs)"
+        singleSections.size() == 1
+
+        and: "single section is named 'outputs'"
+        singleSections[0].name().isPresent()
+        singleSections[0].name().get() == "outputs"
+
+        and: "single section contains 3 assignments: processed, mean_intensity, contrast"
+        def singleAssignments = singleSections[0].childrenOfType(me.champeau.a4j.jsolex.expr.ast.Assignment)
+        singleAssignments.size() == 3
+        singleAssignments.collect { it.variableName().orElse("<anon>") } as Set == ["processed", "mean_intensity", "contrast"] as Set
+
+        and: "batch mode has exactly 2 sections"
+        batchSections.size() == 2
+
+        and: "first batch section is [[batch]]"
+        batchSections[0].name().isPresent()
+        batchSections[0].name().get() == "batch"
+
+        and: "second batch section is [outputs]"
+        batchSections[1].name().isPresent()
+        batchSections[1].name().get() == "outputs"
+
+        and: "batch outputs section contains 2 assignments: summary, stacked"
+        def batchAssignments = batchSections[1].childrenOfType(me.champeau.a4j.jsolex.expr.ast.Assignment)
+        batchAssignments.size() == 2
+        batchAssignments.collect { it.variableName().orElse("<anon>") } as Set == ["summary", "stacked"] as Set
+    }
 }

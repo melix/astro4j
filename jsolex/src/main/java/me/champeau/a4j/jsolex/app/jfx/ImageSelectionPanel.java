@@ -42,7 +42,8 @@ import me.champeau.a4j.jsolex.processing.expr.repository.RemoteScript;
 import me.champeau.a4j.jsolex.processing.expr.repository.ScriptRepositoryManager;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
-import me.champeau.a4j.jsolex.processing.params.ImageMathParameterExtractor;
+import me.champeau.a4j.jsolex.processing.expr.ShiftCollectingImageExpressionEvaluator;
+import me.champeau.a4j.jsolex.processing.params.ScriptParameterExtractor;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.RequestedImages;
@@ -457,9 +458,8 @@ public class ImageSelectionPanel extends BaseParameterPanel {
 
 
     private DefaultImageScriptExecutor createScriptExecutor() {
-        var images = new HashMap<PixelShift, ImageWrapper32>();
         var executor = new JSolExScriptExecutor(
-                i -> images.computeIfAbsent(i, unused -> ImageWrapper32.createEmpty()),
+                ShiftCollectingImageExpressionEvaluator.zeroImages(),
                 MutableMap.of(),
                 stage
         );
@@ -532,7 +532,6 @@ public class ImageSelectionPanel extends BaseParameterPanel {
             return;
         }
 
-        var extractor = new ImageMathParameterExtractor();
         var currentLanguage = LocaleUtils.getConfiguredLocale().getLanguage();
         var hasAnyParameters = false;
 
@@ -544,7 +543,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         if (hasUserScripts) {
             for (var scriptFile : imageMathParams.scriptFiles()) {
                 if (!allRepositoryScriptPaths.contains(scriptFile.toPath().toAbsolutePath())) {
-                    hasAnyParameters |= processScriptParameters(scriptFile.toPath(), scriptFile, extractor, currentLanguage);
+                    hasAnyParameters |= processScriptParameters(scriptFile.toPath(), scriptFile, currentLanguage);
                 }
             }
         }
@@ -552,7 +551,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         if (hasRepositoryScripts) {
             for (var script : selectedRepositoryScripts) {
                 var scriptFile = script.localPath().toFile();
-                hasAnyParameters |= processScriptParameters(script.localPath(), scriptFile, extractor, currentLanguage);
+                hasAnyParameters |= processScriptParameters(script.localPath(), scriptFile, currentLanguage);
             }
         }
 
@@ -565,13 +564,13 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         }
     }
 
-    private boolean processScriptParameters(Path scriptPath, File scriptFile, ImageMathParameterExtractor extractor, String currentLanguage) {
+    private boolean processScriptParameters(Path scriptPath, File scriptFile, String currentLanguage) {
         if (!Files.exists(scriptPath)) {
             return false;
         }
 
         try {
-            var result = extractor.extractParameters(scriptPath);
+            var result = ScriptParameterExtractor.extractParameters(scriptPath);
             if (result.getParameters().isEmpty()) {
                 return false;
             }
@@ -1107,7 +1106,6 @@ public class ImageSelectionPanel extends BaseParameterPanel {
                 scriptPathsInParams = Collections.emptySet();
             }
 
-            var extractor = new ImageMathParameterExtractor();
             var currentLanguage = LocaleUtils.getConfiguredLocale().getLanguage();
 
             for (var repository : repositories) {
@@ -1122,7 +1120,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
                     String description = null;
                     try {
                         if (Files.exists(script.localPath())) {
-                            var extractionResult = extractor.extractParameters(script.localPath());
+                            var extractionResult = ScriptParameterExtractor.extractParameters(script.localPath());
                             description = extractionResult.getDisplayDescription(currentLanguage);
                         }
                     } catch (Exception e) {

@@ -1,5 +1,6 @@
 # Welcome to JSol'Ex {{version}}!
 
+- [Version 4.6.0](#whats-new-in-version-4-6-0) - Python scripting support in ImageMath
 - [Version 4.5.0](#whats-new-in-version-4-5.0) - Doppler shift measurement, rotation profile, script evaluation fix
 - [Version 4.4.5](#whats-new-in-version-4-4-5) - BASS2000 submission fix
 - [Version 4.4.4](#whats-new-in-version-4-4-3) - Fix process params dialog empty in English
@@ -18,6 +19,13 @@
 - [Version 4.1.0](#whats-new-in-version-4-1-0) - User-defined presets, collage creation
 - [Version 4.0.1](#whats-new-in-version-4-0-1) - Language selection, bug fixes
 - [Version 4.0.0](#whats-new-in-version-4-0-0) - Enhanced UI, BASS2000 integration
+
+## What's New in Version 4.6.0
+
+### Python Scripting Support
+
+You can now use Python code within ImageMath scripts using the new `python()` and `python_file` functions.
+This provides access to Python's control structures (loops, conditionals, exception handling) that ImageMath lacks, while still being able to call all ImageMath functions.
 
 ## What's New in Version 4.5.0
 

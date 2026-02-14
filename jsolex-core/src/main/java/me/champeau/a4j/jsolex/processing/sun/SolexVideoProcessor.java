@@ -48,7 +48,7 @@ import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.EllipseFittingMode;
 import me.champeau.a4j.jsolex.processing.params.EnhancementParams;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
-import me.champeau.a4j.jsolex.processing.params.ImageMathParameterExtractor;
+import me.champeau.a4j.jsolex.processing.params.ScriptParameterExtractor;
 import me.champeau.a4j.jsolex.processing.params.OutputMetadata;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.RotationKind;
@@ -81,6 +81,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.ProcessingWorkflow;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
 import me.champeau.a4j.jsolex.processing.sun.workflow.RenamingImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.SourceInfo;
+import me.champeau.a4j.jsolex.processing.sun.workflow.SpectralLinePolynomial;
 import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
 import me.champeau.a4j.jsolex.processing.sun.workflow.TruncatedDisk;
 import me.champeau.a4j.jsolex.processing.sun.workflow.WorkflowResults;
@@ -170,6 +171,7 @@ public class SolexVideoProcessor implements Broadcaster {
     private ActiveRegions activeRegions;
     private Flares flares;
     private DoubleUnaryOperator polynomial;
+    private DoubleQuadruplet polynomialCoefficients;
     private float[][] averageImage;
     private PixelShiftRange pixelShiftRange;
     private boolean ignoreIncompleteShifts;
@@ -342,12 +344,17 @@ public class SolexVideoProcessor implements Broadcaster {
                 var forcedPolynomial = DoubleQuadruplet.parsePolynomial(forcedPolynomialString.get());
                 forcedPolynomial.ifPresentOrElse(doubleQuadruplet -> {
                             polynomial = doubleQuadruplet.asPolynomial();
+                            polynomialCoefficients = doubleQuadruplet;
                             LOGGER.info(message("forced.polynomial"));
                         },
                         () -> LOGGER.error(message("invalid.forced.polynomial"), forcedPolynomialString.get()));
             }
         }
         var maybePolynomial = Optional.ofNullable(polynomial).or(analysis::distortionPolynomial);
+        if (polynomialCoefficients == null) {
+            polynomialCoefficients = analysis.distortionQuadruplet().orElse(null);
+        }
+        var serFileReader = new AtomicReference<SerFileReader>();
         if (maybePolynomial.isPresent()) {
             var polynomial = maybePolynomial.get();
             var analyzer = new SpectrumFrameAnalyzer(width, height, header.isJSolexTrimmedSer(), null);
@@ -412,7 +419,6 @@ public class SolexVideoProcessor implements Broadcaster {
             LOGGER.info(message("distortion.polynomial"), polynomial);
             var current = new AtomicInteger(0);
             var totalImages = imageList.size();
-            var serFileReader = new AtomicReference<SerFileReader>();
             long sd = System.nanoTime();
             List<List<WorkflowState>> batches = batches(imageList, batchSize);
             LOGGER.info(message("memory.pressure"), memoryRestrictionMultiplier);
@@ -580,7 +586,9 @@ public class SolexVideoProcessor implements Broadcaster {
                 pixelShiftRange,
                 activeRegions == null ? 0 : activeRegions.regionList().size(),
                 (int) (flares != null ? flares.flares().stream().filter(f -> f.kind() == Flare.Kind.ELLERMAN_BOMB).count() : 0),
-                (int) (flares != null ? flares.flares().stream().filter(f -> f.kind() == Flare.Kind.FLARE).count() : 0)
+                (int) (flares != null ? flares.flares().stream().filter(f -> f.kind() == Flare.Kind.FLARE).count() : 0),
+                serFileReader.get(),
+                polynomialCoefficients
         ));
     }
 
@@ -1074,17 +1082,23 @@ public class SolexVideoProcessor implements Broadcaster {
             var circle = ellipse;
             ImageStats finalImageStats = imageStats;
             var scriptsOperation = newOperation(message("running.scripts"));
+            // Create a shared SerFileReader for scripts that need SER file access
+            try (var scriptsReader = SerFileReader.of(serFile)) {
             mathImages.scriptFiles().stream().parallel().forEach(scriptFile -> {
                 broadcast(scriptsOperation.update(0, message("running.scripts") + " : " + scriptFile.getName()));
                 var context = createMetadata(processParams, serFile.toPath(), pixelShiftRange, header);
                 context.put(ImageEmitter.class, emitter);
                 context.put(ProgressOperation.class, scriptsOperation);
+                context.put(SerFileReader.class, scriptsReader);
                 context.putAll(additionalContext);
                 if (circle != null) {
                     context.put(Ellipse.class, circle);
                 }
                 if (finalImageStats != null) {
                     context.put(ImageStats.class, finalImageStats);
+                }
+                if (polynomialCoefficients != null) {
+                    context.put(SpectralLinePolynomial.class, new SpectralLinePolynomial(polynomialCoefficients));
                 }
                 var scriptRunner = new DefaultImageScriptExecutor(shift -> {
                     double lookup = shift.pixelShift();
@@ -1144,6 +1158,9 @@ public class SolexVideoProcessor implements Broadcaster {
                     broadcast(scriptsOperation.update(1.0, "Running script " + scriptFile.getName()));
                 }
             });
+            } catch (Exception e) {
+                throw new ProcessingException(e);
+            }
         }
     }
 
@@ -1885,10 +1902,7 @@ public class SolexVideoProcessor implements Broadcaster {
 
     private static Map<String, OutputMetadata> extractOutputsMetadata(File scriptFile) {
         try {
-            var extractor = new ImageMathParameterExtractor();
-            var script = FilesUtils.readString(scriptFile.toPath());
-            var extractionResult = extractor.extractParameters(script, scriptFile.getName());
-            return extractionResult.getOutputsMetadata();
+            return ScriptParameterExtractor.extractOutputsMetadataOnly(scriptFile.toPath());
         } catch (Exception e) {
             LOGGER.debug("Could not extract outputs metadata from script {}: {}", scriptFile, e.getMessage());
             return Map.of();

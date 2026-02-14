@@ -30,6 +30,7 @@ import java.util.stream.Collectors;
 public class ExpressionDependencyAnalyzer {
     private final Set<String> parameterNames;
     private final Set<String> definedVariables;
+    private int anonymousCounter = 0;
 
     public ExpressionDependencyAnalyzer(Set<String> parameterNames) {
         this.parameterNames = Set.copyOf(parameterNames);
@@ -37,7 +38,7 @@ public class ExpressionDependencyAnalyzer {
     }
 
     public String getVariableName(Assignment assignment) {
-        return assignment.variableName().orElse("");
+        return assignment.variableName().orElseGet(() -> "$anon_" + anonymousCounter++);
     }
 
     public Set<String> findDependencies(Assignment assignment) {

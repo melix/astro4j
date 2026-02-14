@@ -61,6 +61,7 @@ import me.champeau.a4j.jsolex.expr.ast.Section;
 import me.champeau.a4j.jsolex.expr.ast.SectionHeader;
 import me.champeau.a4j.jsolex.expr.ast.StringLiteral;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
+import me.champeau.a4j.jsolex.processing.expr.python.PythonSyntaxHighlighter;
 import me.champeau.a4j.jsolex.processing.util.LocaleUtils;
 import org.fxmisc.richtext.CodeArea;
 import org.fxmisc.richtext.model.StyleSpans;
@@ -109,6 +110,9 @@ public class ImageMathTextArea extends BorderPane {
     private Path includesDir;
     private final Set<FoldedRegion> foldedRegions = new HashSet<>();
     private boolean autoFoldMetaBlocks = false;
+    private HighlightingMode highlightingMode = HighlightingMode.IMAGEMATH;
+    private PythonSyntaxHighlighter pythonHighlighter;
+    private boolean pythonHighlighterInitialized = false;
 
     private HBox searchBar;
     private TextField searchField;
@@ -208,6 +212,45 @@ public class ImageMathTextArea extends BorderPane {
     }
 
     /**
+     * Sets the highlighting mode for the code area.
+     * @param mode the highlighting mode to use
+     */
+    public void setHighlightingMode(HighlightingMode mode) {
+        this.highlightingMode = mode;
+        if (mode == HighlightingMode.NONE && codeArea.getLength() > 0) {
+            codeArea.clearStyle(0, codeArea.getLength());
+        }
+        if (mode == HighlightingMode.PYTHON) {
+            initializePythonHighlighter();
+        }
+        requestHighlighting();
+    }
+
+    private void initializePythonHighlighter() {
+        if (pythonHighlighter == null) {
+            pythonHighlighter = new PythonSyntaxHighlighter();
+        }
+        if (pythonHighlighter.isReady()) {
+            pythonHighlighterInitialized = true;
+            return;
+        }
+        pythonHighlighter.setOnContextReady(v -> {
+            pythonHighlighterInitialized = true;
+            javafx.application.Platform.runLater(this::requestHighlighting);
+        });
+        pythonHighlighter.warmUp();
+    }
+
+    /**
+     * Returns the current highlighting mode.
+     * @return the highlighting mode
+     */
+    public HighlightingMode getHighlightingMode() {
+        return highlightingMode;
+    }
+
+
+    /**
      * Sets the handler to invoke when the user requests to edit metadata.
      * @param handler the metadata editor handler
      */
@@ -283,6 +326,70 @@ public class ImageMathTextArea extends BorderPane {
     }
 
     private StyleSpans<Collection<String>> computeHighlighting(String text) {
+        return switch (highlightingMode) {
+            case NONE -> computeEmptyHighlighting(text);
+            case IMAGEMATH -> computeImageMathHighlighting(text);
+            case PYTHON -> computePythonHighlighting(text);
+        };
+    }
+
+    private StyleSpans<Collection<String>> computeEmptyHighlighting(String text) {
+        var spansBuilder = new StyleSpansBuilder<Collection<String>>();
+        if (text.isEmpty()) {
+            spansBuilder.add(List.of(), 0);
+        } else {
+            spansBuilder.add(List.of(), text.length());
+        }
+        return spansBuilder.create();
+    }
+
+    private StyleSpans<Collection<String>> computePythonHighlighting(String text) {
+        if (text.isEmpty()) {
+            return computeEmptyHighlighting(text);
+        }
+
+        if (pythonHighlighter == null) {
+            initializePythonHighlighter();
+        }
+
+        if (!pythonHighlighterInitialized || !pythonHighlighter.isReady()) {
+            return computeEmptyHighlighting(text);
+        }
+
+        var spans = pythonHighlighter.computeHighlighting(text);
+        if (spans.isEmpty()) {
+            return computeEmptyHighlighting(text);
+        }
+
+        var spansBuilder = new StyleSpansBuilder<Collection<String>>();
+        var pos = 0;
+        var hasSpans = false;
+
+        for (var span : spans) {
+            if (span.start() > pos) {
+                spansBuilder.add(List.of(), span.start() - pos);
+                hasSpans = true;
+            }
+            if (span.end() > span.start()) {
+                spansBuilder.add(List.of(span.styleClass()), span.end() - span.start());
+                pos = span.end();
+                hasSpans = true;
+            }
+        }
+
+        if (pos < text.length()) {
+            spansBuilder.add(List.of(), text.length() - pos);
+            hasSpans = true;
+        }
+
+        if (!hasSpans) {
+            spansBuilder.add(List.of(), 0);
+        }
+
+        return spansBuilder.create();
+    }
+
+    private StyleSpans<Collection<String>> computeImageMathHighlighting(String text) {
         var parser = new ImageMathParser(text);
         parser.setParserTolerant(true);
         parser.setIncludeDir(includesDir);

@@ -932,6 +932,8 @@ To do this, JSol'Ex "fakes" a first run passing dummy images of size 0, which wi
 You should simply be aware that the server will receive multiple calls, and that the first one will likely not contain the whole context, but you should still return a valid script.
 ====
 
+For advanced scripting capabilities, JSol'Ex also supports Python. Please refer to link:python-scripting.html[the Python scripting documentation] for details.
+
 [[script-repositories]]
 == Script Repositories
 
@@ -1031,6 +1033,45 @@ http://example.com/scripts/
 ----
 
 JSol'Ex will try to download `scripts.txt` first, and fall back to parsing HTML directory listings if not found.
+
+==== Zip File Support
+
+For scripts that require additional files (such as Python modules), you can bundle them in a `.zip` archive.
+JSol'Ex will automatically extract the contents when downloading from a repository.
+
+**Zip file structure:**
+
+[source]
+----
+my-script.zip
+├── my-script.math       # Main script
+├── main.txt             # Optional: specifies main script (required if multiple .math files)
+├── utils.py             # Python modules
+└── helpers.py
+----
+
+**Rules for determining the main script:**
+
+1. If there is only one `.math` file in the zip, it is automatically used as the main script
+2. If there are multiple `.math` files, you must include a `main.txt` file containing the name of the main script
+
+The directory structure inside the zip is preserved, so scripts can reference files using relative paths like `python_file("utils.py")`.
+
+**Example `main.txt`:**
+
+[source]
+----
+my-script.math
+----
+
+List zip files in `scripts.txt` alongside regular `.math` files:
+
+[source]
+----
+# My repository
+simple-script.math
+bundled-script.zip
+----
 
 ==== Script Requirements
 

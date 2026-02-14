@@ -104,6 +104,13 @@ public interface ImageMathScriptExecutor {
 
     ImageMathScriptResult execute(String script, SectionKind kind);
 
+    /**
+     * Executes a Python script from text content.
+     */
+    default ImageMathScriptResult executePythonScript(String script, SectionKind kind) {
+        throw new UnsupportedOperationException("Python script execution from text not supported");
+    }
+
     void removeVariable(String variable);
 
     <T> Optional<T> getVariable(String name);

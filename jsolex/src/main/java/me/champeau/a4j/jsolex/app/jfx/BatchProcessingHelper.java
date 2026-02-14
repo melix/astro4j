@@ -182,6 +182,7 @@ public final class BatchProcessingHelper {
                 new HashMap<>(),
                 new HashMap<>(),
                 new HashMap<>(),
+                new HashMap<>(),
                 header,
                 new HashMap<>(),
                 new HashMap<>(),

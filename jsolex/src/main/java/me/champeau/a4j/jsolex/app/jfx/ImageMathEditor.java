@@ -30,6 +30,7 @@ import javafx.stage.WindowEvent;
 import me.champeau.a4j.jsolex.app.AlertFactory;
 import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.JSolEx;
+import me.champeau.a4j.jsolex.app.jfx.ime.HighlightingMode;
 import me.champeau.a4j.jsolex.app.jfx.ime.ImageMathTextArea;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
@@ -59,8 +60,14 @@ public class ImageMathEditor {
     private static final ButtonType BACK = new ButtonType(I18N.string(JSolEx.class, "imagemath-editor", "back"));
     /** File extension for ImageMath scripts. */
     public static final String MATH_EXTENSION = ".math";
+    /** File extension for Python scripts. */
+    public static final String PY_EXTENSION = ".py";
     /** File chooser filter for ImageMath script files. */
     public static final FileChooser.ExtensionFilter MATH_SCRIPT_EXTENSION_FILTER = new FileChooser.ExtensionFilter("ImageMath Script (*.math)", "*" + MATH_EXTENSION);
+    /** File chooser filter for Python script files. */
+    public static final FileChooser.ExtensionFilter PY_SCRIPT_EXTENSION_FILTER = new FileChooser.ExtensionFilter("Python Script (*.py)", "*" + PY_EXTENSION);
+    /** File chooser filter for all script files. */
+    public static final FileChooser.ExtensionFilter ALL_SCRIPTS_EXTENSION_FILTER = new FileChooser.ExtensionFilter("All Scripts (*.math, *.py)", "*" + MATH_EXTENSION, "*" + PY_EXTENSION);
 
     private final Configuration configuration = Configuration.getInstance();
 
@@ -80,6 +87,9 @@ public class ImageMathEditor {
 
     @FXML
     private ChoiceBox<PredefinedScript> predefinedScripts;
+
+    @FXML
+    private ChoiceBox<ScriptLanguage> scriptLanguage;
 
     private final AtomicBoolean hasPendingUpdates = new AtomicBoolean();
     private final AtomicBoolean updatingText = new AtomicBoolean();
@@ -156,6 +166,7 @@ public class ImageMathEditor {
         this.hostServices = hostServices;
         this.batchMode = batchMode;
         this.params = null;
+        initializeLanguageSelector();
         loadPredefinedScripts();
         var items = scriptsToApply.getItems();
         if (imageMathParams != null) {
@@ -203,11 +214,22 @@ public class ImageMathEditor {
         scriptTextArea.setMetadataEditorHandler(this::openMetadataEditor);
     }
 
+    private void initializeLanguageSelector() {
+        scriptLanguage.getItems().addAll(ScriptLanguage.values());
+        scriptLanguage.setValue(ScriptLanguage.IMAGEMATH);
+        scriptLanguage.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null) {
+                scriptTextArea.setHighlightingMode(newVal.getHighlightingMode());
+            }
+        });
+    }
+
     private void openMetadataEditor() {
         var scriptText = scriptTextArea.getText();
+        var isPython = scriptLanguage.getValue() == ScriptLanguage.PYTHON;
         var editorStage = new Stage();
         editorStage.initOwner(stage);
-        MetadataEditor.openEditor(editorStage, scriptText, (oldScript, newScript) -> {
+        MetadataEditor.openEditor(editorStage, scriptText, isPython, (oldScript, newScript) -> {
             if (!oldScript.equals(newScript)) {
                 updatingText.set(true);
                 scriptTextArea.setText(newScript);
@@ -218,44 +240,54 @@ public class ImageMathEditor {
     }
 
     private void loadPredefinedScripts() {
-        predefinedScripts.getItems().add(new PredefinedScript("", ""));
-        loadPredefinedScript("helium-processing");
-        loadPredefinedScript("continuum-animation");
-        loadPredefinedScript("doppler");
-        loadPredefinedScript("virtual-eclipse");
-        loadPredefinedScript("globe");
-        loadPredefinedScript("enhanced-invert");
+        predefinedScripts.getItems().add(new PredefinedScript("", "", ScriptLanguage.IMAGEMATH));
+        loadPredefinedScript("helium-processing", ScriptLanguage.IMAGEMATH);
+        loadPredefinedScript("continuum-animation", ScriptLanguage.IMAGEMATH);
+        loadPredefinedScript("doppler", ScriptLanguage.IMAGEMATH);
+        loadPredefinedScript("virtual-eclipse", ScriptLanguage.IMAGEMATH);
+        loadPredefinedScript("globe", ScriptLanguage.IMAGEMATH);
+        loadPredefinedScript("enhanced-invert", ScriptLanguage.IMAGEMATH);
+        loadPredefinedScript("python-demo", ScriptLanguage.PYTHON);
         if (batchMode) {
-            loadPredefinedScript("stacking");
-            loadPredefinedScript("aggressive-stacking-ha");
-            loadPredefinedScript("aggressive-stacking-ca");
-            loadPredefinedScript("corona");
+            loadPredefinedScript("stacking", ScriptLanguage.IMAGEMATH);
+            loadPredefinedScript("aggressive-stacking-ha", ScriptLanguage.IMAGEMATH);
+            loadPredefinedScript("aggressive-stacking-ca", ScriptLanguage.IMAGEMATH);
+            loadPredefinedScript("corona", ScriptLanguage.IMAGEMATH);
         }
         predefinedScripts.getSelectionModel().selectedItemProperty().addListener((o, oldValue, newValue) -> {
             if (doesNotHaveStaleChanges()) {
                 saveButton.setDisable(false);
                 scriptsToApply.getSelectionModel().clearSelection();
                 scriptTextArea.setText(newValue.script());
+                scriptLanguage.setValue(newValue.language());
+                scriptLanguage.setDisable(false);
+                scriptTextArea.setHighlightingMode(newValue.language().getHighlightingMode());
             }
         });
     }
 
-    private void loadPredefinedScript(String id) {
-        predefinedScripts.getItems().add(loadScriptFromClasspath(id));
+    private void loadPredefinedScript(String id, ScriptLanguage language) {
+        predefinedScripts.getItems().add(loadScriptFromClasspath(id, language));
     }
 
-    private PredefinedScript loadScriptFromClasspath(String name) {
+    private PredefinedScript loadScriptFromClasspath(String name, ScriptLanguage language) {
         var label = JSolEx.message("script." + name.replace('-', '.'));
+        var extension = language.getExtension();
         try {
-            return new PredefinedScript(label, new String(ImageMathEditor.class.getResourceAsStream("/me/champeau/a4j/jsolex/templates/" + name + ".math").readAllBytes(), "utf-8"));
+            return new PredefinedScript(label, new String(ImageMathEditor.class.getResourceAsStream("/me/champeau/a4j/jsolex/templates/" + name + extension).readAllBytes(), "utf-8"), language);
         } catch (IOException e) {
-            return new PredefinedScript(label, "");
+            return new PredefinedScript(label, "", language);
         }
     }
 
     private void loadScriptFile(File file) {
         try {
             updatingText.set(true);
+            // Set language selector based on file extension and disable it (file determines language)
+            var language = ScriptLanguage.fromExtension(file.getName());
+            scriptLanguage.setValue(language);
+            scriptLanguage.setDisable(true);
+            scriptTextArea.setHighlightingMode(language.getHighlightingMode());
             scriptTextArea.setText(FilesUtils.readString(file.toPath()));
             saveButton.setDisable(true);
             hasPendingUpdates.set(false);
@@ -328,7 +360,11 @@ public class ImageMathEditor {
             var fileChooser = new FileChooser();
             configuration.findLastOpenDirectory(Configuration.DirectoryKind.IMAGE_MATH).ifPresent(dir -> fileChooser.setInitialDirectory(dir.toFile()));
             fileChooser.setTitle(I18N.string(JSolEx.class, "imagemath-editor", "load.script"));
-            fileChooser.getExtensionFilters().add(MATH_SCRIPT_EXTENSION_FILTER);
+            fileChooser.getExtensionFilters().addAll(
+                ALL_SCRIPTS_EXTENSION_FILTER,
+                MATH_SCRIPT_EXTENSION_FILTER,
+                PY_SCRIPT_EXTENSION_FILTER
+            );
             var file = fileChooser.showOpenDialog(stage);
             if (file != null) {
                 hasPendingUpdates.set(false);
@@ -359,6 +395,9 @@ public class ImageMathEditor {
     private void newScript() {
         if (doesNotHaveStaleChanges()) {
             clearTextArea();
+            scriptLanguage.setValue(ScriptLanguage.IMAGEMATH);
+            scriptLanguage.setDisable(false);  // Enable selector for new scripts
+            scriptTextArea.setHighlightingMode(HighlightingMode.IMAGEMATH);
             scriptsToApply.getSelectionModel().select(null);
         }
     }
@@ -388,14 +427,28 @@ public class ImageMathEditor {
         ImageMathEntry targetEntry;
         if (scriptsToApply.getSelectionModel().getSelectedItem() == null) {
             var saveDialog = new FileChooser();
-            saveDialog.getExtensionFilters().add(MATH_SCRIPT_EXTENSION_FILTER);
+            var selectedLanguage = scriptLanguage.getValue();
+            // Set default filter based on selected language
+            if (selectedLanguage == ScriptLanguage.PYTHON) {
+                saveDialog.getExtensionFilters().addAll(
+                    PY_SCRIPT_EXTENSION_FILTER,
+                    MATH_SCRIPT_EXTENSION_FILTER
+                );
+            } else {
+                saveDialog.getExtensionFilters().addAll(
+                    MATH_SCRIPT_EXTENSION_FILTER,
+                    PY_SCRIPT_EXTENSION_FILTER
+                );
+            }
             targetFile = saveDialog.showSaveDialog(stage);
             if (targetFile == null) {
                 return;
             }
             saveButton.setDisable(true);
-            if (!targetFile.getName().endsWith(MATH_EXTENSION)) {
-                targetFile = new File(targetFile.getParentFile(), targetFile.getName() + MATH_EXTENSION);
+            // Only add extension if the file doesn't already have a supported one
+            if (!targetFile.getName().endsWith(MATH_EXTENSION) && !targetFile.getName().endsWith(PY_EXTENSION)) {
+                // Use extension based on selected language
+                targetFile = new File(targetFile.getParentFile(), targetFile.getName() + selectedLanguage.getExtension());
             }
             var candidateFile = targetFile;
             var candidateEntry = scriptsToApply.getItems().stream().filter(e -> e.scriptFile().equals(candidateFile)).findAny();
@@ -413,6 +466,7 @@ public class ImageMathEditor {
         }
         Files.writeString(targetFile.toPath(), scriptTextArea.getText(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
         hasPendingUpdates.set(false);
+        scriptLanguage.setDisable(true);  // Disable selector after save (file determines language)
         scriptsToApply.getSelectionModel().select(targetEntry);
     }
 
@@ -439,10 +493,53 @@ public class ImageMathEditor {
 
     }
 
-    private record PredefinedScript(String label, String script) {
+    private record PredefinedScript(String label, String script, ScriptLanguage language) {
         @Override
         public String toString() {
             return JSolEx.message(label);
+        }
+    }
+
+    /**
+     * Represents the available script languages.
+     */
+    public enum ScriptLanguage {
+        IMAGEMATH("ImageMath", MATH_EXTENSION),
+        PYTHON("Python", PY_EXTENSION);
+
+        private final String displayName;
+        private final String extension;
+
+        ScriptLanguage(String displayName, String extension) {
+            this.displayName = displayName;
+            this.extension = extension;
+        }
+
+        public String getExtension() {
+            return extension;
+        }
+
+        /**
+         * Returns the highlighting mode for this script language.
+         * @return the highlighting mode
+         */
+        public HighlightingMode getHighlightingMode() {
+            return switch (this) {
+                case IMAGEMATH -> HighlightingMode.IMAGEMATH;
+                case PYTHON -> HighlightingMode.PYTHON;
+            };
+        }
+
+        @Override
+        public String toString() {
+            return displayName;
+        }
+
+        public static ScriptLanguage fromExtension(String filename) {
+            if (filename != null && filename.endsWith(PY_EXTENSION)) {
+                return PYTHON;
+            }
+            return IMAGEMATH;
         }
     }
 }

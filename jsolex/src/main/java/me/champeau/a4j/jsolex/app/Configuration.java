@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app;
 
+import me.champeau.a4j.jsolex.processing.expr.python.PythonScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.repository.ScriptRepository;
 import me.champeau.a4j.jsolex.processing.util.AnimationFormat;
 import me.champeau.a4j.jsolex.processing.util.FitsUtils;
@@ -59,6 +60,7 @@ public class Configuration {
     private static final String ANIMATION_FORMATS = "animation.formats";
     private static final String SCRIPT_REPOSITORIES = "script.repositories";
     private static final String GPU_ACCELERATION = "gpu.acceleration";
+    private static final String GRAALPY_EXECUTABLE = "graalpy.executable";
     private static final String HELP_ANIMATION_SEEN_PREFIX = "help.animation.seen.";
 
     /**
@@ -89,6 +91,9 @@ public class Configuration {
         if (isGpuAccelerationEnabled()) {
             System.setProperty("opencl.enabled", "true");
         }
+
+        // Set GraalPy executable if configured
+        getGraalPyExecutable().ifPresent(PythonScriptExecutor::setGraalPyExecutable);
     }
 
     /**
@@ -96,7 +101,7 @@ public class Configuration {
      * @return a new Configuration instance
      */
     public static Configuration getInstance() {
-        return new Configuration();
+        return Holder.INSTANCE;
     }
 
     /**
@@ -363,6 +368,33 @@ public class Configuration {
     }
 
     /**
+     * Returns the configured GraalPy executable path.
+     * @return the path, or empty if not configured or invalid
+     */
+    public Optional<Path> getGraalPyExecutable() {
+        var path = prefs.get(GRAALPY_EXECUTABLE, null);
+        if (path != null && !path.isEmpty()) {
+            var p = Path.of(path);
+            if (Files.exists(p)) {
+                return Optional.of(p);
+            }
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Sets the GraalPy executable path.
+     * @param path the path, or null to clear
+     */
+    public void setGraalPyExecutable(Path path) {
+        if (path == null) {
+            prefs.remove(GRAALPY_EXECUTABLE);
+        } else {
+            prefs.put(GRAALPY_EXECUTABLE, path.toString());
+        }
+    }
+
+    /**
      * Returns the selected language.
      * @return the language tag, or null if not set
      */
@@ -599,5 +631,9 @@ public class Configuration {
             }
             return LAST_DIRECTORY + "." + dirName;
         }
+    }
+
+    private static class Holder {
+        private static final Configuration INSTANCE = new Configuration();
     }
 }

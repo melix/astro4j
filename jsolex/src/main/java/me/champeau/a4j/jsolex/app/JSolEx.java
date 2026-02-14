@@ -76,6 +76,8 @@ import me.champeau.a4j.jsolex.app.jfx.EmbeddedServerController;
 import me.champeau.a4j.jsolex.app.jfx.ExposureCalculator;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
 import me.champeau.a4j.jsolex.app.jfx.ImageMathEditor;
+import me.champeau.a4j.jsolex.app.jfx.ime.HighlightingMode;
+import me.champeau.a4j.jsolex.app.jfx.ScriptErrorDialog;
 import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
 import me.champeau.a4j.jsolex.app.jfx.MetadataEditor;
 import me.champeau.a4j.jsolex.app.jfx.MultipleImagesViewer;
@@ -115,7 +117,7 @@ import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
 import me.champeau.a4j.jsolex.processing.expr.InvalidExpression;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
-import me.champeau.a4j.jsolex.processing.params.ImageMathParameterExtractor;
+import me.champeau.a4j.jsolex.processing.params.ScriptParameterExtractor;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.NumberParameter;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
@@ -262,6 +264,8 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     private Button imageMathLoad;
     @FXML
     private Button imageMathSave;
+    @FXML
+    private ChoiceBox<ImageMathEditor.ScriptLanguage> scriptLanguageChoice;
     @FXML
     private ProgressBar memory;
     @FXML
@@ -474,6 +478,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             configureIsolatedScriptExecution();
             imageMathScript.setPrefHeight(10000);
             imageMathScript.setAutoFoldMetaBlocks(true);
+            initializeScriptLanguageChoice();
             var preferredDimensions = config.getPreferredDimensions();
             var rootScene = newScene(root, preferredDimensions.a(), preferredDimensions.b());
             var pause = new PauseTransition(Duration.seconds(1));
@@ -547,6 +552,16 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             prevHandler.handle(event);
         });
         hideArrowButton(true);
+    }
+
+    private void initializeScriptLanguageChoice() {
+        scriptLanguageChoice.getItems().addAll(ImageMathEditor.ScriptLanguage.values());
+        scriptLanguageChoice.setValue(ImageMathEditor.ScriptLanguage.IMAGEMATH);
+        scriptLanguageChoice.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null) {
+                imageMathScript.setHighlightingMode(newVal.getHighlightingMode());
+            }
+        });
     }
 
     private void updateServerStatus(boolean started) {
@@ -998,10 +1013,15 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
                 for (var entry : parameterValues.entrySet()) {
                     executor.putVariable(entry.getKey(), entry.getValue());
                 }
-                var result = executor.execute(text, section);
-                if (shouldRunBothSections) {
+                var result = isPythonScript()
+                    ? executor.executePythonScript(text, section)
+                    : executor.execute(text, section);
+                // Python scripts handle batch mode via explicit batch() function, not automatic "both sections"
+                if (shouldRunBothSections && !isPythonScript()) {
                     var previousVariables = new HashMap<String, Object>();
-                    var previousKeys = result.imagesByLabel().keySet();
+                    var previousKeys = new HashSet<String>();
+                    previousKeys.addAll(result.imagesByLabel().keySet());
+                    previousKeys.addAll(result.valuesByLabel().keySet());
                     for (var key : previousKeys) {
                         var value = executor.getVariable(key);
                         value.ifPresent(v -> previousVariables.put(key, v));
@@ -1009,7 +1029,12 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
                     try {
                         // simulate single element batch mode
                         result.imagesByLabel().forEach((key, image) -> executor.putVariable(key, List.of(image)));
-                        executor.execute(text, ImageMathScriptExecutor.SectionKind.BATCH);
+                        result.valuesByLabel().forEach((key, value) -> executor.putVariable(key, List.of(value)));
+                        if (isPythonScript()) {
+                            executor.executePythonScript(text, ImageMathScriptExecutor.SectionKind.BATCH);
+                        } else {
+                            executor.execute(text, ImageMathScriptExecutor.SectionKind.BATCH);
+                        }
                     } finally {
                         for (var key : previousKeys) {
                             if (previousVariables.containsKey(key)) {
@@ -1030,7 +1055,11 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         imageMathLoad.setOnAction(evt -> {
             var fileChooser = new FileChooser();
             config.findLastOpenDirectory(Configuration.DirectoryKind.IMAGE_MATH).ifPresent(dir -> fileChooser.setInitialDirectory(dir.toFile()));
-            fileChooser.getExtensionFilters().add(ImageMathEditor.MATH_SCRIPT_EXTENSION_FILTER);
+            fileChooser.getExtensionFilters().addAll(
+                ImageMathEditor.ALL_SCRIPTS_EXTENSION_FILTER,
+                ImageMathEditor.MATH_SCRIPT_EXTENSION_FILTER,
+                ImageMathEditor.PY_SCRIPT_EXTENSION_FILTER
+            );
             var file = fileChooser.showOpenDialog(rootStage);
             loadImageMathScriptFrom(file);
         });
@@ -1043,16 +1072,28 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         imageMathSave.setOnAction(evt -> {
             var fileChooser = new FileChooser();
             config.findLastOpenDirectory(Configuration.DirectoryKind.IMAGE_MATH).ifPresent(dir -> fileChooser.setInitialDirectory(dir.toFile()));
-            fileChooser.getExtensionFilters().add(ImageMathEditor.MATH_SCRIPT_EXTENSION_FILTER);
+            var selectedLanguage = scriptLanguageChoice.getValue();
+            if (selectedLanguage == ImageMathEditor.ScriptLanguage.PYTHON) {
+                fileChooser.getExtensionFilters().addAll(
+                    ImageMathEditor.PY_SCRIPT_EXTENSION_FILTER,
+                    ImageMathEditor.MATH_SCRIPT_EXTENSION_FILTER
+                );
+            } else {
+                fileChooser.getExtensionFilters().addAll(
+                    ImageMathEditor.MATH_SCRIPT_EXTENSION_FILTER,
+                    ImageMathEditor.PY_SCRIPT_EXTENSION_FILTER
+                );
+            }
             var file = fileChooser.showSaveDialog(rootStage);
             if (file != null) {
-                if (!file.getName().endsWith(ImageMathEditor.MATH_EXTENSION)) {
-                    file = new File(file.getParentFile(), file.getName() + ImageMathEditor.MATH_EXTENSION);
+                if (!file.getName().endsWith(ImageMathEditor.MATH_EXTENSION) && !file.getName().endsWith(ImageMathEditor.PY_EXTENSION)) {
+                    file = new File(file.getParentFile(), file.getName() + selectedLanguage.getExtension());
                 }
                 try {
                     FilesUtils.writeString(imageMathScript.getText(), file.toPath());
                     imageMathScript.setIncludesDir(file.getParentFile().toPath());
                     imageMathSave.setDisable(true);
+                    scriptLanguageChoice.setDisable(true);
                     config.rememberDirectoryFor(file.toPath(), Configuration.DirectoryKind.IMAGE_MATH);
                 } catch (IOException e) {
                     // ignore
@@ -1070,8 +1111,12 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         if (file != null) {
             config.rememberDirectoryFor(file.toPath(), Configuration.DirectoryKind.IMAGE_MATH);
             var script = String.join(System.lineSeparator(), FilesUtils.readAllLines(file.toPath()));
+            var language = ImageMathEditor.ScriptLanguage.fromExtension(file.getName());
             Platform.runLater(() -> {
                 imageMathScript.setIncludesDir(file.getParentFile().toPath());
+                scriptLanguageChoice.setValue(language);
+                scriptLanguageChoice.setDisable(true);
+                imageMathScript.setHighlightingMode(language.getHighlightingMode());
                 imageMathScript.setText(script);
                 imageMathSave.setDisable(true);
             });
@@ -1121,13 +1166,17 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             return List.of();
         }
         try {
-            var extractor = new ImageMathParameterExtractor();
-            var result = extractor.extractParameters(scriptText);
+            var isPython = scriptLanguageChoice.getValue() == ImageMathEditor.ScriptLanguage.PYTHON;
+            var result = ScriptParameterExtractor.extractParameters(scriptText, isPython);
             return result.getParameters();
         } catch (Exception e) {
             LOGGER.debug("Error extracting parameters from script", e);
             return List.of();
         }
+    }
+
+    private boolean isPythonScript() {
+        return scriptLanguageChoice.getValue() == ImageMathEditor.ScriptLanguage.PYTHON;
     }
 
     private void updateParametersMenuItem(List<ScriptParameter> parameters) {
@@ -1371,7 +1420,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     private void openMetadataEditor() {
         var stage = newStage();
         var scriptText = imageMathScript.getText();
-        MetadataEditor.openEditor(stage, scriptText, (originalScript, modifiedScript) -> {
+        MetadataEditor.openEditor(stage, scriptText, isPythonScript(), (originalScript, modifiedScript) -> {
             imageMathScript.setText(modifiedScript);
             imageMathSave.setDisable(false);
         });
@@ -1531,6 +1580,15 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
                 return result;
             }
 
+            @Override
+            public ImageMathScriptResult executePythonScript(String script, SectionKind kind) {
+                var result = super.executePythonScript(script, kind);
+                processResult(result);
+                // Mark root complete only after all post-processing is done
+                updateProgress(rootOperation.complete(message("script.completed")));
+                return result;
+            }
+
             private void processResult(ImageMathScriptResult result) {
                 result.imagesByLabel().entrySet().stream().parallel().forEach(entry -> {
                     var name = namingStrategy.render(0, null, Constants.TYPE_PROCESSED, entry.getKey(), "standalone", entry.getValue());
@@ -1621,6 +1679,34 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     private void donate() {
         var lang = LocaleUtils.getConfiguredLanguageCode();
         getHostServices().showDocument("https://melix.github.io/astro4j/latest/" + lang + "/jsolex.html#donate");
+    }
+
+    @FXML
+    private void exportPythonStubs() {
+        var fileChooser = new FileChooser();
+        fileChooser.setTitle(I18N.string(getClass(), "messages", "export.python.stubs.title"));
+        fileChooser.setInitialFileName("jsolex.pyi");
+        fileChooser.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter("Python Stub Files", "*.pyi"));
+        var file = fileChooser.showSaveDialog(rootStage);
+        if (file != null) {
+            try (var input = JSolEx.class.getResourceAsStream("/python-stubs/jsolex.pyi");
+                 var output = new java.io.FileOutputStream(file)) {
+                if (input == null) {
+                    throw new IllegalStateException("Python stubs resource not found");
+                }
+                input.transferTo(output);
+                var alert = AlertFactory.info();
+                alert.setTitle(I18N.string(getClass(), "messages", "export.python.stubs.success.title"));
+                alert.setHeaderText(I18N.string(getClass(), "messages", "export.python.stubs.success.header"));
+                alert.setContentText(MessageFormat.format(I18N.string(getClass(), "messages", "export.python.stubs.success.content"), file.getAbsolutePath()));
+                alert.showAndWait();
+            } catch (Exception e) {
+                var alert = AlertFactory.error(e.getMessage());
+                alert.setTitle(I18N.string(getClass(), "messages", "export.python.stubs.error.title"));
+                alert.showAndWait();
+            }
+        }
     }
 
     private void doOpen(File selectedFile, boolean rememberProcessParams, ProcessParams forcedParams) {

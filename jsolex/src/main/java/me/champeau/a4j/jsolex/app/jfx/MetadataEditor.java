@@ -45,9 +45,11 @@ import me.champeau.a4j.jsolex.expr.ast.ImageMathScript;
 import me.champeau.a4j.jsolex.expr.ast.MetaBlock;
 import me.champeau.a4j.jsolex.processing.params.ChoiceParameter;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParameterExtractor;
+import me.champeau.a4j.jsolex.processing.params.ImageMathParameterExtractor.ParameterExtractionResult;
 import me.champeau.a4j.jsolex.processing.params.NumberParameter;
 import me.champeau.a4j.jsolex.processing.params.OutputMetadata;
 import me.champeau.a4j.jsolex.processing.params.ParameterType;
+import me.champeau.a4j.jsolex.processing.params.PythonParameterExtractor;
 import me.champeau.a4j.jsolex.processing.params.ScriptParameter;
 import me.champeau.a4j.jsolex.processing.util.VersionUtil;
 
@@ -143,6 +145,7 @@ public class MetadataEditor {
 
     private Stage stage;
     private String originalScript;
+    private boolean isPythonScript;
     private BiConsumer<String, String> onSave;
     private final ObservableList<ParameterModel> parameters = FXCollections.observableArrayList();
     private final ObservableList<OutputModel> outputs = FXCollections.observableArrayList();
@@ -333,15 +336,16 @@ public class MetadataEditor {
      * Opens the metadata editor dialog.
      *
      * @param stage the parent stage
-     * @param scriptText the ImageMath script text
+     * @param scriptText the script text
+     * @param isPython true if the script is Python, false if ImageMath
      * @param onSave callback invoked when metadata is saved
      */
-    public static void openEditor(Stage stage, String scriptText, BiConsumer<String, String> onSave) {
+    public static void openEditor(Stage stage, String scriptText, boolean isPython, BiConsumer<String, String> onSave) {
         var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "metadata-editor");
         try {
             var node = (Parent) fxmlLoader.load();
             var controller = (MetadataEditor) fxmlLoader.getController();
-            controller.setup(stage, scriptText, onSave);
+            controller.setup(stage, scriptText, isPython, onSave);
             Scene scene = newScene(node);
             var currentScene = stage.getScene();
             stage.setTitle(I18N.string(JSolEx.class, "metadata-editor", "frame.title"));
@@ -357,55 +361,69 @@ public class MetadataEditor {
         }
     }
 
-    private void setup(Stage stage, String scriptText, BiConsumer<String, String> onSave) {
+    private void setup(Stage stage, String scriptText, boolean isPython, BiConsumer<String, String> onSave) {
         this.stage = stage;
         this.originalScript = scriptText;
+        this.isPythonScript = isPython;
         this.onSave = onSave;
         parseMetadata(scriptText);
     }
 
     private void parseMetadata(String scriptText) {
-        try {
-            var parser = new ImageMathParser(scriptText);
-            parser.parse();
-            var script = (ImageMathScript) parser.rootNode();
-            var metaBlock = findMetaBlock(script);
+        ParameterExtractionResult extractionResult = null;
 
-            if (metaBlock != null) {
-                var extractionResult = new ImageMathParameterExtractor().extractParametersFromAST(script, "");
+        if (isPythonScript) {
+            extractionResult = new PythonParameterExtractor().extractParameters(scriptText, "script.py");
+        } else {
+            try {
+                var parser = new ImageMathParser(scriptText);
+                parser.parse();
+                var script = (ImageMathScript) parser.rootNode();
+                var metaBlock = findMetaBlock(script);
 
-                authorField.setText(extractionResult.getAuthor());
-                versionField.setText(extractionResult.getVersion());
-                requiresField.setText(extractionResult.getRequiredVersion());
-
-                extractionResult.getTitle().forEach((lang, text) -> {
-                    if ("en".equals(lang) || "default".equals(lang)) {
-                        titleEnField.setText(text);
-                    } else if ("fr".equals(lang)) {
-                        titleFrField.setText(text);
-                    }
-                });
-
-                extractionResult.getDescription().forEach((lang, text) -> {
-                    if ("en".equals(lang) || "default".equals(lang)) {
-                        descriptionEnField.setText(text);
-                    } else if ("fr".equals(lang)) {
-                        descriptionFrField.setText(text);
-                    }
-                });
-
-                extractionResult.getParameters().forEach(param -> {
-                    var model = new ParameterModel(param);
-                    parameters.add(model);
-                });
-
-                extractionResult.getOutputsMetadata().forEach((name, metadata) -> {
-                    var model = new OutputModel(metadata);
-                    outputs.add(model);
-                });
+                if (metaBlock != null) {
+                    extractionResult = new ImageMathParameterExtractor().extractParametersFromAST(script, "");
+                }
+            } catch (Exception e) {
+                // Parsing failed - leave extractionResult as null
             }
-        } catch (Exception e) {
         }
+
+        if (extractionResult != null) {
+            populateFromExtractionResult(extractionResult);
+        }
+    }
+
+    private void populateFromExtractionResult(ParameterExtractionResult extractionResult) {
+        authorField.setText(extractionResult.getAuthor());
+        versionField.setText(extractionResult.getVersion());
+        requiresField.setText(extractionResult.getRequiredVersion());
+
+        extractionResult.getTitle().forEach((lang, text) -> {
+            if ("en".equals(lang) || "default".equals(lang)) {
+                titleEnField.setText(text);
+            } else if ("fr".equals(lang)) {
+                titleFrField.setText(text);
+            }
+        });
+
+        extractionResult.getDescription().forEach((lang, text) -> {
+            if ("en".equals(lang) || "default".equals(lang)) {
+                descriptionEnField.setText(text);
+            } else if ("fr".equals(lang)) {
+                descriptionFrField.setText(text);
+            }
+        });
+
+        extractionResult.getParameters().forEach(param -> {
+            var model = new ParameterModel(param);
+            parameters.add(model);
+        });
+
+        extractionResult.getOutputsMetadata().forEach((name, metadata) -> {
+            var model = new OutputModel(metadata);
+            outputs.add(model);
+        });
     }
 
     private MetaBlock findMetaBlock(Object node) {
@@ -765,8 +783,14 @@ public class MetadataEditor {
         if (!validateMetadata()) {
             return;
         }
-        var newMetaBlock = generateMetaBlock();
-        var newScript = replaceMetaBlock(originalScript, newMetaBlock);
+        String newScript;
+        if (isPythonScript) {
+            var newMetaComments = generatePythonMetaComments();
+            newScript = replacePythonMetaComments(originalScript, newMetaComments);
+        } else {
+            var newMetaBlock = generateMetaBlock();
+            newScript = replaceMetaBlock(originalScript, newMetaBlock);
+        }
         onSave.accept(originalScript, newScript);
         stage.close();
     }
@@ -1055,6 +1079,172 @@ public class MetadataEditor {
         } catch (Exception e) {
             return newMetaBlock + "\n" + script;
         }
+    }
+
+    private String generatePythonMetaComments() {
+        var sb = new StringBuilder();
+
+        // Meta information
+        var titleEn = titleEnField.getText().trim();
+        var titleFr = titleFrField.getText().trim();
+        if (!titleEn.isEmpty()) {
+            sb.append("# meta:title = \"").append(escapePythonString(titleEn)).append("\"\n");
+        }
+        if (!titleFr.isEmpty()) {
+            sb.append("# meta:title:fr = \"").append(escapePythonString(titleFr)).append("\"\n");
+        }
+
+        var author = authorField.getText().trim();
+        if (!author.isEmpty()) {
+            sb.append("# meta:author = \"").append(escapePythonString(author)).append("\"\n");
+        }
+
+        var version = versionField.getText().trim();
+        if (!version.isEmpty()) {
+            sb.append("# meta:version = \"").append(escapePythonString(version)).append("\"\n");
+        }
+
+        var requires = requiresField.getText().trim();
+        if (!requires.isEmpty()) {
+            sb.append("# meta:requires = \"").append(escapePythonString(requires)).append("\"\n");
+        }
+
+        var descEn = descriptionEnField.getText().trim();
+        var descFr = descriptionFrField.getText().trim();
+        if (!descEn.isEmpty()) {
+            sb.append("# meta:description = \"").append(escapePythonString(descEn)).append("\"\n");
+        }
+        if (!descFr.isEmpty()) {
+            sb.append("# meta:description:fr = \"").append(escapePythonString(descFr)).append("\"\n");
+        }
+
+        // Parameters
+        for (var param : parameters) {
+            sb.append("#\n");
+            sb.append("# param:").append(param.getName()).append(":type = ").append(param.getType().name().toLowerCase()).append("\n");
+
+            if (param.getDefaultValue() != null && !param.getDefaultValue().toString().isEmpty()) {
+                var defaultVal = param.getDefaultValue().toString();
+                if (param.getType() == ParameterType.NUMBER) {
+                    sb.append("# param:").append(param.getName()).append(":default = ").append(defaultVal).append("\n");
+                } else {
+                    sb.append("# param:").append(param.getName()).append(":default = \"").append(escapePythonString(defaultVal)).append("\"\n");
+                }
+            }
+
+            if (param.getType() == ParameterType.NUMBER) {
+                if (param.getMinValue() != null) {
+                    sb.append("# param:").append(param.getName()).append(":min = ").append(param.getMinValue()).append("\n");
+                }
+                if (param.getMaxValue() != null) {
+                    sb.append("# param:").append(param.getName()).append(":max = ").append(param.getMaxValue()).append("\n");
+                }
+            }
+
+            var nameEn = param.getDisplayNameEn();
+            var nameFr = param.getDisplayNameFr();
+            if (nameEn != null && !nameEn.isEmpty()) {
+                sb.append("# param:").append(param.getName()).append(":name = \"").append(escapePythonString(nameEn)).append("\"\n");
+            }
+            if (nameFr != null && !nameFr.isEmpty()) {
+                sb.append("# param:").append(param.getName()).append(":name:fr = \"").append(escapePythonString(nameFr)).append("\"\n");
+            }
+
+            var paramDescEn = param.getDescriptionEn();
+            var paramDescFr = param.getDescriptionFr();
+            if (paramDescEn != null && !paramDescEn.isEmpty()) {
+                sb.append("# param:").append(param.getName()).append(":description = \"").append(escapePythonString(paramDescEn)).append("\"\n");
+            }
+            if (paramDescFr != null && !paramDescFr.isEmpty()) {
+                sb.append("# param:").append(param.getName()).append(":description:fr = \"").append(escapePythonString(paramDescFr)).append("\"\n");
+            }
+
+            if (param.getType() == ParameterType.CHOICE && !param.getChoices().isEmpty()) {
+                sb.append("# param:").append(param.getName()).append(":choices = \"").append(String.join(",", param.getChoices())).append("\"\n");
+            }
+        }
+
+        // Outputs
+        for (var output : outputs) {
+            sb.append("#\n");
+            var outTitleEn = output.getTitleEn();
+            var outTitleFr = output.getTitleFr();
+            if (outTitleEn != null && !outTitleEn.isEmpty()) {
+                sb.append("# output:").append(output.getName()).append(":title = \"").append(escapePythonString(outTitleEn)).append("\"\n");
+            }
+            if (outTitleFr != null && !outTitleFr.isEmpty()) {
+                sb.append("# output:").append(output.getName()).append(":title:fr = \"").append(escapePythonString(outTitleFr)).append("\"\n");
+            }
+
+            var outDescEn = output.getDescriptionEn();
+            var outDescFr = output.getDescriptionFr();
+            if (outDescEn != null && !outDescEn.isEmpty()) {
+                sb.append("# output:").append(output.getName()).append(":description = \"").append(escapePythonString(outDescEn)).append("\"\n");
+            }
+            if (outDescFr != null && !outDescFr.isEmpty()) {
+                sb.append("# output:").append(output.getName()).append(":description:fr = \"").append(escapePythonString(outDescFr)).append("\"\n");
+            }
+        }
+
+        return sb.toString();
+    }
+
+    private String escapePythonString(String str) {
+        return str.replace("\\", "\\\\")
+                  .replace("\"", "\\\"")
+                  .replace("\n", "\\n")
+                  .replace("\r", "\\r");
+    }
+
+    private String replacePythonMetaComments(String script, String newMetaComments) {
+        var lines = script.split("\n", -1);
+        var sb = new StringBuilder();
+        var inMetaBlock = false;
+        var metaBlockEnded = false;
+        var firstNonMetaLine = -1;
+
+        // Find the range of meta comments at the start
+        for (int i = 0; i < lines.length; i++) {
+            var line = lines[i].trim();
+            if (line.startsWith("# meta:") || line.startsWith("# param:") || line.startsWith("# output:")) {
+                inMetaBlock = true;
+            } else if (line.equals("#") && inMetaBlock) {
+                // Empty comment line within meta block
+            } else if (inMetaBlock && !line.startsWith("#")) {
+                // End of meta block
+                metaBlockEnded = true;
+                firstNonMetaLine = i;
+                break;
+            } else if (!inMetaBlock && !line.isEmpty() && !line.startsWith("#")) {
+                // Never found meta block, insert at start
+                firstNonMetaLine = i;
+                break;
+            } else if (inMetaBlock && line.startsWith("#") && !line.startsWith("# meta:") && !line.startsWith("# param:") && !line.startsWith("# output:") && !line.equals("#")) {
+                // Regular comment after meta block
+                metaBlockEnded = true;
+                firstNonMetaLine = i;
+                break;
+            }
+        }
+
+        if (firstNonMetaLine == -1) {
+            firstNonMetaLine = lines.length;
+        }
+
+        // Build new script
+        sb.append(newMetaComments);
+        if (!newMetaComments.isEmpty() && !newMetaComments.endsWith("\n")) {
+            sb.append("\n");
+        }
+
+        for (int i = firstNonMetaLine; i < lines.length; i++) {
+            sb.append(lines[i]);
+            if (i < lines.length - 1) {
+                sb.append("\n");
+            }
+        }
+
+        return sb.toString();
     }
 
     /**

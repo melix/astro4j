@@ -1,0 +1,527 @@
+= Python Scripting
+Cédric Champeau
+:icons: font
+:docinfo: shared
+:toc: left
+:toclevels: 3
+
+JSol'Ex uses https://www.graalvm.org/python/[GraalPy] to run Python code.
+Python scripts can be used in two ways:
+
+- **Standalone `.py` files**: Use Python directly as your scripting language
+- **Embedded in ImageMath**: Use `python()` or `python_file()` functions within `.math` scripts
+
+Both approaches give you access to Python's control structures (loops, conditionals, exception handling) while being able to call all ImageMath functions through the `jsolex` module.
+
+== Basic Usage
+
+Python code can be embedded in ImageMath scripts as a multi-line string:
+
+[source]
+----
+[outputs]
+result = python("""
+img = jsolex.funcs.img(0)
+result = jsolex.funcs.sharpen(img, 1.5)
+""")
+----
+
+Or by referencing an external Python file:
+
+[source]
+----
+[outputs]
+result = python_file("scripts/process.py")
+----
+
+By default, only pure Python with the standard library is supported.
+For external libraries like NumPy, see <<external-python-libraries>>.
+
+[[external-python-libraries]]
+== Using External Libraries (NumPy, etc.)
+
+To use external libraries like NumPy, configure a GraalPy virtual environment:
+
+1. Install GraalPy (see https://www.graalvm.org/python/docs/#installing-graalpy[installation instructions])
+2. Create a virtual environment: `graalpy -m venv /path/to/venv`
+3. Install packages: `/path/to/venv/bin/pip install numpy pyarrow`
+4. In JSol'Ex: **File -> Advanced Parameters -> Python Scripting**, browse to `/path/to/venv/bin/graalpy`
+5. Restart JSol'Ex
+
+IMPORTANT: For best performance, install both NumPy and PyArrow together. PyArrow enables efficient zero-copy data transfer between Java and Python, significantly speeding up `toNumpy()` and `fromNumpy()` operations on large images.
+
+Once configured:
+
+[source,python]
+----
+import numpy as np
+
+img = jsolex.funcs.img(0)
+data = jsolex.toNumpy(img)
+enhanced = np.clip(data * 1.5, 0, 65535).astype(np.float32)
+result = jsolex.fromNumpy(enhanced)
+----
+
+== The jsolex Module
+
+Python scripts have access to the `jsolex` module, which provides the bridge to ImageMath functionality.
+
+[source,python]
+----
+# Available as global in inline scripts
+img = jsolex.funcs.img(0)
+
+# Or via import in external files
+import jsolex
+img = jsolex.funcs.img(0)
+
+# Selective import
+from jsolex import funcs, vars
+img = funcs.img(0)
+----
+
+=== Calling ImageMath Functions (jsolex.funcs)
+
+All ImageMath functions are available through `jsolex.funcs`:
+
+[source,python]
+----
+img = jsolex.funcs.img(0)                         # Get image at shift 0
+sharpened = jsolex.funcs.sharpen(img, 3)          # Sharpen the image
+enhanced = jsolex.funcs.clahe(sharpened, 8, 2, 1) # Apply CLAHE
+colorized = jsolex.funcs.colorize(enhanced, "H-alpha")
+
+# Functions can be called with positional or keyword arguments
+result = jsolex.funcs.crop(img, x=100, y=100, width=500, height=500)
+----
+
+Function names are case-insensitive:
+
+[source,python]
+----
+img1 = jsolex.funcs.IMG(0)  # Works
+img2 = jsolex.funcs.img(0)  # Also works
+----
+
+User-defined ImageMath functions are also accessible:
+
+[source]
+----
+[fun:enhance img]
+   result = sharpen(clahe(img, 8, 2.0), 1.5)
+
+[outputs]
+processed = python("""
+img = jsolex.funcs.img(0)
+result = jsolex.funcs.enhance(img)  # Call user function
+""")
+----
+
+=== Accessing Variables (jsolex.vars)
+
+ImageMath variables are accessible through `jsolex.vars`:
+
+[source,python]
+----
+# Read variables defined in ImageMath
+continuum = jsolex.vars.continuum
+doppler = jsolex.vars.doppler
+
+# Write variables (for use in ImageMath)
+jsolex.vars.my_result = processed_image
+----
+
+=== Utility Functions
+
+[%header,cols="35%,65%"]
+|===
+|Function|Description
+|`load(path)`|Loads an image from a file
+|`save(img, path)`|Saves an image to a FITS file
+|`emit(img, title, ...)`|Emits an image to the JSol'Ex UI during execution
+|`getVariable(name)`|Gets a script parameter or variable by name
+|`getProcessParams()`|Gets the current processing parameters
+|`getSourceInfo()`|Returns `{fileName, parentDir, dateTime, width, height}` for the source SER file
+|`toNumpy(img)`|Converts image to NumPy array (requires NumPy)
+|`fromNumpy(data)`|Creates image from NumPy array (requires NumPy)
+|`copyMetadataFrom(src, dst)`|Copies metadata (ellipse, solar parameters) between images
+|===
+
+=== Emitting Images
+
+Scripts can emit images to the JSol'Ex UI during execution:
+
+[source,python]
+----
+jsolex.emit(img, "My Image")
+
+# With optional parameters
+jsolex.emit(img, "Enhanced",
+            name="enhanced_v1",
+            category="Processing",
+            description="1.5x brightness")
+----
+
+== Standalone Python Scripts
+
+Python files (`.py`) can be used directly as scripts, just like ImageMath (`.math`) files.
+Open a `.py` file in the ImageMath editor or select "Python" as the script language.
+
+=== Script Metadata
+
+Standalone scripts should include metadata comments at the top:
+
+[source,python]
+----
+# meta:title = "My Analysis Script"
+# meta:title:fr = "Mon Script d'Analyse"
+# meta:author = "Your Name"
+# meta:version = "1.0"
+# meta:requires = "4.6.0"
+# meta:description = "Performs advanced image analysis"
+
+import jsolex
+
+img = jsolex.funcs.img(0)
+result = jsolex.funcs.sharpen(img, 1.5)
+----
+
+[%header,cols="40%,60%"]
+|===
+|Metadata|Description
+|`# meta:title = "..."`|Script title (required for repositories)
+|`# meta:title:xx = "..."`|Localized title (e.g., `:fr` for French)
+|`# meta:author = "..."`|Author name (required for repositories)
+|`# meta:version = "..."`|Script version (required for repositories)
+|`# meta:requires = "..."`|Minimum JSol'Ex version required
+|`# meta:description = "..."`|Script description
+|===
+
+=== Script Parameters
+
+Scripts can declare parameters shown in a dialog when running:
+
+[source,python]
+----
+# meta:title = "Sharpen Script"
+# meta:author = "Your Name"
+# meta:version = "1.0"
+
+# param:strength:type = number
+# param:strength:default = 1.5
+# param:strength:min = 0.5
+# param:strength:max = 3.0
+# param:strength:name = "Sharpening Strength"
+# param:strength:description = "Amount of sharpening to apply"
+
+import jsolex
+
+strength = jsolex.getVariable('strength')
+img = jsolex.funcs.img(0)
+result = jsolex.funcs.sharpen(img, strength)
+----
+
+Parameter types:
+
+- `number` - Numeric value with optional min/max bounds
+- `string` - Text input
+- `choice` - Selection from a list (use `# param:name:choices = "option1,option2,option3"`)
+
+=== Entry Points: single() and batch()
+
+Standalone scripts can define special functions for batch processing:
+
+**`single()`** - Called once for each input file. Set outputs using the `outputs` variable.
+
+**`batch(results)`** - Called once after all files. Receives collected outputs from all `single()` calls.
+
+[source,python]
+----
+# meta:title = "Sharpness Analysis"
+# meta:author = "Your Name"
+# meta:version = "1.0"
+
+import jsolex
+import numpy as np
+
+def single():
+    """Called for each file"""
+    img = jsolex.funcs.img(0)
+    data = jsolex.toNumpy(img)
+
+    # Compute sharpness metric
+    gy, gx = np.gradient(data.astype(np.float64))
+    sharpness = float(np.var(np.sqrt(gx**2 + gy**2)))
+
+    # Set output values
+    outputs.sharpness = sharpness
+    outputs.filename = jsolex.getSourceInfo()["fileName"]
+
+def batch(results):
+    """Called once after all files"""
+    sharpness_values = results.sharpness
+    filenames = results.filename
+
+    best_idx = np.argmax(sharpness_values)
+    print(f"Best: {filenames[best_idx]} (sharpness={sharpness_values[best_idx]:.1f})")
+
+    outputs.best_sharpness = max(sharpness_values)
+----
+
+If you only define `single()`, each file is processed independently.
+If you only define `batch()`, the script runs once after all files.
+If neither is defined, top-level code runs for each file using the `result` variable.
+
+=== Publishing to Repositories
+
+Python scripts can be published to script repositories alongside ImageMath scripts.
+
+For zip bundles, create a `main.txt` file referencing your main script:
+
+----
+my-script.py
+----
+
+If no `main.txt` exists and the zip contains exactly one `.py` file (with no `.math` files), that file is used automatically.
+
+== Embedding Python in ImageMath
+
+When embedding Python in ImageMath scripts, use `python()` or `python_file()`.
+
+=== Returning Values
+
+The `result` variable determines what Python returns to ImageMath:
+
+[source,python]
+----
+# Return an image
+img = jsolex.funcs.img(0)
+result = jsolex.funcs.sharpen(img, 1.5)
+----
+
+[source,python]
+----
+# Return a number
+import numpy as np
+data = jsolex.toNumpy(jsolex.funcs.img(0))
+result = float(np.mean(data))
+----
+
+[source,python]
+----
+# Return a string
+result = jsolex.getSourceInfo()['fileName']
+----
+
+To return multiple values, set ImageMath variables:
+
+[source,python]
+----
+jsolex.vars.processed = jsolex.funcs.sharpen(img, 1.5)
+jsolex.vars.quality = 0.95
+result = jsolex.vars.processed
+----
+
+=== Batch Mode
+
+In ImageMath batch mode, values from the `[outputs]` section are collected across files and become lists in the batch section:
+
+[source]
+----
+[outputs]
+# Computed for each file - becomes a list in [[batch]]
+sharpness = python("""
+import jsolex
+import numpy as np
+
+img = jsolex.funcs.img(ps=0)
+data = jsolex.toNumpy(img)
+
+gy, gx = np.gradient(data.astype(np.float64))
+result = float(np.var(np.sqrt(gx**2 + gy**2)))
+""")
+
+[[batch]]
+[outputs]
+# Runs once after all files - sharpness is now a list
+summary = python("""
+import jsolex
+
+sharpness_values = list(jsolex.vars.sharpness)
+print(f"Best sharpness: {max(sharpness_values):.1f}")
+print(f"Average: {sum(sharpness_values)/len(sharpness_values):.1f}")
+result = max(sharpness_values)
+""")
+----
+
+== Advanced APIs
+
+Beyond basic image processing, the `jsolex` module provides specialized functions for spectral analysis and solar coordinate systems.
+
+=== Spectral Data Access
+
+[%header,cols="40%,60%"]
+|===
+|Function|Description
+|`extractProfile(img, x, y)`|Extracts spectral profile at (x, y). Returns 1D intensity array.
+|`readFrame(frameNumber)`|Reads a single frame from the source SER file.
+|`getPolynomialCoefficients()`|Returns spectral line polynomial `[a, b, c, d]` where y = ax³ + bx² + cx + d.
+|`getPixelShiftRange()`|Returns `{minShift, maxShift, step}` for spectral sampling.
+|`getDispersion()`|Returns `{angstromsPerPixel, nanosPerPixel}` spectral dispersion.
+|`getWavelength()`|Returns `{angstroms, nanos, label}` for observed line.
+|===
+
+Example:
+
+[source,python]
+----
+import jsolex
+
+img = jsolex.funcs.img(ps=0)
+psr = jsolex.getPixelShiftRange()
+print(f"Pixel shift range: {psr['minShift']} to {psr['maxShift']}")
+
+profile = jsolex.extractProfile(img, 512, 256)
+if profile is not None:
+    min_idx = profile.argmin() if hasattr(profile, 'argmin') else profile.index(min(profile))
+    print(f"Line center at pixel shift: {psr['minShift'] + min_idx}")
+----
+
+=== Coordinate Conversion
+
+[%header,cols="40%,60%"]
+|===
+|Function|Description
+|`heliographicToImage(img, lat, lon)`|Heliographic to pixel coordinates. Returns `{x, y, visible, available}`.
+|`imageToHeliographic(img, x, y)`|Pixel to heliographic coordinates. Returns `{lat, lon, mu, onDisk, available}`.
+|`imageToFrameCoords(img, x, y, pixelShift)`|Image to SER frame coordinates.
+|`frameToImageCoords(img, frameNumber, xInFrame)`|SER frame to image coordinates.
+|===
+
+Example:
+
+[source,python]
+----
+import jsolex
+
+img = jsolex.funcs.img(ps=0)
+
+# Convert heliographic to image position
+coords = jsolex.heliographicToImage(img, lat=30.0, lon=45.0)
+if coords['visible']:
+    print(f"Image position: ({coords['x']:.1f}, {coords['y']:.1f})")
+
+# Convert back to heliographic
+helio = jsolex.imageToHeliographic(img, coords['x'], coords['y'])
+if helio['onDisk']:
+    print(f"Heliographic: lat={helio['lat']:.1f}, lon={helio['lon']:.1f}")
+    print(f"mu={helio['mu']:.3f}")  # 1.0 at center, 0.0 at limb
+----
+
+=== Solar Parameters
+
+[%header,cols="40%,60%"]
+|===
+|Function|Description
+|`getSolarParameters()`|Returns `{b0, l0, p, carringtonRotation, apparentSize}` - solar orientation angles and ephemeris.
+|`getEllipseParams(img)`|Returns `{centerX, centerY, semiAxisA, semiAxisB, radius, rotationAngle}` for fitted disk.
+|===
+
+Example:
+
+[source,python]
+----
+import jsolex
+
+img = jsolex.funcs.img(ps=0)
+
+solar = jsolex.getSolarParameters()
+if solar:
+    print(f"B0 = {solar['b0']:.2f} deg")
+    print(f"L0 = {solar['l0']:.2f} deg")
+    print(f"Carrington rotation: {solar['carringtonRotation']}")
+
+ellipse = jsolex.getEllipseParams(img)
+if ellipse:
+    print(f"Disk center: ({ellipse['centerX']:.1f}, {ellipse['centerY']:.1f})")
+    print(f"Radius: {ellipse['radius']:.1f} pixels")
+----
+
+== Examples
+
+=== Processing Pipeline
+
+[source]
+----
+[outputs]
+processed = python("""
+# Get the base image
+img = jsolex.funcs.img(0)
+
+# Apply processing chain
+enhanced = jsolex.funcs.clahe(img, 8, 2.0, 1)
+sharpened = jsolex.funcs.sharpen(enhanced, 3)
+
+# Conditional processing based on image size
+if img.width() > 2000:
+    result = jsolex.funcs.rescale_rel(sharpened, 0.5)
+else:
+    result = sharpened
+""")
+----
+
+=== Limb Darkening Analysis
+
+[source,python]
+----
+import jsolex
+import numpy as np
+import matplotlib.pyplot as plt
+from io import BytesIO
+from PIL import Image
+
+img = jsolex.funcs.img(ps=0)
+data = jsolex.toNumpy(img)
+
+# Sample along the equator from center to east limb
+mu_values = []
+intensities = []
+
+for lon in range(0, 90, 5):
+    coords = jsolex.heliographicToImage(img, lat=0.0, lon=float(lon))
+    if not coords['visible']:
+        break
+
+    helio = jsolex.imageToHeliographic(img, coords['x'], coords['y'])
+    if not helio['onDisk']:
+        break
+
+    x, y = int(coords['x']), int(coords['y'])
+    if 0 <= x < data.shape[1] and 0 <= y < data.shape[0]:
+        mu_values.append(helio['mu'])
+        intensities.append(data[y, x])
+
+# Normalize and plot
+intensities = np.array(intensities) / intensities[0]
+
+plt.figure(figsize=(8, 6))
+plt.plot(mu_values, intensities, 'o-')
+plt.xlabel('mu (cos of heliocentric angle)')
+plt.ylabel('Normalized intensity')
+plt.title('Limb Darkening')
+plt.grid(True)
+
+buf = BytesIO()
+plt.savefig(buf, format='png', dpi=150)
+buf.seek(0)
+plot_img = np.array(Image.open(buf))[:, :, :3]
+plt.close()
+
+gray = plot_img.mean(axis=2).astype(np.float32) * 257.0
+jsolex.emit(jsolex.fromNumpy(gray), "Limb Darkening")
+----
+
+== Limitations
+
+- For simple operations, native ImageMath functions are faster than equivalent Python code.
+- Not all Python packages work with GraalPy. NumPy and PyArrow are tested and supported.

@@ -30,13 +30,13 @@ tasks {
             "toc" to "left",
             "docinfo" to "shared",
             "source-highlighter" to "highlight.js",
-            "highlightjs-theme" to "equilibrium-light",
-            "highlightjsdir" to "highlight",
+            "highlightjs-theme" to "github",
             "version" to downloadVersion,
             "prefixName" to prefixName,
             "fullName" to fullName,
             "fullVersion" to fullVersion,
             "generated-funs" to layout.projectDirectory.asFile.toPath().resolve("src/docs/asciidoc").relativize(generateBuiltinFunctions.get().generatedDocsDirectory.get().asFile.toPath()),
+            "python-examples" to rootProject.file("jsolex-core/src/test/resources/python-examples").absolutePath,
         ))
         resources(delegateClosureOf<CopySpec> {
             from("src/docs/asciidoc") {

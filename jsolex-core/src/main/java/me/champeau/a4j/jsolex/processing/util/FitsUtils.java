@@ -30,9 +30,11 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.MetadataTable;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
 import me.champeau.a4j.jsolex.processing.sun.workflow.SourceInfo;
+import me.champeau.a4j.jsolex.processing.sun.workflow.SpectralLinePolynomial;
 import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.regression.Ellipse;
+import me.champeau.a4j.math.tuples.DoubleQuadruplet;
 import me.champeau.a4j.math.tuples.DoubleSextuplet;
 import nom.tam.fits.BasicHDU;
 import nom.tam.fits.BinaryTable;
@@ -91,6 +93,7 @@ public class FitsUtils {
     public static final String DISTORSION_MAPS_VALUE = "DistorsionMaps";
     public static final String ACTIVE_REGION_VALUE = "AR";
     public static final String FLARE = "FLARE";
+    public static final String SPECTRAL_LINE_POLYNOMIAL_VALUE = "SLPoly";
 
     // INTI metadata
     public static final String CENTER_X = "CENTER_X";
@@ -441,6 +444,13 @@ public class FitsUtils {
                         }
                     }
                     metadata.put(Flares.class, new Flares(flareList));
+                } else if (SPECTRAL_LINE_POLYNOMIAL_VALUE.equals(card.getValue())) {
+                    var binaryTable = binaryTableHdu.getData();
+                    var a = binaryTable.getDouble(0, 0);
+                    var b = binaryTable.getDouble(0, 1);
+                    var c = binaryTable.getDouble(0, 2);
+                    var d = binaryTable.getDouble(0, 3);
+                    metadata.put(SpectralLinePolynomial.class, new SpectralLinePolynomial(new DoubleQuadruplet(a, b, c, d)));
                 }
             }
         }
@@ -497,6 +507,7 @@ public class FitsUtils {
             writeDistorsionMaps(image, fits);
             writeActiveRegions(image, fits);
             writeFlares(image, fits);
+            writeSpectralLinePolynomial(image, fits);
         }
     }
 
@@ -557,6 +568,15 @@ public class FitsUtils {
             table.addRow(new Object[]{baos.toByteArray()});
             writeBinaryTable(table, FLARE, "Flares", fits);
         }
+    }
+
+    private static void writeSpectralLinePolynomial(ImageWrapper image, Fits fits) {
+        image.findMetadata(SpectralLinePolynomial.class).ifPresent(polynomial -> {
+            var table = new BinaryTable();
+            var coeffs = polynomial.coefficients();
+            table.addRow(new Object[]{coeffs.a(), coeffs.b(), coeffs.c(), coeffs.d()});
+            writeBinaryTable(table, SPECTRAL_LINE_POLYNOMIAL_VALUE, "Spectral line polynomial", fits);
+        });
     }
 
     private static void writeMetadataTable(ImageWrapper image, Fits fits) {

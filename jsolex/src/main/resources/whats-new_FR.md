@@ -1,6 +1,7 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
-- [Version 4.5.0](#nouveautes-de-la-version-4-4-6) - Rotation différentielle, correction évaluation des scripts
+- [Version 4.6.0](#nouveautes-de-la-version-4-6-0) - Support des scripts Python dans ImageMath
+- [Version 4.5.0](#nouveautes-de-la-version-4-5-0) - Rotation différentielle, correction évaluation des scripts
 - [Version 4.4.5](#nouveautes-de-la-version-4-4-5) - Correction soumission BASS2000
 - [Version 4.4.4](#nouveautes-de-la-version-4-4-3) - Correction de l'interface en anglais
 - [Version 4.4.3](#nouveautes-de-la-version-4-4-3) - Améliorations d'interfaces et nouvelles fonctions, validation BASS2000 améliorée
@@ -18,6 +19,13 @@
 - [Version 4.1.0](#nouveautes-de-la-version-4-1-0) - Préréglages utilisateur, création de collages
 - [Version 4.0.1](#nouveautes-de-la-version-4-0-1) - Sélection de langue, corrections
 - [Version 4.0.0](#nouveautes-de-la-version-4-0-0) - Interface améliorée, intégration BASS2000
+
+## Nouveautés de la version 4.6.0
+
+### Support des scripts Python
+
+Vous pouvez désormais utiliser du code Python dans les scripts ImageMath grâce aux nouvelles fonctions `python()` et `python_file`.
+Cela permet d'accéder aux structures de contrôle de Python (boucles, conditions, gestion des exceptions) qui manquent à ImageMath, tout en pouvant appeler toutes les fonctions ImageMath, ou encore d'utiliser des libraries Python telles que Numpy ou Scipy dans vos scripts.
 
 ## Nouveautés de la version 4.5.0
 

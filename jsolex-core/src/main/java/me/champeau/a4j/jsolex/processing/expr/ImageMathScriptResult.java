@@ -24,12 +24,14 @@ import java.util.Set;
 public record ImageMathScriptResult(
         Map<String, ImageWrapper> imagesByLabel,
         Map<String, FileOutputResult> filesByLabel,
+        Map<String, Object> valuesByLabel,
         List<InvalidExpression> invalidExpressions,
         Set<Double> internalShifts,
         Set<Double> outputShifts,
         Set<Double> requestedWavelenghts,
         boolean autoContinuum) {
     public static final ImageMathScriptResult EMPTY = new ImageMathScriptResult(
+            Map.of(),
             Map.of(),
             Map.of(),
             List.of(),
