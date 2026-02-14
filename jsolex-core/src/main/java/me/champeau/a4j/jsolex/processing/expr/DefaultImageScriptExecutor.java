@@ -27,6 +27,7 @@ import me.champeau.a4j.jsolex.expr.ast.FunctionCall;
 import me.champeau.a4j.jsolex.expr.ast.FunctionDef;
 import me.champeau.a4j.jsolex.expr.ast.ImageMathScript;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
+import me.champeau.a4j.jsolex.processing.expr.python.PythonScriptExecutor;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParameterExtractor;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
@@ -34,13 +35,15 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
 import me.champeau.a4j.jsolex.processing.util.AnimationFormat;
+import me.champeau.a4j.jsolex.processing.util.DurationFormatter;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
+import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
-import me.champeau.a4j.jsolex.processing.util.DurationFormatter;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.SolarParameters;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -116,6 +119,159 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         this.includesDir = includesDir;
     }
 
+    @Override
+    public ImageMathScriptResult execute(Path source, SectionKind kind) throws IOException {
+        setIncludesDir(source.getParent());
+
+        if (source.toString().endsWith(".py")) {
+            return executePythonScript(source, kind);
+        }
+
+        // Default: read as ImageMath script
+        return execute(FilesUtils.readString(source), kind);
+    }
+
+    private ImageMathScriptResult executePythonScript(Path scriptPath, SectionKind kind) {
+        // Skip Python execution during shift-collecting phase
+        if (isCollectingShifts()) {
+            return ImageMathScriptResult.EMPTY;
+        }
+
+        long nanoTime = System.nanoTime();
+        try {
+            // Create evaluator to get context for Python executor
+            var evaluator = new MemoizingExpressionEvaluator(broadcaster);
+            evaluator.setIncludesDir(includesDir);
+            populateContext(evaluator, getProgressOperation());
+
+            @SuppressWarnings("unchecked")
+            var contextMap = (Map<Class<?>, Object>) (Map<?, ?>) context;
+            var pythonExecutor = new PythonScriptExecutor(evaluator, contextMap, broadcaster, true);
+
+            // For batch mode, check if script has a batch() function BEFORE executing
+            // This avoids running top-level code that may fail in batch context
+            if (kind == SectionKind.BATCH) {
+                var scriptContent = FilesUtils.readString(scriptPath);
+                if (!pythonExecutor.scriptDefinesFunction(scriptContent, "batch")) {
+                    return ImageMathScriptResult.EMPTY;
+                }
+            }
+
+            // Execute the file (runs top-level code and defines functions)
+            var scriptResult = pythonExecutor.executeFile(scriptPath.toString(), variables);
+
+            var hasSingle = pythonExecutor.hasFunction("single");
+            var hasBatch = pythonExecutor.hasFunction("batch");
+
+            if (kind == SectionKind.SINGLE) {
+                if (!hasSingle && hasBatch) {
+                    // Batch-only script, skip in single mode
+                    return ImageMathScriptResult.EMPTY;
+                }
+
+                Map<String, Object> outputs;
+                if (hasSingle) {
+                    // Call single() function with outputs object
+                    outputs = pythonExecutor.callSingleFunction();
+                } else {
+                    // Implicit single mode - merge result variable with outputs object
+                    outputs = new LinkedHashMap<>();
+                    // First add any outputs set via outputs.name = value
+                    outputs.putAll(pythonExecutor.extractOutputs());
+                    // Then add/override with result variable for backwards compatibility
+                    outputs.putAll(resultToMap(scriptResult));
+                }
+
+                return toScriptResult(outputs);
+            } else { // BATCH
+                if (!hasBatch) {
+                    return ImageMathScriptResult.EMPTY;
+                }
+
+                // Collect variables that are lists (from single mode executions)
+                var collectedResults = new LinkedHashMap<String, List<Object>>();
+                for (var entry : variables.entrySet()) {
+                    if (entry.getValue() instanceof List<?> list) {
+                        collectedResults.put(entry.getKey(), new ArrayList<>(list));
+                    }
+                }
+
+                var outputs = pythonExecutor.callBatchFunction(collectedResults);
+
+                return toScriptResult(outputs);
+            }
+        } catch (Exception e) {
+            // Capture Python errors and return them as invalid expressions for display
+            var invalidExpression = new InvalidExpression(
+                scriptPath.getFileName().toString(),
+                scriptPath.toString(),
+                e
+            );
+            return new ImageMathScriptResult(
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                List.of(invalidExpression),
+                Collections.emptySet(),
+                Collections.emptySet(),
+                Collections.emptySet(),
+                false
+            );
+        } finally {
+            if (!isCollectingShifts() && outputLogging) {
+                var formatted = DurationFormatter.formatNanos(System.nanoTime() - nanoTime);
+                LOGGER.info(message("script.completed.in"), formatted);
+            }
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> resultToMap(Object result) {
+        if (result instanceof Map<?, ?> map) {
+            var outputs = new LinkedHashMap<String, Object>();
+            for (var entry : map.entrySet()) {
+                outputs.put(entry.getKey().toString(), entry.getValue());
+            }
+            return outputs;
+        }
+        if (result != null) {
+            return Map.of("result", result);
+        }
+        return Map.of();
+    }
+
+    private ImageMathScriptResult toScriptResult(Map<String, Object> outputs) {
+        var imagesByLabel = new LinkedHashMap<String, ImageWrapper>();
+        var filesByLabel = new LinkedHashMap<String, FileOutputResult>();
+        var valuesByLabel = new LinkedHashMap<String, Object>();
+
+        for (var entry : outputs.entrySet()) {
+            var key = entry.getKey();
+            var value = entry.getValue();
+
+            if (value instanceof ImageWrapper image) {
+                imagesByLabel.put(key, image);
+            } else if (value instanceof SingleFileOutput singleFile) {
+                filesByLabel.put(key, singleFile);
+            } else if (value instanceof MultiFileOutput multiFile) {
+                filesByLabel.put(key, multiFile);
+            } else if (value != null) {
+                valuesByLabel.put(key, value);
+            }
+        }
+
+        return new ImageMathScriptResult(
+            imagesByLabel,
+            filesByLabel,
+            valuesByLabel,
+            List.of(),
+            Collections.emptySet(),
+            Collections.emptySet(),
+            Collections.emptySet(),
+            false
+        );
+    }
+
     public <T> void putInContext(Class<T> key, Object value) {
         context.put(key, value);
     }
@@ -123,6 +279,98 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     @Override
     public void putVariable(String name, Object value) {
         variables.put(name, value);
+    }
+
+    @Override
+    public ImageMathScriptResult executePythonScript(String script, SectionKind kind) {
+        // Skip Python execution during shift-collecting phase
+        if (isCollectingShifts()) {
+            return ImageMathScriptResult.EMPTY;
+        }
+
+        long nanoTime = System.nanoTime();
+        try {
+            // Create evaluator to get context for Python executor
+            var evaluator = new MemoizingExpressionEvaluator(broadcaster);
+            evaluator.setIncludesDir(includesDir);
+            populateContext(evaluator, getProgressOperation());
+
+            @SuppressWarnings("unchecked")
+            var contextMap = (Map<Class<?>, Object>) (Map<?, ?>) context;
+            var pythonExecutor = new PythonScriptExecutor(evaluator, contextMap, broadcaster, true);
+
+            // For batch mode, check if script has a batch() function BEFORE executing
+            // This avoids running top-level code that may fail in batch context
+            if (kind == SectionKind.BATCH && !pythonExecutor.scriptDefinesFunction(script, "batch")) {
+                return ImageMathScriptResult.EMPTY;
+            }
+
+            // Execute the script text to define functions
+            var scriptResult = pythonExecutor.executeInline(script, variables);
+
+            var hasSingle = pythonExecutor.hasFunction("single");
+            var hasBatch = pythonExecutor.hasFunction("batch");
+
+            if (kind == SectionKind.SINGLE) {
+                if (!hasSingle && hasBatch) {
+                    // Batch-only script, skip in single mode
+                    return ImageMathScriptResult.EMPTY;
+                }
+
+                Map<String, Object> outputs;
+                if (hasSingle) {
+                    // Call single() function with outputs object
+                    outputs = pythonExecutor.callSingleFunction();
+                } else {
+                    // Implicit single mode - merge result variable with outputs object
+                    outputs = new LinkedHashMap<>();
+                    // First add any outputs set via outputs.name = value
+                    outputs.putAll(pythonExecutor.extractOutputs());
+                    // Then add/override with result variable for backwards compatibility
+                    outputs.putAll(resultToMap(scriptResult));
+                }
+
+                return toScriptResult(outputs);
+            } else { // BATCH
+                if (!hasBatch) {
+                    return ImageMathScriptResult.EMPTY;
+                }
+
+                // Collect variables that are lists (from single mode executions)
+                var collectedResults = new LinkedHashMap<String, List<Object>>();
+                for (var entry : variables.entrySet()) {
+                    if (entry.getValue() instanceof List<?> list) {
+                        collectedResults.put(entry.getKey(), new ArrayList<>(list));
+                    }
+                }
+
+                var outputs = pythonExecutor.callBatchFunction(collectedResults);
+
+                return toScriptResult(outputs);
+            }
+        } catch (Exception e) {
+            // Capture Python errors and return them as invalid expressions for display
+            var invalidExpression = new InvalidExpression(
+                "Python script",
+                script.length() > 100 ? script.substring(0, 100) + "..." : script,
+                e
+            );
+            return new ImageMathScriptResult(
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                List.of(invalidExpression),
+                Collections.emptySet(),
+                Collections.emptySet(),
+                Collections.emptySet(),
+                false
+            );
+        } finally {
+            if (!isCollectingShifts() && outputLogging) {
+                var formatted = DurationFormatter.formatNanos(System.nanoTime() - nanoTime);
+                LOGGER.info(message("script.completed.in"), formatted);
+            }
+        }
     }
 
     @Override

@@ -18,8 +18,8 @@ package me.champeau.a4j.jsolex.app.listeners;
 import javafx.application.Platform;
 import me.champeau.a4j.jsolex.app.jfx.ScriptErrorDialog;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
-import me.champeau.a4j.jsolex.processing.params.ImageMathParameterExtractor;
 import me.champeau.a4j.jsolex.processing.params.OutputMetadata;
+import me.champeau.a4j.jsolex.processing.params.ScriptParameterExtractor;
 
 import java.io.File;
 import java.util.Map;
@@ -53,16 +53,27 @@ final class ScriptExecutionHelper {
      * @return a map of output names to their metadata
      */
     static Map<String, OutputMetadata> extractOutputsMetadata(File scriptFile) {
-        return ImageMathParameterExtractor.extractOutputsMetadataOnly(scriptFile.toPath());
+        return ScriptParameterExtractor.extractOutputsMetadataOnly(scriptFile.toPath());
     }
 
     /**
-     * Extracts output metadata from a script string.
+     * Extracts output metadata from a script string (assumes ImageMath).
      *
      * @param script the script content to parse
      * @return a map of output names to their metadata
      */
     static Map<String, OutputMetadata> extractOutputsMetadata(String script) {
-        return ImageMathParameterExtractor.extractOutputsMetadataOnly(script);
+        return ScriptParameterExtractor.extractOutputsMetadataOnly(script, "script.math");
+    }
+
+    /**
+     * Extracts output metadata from a script string with explicit filename for type detection.
+     *
+     * @param script   the script content to parse
+     * @param filename the filename hint for determining script type
+     * @return a map of output names to their metadata
+     */
+    static Map<String, OutputMetadata> extractOutputsMetadata(String script, String filename) {
+        return ScriptParameterExtractor.extractOutputsMetadataOnly(script, filename);
     }
 }

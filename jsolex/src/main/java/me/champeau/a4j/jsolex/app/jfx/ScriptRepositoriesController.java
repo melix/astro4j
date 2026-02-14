@@ -40,7 +40,7 @@ import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.expr.repository.ScriptRepository;
 import me.champeau.a4j.jsolex.processing.expr.repository.ScriptRepositoryManager;
-import me.champeau.a4j.jsolex.processing.params.ImageMathParameterExtractor;
+import me.champeau.a4j.jsolex.processing.params.ScriptParameterExtractor;
 import me.champeau.a4j.jsolex.processing.util.LocaleUtils;
 
 import java.nio.file.Files;
@@ -350,7 +350,6 @@ public class ScriptRepositoriesController {
             return;
         }
 
-        var extractor = new ImageMathParameterExtractor();
         var currentLanguage = LocaleUtils.getConfiguredLocale().getLanguage();
 
         var dialogStage = newStage();
@@ -376,7 +375,7 @@ public class ScriptRepositoriesController {
 
             try {
                 if (Files.exists(script.localPath())) {
-                    var extractionResult = extractor.extractParameters(script.localPath());
+                    var extractionResult = ScriptParameterExtractor.extractParameters(script.localPath());
                     var description = extractionResult.getDisplayDescription(currentLanguage);
                     if (description != null && !description.isEmpty()) {
                         var descLabel = new Label(description);

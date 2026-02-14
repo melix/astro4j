@@ -68,15 +68,18 @@ public class PythonImageMathBridge implements AutoCloseable {
     private final AbstractImageExpressionEvaluator evaluator;
     private final Map<Class<?>, Object> context;
     private final Broadcaster broadcaster;
+    private final boolean allowVariableCreation;
     private BufferAllocator allocator;
     private SerFileReader reopenedReader;
 
     public PythonImageMathBridge(AbstractImageExpressionEvaluator evaluator,
                                   Map<Class<?>, Object> context,
-                                  Broadcaster broadcaster) {
+                                  Broadcaster broadcaster,
+                                  boolean allowVariableCreation) {
         this.evaluator = evaluator;
         this.context = context;
         this.broadcaster = broadcaster;
+        this.allowVariableCreation = allowVariableCreation;
     }
 
     @Override
@@ -357,18 +360,29 @@ public class PythonImageMathBridge implements AutoCloseable {
     }
 
     /**
+     * Gets a variable from the ImageMath context with a default value.
+     *
+     * @param name the variable name
+     * @param defaultValue the default value to return if the variable is not found or is null
+     * @return the variable value, or the default value if not found or null
+     */
+    @HostAccess.Export
+    public Object getVariable(String name, Object defaultValue) {
+        var value = evaluator.getVariables().get(name);
+        return value != null ? value : defaultValue;
+    }
+
+    /**
      * Sets a variable in the ImageMath context.
-     * The variable must already exist - this method can only update existing variables,
-     * not create new ones. This ensures that variables are properly declared in ImageMath
-     * before being modified by Python, allowing static analysis to work correctly.
+     * For embedded Python (via python() function), the variable must already exist.
+     * For standalone Python scripts, new variables can be created.
      *
      * @param name the variable name
      * @param value the variable value
-     * @throws IllegalArgumentException if the variable does not exist
      */
     @HostAccess.Export
     public void setVariable(String name, Object value) {
-        if (!evaluator.getVariables().containsKey(name)) {
+        if (!allowVariableCreation && !evaluator.getVariables().containsKey(name)) {
             throw new IllegalArgumentException(
                     "Variable '" + name + "' does not exist. " +
                     "Variables must be declared in ImageMath before they can be modified by Python. " +

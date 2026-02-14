@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.repository;
 
-import me.champeau.a4j.jsolex.processing.params.ImageMathParameterExtractor;
+import me.champeau.a4j.jsolex.processing.params.ScriptParameterExtractor;
 import me.champeau.a4j.jsolex.processing.util.LocaleUtils;
 import me.champeau.a4j.jsolex.processing.util.VersionUtil;
 import org.slf4j.Logger;
@@ -98,7 +98,10 @@ public class ScriptRepositoryManager {
         }
 
         try (var stream = Files.list(repoDir)) {
-            stream.filter(path -> path.toString().endsWith(".math"))
+            stream.filter(path -> {
+                    var pathStr = path.toString();
+                    return pathStr.endsWith(".math") || pathStr.endsWith(".py");
+                })
                 .forEach(path -> {
                     try {
                         var script = loadLocalScript(repository, path);
@@ -236,15 +239,27 @@ public class ScriptRepositoryManager {
             }
         }
 
-        // If no main.txt, try to find the single .math file
+        // If no main.txt, try to find the single script file
+        // First prefer .math files for backward compatibility, then fall back to .py
         if (mainScriptName == null || mainScriptName.isEmpty()) {
             var mathFiles = extractedFiles.keySet().stream()
                 .filter(name -> name.endsWith(".math"))
                 .toList();
             if (mathFiles.size() == 1) {
                 mainScriptName = mathFiles.getFirst();
+            } else if (mathFiles.isEmpty()) {
+                // No .math files, try .py files
+                var pyFiles = extractedFiles.keySet().stream()
+                    .filter(name -> name.endsWith(".py"))
+                    .toList();
+                if (pyFiles.size() == 1) {
+                    mainScriptName = pyFiles.getFirst();
+                } else {
+                    // No main.txt and zero or multiple script files - can't determine main script
+                    return null;
+                }
             } else {
-                // No main.txt and zero or multiple .math files - can't determine main script
+                // Multiple .math files - can't determine main script
                 return null;
             }
         }
@@ -275,8 +290,7 @@ public class ScriptRepositoryManager {
         var mainScriptPath = repoDir.resolve(mainScriptName);
 
         try {
-            var extractor = new ImageMathParameterExtractor();
-            var result = extractor.extractParameters(mainScriptContent, mainScriptName);
+            var result = ScriptParameterExtractor.extractParameters(mainScriptContent, mainScriptName);
             var requiredVersion = result.getRequiredVersion();
 
             if (!VersionUtil.isVersionSupported(requiredVersion)) {
@@ -335,8 +349,7 @@ public class ScriptRepositoryManager {
         var localPath = repoDir.resolve(filename);
 
         try {
-            var extractor = new ImageMathParameterExtractor();
-            var result = extractor.extractParameters(scriptContent, filename);
+            var result = ScriptParameterExtractor.extractParameters(scriptContent, filename);
             var requiredVersion = result.getRequiredVersion();
 
             if (!VersionUtil.isVersionSupported(requiredVersion)) {
@@ -367,8 +380,7 @@ public class ScriptRepositoryManager {
 
     private RemoteScript loadLocalScript(ScriptRepository repository, Path localPath) {
         try {
-            var extractor = new ImageMathParameterExtractor();
-            var result = extractor.extractParameters(localPath);
+            var result = ScriptParameterExtractor.extractParameters(localPath);
 
             var author = result.getAuthor();
             var title = result.getDisplayTitle(LocaleUtils.getConfiguredLanguageCode());

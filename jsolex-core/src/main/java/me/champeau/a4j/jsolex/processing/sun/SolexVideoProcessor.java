@@ -48,7 +48,7 @@ import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.EllipseFittingMode;
 import me.champeau.a4j.jsolex.processing.params.EnhancementParams;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
-import me.champeau.a4j.jsolex.processing.params.ImageMathParameterExtractor;
+import me.champeau.a4j.jsolex.processing.params.ScriptParameterExtractor;
 import me.champeau.a4j.jsolex.processing.params.OutputMetadata;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.RotationKind;
@@ -1902,10 +1902,7 @@ public class SolexVideoProcessor implements Broadcaster {
 
     private static Map<String, OutputMetadata> extractOutputsMetadata(File scriptFile) {
         try {
-            var extractor = new ImageMathParameterExtractor();
-            var script = FilesUtils.readString(scriptFile.toPath());
-            var extractionResult = extractor.extractParameters(script, scriptFile.getName());
-            return extractionResult.getOutputsMetadata();
+            return ScriptParameterExtractor.extractOutputsMetadataOnly(scriptFile.toPath());
         } catch (Exception e) {
             LOGGER.debug("Could not extract outputs metadata from script {}: {}", scriptFile, e.getMessage());
             return Map.of();

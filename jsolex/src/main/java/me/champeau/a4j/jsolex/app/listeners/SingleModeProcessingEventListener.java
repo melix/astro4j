@@ -1884,6 +1884,32 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         return result;
     }
 
+    @Override
+    public ImageMathScriptResult executePythonScript(String script, SectionKind kind) {
+        var result = imageScriptExecutor.executePythonScript(script, kind);
+        var namingStrategy = createNamingStrategy();
+        var outputsMetadata = ScriptExecutionHelper.extractOutputsMetadata(script, "script.py");
+        var language = LocaleUtils.getConfiguredLocale().getLanguage();
+        ImageMathScriptExecutor.render(result, imageEmitter, (outputLabel, fileOutput) -> {
+            var baseName = namingStrategy.render(0, null, Constants.TYPE_CUSTOM, outputLabel, computeSerFileBasename(serFile), null);
+            try {
+                var displayPath = FilesUtils.saveAllFilesAndGetDisplayPath(fileOutput, outputDirectory, baseName);
+                if (displayPath != null) {
+                    var metadata = outputsMetadata.get(outputLabel);
+                    var displayTitle = metadata != null ? metadata.getDisplayTitle(language) : null;
+                    var description = metadata != null ? metadata.getDisplayDescription(language) : null;
+                    onFileGenerated(FileGeneratedEvent.of(GeneratedImageKind.IMAGE_MATH, outputLabel, displayPath, description, displayTitle));
+                }
+            } catch (IOException e) {
+                throw new ProcessingException(e);
+            }
+        }, outputsMetadata, language);
+        var invalidExpressions = result.invalidExpressions();
+        if (!invalidExpressions.isEmpty()) {
+            Platform.runLater(() -> ScriptErrorDialog.showErrors(invalidExpressions));
+        }
+        return result;
+    }
 
     @Override
     public void removeVariable(String variable) {

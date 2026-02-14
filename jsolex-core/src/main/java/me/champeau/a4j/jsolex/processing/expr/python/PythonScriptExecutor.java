@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.python;
 
+import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.expr.AbstractImageExpressionEvaluator;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import org.graalvm.polyglot.Context;
@@ -34,6 +35,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -44,6 +47,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
+
+import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
 /**
  * Manages GraalPy context lifecycle and Python script execution.
@@ -87,24 +92,30 @@ public class PythonScriptExecutor {
         return Optional.ofNullable(graalPyExecutable);
     }
 
-    private final Context context;
     private final PythonImageMathBridge bridge;
+    private final Broadcaster broadcaster;
 
     /**
      * Creates a new Python script executor.
      *
-     * @param evaluator   the ImageMath evaluator
-     * @param contextMap  the evaluation context map
-     * @param broadcaster the broadcaster for progress events
+     * @param evaluator             the ImageMath evaluator
+     * @param contextMap            the evaluation context map
+     * @param broadcaster           the broadcaster for progress events
+     * @param allowVariableCreation whether Python scripts can create new variables
      */
     public PythonScriptExecutor(AbstractImageExpressionEvaluator evaluator,
                                 Map<Class<?>, Object> contextMap,
-                                Broadcaster broadcaster) {
-        this.context = createContext();
-        this.bridge = new PythonImageMathBridge(evaluator, contextMap, broadcaster);
+                                Broadcaster broadcaster,
+                                boolean allowVariableCreation) {
+        this.bridge = new PythonImageMathBridge(evaluator, contextMap, broadcaster, allowVariableCreation);
+        this.broadcaster = broadcaster;
     }
 
-    private Context createContext() {
+    /**
+     * Gets or creates the shared GraalPy context.
+     * Must be called from a platform thread (via executeOnPlatformThread).
+     */
+    private Context getOrCreateContext() {
         var context = SHARED_CONTEXT.get();
         if (context != null) {
             return context;
@@ -114,29 +125,45 @@ public class PythonScriptExecutor {
             if (context != null) {
                 return context;
             }
-            var builder = Context.newBuilder("python")
-                    .allowExperimentalOptions(false)
-                    .allowAllAccess(false)
-                    .allowHostAccess(HostAccess.ALL)
-                    .allowCreateThread(true)
-                    .allowNativeAccess(true)
-                    .allowPolyglotAccess(PolyglotAccess.ALL)
-                    .allowIO(IOAccess.ALL)
-                    .option("python.PosixModuleBackend", "java")
-                    .option("python.DontWriteBytecodeFlag", "true")
-                    .option("python.ForceImportSite", "true")
-                    .option("python.CheckHashPycsMode", "never")
-                    .option("python.WarnExperimentalFeatures", "false")
-                    .out(new LoggingOutputStream(line -> LOGGER.info("[Python] {}", line)))
-                    .err(new LoggingOutputStream(line -> LOGGER.warn("[Python] {}", line)));
+            LOGGER.info("Initializing GraalPy context...");
 
-            // Use custom GraalPy executable if configured
-            if (graalPyExecutable != null) {
-                LOGGER.info("Using GraalPy executable: {}", graalPyExecutable);
-                builder.option("python.Executable", graalPyExecutable.toString());
+            // Broadcast progress during initialization
+            ProgressOperation initProgress = null;
+            if (broadcaster != null) {
+                initProgress = ProgressOperation.root(message("python.context.initializing"), _ -> {});
+                broadcaster.broadcast(initProgress);
             }
-            context = builder.build();
-            SHARED_CONTEXT.set(context);
+
+            try {
+                var builder = Context.newBuilder("python")
+                        .allowExperimentalOptions(false)
+                        .allowAllAccess(false)
+                        .allowHostAccess(HostAccess.ALL)
+                        .allowCreateThread(true)
+                        .allowNativeAccess(true)
+                        .allowPolyglotAccess(PolyglotAccess.ALL)
+                        .allowIO(IOAccess.ALL)
+                        .option("python.PosixModuleBackend", "java")
+                        .option("python.DontWriteBytecodeFlag", "true")
+                        .option("python.ForceImportSite", "true")
+                        .option("python.CheckHashPycsMode", "never")
+                        .option("python.WarnExperimentalFeatures", "false")
+                        .out(new LoggingOutputStream(line -> LOGGER.info("[Python] {}", line)))
+                        .err(new LoggingOutputStream(line -> LOGGER.warn("[Python] {}", line)));
+
+                // Use custom GraalPy executable if configured
+                if (graalPyExecutable != null) {
+                    LOGGER.info("Using GraalPy executable: {}", graalPyExecutable);
+                    builder.option("python.Executable", graalPyExecutable.toString());
+                }
+                context = builder.build();
+                SHARED_CONTEXT.set(context);
+                LOGGER.info("GraalPy context initialized");
+            } finally {
+                if (initProgress != null) {
+                    broadcaster.broadcast(initProgress.complete());
+                }
+            }
         }
         return context;
     }
@@ -144,6 +171,7 @@ public class PythonScriptExecutor {
     /**
      * Gets or creates a PythonScriptExecutor from the context map.
      * This enables context reuse across multiple python() calls for better performance.
+     * Used for embedded Python (via python() function) - variable creation is not allowed.
      *
      * @param contextMap  the evaluation context map
      * @param evaluator   the ImageMath evaluator
@@ -155,21 +183,20 @@ public class PythonScriptExecutor {
                                                    Broadcaster broadcaster) {
         return (PythonScriptExecutor) contextMap.computeIfAbsent(
                 PythonScriptExecutor.class,
-                k -> new PythonScriptExecutor(evaluator, contextMap, broadcaster));
+                _ -> new PythonScriptExecutor(evaluator, contextMap, broadcaster, false));
     }
 
     /**
      * Registers the synthetic 'jsolex' Python module so that Python scripts
      * can use standard import syntax: 'import jsolex' or 'from jsolex import ...'.
+     * Must be called from a platform thread with CONTEXT_LOCK held.
      */
-    private void registerJsolexModule() {
-        CONTEXT_LOCK.lock();
-        try {
-            // Inject the bridge as a global first
-            context.getBindings("python").putMember("_java_bridge", bridge);
+    private void registerJsolexModule(Context context) {
+        // Inject the bridge as a global first
+        context.getBindings("python").putMember("_java_bridge", bridge);
 
-            // Create the jsolex module and register it in sys.modules
-            context.eval("python", """
+        // Create the jsolex module and register it in sys.modules
+        context.eval("python", """
                     import sys
                     from types import ModuleType
                     
@@ -191,7 +218,7 @@ public class PythonScriptExecutor {
                     class FunctionAccessor:
                         def __init__(self, bridge):
                             self._bridge = bridge
-                    
+
                         def __getattr__(self, name):
                             def func_wrapper(*args, **kwargs):
                                 # callAny tries builtin first, falls back to user function
@@ -199,7 +226,27 @@ public class PythonScriptExecutor {
                                     return self._bridge.callAnyWithPositionalArgs(name, args, kwargs)
                                 return self._bridge.callAny(name, kwargs)
                             return func_wrapper
-                    
+
+                    # Outputs class for single() function - allows outputs.myvar = value
+                    class Outputs:
+                        def __init__(self, data=None):
+                            object.__setattr__(self, '_data', data if data is not None else {})
+
+                        def __getattr__(self, name):
+                            return self._data.get(name)
+
+                        def __setattr__(self, name, value):
+                            if name == '_data':
+                                object.__setattr__(self, name, value)
+                            else:
+                                self._data[name] = value
+
+                        def _get_data(self):
+                            return self._data
+
+                        def __repr__(self):
+                            return f"Outputs({self._data})"
+
                     # Create jsolex module
                     _jsolex_module = ModuleType('jsolex')
                     _jsolex_module.__dict__['_bridge'] = _java_bridge
@@ -330,18 +377,36 @@ public class PythonScriptExecutor {
                     # Also make it available as a global for inline scripts
                     jsolex = _jsolex_module
                     """);
-        } finally {
-            CONTEXT_LOCK.unlock();
-        }
     }
 
     /**
-     * Executes a task on a platform thread (not a virtual thread).
-     * GraalPy cannot run on virtual threads, so we must use platform threads.
+     * Executes a task under the context lock, handling reentrant calls.
+     * If the current thread already holds the lock (nested Python call), executes directly.
+     * Otherwise, submits to the executor and acquires the lock there.
+     * GraalPy cannot run on virtual threads, so we use platform threads.
      */
-    private <T> T executeOnPlatformThread(Callable<T> task) {
+    private <T> T runUnderLock(Callable<T> task) {
+        // If we already hold the lock (reentrant call from nested python()), execute directly
+        if (CONTEXT_LOCK.isHeldByCurrentThread()) {
+            try {
+                return task.call();
+            } catch (RuntimeException e) {
+                throw e;
+            } catch (Exception e) {
+                throw new IllegalStateException(e.getMessage(), e);
+            }
+        }
+
+        // Otherwise, submit to executor and acquire lock there
         try {
-            return PYTHON_EXECUTOR.submit(task).get();
+            return PYTHON_EXECUTOR.submit(() -> {
+                CONTEXT_LOCK.lock();
+                try {
+                    return task.call();
+                } finally {
+                    CONTEXT_LOCK.unlock();
+                }
+            }).get();
         } catch (ExecutionException e) {
             var cause = e.getCause();
             if (cause instanceof RuntimeException re) {
@@ -362,17 +427,57 @@ public class PythonScriptExecutor {
      * @return the value of the 'result' variable after execution, or null
      */
     public Object executeInline(String script, Map<String, Object> variables) {
-        return executeOnPlatformThread(() -> doExecuteInline(script, variables));
+        return runUnderLock(() -> doExecuteInline(script, variables));
+    }
+
+    /**
+     * Resets the Python context by clearing cached user modules and global variables.
+     * This prevents variable pollution between script executions.
+     *
+     * @param context the Python context
+     * @param scriptDir if provided, also clears cached modules from this directory to force reimport
+     */
+    private void resetContext(Context context, String scriptDir) {
+        var bindings = context.getBindings("python");
+        bindings.putMember("_reset_script_dir", scriptDir);
+        context.eval("python", """
+                import sys
+                # Clear cached user modules from script directory (forces reimport)
+                if _reset_script_dir:
+                    _to_remove = []
+                    for name, module in list(sys.modules.items()):
+                        if module is None:
+                            continue
+                        if not hasattr(module, '__file__') or module.__file__ is None:
+                            continue
+                        if module.__file__.startswith(_reset_script_dir):
+                            _to_remove.append(name)
+                    for name in _to_remove:
+                        del sys.modules[name]
+                # Clear user-defined global variables
+                _keep = {'__builtins__', '__name__', '__doc__', '__package__', '__loader__', '__spec__',
+                         'sys', 'jsolex', '_jsolex_module', '_java_bridge', 'VariableAccessor', 'FunctionAccessor', 'Outputs'}
+                _to_delete = [name for name in list(globals().keys()) if name not in _keep and not name.startswith('_')]
+                for name in _to_delete:
+                    try:
+                        del globals()[name]
+                    except:
+                        pass
+                del _reset_script_dir
+                """);
     }
 
     private Object doExecuteInline(String script, Map<String, Object> variables) {
-        CONTEXT_LOCK.lock();
         try {
-            registerJsolexModule();
-            injectVariables(variables);
+            var context = getOrCreateContext();
+            registerJsolexModule(context);
+            resetContext(context, null);
+            injectVariables(context, variables);
+            // Create outputs object for implicit single mode
+            context.eval("python", "outputs = Outputs()");
             LOGGER.debug("Executing inline Python script: {}", script.length() > 100 ? script.substring(0, 100) + "..." : script);
             var evalResult = context.eval("python", script);
-            return extractResult(evalResult);
+            return extractResult(context, evalResult);
         } catch (PolyglotException e) {
             LOGGER.warn("PolyglotException caught: isGuestException={}, message={}", e.isGuestException(), e.getMessage());
             var message = buildErrorMessage(e);
@@ -382,8 +487,6 @@ public class PythonScriptExecutor {
             LOGGER.warn("Unexpected exception type caught: {}", e.getClass().getName());
             LOGGER.error("Unexpected error executing Python script: {}", e.getMessage(), e);
             throw new IllegalStateException("Python script error: " + e.getMessage(), e);
-        } finally {
-            CONTEXT_LOCK.unlock();
         }
     }
 
@@ -395,14 +498,14 @@ public class PythonScriptExecutor {
      * @return the value of the 'result' variable after execution, or null
      */
     public Object executeFile(String filePath, Map<String, Object> variables) {
-        return executeOnPlatformThread(() -> doExecuteFile(filePath, variables));
+        return runUnderLock(() -> doExecuteFile(filePath, variables));
     }
 
     private Object doExecuteFile(String filePath, Map<String, Object> variables) {
-        CONTEXT_LOCK.lock();
         try {
-            registerJsolexModule();
-            injectVariables(variables);
+            var context = getOrCreateContext();
+            registerJsolexModule(context);
+            injectVariables(context, variables);
             var path = Path.of(filePath).toAbsolutePath();
             LOGGER.debug("Executing Python file: {}", filePath);
             if (!Files.exists(path)) {
@@ -412,28 +515,17 @@ public class PythonScriptExecutor {
             var scriptDir = path.getParent().toString().replace("\\", "\\\\");
             context.eval("python", "import sys; sys.path.insert(0, '" + scriptDir + "') if '" + scriptDir + "' not in sys.path else None");
 
-            // Remove cached user modules so they get re-imported fresh
-            // This ensures any changes (including errors) are picked up immediately
-            context.eval("python", String.format("""
-                    import sys
-                    _script_dir = '%s'
-                    _to_remove = []
-                    for name, module in list(sys.modules.items()):
-                        if module is None:
-                            continue
-                        if not hasattr(module, '__file__') or module.__file__ is None:
-                            continue
-                        if module.__file__.startswith(_script_dir):
-                            _to_remove.append(name)
-                    for name in _to_remove:
-                        del sys.modules[name]
-                    """, scriptDir));
+            // Reset context to clear cached modules and global variables
+            resetContext(context, scriptDir);
+
+            // Create outputs object for implicit single mode
+            context.eval("python", "outputs = Outputs()");
 
             var source = Source.newBuilder("python", path.toFile())
                     .name(path.getFileName().toString())
                     .build();
             var evalResult = context.eval(source);
-            return extractResult(evalResult);
+            return extractResult(context, evalResult);
         } catch (PolyglotException e) {
             LOGGER.warn("PolyglotException caught: isGuestException={}, message={}", e.isGuestException(), e.getMessage());
             var message = buildErrorMessage(e);
@@ -446,12 +538,190 @@ public class PythonScriptExecutor {
             LOGGER.warn("Unexpected exception type caught: {}", e.getClass().getName());
             LOGGER.error("Unexpected error executing Python file: {}", e.getMessage(), e);
             throw new IllegalStateException("Python file error: " + e.getMessage(), e);
-        } finally {
-            CONTEXT_LOCK.unlock();
         }
     }
 
-    private void injectVariables(Map<String, Object> variables) {
+    /**
+     * Checks if the Python context has a function with the given name defined.
+     *
+     * @param functionName the name of the function to check
+     * @return true if the function exists and is callable
+     */
+    public boolean hasFunction(String functionName) {
+        return runUnderLock(() -> {
+            var context = getOrCreateContext();
+            var bindings = context.getBindings("python");
+            var member = bindings.getMember(functionName);
+            return member != null && !member.isNull() && member.canExecute();
+        });
+    }
+
+    /**
+     * Checks if a Python script contains a function definition with the given name
+     * by parsing the AST without executing the script.
+     *
+     * @param script the Python script source code
+     * @param functionName the name of the function to look for
+     * @return true if the script defines a function with that name
+     */
+    public boolean scriptDefinesFunction(String script, String functionName) {
+        return runUnderLock(() -> {
+            try {
+                var context = getOrCreateContext();
+                var bindings = context.getBindings("python");
+                // Pass script and function name through bindings to avoid escaping issues
+                bindings.putMember("_script_source", script);
+                bindings.putMember("_func_name", functionName);
+                var result = context.eval("python", """
+                    import ast
+                    _tree = ast.parse(_script_source)
+                    _has_func = any(
+                        isinstance(node, ast.FunctionDef) and node.name == _func_name
+                        for node in ast.walk(_tree)
+                    )
+                    _has_func
+                    """);
+                return result.asBoolean();
+            } catch (Exception e) {
+                LOGGER.debug("Could not parse script AST: {}", e.getMessage());
+                return false;
+            }
+        });
+    }
+
+    /**
+     * Calls a Python function by name with the given arguments.
+     *
+     * @param functionName the name of the function to call
+     * @param args arguments to pass to the function (will be passed as keyword arguments)
+     * @return the return value of the function, converted to Java types
+     */
+    public Object callFunction(String functionName, Map<String, Object> args) {
+        return runUnderLock(() -> doCallFunction(functionName, args));
+    }
+
+    private Object doCallFunction(String functionName, Map<String, Object> args) {
+        try {
+            var context = getOrCreateContext();
+            var bindings = context.getBindings("python");
+            var func = bindings.getMember(functionName);
+            if (func == null || func.isNull() || !func.canExecute()) {
+                throw new IllegalStateException("Function not found or not callable: " + functionName);
+            }
+
+            // Inject arguments as variables so they're accessible
+            for (var entry : args.entrySet()) {
+                bindings.putMember(entry.getKey(), convertToPython(entry.getValue()));
+            }
+
+            // Build the call expression with keyword arguments
+            var callExpr = new StringBuilder(functionName).append("(");
+            var first = true;
+            for (var key : args.keySet()) {
+                if (!first) {
+                    callExpr.append(", ");
+                }
+                callExpr.append(key).append("=").append(key);
+                first = false;
+            }
+            callExpr.append(")");
+
+            LOGGER.debug("Calling Python function: {}", callExpr);
+            var result = context.eval("python", callExpr.toString());
+            return convertFromPython(result);
+        } catch (PolyglotException e) {
+            var message = buildErrorMessage(e);
+            LOGGER.error("Error calling Python function {}: {}", functionName, message, e);
+            throw new IllegalStateException(message, e);
+        }
+    }
+
+    /**
+     * Calls the single() function with an outputs object.
+     * The script can use `outputs.myvar = value` to set outputs.
+     *
+     * @return a Map of output name to value
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> callSingleFunction() {
+        return runUnderLock(() -> {
+            try {
+                var context = getOrCreateContext();
+                var bindings = context.getBindings("python");
+
+                // Create an outputs object and inject it
+                context.eval("python", "outputs = Outputs()");
+
+                // Call single()
+                var func = bindings.getMember("single");
+                if (func == null || func.isNull() || !func.canExecute()) {
+                    throw new IllegalStateException("Function not found or not callable: single");
+                }
+
+                LOGGER.debug("Calling Python function: single()");
+                context.eval("python", "single()");
+
+                // Extract the outputs
+                var outputsObj = bindings.getMember("outputs");
+                if (outputsObj != null && !outputsObj.isNull()) {
+                    var dataValue = context.eval("python", "outputs._get_data()");
+                    return (Map<String, Object>) convertFromPython(dataValue);
+                }
+                return Map.of();
+            } catch (PolyglotException e) {
+                var message = buildErrorMessage(e);
+                LOGGER.error("Error calling Python function single: {}", message, e);
+                throw new IllegalStateException(message, e);
+            }
+        });
+    }
+
+    /**
+     * Calls the batch() function with collected results.
+     * The script receives `results` with list-valued attributes (e.g., results.myvar is a list).
+     *
+     * @param collectedResults a Map of output name to list of values from all single() calls
+     * @return a Map of output name to value
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> callBatchFunction(Map<String, List<Object>> collectedResults) {
+        return runUnderLock(() -> {
+            try {
+                var context = getOrCreateContext();
+                var bindings = context.getBindings("python");
+
+                // Create a results object with the collected data
+                bindings.putMember("_batch_results_data", convertToPython(collectedResults));
+                context.eval("python", "results = Outputs(_batch_results_data)");
+
+                // Also create an outputs object for batch outputs
+                context.eval("python", "outputs = Outputs()");
+
+                // Call batch(results)
+                var func = bindings.getMember("batch");
+                if (func == null || func.isNull() || !func.canExecute()) {
+                    throw new IllegalStateException("Function not found or not callable: batch");
+                }
+
+                LOGGER.debug("Calling Python function: batch(results)");
+                context.eval("python", "batch(results)");
+
+                // Extract the outputs
+                var outputsObj = bindings.getMember("outputs");
+                if (outputsObj != null && !outputsObj.isNull()) {
+                    var dataValue = context.eval("python", "outputs._get_data()");
+                    return (Map<String, Object>) convertFromPython(dataValue);
+                }
+                return Map.of();
+            } catch (PolyglotException e) {
+                var message = buildErrorMessage(e);
+                LOGGER.error("Error calling Python function batch: {}", message, e);
+                throw new IllegalStateException(message, e);
+            }
+        });
+    }
+
+    private void injectVariables(Context context, Map<String, Object> variables) {
         var bindings = context.getBindings("python");
         for (var entry : variables.entrySet()) {
             bindings.putMember(entry.getKey(), convertToPython(entry.getValue()));
@@ -459,7 +729,7 @@ public class PythonScriptExecutor {
         bindings.removeMember("result");
     }
 
-    private Object extractResult(Value evalResult) {
+    private Object extractResult(Context context, Value evalResult) {
         var bindings = context.getBindings("python");
 
         // Get the 'result' variable if it was set
@@ -483,6 +753,38 @@ public class PythonScriptExecutor {
 
         LOGGER.debug("Python script returned null (no result variable set)");
         return null;
+    }
+
+    /**
+     * Extracts outputs set via `outputs.name = value` syntax.
+     * Call this after executeInline/executeFile to get outputs for implicit single mode.
+     *
+     * @return a Map of output name to value, or empty map if no outputs were set
+     */
+    public Map<String, Object> extractOutputs() {
+        return runUnderLock(() -> {
+            var context = getOrCreateContext();
+            var bindings = context.getBindings("python");
+            var result = new LinkedHashMap<String, Object>();
+
+            // Extract outputs from the outputs object
+            var outputsObj = bindings.getMember("outputs");
+            if (outputsObj != null && !outputsObj.isNull()) {
+                try {
+                    var dataValue = context.eval("python", "outputs._get_data()");
+                    var outputsMap = convertFromPython(dataValue);
+                    if (outputsMap instanceof Map<?, ?> map) {
+                        for (var entry : map.entrySet()) {
+                            result.put(entry.getKey().toString(), entry.getValue());
+                        }
+                    }
+                } catch (Exception e) {
+                    LOGGER.debug("Could not extract outputs: {}", e.getMessage());
+                }
+            }
+
+            return result;
+        });
     }
 
     /**
@@ -628,8 +930,20 @@ public class PythonScriptExecutor {
      * @return the Python-compatible value
      */
     private Object convertToPython(Object value) {
+        return convertToPython(value, new IdentityHashMap<>());
+    }
+
+    private Object convertToPython(Object value, IdentityHashMap<Object, Object> visited) {
         if (value == null) {
             return null;
+        }
+        // Avoid infinite recursion on circular references
+        if (visited.containsKey(value)) {
+            return visited.get(value);
+        }
+        // Don't try to convert polyglot types - they're already Python-compatible
+        if (value instanceof Value || value.getClass().getName().contains("Polyglot")) {
+            return value;
         }
         if (value instanceof Double d) {
             return d.doubleValue();
@@ -654,15 +968,17 @@ public class PythonScriptExecutor {
         }
         if (value instanceof List<?> list) {
             var result = new ArrayList<>();
+            visited.put(value, result);
             for (var item : list) {
-                result.add(convertToPython(item));
+                result.add(convertToPython(item, visited));
             }
             return result;
         }
         if (value instanceof Map<?, ?> map) {
             var result = new HashMap<String, Object>();
+            visited.put(value, result);
             for (var entry : map.entrySet()) {
-                result.put(entry.getKey().toString(), convertToPython(entry.getValue()));
+                result.put(entry.getKey().toString(), convertToPython(entry.getValue(), visited));
             }
             return result;
         }

@@ -83,11 +83,58 @@ class ScriptRepositoryManagerZipTest extends Specification {
         contents == null
     }
 
-    def "returns null for zip with no math files"() {
+    def "returns null for zip with multiple py files and no main.txt"() {
         given:
         def zipBytes = createZip([
             'helper.py': 'def helper(): pass',
             'utils.py': 'def utils(): pass'
+        ])
+
+        when:
+        def contents = manager.parseZipContents(zipBytes)
+
+        then:
+        contents == null
+    }
+
+    def "uses single py file as main when no main.txt"() {
+        given:
+        def zipBytes = createZip([
+            'script.py': '# meta:title = "Test"\n# meta:author = "Author"\n# meta:version = "1.0"\nimport jsolex',
+            'data.json': '{"key": "value"}'
+        ])
+
+        when:
+        def contents = manager.parseZipContents(zipBytes)
+
+        then:
+        contents != null
+        contents.mainScriptName() == 'script.py'
+        contents.files().size() == 2
+    }
+
+    def "main.txt can reference a py file"() {
+        given:
+        def zipBytes = createZip([
+            'main.txt': 'process.py',
+            'process.py': '# meta:title = "Test"\n# meta:author = "Author"\n# meta:version = "1.0"\nimport jsolex',
+            'helper.py': 'def helper(): pass'
+        ])
+
+        when:
+        def contents = manager.parseZipContents(zipBytes)
+
+        then:
+        contents != null
+        contents.mainScriptName() == 'process.py'
+        contents.files().size() == 2
+    }
+
+    def "returns null for zip with no script files"() {
+        given:
+        def zipBytes = createZip([
+            'readme.txt': 'Just a readme',
+            'data.json': '{"key": "value"}'
         ])
 
         when:

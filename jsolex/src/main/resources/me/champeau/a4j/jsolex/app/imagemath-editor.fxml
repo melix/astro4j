@@ -46,6 +46,7 @@
                 <!-- Script Editor Header -->
                 <HBox alignment="CENTER_LEFT" spacing="16">
                     <Label text="%script.text" style="-fx-font-weight: bold; -fx-font-size: 14px;"/>
+                    <ChoiceBox fx:id="scriptLanguage" prefWidth="100"/>
                     <Hyperlink fx:id="docsLink" text="%open.documentation" onAction="#openDocs"/>
                 </HBox>
 

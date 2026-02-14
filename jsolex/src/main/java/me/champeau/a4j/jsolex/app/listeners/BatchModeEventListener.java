@@ -749,6 +749,15 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     }
 
     @Override
+    public ImageMathScriptResult executePythonScript(String script, SectionKind kind) {
+        var result = batchScriptExecutor.executePythonScript(script, SectionKind.BATCH);
+        ScriptExecutionHelper.processScriptErrors(result);
+        var outputsMetadata = ScriptExecutionHelper.extractOutputsMetadata(script, "script.py");
+        renderBatchOutputs(createNamingStrategy(), result, outputsMetadata);
+        return result;
+    }
+
+    @Override
     public void removeVariable(String variable) {
         batchScriptExecutor.removeVariable(variable);
     }

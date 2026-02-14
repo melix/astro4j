@@ -818,7 +818,7 @@ meta {
 }
 ----
 
-include::python-scripting.adoc[]
+Pour des capacités de script avancées, JSol'Ex supporte également Python. Veuillez consulter link:python-scripting.html[la documentation sur le scripting Python] pour plus de détails.
 
 [[trimming-ser-files]]
 == Réduire la taille des fichiers SER

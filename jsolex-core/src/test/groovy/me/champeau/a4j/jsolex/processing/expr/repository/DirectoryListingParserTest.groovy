@@ -115,4 +115,38 @@ class DirectoryListingParserTest extends Specification {
         then:
         result == ['script1.math', 'script2.math', 'bundle.zip']
     }
+
+    def "parses HTML directory listing with py files"() {
+        given:
+        def html = '''
+            <html><body>
+            <a href="script1.math">script1.math</a>
+            <a href="script2.py">script2.py</a>
+            <a href="readme.txt">readme.txt</a>
+            </body></html>
+        '''
+
+        when:
+        def result = parser.parseHtmlListing(html)
+
+        then:
+        result == ['script1.math', 'script2.py']
+    }
+
+    def "parses scripts.txt with py files"() {
+        given:
+        def content = '''
+            # This is a comment
+            script1.math
+            script2.py
+            bundle.zip
+            readme.txt
+        '''
+
+        when:
+        def result = parser.parseScriptsTxt(content)
+
+        then:
+        result == ['script1.math', 'script2.py', 'bundle.zip']
+    }
 }

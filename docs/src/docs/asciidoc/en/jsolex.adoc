@@ -932,7 +932,7 @@ To do this, JSol'Ex "fakes" a first run passing dummy images of size 0, which wi
 You should simply be aware that the server will receive multiple calls, and that the first one will likely not contain the whole context, but you should still return a valid script.
 ====
 
-include::python-scripting.adoc[]
+For advanced scripting capabilities, JSol'Ex also supports Python. Please refer to link:python-scripting.html[the Python scripting documentation] for details.
 
 [[script-repositories]]
 == Script Repositories

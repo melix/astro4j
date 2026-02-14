@@ -43,7 +43,7 @@ class PythonScriptTest extends Specification {
     def setup() {
         evaluator = new ShiftCollectingImageExpressionEvaluator(Broadcaster.NO_OP)
         context = new HashMap<>()
-        executor = new PythonScriptExecutor(evaluator, context, Broadcaster.NO_OP)
+        executor = new PythonScriptExecutor(evaluator, context, Broadcaster.NO_OP, true)
     }
 
     // ==================== Basic Execution Tests ====================
@@ -182,6 +182,29 @@ result = jsolex.getVariable("myVar")
         result == 42.0d
     }
 
+    def "getVariable with default returns value when variable exists"() {
+        given:
+        evaluator.putVariable("existingVar", 99.0)
+
+        when:
+        def result = executor.executeInline('''
+result = jsolex.getVariable("existingVar", 10.0)
+''', [:])
+
+        then:
+        result == 99.0d
+    }
+
+    def "getVariable with default returns default when variable missing"() {
+        when:
+        def result = executor.executeInline('''
+result = jsolex.getVariable("missingVar", 42.0)
+''', [:])
+
+        then:
+        result == 42.0d
+    }
+
     def "can get image dimensions via bridge"() {
         given:
         def img = createImage(100, 50, 0.0f)
@@ -309,15 +332,6 @@ result = x + y
     }
 
     // ==================== Context Reuse Tests ====================
-
-    def "context is reused across multiple calls"() {
-        when:
-        executor.executeInline("persistent_var = 42", [:])
-        def result = executor.executeInline("result = persistent_var", [:])
-
-        then:
-        result == 42.0d
-    }
 
     def "getOrCreate returns same instance"() {
         when:
@@ -1417,6 +1431,216 @@ def compute(x):
         Files.deleteIfExists(tempDir)
     }
 
+    // ==================== hasFunction and callFunction Tests ====================
+
+    def "hasFunction returns true for defined function"() {
+        given:
+        executor.executeInline('''
+def my_func():
+    return 42
+''', [:])
+
+        expect:
+        executor.hasFunction("my_func")
+    }
+
+    def "hasFunction returns false for undefined function"() {
+        expect:
+        !executor.hasFunction("nonexistent")
+    }
+
+    def "hasFunction returns false for non-callable"() {
+        given:
+        executor.executeInline("my_var = 42", [:])
+
+        expect:
+        !executor.hasFunction("my_var")
+    }
+
+    def "callFunction invokes function with no arguments"() {
+        given:
+        executor.executeInline('''
+def get_value():
+    return 123
+''', [:])
+
+        when:
+        def result = executor.callFunction("get_value", [:])
+
+        then:
+        result == 123.0d
+    }
+
+    def "callFunction invokes function with kwargs"() {
+        given:
+        executor.executeInline('''
+def add(a, b):
+    return a + b
+''', [:])
+
+        when:
+        def result = executor.callFunction("add", [a: 2.0, b: 3.0])
+
+        then:
+        result == 5.0d
+    }
+
+    def "callFunction handles dict return"() {
+        given:
+        executor.executeInline('''
+def get_info():
+    return {"name": "test", "value": 42}
+''', [:])
+
+        when:
+        def result = executor.callFunction("get_info", [:])
+
+        then:
+        result instanceof Map
+        result == [name: "test", value: 42.0d]
+    }
+
+    def "callFunction handles list return"() {
+        given:
+        executor.executeInline('''
+def get_list():
+    return [1, 2, 3]
+''', [:])
+
+        when:
+        def result = executor.callFunction("get_list", [:])
+
+        then:
+        result instanceof List
+        result == [1.0d, 2.0d, 3.0d]
+    }
+
+    def "callFunction throws for undefined function"() {
+        when:
+        executor.callFunction("nonexistent", [:])
+
+        then:
+        thrown(IllegalStateException)
+    }
+
+    def "callFunction can pass complex args"() {
+        given:
+        executor.executeInline('''
+def process_data(data, multiplier):
+    return data["value"] * multiplier
+''', [:])
+
+        when:
+        def result = executor.callFunction("process_data", [data: [value: 10.0d], multiplier: 5.0d])
+
+        then:
+        result == 50.0d
+    }
+
+    def "hasFunction detects single and batch functions"() {
+        given:
+        executor.executeInline('''
+def single():
+    return {"result": 42}
+
+def batch(results):
+    return {"total": sum(results["result"])}
+''', [:])
+
+        expect:
+        executor.hasFunction("single")
+        executor.hasFunction("batch")
+    }
+
+    // ==================== scriptDefinesFunction Tests (AST parsing) ====================
+
+    def "scriptDefinesFunction detects batch function without executing"() {
+        expect:
+        executor.scriptDefinesFunction('''
+def batch(results):
+    return {"total": sum(results["values"])}
+''', "batch")
+    }
+
+    def "scriptDefinesFunction detects single function without executing"() {
+        expect:
+        executor.scriptDefinesFunction('''
+def single():
+    return {"result": 42}
+''', "single")
+    }
+
+    def "scriptDefinesFunction returns false when function not defined"() {
+        expect:
+        !executor.scriptDefinesFunction('''
+def other_function():
+    return 42
+''', "batch")
+    }
+
+    def "scriptDefinesFunction works with complex script"() {
+        expect:
+        executor.scriptDefinesFunction('''
+# meta:title = "Test Script"
+import jsolex
+
+def helper():
+    return 1
+
+def single():
+    return {"result": helper()}
+
+# top level code that would fail in batch context
+img = jsolex.funcs.img(0)
+''', "single")
+
+        and:
+        !executor.scriptDefinesFunction('''
+# meta:title = "Test Script"
+import jsolex
+
+def helper():
+    return 1
+
+def single():
+    return {"result": helper()}
+
+# top level code that would fail in batch context
+img = jsolex.funcs.img(0)
+''', "batch")
+    }
+
+    def "single function can return dict outputs"() {
+        given:
+        executor.executeInline('''
+def single():
+    return {"value1": 10, "value2": 20}
+''', [:])
+
+        when:
+        def result = executor.callFunction("single", [:])
+
+        then:
+        result instanceof Map
+        result == [value1: 10.0d, value2: 20.0d]
+    }
+
+    def "batch function receives results parameter"() {
+        given:
+        executor.executeInline('''
+def batch(results):
+    values = results["values"]
+    return {"sum": sum(values), "count": len(values)}
+''', [:])
+
+        when:
+        def result = executor.callFunction("batch", [results: [values: [1.0d, 2.0d, 3.0d]]])
+
+        then:
+        result instanceof Map
+        result == [sum: 6.0d, count: 3.0d]
+    }
+
     // ==================== MemoizingExpressionEvaluator Integration Tests ====================
 
     def "user function calling python_file is not cached by MemoizingExpressionEvaluator"() {
@@ -1459,6 +1683,213 @@ second_call = get_time()
         cleanup:
         Files.deleteIfExists(pythonFile)
         Files.deleteIfExists(tempDir)
+    }
+
+    // ==================== callSingleFunction and callBatchFunction Tests ====================
+
+    def "callSingleFunction allows setting outputs via attribute syntax"() {
+        given:
+        executor.executeInline('''
+def single():
+    outputs.value1 = 10
+    outputs.value2 = 20
+''', [:])
+
+        when:
+        def result = executor.callSingleFunction()
+
+        then:
+        result instanceof Map
+        result == [value1: 10.0d, value2: 20.0d]
+    }
+
+    def "callSingleFunction returns empty map when no outputs set"() {
+        given:
+        executor.executeInline('''
+def single():
+    x = 42  # no outputs set
+''', [:])
+
+        when:
+        def result = executor.callSingleFunction()
+
+        then:
+        result instanceof Map
+        result.isEmpty()
+    }
+
+    def "callSingleFunction can set complex outputs"() {
+        given:
+        executor.executeInline('''
+def single():
+    outputs.numbers = [1, 2, 3]
+    outputs.data = {"key": "value"}
+''', [:])
+
+        when:
+        def result = executor.callSingleFunction()
+
+        then:
+        result instanceof Map
+        result.numbers == [1.0d, 2.0d, 3.0d]
+        result.data == [key: "value"]
+    }
+
+    def "callBatchFunction receives results with list attributes"() {
+        given:
+        executor.executeInline('''
+def batch(results):
+    outputs.sum = sum(results.values)
+    outputs.count = len(results.values)
+''', [:])
+
+        when:
+        def collectedResults = [values: [1.0d, 2.0d, 3.0d, 4.0d]]
+        def result = executor.callBatchFunction(collectedResults)
+
+        then:
+        result instanceof Map
+        result.sum == 10.0d
+        result.count == 4.0d
+    }
+
+    def "callBatchFunction can access multiple result lists"() {
+        given:
+        executor.executeInline('''
+def batch(results):
+    outputs.total_quality = sum(results.quality)
+    outputs.best_idx = results.quality.index(max(results.quality))
+''', [:])
+
+        when:
+        def collectedResults = [
+            quality: [1.0d, 3.0d, 2.0d],
+            images: ["img1", "img2", "img3"]
+        ]
+        def result = executor.callBatchFunction(collectedResults)
+
+        then:
+        result instanceof Map
+        result.total_quality == 6.0d
+        result.best_idx == 1.0d
+    }
+
+    def "callBatchFunction returns empty map when no outputs set"() {
+        given:
+        executor.executeInline('''
+def batch(results):
+    x = sum(results.values)  # no outputs set
+''', [:])
+
+        when:
+        def result = executor.callBatchFunction([values: [1.0d, 2.0d]])
+
+        then:
+        result instanceof Map
+        result.isEmpty()
+    }
+
+    def "callSingleFunction throws for missing single function"() {
+        given:
+        executor.executeInline("x = 42", [:])
+
+        when:
+        executor.callSingleFunction()
+
+        then:
+        thrown(IllegalStateException)
+    }
+
+    def "callBatchFunction throws for missing batch function"() {
+        given:
+        executor.executeInline("x = 42", [:])
+
+        when:
+        executor.callBatchFunction([:])
+
+        then:
+        thrown(IllegalStateException)
+    }
+
+    def "implicit single mode supports outputs object"() {
+        when:
+        executor.executeInline('''
+# No single() function - implicit single mode
+x = 10
+y = 20
+outputs.sum = x + y
+outputs.product = x * y
+''', [:])
+        def result = executor.extractOutputs()
+
+        then:
+        result instanceof Map
+        result.sum == 30.0d
+        result.product == 200.0d
+    }
+
+    def "implicit single mode can set outputs alongside result variable"() {
+        when:
+        executor.executeInline('''
+outputs.from_outputs = 42
+''', [:])
+        def outputs = executor.extractOutputs()
+
+        then:
+        outputs instanceof Map
+        outputs.from_outputs == 42.0d
+    }
+
+    def "extractOutputs returns empty map when no outputs set"() {
+        when:
+        executor.executeInline('''
+result = 42
+''', [:])
+        def outputs = executor.extractOutputs()
+
+        then:
+        outputs instanceof Map
+        outputs.isEmpty()
+    }
+
+    def "outputs can store and retrieve ImageWrapper objects"() {
+        given:
+        def image = createImage(10, 10, 100.0f)
+        evaluator.putVariable("test_image", image)
+
+        when:
+        executor.executeInline('''
+import jsolex
+outputs.my_image = jsolex.vars.test_image
+''', [:])
+        def outputs = executor.extractOutputs()
+
+        then:
+        outputs instanceof Map
+        outputs.my_image instanceof ImageWrapper32
+        outputs.my_image.width() == 10
+        outputs.my_image.height() == 10
+    }
+
+    def "callSingleFunction can store and retrieve ImageWrapper objects"() {
+        given:
+        def image = createImage(10, 10, 100.0f)
+        evaluator.putVariable("test_image", image)
+
+        executor.executeInline('''
+import jsolex
+def single():
+    outputs.my_image = jsolex.vars.test_image
+''', [:])
+
+        when:
+        def result = executor.callSingleFunction()
+
+        then:
+        result instanceof Map
+        result.my_image instanceof ImageWrapper32
+        result.my_image.width() == 10
+        result.my_image.height() == 10
     }
 
     // ==================== Helper Methods ====================

@@ -1,15 +1,21 @@
-[[python-scripting]]
-=== Scripting Python
+= Scripting Python
+Cédric Champeau
+:icons: font
+:docinfo: shared
+:toc: left
+:toclevels: 3
 
-JSol'Ex utilise https://www.graalvm.org/python/[GraalPy] pour exécuter du code Python dans vos scripts ImageMath via la fonction `python()`.
-Cela vous donne accès aux structures de contrôle de Python (boucles, conditions, gestion des exceptions) tout en pouvant appeler toutes les fonctions ImageMath via le module `jsolex`.
+JSol'Ex utilise https://www.graalvm.org/python/[GraalPy] pour exécuter du code Python.
+Les scripts Python peuvent être utilisés de deux manières :
 
-Par défaut, seul le code Python pur avec la bibliothèque standard est supporté.
-Les bibliothèques externes comme NumPy nécessitent la configuration d'un environnement virtuel GraalPy (voir <<external-python-libraries>>).
+- **Fichiers `.py` autonomes** : Utilisez Python directement comme langage de script
+- **Intégrés dans ImageMath** : Utilisez les fonctions `python()` ou `python_file()` dans les scripts `.math`
 
-==== Utilisation de base
+Les deux approches vous donnent accès aux structures de contrôle de Python (boucles, conditions, gestion des exceptions) tout en pouvant appeler toutes les fonctions ImageMath via le module `jsolex`.
 
-Le code Python peut être spécifié en ligne comme une chaîne multi-lignes :
+== Utilisation de base
+
+Le code Python peut être intégré dans les scripts ImageMath sous forme de chaîne multi-lignes :
 
 [source]
 ----
@@ -28,55 +34,44 @@ Ou en référençant un fichier Python externe :
 result = python_file("scripts/process.py")
 ----
 
-==== Appeler des fonctions ImageMath avec jsolex.funcs
+Par défaut, seul Python pur avec la bibliothèque standard est supporté.
+Pour les bibliothèques externes comme NumPy, voir <<external-python-libraries>>.
 
-L'une des fonctionnalités les plus utiles est la possibilité d'appeler n'importe quelle fonction ImageMath depuis Python, permettant une interaction bidirectionnelle complète entre les deux langages :
+[[external-python-libraries]]
+== Utiliser des bibliothèques externes (NumPy, etc.)
 
-[source,python]
-----
-# Appeler n'importe quelle fonction ImageMath : jsolex.funcs.NOM_FONCTION(args)
-img = jsolex.funcs.img(0)                      # Obtenir l'image au décalage 0
-sharpened = jsolex.funcs.sharpen(img, 1.5)     # Accentuer l'image
-enhanced = jsolex.funcs.clahe(sharpened, 8, 2) # Appliquer CLAHE
-colorized = jsolex.funcs.colorize(enhanced, "H-alpha")
+Pour utiliser des bibliothèques externes comme NumPy, configurez un environnement virtuel GraalPy :
 
-# Les fonctions peuvent être appelées avec des arguments positionnels ou nommés
-result = jsolex.funcs.crop(img, x=100, y=100, width=500, height=500)
-----
+1. Installez GraalPy (voir https://www.graalvm.org/python/docs/#installing-graalpy[les instructions d'installation])
+2. Créez un environnement virtuel : `graalpy -m venv /chemin/vers/venv`
+3. Installez les packages : `/chemin/vers/venv/bin/pip install numpy pyarrow`
+4. Dans JSol'Ex : **Fichier -> Paramètres avancés -> Scripting Python**, naviguez vers `/chemin/vers/venv/bin/graalpy`
+5. Redémarrez JSol'Ex
 
-Toutes les fonctions ImageMath sont disponibles via `jsolex.funcs`, en utilisant des noms en majuscules ou minuscules :
+IMPORTANT: Pour de meilleures performances, installez NumPy et PyArrow ensemble. PyArrow permet un transfert de données efficace sans copie entre Java et Python, accélérant significativement les opérations `toNumpy()` et `fromNumpy()` sur les grandes images.
 
-[source,python]
-----
-# Les deux fonctionnent de manière identique
-img1 = jsolex.funcs.IMG(0)
-img2 = jsolex.funcs.img(0)
-----
-
-==== Accès aux variables avec jsolex.vars
-
-Les variables ImageMath sont accessibles via `jsolex.vars` :
+Une fois configuré :
 
 [source,python]
 ----
-# Lire des variables
-continuum = jsolex.vars.continuum
-doppler = jsolex.vars.doppler
+import numpy as np
 
-# Écrire des variables (doivent être déclarées d'abord dans ImageMath)
-jsolex.vars.my_result = processed_image
+img = jsolex.funcs.img(0)
+data = jsolex.toNumpy(img)
+enhanced = np.clip(data * 1.5, 0, 65535).astype(np.float32)
+result = jsolex.fromNumpy(enhanced)
 ----
 
-==== Le module jsolex
+== Le module jsolex
 
-Les scripts Python ont accès au module `jsolex`, disponible comme global ou via import :
+Les scripts Python ont accès au module `jsolex`, qui fournit le pont vers les fonctionnalités ImageMath.
 
 [source,python]
 ----
-# Comme global (dans les scripts en ligne)
+# Disponible comme global dans les scripts en ligne
 img = jsolex.funcs.img(0)
 
-# Via import (dans les fichiers externes)
+# Ou via import dans les fichiers externes
 import jsolex
 img = jsolex.funcs.img(0)
 
@@ -85,9 +80,58 @@ from jsolex import funcs, vars
 img = funcs.img(0)
 ----
 
-==== Fonctions utilitaires
+=== Appeler des fonctions ImageMath (jsolex.funcs)
 
-Le module `jsolex` fournit également des fonctions utilitaires :
+Toutes les fonctions ImageMath sont disponibles via `jsolex.funcs` :
+
+[source,python]
+----
+img = jsolex.funcs.img(0)                         # Obtenir l'image au décalage 0
+sharpened = jsolex.funcs.sharpen(img, 3)          # Accentuer l'image
+enhanced = jsolex.funcs.clahe(sharpened, 8, 2, 1) # Appliquer CLAHE
+colorized = jsolex.funcs.colorize(enhanced, "H-alpha")
+
+# Les fonctions peuvent être appelées avec des arguments positionnels ou nommés
+result = jsolex.funcs.crop(img, x=100, y=100, width=500, height=500)
+----
+
+Les noms de fonctions sont insensibles à la casse :
+
+[source,python]
+----
+img1 = jsolex.funcs.IMG(0)  # Fonctionne
+img2 = jsolex.funcs.img(0)  # Fonctionne aussi
+----
+
+Les fonctions ImageMath définies par l'utilisateur sont également accessibles :
+
+[source]
+----
+[fun:enhance img]
+   result = sharpen(clahe(img, 8, 2.0), 1.5)
+
+[outputs]
+processed = python("""
+img = jsolex.funcs.img(0)
+result = jsolex.funcs.enhance(img)  # Appeler la fonction utilisateur
+""")
+----
+
+=== Accéder aux variables (jsolex.vars)
+
+Les variables ImageMath sont accessibles via `jsolex.vars` :
+
+[source,python]
+----
+# Lire les variables définies dans ImageMath
+continuum = jsolex.vars.continuum
+doppler = jsolex.vars.doppler
+
+# Écrire des variables (pour utilisation dans ImageMath)
+jsolex.vars.my_result = processed_image
+----
+
+=== Fonctions utilitaires
 
 [%header,cols="35%,65%"]
 |===
@@ -95,34 +139,158 @@ Le module `jsolex` fournit également des fonctions utilitaires :
 |`load(path)`|Charge une image depuis un fichier
 |`save(img, path)`|Sauvegarde une image en fichier FITS
 |`emit(img, title, ...)`|Émet une image vers l'interface JSol'Ex pendant l'exécution
+|`getVariable(name)`|Récupère un paramètre de script ou une variable par son nom
 |`getProcessParams()`|Récupère les paramètres de traitement courants
-|`toNumpy(img)`|Convertit l'image en tableau NumPy (nécessite des bibliothèques externes)
-|`fromNumpy(data)`|Crée une image à partir d'un tableau NumPy (nécessite des bibliothèques externes)
-|`copyMetadataFrom(src, dst)`|Copie les métadonnées (Ellipse, SolarParameters, etc.) de l'image source vers la destination
-|`getEllipseParams(img)`|Retourne les paramètres de l'ellipse du disque solaire (centre, axes, angle) ou `None`
+|`getSourceInfo()`|Retourne `{fileName, parentDir, dateTime, width, height}` pour le fichier SER source
+|`toNumpy(img)`|Convertit l'image en tableau NumPy (nécessite NumPy)
+|`fromNumpy(data)`|Crée une image à partir d'un tableau NumPy (nécessite NumPy)
+|`copyMetadataFrom(src, dst)`|Copie les métadonnées (ellipse, paramètres solaires) entre images
 |===
 
-==== Émettre des images
+=== Émettre des images
 
-Les scripts Python peuvent émettre des images directement vers l'interface JSol'Ex :
+Les scripts peuvent émettre des images vers l'interface JSol'Ex pendant l'exécution :
 
 [source,python]
 ----
-# Émettre une image avec juste un titre
 jsolex.emit(img, "Mon Image")
 
-# Émettre avec des paramètres optionnels
+# Avec des paramètres optionnels
 jsolex.emit(img, "Améliorée",
             name="amelioree_v1",
             category="Traitement",
             description="Luminosité x1.5")
 ----
 
-==== Retourner des valeurs
+== Scripts Python autonomes
 
-Les scripts Python peuvent retourner **n'importe quel type de valeur** - pas seulement des images.
-Cela inclut les nombres, chaînes de caractères, booléens, listes et dictionnaires.
-Le résultat est assigné à la variable `result` :
+Les fichiers Python (`.py`) peuvent être utilisés directement comme scripts, comme les fichiers ImageMath (`.math`).
+Ouvrez un fichier `.py` dans l'éditeur ImageMath ou sélectionnez "Python" comme langage de script.
+
+=== Métadonnées du script
+
+Les scripts autonomes doivent inclure des commentaires de métadonnées en début de fichier :
+
+[source,python]
+----
+# meta:title = "Mon Script d'Analyse"
+# meta:title:en = "My Analysis Script"
+# meta:author = "Votre Nom"
+# meta:version = "1.0"
+# meta:requires = "4.6.0"
+# meta:description = "Effectue une analyse d'image avancée"
+
+import jsolex
+
+img = jsolex.funcs.img(0)
+result = jsolex.funcs.sharpen(img, 1.5)
+----
+
+[%header,cols="40%,60%"]
+|===
+|Métadonnée|Description
+|`# meta:title = "..."`|Titre du script (requis pour les dépôts)
+|`# meta:title:xx = "..."`|Titre localisé (ex: `:en` pour anglais)
+|`# meta:author = "..."`|Nom de l'auteur (requis pour les dépôts)
+|`# meta:version = "..."`|Version du script (requis pour les dépôts)
+|`# meta:requires = "..."`|Version minimale de JSol'Ex requise
+|`# meta:description = "..."`|Description du script
+|===
+
+=== Paramètres du script
+
+Les scripts peuvent déclarer des paramètres affichés dans une boîte de dialogue :
+
+[source,python]
+----
+# meta:title = "Script d'accentuation"
+# meta:author = "Votre Nom"
+# meta:version = "1.0"
+
+# param:strength:type = number
+# param:strength:default = 1.5
+# param:strength:min = 0.5
+# param:strength:max = 3.0
+# param:strength:name = "Force d'accentuation"
+# param:strength:description = "Quantité d'accentuation à appliquer"
+
+import jsolex
+
+strength = jsolex.getVariable('strength')
+img = jsolex.funcs.img(0)
+result = jsolex.funcs.sharpen(img, strength)
+----
+
+Types de paramètres :
+
+- `number` - Valeur numérique avec bornes min/max optionnelles
+- `string` - Saisie de texte
+- `choice` - Sélection dans une liste (utilisez `# param:nom:choices = "option1,option2,option3"`)
+
+=== Points d'entrée : single() et batch()
+
+Les scripts autonomes peuvent définir des fonctions spéciales pour le traitement par lots :
+
+**`single()`** - Appelée une fois pour chaque fichier d'entrée. Définissez les sorties avec la variable `outputs`.
+
+**`batch(results)`** - Appelée une fois après tous les fichiers. Reçoit les sorties collectées de tous les appels `single()`.
+
+[source,python]
+----
+# meta:title = "Analyse de netteté"
+# meta:author = "Votre Nom"
+# meta:version = "1.0"
+
+import jsolex
+import numpy as np
+
+def single():
+    """Appelée pour chaque fichier"""
+    img = jsolex.funcs.img(0)
+    data = jsolex.toNumpy(img)
+
+    # Calculer la métrique de netteté
+    gy, gx = np.gradient(data.astype(np.float64))
+    sharpness = float(np.var(np.sqrt(gx**2 + gy**2)))
+
+    # Définir les valeurs de sortie
+    outputs.sharpness = sharpness
+    outputs.filename = jsolex.getSourceInfo()["fileName"]
+
+def batch(results):
+    """Appelée une fois après tous les fichiers"""
+    sharpness_values = results.sharpness
+    filenames = results.filename
+
+    best_idx = np.argmax(sharpness_values)
+    print(f"Meilleur : {filenames[best_idx]} (netteté={sharpness_values[best_idx]:.1f})")
+
+    outputs.best_sharpness = max(sharpness_values)
+----
+
+Si vous ne définissez que `single()`, chaque fichier est traité indépendamment.
+Si vous ne définissez que `batch()`, le script s'exécute une seule fois après tous les fichiers.
+Si aucune n'est définie, le code de niveau supérieur s'exécute pour chaque fichier en utilisant la variable `result`.
+
+=== Publication dans les dépôts
+
+Les scripts Python peuvent être publiés dans les dépôts de scripts aux côtés des scripts ImageMath.
+
+Pour les archives zip, créez un fichier `main.txt` référençant votre script principal :
+
+----
+mon-script.py
+----
+
+Si aucun `main.txt` n'existe et que le zip contient exactement un fichier `.py` (sans fichiers `.math`), ce fichier est utilisé automatiquement.
+
+== Intégrer Python dans ImageMath
+
+Lors de l'intégration de Python dans les scripts ImageMath, utilisez `python()` ou `python_file()`.
+
+=== Retourner des valeurs
+
+La variable `result` détermine ce que Python retourne à ImageMath :
 
 [source,python]
 ----
@@ -136,158 +304,101 @@ result = jsolex.funcs.sharpen(img, 1.5)
 # Retourner un nombre
 import numpy as np
 data = jsolex.toNumpy(jsolex.funcs.img(0))
-result = float(np.mean(data))  # Retourne un float
+result = float(np.mean(data))
 ----
 
 [source,python]
 ----
 # Retourner une chaîne
-source = jsolex.getSourceInfo()
-result = source['fileName']
+result = jsolex.getSourceInfo()['fileName']
 ----
 
-C'est particulièrement utile pour **passer des données entre scripts** et pour le **mode batch**, où les valeurs scalaires de chaque fichier sont automatiquement collectées dans des listes (voir <<batch-fr>>).
-
-Pour retourner plusieurs valeurs, définissez directement des variables ImageMath :
+Pour retourner plusieurs valeurs, définissez des variables ImageMath :
 
 [source,python]
 ----
-img = jsolex.funcs.img(0)
 jsolex.vars.processed = jsolex.funcs.sharpen(img, 1.5)
 jsolex.vars.quality = 0.95
 result = jsolex.vars.processed
 ----
 
-==== Appeler des fonctions ImageMath définies par l'utilisateur
+=== Mode batch
 
-Les fonctions utilisateur définies dans ImageMath sont également accessibles via `jsolex.funcs` :
-
-[source]
-----
-[fun:enhance img]
-   result = sharpen(clahe(img, 8, 2.0), 1.5)
-
-[outputs]
-continuum = img(15)
-
-processed = python("""
-    img = jsolex.vars.continuum
-    result = jsolex.funcs.enhance(img)
-""")
-----
-
-==== Exemple : Pipeline de traitement
+En mode batch ImageMath, les valeurs de la section `[outputs]` sont collectées pour tous les fichiers et deviennent des listes dans la section batch :
 
 [source]
 ----
 [outputs]
-processed = python("""
-    # Récupérer l'image de base
-    img = jsolex.funcs.img(0)
-
-    # Appliquer la chaîne de traitement
-    enhanced = jsolex.funcs.clahe(img, 8, 2.0)
-    sharpened = jsolex.funcs.sharpen(enhanced, 1.5)
-
-    # Traitement conditionnel selon la taille de l'image
-    if img.width() > 2000:
-        result = jsolex.funcs.rescale_rel(sharpened, 0.5)
-    else:
-        result = sharpened
-""")
-----
-
-[[external-python-libraries]]
-==== Utiliser des bibliothèques Python externes (NumPy, etc.)
-
-Pour utiliser des bibliothèques externes comme NumPy, vous devez configurer un environnement virtuel GraalPy :
-
-1. Installez GraalPy (par ex. via pyenv : `pyenv install graalpy`)
-2. Créez un environnement virtuel : `python -m venv /chemin/vers/venv`
-3. Installez les packages : `/chemin/vers/venv/bin/pip install numpy pyarrow`
-4. Dans JSol'Ex : **Fichier -> Paramètres avancés -> Scripting Python**, naviguez vers `/chemin/vers/venv/bin/python`
-5. Redémarrez JSol'Ex
-
-Une fois configuré, vous pouvez utiliser NumPy dans vos scripts :
-
-[source,python]
-----
+# Calculé pour chaque fichier - devient une liste dans [[batch]]
+sharpness = python("""
+import jsolex
 import numpy as np
 
-img = jsolex.funcs.img(0)
+img = jsolex.funcs.img(ps=0)
 data = jsolex.toNumpy(img)
-enhanced = np.clip(data * 1.5, 0, 65535).astype(np.float32)
-result = jsolex.fromNumpy(enhanced)
+
+gy, gx = np.gradient(data.astype(np.float64))
+result = float(np.var(np.sqrt(gx**2 + gy**2)))
+""")
+
+[[batch]]
+[outputs]
+# Exécuté une fois après tous les fichiers - sharpness est maintenant une liste
+summary = python("""
+import jsolex
+
+sharpness_values = list(jsolex.vars.sharpness)
+print(f"Meilleure netteté : {max(sharpness_values):.1f}")
+print(f"Moyenne : {sum(sharpness_values)/len(sharpness_values):.1f}")
+result = max(sharpness_values)
+""")
 ----
 
-TIP: Installez PyArrow (`pip install pyarrow`) pour un transfert de données plus rapide sur les grandes images.
+== APIs avancées
 
-==== Limitations
+Au-delà du traitement d'image basique, le module `jsolex` fournit des fonctions spécialisées pour l'analyse spectrale et les systèmes de coordonnées solaires.
 
-- Pour les opérations simples, les fonctions ImageMath natives sont plus rapides que le code Python équivalent.
-- Tous les packages Python ne fonctionnent pas avec GraalPy. NumPy et PyArrow sont testés et supportés.
-
-[[advanced-python-functions]]
-==== Fonctions Python avancées
-
-Au-delà du traitement d'image basique, le module `jsolex` fournit des fonctions avancées pour accéder aux données spectrales brutes, convertir les coordonnées et obtenir les paramètres solaires.
-Ces fonctions permettent des analyses sophistiquées comme la mesure de la rotation différentielle solaire à partir des décalages Doppler.
-
-===== Accès aux données spectrales
-
-Ces fonctions fournissent un accès direct aux données du fichier SER source et aux informations sur la raie spectrale :
+=== Accès aux données spectrales
 
 [%header,cols="40%,60%"]
 |===
 |Fonction|Description
-|`extractProfile(img, x, y)`|Extrait le profil spectral aux coordonnées image (x, y). Retourne un tableau 1D de valeurs d'intensité sur toute la plage de décalage de pixels.
-|`readFrame(frameNumber)`|Lit une seule trame du fichier SER source. Retourne un ImageWrapper32.
-|`getPolynomialCoefficients()`|Retourne les coefficients du polynôme de la raie spectrale `[a, b, c, d]` où y = ax^3^ + bx^2^ + cx + d.
-|`getPixelShiftRange()`|Retourne `{minShift, maxShift, step}` - la plage d'échantillonnage spectral disponible.
-|`getDispersion()`|Retourne `{angstromsPerPixel, nanosPerPixel}` - la dispersion spectrale calculée à partir des paramètres de l'instrument.
-|`getWavelength()`|Retourne `{angstroms, nanos, label}` - la longueur d'onde de la raie spectrale observée.
-|`getSourceInfo()`|Retourne `{fileName, parentDir, dateTime, width, height}` - informations sur le fichier SER source.
+|`extractProfile(img, x, y)`|Extrait le profil spectral aux coordonnées (x, y). Retourne un tableau 1D d'intensités.
+|`readFrame(frameNumber)`|Lit une trame unique du fichier SER source.
+|`getPolynomialCoefficients()`|Retourne les coefficients polynomiaux `[a, b, c, d]` où y = ax³ + bx² + cx + d.
+|`getPixelShiftRange()`|Retourne `{minShift, maxShift, step}` pour l'échantillonnage spectral.
+|`getDispersion()`|Retourne `{angstromsPerPixel, nanosPerPixel}` la dispersion spectrale.
+|`getWavelength()`|Retourne `{angstroms, nanos, label}` pour la raie observée.
 |===
 
-Exemple - extraction d'un profil spectral :
+Exemple :
 
 [source,python]
 ----
 import jsolex
 
 img = jsolex.funcs.img(ps=0)
-
-# Obtenir les paramètres spectraux
 psr = jsolex.getPixelShiftRange()
 print(f"Plage de décalage pixels : {psr['minShift']} à {psr['maxShift']}")
 
-poly = jsolex.getPolynomialCoefficients()
-print(f"Polynôme : {poly[0]}x^3 + {poly[1]}x^2 + {poly[2]}x + {poly[3]}")
-
-# Extraire le profil spectral à un point spécifique
 profile = jsolex.extractProfile(img, 512, 256)
 if profile is not None:
-    print(f"Longueur du profil : {len(profile)}")
-    # Trouver le minimum de la raie d'absorption
     min_idx = profile.argmin() if hasattr(profile, 'argmin') else profile.index(min(profile))
-    line_position = psr['minShift'] + min_idx
-    print(f"Centre de la raie au décalage pixel : {line_position}")
+    print(f"Centre de la raie au décalage pixel : {psr['minShift'] + min_idx}")
 ----
 
-===== Conversion de coordonnées
-
-Ces fonctions convertissent entre différents systèmes de coordonnées :
+=== Conversion de coordonnées
 
 [%header,cols="40%,60%"]
 |===
 |Fonction|Description
-|`heliographicToImage(img, lat, lon)`|Convertit les coordonnées héliographiques (latitude, longitude en degrés) en coordonnées pixels de l'image. Retourne `{x, y, visible, available}`. Le drapeau `visible` indique si le point est sur l'hémisphère visible.
-|`imageToHeliographic(img, x, y)`|Convertit les coordonnées pixels de l'image en coordonnées héliographiques. Retourne `{lat, lon, mu, onDisk, available}`. `mu` est le cosinus de l'angle héliocentrique (1.0 au centre du disque, 0.0 au limbe).
-|`imageToFrameCoords(img, x, y, pixelShift)`|Convertit les coordonnées image en coordonnées de trame SER. Retourne `{frameNumber, xInFrame, yInFrame, pixelShift, available}`.
-|`frameToImageCoords(img, frameNumber, xInFrame)`|Convertit les coordonnées de trame SER en coordonnées image. Retourne `{x, y, available}`.
+|`heliographicToImage(img, lat, lon)`|Coordonnées héliographiques vers pixels. Retourne `{x, y, visible, available}`.
+|`imageToHeliographic(img, x, y)`|Pixels vers coordonnées héliographiques. Retourne `{lat, lon, mu, onDisk, available}`.
+|`imageToFrameCoords(img, x, y, pixelShift)`|Image vers coordonnées de trame SER.
+|`frameToImageCoords(img, frameNumber, xInFrame)`|Trame SER vers coordonnées image.
 |===
 
-Exemple - conversion de coordonnées héliographiques :
+Exemple :
 
 [source,python]
 ----
@@ -295,31 +406,28 @@ import jsolex
 
 img = jsolex.funcs.img(ps=0)
 
-# Convertir des coordonnées héliographiques en position image
-# Exemple : point à latitude 30 deg N, longitude 45 deg E
+# Convertir héliographique vers position image
 coords = jsolex.heliographicToImage(img, lat=30.0, lon=45.0)
 if coords['visible']:
     print(f"Position image : ({coords['x']:.1f}, {coords['y']:.1f})")
 
-# Reconvertir la position image en héliographique
+# Reconvertir vers héliographique
 helio = jsolex.imageToHeliographic(img, coords['x'], coords['y'])
 if helio['onDisk']:
-    print(f"Héliographique : lat={helio['lat']:.1f} deg, lon={helio['lon']:.1f} deg")
-    print(f"Angle centre-limbe : mu={helio['mu']:.3f}")
+    print(f"Héliographique : lat={helio['lat']:.1f}, lon={helio['lon']:.1f}")
+    print(f"mu={helio['mu']:.3f}")  # 1.0 au centre, 0.0 au limbe
 ----
 
-===== Paramètres solaires
-
-Ces fonctions fournissent l'accès aux éphémérides solaires et aux paramètres du disque ajusté :
+=== Paramètres solaires
 
 [%header,cols="40%,60%"]
 |===
 |Fonction|Description
-|`getSolarParameters()`|Retourne `{b0, l0, p, carringtonRotation, apparentSize}` - angles d'orientation solaire B0, L0, P (en degrés), numéro de rotation de Carrington, et diamètre apparent du Soleil.
-|`getEllipseParams(img)`|Retourne `{centerX, centerY, semiAxisA, semiAxisB, radius, rotationAngle}` - les paramètres de l'ellipse ajustée au disque solaire.
+|`getSolarParameters()`|Retourne `{b0, l0, p, carringtonRotation, apparentSize}` - angles d'orientation et éphémérides solaires.
+|`getEllipseParams(img)`|Retourne `{centerX, centerY, semiAxisA, semiAxisB, radius, rotationAngle}` pour le disque ajusté.
 |===
 
-Exemple - accès aux paramètres solaires :
+Exemple :
 
 [source,python]
 ----
@@ -327,25 +435,42 @@ import jsolex
 
 img = jsolex.funcs.img(ps=0)
 
-# Obtenir les éphémérides solaires
 solar = jsolex.getSolarParameters()
 if solar:
-    print(f"B0 = {solar['b0']:.2f} deg (latitude héliographique du centre du disque)")
-    print(f"L0 = {solar['l0']:.2f} deg (longitude de Carrington)")
-    print(f"P  = {solar['p']:.2f} deg (angle de position du nord solaire)")
+    print(f"B0 = {solar['b0']:.2f} deg")
+    print(f"L0 = {solar['l0']:.2f} deg")
     print(f"Rotation de Carrington : {solar['carringtonRotation']}")
 
-# Obtenir les paramètres du disque ajusté
 ellipse = jsolex.getEllipseParams(img)
 if ellipse:
     print(f"Centre du disque : ({ellipse['centerX']:.1f}, {ellipse['centerY']:.1f})")
     print(f"Rayon : {ellipse['radius']:.1f} pixels")
 ----
 
-===== Analyses avancées avec Python
+== Exemples
 
-Avec les bibliothèques externes configurées (voir <<external-python-libraries-fr>>), les scripts Python peuvent effectuer des analyses complexes qui seraient difficiles ou impossibles avec ImageMath seul.
-Le script suivant utilise les APIs de conversion de coordonnées pour mesurer l'assombrissement centre-bord sur le disque solaire :
+=== Pipeline de traitement
+
+[source]
+----
+[outputs]
+processed = python("""
+# Récupérer l'image de base
+img = jsolex.funcs.img(0)
+
+# Appliquer la chaîne de traitement
+enhanced = jsolex.funcs.clahe(img, 8, 2.0, 1)
+sharpened = jsolex.funcs.sharpen(enhanced, 3)
+
+# Traitement conditionnel selon la taille de l'image
+if img.width() > 2000:
+    result = jsolex.funcs.rescale_rel(sharpened, 0.5)
+else:
+    result = sharpened
+""")
+----
+
+=== Analyse de l'assombrissement centre-bord
 
 [source,python]
 ----
@@ -376,10 +501,9 @@ for lon in range(0, 90, 5):
         mu_values.append(helio['mu'])
         intensities.append(data[y, x])
 
-# Normaliser les intensités
+# Normaliser et tracer
 intensities = np.array(intensities) / intensities[0]
 
-# Tracer le graphique
 plt.figure(figsize=(8, 6))
 plt.plot(mu_values, intensities, 'o-')
 plt.xlabel('mu (cosinus de l\'angle héliocentrique)')
@@ -387,407 +511,17 @@ plt.ylabel('Intensité normalisée')
 plt.title('Assombrissement centre-bord')
 plt.grid(True)
 
-# Convertir le graphique en image et émettre
-# Note : fromNumpy attend des valeurs dans la plage 0-65535
 buf = BytesIO()
 plt.savefig(buf, format='png', dpi=150)
-buf.seek(0)
-plot_img = np.array(Image.open(buf))[:, :, :3]  # RGB, 0-255
-plt.close()
-
-# Convertir en niveaux de gris et mettre à l'échelle 0-65535
-gray = plot_img.mean(axis=2).astype(np.float32) * 257.0
-jsolex.emit(jsolex.fromNumpy(gray), "Assombrissement centre-bord")
-----
-
-[[batch-fr]]
-===== Passage de données entre exécutions de scripts
-
-En mode batch, les données calculées par une exécution de script peuvent être transmises aux exécutions suivantes.
-Les variables assignées dans la section `[outputs]` sont collectées pour tous les fichiers et deviennent des **listes** dans la section `[[batch]]`.
-Cela permet des workflows puissants : calculer des valeurs pour chaque fichier, puis les agréger ou les comparer.
-
-Le script suivant calcule la netteté pour chaque fichier, puis génère un graphique comparatif dans la section batch :
-
-[source]
-----
-[outputs]
-# Calculer la netteté (variance du gradient) - varie selon le seeing
-sharpness = python("""
-import jsolex
-import numpy as np
-
-img = jsolex.funcs.img(ps=0)
-data = jsolex.toNumpy(img)
-ellipse = jsolex.getEllipseParams(img)
-source = jsolex.getSourceInfo()
-
-# Masque sur le disque solaire
-cx, cy = int(ellipse["centerX"]), int(ellipse["centerY"])
-radius = int(ellipse["radius"] * 0.9)
-y, x = np.ogrid[:data.shape[0], :data.shape[1]]
-mask = (x - cx)**2 + (y - cy)**2 <= radius**2
-
-# Variance de la magnitude du gradient - plus élevée = image plus nette
-gy, gx = np.gradient(data.astype(np.float64))
-gradient_mag = np.sqrt(gx**2 + gy**2)
-sharpness = float(np.var(gradient_mag[mask]))
-
-print(f"{source['fileName']}: netteté={sharpness:.1f}")
-result = sharpness
-""")
-
-# Stocker l'heure d'observation pour les labels
-file_name = python("""
-import jsolex
-source = jsolex.getSourceInfo()
-# Extraire l'heure du nom de fichier (format: HH_MM_SS_NNNN_...)
-parts = source['fileName'].split('_')
-if len(parts) >= 3:
-    result = f"{parts[0]}:{parts[1]}:{parts[2]}"  # "11:23:46"
-else:
-    result = source['fileName'][:12]
-""")
-
-# Recadrage automatique pour l'empilement
-processed = autocrop2(img(0), 1.1, 32)
-
-[[batch]]
-[outputs]
-# Générer le graphique récapitulatif de la qualité du seeing
-summary = python("""
-import jsolex
-import numpy as np
-import matplotlib.pyplot as plt
-from io import BytesIO
-from PIL import Image
-
-# Récupérer les données agrégées (listes, une valeur par fichier)
-sharpness_values = list(jsolex.vars.sharpness)
-file_names = list(jsolex.vars.file_name)
-
-# Créer le graphique
-fig, ax = plt.subplots(figsize=(10, 6))
-
-x = range(len(sharpness_values))
-colors = plt.cm.RdYlGn(np.linspace(0.2, 0.8, len(sharpness_values)))
-sorted_indices = np.argsort(sharpness_values)
-color_map = {idx: colors[rank] for rank, idx in enumerate(sorted_indices)}
-
-bars = ax.bar(x, sharpness_values, color=[color_map[i] for i in x])
-ax.set_ylabel('Netteté (variance du gradient)', fontsize=12)
-ax.set_xlabel('Observation', fontsize=12)
-ax.set_title('Comparaison de la qualité du seeing', fontsize=14)
-ax.set_xticks(x)
-ax.set_xticklabels(file_names, rotation=45, ha='right')
-
-# Ajouter les valeurs sur les barres
-for i, v in enumerate(sharpness_values):
-    ax.text(i, v + max(sharpness_values)*0.02, f'{v:.0f}', ha='center', fontsize=9)
-
-# Ligne horizontale pour la moyenne
-mean_sharp = np.mean(sharpness_values)
-ax.axhline(y=mean_sharp, color='gray', linestyle='--', alpha=0.7)
-ax.text(len(x)-0.5, mean_sharp, f'moyenne: {mean_sharp:.0f}', va='bottom', fontsize=10)
-
-plt.tight_layout()
-
-# Convertir en image
-buf = BytesIO()
-plt.savefig(buf, format='png', dpi=150, facecolor='white')
 buf.seek(0)
 plot_img = np.array(Image.open(buf))[:, :, :3]
 plt.close()
 
 gray = plot_img.mean(axis=2).astype(np.float32) * 257.0
-jsolex.emit(jsolex.fromNumpy(gray), "Qualité du seeing")
-""")
+jsolex.emit(jsolex.fromNumpy(gray), "Assombrissement centre-bord")
 ----
 
-===== Simulation de filtres à bande étroite
+== Limitations
 
-Un spectrohéliographe capture des données sur une plage de longueurs d'onde, permettant de simuler l'effet de filtres à bande étroite avec différentes caractéristiques.
-
-Il y a deux concepts distincts :
-
-- **Filtres multi-cavités** : Un seul filtre avec N cavités internes. Le profil devient "carré" (sommet plus plat, flancs plus raides) à mesure que le nombre de cavités augmente. Transmission : `1 / (1 + (2x/FWHM)^(2N))`
-- **Étalons empilés** : Plusieurs filtres séparés en série. Leurs profils de transmission se multiplient : `L₁(x) × L₂(x) × ...`
-
-Le script ci-dessous permet de décrire un empilement de filtres avec une syntaxe simple :
-
-----
-type:fwhm[:cavités][@décalage]
-----
-
-Où :
-
-- `type` : `L` (Lorentzien/cavité unique) ou `M` (multi-cavités)
-- `fwhm` : Largeur de bande du filtre en Ångströms
-- `cavités` : Optionnel, nombre de cavités pour les filtres multi-cavités (défaut : 2)
-- `décalage` : Optionnel, décalage par rapport au centre de la raie en Ångströms (défaut : 0)
-
-Plusieurs filtres sont séparés par `+`. Exemples :
-
-- `L:0.5` — Filtre Lorentzien simple, 0.5Å FWHM
-- `L:0.5 + L:0.5` — Double-stack de Lorentziens identiques
-- `M:0.3:2` — Filtre multi-cavités à 2 cavités, 0.3Å FWHM
-- `M:0.3:2@0.1` — Même filtre, décalé de +0.1Å du centre de la raie
-- `L:0.5@-0.1 + M:0.3:2@0.05` — Empilement de filtres désalignés
-
-Le script définit deux fonctions personnalisées en Python :
-
-- `filter_graph(filters, range_a)` : Génère un graphique des profils de transmission montrant les combinaisons cumulatives de filtres
-- `filter_sim(filters, range_a)` : Simule l'effet d'un filtre à bande étroite sur les images solaires avec une légende
-
-[source]
-----
-[fun:filter_graph filters range_a]
-result = python("""
-import jsolex
-import numpy as np
-import matplotlib.pyplot as plt
-
-def parse_filter(spec):
-    spec = spec.strip().upper()
-    offset = 0.0
-    if '@' in spec:
-        spec, offset_str = spec.rsplit('@', 1)
-        offset = float(offset_str)
-    parts = spec.split(':')
-    filter_type = parts[0]
-    fwhm = float(parts[1])
-    cavities = int(parts[2]) if len(parts) > 2 else 2
-    return {'type': filter_type, 'fwhm': fwhm, 'cavities': cavities, 'offset': offset}
-
-def lorentzian(x, fwhm, offset=0):
-    return 1.0 / (1.0 + (2.0 * (x - offset) / fwhm) ** 2)
-
-def multi_cavity(x, fwhm, n_cavities, offset=0):
-    return 1.0 / (1.0 + (2.0 * (x - offset) / fwhm) ** (2 * n_cavities))
-
-def compute_profile(x, f):
-    if f['type'] == 'M':
-        return multi_cavity(x, f['fwhm'], f['cavities'], f['offset'])
-    else:
-        return lorentzian(x, f['fwhm'], f['offset'])
-
-def describe_filter(f, human_readable=False):
-    if human_readable:
-        if f['type'] == 'M':
-            name = f"Multi-cavités ({f['cavities']})"
-        else:
-            name = "Lorentzien"
-        desc = f"{name} {f['fwhm']}A"
-    else:
-        desc = f"{'M'+str(f['cavities']) if f['type']=='M' else 'L'}:{f['fwhm']}A"
-    if f['offset'] != 0:
-        desc += f" @{f['offset']:+.2f}A"
-    return desc
-
-filters_str = jsolex.getVariable('filters')
-range_a = jsolex.getVariable('range_a')
-filter_specs = [parse_filter(s) for s in filters_str.split('+')]
-
-title_human = " + ".join(describe_filter(f, human_readable=True) for f in filter_specs)
-
-plot_x = np.linspace(-range_a, range_a, 500)
-
-# Construire les profils cumulatifs : chaque étape ajoute un filtre
-cumulative_profiles = []
-cumulative = np.ones_like(plot_x)
-cumulative_labels = []
-
-for i, f in enumerate(filter_specs):
-    cumulative = cumulative * compute_profile(plot_x, f)
-    cumulative_profiles.append(cumulative.copy())
-    label = " + ".join(describe_filter(filter_specs[j], human_readable=True) for j in range(i + 1))
-    cumulative_labels.append(label)
-
-colors = plt.cm.viridis(np.linspace(0.2, 0.9, len(filter_specs)))
-fig, ax = plt.subplots(figsize=(10, 6))
-
-for i, (profile, label) in enumerate(zip(cumulative_profiles, cumulative_labels)):
-    is_final = (i == len(cumulative_profiles) - 1)
-    ax.plot(plot_x, profile, '-' if is_final else '--', color=colors[i],
-            alpha=1.0 if is_final else 0.7,
-            label=label, linewidth=2.5 if is_final else 1.5)
-
-ax.set_xlabel('Décalage en longueur d\'onde (A)', fontsize=12)
-ax.set_ylabel('Transmission', fontsize=12)
-ax.set_title(title_human, fontsize=14)
-ax.set_xlim(-range_a, range_a)
-ax.set_ylim(0, 1.05)
-ax.legend(loc='upper right')
-ax.grid(True, alpha=0.3)
-plt.tight_layout()
-
-fig.canvas.draw()
-plot_img = np.frombuffer(fig.canvas.buffer_rgba(), dtype=np.uint8)
-plot_img = plot_img.reshape(fig.canvas.get_width_height()[::-1] + (4,))
-plt.close(fig)
-
-rgb = plot_img[:, :, :3].astype(np.float32) * 257.0
-result = jsolex.fromNumpy(rgb)
-""")
-
-[fun:filter_sim filters range_a]
-result = python("""
-import jsolex
-import numpy as np
-import matplotlib.pyplot as plt
-
-def parse_filter(spec):
-    spec = spec.strip().upper()
-    offset = 0.0
-    if '@' in spec:
-        spec, offset_str = spec.rsplit('@', 1)
-        offset = float(offset_str)
-    parts = spec.split(':')
-    filter_type = parts[0]
-    fwhm = float(parts[1])
-    cavities = int(parts[2]) if len(parts) > 2 else 2
-    return {'type': filter_type, 'fwhm': fwhm, 'cavities': cavities, 'offset': offset}
-
-def lorentzian(x, fwhm, offset=0):
-    return 1.0 / (1.0 + (2.0 * (x - offset) / fwhm) ** 2)
-
-def multi_cavity(x, fwhm, n_cavities, offset=0):
-    return 1.0 / (1.0 + (2.0 * (x - offset) / fwhm) ** (2 * n_cavities))
-
-def compute_profile(x, f):
-    if f['type'] == 'M':
-        return multi_cavity(x, f['fwhm'], f['cavities'], f['offset'])
-    else:
-        return lorentzian(x, f['fwhm'], f['offset'])
-
-def describe_filter(f, human_readable=False):
-    if human_readable:
-        if f['type'] == 'M':
-            name = f"Multi-cavités ({f['cavities']})"
-        else:
-            name = "Lorentzien"
-        desc = f"{name} {f['fwhm']}A"
-    else:
-        desc = f"{'M'+str(f['cavities']) if f['type']=='M' else 'L'}:{f['fwhm']}A"
-    if f['offset'] != 0:
-        desc += f" @{f['offset']:+.2f}A"
-    return desc
-
-filters_str = jsolex.getVariable('filters')
-range_a = jsolex.getVariable('range_a')
-filter_specs = [parse_filter(s) for s in filters_str.split('+')]
-
-dispersion = jsolex.getDispersion()
-if dispersion is None:
-    raise ValueError("Dispersion non disponible")
-a_per_px = dispersion['angstromsPerPixel']
-
-title_short = " + ".join(describe_filter(f, human_readable=False) for f in filter_specs)
-title_human = " + ".join(describe_filter(f, human_readable=True) for f in filter_specs)
-
-range_px = range_a / a_per_px
-min_fwhm_px = min(f['fwhm'] for f in filter_specs) / a_per_px
-step_px = max(1, int(min_fwhm_px / 10))
-
-shifts_px = np.arange(-int(range_px), int(range_px) + step_px, step_px)
-shifts_a = shifts_px * a_per_px
-
-weights = np.ones(len(shifts_px))
-for f in filter_specs:
-    weights *= compute_profile(shifts_a, f)
-
-images = []
-valid_weights = []
-source_img = None
-
-for i, shift in enumerate(shifts_px):
-    try:
-        img_wrapper = jsolex.funcs.img(ps=float(shift))
-        if img_wrapper is not None:
-            images.append(jsolex.toNumpy(img_wrapper))
-            valid_weights.append(weights[i])
-            if source_img is None:
-                source_img = img_wrapper
-    except:
-        pass
-
-if not images:
-    raise ValueError("Aucune image disponible dans la plage spécifiée")
-
-image_stack = np.stack(images, axis=0)
-valid_weights = np.array(valid_weights)
-valid_weights = valid_weights / valid_weights.sum()
-
-result_data = np.tensordot(valid_weights, image_stack, axes=([0], [0]))
-
-stretched = jsolex.toNumpy(jsolex.funcs.linear_stretch(jsolex.fromNumpy(result_data.astype(np.float32))))
-height, width = stretched.shape
-
-ellipse = jsolex.getEllipseParams(source_img)
-if ellipse and 'semiAxis_a' in ellipse:
-    solar_radius = ellipse['semiAxis_a']
-    font_size = max(10, int(solar_radius / 25))
-    legend_height = max(40, int(solar_radius / 10))
-else:
-    font_size = max(10, int(width / 80))
-    legend_height = max(40, int(height / 15))
-
-fig_height = height + legend_height
-dpi = 100
-fig = plt.figure(figsize=(width/dpi, fig_height/dpi), dpi=dpi)
-
-ax_img = fig.add_axes([0, legend_height/fig_height, 1, height/fig_height])
-ax_img.imshow(stretched, cmap='gray', aspect='auto')
-ax_img.axis('off')
-
-ax_legend = fig.add_axes([0, 0, 1, legend_height/fig_height])
-ax_legend.set_xlim(0, 1)
-ax_legend.set_ylim(0, 1)
-ax_legend.text(0.5, 0.5, title_human, ha='center', va='center', fontsize=font_size, color='white')
-ax_legend.set_facecolor('black')
-ax_legend.axis('off')
-
-fig.patch.set_facecolor('black')
-fig.canvas.draw()
-
-final_img = np.frombuffer(fig.canvas.buffer_rgba(), dtype=np.uint8)
-final_img = final_img.reshape(fig.canvas.get_width_height()[::-1] + (4,))
-plt.close(fig)
-
-gray = final_img[:, :, :3].mean(axis=2).astype(np.float32) * 257.0
-output = jsolex.fromNumpy(gray)
-if source_img is not None:
-    jsolex.copyMetadataFrom(source_img, output)
-result = output
-""")
-
-[tmp]
-width=2
-
-[outputs]
-single = filter_sim("L:0.5"; width)
-double = filter_sim("L:0.5 + L:0.5"; width)
-triple = filter_sim("L:0.5 + L:0.5 + L:0.5"; width)
-comparison = side_by_side(side_by_side(single; double); triple)
-graph_single = filter_graph("L:0.5"; width)
-graph_double = filter_graph("L:0.5 + L:0.5"; width)
-graph_triple = filter_graph("L:0.5 + L:0.5 + L:0.5"; width)
-graphs = side_by_side(side_by_side(graph_single; graph_double); graph_triple)
-----
-
-Ce script permet de combiner n'importe quel nombre de filtres avec différentes caractéristiques :
-
-1. **Type de profil** : Lorentzien (L) pour cavité unique ou multi-cavités (M) pour profil carré
-2. **FWHM** : Chaque filtre peut avoir une largeur de bande différente
-3. **Nombre de cavités** : Les filtres multi-cavités peuvent avoir 2, 3 ou plus de cavités
-4. **Décalage** : Chaque filtre peut être décalé du centre de la raie (simulation des tolérances de fabrication, dérive thermique, ou réglage intentionnel)
-
-Exemples de configurations :
-
-- `L:0.5 + L:0.5` — Double-stack classique, bande passante effective étroite
-- `M:0.3:3` — Filtre 3 cavités unique avec flancs très raides
-- `L:0.6@0.1 + L:0.5@-0.1` — Deux filtres légèrement désalignés, montrant l'effet du décalage sur le profil combiné
-
-Sources :
-- https://fr.wikipedia.org/wiki/Interf%C3%A9rom%C3%A8tre_de_Fabry-P%C3%A9rot[Interféromètre Fabry-Pérot - Wikipédia]
-- https://mpo.im/wp-content/uploads/2020/06/TN-2020-06-Etalons-Explained.pdf[Etalons Explained - Manx Precision Optics]
+- Pour les opérations simples, les fonctions ImageMath natives sont plus rapides que le code Python équivalent.
+- Tous les packages Python ne fonctionnent pas avec GraalPy. NumPy et PyArrow sont testés et supportés.
