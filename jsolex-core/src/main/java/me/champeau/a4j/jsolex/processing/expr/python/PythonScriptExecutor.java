@@ -442,21 +442,26 @@ public class PythonScriptExecutor {
         bindings.putMember("_reset_script_dir", scriptDir);
         context.eval("python", """
                 import sys
+                import os
                 # Clear cached user modules from script directory (forces reimport)
                 if _reset_script_dir:
+                    # Normalize the script directory path for comparison (handles Windows paths)
+                    _norm_script_dir = os.path.normcase(os.path.normpath(_reset_script_dir))
                     _to_remove = []
                     for name, module in list(sys.modules.items()):
                         if module is None:
                             continue
                         if not hasattr(module, '__file__') or module.__file__ is None:
                             continue
-                        if module.__file__.startswith(_reset_script_dir):
+                        # Normalize module path for comparison
+                        _norm_module_path = os.path.normcase(os.path.normpath(module.__file__))
+                        if _norm_module_path.startswith(_norm_script_dir + os.sep) or _norm_module_path.startswith(_norm_script_dir + '/'):
                             _to_remove.append(name)
                     for name in _to_remove:
                         del sys.modules[name]
                 # Clear user-defined global variables
                 _keep = {'__builtins__', '__name__', '__doc__', '__package__', '__loader__', '__spec__',
-                         'sys', 'jsolex', '_jsolex_module', '_java_bridge', 'VariableAccessor', 'FunctionAccessor', 'Outputs'}
+                         'sys', 'os', 'jsolex', '_jsolex_module', '_java_bridge', 'VariableAccessor', 'FunctionAccessor', 'Outputs'}
                 _to_delete = [name for name in list(globals().keys()) if name not in _keep and not name.startswith('_')]
                 for name in _to_delete:
                     try:
@@ -512,10 +517,11 @@ public class PythonScriptExecutor {
                 throw new IllegalArgumentException("Python file not found: " + filePath);
             }
             // Add script's directory to sys.path so imports work
-            var scriptDir = path.getParent().toString().replace("\\", "\\\\");
-            context.eval("python", "import sys; sys.path.insert(0, '" + scriptDir + "') if '" + scriptDir + "' not in sys.path else None");
+            var scriptDir = path.getParent().toString();
+            var scriptDirEscaped = scriptDir.replace("\\", "\\\\");
+            context.eval("python", "import sys; sys.path.insert(0, '" + scriptDirEscaped + "') if '" + scriptDirEscaped + "' not in sys.path else None");
 
-            // Reset context to clear cached modules and global variables
+            // Reset context to clear cached modules and global variables (use unescaped path)
             resetContext(context, scriptDir);
 
             // Create outputs object for implicit single mode
