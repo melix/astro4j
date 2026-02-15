@@ -400,7 +400,7 @@ public class OpenCLContext implements AutoCloseable {
      * @return the buffer handle
      * @throws IllegalStateException if not called within executeWithLock
      */
-    public long allocateBuffer(int sizeInBytes, int flags) {
+    public long allocateBuffer(int sizeInBytes, long flags) {
         requireLock();
         try (var stack = MemoryStack.stackPush()) {
             var errBuf = stack.mallocInt(1);
