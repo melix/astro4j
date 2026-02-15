@@ -14,7 +14,7 @@ ikonli="12.4.0"
 sqlite="3.51.1.0"
 lwjgl="3.3.6"
 graalpy="25.0.2"
-arrow="18.1.0"
+arrow="18.3.0"
 
 [libraries]
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j-api" }
