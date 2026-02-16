@@ -163,6 +163,25 @@ class AbstractFunctionImpl {
     }
 
     /**
+     * Converts an object to a float value.
+     *
+     * @param obj the object to convert
+     * @param defaultValue the default value if obj is null
+     * @return the float value
+     */
+    protected float floatArg(Object obj, float defaultValue) {
+        if (obj == null) {
+            return defaultValue;
+        }
+        if (obj instanceof Number num) {
+            return num.floatValue();
+        } else if (obj instanceof CharSequence str) {
+            return Float.parseFloat(str.toString());
+        }
+        throw new IllegalStateException("Expected a number but got " + obj.getClass());
+    }
+
+    /**
      * Gets an int argument with default value.
      *
      * @param arguments the arguments map

@@ -1,0 +1,32 @@
+name: COLLAGE
+category: UTILS
+concurrent: false
+description:
+  fr: "Crée un collage d'images selon un motif textuel. Utilisez 'X' pour les images, '.' pour les cellules vides, et '/' pour séparer les lignes. Les espaces sont ignorés."
+  en: "Creates an image collage based on a text pattern. Use 'X' for images, '.' for empty cells, and '/' to separate rows. Spaces are ignored."
+arguments:
+  - name: pattern
+    description:
+      fr: "Motif textuel définissant la disposition. 'X' = image, '.' = cellule vide, '/' = nouvelle ligne."
+      en: "Text pattern defining the layout. 'X' = image, '.' = empty cell, '/' = new row."
+  - name: images
+    description:
+      fr: "Liste d'images à placer dans le collage."
+      en: "List of images to place in the collage."
+  - name: padding
+    optional: true
+    default: 10
+    description:
+      fr: "Espacement entre les cellules en pixels."
+      en: "Spacing between cells in pixels."
+  - name: bg
+    optional: true
+    default: 0
+    description:
+      fr: "Couleur de fond (0-65535 pour mono, ou liste [r,g,b])."
+      en: "Background color (0-65535 for mono, or list [r,g,b])."
+examples:
+  - "collage(\"XXX\"; list(a;b;c))"
+  - "collage(\"X X X / X X X\"; images)"
+  - "collage(\".X. / X.X\"; list(a;b;c))"
+  - "collage(pattern: \"X.X / .X.\", images: list(a;b;c;d), padding: 15, bg: 1000)"

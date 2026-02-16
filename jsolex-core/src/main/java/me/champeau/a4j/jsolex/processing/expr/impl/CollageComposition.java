@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
+import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.CollageParameters;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
@@ -25,7 +26,10 @@ import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
@@ -34,6 +38,129 @@ public class CollageComposition extends AbstractFunctionImpl {
 
     public CollageComposition(Map<Class<?>, Object> context, Broadcaster broadcaster) {
         super(context, broadcaster);
+    }
+
+    public Object collage(Map<String, Object> arguments) {
+        BuiltinFunction.COLLAGE.validateArgs(arguments);
+        var pattern = stringArg(arguments, "pattern", "");
+        var imagesArg = arguments.get("images");
+
+        if (!(imagesArg instanceof List<?> imageList)) {
+            throw new IllegalArgumentException("Images must be a list");
+        }
+
+        var parsedPattern = parsePattern(pattern);
+        var rows = parsedPattern.rows();
+        var cols = parsedPattern.cols();
+        var cellPositions = parsedPattern.cellPositions();
+
+        if (imageList.size() > cellPositions.size()) {
+            LOGGER.warn("More images ({}) than pattern positions ({}), extra images will be ignored",
+                    imageList.size(), cellPositions.size());
+        }
+        if (imageList.size() < cellPositions.size()) {
+            LOGGER.warn("Fewer images ({}) than pattern positions ({}), some positions will be empty",
+                    imageList.size(), cellPositions.size());
+        }
+
+        var padding = intArg(arguments, "padding", 10);
+        var bgColor = parseBackgroundColor(arguments);
+
+        var imageSelections = new ArrayList<CollageParameters.ImageSelection>();
+        var imageIndex = 0;
+        for (var cellPos : cellPositions) {
+            if (imageIndex >= imageList.size()) {
+                break;
+            }
+            var imgObj = imageList.get(imageIndex);
+            var img = unwrapToImage(imgObj);
+            imageSelections.add(new CollageParameters.ImageSelection(
+                    img,
+                    "",
+                    Optional.of(cellPos.row()),
+                    Optional.of(cellPos.col())
+            ));
+            imageIndex++;
+        }
+
+        var parameters = new CollageParameters(
+                imageSelections,
+                rows,
+                cols,
+                Integer.MAX_VALUE,
+                Integer.MAX_VALUE,
+                true,
+                padding,
+                false,
+                bgColor.r(),
+                bgColor.r(),
+                bgColor.g(),
+                bgColor.b()
+        );
+
+        return createCollage(parameters);
+    }
+
+    private BackgroundColor parseBackgroundColor(Map<String, Object> arguments) {
+        if (!arguments.containsKey("bg")) {
+            return new BackgroundColor(0, 0, 0);
+        }
+        var bgArg = arguments.get("bg");
+        if (bgArg instanceof Number bgNum) {
+            var value = bgNum.floatValue();
+            return new BackgroundColor(value, value, value);
+        } else if (bgArg instanceof List<?> bgList && bgList.size() >= 3) {
+            return new BackgroundColor(
+                    floatArg(bgList.get(0), 0),
+                    floatArg(bgList.get(1), 0),
+                    floatArg(bgList.get(2), 0)
+            );
+        }
+        return new BackgroundColor(0, 0, 0);
+    }
+
+    private static ImageWrapper unwrapToImage(Object imgObj) {
+        if (imgObj instanceof FileBackedImage fbi) {
+            return fbi.unwrapToMemory();
+        } else if (imgObj instanceof ImageWrapper iw) {
+            return iw;
+        }
+        throw new IllegalArgumentException("Expected an image but got " + imgObj.getClass().getSimpleName());
+    }
+
+    private ParsedPattern parsePattern(String pattern) {
+        var normalizedPattern = pattern.replace("\n", "/");
+        var rows = normalizedPattern.split("/", -1);
+        List<String> nonEmptyRows = new ArrayList<>();
+        for (var row : rows) {
+            var stripped = row.replaceAll("\\s+", "");
+            if (!stripped.isEmpty()) {
+                nonEmptyRows.add(stripped);
+            }
+        }
+
+        if (nonEmptyRows.isEmpty()) {
+            throw new IllegalArgumentException("Pattern cannot be empty");
+        }
+
+        int maxCols = 0;
+        for (var row : nonEmptyRows) {
+            maxCols = Math.max(maxCols, row.length());
+        }
+
+        List<CellPosition> cellPositions = new ArrayList<>();
+        int rowIndex = 0;
+        for (var row : nonEmptyRows) {
+            for (int colIndex = 0; colIndex < row.length(); colIndex++) {
+                char c = row.charAt(colIndex);
+                if (c == 'X' || c == 'x') {
+                    cellPositions.add(new CellPosition(rowIndex, colIndex));
+                }
+            }
+            rowIndex++;
+        }
+
+        return new ParsedPattern(nonEmptyRows.size(), maxCols, cellPositions);
     }
 
     public ImageWrapper createCollage(CollageParameters parameters) {
@@ -60,6 +187,7 @@ public class CollageComposition extends AbstractFunctionImpl {
             for (var img : images) {
                 if (img instanceof RGBImage) {
                     hasColorImages = true;
+                    break;
                 }
             }
 
@@ -204,118 +332,69 @@ public class CollageComposition extends AbstractFunctionImpl {
                                        int col,
                                        CollageLayout layout,
                                        CollageParameters parameters) {
-
-        float[][] rData, gData, bData;
-        if (image instanceof RGBImage rgb) {
-            rData = rgb.r();
-            gData = rgb.g();
-            bData = rgb.b();
-        } else if (image instanceof ImageWrapper32 mono) {
-            var monoData = mono.data();
-            rData = monoData;
-            gData = monoData;
-            bData = monoData;
-        } else {
-            var unwrapped = image.unwrapToMemory();
-            if (unwrapped instanceof RGBImage rgb) {
-                rData = rgb.r();
-                gData = rgb.g();
-                bData = rgb.b();
-            } else if (unwrapped instanceof ImageWrapper32 mono) {
-                var monoData = mono.data();
-                rData = monoData;
-                gData = monoData;
-                bData = monoData;
-            } else {
-                LOGGER.warn("Unsupported image type for collage: {}", unwrapped.getClass());
-                return;
-            }
+        var rgbData = extractRgbData(image);
+        if (rgbData == null) {
+            return;
         }
-
-        var imgWidth = image.width();
-        var imgHeight = image.height();
-
-        var cellX = col * (layout.cellWidth() + layout.padding());
-        var cellY = row * (layout.cellHeight() + layout.padding());
-
-
-
-        var scaleX = 1.0;
-        var scaleY = 1.0;
-
-        // Reserve a small margin within the cell (don't use full padding here as it's already used for cell spacing)
-        var marginSize = Math.max(2, layout.padding() / 4);
-        var effectiveCellWidth = Math.max(1, layout.cellWidth() - marginSize);
-        var effectiveCellHeight = Math.max(1, layout.cellHeight() - marginSize);
-
-        if (imgWidth > effectiveCellWidth || imgHeight > effectiveCellHeight) {
-            scaleX = (double) effectiveCellWidth / imgWidth;
-            scaleY = (double) effectiveCellHeight / imgHeight;
-
-            if (parameters.maintainAspectRatio()) {
-                var scale = Math.min(scaleX, scaleY);
-                scaleX = scale;
-                scaleY = scale;
-            }
-        }
-
-        var scaledWidth = (int) (imgWidth * scaleX);
-        var scaledHeight = (int) (imgHeight * scaleY);
-
-        // Center the image within the cell
-        var offsetX = (layout.cellWidth() - scaledWidth) / 2;
-        var offsetY = (layout.cellHeight() - scaledHeight) / 2;
-
-        for (var y = 0; y < scaledHeight; y++) {
-            for (var x = 0; x < scaledWidth; x++) {
-                var srcX = (int) (x / scaleX);
-                var srcY = (int) (y / scaleY);
-
-                if (srcX < imgWidth && srcY < imgHeight) {
-                    var targetX = cellX + offsetX + x;
-                    var targetY = cellY + offsetY + y;
-
-                    if (targetX < layout.totalWidth() && targetY < layout.totalHeight()) {
-                        collageR[targetY][targetX] = rData[srcY][srcX];
-                        collageG[targetY][targetX] = gData[srcY][srcX];
-                        collageB[targetY][targetX] = bData[srcY][srcX];
-                    }
-                }
-            }
-        }
+        var placement = computePlacement(image, row, col, layout, parameters);
+        copyPixels(placement, rgbData.r(), collageR);
+        copyPixels(placement, rgbData.g(), collageG);
+        copyPixels(placement, rgbData.b(), collageB);
     }
 
     private void placeImageInCell(float[][] collageData, ImageWrapper image,
                                   int row, int col, CollageLayout layout, CollageParameters parameters) {
-
-        float[][] imageData;
-        if (image instanceof ImageWrapper32 mono) {
-            imageData = mono.data();
-        } else if (image instanceof RGBImage rgb) {
-            imageData = rgb.toMono().data();
-        } else {
-            var unwrapped = image.unwrapToMemory();
-            if (unwrapped instanceof ImageWrapper32 mono) {
-                imageData = mono.data();
-            } else if (unwrapped instanceof RGBImage rgb) {
-                imageData = rgb.toMono().data();
-            } else {
-                LOGGER.warn("Unsupported image type for collage: {}", unwrapped.getClass());
-                return;
-            }
+        var imageData = extractMonoData(image);
+        if (imageData == null) {
+            return;
         }
+        var placement = computePlacement(image, row, col, layout, parameters);
+        copyPixels(placement, imageData, collageData);
+    }
+
+    private RgbData extractRgbData(ImageWrapper image) {
+        if (image instanceof RGBImage rgb) {
+            return new RgbData(rgb.r(), rgb.g(), rgb.b());
+        } else if (image instanceof ImageWrapper32 mono) {
+            var monoData = mono.data();
+            return new RgbData(monoData, monoData, monoData);
+        }
+        var unwrapped = image.unwrapToMemory();
+        if (unwrapped instanceof RGBImage rgb) {
+            return new RgbData(rgb.r(), rgb.g(), rgb.b());
+        } else if (unwrapped instanceof ImageWrapper32 mono) {
+            var monoData = mono.data();
+            return new RgbData(monoData, monoData, monoData);
+        }
+        logUnsupportedImageType(unwrapped);
+        return null;
+    }
+
+    private void logUnsupportedImageType(ImageWrapper image) {
+        LOGGER.warn("Unsupported image type for collage: {}", image.getClass());
+    }
+
+    private float[][] extractMonoData(ImageWrapper image) {
+        if (image instanceof ImageWrapper32 mono) {
+            return mono.data();
+        }
+        var unwrapped = image.unwrapToMemory();
+        if (unwrapped instanceof ImageWrapper32 mono) {
+            return mono.data();
+        }
+        logUnsupportedImageType(unwrapped);
+        return null;
+    }
+
+    private PlacementInfo computePlacement(ImageWrapper image, int row, int col,
+                                           CollageLayout layout, CollageParameters parameters) {
         var imgWidth = image.width();
         var imgHeight = image.height();
-
         var cellX = col * (layout.cellWidth() + layout.padding());
         var cellY = row * (layout.cellHeight() + layout.padding());
 
-
-
         var scaleX = 1.0;
         var scaleY = 1.0;
-
-        // Reserve a small margin within the cell (don't use full padding here as it's already used for cell spacing)
         var marginSize = Math.max(2, layout.padding() / 4);
         var effectiveCellWidth = Math.max(1, layout.cellWidth() - marginSize);
         var effectiveCellHeight = Math.max(1, layout.cellHeight() - marginSize);
@@ -323,7 +402,6 @@ public class CollageComposition extends AbstractFunctionImpl {
         if (imgWidth > effectiveCellWidth || imgHeight > effectiveCellHeight) {
             scaleX = (double) effectiveCellWidth / imgWidth;
             scaleY = (double) effectiveCellHeight / imgHeight;
-
             if (parameters.maintainAspectRatio()) {
                 var scale = Math.min(scaleX, scaleY);
                 scaleX = scale;
@@ -333,33 +411,55 @@ public class CollageComposition extends AbstractFunctionImpl {
 
         var scaledWidth = (int) (imgWidth * scaleX);
         var scaledHeight = (int) (imgHeight * scaleY);
-
-        // Center the image within the cell
         var offsetX = (layout.cellWidth() - scaledWidth) / 2;
         var offsetY = (layout.cellHeight() - scaledHeight) / 2;
 
-        for (var y = 0; y < scaledHeight; y++) {
-            for (var x = 0; x < scaledWidth; x++) {
-                var srcX = (int) (x / scaleX);
-                var srcY = (int) (y / scaleY);
+        return new PlacementInfo(imgWidth, imgHeight, cellX + offsetX, cellY + offsetY,
+                scaledWidth, scaledHeight, scaleX, scaleY, layout.totalWidth(), layout.totalHeight());
+    }
 
-                if (srcX < imgWidth && srcY < imgHeight) {
-                    var targetX = cellX + offsetX + x;
-                    var targetY = cellY + offsetY + y;
-
-                    if (targetX < layout.totalWidth() && targetY < layout.totalHeight()) {
-                        collageData[targetY][targetX] = imageData[srcY][srcX];
+    private static void copyPixels(PlacementInfo p, float[][] src, float[][] dest) {
+        for (var y = 0; y < p.scaledHeight(); y++) {
+            for (var x = 0; x < p.scaledWidth(); x++) {
+                var srcX = (int) (x / p.scaleX());
+                var srcY = (int) (y / p.scaleY());
+                if (srcX < p.imgWidth() && srcY < p.imgHeight()) {
+                    var targetX = p.cellX() + x;
+                    var targetY = p.cellY() + y;
+                    if (targetX < p.totalWidth() && targetY < p.totalHeight()) {
+                        dest[targetY][targetX] = src[srcY][srcX];
                     }
                 }
             }
         }
     }
 
+    private record CellPosition(int row, int col) {}
+
+    private record ParsedPattern(int rows, int cols, List<CellPosition> cellPositions) {}
+
+    private record BackgroundColor(float r, float g, float b) {}
+
+    private record RgbData(float[][] r, float[][] g, float[][] b) {}
+
+    private record PlacementInfo(
+            int imgWidth,
+            int imgHeight,
+            int cellX,
+            int cellY,
+            int scaledWidth,
+            int scaledHeight,
+            double scaleX,
+            double scaleY,
+            int totalWidth,
+            int totalHeight
+    ) {}
+
     private record CollageLayout(
-        int cellWidth,
-        int cellHeight,
-        int totalWidth,
-        int totalHeight,
-        int padding
+            int cellWidth,
+            int cellHeight,
+            int totalWidth,
+            int totalHeight,
+            int padding
     ) {}
 }

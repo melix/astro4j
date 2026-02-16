@@ -1,6 +1,6 @@
 # Welcome to JSol'Ex {{version}}!
 
-- [Version 4.6.0](#whats-new-in-version-4-6-0) - Python scripting support in ImageMath
+- [Version 4.6.0](#whats-new-in-version-4-6-0) - Python scripting, COLLAGE function
 - [Version 4.5.0](#whats-new-in-version-4-5.0) - Doppler shift measurement, rotation profile, script evaluation fix
 - [Version 4.4.5](#whats-new-in-version-4-4-5) - BASS2000 submission fix
 - [Version 4.4.4](#whats-new-in-version-4-4-3) - Fix process params dialog empty in English
@@ -26,6 +26,8 @@
 
 You can now use Python code within ImageMath scripts using the new `python()` and `python_file` functions.
 This provides access to Python's control structures (loops, conditionals, exception handling) that ImageMath lacks, while still being able to call all ImageMath functions.
+
+- Added `COLLAGE` function to create image layouts using a text pattern (e.g., `collage(".X. / X.X", images)` for a pyramid)
 
 ## What's New in Version 4.5.0
 

@@ -1,6 +1,6 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
-- [Version 4.6.0](#nouveautes-de-la-version-4-6-0) - Support des scripts Python dans ImageMath
+- [Version 4.6.0](#nouveautes-de-la-version-4-6-0) - Scripts Python, fonction COLLAGE
 - [Version 4.5.0](#nouveautes-de-la-version-4-5-0) - Rotation différentielle, correction évaluation des scripts
 - [Version 4.4.5](#nouveautes-de-la-version-4-4-5) - Correction soumission BASS2000
 - [Version 4.4.4](#nouveautes-de-la-version-4-4-3) - Correction de l'interface en anglais
@@ -26,6 +26,8 @@
 
 Vous pouvez désormais utiliser du code Python dans les scripts ImageMath grâce aux nouvelles fonctions `python()` et `python_file`.
 Cela permet d'accéder aux structures de contrôle de Python (boucles, conditions, gestion des exceptions) qui manquent à ImageMath, tout en pouvant appeler toutes les fonctions ImageMath, ou encore d'utiliser des libraries Python telles que Numpy ou Scipy dans vos scripts.
+
+- Ajout de la fonction `COLLAGE` pour créer des mises en page via un motif textuel (ex: `collage(".X. / X.X", images)` pour une pyramide)
 
 ## Nouveautés de la version 4.5.0
 
