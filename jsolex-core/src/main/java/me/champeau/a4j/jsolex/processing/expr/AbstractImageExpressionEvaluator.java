@@ -31,6 +31,7 @@ import me.champeau.a4j.jsolex.processing.expr.impl.Animate;
 import me.champeau.a4j.jsolex.processing.expr.impl.ArtifificialFlatCorrector;
 import me.champeau.a4j.jsolex.processing.expr.impl.BackgroundRemoval;
 import me.champeau.a4j.jsolex.processing.expr.impl.Clahe;
+import me.champeau.a4j.jsolex.processing.expr.impl.CollageComposition;
 import me.champeau.a4j.jsolex.processing.expr.impl.Colorize;
 import me.champeau.a4j.jsolex.processing.expr.impl.Conditionals;
 import me.champeau.a4j.jsolex.processing.expr.impl.Convolution;
@@ -122,6 +123,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     private final Animate animate;
     private final BackgroundRemoval bgRemoval;
     private final Clahe clahe;
+    private final CollageComposition collageComposition;
     private final Colorize colorize;
     private final Conditionals conditionals;
     private final Convolution convolution;
@@ -161,6 +163,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         this.animate = new Animate(context, broadcaster);
         this.bgRemoval = new BackgroundRemoval(context, broadcaster);
         this.clahe = new Clahe(context, broadcaster);
+        this.collageComposition = new CollageComposition(context, broadcaster);
         this.colorize = new Colorize(context, broadcaster);
         this.conditionals = new Conditionals(context, broadcaster);
         this.convolution = new Convolution(context, broadcaster);
@@ -317,6 +320,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case BG_MODEL -> bgRemoval.backgroundModel(arguments);
             case BLUR -> convolution.blur(arguments);
             case CLAHE -> clahe.clahe(arguments);
+            case COLLAGE -> collageComposition.collage(arguments);
             case CHOOSE_FILE -> loader.chooseFile(arguments);
             case CHOOSE_FILES -> loader.chooseFiles(arguments);
             case COLORIZE -> colorize.colorize(arguments);
