@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.expr.python
 
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor.SectionKind
+import me.champeau.a4j.jsolex.processing.expr.ScriptExecutionContext
 import me.champeau.a4j.jsolex.processing.expr.ShiftCollectingImageExpressionEvaluator
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift
@@ -1132,7 +1133,7 @@ answer = python_file("scripts/helper.py")
         and: "a DefaultImageScriptExecutor"
         def scriptExecutor = new DefaultImageScriptExecutor(
             { shift -> new ImageWrapper32(10, 10, new float[10][10], [:]) },
-            [:]
+            ScriptExecutionContext.empty()
         )
 
         when: "the ImageMath script is executed from its path"
@@ -1171,7 +1172,7 @@ answer = multiply(5; 7)
         and: "a DefaultImageScriptExecutor"
         def scriptExecutor = new DefaultImageScriptExecutor(
             { shift -> new ImageWrapper32(10, 10, new float[10][10], [:]) },
-            [:]
+            ScriptExecutionContext.empty()
         )
 
         when: "the ImageMath script is executed"
@@ -1224,7 +1225,7 @@ answer = compute(3; 4)
         and: "a DefaultImageScriptExecutor"
         def scriptExecutor = new DefaultImageScriptExecutor(
             { shift -> new ImageWrapper32(10, 10, new float[10][10], [:]) },
-            [:]
+            ScriptExecutionContext.empty()
         )
 
         when: "the ImageMath script is executed"
@@ -1402,7 +1403,7 @@ value = run_script()
         and: "a DefaultImageScriptExecutor"
         def scriptExecutor = new DefaultImageScriptExecutor(
             { shift -> null } as java.util.function.Function,
-            context,
+            ScriptExecutionContext.empty().mergeAll(context),
             Broadcaster.NO_OP
         )
         scriptExecutor.setIncludesDir(tempDir)
@@ -1666,7 +1667,7 @@ second_call = get_time()
         and: "a DefaultImageScriptExecutor"
         def scriptExecutor = new DefaultImageScriptExecutor(
             { shift -> null } as java.util.function.Function,
-            context,
+            ScriptExecutionContext.empty().mergeAll(context),
             Broadcaster.NO_OP
         )
         scriptExecutor.setIncludesDir(tempDir)

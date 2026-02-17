@@ -42,6 +42,7 @@ import me.champeau.a4j.jsolex.processing.expr.repository.RemoteScript;
 import me.champeau.a4j.jsolex.processing.expr.repository.ScriptRepositoryManager;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
+import me.champeau.a4j.jsolex.processing.expr.ScriptExecutionContext;
 import me.champeau.a4j.jsolex.processing.expr.ShiftCollectingImageExpressionEvaluator;
 import me.champeau.a4j.jsolex.processing.params.ScriptParameterExtractor;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
@@ -458,13 +459,11 @@ public class ImageSelectionPanel extends BaseParameterPanel {
 
 
     private DefaultImageScriptExecutor createScriptExecutor() {
-        var executor = new JSolExScriptExecutor(
+        return new JSolExScriptExecutor(
                 ShiftCollectingImageExpressionEvaluator.zeroImages(),
-                MutableMap.of(),
+                ScriptExecutionContext.empty(),
                 stage
         );
-
-        return executor;
     }
 
     private PixelShifts findPixelShifts(ImageMathParams params) {

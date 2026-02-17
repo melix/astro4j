@@ -116,6 +116,7 @@ import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
 import me.champeau.a4j.jsolex.processing.expr.InvalidExpression;
+import me.champeau.a4j.jsolex.processing.expr.ScriptExecutionContext;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.ScriptParameterExtractor;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
@@ -1570,7 +1571,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         var scriptOperation = rootOperation.createChild("Script");
         var imageScriptExecutor = new JSolExScriptExecutor(img -> {
             throw new ProcessingException("img() is not available in standalone image math scripts. Use load or load_many to load images");
-        }, MutableMap.of(ProgressOperation.class, scriptOperation), (Broadcaster) listener, null) {
+        }, ScriptExecutionContext.builder().progressOperation(scriptOperation).build(), (Broadcaster) listener, null) {
             @Override
             public ImageMathScriptResult execute(String script, SectionKind kind) {
                 var result = super.execute(script, kind);

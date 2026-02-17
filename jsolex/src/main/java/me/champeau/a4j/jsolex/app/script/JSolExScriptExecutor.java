@@ -22,6 +22,7 @@ import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
+import me.champeau.a4j.jsolex.processing.expr.ScriptExecutionContext;
 import me.champeau.a4j.jsolex.processing.expr.impl.FileSelector;
 import me.champeau.a4j.jsolex.processing.expr.impl.Loader;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
@@ -30,7 +31,6 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 
 import java.io.File;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 
@@ -38,35 +38,22 @@ import java.util.function.Function;
  * A script executor which exposes a JavaFX file chooser to the {@link Loader}.
  */
 public class JSolExScriptExecutor extends DefaultImageScriptExecutor {
-    /**
-     * Creates a new script executor with broadcaster support.
-     * @param imageSupplier the supplier for images by pixel shift
-     * @param context the execution context
-     * @param broadcaster the event broadcaster
-     * @param stage the JavaFX stage for file chooser dialogs
-     */
     public JSolExScriptExecutor(Function<PixelShift, ImageWrapper> imageSupplier,
-                                Map<Class, Object> context,
+                                ScriptExecutionContext context,
                                 Broadcaster broadcaster,
                                 Stage stage) {
         super(imageSupplier, context, broadcaster);
         prepareContext(context, stage);
     }
 
-    /**
-     * Creates a new script executor.
-     * @param imagesByShift the supplier for images by pixel shift
-     * @param context the execution context
-     * @param stage the JavaFX stage for file chooser dialogs
-     */
     public JSolExScriptExecutor(Function<PixelShift, ImageWrapper> imagesByShift,
-                                Map<Class, Object> context,
+                                ScriptExecutionContext context,
                                 Stage stage) {
         super(imagesByShift, context);
         prepareContext(context, stage);
     }
 
-    private static void prepareContext(Map<Class, Object> context, Stage stage) {
+    private static void prepareContext(ScriptExecutionContext context, Stage stage) {
         context.put(FileSelector.class, new JSolExFileSelector(stage));
     }
 

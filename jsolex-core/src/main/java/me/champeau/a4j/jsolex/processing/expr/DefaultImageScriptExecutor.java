@@ -34,7 +34,6 @@ import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
-import me.champeau.a4j.jsolex.processing.util.AnimationFormat;
 import me.champeau.a4j.jsolex.processing.util.DurationFormatter;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
@@ -80,7 +79,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     public static final String OUTPUTS_SECTION_NAME = "outputs";
 
     private final Function<PixelShift, ImageWrapper> imagesByShift;
-    private final Map<Class, Object> context;
+    private final ScriptExecutionContext context;
     private final AtomicInteger executionCount = new AtomicInteger(0);
     private final Broadcaster broadcaster;
     private final Map<String, Object> variables = new LinkedHashMap<>();
@@ -89,7 +88,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     private boolean outputLogging = true;
 
     public DefaultImageScriptExecutor(Function<PixelShift, ImageWrapper> imageSupplier,
-                                      Map<Class, Object> context,
+                                      ScriptExecutionContext context,
                                       Broadcaster broadcaster) {
         this.imagesByShift = imageSupplier;
         this.context = context;
@@ -101,7 +100,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     }
 
     private ProgressOperation getProgressOperation() {
-        var progressOperation = (ProgressOperation) context.get(ProgressOperation.class);
+        var progressOperation = context.get(ProgressOperation.class);
         if (progressOperation == null) {
             progressOperation = ProgressOperation.root("ImageScript evaluation", unused -> {
             });
@@ -109,9 +108,9 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         return progressOperation;
     }
 
-    public DefaultImageScriptExecutor(Function<PixelShift, ImageWrapper> imagesByShift,
-                                      Map<Class, Object> context) {
-        this(imagesByShift, context, Broadcaster.NO_OP);
+    public DefaultImageScriptExecutor(Function<PixelShift, ImageWrapper> imageSupplier,
+                                      ScriptExecutionContext context) {
+        this(imageSupplier, context, Broadcaster.NO_OP);
     }
 
     @Override
@@ -144,8 +143,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
             evaluator.setIncludesDir(includesDir);
             populateContext(evaluator, getProgressOperation());
 
-            @SuppressWarnings("unchecked")
-            var contextMap = (Map<Class<?>, Object>) (Map<?, ?>) context;
+            var contextMap = context.toMap();
             var pythonExecutor = new PythonScriptExecutor(evaluator, contextMap, broadcaster, true);
 
             // For batch mode, check if script has a batch() function BEFORE executing
@@ -295,8 +293,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
             evaluator.setIncludesDir(includesDir);
             populateContext(evaluator, getProgressOperation());
 
-            @SuppressWarnings("unchecked")
-            var contextMap = (Map<Class<?>, Object>) (Map<?, ?>) context;
+            var contextMap = context.toMap();
             var pythonExecutor = new PythonScriptExecutor(evaluator, contextMap, broadcaster, true);
 
             // For batch mode, check if script has a batch() function BEFORE executing
@@ -739,38 +736,26 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     }
 
     protected void populateContext(AbstractImageExpressionEvaluator evaluator, ProgressOperation executionOperation) {
-        var imageStats = (ImageStats) context.get(ImageStats.class);
+        var imageStats = context.get(ImageStats.class);
         if (imageStats != null) {
             evaluator.putVariable(BLACK_POINT_VAR, String.format(Locale.US, "%.3f", imageStats.blackpoint()));
         }
-        var solarParams = (SolarParameters) context.get(SolarParameters.class);
+        var solarParams = context.get(SolarParameters.class);
         if (solarParams != null) {
             evaluator.putVariable(ANGLE_P_VAR, String.format(Locale.US, "%.4f", solarParams.p()));
             evaluator.putVariable(B0_VAR, String.format(Locale.US, "%.4f", solarParams.b0()));
             evaluator.putVariable(L0_VAR, String.format(Locale.US, "%.4f", solarParams.l0()));
             evaluator.putVariable(CARROT_VAR, String.valueOf(solarParams.carringtonRotation()));
         }
-        var processParams = (ProcessParams) context.get(ProcessParams.class);
+        var processParams = context.get(ProcessParams.class);
         evaluator.putVariable(DETECTED_WAVELEN, processParams == null ? 0 : processParams.spectrumParams().ray().wavelength().angstroms());
         evaluator.putVariable(DETECTED_DISPERSION, processParams == null ? 0 : computeDispersion(processParams, processParams.spectrumParams().ray().wavelength()).angstromsPerPixel());
         for (var entry : variables.entrySet()) {
             evaluator.putVariable(entry.getKey(), entry.getValue());
         }
-        for (Map.Entry<Class, Object> entry : context.entrySet()) {
-            var key = entry.getKey();
-            var value = entry.getValue();
-            evaluator.putInContext(key, value);
-        }
-        for (Map.Entry<String, Object> entry : variables.entrySet()) {
-            var key = entry.getKey();
-            var value = entry.getValue();
-            evaluator.putVariable(key, value);
-        }
+        context.forEach(evaluator::putInContext);
         evaluator.putInContext(Broadcaster.class, broadcaster);
         evaluator.putInContext(ProgressOperation.class, executionOperation);
-        if (context.containsKey(AnimationFormat.class)) {
-            evaluator.putInContext(AnimationFormat.class, context.get(AnimationFormat.class));
-        }
     }
 
     public <T> Optional<T> getVariable(String result) {

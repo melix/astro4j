@@ -21,6 +21,7 @@ import me.champeau.a4j.jsolex.processing.event.Notification;
 import me.champeau.a4j.jsolex.processing.event.NotificationEvent;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
+import me.champeau.a4j.jsolex.processing.expr.ScriptExecutionContext;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
 import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
 import me.champeau.a4j.jsolex.processing.expr.impl.EllipseFit;
@@ -44,7 +45,6 @@ import me.champeau.a4j.math.regression.Ellipse;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -88,7 +88,7 @@ public class StackingWorkflow {
     }
 
     private void executeScript(File scriptFile, File outputDirectory, Object images) {
-        Map<Class, Object> ctx = new HashMap<>(context);
+        var ctx = ScriptExecutionContext.empty().mergeAll(context);
         var evaluator = new DefaultImageScriptExecutor(
                 d -> ImageWrapper32.createEmpty(),
                 ctx,

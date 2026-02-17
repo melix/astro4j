@@ -92,6 +92,7 @@ import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.FileOutputResult;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
+import me.champeau.a4j.jsolex.processing.expr.ScriptExecutionContext;
 import me.champeau.a4j.jsolex.processing.expr.ShiftCollectingImageExpressionEvaluator;
 import me.champeau.a4j.jsolex.processing.expr.impl.Animate;
 import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
@@ -109,7 +110,6 @@ import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
 import me.champeau.a4j.jsolex.processing.sun.TrimmingParameters;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
-import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShiftRange;
 import me.champeau.a4j.jsolex.processing.sun.workflow.SpectralLinePolynomial;
@@ -240,7 +240,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private Header header;
     private PixelShiftRange pixelShiftRange;
     private DoubleUnaryOperator polynomial;
-    private Map<Class, Object> scriptExecutionContext;
+    private ScriptExecutionContext scriptExecutionContext;
     private ImageEmitter imageEmitter;
     private ImageMathScriptExecutor imageScriptExecutor;
     private final Map<String, Object> pendingVariables = new HashMap<>();
@@ -1753,7 +1753,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     }
                     return shiftImages.get(new PixelShift(lookup));
                 },
-                new HashMap<>(scriptExecutionContext),
+                scriptExecutionContext,
                 this,
                 null
         );
@@ -1806,27 +1806,16 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         });
     }
 
-    private Map<Class, Object> prepareExecutionContext(ProcessingDoneEvent.Outcome payload) {
-        Map<Class, Object> context = new HashMap<>();
-        if (payload.ellipse() != null) {
-            context.put(Ellipse.class, payload.ellipse());
-        }
-        if (payload.imageStats() != null) {
-            context.put(ImageStats.class, payload.imageStats());
-        }
-        context.put(SolarParameters.class, SolarParametersUtils.computeSolarParams(params.observationDetails().date().toLocalDateTime()));
-        context.put(ProcessParams.class, payload.processParams());
-        context.put(ImageEmitter.class, payload.customImageEmitter());
-        context.put(PixelShiftRange.class, payload.pixelShiftRange());
-        context.put(AnimationFormat.class, Configuration.getInstance().getAnimationFormats());
-        context.put(ProgressOperation.class, rootOperation);
-        if (payload.serFileReader() != null) {
-            context.put(SerFileReader.class, payload.serFileReader());
-        }
-        if (payload.polynomialCoefficients() != null) {
-            context.put(SpectralLinePolynomial.class, new SpectralLinePolynomial(payload.polynomialCoefficients()));
-        }
-        return context;
+    private ScriptExecutionContext prepareExecutionContext(ProcessingDoneEvent.Outcome payload) {
+        return ScriptExecutionContext.forProcessing(payload.processParams(), serFile.toPath(), payload.pixelShiftRange(), header)
+            .ellipse(payload.ellipse())
+            .imageStats(payload.imageStats())
+            .imageEmitter(payload.customImageEmitter())
+            .animationFormats(Configuration.getInstance().getAnimationFormats())
+            .progressOperation(rootOperation)
+            .serFileReader(payload.serFileReader())
+            .spectralLinePolynomial(payload.polynomialCoefficients() != null ? new SpectralLinePolynomial(payload.polynomialCoefficients()) : null)
+            .build();
     }
 
     @Override
@@ -2896,7 +2885,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             }
 
             var namingStrategy = createNamingStrategy();
-            var ctx = new HashMap<>(scriptExecutionContext);
+            var ctx = ScriptExecutionContext.empty().mergeAll(scriptExecutionContext.toMap());
             ctx.put(ImageEmitter.class, imageEmitter);
 
             var batchScriptExecutor = new JSolExScriptExecutor(

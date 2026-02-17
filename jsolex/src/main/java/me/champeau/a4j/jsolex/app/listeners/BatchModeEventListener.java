@@ -47,6 +47,7 @@ import me.champeau.a4j.jsolex.processing.expr.BestImages;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
+import me.champeau.a4j.jsolex.processing.expr.ScriptExecutionContext;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.AutocropMode;
 import me.champeau.a4j.jsolex.processing.params.OutputMetadata;
@@ -494,28 +495,18 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                 return;
             }
             var imageEmitter = new NamingStrategyAwareImageEmitter(new RenamingImageEmitter(new DefaultImageEmitter(delegate, rootOperation, outputDirectory), name -> name, name -> name), createNamingStrategy(), sequenceNumber, computeSerFileBasename(item.file()));
-            var ctx = new HashMap<Class, Object>();
-            ctx.put(ImageEmitter.class, imageEmitter);
-            ctx.put(AnimationFormat.class, Configuration.getInstance().getAnimationFormats());
+            var ctxBuilder = ScriptExecutionContext.builder()
+                .imageEmitter(imageEmitter)
+                .animationFormats(Configuration.getInstance().getAnimationFormats());
 
             dataLock.readLock().lock();
             try {
-                // Add averaged solar parameters to batch script context.
-                // This is not accurate, but a convenience for example when processing
-                // a series of SER files which are "close" in time
-                var avgSolarParams = computeAverageSolarParameters();
-                if (avgSolarParams != null) {
-                    ctx.put(SolarParameters.class, avgSolarParams);
-                }
-                
-                // Add first file's ProcessParams to batch script context
-                var firstProcessParams = getFirstProcessParams();
-                if (firstProcessParams != null) {
-                    ctx.put(ProcessParams.class, firstProcessParams);
-                }
+                ctxBuilder.solarParameters(computeAverageSolarParameters());
+                ctxBuilder.processParams(getFirstProcessParams());
             } finally {
                 dataLock.readLock().unlock();
             }
+            var ctx = ctxBuilder.build();
             batchScriptExecutor = new JSolExScriptExecutor(
                 idx -> {
                     throw new IllegalStateException("Cannot call img() in batch outputs. Use variables to store images instead");

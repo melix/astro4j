@@ -26,6 +26,7 @@ import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
+import me.champeau.a4j.jsolex.processing.expr.ScriptExecutionContext;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParamsIO;
@@ -156,7 +157,7 @@ public class ScriptingEntryPoint implements Runnable {
                             d -> {
                                 throw new RuntimeException("image not available in batch section. You can only reference images generated in the [outputs] section");
                             },
-                            Map.of(ProcessParams.class, processParams, AnimationFormat.class, animationFormats()),
+                            ScriptExecutionContext.builder().processParams(processParams).animationFormats(animationFormats()).build(),
                             createBroadcaster(new ImageSaver(CutoffStretchingStrategy.DEFAULT, processParams, imageFormats), outputDir)
                     );
                     for (Map.Entry<String, List<ImageWrapper>> entry : generatedImages.entrySet()) {
@@ -219,7 +220,7 @@ public class ScriptingEntryPoint implements Runnable {
                 d -> {
                     throw new IllegalStateException("image not available in standalone mode");
                 },
-                Map.of(ProcessParams.class, processParams, AnimationFormat.class, animationFormats()),
+                ScriptExecutionContext.builder().processParams(processParams).animationFormats(animationFormats()).build(),
                 createBroadcaster(saver, outputDirectory)
         );
         try {

@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.expr;
 
 import me.champeau.a4j.jsolex.expr.ast.Expression;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
+import me.champeau.a4j.jsolex.processing.expr.ScriptExecutionContext;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
@@ -35,7 +36,7 @@ public class UserFunction {
     private final List<String> arguments;
     private final List<Expression> body;
     private final Function<PixelShift, ImageWrapper> imageSupplier;
-    private final Map<Class, Object> context;
+    private final ScriptExecutionContext context;
     private final Consumer<? super Double> shiftCollector;
     private final Broadcaster broadcaster;
     private final List<UserFunction> userFunctions;
@@ -45,7 +46,7 @@ public class UserFunction {
                         List<String> arguments,
                         List<Expression> body,
                         Function<PixelShift, ImageWrapper> imageSupplier,
-                        Map<Class, Object> context,
+                        ScriptExecutionContext context,
                         Consumer<? super Double> shiftCollector,
                         Broadcaster broadcaster,
                         List<UserFunction> userFunctions,
@@ -77,7 +78,7 @@ public class UserFunction {
 
     public UserFunction prepare(
         Function<PixelShift, ImageWrapper> imageSupplier,
-        Map<Class, Object> context,
+        ScriptExecutionContext context,
         Consumer<? super Double> shiftCollector,
         Broadcaster broadcaster,
         Path includesDir

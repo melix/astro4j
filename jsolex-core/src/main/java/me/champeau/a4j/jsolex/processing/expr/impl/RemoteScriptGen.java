@@ -20,6 +20,7 @@ import me.champeau.a4j.jsolex.expr.ExpressionEvaluator;
 import me.champeau.a4j.jsolex.processing.expr.AbstractImageExpressionEvaluator;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
+import me.champeau.a4j.jsolex.processing.expr.ScriptExecutionContext;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 
@@ -27,7 +28,6 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -63,7 +63,7 @@ public class RemoteScriptGen extends AbstractFunctionImpl {
                         var userFunctions = evaluator.getUserFunctions();
                         var executor = new DefaultImageScriptExecutor(
                                 evaluator::findImage,
-                                new HashMap<>(context),
+                                ScriptExecutionContext.empty().mergeAll(context),
                                 broadcaster
                         ) {
                             @Override

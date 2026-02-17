@@ -41,6 +41,7 @@ import me.champeau.a4j.jsolex.processing.event.TrimmingParametersDeterminedEvent
 import me.champeau.a4j.jsolex.processing.event.VideoMetadataEvent;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
+import me.champeau.a4j.jsolex.processing.expr.ScriptExecutionContext;
 import me.champeau.a4j.jsolex.processing.expr.InvalidExpression;
 import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
 import me.champeau.a4j.jsolex.processing.expr.impl.Loader;
@@ -770,7 +771,7 @@ public class SolexVideoProcessor implements Broadcaster {
         var recon = reconstructed.asImage();
         var rotateLeft = ImageMath.newInstance().rotateLeft(recon);
         var metadata = new HashMap<>(reconstructed.metadata());
-        metadata.putAll(createMetadata(processParams, serFile.toPath(), pixelShiftRange, header));
+        metadata.putAll(createMetadata(processParams, serFile.toPath(), pixelShiftRange, header).build().toMap());
 
         var refCoords = metadata.get(ReferenceCoords.class);
         if (refCoords instanceof ReferenceCoords coords) {
@@ -1086,20 +1087,15 @@ public class SolexVideoProcessor implements Broadcaster {
             try (var scriptsReader = SerFileReader.of(serFile)) {
             mathImages.scriptFiles().stream().parallel().forEach(scriptFile -> {
                 broadcast(scriptsOperation.update(0, message("running.scripts") + " : " + scriptFile.getName()));
-                var context = createMetadata(processParams, serFile.toPath(), pixelShiftRange, header);
-                context.put(ImageEmitter.class, emitter);
-                context.put(ProgressOperation.class, scriptsOperation);
-                context.put(SerFileReader.class, scriptsReader);
-                context.putAll(additionalContext);
-                if (circle != null) {
-                    context.put(Ellipse.class, circle);
-                }
-                if (finalImageStats != null) {
-                    context.put(ImageStats.class, finalImageStats);
-                }
-                if (polynomialCoefficients != null) {
-                    context.put(SpectralLinePolynomial.class, new SpectralLinePolynomial(polynomialCoefficients));
-                }
+                var context = createMetadata(processParams, serFile.toPath(), pixelShiftRange, header)
+                    .imageEmitter(emitter)
+                    .progressOperation(scriptsOperation)
+                    .serFileReader(scriptsReader)
+                    .ellipse(circle)
+                    .imageStats(finalImageStats)
+                    .spectralLinePolynomial(polynomialCoefficients != null ? new SpectralLinePolynomial(polynomialCoefficients) : null)
+                    .build()
+                    .mergeAll(additionalContext);
                 var scriptRunner = new DefaultImageScriptExecutor(shift -> {
                     double lookup = shift.pixelShift();
                     if (lookup < minShift) {
@@ -1117,7 +1113,7 @@ public class SolexVideoProcessor implements Broadcaster {
                         images.put(lookup, img);
                     }
                     return img;
-                }, Collections.unmodifiableMap(context), this);
+                }, context, this);
                 var fileParams = mathImages.parameterValues().get(scriptFile);
                 if (fileParams != null) {
                     for (Map.Entry<String, Object> entry : fileParams.entrySet()) {
@@ -1164,17 +1160,8 @@ public class SolexVideoProcessor implements Broadcaster {
         }
     }
 
-    public static Map<Class<?>, Object> createMetadata(ProcessParams processParams, Path serFile, PixelShiftRange pixelShiftRange, Header header) {
-        Map<Class<?>, Object> context = new HashMap<>();
-        context.put(ProcessParams.class, processParams);
-        context.put(SolarParameters.class, SolarParametersUtils.computeSolarParams(processParams.observationDetails().date().toLocalDateTime()));
-        context.put(ReferenceCoords.class, new ReferenceCoords(List.of()));
-        var file = serFile.toFile();
-        context.put(SourceInfo.class, new SourceInfo(file.getName(), file.getParentFile().getName(), header.metadata().utcDateTime(), header.geometry().width(), header.frameCount()));
-        if (pixelShiftRange != null) {
-            context.put(PixelShiftRange.class, pixelShiftRange);
-        }
-        return context;
+    public static ScriptExecutionContext.Builder createMetadata(ProcessParams processParams, Path serFile, PixelShiftRange pixelShiftRange, Header header) {
+        return ScriptExecutionContext.forProcessing(processParams, serFile, pixelShiftRange, header);
     }
 
     private ImageEmitter createCustomImageEmitter(FileNamingStrategy imageNamingStrategy, String baseName) {
