@@ -1740,19 +1740,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         pixelShiftRange = payload.pixelShiftRange();
         mainEllipse = payload.mainEllipse();
         imageScriptExecutor = new JSolExScriptExecutor(
-                shift -> {
-                    var minShift = shiftImages.keySet().stream().mapToDouble(PixelShift::pixelShift).min().orElse(0d);
-                    var maxShift = shiftImages.keySet().stream().mapToDouble(PixelShift::pixelShift).max().orElse(0d);
-                    var lookup = shift.pixelShift();
-                    if (lookup < minShift) {
-                        LOGGER.warn(String.format(message("cropping.window.invalid.shift"), lookup, minShift));
-                        lookup = minShift;
-                    } else if (lookup > maxShift) {
-                        LOGGER.warn(String.format(message("cropping.window.invalid.shift"), lookup, maxShift));
-                        lookup = maxShift;
-                    }
-                    return shiftImages.get(new PixelShift(lookup));
-                },
+                this::lazyReconstructMissingImage,
                 scriptExecutionContext,
                 this,
                 null
@@ -1905,6 +1893,25 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         if (imageScriptExecutor != null) {
             imageScriptExecutor.removeVariable(variable);
         }
+    }
+
+    private ImageWrapper lazyReconstructMissingImage(PixelShift shift) {
+        var lookup = shift.pixelShift();
+        var minShift = shiftImages.keySet().stream().mapToDouble(PixelShift::pixelShift).min().orElse(0d);
+        var maxShift = shiftImages.keySet().stream().mapToDouble(PixelShift::pixelShift).max().orElse(0d);
+        if (lookup < minShift) {
+            LOGGER.warn(String.format(message("cropping.window.invalid.shift"), lookup, minShift));
+            lookup = minShift;
+        } else if (lookup > maxShift) {
+            LOGGER.warn(String.format(message("cropping.window.invalid.shift"), lookup, maxShift));
+            lookup = maxShift;
+        }
+        var img = shiftImages.get(new PixelShift(lookup));
+        if (img == null) {
+            restartProcessForMissingShifts(new TreeSet<>(Set.of(lookup)));
+            img = shiftImages.get(new PixelShift(lookup));
+        }
+        return img;
     }
 
     private void restartProcessForMissingShifts(Set<Double> missingShifts) {
