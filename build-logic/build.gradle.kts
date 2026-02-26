@@ -22,7 +22,7 @@ dependencies {
     implementation("io.github.gradle-nexus:publish-plugin:2.0.0")
     implementation("org.asciidoctor:asciidoctor-gradle-jvm:4.0.5")
     implementation("org.ajoberstar:gradle-git-publish:3.0.0")
-    implementation("org.yaml:snakeyaml:2.5")
+    implementation("org.yaml:snakeyaml:2.6")
 }
 
 tasks.withType<KotlinJvmCompile>().configureEach {
