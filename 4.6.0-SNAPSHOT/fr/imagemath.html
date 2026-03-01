@@ -498,6 +498,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_binning">BINNING</a></li>
 <li><a href="#_choose_file">CHOOSE_FILE</a></li>
 <li><a href="#_choose_files">CHOOSE_FILES</a></li>
+<li><a href="#_collage">COLLAGE</a></li>
 <li><a href="#_ellipse_fit">ELLIPSE_FIT</a></li>
 <li><a href="#_filter">FILTER</a></li>
 <li><a href="#_get_at">GET_AT</a></li>
@@ -1749,6 +1750,78 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <div class="listingblock">
 <div class="content">
 <pre>choose_files(id: "my_id", title: "Choose a file")</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_collage">COLLAGE</h3>
+<div class="paragraph">
+<p>Crée un collage d&#8217;images selon un motif textuel. Utilisez 'X' pour les images, '.' pour les cellules vides, et '/' pour séparer les lignes. Les espaces sont ignorés.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 13.6363%;">
+<col style="width: 13.6363%;">
+<col style="width: 59.0909%;">
+<col style="width: 13.6365%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Argument</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Requis ?</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Description</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Valeur par défaut</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>pattern</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Motif textuel définissant la disposition. 'X' = image, '.' = cellule vide, '/' = nouvelle ligne.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>images</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Liste d&#8217;images à placer dans le collage.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>padding</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Espacement entre les cellules en pixels.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">10</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>bg</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Couleur de fond (0-65535 pour mono, ou liste [r,g,b]).</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">0</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p><strong>Exemples</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>collage("XXX"; list(a;b;c))</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>collage("X X X / X X X"; images)</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>collage(".X. / X.X"; list(a;b;c))</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>collage(pattern: "X.X / .X.", images: list(a;b;c;d), padding: 15, bg: 1000)</pre>
 </div>
 </div>
 </div>
