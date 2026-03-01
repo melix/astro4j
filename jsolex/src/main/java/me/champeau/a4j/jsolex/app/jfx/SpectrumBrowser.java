@@ -103,6 +103,9 @@ public class SpectrumBrowser extends BorderPane {
     private static final Comparator<IdentifiedLine> IDENTIFIED_LINE_COMPARATOR =
         Comparator.comparingInt(IdentifiedLine::difficulty).thenComparing(i -> i.wavelength().angstroms());
     private static final double WIDTH_FACTOR = 0.7;
+    private static final double[] NICE_TICK_INTERVALS = {1, 2, 5, 10, 20, 50, 100, 200, 500, 1000};
+    private static final int TARGET_TICK_COUNT = 10;
+    private static final int[] ZOOM_PRESETS = {25, 50, 75, 100, 150, 200, 400};
     public static final int CROP_HEIGHT = 64;
 
     private final DoubleProperty pixelSize = new SimpleDoubleProperty();
@@ -121,6 +124,9 @@ public class SpectrumBrowser extends BorderPane {
     private final Canvas canvas;
     private final ImageView imageView;
     private final DoubleProperty imageRangeAngstroms = new SimpleDoubleProperty(visibleRangeAngstroms.get());
+
+    private double referenceRangeAngstroms = Double.NaN;
+    private final ChoiceBox<String> zoomPresetChoice = new ChoiceBox<>();
 
     private final Set<IdentifiedLine> userDefinedLines = new HashSet<>();
     private final Configuration configuration;
@@ -218,7 +224,10 @@ public class SpectrumBrowser extends BorderPane {
         var unit = new Label("Å");
         unit.getStyleClass().add("field-unit");
         adjustDispersion.setSelected(true);
-        adjustDispersion.selectedProperty().addListener((observableValue, aBoolean, value) -> drawSpectrum());
+        adjustDispersion.selectedProperty().addListener((observableValue, aBoolean, value) -> {
+            drawSpectrum();
+            updateZoomPresetIndicator();
+        });
         adjustDispersion.getStyleClass().add("check-box");
         var searchButton = new Button(I18N.string(JSolEx.class, "spectrum-browser", "go"));
         searchButton.getStyleClass().add("default-button");
@@ -238,6 +247,26 @@ public class SpectrumBrowser extends BorderPane {
         var zoomOut = new Button("-");
         zoomOut.getStyleClass().add("default-button");
         zoomOut.setOnAction(evt -> zoom(ZOOM_FACTOR));
+        zoomPresetChoice.getStyleClass().add("choice-box");
+        zoomPresetChoice.setPrefWidth(80);
+        for (int preset : ZOOM_PRESETS) {
+            zoomPresetChoice.getItems().add(preset + "%");
+        }
+        zoomPresetChoice.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal == null || Double.isNaN(referenceRangeAngstroms)) {
+                return;
+            }
+            int percent = Integer.parseInt(newVal.replace("%", ""));
+            double targetRange = referenceRangeAngstroms * (100.0 / percent);
+            if (Math.abs(1.0 - targetRange / visibleRangeAngstroms.get()) < 1e-9) {
+                return;
+            }
+            double centerWl = (currentMinWavelength + currentMaxWavelength) / 2.0;
+            adjustDispersion.setSelected(false);
+            visibleRangeAngstroms.set(targetRange);
+            centerWavelength(Wavelen.ofAngstroms(centerWl));
+            drawSpectrum();
+        });
         var shg = new ChoiceBox<SpectroHeliograph>();
         shg.getStyleClass().add("choice-box");
         shg.setConverter(new StringConverter<>() {
@@ -324,7 +353,7 @@ public class SpectrumBrowser extends BorderPane {
         line2.setSpacing(8);
         line2.setPadding(new Insets(4, 4, 4, 4));
         line1.getChildren().addAll(gtLabel, textField, unit, searchButton, choiceBox, colorize, flipSpectrumCheckBox);
-        line2.getChildren().addAll(instrumentLabel, shg, pixelSizeLabel, pixelSizeValue, adjustDispersion, zoomIn, zoomOut, help, loadImage, hide);
+        line2.getChildren().addAll(instrumentLabel, shg, pixelSizeLabel, pixelSizeValue, adjustDispersion, zoomIn, zoomOut, zoomPresetChoice, help, loadImage, hide);
         vbox.getChildren().addAll(line1, line2);
         return vbox;
     }
@@ -543,14 +572,16 @@ public class SpectrumBrowser extends BorderPane {
     private void adjustZoomToOpticsAndDraw() {
         adjustZoomToOptics();
         drawSpectrum();
+        updateZoomPresetIndicator();
     }
 
     private void adjustZoomToOptics() {
         var centerWavelength = Wavelen.ofAngstroms(currentMinWavelength + visibleRangeAngstroms.get() / 2.0);
         var dispersion = computeDispersion(centerWavelength);
         if (!Double.isNaN(dispersion.angstromsPerPixel())) {
+            referenceRangeAngstroms = canvas.getHeight() * dispersion.angstromsPerPixel();
             // adjust zoom level so that it matches the expected dispersion
-            visibleRangeAngstroms.set(canvas.getHeight() * dispersion.angstromsPerPixel());
+            visibleRangeAngstroms.set(referenceRangeAngstroms);
         }
         centerWavelength(centerWavelength);
     }
@@ -637,11 +668,58 @@ public class SpectrumBrowser extends BorderPane {
 
     private void drawLegend(double step, GraphicsContext gc) {
         var spectrumHeight = gc.getCanvas().getHeight();
-        for (double wl = Math.floor(currentMinWavelength / 50) * 50; wl <= currentMaxWavelength; wl += 50) {
+        var spectrumWidth = gc.getCanvas().getWidth() * WIDTH_FACTOR;
+        double visibleRange = currentMaxWavelength - currentMinWavelength;
+        double tickInterval = computeTickInterval(visibleRange);
+        String labelFormat = tickInterval < 1 ? "%.1f" : "%.0f";
+
+        // Major ticks with labels and grid lines
+        for (double wl = Math.floor(currentMinWavelength / tickInterval) * tickInterval; wl <= currentMaxWavelength; wl += tickInterval) {
             var originalPosition = (wl - currentMinWavelength) / step;
             var position = calculatePosition(originalPosition, spectrumHeight);
             gc.setFill(Color.BLACK);
-            gc.fillText(String.format(Locale.US, "%.0f", wl), 10, position + 5);
+            gc.fillText(String.format(Locale.US, labelFormat, wl), 10, position + 5);
+            gc.setStroke(Color.gray(0.85));
+            gc.setLineWidth(0.5);
+            gc.strokeLine(SPECTRUM_OFFSET, position, SPECTRUM_OFFSET + spectrumWidth, position);
+        }
+
+        // Minor ticks (small marks, no labels)
+        double minorInterval = tickInterval / 2;
+        for (double wl = Math.floor(currentMinWavelength / minorInterval) * minorInterval; wl <= currentMaxWavelength; wl += minorInterval) {
+            double remainder = wl / tickInterval;
+            if (Math.abs(remainder - Math.round(remainder)) < 1e-9) {
+                continue;
+            }
+            var originalPosition = (wl - currentMinWavelength) / step;
+            var position = calculatePosition(originalPosition, spectrumHeight);
+            gc.setStroke(Color.gray(0.5));
+            gc.setLineWidth(0.5);
+            gc.strokeLine(SPECTRUM_OFFSET - 5, position, SPECTRUM_OFFSET, position);
+        }
+    }
+
+    private static double computeTickInterval(double visibleRange) {
+        double rawInterval = visibleRange / TARGET_TICK_COUNT;
+        for (double nice : NICE_TICK_INTERVALS) {
+            if (nice >= rawInterval) {
+                return nice;
+            }
+        }
+        return NICE_TICK_INTERVALS[NICE_TICK_INTERVALS.length - 1];
+    }
+
+    private void updateZoomPresetIndicator() {
+        if (adjustDispersion.isSelected() || Double.isNaN(referenceRangeAngstroms) || referenceRangeAngstroms <= 0) {
+            zoomPresetChoice.getSelectionModel().clearSelection();
+            return;
+        }
+        int currentPercent = (int) Math.round(referenceRangeAngstroms / visibleRangeAngstroms.get() * 100);
+        String label = currentPercent + "%";
+        if (zoomPresetChoice.getItems().contains(label)) {
+            zoomPresetChoice.getSelectionModel().select(label);
+        } else {
+            zoomPresetChoice.getSelectionModel().clearSelection();
         }
     }
 
@@ -677,6 +755,7 @@ public class SpectrumBrowser extends BorderPane {
         visibleRangeAngstroms.set(visibleRangeAngstroms.get() * factor);
         centerWavelength(Wavelen.ofAngstroms(centerWavelength));
         drawSpectrum();
+        updateZoomPresetIndicator();
     }
 
     private void zoomAroundPosition(double factor, double mouseY) {
@@ -696,6 +775,7 @@ public class SpectrumBrowser extends BorderPane {
             currentMinWavelength = currentMaxWavelength - newRange;
         }
         drawSpectrum();
+        updateZoomPresetIndicator();
     }
 
     private void searchByWavelength(String text) {
