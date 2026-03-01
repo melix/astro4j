@@ -28,6 +28,8 @@ Vous pouvez désormais utiliser du code Python dans les scripts ImageMath grâce
 Cela permet d'accéder aux structures de contrôle de Python (boucles, conditions, gestion des exceptions) qui manquent à ImageMath, tout en pouvant appeler toutes les fonctions ImageMath, ou encore d'utiliser des libraries Python telles que Numpy ou Scipy dans vos scripts.
 
 - Ajout de la fonction `COLLAGE` pour créer des mises en page via un motif textuel (ex: `collage(".X. / X.X", images)` pour une pyramide)
+- Explorateur de spectre : les graduations de longueur d'onde s'adaptent automatiquement au niveau de zoom, avec des graduations mineures et des lignes de grille pour une meilleure lisibilité
+- Explorateur de spectre : ajout de niveaux de zoom prédéfinis (25%, 50%, 75%, 100%, 150%, 200%, 400%) relatifs à la dispersion de l'instrument
 
 ## Nouveautés de la version 4.5.0
 

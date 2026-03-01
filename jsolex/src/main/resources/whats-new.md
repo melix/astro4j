@@ -28,6 +28,8 @@ You can now use Python code within ImageMath scripts using the new `python()` an
 This provides access to Python's control structures (loops, conditionals, exception handling) that ImageMath lacks, while still being able to call all ImageMath functions.
 
 - Added `COLLAGE` function to create image layouts using a text pattern (e.g., `collage(".X. / X.X", images)` for a pyramid)
+- Spectrum browser: wavelength grid labels now auto-adjust to the zoom level, with minor tick marks and faint grid lines for easier reading
+- Spectrum browser: added zoom level presets (25%, 50%, 75%, 100%, 150%, 200%, 400%) relative to instrument dispersion
 
 ## What's New in Version 4.5.0
 
