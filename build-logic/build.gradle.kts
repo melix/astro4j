@@ -15,7 +15,7 @@ dependencies {
     implementation("org.nosphere.apache:creadur-rat-gradle:0.8.1")
     implementation("org.graalvm.buildtools:native-gradle-plugin:0.10.6")
     implementation("org.beryx.jlink:org.beryx.jlink.gradle.plugin:3.1.3")
-    implementation("org.javamodularity:moduleplugin:1.8.15")
+    implementation("org.javamodularity:moduleplugin:2.0.0")
     implementation("com.diffplug.spotless:spotless-plugin-gradle:7.2.1")
     implementation("com.github.vlsi.gradle:license-gather-plugin:2.0.0")
     implementation("io.micronaut.gradle:micronaut-gradle-plugin:4.5.4")
