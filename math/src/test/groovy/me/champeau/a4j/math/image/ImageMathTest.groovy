@@ -117,6 +117,35 @@ class ImageMathTest extends Specification {
         'vectorized' | new VectorApiImageMath()
     }
 
+    def "vectorized incremental average matches fallback for large arrays"() {
+        def fallback = new FallbackImageMath()
+        def vectorized = new VectorApiImageMath()
+        int width = 5320
+        int height = 100
+        float[][] data = new float[height][width]
+        float[][] avgFallback = new float[height][width]
+        float[][] avgVectorized = new float[height][width]
+        def random = new Random(42)
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                data[y][x] = random.nextFloat() * 65535
+            }
+        }
+
+        when:
+        for (int n = 1; n <= 50; n++) {
+            fallback.incrementalAverage(data, avgFallback, n)
+            vectorized.incrementalAverage(data, avgVectorized, n)
+        }
+
+        then:
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                assert Math.abs(avgFallback[y][x] - avgVectorized[y][x]) < 0.01f
+            }
+        }
+    }
+
     static Image newImage(int width, int height) {
         var data = new float[height][width]
         for (int y = 0; y < height; y++) {

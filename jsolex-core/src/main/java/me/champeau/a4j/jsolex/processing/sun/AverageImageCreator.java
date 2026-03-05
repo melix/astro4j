@@ -24,8 +24,8 @@ import me.champeau.a4j.ser.SerFileReader;
 import me.champeau.a4j.ser.bayer.ImageConverter;
 
 import java.nio.ByteBuffer;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
@@ -72,35 +72,32 @@ public class AverageImageCreator {
         var imageMath = ImageMath.newInstance();
         averageImage = new float[geometry.height()][geometry.width()];
         var counter = new AtomicInteger(0);
+        var averageLock = new ReentrantLock();
         var progressOperation = rootOperation.createChild(limbDetectionMessage);
-        // we start with sampling frames to find the one with the maximum intensity
         var maxMean = findMaxMeanBySampling(reader, frameCount, progressOperation, geometry, imageMath);
-        // We're going to ignore frames which are too dark
         var threshold = 0.5f * maxMean;
-        try (var cpuExecutor = Executors.newFixedThreadPool(1)) {
-            try (var ioExecutor = ParallelExecutor.newExecutor(IO_PARALLELISM)) {
-                reader.seekFrame(0);
-                for (int i = 0; i < frameCount; i++) {
-                    int frameId = i;
-                    broadcaster.broadcast(progressOperation.update(frameId / (double) frameCount));
-                    // Because we're processing each frame concurrently we need
-                    // to copy the frame buffer into a new array
-                    var currentFrame = reader.currentFrame().data().array();
-                    byte[] copy = new byte[currentFrame.length];
-                    System.arraycopy(currentFrame, 0, copy, 0, currentFrame.length);
-                    reader.nextFrame();
-                    ioExecutor.submit(() -> {
-                        var buffer = imageConverter.createBuffer(geometry);
-                        imageConverter.convert(frameId, ByteBuffer.wrap(copy), geometry, buffer);
-                        var frameAvg = imageMath.averageOf(buffer);
-                        if (frameAvg > threshold) {
-                            cpuExecutor.submit(() -> {
-                                // we don't need to synchronize here since averaging is executed on a single thread
-                                imageMath.incrementalAverage(buffer, averageImage, counter.incrementAndGet());
-                            });
+        try (var ioExecutor = ParallelExecutor.newExecutor(IO_PARALLELISM)) {
+            reader.seekFrame(0);
+            for (int i = 0; i < frameCount; i++) {
+                int frameId = i;
+                broadcaster.broadcast(progressOperation.update(frameId / (double) frameCount));
+                var currentFrame = reader.currentFrame().data().array();
+                byte[] copy = new byte[currentFrame.length];
+                System.arraycopy(currentFrame, 0, copy, 0, currentFrame.length);
+                reader.nextFrame();
+                ioExecutor.submit(() -> {
+                    var buffer = imageConverter.createBuffer(geometry);
+                    imageConverter.convert(frameId, ByteBuffer.wrap(copy), geometry, buffer);
+                    var frameAvg = imageMath.averageOf(buffer);
+                    if (frameAvg > threshold) {
+                        averageLock.lock();
+                        try {
+                            imageMath.incrementalAverage(buffer, averageImage, counter.incrementAndGet());
+                        } finally {
+                            averageLock.unlock();
                         }
-                    });
-                }
+                    }
+                });
             }
         } catch (Exception ex) {
             throw ProcessingException.wrap(ex);
@@ -111,29 +108,34 @@ public class AverageImageCreator {
 
     private float findMaxMeanBySampling(SerFileReader reader, int frameCount, ProgressOperation progressOperation, ImageGeometry geometry, ImageMath imageMath) {
         var sampling = Math.max(10, frameCount / 100);
-        var means = new float[1 + frameCount / sampling];
+        var maxMean = new float[]{0f};
+        var maxLock = new ReentrantLock();
         broadcaster.broadcast(progressOperation.update(0 / (double) frameCount));
-        try (var executor = Executors.newFixedThreadPool(IO_PARALLELISM); var averager = Executors.newWorkStealingPool()) {
+        try (var executor = ParallelExecutor.newExecutor(IO_PARALLELISM)) {
             for (int i = 0; i < frameCount; i += sampling) {
                 reader.seekFrame(i);
-                var img = imageConverter.createBuffer(geometry);
                 var currentFrame = reader.currentFrame().data().array();
                 byte[] copy = new byte[currentFrame.length];
                 System.arraycopy(currentFrame, 0, copy, 0, currentFrame.length);
                 int finalI = i;
                 executor.submit(() -> {
+                    var img = imageConverter.createBuffer(geometry);
                     imageConverter.convert(finalI, ByteBuffer.wrap(copy), geometry, img);
-                    averager.submit(() -> means[finalI/sampling] = imageMath.averageOf(img));
+                    var mean = imageMath.averageOf(img);
+                    maxLock.lock();
+                    try {
+                        if (mean > maxMean[0]) {
+                            maxMean[0] = mean;
+                        }
+                    } finally {
+                        maxLock.unlock();
+                    }
                 });
             }
         } catch (Exception e) {
             throw new ProcessingException(e);
         }
-        var maxMean = 0f;
-        for (float mean : means) {
-            maxMean = Math.max(maxMean, mean);
-        }
-        return maxMean;
+        return maxMean[0];
     }
 
     /**

@@ -22,12 +22,9 @@
 
 ## Nouveautés de la version 4.6.0
 
-### Support des scripts Python
-
-Vous pouvez désormais utiliser du code Python dans les scripts ImageMath grâce aux nouvelles fonctions `python()` et `python_file`.
-Cela permet d'accéder aux structures de contrôle de Python (boucles, conditions, gestion des exceptions) qui manquent à ImageMath, tout en pouvant appeler toutes les fonctions ImageMath, ou encore d'utiliser des libraries Python telles que Numpy ou Scipy dans vos scripts.
-
+- Ajout du scripting Python (cf documentation pour les détails)
 - Ajout de la fonction `COLLAGE` pour créer des mises en page via un motif textuel (ex: `collage(".X. / X.X", images)` pour une pyramide)
+- Correction d'une fuite mémoire lors de la reconstruction, visible sur les très gros fichiers SER
 - Explorateur de spectre : les graduations de longueur d'onde s'adaptent automatiquement au niveau de zoom, avec des graduations mineures et des lignes de grille pour une meilleure lisibilité
 - Explorateur de spectre : ajout de niveaux de zoom prédéfinis (25%, 50%, 75%, 100%, 150%, 200%, 400%) relatifs à la dispersion de l'instrument
 
