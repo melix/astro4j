@@ -192,4 +192,24 @@ class VectorApiImageMath implements ImageMath {
         }
         return new Image(first.width(), second.height(), output);
     }
+
+    @Override
+    public void incrementalAverage(float[][] current, float[][] average, int n) {
+        var invN = FloatVector.broadcast(FLOAT_SPECIES, 1.0f / n);
+        for (int j = 0; j < current.length; j++) {
+            var averageLine = average[j];
+            var currentLine = current[j];
+            int len = currentLine.length;
+            int i = 0;
+            for (; i < FLOAT_SPECIES.loopBound(len); i += FLOAT_LEN) {
+                var avg = FloatVector.fromArray(FLOAT_SPECIES, averageLine, i);
+                var cur = FloatVector.fromArray(FLOAT_SPECIES, currentLine, i);
+                // avg + (cur - avg) / n
+                avg.add(cur.sub(avg).mul(invN)).intoArray(averageLine, i);
+            }
+            for (; i < len; i++) {
+                averageLine[i] = averageLine[i] + (currentLine[i] - averageLine[i]) / n;
+            }
+        }
+    }
 }

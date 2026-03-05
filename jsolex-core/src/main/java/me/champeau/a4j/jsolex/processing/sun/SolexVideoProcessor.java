@@ -1502,6 +1502,7 @@ public class SolexVideoProcessor implements Broadcaster {
                     int frameId = i;
                     ops.countUp();
                     conversionPool.submit(() -> {
+                        boolean detectionSubmitted = false;
                         try {
                             // The converter makes sure we only have a single channel
                             converter.convert(frameId, ByteBuffer.wrap(copy), geometry, original);
@@ -1515,6 +1516,7 @@ public class SolexVideoProcessor implements Broadcaster {
                                 processSingleFrame(state.isInternal(), width, height, buffer, y, original, polynomial, state.pixelShift(), totalLines, jSolexSer, truncationDetails);
                                 state.setTruncationDetails(truncationDetails);
                                 if (detectPhenomena && state.pixelShift() == 0) {
+                                    detectionSubmitted = true;
                                     ops.countUp();
                                     detectionPool.submit(() -> {
                                         try {
@@ -1527,13 +1529,16 @@ public class SolexVideoProcessor implements Broadcaster {
                                             hasActiveRegions.set(hasActiveRegions.get() || phenomenaDetector.isActiveRegionsDetectionEnabled());
                                             hasFlares.set(hasFlares.get() || phenomenaDetector.isEllermanBombsDetectionEnabled());
                                         } finally {
+                                            semaphore.release();
                                             ops.countDown();
                                         }
                                     });
                                 }
                             }
                         } finally {
-                            semaphore.release();
+                            if (!detectionSubmitted) {
+                                semaphore.release();
+                            }
                             broadcast(reconstructionOperation.update((double) completedFrames.incrementAndGet() / totalLines));
                             ops.countDown();
                         }
