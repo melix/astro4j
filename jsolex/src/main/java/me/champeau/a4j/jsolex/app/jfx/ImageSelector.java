@@ -81,6 +81,8 @@ public class ImageSelector {
     @FXML
     private CheckBox doppler;
     @FXML
+    private CheckBox dopplerRotationCorrected;
+    @FXML
     private CheckBox continuum;
     @FXML
     private CheckBox debug;
@@ -188,6 +190,7 @@ public class ImageSelector {
                 case NEGATIVE -> negative.setSelected(true);
                 case MIXED -> mixed.setSelected(true);
                 case DOPPLER -> doppler.setSelected(true);
+                case DOPPLER_ROTATION_CORRECTED -> dopplerRotationCorrected.setSelected(true);
                 case CONTINUUM -> continuum.setSelected(true);
                 case RECONSTRUCTION -> reconstruction.setSelected(true);
                 case TECHNICAL_CARD -> technicalCard.setSelected(true);
@@ -199,6 +202,7 @@ public class ImageSelector {
         this.debug.setSelected(debug);
         updatePixelShiftsWithSelectedImages(newPixelShifts);
         doppler.selectedProperty().addListener((observable, oldValue, newValue) -> adjustPixelShifts(newValue, -dopplerShift, dopplerShift));
+        dopplerRotationCorrected.selectedProperty().addListener((observable, oldValue, newValue) -> adjustPixelShifts(newValue, -dopplerShift, dopplerShift));
         continuum.selectedProperty().addListener((observable, oldValue, newValue) -> adjustPixelShifts(newValue, continuumShift));
         activeRegions.selectedProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue) {
@@ -215,7 +219,7 @@ public class ImageSelector {
         if (continuum.isSelected()) {
             result.add(continuumShift);
         }
-        if (doppler.isSelected() || dopplerEclipse.isSelected()) {
+        if (doppler.isSelected() || dopplerRotationCorrected.isSelected() || dopplerEclipse.isSelected()) {
             result.add(-dopplerShift);
             result.add(dopplerShift);
         }
@@ -310,6 +314,13 @@ public class ImageSelector {
         }
         if (doppler.isSelected()) {
             images.add(GeneratedImageKind.DOPPLER);
+            if (internalPixelShifts != null) {
+                internalPixelShifts.remove(-dopplerShift);
+                internalPixelShifts.remove(dopplerShift);
+            }
+        }
+        if (dopplerRotationCorrected.isSelected()) {
+            images.add(GeneratedImageKind.DOPPLER_ROTATION_CORRECTED);
             if (internalPixelShifts != null) {
                 internalPixelShifts.remove(-dopplerShift);
                 internalPixelShifts.remove(dopplerShift);

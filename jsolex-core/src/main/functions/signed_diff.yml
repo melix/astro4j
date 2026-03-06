@@ -1,0 +1,17 @@
+name: SIGNED_DIFF
+category: MATHS
+description:
+  fr: "Calcule la différence signée entre deux images ou scalaires (a - b), sans normalisation."
+  en: "Computes the signed difference between two images or scalars (a - b), without normalization."
+arguments:
+  - name: a
+    description:
+      fr: "Premier opérande"
+      en: "First operand"
+  - name: b
+    description:
+      fr: "Second opérande"
+      en: "Second operand"
+examples:
+  - "signed_diff(img(0); img(1))"
+  - "signed_diff(a: img(0); b: img(1))"

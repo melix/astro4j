@@ -94,6 +94,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
     private CheckBox negative;
     private CheckBox mixed;
     private CheckBox doppler;
+    private CheckBox dopplerRotationCorrected;
     private CheckBox dopplerEclipse;
     private CheckBox continuum;
     private CheckBox redshift;
@@ -153,6 +154,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         negative = createCheckbox("negative.image");
         mixed = createCheckbox("mixed.image");
         doppler = createCheckbox("doppler.image");
+        dopplerRotationCorrected = createCheckbox("doppler.rotation.corrected");
         dopplerEclipse = createCheckbox("doppler.eclipse");
         continuum = createCheckbox("continuum");
         redshift = createCheckbox("redshift");
@@ -171,6 +173,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
                 negative,
                 dopplerEclipse,
                 doppler,
+                dopplerRotationCorrected,
                 geometryCorrected,
                 geometryCorrectedStretched,
                 continuum,
@@ -250,6 +253,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         advancedGrid.add(negative, 0, 2);
         advancedGrid.add(mixed, 0, 3);
         advancedGrid.add(doppler, 0, 4);
+        advancedGrid.add(dopplerRotationCorrected, 0, 5);
 
         advancedGrid.add(dopplerEclipse, 1, 0);
         advancedGrid.add(technicalCard, 1, 1);
@@ -353,6 +357,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         addCustomModeListener(negative);
         addCustomModeListener(mixed);
         addCustomModeListener(doppler);
+        addCustomModeListener(dopplerRotationCorrected);
         addCustomModeListener(dopplerEclipse);
         addCustomModeListener(continuum);
         addCustomModeListener(redshift);
@@ -390,7 +395,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
 
     private List<Double> calculateInternalPixelShiftsForSelectedImages() {
         var result = new TreeSet<Double>();
-        if (doppler.isSelected() || dopplerEclipse.isSelected()) {
+        if (doppler.isSelected() || dopplerRotationCorrected.isSelected() || dopplerEclipse.isSelected()) {
             var ds = Double.parseDouble(controller.getProcessingPanel().getDopplerShiftValue());
             result.add(ds);
             result.add(-ds);
@@ -449,6 +454,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         negative.setSelected(selected);
         mixed.setSelected(selected);
         doppler.setSelected(selected);
+        dopplerRotationCorrected.setSelected(selected);
         dopplerEclipse.setSelected(selected);
         continuum.setSelected(selected);
         redshift.setSelected(selected);
@@ -752,6 +758,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         negative.setSelected(images.contains(GeneratedImageKind.NEGATIVE));
         mixed.setSelected(images.contains(GeneratedImageKind.MIXED));
         doppler.setSelected(images.contains(GeneratedImageKind.DOPPLER));
+        dopplerRotationCorrected.setSelected(images.contains(GeneratedImageKind.DOPPLER_ROTATION_CORRECTED));
         dopplerEclipse.setSelected(images.contains(GeneratedImageKind.DOPPLER_ECLIPSE));
         continuum.setSelected(images.contains(GeneratedImageKind.CONTINUUM));
         redshift.setSelected(images.contains(GeneratedImageKind.REDSHIFT));
@@ -813,6 +820,9 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         }
         if (doppler.isSelected()) {
             images.add(GeneratedImageKind.DOPPLER);
+        }
+        if (dopplerRotationCorrected.isSelected()) {
+            images.add(GeneratedImageKind.DOPPLER_ROTATION_CORRECTED);
         }
         if (dopplerEclipse.isSelected()) {
             images.add(GeneratedImageKind.DOPPLER_ECLIPSE);
@@ -1029,6 +1039,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         if (negative.isSelected()) images.add(GeneratedImageKind.NEGATIVE);
         if (mixed.isSelected()) images.add(GeneratedImageKind.MIXED);
         if (doppler.isSelected()) images.add(GeneratedImageKind.DOPPLER);
+        if (dopplerRotationCorrected.isSelected()) images.add(GeneratedImageKind.DOPPLER_ROTATION_CORRECTED);
         if (dopplerEclipse.isSelected()) images.add(GeneratedImageKind.DOPPLER_ECLIPSE);
         if (continuum.isSelected()) images.add(GeneratedImageKind.CONTINUUM);
         if (redshift.isSelected()) images.add(GeneratedImageKind.REDSHIFT);
@@ -1265,6 +1276,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
                     case NEGATIVE -> negative.setSelected(true);
                     case MIXED -> mixed.setSelected(true);
                     case DOPPLER -> doppler.setSelected(true);
+                    case DOPPLER_ROTATION_CORRECTED -> dopplerRotationCorrected.setSelected(true);
                     case DOPPLER_ECLIPSE -> dopplerEclipse.setSelected(true);
                     case CONTINUUM -> continuum.setSelected(true);
                     case REDSHIFT -> redshift.setSelected(true);

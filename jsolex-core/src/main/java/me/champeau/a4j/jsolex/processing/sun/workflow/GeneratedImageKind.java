@@ -27,6 +27,7 @@ public enum GeneratedImageKind {
     GEOMETRY_CORRECTED_PROCESSED(DisplayCategory.PROCESSED, DirectoryKind.PROCESSED),
     VIRTUAL_ECLIPSE(DisplayCategory.MISC, DirectoryKind.PROCESSED),
     DOPPLER_ECLIPSE(DisplayCategory.MISC, DirectoryKind.PROCESSED),
+    DOPPLER_ROTATION_CORRECTED(DisplayCategory.COLORIZED, DirectoryKind.PROCESSED),
     COLORIZED(DisplayCategory.COLORIZED, DirectoryKind.PROCESSED),
     CONTINUUM(DisplayCategory.PROCESSED, DirectoryKind.PROCESSED),
     MIXED(DisplayCategory.COLORIZED, DirectoryKind.PROCESSED),

@@ -1,6 +1,6 @@
 # Welcome to JSol'Ex {{version}}!
 
-- [Version 4.6.0](#whats-new-in-version-4-6-0) - Python scripting, COLLAGE function
+- [Version 4.6.0](#whats-new-in-version-4-6-0) - Python scripting, COLLAGE function, Doppler rotation correction
 - [Version 4.5.0](#whats-new-in-version-4-5.0) - Doppler shift measurement, rotation profile, script evaluation fix
 - [Version 4.4.5](#whats-new-in-version-4-4-5) - BASS2000 submission fix
 - [Version 4.4.4](#whats-new-in-version-4-4-3) - Fix process params dialog empty in English
@@ -25,8 +25,10 @@
 - Added Python scripting (refer to the documentation for details)
 - Added `COLLAGE` function to create image layouts using a text pattern (e.g., `collage(".X. / X.X", images)` for a pyramid)
 - Fixed a memory leak that would be visible during reconstruction with very large SER files
-- Spectrum browser: wavelength grid labels now auto-adjust to the zoom level, with minor tick marks and faint grid lines for easier reading
-- Spectrum browser: added zoom level presets (25%, 50%, 75%, 100%, 150%, 200%, 400%) relative to instrument dispersion
+- Improved spectrum browser: wavelength grid labels now auto-adjust to the zoom level, with minor tick marks and faint grid lines for easier reading
+- Added zoom level presets to the spectrum browser (25%, 50%, 75%, 100%, 150%, 200%, 400%) relative to instrument dispersion
+- Added "Doppler (rotation corrected)" image: generates a Doppler image with the smooth solar rotation gradient removed using 2D polynomial fitting, making chromospheric velocity features easier to see
+- Added ImageMath functions `SIGNED_DIFF(a, b)` and `POLY_FIT_2D(image, degree)`. `SIGNED_DIFF` computes the difference between two images preserving sign (no normalization), while `POLY_FIT_2D` fits a 2D polynomial surface within the solar disk. These can be combined for custom Doppler correction workflows.
 
 ## What's New in Version 4.5.0
 
