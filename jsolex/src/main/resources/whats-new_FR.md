@@ -1,6 +1,6 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
-- [Version 4.6.0](#nouveautes-de-la-version-4-6-0) - Scripts Python, fonction COLLAGE
+- [Version 4.6.0](#nouveautes-de-la-version-4-6-0) - Scripts Python, fonction COLLAGE, correction de rotation Doppler
 - [Version 4.5.0](#nouveautes-de-la-version-4-5-0) - Rotation différentielle, correction évaluation des scripts
 - [Version 4.4.5](#nouveautes-de-la-version-4-4-5) - Correction soumission BASS2000
 - [Version 4.4.4](#nouveautes-de-la-version-4-4-3) - Correction de l'interface en anglais
@@ -25,8 +25,10 @@
 - Ajout du scripting Python (cf documentation pour les détails)
 - Ajout de la fonction `COLLAGE` pour créer des mises en page via un motif textuel (ex: `collage(".X. / X.X", images)` pour une pyramide)
 - Correction d'une fuite mémoire lors de la reconstruction, visible sur les très gros fichiers SER
-- Explorateur de spectre : les graduations de longueur d'onde s'adaptent automatiquement au niveau de zoom, avec des graduations mineures et des lignes de grille pour une meilleure lisibilité
-- Explorateur de spectre : ajout de niveaux de zoom prédéfinis (25%, 50%, 75%, 100%, 150%, 200%, 400%) relatifs à la dispersion de l'instrument
+- Amélioration de l'explorateur de spectre : les graduations de longueur d'onde s'adaptent automatiquement au niveau de zoom, avec des graduations mineures et des lignes de grille pour une meilleure lisibilité
+- Ajout de niveaux de zoom prédéfinis dans l'explorateur de spectre (25%, 50%, 75%, 100%, 150%, 200%, 400%) relatifs à la dispersion de l'instrument
+- Ajout de l'image "Doppler (correction de rotation)" : génère une image Doppler dont le gradient de rotation solaire lisse a été soustrait par ajustement polynomial 2D, facilitant la visualisation des structures de vitesse chromosphériques
+- Ajout des fonctions ImageMath `SIGNED_DIFF(a, b)` et `POLY_FIT_2D(image, degree)`. `SIGNED_DIFF` calcule la différence entre deux images en préservant le signe (sans normalisation), tandis que `POLY_FIT_2D` ajuste une surface polynomiale 2D dans le disque solaire. Ces fonctions peuvent être combinées pour des workflows de correction Doppler personnalisés.
 
 ## Nouveautés de la version 4.5.0
 

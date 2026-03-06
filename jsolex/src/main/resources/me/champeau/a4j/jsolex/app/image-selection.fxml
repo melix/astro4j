@@ -66,6 +66,7 @@
                     <VBox prefHeight="200.0" prefWidth="100.0" spacing="4.0">
                         <CheckBox fx:id="mixed" mnemonicParsing="false" text="%mixed.image" />
                         <CheckBox fx:id="doppler" mnemonicParsing="false" text="%doppler.image" />
+                        <CheckBox fx:id="dopplerRotationCorrected" mnemonicParsing="false" text="%doppler.rotation.corrected" />
                         <CheckBox fx:id="continuum" mnemonicParsing="false" text="%continuum" />
                         <CheckBox fx:id="technicalCard" mnemonicParsing="false" text="%technical.card" />
                         <CheckBox fx:id="activeRegions" mnemonicParsing="false" text="%activeregions" />
