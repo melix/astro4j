@@ -210,8 +210,7 @@ class Step4SessionMetadataHandler implements StepHandler {
             cameraInfo = new CreateSessionRequest.CameraInfo(
                     parts[0],
                     parts[1],
-                    obs != null ? obs.pixelSize() : null,
-                    obs != null ? obs.binning() : null
+                    obs != null ? obs.pixelSize() : null
             );
         }
 
@@ -252,6 +251,7 @@ class Step4SessionMetadataHandler implements StepHandler {
                 spectroInfo,
                 telescopeInfo,
                 cameraInfo,
+                obs != null ? obs.binning() : null,
                 mountInfo,
                 obs != null ? obs.energyRejectionFilter() : null,
                 latitude,

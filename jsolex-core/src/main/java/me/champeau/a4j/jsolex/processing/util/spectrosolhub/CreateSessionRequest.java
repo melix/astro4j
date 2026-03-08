@@ -23,6 +23,7 @@ public record CreateSessionRequest(
         SpectroheliographInfo spectroheliograph,
         TelescopeInfo telescope,
         CameraInfo camera,
+        Integer binning,
         MountInfo mount,
         String energyRejectionFilter,
         Double latitude,
@@ -55,8 +56,7 @@ public record CreateSessionRequest(
     public record CameraInfo(
             String brand,
             String model,
-            Double pixelSizeUm,
-            Integer binning
+            Double pixelSizeUm
     ) {
     }
 
