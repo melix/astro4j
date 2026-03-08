@@ -56,5 +56,7 @@ module me.champeau.a4j.jsolex.core {
     exports me.champeau.a4j.jsolex.processing.sun.workflow;
     exports me.champeau.a4j.jsolex.processing.sun.detection;
     exports me.champeau.a4j.jsolex.processing.expr.stacking;
+    exports me.champeau.a4j.jsolex.processing.util.spectrosolhub;
+    opens me.champeau.a4j.jsolex.processing.util.spectrosolhub to com.google.gson;
     uses nom.tam.fits.compress.ICompressProvider;
 }

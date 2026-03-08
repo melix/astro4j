@@ -98,6 +98,7 @@ import me.champeau.a4j.jsolex.app.jfx.SpectroHeliographEditor;
 import me.champeau.a4j.jsolex.app.jfx.SpectrumBrowser;
 import me.champeau.a4j.jsolex.app.jfx.StandaloneImagesLoader;
 import me.champeau.a4j.jsolex.app.jfx.bass2000.Bass2000SubmissionController;
+import me.champeau.a4j.jsolex.app.jfx.spectrosolhub.SpectroSolHubSubmissionController;
 import me.champeau.a4j.jsolex.app.jfx.ime.ImageMathTextArea;
 import me.champeau.a4j.jsolex.app.jfx.stacking.StackingAndMosaicController;
 import me.champeau.a4j.jsolex.app.listeners.BatchModeEventListener;
@@ -300,6 +301,9 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     private Button bass2000Button;
 
     @FXML
+    private Button spectroSolHubButton;
+
+    @FXML
     private Label spectralLinePrefix;
 
     @FXML
@@ -357,6 +361,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     private final JSolExServerHolder server = new JSolExServerHolder();
     private ProcessParams reusedProcessParams;
     private ProcessParams lastExecutionProcessParams;
+    private SpectralRay detectedSpectralRay;
     private Path watchedDirectory;
     private WatchService watchService;
     private Button interruptWatchButton;
@@ -881,6 +886,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
 
     @Override
     public void updateSpectralLineIndicator(SpectralRay ray, boolean autoDetected) {
+        detectedSpectralRay = ray;
         Platform.runLater(() -> {
             if (autoDetected) {
                 spectralLinePrefix.setText(message("spectral.line.detected"));
@@ -948,6 +954,14 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             xyRatioIndicator.setVisible(false);
             xyRatioIndicator.setManaged(false);
         });
+    }
+
+    @Override
+    public void enableSpectroSolHubSubmission(SpectralRay detectedSpectralRay) {
+        if (detectedSpectralRay != null) {
+            this.detectedSpectralRay = detectedSpectralRay;
+        }
+        Platform.runLater(() -> spectroSolHubButton.setDisable(false));
     }
 
     private static Color wavelengthToColor(double wavelengthNm) {
@@ -1546,6 +1560,23 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         }
     }
 
+    @FXML
+    private void showSpectroSolHubPublishing() {
+        var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "spectrosolhub-submission");
+        try {
+            var stage = newStage();
+            var node = (Parent) fxmlLoader.load();
+            var controller = (SpectroSolHubSubmissionController) fxmlLoader.getController();
+            controller.setup(stage, lastExecutionProcessParams, detectedSpectralRay, multipleImagesViewer::getAllAvailableImagesWithInfo);
+            var scene = newScene(node);
+            stage.setTitle(I18N.string(JSolEx.class, "spectrosolhub-submission", "wizard.header"));
+            stage.setScene(scene);
+            stage.show();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     private void executeStandaloneScripts(ProcessParams params, ProgressOperation rootOperation) {
         var scriptFiles = params.combinedImageMathParams().scriptFiles();
         var scriptFile = scriptFiles.stream().findFirst();
@@ -1770,6 +1801,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         multipleImagesViewer.setCollageContext(this, lastExecutionProcessParams, outputDirectory);
         hideTabHeaderWhenSingleTab(mainPane);
         bass2000Button.setDisable(true);
+        spectroSolHubButton.setDisable(true);
     }
 
     @Override

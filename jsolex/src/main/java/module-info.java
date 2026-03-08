@@ -54,4 +54,5 @@ module me.champeau.a4j.jsolex {
     opens me.champeau.a4j.jsolex.app to javafx.fxml;
     opens me.champeau.a4j.jsolex.app.jfx to javafx.fxml;
     opens me.champeau.a4j.jsolex.app.jfx.bass2000 to javafx.fxml;
+    opens me.champeau.a4j.jsolex.app.jfx.spectrosolhub to javafx.fxml;
 }

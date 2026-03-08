@@ -219,7 +219,7 @@ public class Bass2000SubmissionController {
                 scaling
         );
 
-        this.comparisonModeManager = new ComparisonModeManager(new ComparisonModeManager.ImageTransformationListener() {
+        this.comparisonModeManager = new ComparisonModeManager(Bass2000SubmissionController::message, new ComparisonModeManager.ImageTransformationListener() {
             @Override
             public void onHorizontalFlip() {
                 if (step2Handler != null) {

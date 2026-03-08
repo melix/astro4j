@@ -62,6 +62,8 @@ public class Configuration {
     private static final String GPU_ACCELERATION = "gpu.acceleration";
     private static final String GRAALPY_EXECUTABLE = "graalpy.executable";
     private static final String HELP_ANIMATION_SEEN_PREFIX = "help.animation.seen.";
+    private static final String SPECTROSOLHUB_TOKEN = "spectrosolhub.token";
+    private static final String DEFAULT_SPECTROSOLHUB_URL = "https://spectrosolhub.com";
 
     /**
      * The default SOLAP FTP server URL for submissions.
@@ -602,6 +604,31 @@ public class Configuration {
     public void setHelpAnimationSeen(String viewerId) {
         var key = HELP_ANIMATION_SEEN_PREFIX + viewerId;
         prefs.put(key, VersionUtil.ANIMATION_VERSION);
+    }
+
+    public Optional<String> getSpectroSolHubToken() {
+        var token = prefs.get(SPECTROSOLHUB_TOKEN, null);
+        return Optional.ofNullable(token);
+    }
+
+    public void setSpectroSolHubToken(String token) {
+        if (token == null) {
+            prefs.remove(SPECTROSOLHUB_TOKEN);
+        } else {
+            prefs.put(SPECTROSOLHUB_TOKEN, token);
+        }
+    }
+
+    public void clearSpectroSolHubToken() {
+        prefs.remove(SPECTROSOLHUB_TOKEN);
+    }
+
+    public String getSpectroSolHubUrl() {
+        var envUrl = System.getenv("SPECTROSOLHUB_URL");
+        if (envUrl != null && !envUrl.isBlank()) {
+            return envUrl;
+        }
+        return DEFAULT_SPECTROSOLHUB_URL;
     }
 
     /** Directory kind enumeration for different file types. */

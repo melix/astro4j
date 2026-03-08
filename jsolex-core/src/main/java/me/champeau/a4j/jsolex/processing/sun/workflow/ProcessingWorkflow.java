@@ -278,7 +278,7 @@ public class ProcessingWorkflow {
                     var activeRegionsMetadata = mono.findMetadata(ActiveRegions.class);
                     if (activeRegionsMetadata.isPresent()) {
                         var activeRegions = activeRegionsMetadata.get();
-                        var img = ImageDraw.drawActiveRegions(rgb, activeRegions, true, true);
+                        var img = ImageDraw.drawActiveRegions(rgb, activeRegions, true, true, broadcaster);
                         r = img.r();
                         g = img.g();
                         b = img.b();
