@@ -24,6 +24,8 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.TransferMode;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -82,6 +84,7 @@ class Step2ImageSelectionHandler implements StepHandler {
     private VBox content;
     private FlowPane gallery;
     private VBox loadingPane;
+    private int dragSourceIndex = -1;
 
     Step2ImageSelectionHandler(Supplier<List<MultipleImagesViewer.ImageInfo>> imagesSupplier, SpectralRay detectedSpectralRay) {
         this.imagesSupplier = imagesSupplier;
@@ -110,6 +113,9 @@ class Step2ImageSelectionHandler implements StepHandler {
         deselectAll.setOnAction(e -> checkBoxes.forEach(cb -> cb.setSelected(false)));
         buttonsBox.getChildren().addAll(selectAll, deselectAll);
 
+        var reorderHint = new Label(message("images.reorder.hint"));
+        reorderHint.setStyle("-fx-font-size: 0.85em; -fx-text-fill: gray;");
+
         gallery = new FlowPane(10, 10);
         gallery.setPadding(new Insets(5));
 
@@ -121,7 +127,7 @@ class Step2ImageSelectionHandler implements StepHandler {
         loadingPane.setAlignment(Pos.CENTER);
         VBox.setVgrow(loadingPane, Priority.ALWAYS);
 
-        content.getChildren().addAll(title, instruction, buttonsBox, loadingPane);
+        content.getChildren().addAll(title, instruction, buttonsBox, reorderHint, loadingPane);
 
         return content;
     }
@@ -160,9 +166,74 @@ class Step2ImageSelectionHandler implements StepHandler {
         Tooltip.install(card, new Tooltip(imageInfo.title()));
 
         cb.selectedProperty().addListener((obs, oldVal, newVal) -> updateCardStyle(card, newVal));
-        card.setOnMouseClicked(e -> cb.setSelected(!cb.isSelected()));
+        card.setOnMouseClicked(e -> {
+            if (!e.isDragDetect()) {
+                cb.setSelected(!cb.isSelected());
+            }
+        });
+
+        card.setOnDragDetected(e -> {
+            dragSourceIndex = gallery.getChildren().indexOf(card);
+            var db = card.startDragAndDrop(TransferMode.MOVE);
+            var content1 = new ClipboardContent();
+            content1.putString(String.valueOf(dragSourceIndex));
+            db.setContent(content1);
+            card.setOpacity(0.5);
+            e.consume();
+        });
+
+        card.setOnDragOver(e -> {
+            if (e.getGestureSource() != card && e.getDragboard().hasString()) {
+                e.acceptTransferModes(TransferMode.MOVE);
+            }
+            e.consume();
+        });
+
+        card.setOnDragEntered(e -> {
+            if (e.getGestureSource() != card && e.getDragboard().hasString()) {
+                card.setStyle(card.getStyle() + "; -fx-effect: dropshadow(gaussian, #0078d4, 6, 0.3, 0, 0);");
+            }
+            e.consume();
+        });
+
+        card.setOnDragExited(e -> {
+            int idx = gallery.getChildren().indexOf(card);
+            updateCardStyle(card, idx < checkBoxes.size() && checkBoxes.get(idx).isSelected());
+            e.consume();
+        });
+
+        card.setOnDragDropped(e -> {
+            var db = e.getDragboard();
+            if (db.hasString()) {
+                int targetIndex = gallery.getChildren().indexOf(card);
+                if (dragSourceIndex >= 0 && dragSourceIndex != targetIndex) {
+                    moveImage(dragSourceIndex, targetIndex);
+                }
+                e.setDropCompleted(true);
+            } else {
+                e.setDropCompleted(false);
+            }
+            e.consume();
+        });
+
+        card.setOnDragDone(e -> {
+            card.setOpacity(1.0);
+            dragSourceIndex = -1;
+            e.consume();
+        });
 
         return card;
+    }
+
+    private void moveImage(int fromIndex, int toIndex) {
+        var movedNode = gallery.getChildren().remove(fromIndex);
+        gallery.getChildren().add(toIndex, movedNode);
+
+        var movedImage = eligibleImages.remove(fromIndex);
+        eligibleImages.add(toIndex, movedImage);
+
+        var movedCheckBox = checkBoxes.remove(fromIndex);
+        checkBoxes.add(toIndex, movedCheckBox);
     }
 
     private static void updateCardStyle(VBox card, boolean selected) {
@@ -211,9 +282,22 @@ class Step2ImageSelectionHandler implements StepHandler {
                 .filter(HeliumImageKind::extracted)
                 .isPresent());
         var continuumPixelShift = findContinuumPixelShift(images);
+        var preselected = new ArrayList<MultipleImagesViewer.ImageInfo>();
+        var notPreselected = new ArrayList<MultipleImagesViewer.ImageInfo>();
         for (var imageInfo : images) {
+            if (shouldPreselect(imageInfo, hasExtractedHeD3, continuumPixelShift)) {
+                preselected.add(imageInfo);
+            } else {
+                notPreselected.add(imageInfo);
+            }
+        }
+        for (var imageInfo : preselected) {
             eligibleImages.add(imageInfo);
-            gallery.getChildren().add(createImageCard(imageInfo, shouldPreselect(imageInfo, hasExtractedHeD3, continuumPixelShift)));
+            gallery.getChildren().add(createImageCard(imageInfo, true));
+        }
+        for (var imageInfo : notPreselected) {
+            eligibleImages.add(imageInfo);
+            gallery.getChildren().add(createImageCard(imageInfo, false));
         }
 
         var scrollPane = new ScrollPane(gallery);
