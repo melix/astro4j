@@ -694,7 +694,7 @@ public class ImageDraw extends AbstractFunctionImpl {
             if (maybeDrawSunspots && processParams.isPresent() && !detectedRegions.isEmpty()) {
                 // Draw each region with label
                 var date = processParams.get().observationDetails().date();
-                var regions = NOAARegions.findActiveRegions(date);
+                var regions = NOAARegions.findActiveRegions(date, broadcaster);
                 drawActiveRegionsLabels(detectedRegions, angleP, b0, g, radius, regions, centerX, centerY, correctAngleP);
             }
             // Draw the prominence distance scale if enabled
@@ -917,16 +917,16 @@ public class ImageDraw extends AbstractFunctionImpl {
                 var img = wrapper.unwrapToMemory();
                 if (img instanceof ImageWrapper32 mono) {
                     var rgb = RGBImage.toRGB(mono);
-                    return drawActiveRegions(rgb, activeRegions, fillRegions, showLabels);
+                    return drawActiveRegions(rgb, activeRegions, fillRegions, showLabels, broadcaster);
                 } else if (img instanceof RGBImage rgb) {
-                    return drawActiveRegions(rgb, activeRegions, fillRegions, showLabels);
+                    return drawActiveRegions(rgb, activeRegions, fillRegions, showLabels, broadcaster);
                 }
             }
         }
         return arg;
     }
 
-    public static RGBImage drawActiveRegions(RGBImage rgb, ActiveRegions activeRegions, boolean fillRegions, boolean showLabels) {
+    public static RGBImage drawActiveRegions(RGBImage rgb, ActiveRegions activeRegions, boolean fillRegions, boolean showLabels, Broadcaster broadcaster) {
         var width = rgb.width();
         var height = rgb.height();
         var r = rgb.r();
@@ -947,7 +947,7 @@ public class ImageDraw extends AbstractFunctionImpl {
                         double radius = (ellipse.semiAxis().a() + ellipse.semiAxis().b()) / 2d;
                         var detectedActiveRegions = activeRegions.regionList();
                         result.set((RGBImage) drawOnImage(rgb, (g, image) -> {
-                            drawActiveRegionsLabels(detectedActiveRegions, angleP, b0, g, radius, NOAARegions.findActiveRegions(date), centerX, centerY, processParams.geometryParams().isAutocorrectAngleP());
+                            drawActiveRegionsLabels(detectedActiveRegions, angleP, b0, g, radius, NOAARegions.findActiveRegions(date, broadcaster), centerX, centerY, processParams.geometryParams().isAutocorrectAngleP());
                         }));
                     });
                 });

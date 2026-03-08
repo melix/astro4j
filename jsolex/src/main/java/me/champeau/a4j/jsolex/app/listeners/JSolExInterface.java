@@ -217,4 +217,6 @@ public interface JSolExInterface {
      */
     void hideGeometryIndicators();
 
+    void enableSpectroSolHubSubmission(SpectralRay detectedSpectralRay);
+
 }

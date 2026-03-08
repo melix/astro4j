@@ -15,6 +15,8 @@
  */
 package me.champeau.a4j.jsolex.processing.util;
 
+import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
+import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.slf4j.Logger;
@@ -23,17 +25,21 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URLConnection;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.zip.GZIPInputStream;
@@ -46,16 +52,19 @@ public class NOAARegions {
     private static final Logger LOGGER = LoggerFactory.getLogger(NOAARegions.class);
     private static final String WAREHOUSE_BASE_URL = "ftp://ftp.swpc.noaa.gov/pub/warehouse/";
     private static final String SRS_BASE_URL = "ftp://ftp.swpc.noaa.gov/pub/forecasts/SRS";
+    private static final int CONNECT_TIMEOUT_MS = 5_000;
+    private static final int READ_TIMEOUT_MS = 30_000;
     private static final Lock LOCK = new ReentrantLock();
+    private static final Set<LocalDate> FAILED_DATES = new HashSet<>();
 
-    public static List<NOAAActiveRegion> findActiveRegions(ZonedDateTime date) {
-        return findActiveRegions(date, VersionUtil.getJsolexDir().resolve("srs"));
+    public static List<NOAAActiveRegion> findActiveRegions(ZonedDateTime date, Broadcaster broadcaster) {
+        return findActiveRegions(date, VersionUtil.getJsolexDir().resolve("srs"), broadcaster);
     }
 
-    private static List<NOAAActiveRegion> findActiveRegions(ZonedDateTime date, Path targetFolder) {
+    private static List<NOAAActiveRegion> findActiveRegions(ZonedDateTime date, Path targetFolder, Broadcaster broadcaster) {
         try {
             LOCK.lock();
-            Optional<String> srs = fetchSRS(date, targetFolder);
+            Optional<String> srs = fetchSRS(date, targetFolder, broadcaster);
             return srs.map(NOAARegions::parseRegions).stream()
                 .flatMap(regions -> regions.stream().map(r -> r.adjustForTime(date)))
                 .toList();
@@ -99,11 +108,18 @@ public class NOAARegions {
         return Collections.unmodifiableList(regions);
     }
 
+    private static URLConnection openConnection(String url) throws URISyntaxException, IOException {
+        var conn = new URI(url).toURL().openConnection();
+        conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
+        conn.setReadTimeout(READ_TIMEOUT_MS);
+        conn.connect();
+        return conn;
+    }
+
     public static void downloadArchive(int year, Path targetFolder) throws URISyntaxException, IOException {
         var fileName = year + "_SRS.tar.gz";
         var url = WAREHOUSE_BASE_URL + year + "/" + fileName;
-        var conn = new URI(url).toURL().openConnection();
-        conn.connect();
+        var conn = openConnection(url);
         try (var in = conn.getInputStream()) {
             var target = targetFolder.resolve(year + "_SRS.tar.gz");
             Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
@@ -111,20 +127,32 @@ public class NOAARegions {
         untar(targetFolder.resolve(year + "_SRS.tar.gz"), targetFolder);
     }
 
-    private static Optional<String> fetchSRS(ZonedDateTime date, Path targetFolder) {
+    private static Optional<String> fetchSRS(ZonedDateTime date, Path targetFolder, Broadcaster broadcaster) {
         // convert date to UTC
         var utcDate = date.withZoneSameInstant(ZoneId.of("UTC"));
         var year = utcDate.getYear();
         var month = utcDate.getMonthValue();
         var day = utcDate.getDayOfMonth();
         var srsDir = targetFolder.resolve(year + "_SRS");
+        var localDate = utcDate.toLocalDate();
+        if (FAILED_DATES.contains(localDate)) {
+            return Optional.empty();
+        }
         var srsFile = srsDir.resolve(year + String.format("%02d", month) + String.format("%02d", day) + "SRS.txt");
         if (!Files.exists(srsFile)) {
+            var taskMessage = String.format(message("download.srs.data"), year, month, day);
+            var operation = ProgressOperation.root(taskMessage, unused -> {});
+            broadcaster.broadcast(operation);
             try {
                 createDirectoriesIfNeeded(srsDir);
                 downloadSRSData(targetFolder, utcDate, year, month, day);
+                operation.complete();
+                broadcaster.broadcast(operation);
             } catch (Exception ex) {
                 LOGGER.warn(String.format(message("download.srs.failed"), year, month, day), ex);
+                operation.complete(String.format(message("download.srs.failed"), year, month, day));
+                broadcaster.broadcast(operation);
+                FAILED_DATES.add(localDate);
                 return Optional.empty();
             }
         }
@@ -177,8 +205,7 @@ public class NOAARegions {
 
     private static void downloadSingleRecentFile(int year, int month, int day, Path targetFolder) throws IOException, URISyntaxException {
         var url = String.format(SRS_BASE_URL + "/%02d%02dSRS.txt", month, day);
-        var conn = new URI(url).toURL().openConnection();
-        conn.connect();
+        var conn = openConnection(url);
         var yearFolder = targetFolder.resolve(String.valueOf(year) + "_SRS");
         createDirectoriesIfNeeded(yearFolder);
         try (var in = conn.getInputStream()) {
@@ -189,8 +216,7 @@ public class NOAARegions {
 
     private static void downloadSingleSameYearFile(int year, int month, int day, Path targetFolder) throws IOException, URISyntaxException {
         var url = String.format(WAREHOUSE_BASE_URL + "/%02d/SRS/%02d%02d%02dSRS.txt", year, year, month, day);
-        var conn = new URI(url).toURL().openConnection();
-        conn.connect();
+        var conn = openConnection(url);
         var yearFolder = targetFolder.resolve(year + "_SRS");
         createDirectoriesIfNeeded(yearFolder);
         try (var in = conn.getInputStream()) {

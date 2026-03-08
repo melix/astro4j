@@ -1,6 +1,6 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
-- [Version 4.6.0](#nouveautes-de-la-version-4-6-0) - Scripts Python, fonction COLLAGE, correction de rotation Doppler
+- [Version 4.6.0](#nouveautes-de-la-version-4-6-0) - Scripts Python, fonction COLLAGE, correction de rotation Doppler, intégration SpectroSolHub
 - [Version 4.5.0](#nouveautes-de-la-version-4-5-0) - Rotation différentielle, correction évaluation des scripts
 - [Version 4.4.5](#nouveautes-de-la-version-4-4-5) - Correction soumission BASS2000
 - [Version 4.4.4](#nouveautes-de-la-version-4-4-3) - Correction de l'interface en anglais
@@ -29,6 +29,10 @@
 - Ajout de niveaux de zoom prédéfinis dans l'explorateur de spectre (25%, 50%, 75%, 100%, 150%, 200%, 400%) relatifs à la dispersion de l'instrument
 - Ajout de l'image "Doppler (correction de rotation)" : génère une image Doppler dont le gradient de rotation solaire lisse a été soustrait par ajustement polynomial 2D, facilitant la visualisation des structures de vitesse chromosphériques
 - Ajout des fonctions ImageMath `SIGNED_DIFF(a, b)` et `POLY_FIT_2D(image, degree)`. `SIGNED_DIFF` calcule la différence entre deux images en préservant le signe (sans normalisation), tandis que `POLY_FIT_2D` ajuste une surface polynomiale 2D dans le disque solaire. Ces fonctions peuvent être combinées pour des workflows de correction Doppler personnalisés.
+
+### Intégration SpectroSolHub
+
+Vous pouvez désormais publier vos images traitées directement sur [SpectroSolHub](https://spectrosolhub.com) depuis JSol'Ex. Après le traitement d'un fichier SER, cliquez sur le bouton « SpectroSolHub » dans la barre d'état pour ouvrir l'assistant de publication. L'assistant vous guide à travers l'authentification, la sélection d'images, les métadonnées de session et le téléversement.
 
 ## Nouveautés de la version 4.5.0
 

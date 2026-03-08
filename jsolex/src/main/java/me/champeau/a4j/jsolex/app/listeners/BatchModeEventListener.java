@@ -456,6 +456,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     }
 
     private void batchFinished() {
+        owner.enableSpectroSolHubSubmission(detectedSpectralLines.stream().findFirst().orElse(null));
         owner.updateProgress(1, String.format(message("batch.finished"), DurationFormatter.formatNanos(System.nanoTime() - sd)));
     }
 

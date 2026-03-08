@@ -234,6 +234,7 @@
                                     <ProgressBar fx:id="memory" prefWidth="200.0" progress="0.0" blendMode="SOFT_LIGHT"/>
                                     <Label fx:id="memoryLabel" style="-fx-text-fill: #666666"/>
                                 </StackPane>
+                                <Button fx:id="spectroSolHubButton" onAction="#showSpectroSolHubPublishing" text="%spectrosolhub.publish" disable="true" styleClass="default-button"/>
                                 <Button onAction="#donate" style="-fx-background-color: transparent; -fx-text-fill: red; -fx-font-size: 12px;" text="♥">
                                     <tooltip>
                                         <Tooltip text="%donate.tooltip"/>

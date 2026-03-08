@@ -1,0 +1,278 @@
+/*
+ * Copyright 2026 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package me.champeau.a4j.jsolex.app.jfx.spectrosolhub;
+
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.ProgressIndicator;
+import javafx.scene.control.Tooltip;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
+import me.champeau.a4j.jsolex.app.AlertFactory;
+import me.champeau.a4j.jsolex.app.jfx.MultipleImagesViewer;
+import me.champeau.a4j.jsolex.app.jfx.WritableImageSupport;
+import me.champeau.a4j.jsolex.processing.params.SpectralRay;
+import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
+import me.champeau.a4j.jsolex.processing.sun.workflow.HeliumLineProcessor.HeliumImageKind;
+import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
+import me.champeau.a4j.jsolex.processing.util.ThumbnailGenerator;
+import me.champeau.a4j.math.regression.Ellipse;
+
+import javafx.application.Platform;
+import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
+
+import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.OptionalDouble;
+import java.util.Set;
+import java.util.function.Supplier;
+
+import static me.champeau.a4j.jsolex.app.jfx.spectrosolhub.SpectroSolHubSubmissionController.message;
+
+class Step2ImageSelectionHandler implements StepHandler {
+    private static final int THUMBNAIL_SIZE = 120;
+    private static final Set<GeneratedImageKind> EXCLUDED_KINDS = EnumSet.of(
+            GeneratedImageKind.RECONSTRUCTION,
+            GeneratedImageKind.DEBUG,
+            GeneratedImageKind.RAW
+    );
+
+    private static final Set<GeneratedImageKind> H_ALPHA_PRESELECTED = EnumSet.of(
+            GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED,
+            GeneratedImageKind.MIXED,
+            GeneratedImageKind.DOPPLER,
+            GeneratedImageKind.VIRTUAL_ECLIPSE,
+            GeneratedImageKind.TECHNICAL_CARD
+    );
+
+    private static final Set<GeneratedImageKind> DEFAULT_PRESELECTED = EnumSet.of(
+            GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED,
+            GeneratedImageKind.MIXED
+    );
+
+    private static final String CARD_STYLE = "-fx-border-color: lightgray; -fx-border-radius: 4; -fx-background-color: white; -fx-background-radius: 4;";
+    private static final String CARD_SELECTED_STYLE = "-fx-border-color: #0078d4; -fx-border-width: 2; -fx-border-radius: 4; -fx-background-color: #f3f9ff; -fx-background-radius: 4;";
+
+    private final Supplier<List<MultipleImagesViewer.ImageInfo>> imagesSupplier;
+    private final SpectralRay detectedSpectralRay;
+    private final List<MultipleImagesViewer.ImageInfo> eligibleImages = new ArrayList<>();
+    private final List<CheckBox> checkBoxes = new ArrayList<>();
+    private VBox content;
+    private FlowPane gallery;
+    private VBox loadingPane;
+
+    Step2ImageSelectionHandler(Supplier<List<MultipleImagesViewer.ImageInfo>> imagesSupplier, SpectralRay detectedSpectralRay) {
+        this.imagesSupplier = imagesSupplier;
+        this.detectedSpectralRay = detectedSpectralRay;
+    }
+
+    @Override
+    public VBox createContent() {
+        if (content != null) {
+            return content;
+        }
+        content = new VBox(10);
+        content.setPadding(new Insets(10));
+
+        var title = new Label(message("images.title"));
+        title.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
+
+        var instruction = new Label(message("images.instruction"));
+        instruction.setWrapText(true);
+
+        var buttonsBox = new HBox(10);
+        buttonsBox.setAlignment(Pos.CENTER_LEFT);
+        var selectAll = new Button(message("images.select.all"));
+        selectAll.setOnAction(e -> checkBoxes.forEach(cb -> cb.setSelected(true)));
+        var deselectAll = new Button(message("images.deselect.all"));
+        deselectAll.setOnAction(e -> checkBoxes.forEach(cb -> cb.setSelected(false)));
+        buttonsBox.getChildren().addAll(selectAll, deselectAll);
+
+        gallery = new FlowPane(10, 10);
+        gallery.setPadding(new Insets(5));
+
+        var loadingIndicator = new ProgressIndicator();
+        loadingIndicator.setPrefSize(40, 40);
+        var loadingLabel = new Label(message("images.loading"));
+        loadingLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: gray;");
+        loadingPane = new VBox(10, loadingIndicator, loadingLabel);
+        loadingPane.setAlignment(Pos.CENTER);
+        VBox.setVgrow(loadingPane, Priority.ALWAYS);
+
+        content.getChildren().addAll(title, instruction, buttonsBox, loadingPane);
+
+        return content;
+    }
+
+    private VBox createImageCard(MultipleImagesViewer.ImageInfo imageInfo, boolean preselected) {
+        var imageView = new ImageView();
+        imageView.setFitWidth(THUMBNAIL_SIZE);
+        imageView.setFitHeight(THUMBNAIL_SIZE);
+        imageView.setPreserveRatio(true);
+        var thumbnail = ThumbnailGenerator.generateThumbnail(imageInfo.image(), THUMBNAIL_SIZE, THUMBNAIL_SIZE);
+        imageView.setImage(WritableImageSupport.asWritable(thumbnail));
+
+        var cb = new CheckBox();
+        cb.setSelected(preselected);
+        checkBoxes.add(cb);
+
+        var checkOverlay = new StackPane(cb);
+        checkOverlay.setAlignment(Pos.TOP_LEFT);
+        checkOverlay.setPadding(new Insets(4));
+
+        var imageStack = new StackPane(imageView, checkOverlay);
+
+        var label = new Label(imageInfo.title());
+        label.setStyle("-fx-font-size: 0.85em; -fx-text-alignment: center;");
+        label.setMaxWidth(THUMBNAIL_SIZE + 10);
+        label.setWrapText(true);
+        label.setAlignment(Pos.CENTER);
+
+        var card = new VBox(4);
+        card.setAlignment(Pos.CENTER);
+        card.setPadding(new Insets(6));
+        card.setPrefWidth(THUMBNAIL_SIZE + 20);
+        card.getChildren().addAll(imageStack, label);
+        updateCardStyle(card, cb.isSelected());
+
+        Tooltip.install(card, new Tooltip(imageInfo.title()));
+
+        cb.selectedProperty().addListener((obs, oldVal, newVal) -> updateCardStyle(card, newVal));
+        card.setOnMouseClicked(e -> cb.setSelected(!cb.isSelected()));
+
+        return card;
+    }
+
+    private static void updateCardStyle(VBox card, boolean selected) {
+        card.setStyle(selected ? CARD_SELECTED_STYLE : CARD_STYLE);
+    }
+
+    @Override
+    public void load() {
+        if (!eligibleImages.isEmpty()) {
+            return;
+        }
+        BackgroundOperations.async(() -> {
+            var allImages = imagesSupplier.get();
+            var filtered = new ArrayList<MultipleImagesViewer.ImageInfo>();
+            for (var imageInfo : allImages) {
+                if (EXCLUDED_KINDS.contains(imageInfo.kind())) {
+                    continue;
+                }
+                if (imageInfo.image().findMetadata(Ellipse.class).isEmpty()) {
+                    continue;
+                }
+                filtered.add(imageInfo);
+            }
+            Platform.runLater(() -> populateGallery(filtered));
+        });
+    }
+
+    private void populateGallery(List<MultipleImagesViewer.ImageInfo> images) {
+        eligibleImages.clear();
+        checkBoxes.clear();
+        gallery.getChildren().clear();
+
+        var idx = content.getChildren().indexOf(loadingPane);
+        if (idx < 0) {
+            return;
+        }
+
+        if (images.isEmpty()) {
+            var noImages = new Label(message("images.none.available"));
+            noImages.setStyle("-fx-text-fill: red;");
+            content.getChildren().set(idx, noImages);
+            return;
+        }
+
+        var hasExtractedHeD3 = images.stream().anyMatch(img -> img.image().findMetadata(HeliumImageKind.class)
+                .filter(HeliumImageKind::extracted)
+                .isPresent());
+        var continuumPixelShift = findContinuumPixelShift(images);
+        for (var imageInfo : images) {
+            eligibleImages.add(imageInfo);
+            gallery.getChildren().add(createImageCard(imageInfo, shouldPreselect(imageInfo, hasExtractedHeD3, continuumPixelShift)));
+        }
+
+        var scrollPane = new ScrollPane(gallery);
+        scrollPane.setFitToWidth(true);
+        VBox.setVgrow(scrollPane, Priority.ALWAYS);
+        content.getChildren().set(idx, scrollPane);
+    }
+
+    private static OptionalDouble findContinuumPixelShift(List<MultipleImagesViewer.ImageInfo> images) {
+        for (var imageInfo : images) {
+            if (imageInfo.kind() == GeneratedImageKind.CONTINUUM) {
+                var ps = imageInfo.image().findMetadata(PixelShift.class);
+                if (ps.isPresent()) {
+                    return OptionalDouble.of(ps.get().pixelShift());
+                }
+            }
+        }
+        return OptionalDouble.empty();
+    }
+
+    private boolean shouldPreselect(MultipleImagesViewer.ImageInfo imageInfo, boolean hasExtractedHeD3, OptionalDouble continuumPixelShift) {
+        if (hasExtractedHeD3) {
+            return imageInfo.image().findMetadata(HeliumImageKind.class)
+                    .filter(HeliumImageKind::extracted)
+                    .isPresent();
+        }
+        var kind = imageInfo.kind();
+        boolean isHAlpha = detectedSpectralRay != null && SpectralRay.H_ALPHA.label().equals(detectedSpectralRay.label());
+        var preselected = isHAlpha ? H_ALPHA_PRESELECTED : DEFAULT_PRESELECTED;
+        if (preselected.contains(kind)) {
+            return true;
+        }
+        if (isHAlpha && kind == GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED && continuumPixelShift.isPresent()) {
+            var ps = imageInfo.image().findMetadata(PixelShift.class);
+            return ps.isPresent() && ps.get().pixelShift() == continuumPixelShift.getAsDouble();
+        }
+        return false;
+    }
+
+    @Override
+    public void cleanup() {
+    }
+
+    @Override
+    public boolean validate() {
+        if (getSelectedImages().isEmpty()) {
+            AlertFactory.error(message("images.none.selected")).showAndWait();
+            return false;
+        }
+        return true;
+    }
+
+    List<MultipleImagesViewer.ImageInfo> getSelectedImages() {
+        var selected = new ArrayList<MultipleImagesViewer.ImageInfo>();
+        for (int i = 0; i < checkBoxes.size(); i++) {
+            if (checkBoxes.get(i).isSelected()) {
+                selected.add(eligibleImages.get(i));
+            }
+        }
+        return selected;
+    }
+}

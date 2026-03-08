@@ -19,7 +19,6 @@ import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
-import javafx.beans.value.ChangeListener;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
@@ -33,18 +32,19 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.util.Duration;
-import me.champeau.a4j.jsolex.app.jfx.I18N;
 import me.champeau.a4j.jsolex.app.jfx.ZoomableImageView;
-import me.champeau.a4j.jsolex.app.JSolEx;
+
+import java.util.List;
+import java.util.function.Function;
 
 import static javafx.scene.input.KeyCode.ESCAPE;
 import static javafx.stage.Modality.APPLICATION_MODAL;
 import static me.champeau.a4j.jsolex.app.JSolEx.newScene;
 
-class ComparisonModeManager {
+public class ComparisonModeManager {
     private static final int IMAGE_VIEW_SIZE = 480;
 
-    enum ComparisonMode {
+    public enum ComparisonMode {
         NORMAL, BLINK, BLEND
     }
 
@@ -74,10 +74,15 @@ class ComparisonModeManager {
     private Image userDisplayImage;
     private Image gongDisplayImage;
 
+    private static final List<ComparisonMode> DEFAULT_MODE_ORDER = List.of(
+            ComparisonMode.NORMAL, ComparisonMode.BLINK, ComparisonMode.BLEND);
+
     private double angleAdjustment = 0.0;
     private final ImageTransformationListener transformationListener;
+    private final Function<String, String> messageFunction;
+    private final List<ComparisonMode> modeOrder;
 
-    interface ImageTransformationListener {
+    public interface ImageTransformationListener {
         void onHorizontalFlip();
         void onVerticalFlip();
         void onRotation(int degrees);
@@ -85,60 +90,76 @@ class ComparisonModeManager {
         void onReset();
     }
 
-    ComparisonModeManager(ImageTransformationListener transformationListener) {
-        this.transformationListener = transformationListener;
+    public ComparisonModeManager(Function<String, String> messageFunction, ImageTransformationListener transformationListener) {
+        this(messageFunction, transformationListener, DEFAULT_MODE_ORDER);
     }
 
-    ComparisonMode getCurrentMode() {
+    public ComparisonModeManager(Function<String, String> messageFunction, ImageTransformationListener transformationListener, List<ComparisonMode> modeOrder) {
+        this.messageFunction = messageFunction;
+        this.transformationListener = transformationListener;
+        this.modeOrder = modeOrder;
+    }
+
+    public ComparisonMode getCurrentMode() {
         return currentMode;
     }
 
-    void setImages(Image userImage, Image gongImage) {
+    public void setImages(Image userImage, Image gongImage) {
         this.userDisplayImage = userImage;
         this.gongDisplayImage = gongImage;
     }
 
-    void setOriginalImageComparisonBox(HBox box) {
+    public void setOriginalImageComparisonBox(HBox box) {
         this.originalImageComparisonBox = box;
     }
 
-    double getAngleAdjustment() {
+    public double getAngleAdjustment() {
         return angleAdjustment;
     }
 
-    void setAngleAdjustment(double angle) {
+    public void setAngleAdjustment(double angle) {
         this.angleAdjustment = angle;
     }
 
-    String getComparisonModeButtonText() {
-        return switch (currentMode) {
-            case NORMAL -> message("mode.button.blink");
-            case BLINK -> message("mode.button.blend");
-            case BLEND -> message("mode.button.normal");
+    private ComparisonMode nextMode() {
+        int idx = modeOrder.indexOf(currentMode);
+        return modeOrder.get((idx + 1) % modeOrder.size());
+    }
+
+    private String labelForMode(ComparisonMode mode) {
+        return switch (mode) {
+            case NORMAL -> message("mode.button.normal");
+            case BLINK -> message("mode.button.blink");
+            case BLEND -> message("mode.button.blend");
         };
     }
 
-    String getFullscreenComparisonModeButtonText() {
-        return switch (currentMode) {
-            case NORMAL, BLINK -> message("mode.button.blend");
-            case BLEND -> message("mode.button.blink");
-        };
+    public String getComparisonModeButtonText() {
+        return labelForMode(nextMode());
     }
 
-    void toggleComparisonMode(HBox angleAdjustmentBox, Button comparisonModeButton,
+    public String getFullscreenComparisonModeButtonText() {
+        return labelForMode(nextFullscreenMode());
+    }
+
+    public void toggleComparisonMode(HBox angleAdjustmentBox, Button comparisonModeButton,
                               Label comparisonModeLabel, Slider comparisonModeSlider) {
-        switch (currentMode) {
-            case NORMAL -> enterBlinkMode(angleAdjustmentBox);
-            case BLINK -> {
-                exitComparisonMode(angleAdjustmentBox);
-                enterBlendMode(angleAdjustmentBox);
-            }
-            case BLEND -> exitComparisonMode(angleAdjustmentBox);
-        }
+        transitionTo(nextMode(), angleAdjustmentBox);
         updateComparisonUI(comparisonModeButton, comparisonModeLabel, comparisonModeSlider);
     }
 
-    void updateComparisonUI(Button comparisonModeButton, Label comparisonModeLabel, Slider comparisonModeSlider) {
+    private void transitionTo(ComparisonMode target, HBox angleAdjustmentBox) {
+        if (currentMode != ComparisonMode.NORMAL) {
+            exitComparisonMode(angleAdjustmentBox);
+        }
+        switch (target) {
+            case BLINK -> enterBlinkMode(angleAdjustmentBox);
+            case BLEND -> enterBlendMode(angleAdjustmentBox);
+            case NORMAL -> {}
+        }
+    }
+
+    public void updateComparisonUI(Button comparisonModeButton, Label comparisonModeLabel, Slider comparisonModeSlider) {
         if (comparisonModeButton != null) {
             comparisonModeButton.setText(getComparisonModeButtonText());
         }
@@ -168,7 +189,7 @@ class ComparisonModeManager {
         }
     }
 
-    void handleComparisonSliderChange(Number newValue) {
+    public void handleComparisonSliderChange(Number newValue) {
         if (currentMode == ComparisonMode.BLINK) {
             double blinkMs = 500.0 + (newValue.doubleValue() / 100.0) * 4500.0;
             blinkDurationMs = blinkMs;
@@ -183,7 +204,7 @@ class ComparisonModeManager {
         }
     }
 
-    void enterBlinkMode(HBox angleAdjustmentBox) {
+    public void enterBlinkMode(HBox angleAdjustmentBox) {
         if (userDisplayImage == null || gongDisplayImage == null) {
             return;
         }
@@ -221,7 +242,7 @@ class ComparisonModeManager {
         startBlinkAnimation();
     }
 
-    void enterBlendMode(HBox angleAdjustmentBox) {
+    public void enterBlendMode(HBox angleAdjustmentBox) {
         if (userDisplayImage == null || gongDisplayImage == null) {
             return;
         }
@@ -274,7 +295,7 @@ class ComparisonModeManager {
         syncZoomBetweenOpacityViews();
     }
 
-    void exitComparisonMode(HBox angleAdjustmentBox) {
+    public void exitComparisonMode(HBox angleAdjustmentBox) {
         currentMode = ComparisonMode.NORMAL;
         showingUserImage = true;
 
@@ -369,7 +390,7 @@ class ComparisonModeManager {
         }
     }
 
-    void updateUserImage(WritableImage newImage) {
+    public void updateUserImage(WritableImage newImage) {
         userDisplayImage = newImage;
 
         if (currentMode == ComparisonMode.BLINK && blinkImageView != null && showingUserImage) {
@@ -391,7 +412,7 @@ class ComparisonModeManager {
         }
     }
 
-    void cleanup() {
+    public void cleanup() {
         if (currentMode != ComparisonMode.NORMAL) {
             exitComparisonMode(null);
         }
@@ -400,7 +421,7 @@ class ComparisonModeManager {
         }
     }
 
-    void openFullscreenComparison(Slider mainAngleSlider) {
+    public void openFullscreenComparison(Slider mainAngleSlider) {
         if (userDisplayImage == null || gongDisplayImage == null) {
             return;
         }
@@ -411,7 +432,7 @@ class ComparisonModeManager {
         }
 
         if (currentMode == ComparisonMode.NORMAL) {
-            currentMode = ComparisonMode.BLINK;
+            currentMode = nextFullscreenMode();
         }
 
         fullscreenStage = new Stage();
@@ -507,41 +528,6 @@ class ComparisonModeManager {
         fullscreenComparisonModeButton.getStyleClass().add("dark-button");
         fullscreenComparisonModeButton.setOnAction(e -> toggleFullscreenComparisonMode());
 
-        var horizontalFlipButton = new Button("⇄ " + message("orientation.button.horizontal.flip"));
-        horizontalFlipButton.getStyleClass().add("dark-button");
-        horizontalFlipButton.setOnAction(e -> transformationListener.onHorizontalFlip());
-
-        var verticalFlipButton = new Button("⇅ " + message("orientation.button.vertical.flip"));
-        verticalFlipButton.getStyleClass().add("dark-button");
-        verticalFlipButton.setOnAction(e -> transformationListener.onVerticalFlip());
-
-        var rotateLeftButton = new Button("↶ " + message("orientation.button.rotate.left"));
-        rotateLeftButton.getStyleClass().add("dark-button");
-        rotateLeftButton.setOnAction(e -> transformationListener.onRotation(-90));
-
-        var rotateRightButton = new Button("↷ " + message("orientation.button.rotate.right"));
-        rotateRightButton.getStyleClass().add("dark-button");
-        rotateRightButton.setOnAction(e -> transformationListener.onRotation(90));
-
-        var resetButton = new Button(message("orientation.button.reset"));
-        resetButton.getStyleClass().add("dark-button");
-        resetButton.setOnAction(e -> transformationListener.onReset());
-
-        var angleLabel = new Label(message("fine.tilt.adjust") + ":");
-        angleLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
-
-        var angleSlider = new Slider(-2.0, 2.0, angleAdjustment);
-        angleSlider.getStyleClass().add("dark-slider");
-        angleSlider.setShowTickLabels(true);
-        angleSlider.setShowTickMarks(true);
-        angleSlider.setMajorTickUnit(1.0);
-        angleSlider.setMinorTickCount(4);
-        angleSlider.setPrefWidth(200);
-        angleSlider.valueProperty().addListener((observable, oldValue, newValue) -> {
-            angleAdjustment = newValue.doubleValue();
-            transformationListener.onAngleAdjustment(angleAdjustment);
-        });
-
         var comparisonSliderLabel = new Label();
         comparisonSliderLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
 
@@ -555,11 +541,52 @@ class ComparisonModeManager {
 
         var leftControls = new HBox(10);
         leftControls.setStyle("-fx-alignment: center-left;");
-        leftControls.getChildren().addAll(horizontalFlipButton, verticalFlipButton, rotateLeftButton, rotateRightButton, resetButton);
 
         var centerControls = new HBox(10);
         centerControls.setStyle("-fx-alignment: center;");
-        centerControls.getChildren().addAll(angleLabel, angleSlider, comparisonSliderLabel, comparisonSlider);
+
+        if (transformationListener != null) {
+            var horizontalFlipButton = new Button("\u21C4 " + message("orientation.button.horizontal.flip"));
+            horizontalFlipButton.getStyleClass().add("dark-button");
+            horizontalFlipButton.setOnAction(e -> transformationListener.onHorizontalFlip());
+
+            var verticalFlipButton = new Button("\u21C5 " + message("orientation.button.vertical.flip"));
+            verticalFlipButton.getStyleClass().add("dark-button");
+            verticalFlipButton.setOnAction(e -> transformationListener.onVerticalFlip());
+
+            var rotateLeftButton = new Button("\u21B6 " + message("orientation.button.rotate.left"));
+            rotateLeftButton.getStyleClass().add("dark-button");
+            rotateLeftButton.setOnAction(e -> transformationListener.onRotation(-90));
+
+            var rotateRightButton = new Button("\u21B7 " + message("orientation.button.rotate.right"));
+            rotateRightButton.getStyleClass().add("dark-button");
+            rotateRightButton.setOnAction(e -> transformationListener.onRotation(90));
+
+            var resetButton = new Button(message("orientation.button.reset"));
+            resetButton.getStyleClass().add("dark-button");
+            resetButton.setOnAction(e -> transformationListener.onReset());
+
+            leftControls.getChildren().addAll(horizontalFlipButton, verticalFlipButton, rotateLeftButton, rotateRightButton, resetButton);
+
+            var angleLabel = new Label(message("fine.tilt.adjust") + ":");
+            angleLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
+
+            var angleSlider = new Slider(-2.0, 2.0, angleAdjustment);
+            angleSlider.getStyleClass().add("dark-slider");
+            angleSlider.setShowTickLabels(true);
+            angleSlider.setShowTickMarks(true);
+            angleSlider.setMajorTickUnit(1.0);
+            angleSlider.setMinorTickCount(4);
+            angleSlider.setPrefWidth(200);
+            angleSlider.valueProperty().addListener((observable, oldValue, newValue) -> {
+                angleAdjustment = newValue.doubleValue();
+                transformationListener.onAngleAdjustment(angleAdjustment);
+            });
+
+            centerControls.getChildren().addAll(angleLabel, angleSlider, comparisonSliderLabel, comparisonSlider);
+        } else {
+            centerControls.getChildren().addAll(comparisonSliderLabel, comparisonSlider);
+        }
 
         var rightControls = new HBox(10);
         rightControls.setStyle("-fx-alignment: center-right;");
@@ -604,19 +631,22 @@ class ComparisonModeManager {
         }
     }
 
-    private void toggleFullscreenComparisonMode() {
-        switch (currentMode) {
-            case NORMAL, BLINK -> {
-                currentMode = ComparisonMode.BLEND;
-                rebuildFullscreenUI();
-            }
-            case BLEND -> {
-                currentMode = ComparisonMode.BLINK;
-                rebuildFullscreenUI();
-            }
+    private ComparisonMode nextFullscreenMode() {
+        var next = nextMode();
+        if (next == ComparisonMode.NORMAL) {
+            next = modeOrder.stream()
+                    .filter(m -> m != ComparisonMode.NORMAL)
+                    .findFirst()
+                    .orElse(ComparisonMode.BLINK);
         }
+        return next;
+    }
+
+    private void toggleFullscreenComparisonMode() {
+        currentMode = nextFullscreenMode();
+        rebuildFullscreenUI();
         if (fullscreenComparisonModeButton != null) {
-            fullscreenComparisonModeButton.setText(getFullscreenComparisonModeButtonText());
+            fullscreenComparisonModeButton.setText(labelForMode(nextFullscreenMode()));
         }
     }
 
@@ -723,7 +753,7 @@ class ComparisonModeManager {
         }
     }
 
-    private static String message(String messageKey) {
-        return I18N.string(JSolEx.class, "bass2000-submission", messageKey);
+    private String message(String messageKey) {
+        return messageFunction.apply(messageKey);
     }
 }

@@ -249,6 +249,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private int width;
     private int height;
     private Ellipse mainEllipse;
+    private SpectralRay detectedSpectralRay;
     private ProgressOperation reconstructionProgress;
 
     private final AtomicInteger cropCount = new AtomicInteger();
@@ -1703,6 +1704,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         scriptValuesByLabel.clear();
         var spectralRay = params.spectrumParams().ray();
         if (spectralRay != null && !SpectralRay.AUTO.equals(spectralRay)) {
+            detectedSpectralRay = spectralRay;
             owner.updateSpectralLineIndicator(spectralRay, false);
         }
         Platform.runLater(() -> {
@@ -1737,6 +1739,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             measureVelocityButton.setDisable(false);
             customMeasurementButton.setDisable(false);
         });
+        owner.enableSpectroSolHubSubmission(null);
         pixelShiftRange = payload.pixelShiftRange();
         mainEllipse = payload.mainEllipse();
         imageScriptExecutor = new JSolExScriptExecutor(

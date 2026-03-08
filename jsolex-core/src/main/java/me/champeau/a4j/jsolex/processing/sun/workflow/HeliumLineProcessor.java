@@ -48,6 +48,11 @@ import static me.champeau.a4j.jsolex.processing.util.Constants.message;
  * A workflow dedicated to generating an helium image.
  */
 public class HeliumLineProcessor {
+    public record HeliumImageKind(boolean extracted) {
+        public static final HeliumImageKind DIRECT = new HeliumImageKind(false);
+        public static final HeliumImageKind EXTRACTED = new HeliumImageKind(true);
+    }
+
     private final ProcessParams processParams;
     private final ProgressOperation progressOperation;
     private final PixelShiftRange pixelShiftRange;
@@ -88,6 +93,8 @@ public class HeliumLineProcessor {
                 .orElse(SpectralRay.HELIUM_D3)
                 .label();
         if (source.unwrapToMemory() instanceof ImageWrapper32 direct) {
+            direct.metadata().put(SpectralRay.class, SpectralRay.HELIUM_D3);
+            direct.metadata().put(HeliumImageKind.class, HeliumImageKind.DIRECT);
             imageEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED, "helium", message("helium.d3.direct"), "helium-direct", message("helium.direct.description"), direct);
             if (evaluator.functionCall(BuiltinFunction.COLORIZE, Map.of("img", direct, "profile", colorProfile)) instanceof RGBImage colorized) {
                 imageEmitter.newColorImage(GeneratedImageKind.COLORIZED, "helium",
@@ -122,6 +129,8 @@ public class HeliumLineProcessor {
             new ArcsinhStretchingStrategy(0, 3, 3).stretch(image);
             var blurred = ImageMath.newInstance().convolve(image.asImage(), Kernel33.GAUSSIAN_BLUR);
             image = (ImageWrapper32) evaluator.functionCall(BuiltinFunction.MAX, Map.of("list", List.of(protus, ImageWrapper32.fromImage(blurred))));
+            image.metadata().put(SpectralRay.class, SpectralRay.HELIUM_D3);
+            image.metadata().put(HeliumImageKind.class, HeliumImageKind.EXTRACTED);
             imageEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED, "helium", message("helium.d3.processed"), "helium-extracted", message("helium.extracted.description"), image);
             if (evaluator.functionCall(BuiltinFunction.COLORIZE, Map.of("img", image, "profile", colorProfile)) instanceof RGBImage colorized) {
                 imageEmitter.newColorImage(GeneratedImageKind.COLORIZED, "helium",
