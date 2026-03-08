@@ -42,6 +42,7 @@
             </TableView>
             <HBox spacing="8">
                 <Button mnemonicParsing="false" onAction="#addRepository" styleClass="primary-button" text="%repository.add"/>
+                <Button mnemonicParsing="false" onAction="#browseSpectroSolHub" styleClass="primary-button" text="%repository.browse.spectrosolhub"/>
                 <Button fx:id="editButton" mnemonicParsing="false" onAction="#editRepository" styleClass="default-button" text="%repository.edit" disable="true"/>
                 <Button fx:id="removeButton" mnemonicParsing="false" onAction="#removeRepository" styleClass="default-button" text="%repository.remove" disable="true"/>
                 <Button fx:id="refreshButton" mnemonicParsing="false" onAction="#refreshRepository" styleClass="default-button" text="%repository.refresh"/>

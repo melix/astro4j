@@ -34,6 +34,8 @@
 
 Vous pouvez désormais publier vos images traitées directement sur [SpectroSolHub](https://spectrosolhub.com) depuis JSol'Ex. Après le traitement d'un fichier SER, cliquez sur le bouton « SpectroSolHub » dans la barre d'état pour ouvrir l'assistant de publication. L'assistant vous guide à travers l'authentification, la sélection d'images, les métadonnées de session et le téléversement.
 
+Vous pouvez également parcourir et ajouter des dépôts de scripts depuis SpectroSolHub directement depuis le gestionnaire de dépôts de scripts. Cliquez sur « Parcourir SpectroSolHub » pour découvrir les dépôts disponibles et les ajouter en un clic.
+
 ## Nouveautés de la version 4.5.0
 
 - Nouvel outil de calcul de rotation différentielle : mesure la rotation différentielle du Soleil par corrélation des profils spectraux des limbes Est et Ouest, avec moyennage par zone de latitude pour une meilleure précision

@@ -34,6 +34,8 @@
 
 You can now publish your processed images directly to [SpectroSolHub](https://spectrosolhub.com) from JSol'Ex. After processing a SER file, click the "SpectroSolHub" button in the status bar to open the publishing wizard. The wizard guides you through authentication, image selection, session metadata, and upload.
 
+You can also browse and add script repositories from SpectroSolHub directly from the script repositories manager. Click "Browse SpectroSolHub" to discover available script repositories and add them with a single click.
+
 ## What's New in Version 4.5.0
 
 - New differential velocity measurement: measures solar differential rotation by correlating East and West limb spectral profiles, with latitude zone averaging for improved accuracy

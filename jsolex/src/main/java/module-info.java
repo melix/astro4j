@@ -25,6 +25,7 @@ module me.champeau.a4j.jsolex {
     requires javafx.fxml;
     requires javafx.media;
     requires javafx.swing;
+    requires java.net.http;
     requires java.prefs;
     requires jdk.incubator.vector;
     requires org.fxmisc.richtext;

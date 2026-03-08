@@ -215,6 +215,35 @@ public class ScriptRepositoriesController {
     }
 
     @FXML
+    private void browseSpectroSolHub() {
+        var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "browse-spectrosolhub");
+        try {
+            var dialogStage = newStage();
+            dialogStage.initOwner(stage);
+            dialogStage.initModality(Modality.APPLICATION_MODAL);
+            var node = (Parent) fxmlLoader.load();
+            var controller = (BrowseSpectroSolHubController) fxmlLoader.getController();
+            var existingUrls = repositories.stream()
+                .map(ScriptRepository::url)
+                .collect(java.util.stream.Collectors.toSet());
+            controller.setup(dialogStage, configuration.getSpectroSolHubUrl(), existingUrls, (name, url) -> {
+                var repository = new ScriptRepository(name, url, null);
+                repositories.add(repository);
+                saveRepositories();
+                refreshRepositoryInBackground(repository, repositories.indexOf(repository));
+            });
+            var scene = newScene(node);
+            dialogStage.setTitle(I18N.string(JSolEx.class, "script-repositories", "repository.browse.spectrosolhub.title"));
+            dialogStage.setScene(scene);
+            dialogStage.showAndWait();
+        } catch (Exception e) {
+            var alert = AlertFactory.error(I18N.string(JSolEx.class, "script-repositories", "repository.browse.spectrosolhub.error") + ": " + e.getMessage());
+            alert.initOwner(stage);
+            alert.showAndWait();
+        }
+    }
+
+    @FXML
     private void editRepository() {
         var selected = repositoriesTable.getSelectionModel().getSelectedItem();
         if (selected == null) {
