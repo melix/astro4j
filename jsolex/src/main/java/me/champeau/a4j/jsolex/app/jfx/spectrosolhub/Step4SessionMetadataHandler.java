@@ -28,7 +28,9 @@ import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.util.EquipmentDatabaseUtils;
 import me.champeau.a4j.jsolex.processing.util.VersionUtil;
 import me.champeau.a4j.jsolex.processing.util.spectrosolhub.CreateSessionRequest;
+import me.champeau.a4j.jsolex.processing.util.spectrosolhub.QuotaResponse;
 
+import java.text.MessageFormat;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.function.Supplier;
@@ -39,6 +41,7 @@ class Step4SessionMetadataHandler implements StepHandler {
     private final ProcessParams processParams;
     private final SpectralRay detectedSpectralRay;
     private final Step2ImageSelectionHandler imageSelectionHandler;
+    private final Step1AuthenticationHandler authHandler;
     private VBox content;
     private TextField titleField;
     private Label dateLabel;
@@ -48,11 +51,13 @@ class Step4SessionMetadataHandler implements StepHandler {
     private TextField mountField;
     private TextArea notesArea;
     private CheckBox publishCheckBox;
+    private Label quotaLabel;
 
-    Step4SessionMetadataHandler(ProcessParams processParams, SpectralRay detectedSpectralRay, Step2ImageSelectionHandler imageSelectionHandler) {
+    Step4SessionMetadataHandler(ProcessParams processParams, SpectralRay detectedSpectralRay, Step2ImageSelectionHandler imageSelectionHandler, Step1AuthenticationHandler authHandler) {
         this.processParams = processParams;
         this.detectedSpectralRay = detectedSpectralRay;
         this.imageSelectionHandler = imageSelectionHandler;
+        this.authHandler = authHandler;
     }
 
     @Override
@@ -105,10 +110,26 @@ class Step4SessionMetadataHandler implements StepHandler {
         notesArea = new TextArea();
         notesArea.setPrefRowCount(3);
         notesArea.setPrefWidth(400);
-        grid.add(notesArea, 1, row++);
+        grid.add(notesArea, 1, row);
+        var notesHint = new Label(message("session.notes.hint"));
+        notesHint.setWrapText(true);
+        notesHint.setStyle("-fx-text-fill: gray; -fx-font-size: 11px;");
+        notesHint.setPrefWidth(250);
+        grid.add(notesHint, 2, row++);
 
         publishCheckBox = new CheckBox(message("session.visibility.public"));
-        grid.add(publishCheckBox, 1, row);
+        grid.add(publishCheckBox, 1, row++);
+
+        var publishHint = new Label(message("session.visibility.hint"));
+        publishHint.setWrapText(true);
+        publishHint.setStyle("-fx-text-fill: gray; -fx-font-size: 11px;");
+        publishHint.setPrefWidth(400);
+        grid.add(publishHint, 1, row++);
+
+        quotaLabel = new Label();
+        quotaLabel.setStyle("-fx-text-fill: gray;");
+        quotaLabel.setWrapText(true);
+        grid.add(quotaLabel, 0, row, 2, 1);
 
         content.getChildren().addAll(title, instruction, grid);
         return content;
@@ -133,6 +154,27 @@ class Step4SessionMetadataHandler implements StepHandler {
         telescopeField.setText(obs.telescope() != null ? obs.telescope() : "");
         cameraField.setText(obs.camera() != null ? obs.camera() : "");
         mountField.setText(obs.mount() != null ? obs.mount() : "");
+
+        var quota = authHandler.getQuotaResponse();
+        if (quota != null) {
+            var storageUsed = formatBytes(quota.usedStorageBytes());
+            var storageTotal = formatBytes(quota.quotaStorageBytes());
+            quotaLabel.setText(MessageFormat.format(message("quota.usage"),
+                    quota.usedImageCount(), quota.quotaImageCount(),
+                    storageUsed, storageTotal));
+        }
+    }
+
+    private static String formatBytes(long bytes) {
+        if (bytes < 1024) {
+            return bytes + " B";
+        } else if (bytes < 1024 * 1024) {
+            return String.format("%.1f KB", bytes / 1024.0);
+        } else if (bytes < 1024L * 1024 * 1024) {
+            return String.format("%.1f MB", bytes / (1024.0 * 1024));
+        } else {
+            return String.format("%.1f GB", bytes / (1024.0 * 1024 * 1024));
+        }
     }
 
     private SpectralRay computeEffectiveSpectralRay() {

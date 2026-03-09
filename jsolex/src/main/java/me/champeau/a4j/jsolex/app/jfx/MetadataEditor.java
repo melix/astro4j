@@ -238,13 +238,20 @@ public class MetadataEditor {
     }
 
     private void validateRequiresField() {
-        var text = requiresField.getText().trim();
+        var text = requiresField.getText();
+        if (text == null) {
+            updateFieldValidationStyle(requiresField, false);
+            return;
+        }
+        text = text.trim();
         boolean isValid = !text.isEmpty() && VERSION_PATTERN.matcher(text).matches();
         updateFieldValidationStyle(requiresField, isValid);
     }
 
     private void validateTitleFields() {
-        boolean hasTitle = !titleEnField.getText().trim().isEmpty() || !titleFrField.getText().trim().isEmpty();
+        var titleEn = titleEnField.getText();
+        var titleFr = titleFrField.getText();
+        boolean hasTitle = (titleEn != null && !titleEn.trim().isEmpty()) || (titleFr != null && !titleFr.trim().isEmpty());
         if (hasTitle) {
             updateFieldValidationStyle(titleEnField, true);
             updateFieldValidationStyle(titleFrField, true);
@@ -255,7 +262,8 @@ public class MetadataEditor {
     }
 
     private void validateFieldVisually(TextField field) {
-        boolean isValid = !field.getText().trim().isEmpty();
+        var text = field.getText();
+        boolean isValid = text != null && !text.trim().isEmpty();
         updateFieldValidationStyle(field, isValid);
     }
 

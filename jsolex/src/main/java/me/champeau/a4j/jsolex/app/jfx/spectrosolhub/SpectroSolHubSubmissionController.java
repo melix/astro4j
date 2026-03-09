@@ -105,7 +105,7 @@ public class SpectroSolHubSubmissionController {
         );
         this.step2Handler = new Step2ImageSelectionHandler(availableImagesSupplier, detectedSpectralRay);
         this.step3Handler = new Step3OrientationHandler(processParams, availableImagesSupplier);
-        this.step4Handler = new Step4SessionMetadataHandler(processParams, detectedSpectralRay, this.step2Handler);
+        this.step4Handler = new Step4SessionMetadataHandler(processParams, detectedSpectralRay, this.step2Handler, this.step1Handler);
 
         Platform.runLater(this::initializeStyles);
         initializeWizard();
