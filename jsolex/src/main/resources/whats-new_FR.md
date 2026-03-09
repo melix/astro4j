@@ -1,275 +1,57 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
-- [Version 4.6.0](#nouveautes-de-la-version-4-6-0) - Scripts Python, fonction COLLAGE, correction de rotation Doppler, intégration SpectroSolHub
-- [Version 4.5.0](#nouveautes-de-la-version-4-5-0) - Rotation différentielle, correction évaluation des scripts
-- [Version 4.4.5](#nouveautes-de-la-version-4-4-5) - Correction soumission BASS2000
-- [Version 4.4.4](#nouveautes-de-la-version-4-4-3) - Correction de l'interface en anglais
-- [Version 4.4.3](#nouveautes-de-la-version-4-4-3) - Améliorations d'interfaces et nouvelles fonctions, validation BASS2000 améliorée
-- [Version 4.4.2](#nouveautes-de-la-version-4-4-2) - Explications à caractère éducatif
-- [Version 4.4.1](#nouveautes-de-la-version-4-4-1) - Corrections de bugs et améliorations
-- [Version 4.4.0](#nouveautes-de-la-version-4-4-0) - Visualiseur de profil spectral 3D, rendu volumétrique pour la tomographie
-- [Version 4.3.1](#nouveautes-de-la-version-4-3-1) - Nouvelles fonctions d'étirement, accélération GPU expérimentale
-- [Version 4.3.0](#nouveautes-de-la-version-4-3-0) - Exécution plus rapide des scripts, amélioration du stacking et corrections de bugs
-- [Version 4.2.1](#nouveautes-de-la-version-4-2-1) - Corrections de bugs
-- [Version 4.2.0](#nouveautes-de-la-version-4-2-0) - Java 25, support GIF, réglages de format de fichier
-- [Version 4.1.4](#nouveautes-de-la-version-4-1-4) - Corrections de bugs et améliorations
-- [Version 4.1.3](#nouveautes-de-la-version-4-1-3) - Amélioration de la correction des bandes
-- [Version 4.1.2](#nouveautes-de-la-version-4-1-2) - Corrections de bugs
-- [Version 4.1.1](#nouveautes-de-la-version-4-1-1) - Corrections de bugs
-- [Version 4.1.0](#nouveautes-de-la-version-4-1-0) - Préréglages utilisateur, création de collages
-- [Version 4.0.1](#nouveautes-de-la-version-4-0-1) - Sélection de langue, corrections
-- [Version 4.0.0](#nouveautes-de-la-version-4-0-0) - Interface améliorée, intégration BASS2000
+## Nouveautés de la version 5.0.0
 
-## Nouveautés de la version 4.6.0
-
-- Ajout du scripting Python (cf documentation pour les détails)
-- Ajout de la fonction `COLLAGE` pour créer des mises en page via un motif textuel (ex: `collage(".X. / X.X", images)` pour une pyramide)
-- Correction d'une fuite mémoire lors de la reconstruction, visible sur les très gros fichiers SER
-- Amélioration de l'explorateur de spectre : les graduations de longueur d'onde s'adaptent automatiquement au niveau de zoom, avec des graduations mineures et des lignes de grille pour une meilleure lisibilité
-- Ajout de niveaux de zoom prédéfinis dans l'explorateur de spectre (25%, 50%, 75%, 100%, 150%, 200%, 400%) relatifs à la dispersion de l'instrument
-- Ajout de l'image "Doppler (correction de rotation)" : génère une image Doppler dont le gradient de rotation solaire lisse a été soustrait par ajustement polynomial 2D, facilitant la visualisation des structures de vitesse chromosphériques
-- Ajout des fonctions ImageMath `SIGNED_DIFF(a, b)` et `POLY_FIT_2D(image, degree)`. `SIGNED_DIFF` calcule la différence entre deux images en préservant le signe (sans normalisation), tandis que `POLY_FIT_2D` ajuste une surface polynomiale 2D dans le disque solaire. Ces fonctions peuvent être combinées pour des workflows de correction Doppler personnalisés.
-
-### Intégration SpectroSolHub
-
-Vous pouvez désormais publier vos images traitées directement sur [SpectroSolHub](https://spectrosolhub.com) depuis JSol'Ex. Après le traitement d'un fichier SER, cliquez sur le bouton « SpectroSolHub » dans la barre d'état pour ouvrir l'assistant de publication. L'assistant vous guide à travers l'authentification, la sélection d'images, les métadonnées de session et le téléversement.
-
-Vous pouvez également parcourir et ajouter des dépôts de scripts depuis SpectroSolHub directement depuis le gestionnaire de dépôts de scripts. Cliquez sur « Parcourir SpectroSolHub » pour découvrir les dépôts disponibles et les ajouter en un clic.
-
-## Nouveautés de la version 4.5.0
-
-- Nouvel outil de calcul de rotation différentielle : mesure la rotation différentielle du Soleil par corrélation des profils spectraux des limbes Est et Ouest, avec moyennage par zone de latitude pour une meilleure précision
-- Correction de l'évaluation des scripts qui traitait incorrectement la première section non nommée comme sortie lorsqu'une section `[outputs]` explicite est présente
-- Clarification du message d'erreur lorsqu'une variable est redéfinie dans une autre section
-
-## Nouveautés de la version 4.4.5
-
-- Correction de la valeur du champ FITS INSTRUME qui n'était pas correctement renseignée dans les soumissions BASS2000
-
-## Nouveautés de la version 4.4.3
-
-- Les vues 3D proposent désormais plusieurs motifs d'animation : cliquez sur l'icône de prévisualisation pour parcourir les options, dont un simple mouvement gauche-droite
-- Ajout de la fonction `SIDE_BY_SIDE` : combine deux images horizontalement (gauche et droite)
-- Ajout de la fonction `TOP_BOTTOM` : combine deux images verticalement (haut et bas)
-- Le mode `consensus` pour l'empilement est désormais le mode par défaut et une option de mode échantillonage automatique a été ajoutée, ce qui rend l'empilement plus rapide
-- Ajout d'une BDD de matériel pour corriger les erreurs de saisie dans les métadonnées (taille d pixels, BASS2000, etc.)
-- Amélioration de la barre de progression pour les opérations longues
-- Correction de la barre "statistiques" qui pouvait afficher une longueur d'onde incorrecte pour le centre de raie
-
-## Nouveautés de la version 4.4.2
-
-- Ajout d'explications à caractère éducatif pour diverses fonctionnalités et concepts de l'application. Accédez-y via l'icône "Aide" qui apparaît sur les images ou les visionneuses
-
-## Nouveautés de la version 4.4.1
-
-- Correction de l'image Doppler non générée lorsque la courbe de colorisation est décochée sur la raie H-alpha
-- Amélioration de la performance de la dédistorsion
-- Support des images couleur dans la régression elliptique
-- Ajout de la possibilité de charger des images depuis le menu "Outils"
-- Correction du visualiseur 3D qui n'utilisait pas l'image étirée
-- Amélioration de la détection de compatibilité des cartes graphiques pour le visualiseur de tomographie sphérique : bascule automatiquement vers la vue en couches sur le matériel non supporté
-- Correction du blocage de l'interface lors de certaines opérations (tomographie, animations perso) si le mode ellipse assistée par l'utilisateur était sélectionné
-
-## Nouveautés de la version 4.4.0
-
-- La légende du graphique de profil est maintenant interactive : cliquez sur les éléments de la légende pour afficher ou masquer les séries de données
-- Nouveau visualiseur de profil spectral 3D : affiche l'intensité de la raie spectrale sous forme de surface 3D en fonction de la position sur la fente et du décalage en longueur d'onde. Accessible via le bouton "Profil spectral 3D" dans l'onglet profil
-- Nouveau visualiseur d'évolution spectrale : montre comment le profil de la raie spectrale varie le long du scan (image par image au centre du disque)
-- Le visualiseur de tomographie sphérique propose désormais un rendu volumétrique avec un lissage des couches qui révèle les structures chromosphériques à différentes altitudes
-- Nouvelle vue 3D pour image unique : affiche n'importe quelle image traitée sous forme d'hémisphère 3D. Accessible via le bouton "3D" dans la barre d'outils de la visionneuse
-
-## Nouveautés de la version 4.3.1
-
-- Ajout de la fonction `PERCENTILE_STRETCH` : étire l'histogramme en mappant les percentiles spécifiés aux points noir et blanc
-- Ajout de la fonction `SIGMOID_STRETCH` : applique une transformation sigmoïde (courbe en S) pour une amélioration douce du contraste
-- [Accélération GPU expérimentale](#acceleration-gpu-experimentale) : traitement d'image significativement plus rapide sur les cartes graphiques compatibles
-- Ajout du mode de sélection de référence `consensus` dans `STACK_REF` : utilise la moyenne des champs de déplacement pour estimer la géométrie non distordue réelle, améliorant la précision de la dédistorsion lorsqu'aucune image n'est optimale
-- Amélioration du zoom : le zoom est maintenant centré sur la position du curseur de la souris au lieu du coin supérieur gauche, gardant la zone d'intérêt centrée dans la vue
-
-### Accélération GPU expérimentale
-
-JSol'Ex 4.3.1 introduit une accélération GPU expérimentale pour accélérer le traitement d'image.
-Lorsqu'elle est activée, des opérations comme la dédistorsion et l'empilement peuvent être significativement plus rapides, en particulier sur les grandes images.
-
-**Comment activer**
-
-1. Allez dans **Paramètres avancés** dans la fenêtre principale
-2. Cochez l'option **Accélération GPU (Expérimental)**
-3. Redémarrez JSol'Ex
-
-**Prérequis**
-
-- Une carte graphique avec des pilotes à jour (NVIDIA, AMD ou Intel)
-- Si l'accélération GPU ne fonctionne pas après activation, essayez de mettre à jour vos pilotes graphiques
-
-## Nouveautés de la version 4.3.0
-
-- Exécution plus rapide des scripts en parallélisant les expressions indépendantes
-- Correction de l'histogramme dans l'onglet statistiques qui ne se mettait pas à jour lors du clic sur les liens d'images
-- Ajout de nouveaux mots clés à la fonction `DRAW_TEXT`
-- Ajout de la fonction `FIT_CANVAS` : ajuste la taille du canevas des images pour qu'elles aient des dimensions identiques sans redimensionner le disque solaire (contrairement à `radius_rescale`), utile pour empiler des images sans introduire de distorsion
-- Amélioration de l'algorithme `DEDISTORT` avec raffinement hiérarchique pour une meilleure stabilité. Ajout du paramètre optionnel `iterations` pour un contrôle plus fin.
-- Correction d'un bug qui empêchait l'ouverture de la calculatrice d'exposition optimale dans certains cas
-- Ajout des fonctions conditionnelles `IFEQ`, `IFNEQ`, `IFGT`, `IFGTE`, `IFLT`, `IFLTE` pour la sélection conditionnelle de valeurs basée sur des comparaisons
-- Ajout des fonctions de statistiques par image `IMG_AVG`, `IMG_AVG2`, `IMG_MEDIAN`, `IMG_MEDIAN2`, `IMG_MIN`, `IMG_MAX` qui calculent des statistiques sur tous les pixels de chaque image (contrairement à `AVG`, `MEDIAN`, etc. qui calculent des statistiques pixel par pixel sur plusieurs images)
-- Ajout du support des métadonnées de sortie dans les scripts : les scripts peuvent désormais définir des titres et descriptions pour leurs sorties dans le bloc `meta` en utilisant une section `outputs`. Ceux-ci sont affichés dans le visualiseur d'images à la place des noms de variables
-- Amélioration de l'anti-aliasing dans l'image éclipse, mix et les fonctions `DISK_FILL` et `DISK_MASK`
-
-## Nouveautés de la version 4.2.1
-
-- Correction du globe mal positionné dans l'outil de mesure lorsque le recadrage automatique n'était pas utilisé
-- Correction de l'outil d'extraction de frames SER qui n'exportait que des fichiers MP4 même lorsque MP4 et GIF étaient sélectionnés dans les paramètres avancés
-- Amélioration de la gestion de la mémoire pour que le traitement fonctionne sur des systèmes avec moins de mémoire
-- Ajout d'un moyen de définir les paramètres de script dans la boîte de dialogue de script sur la fenêtre principale
-- Correction de la création d'animations personnalisées lorsque la correction de l'angle P était appliquée
-- Correction du calcul du paramètre solaire L0
-
-## Nouveautés de la version 4.2.0
-
-- Passage à Java 25
-- Les formats de fichier font désormais partie des réglages avancés (en dehors des paramètres de traitement)
-- Ajout de la possibilité de générer des fichiers GIF en plus du MP4
-- Ajout du support pour déclarer des [dépôts de scripts](#depots-de-scripts)
-
-## Nouveautés de la version 4.1.4
-
-- Correction d'une fuite de mémoire
-- Clarification de l'affichage de la conversion des pixels en Angströms dans la boîte de dialogue des paramètres de traitement
-- Correction de `COLORIZE` qui n'acceptait pas un paramètre de longueur d'onde comme annoncé
-- Correction d'un cas limite où la colorisation pouvait échouer
-- Correction de l'affichage du décalage de pixels dans les détails d'observation
-- Correction de la correction excessive des bandes
-
-## Nouveautés de la version 4.1.3
-
-- Amélioration de la correction des bandes
-- Amélioration de l'algorithme d'alignement/empilement
-- Ajout de la fonction `STACK_DEDIS` pour empiler en prenant en compte la distorsion comme poids
-
-## Nouveautés de la version 4.1.2
-
-- Ajout d'un champ nom de fichier dans la boîte de dialogue de création de collage pour personnaliser le nom des fichiers
-- Correction de l'orientation des images ailes de raies qui n'était pas appliquée (BASS2000)
-- Réduction de l'utilisation mémoire lors de la génération de collages
-
-## Nouveautés de la version 4.1.1
-
-- Correction de la sélection de couleur d'arrière-plan des collages qui n'était pas appliquée correctement
-- Correction du paramètre d'espacement des collages qui n'était pas appliqué correctement
-- Correction des scripts qui échouaient s'ils contenaient un bloc `[params]`
-
-## Nouveautés de la version 4.1.0
-
-- **Préréglages utilisateur** : Créez, sauvegardez et gérez vos propres préréglages personnalisés pour la sélection d'images et les scripts, en complément des modes Rapide et Complet
-- Les scripts peuvent maintenant déclarer leurs paramètres qui seront automatiquement configurables dans l'interface utilisateur
-- Ajout du mode fondu pour l'alignement d'images BASS2000 avec opacité réglable
-- Avertissement lors de la soumission à BASS2000 si un fichier a déjà été envoyé le même jour pour la même longueur d'onde
-- Correction du bouton d'upload BASS2000 activé avant la sauvegarde des fichiers sur disque
-- [Création de collages d'images](#creation-de-collages-d-images) : Nouvelle fonctionnalité de collage permettant de combiner plusieurs images traitées en une seule image composite avec mise en page et espacement personnalisables
-
-## Nouveautés de la version 4.0.1
-
-- [ui] Possibilité de choisir la langue de l'interface
-- [bugfix] Correction des popups de complétion intrusives
-- [bugfix] Correction du champ INSTRUME dans la soumission BASS2000
-
-## Nouveautés de la version 4.0.0
-
-- [Interface utilisateur améliorée](#interface-utilisateur-améliorée)
-- [Intégration BASS2000](#intégration-bass2000)
-- [Détection manuelle d'ellipse](#détection-manuelle-dellipse)
-- [Scripts automatiques](#scripts-automatiques)
+- [Intégration SpectroSolHub](#intégration-spectrosolhub)
+- [Scripts Python](#scripts-python)
+- [Correction de rotation Doppler](#correction-de-rotation-doppler)
+- [Améliorations de l'explorateur de spectre](#améliorations-de-lexplorateur-de-spectre)
 - [Nouvelles fonctions ImageMath](#nouvelles-fonctions-imagemath)
 - [Corrections et améliorations](#corrections-et-améliorations)
 
-## Interface utilisateur améliorée
+## Intégration SpectroSolHub
 
-JSol'Ex 4.0 présente une interface des paramètres de traitement entièrement repensée.  
-L'interface a été modernisée pour une meilleure organisation des contrôles et une interface plus intuitive.
+[SpectroSolHub](https://spectrosolhub.com) est un nouveau service compagnon de JSol'Ex. Actuellement en bêta, il vous permet de partager vos images spectrohéliographiques avec la communauté. Il est développé par l'auteur de JSol'Ex.
 
-![Nouvelle interface utilisateur](/docs/new-ui-fr.png)
+![SpectroSolHub](/docs/spectrosolhub.png)
 
-## Intégration BASS2000
+Vous pouvez désormais publier vos images traitées directement sur SpectroSolHub depuis JSol'Ex. Après le traitement d'un fichier SER, cliquez sur le bouton « SpectroSolHub » dans la barre d'état pour ouvrir l'assistant de publication. L'assistant vous guide à travers l'authentification, la sélection d'images, les métadonnées de session et le téléversement.
 
-Cette version introduit l'intégration avec la base de données solaire BASS2000.  
-Cette fonctionnalité vous permet de soumettre vos observations à une base de données professionnelle et de contribuer à la recherche scientifique.
-Vous devrez compléter un court processus d'inscription pour être approuvé en tant que contributeur.
-JSol'Ex vous propose un assistant de soumission qui vous guidera dans ce processus.
+Vous pouvez également parcourir et ajouter des dépôts de scripts depuis SpectroSolHub directement depuis le gestionnaire de dépôts de scripts. Cliquez sur « Parcourir SpectroSolHub » pour découvrir les dépôts disponibles et les ajouter en un clic.
 
-![BASS2000 Submission Wizard](/docs/bass2000-fr.png)
+**Note :** En téléversant des images sur SpectroSolHub, vous accordez une licence non exclusive, mondiale et libre de redevance pour l'utilisation de votre contenu à des fins de recherche scientifique.
 
-BASS2000 accepte les observations d'instruments approuvés (variantes Sol'Ex et MLAstro SHG 700) qui respectent des exigences spécifiques :
-- Uniquement des images de disque solaire complet (pas de disques partiels, stacks ou mosaïques)
-- Les images doivent provenir de scans uniques sans transformations supplémentaires ou amélioration du contraste
-- La correction de l'angle P doit être appliquée avec un tilt inférieur à 1°
-- La mise en station doit être précise
-- Longueurs d'onde supportées : H-alpha, H-alpha continuum bleu, CaII K, CaII aile bleue, CaII H centre
+## Scripts Python
 
-L'assistant valide automatiquement vos images traitées par rapport à ces exigences et gère le processus de soumission.
+JSol'Ex 5.0 introduit le scripting Python, une avancée majeure en matière d'extensibilité.
+Vous pouvez désormais écrire des scripts de traitement d'image en Python, en complément du langage ImageMath existant.
+Les scripts Python ont accès à l'ensemble du pipeline de traitement et peuvent exploiter le riche écosystème Python pour des analyses avancées.
 
-## Détection manuelle d'ellipse
+Consultez la documentation pour les détails sur l'écriture et l'utilisation des scripts Python.
 
-JSol'Ex 4.0 introduit la détection manuelle d'ellipse pour les cas où la détection automatique du disque solaire échoue.  
-Quand la détection automatique d'ellipse ne peut pas identifier correctement les contours du disque solaire, vous pouvez maintenant dessiner manuellement une ellipse autour du disque solaire pour assurer une correction géométrique précise.
+## Correction de rotation Doppler
 
-![Détection manuelle d'ellipse](/docs/assisted-fit-fr.png)
+JSol'Ex 5.0 introduit un nouveau type d'image « Doppler (correction de rotation) ».
+Cette image Doppler est générée en soustrayant le gradient lisse de rotation solaire par ajustement polynomial 2D, ce qui rend les structures de vitesse chromosphériques beaucoup plus faciles à identifier.
 
-Cette fonctionnalité est particulièrement utile pour :
-- Les images avec un contraste faible ou des conditions d'éclairage inhabituelles
-- Les observations de disque solaire partiel
-- Les cas où la détection automatique est perturbée par des artefacts ou des protubérances
-- L'ajustement fin de la correction géométrique pour des résultats optimaux
+Deux nouvelles fonctions ImageMath accompagnent cette fonctionnalité : `SIGNED_DIFF(a, b)` calcule la différence entre deux images en préservant le signe (sans normalisation), tandis que `POLY_FIT_2D(image, degree)` ajuste une surface polynomiale 2D dans le disque solaire.
 
-Pour utiliser la détection manuelle d'ellipse, sélectionnez "Assistée par l'utilisateur" dans le menu déroulant du mode de détection d'ellipse dans la section Paramètres de traitement avancés.
+## Améliorations de l'explorateur de spectre
 
-## Scripts automatiques
+L'explorateur de spectre a été considérablement amélioré dans cette version :
 
-JSol'Ex 4.0 introduit la capacité d'exécuter automatiquement des scripts pour des longueurs d'onde spécifiques.  
-Cette fonctionnalité vous permet de configurer des flux de traitement standardisés qui s'exécutent de manière cohérente à travers vos observations.
-
-L'exécution des scripts a été améliorée pour s'assurer que les sections batch fonctionnent correctement en mode de traitement de fichier unique et en mode lot.  
-Cela corrige les problèmes précédents où les scripts batch pouvaient ne pas s'exécuter comme attendu.
+- Les graduations de longueur d'onde s'adaptent automatiquement au niveau de zoom, avec des graduations mineures et des lignes de grille pour une meilleure lisibilité
+- Ajout de niveaux de zoom prédéfinis (25%, 50%, 75%, 100%, 150%, 200%, 400%) relatifs à la dispersion de l'instrument
 
 ## Nouvelles fonctions ImageMath
 
-Deux nouvelles fonctions statistiques ont été ajoutées au module ImageMath :
-
-- `avg2` : calcule la moyenne de plusieurs images avec écrêtage sigma pour rejeter automatiquement les valeurs aberrantes
-- `median2` : calcule la médiane de plusieurs images avec détection configurable des valeurs aberrantes basée sur sigma
-
-Ces fonctions sont particulièrement utiles lors de la combinaison de plusieurs observations, car elles aident à réduire le bruit et éliminent les artefacts qui pourraient apparaître dans les images individuelles.
-
-## Création de collages d'images
-
-JSol'Ex 4.1 introduit une nouvelle fonctionnalité pour créer des collages d'images à partir de plusieurs images traitées.
-Cela vous permet de combiner plusieurs images en une seule image composite avec mise en page et espacement personnalisables.
-
-![Création de collages d'images](/docs/collage-interface-fr.jpg)
-
-Vous pouvez sélectionner plusieurs images traitées et les organiser dans une grille.
-
-## Dépôts de scripts
-
-JSol'Ex 4.2 introduit le support des dépôts de scripts, permettant aux utilisateurs de découvrir et télécharger automatiquement des scripts ImageMath publiés par la communauté.
-Les utilisateurs peuvent déclarer des dépôts via le menu Outils en fournissant un nom et une URL.
-Les dépôts de scripts sont un moyen pratique d'étendre les capacités de JSol'Ex avec des scripts contribués par la communauté.
+- `COLLAGE` : crée des mises en page via un motif textuel (ex : `collage(".X. / X.X", images)` pour une pyramide)
+- `SIGNED_DIFF(a, b)` : calcule la différence entre deux images en préservant le signe
+- `POLY_FIT_2D(image, degree)` : ajuste une surface polynomiale 2D dans le disque solaire
 
 ## Corrections et améliorations
 
-Cette version corrige plusieurs bugs et inclut diverses améliorations :
-
-- Correction d'un bug où les sections batch des scripts automatisés n'étaient pas exécutées en mode lot
-- Correction de la lecture des fichiers FITS legacy écrits par les versions précédentes de JSol'Ex
-- Correction des faux positifs dans la détection de bombes d'Ellerman se produisant près du limbe solaire
-- Correction du schéma de couleurs incorrect appliqué quand le mode auto-détection est activé
-- Correction des erreurs non propagées correctement en mode de traitement par lots
-- Correction de la touche ESC qui continuait à démarrer le traitement au lieu d'annuler
-- Correction des info-bulles manquantes et de la validation des formulaires dans diverses boîtes de dialogue
-- Les images générées par script ne sont plus automatiquement étirées par défaut (corrige l'issue #660)
-- Ajout de la possibilité d'ajouter plus de fichiers à un lot existant pour traitement
-- Ajout de l'option de télécharger des images GONG à une date et heure arbitraires
-- Ajout de l'option de taille fixe au menu de recadrage automatique pour maintenir des dimensions d'image spécifiques
-- Le bouton d'exécution est maintenant désactivé pendant le traitement pour éviter les démarrages multiples accidentels
+- Correction d'une fuite mémoire lors de la reconstruction, visible sur les très gros fichiers SER
 
 ## Message aux utilisateurs français
 

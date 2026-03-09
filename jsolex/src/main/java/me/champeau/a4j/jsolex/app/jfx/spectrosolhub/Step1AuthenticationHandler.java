@@ -29,6 +29,7 @@ import javafx.scene.layout.VBox;
 import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.jsolex.processing.util.SpectroSolHubClient;
+import me.champeau.a4j.jsolex.processing.util.spectrosolhub.QuotaResponse;
 import me.champeau.a4j.jsolex.processing.util.spectrosolhub.SpectroSolHubException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,6 +45,7 @@ class Step1AuthenticationHandler implements StepHandler {
 
     private final Consumer<Boolean> onAuthenticationChanged;
     private boolean authenticated;
+    private QuotaResponse quotaResponse;
     private TextField usernameField;
     private PasswordField passwordField;
     private TextField totpField;
@@ -164,6 +166,12 @@ class Step1AuthenticationHandler implements StepHandler {
 
                 Configuration.getInstance().setSpectroSolHubToken(token);
 
+                var client = new SpectroSolHubClient(url, token);
+                try {
+                    quotaResponse = client.fetchQuota();
+                } catch (SpectroSolHubException ignored) {
+                }
+
                 Platform.runLater(this::showConnected);
             } catch (SpectroSolHubException ex) {
                 Platform.runLater(() -> {
@@ -251,7 +259,7 @@ class Step1AuthenticationHandler implements StepHandler {
                 try {
                     var url = config.getSpectroSolHubUrl();
                     var client = new SpectroSolHubClient(url, tokenOpt.get());
-                    client.fetchQuota();
+                    quotaResponse = client.fetchQuota();
                     Platform.runLater(() -> {
                         connectedLabel.setText(message("auth.connected"));
                         connectedLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: green;");
@@ -286,5 +294,9 @@ class Step1AuthenticationHandler implements StepHandler {
 
     boolean isAuthenticated() {
         return authenticated;
+    }
+
+    QuotaResponse getQuotaResponse() {
+        return quotaResponse;
     }
 }

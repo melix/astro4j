@@ -770,7 +770,7 @@ public class FitsUtils {
         header.addValue(PHYSPARA, "Intensity", "Physical parameter");
         header.addValue(WAVEUNIT, -10, "Wavelength unit");
 
-        header.addValue(FILENAME, destination.getName(), "Original filename");
+        header.addValue(FILENAME, normalize(destination.getName()), "Original filename");
 
         // Add solar parameters if available
         image.findMetadata(SolarParameters.class).ifPresent(solarParams -> {
