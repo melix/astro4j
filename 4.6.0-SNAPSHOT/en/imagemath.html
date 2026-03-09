@@ -488,7 +488,9 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_median">MEDIAN</a></li>
 <li><a href="#_median2">MEDIAN2</a></li>
 <li><a href="#_min">MIN</a></li>
+<li><a href="#_poly_fit_2d">POLY_FIT_2D</a></li>
 <li><a href="#_pow">POW</a></li>
+<li><a href="#_signed_diff">SIGNED_DIFF</a></li>
 <li><a href="#_weighted_avg">WEIGHTED_AVG</a></li>
 </ul>
 </li>
@@ -1456,6 +1458,61 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </div>
 </div>
 <div class="sect2">
+<h3 id="_poly_fit_2d">POLY_FIT_2D</h3>
+<div class="paragraph">
+<p>Fits a 2D polynomial surface to a mono image within the solar disk.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 13.6363%;">
+<col style="width: 13.6363%;">
+<col style="width: 59.0909%;">
+<col style="width: 13.6365%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Argument</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Required?</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Description</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Default value</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>image</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Mono image</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>degree</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Polynomial degree</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">3</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p><strong>Examples</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>poly_fit_2d(signed_diff(img(0); img(1)))</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>poly_fit_2d(signed_diff(img(0); img(1)); 3)</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>poly_fit_2d(image: signed_diff(img(0); img(1)); degree: 3)</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
 <h3 id="_pow">POW</h3>
 <div class="paragraph">
 <p>Computes a power</p>
@@ -1512,6 +1569,56 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <div class="listingblock">
 <div class="content">
 <pre>pow(v:2, exp: 3)</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_signed_diff">SIGNED_DIFF</h3>
+<div class="paragraph">
+<p>Computes the signed difference between two images or scalars (a - b), without normalization.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 13.6363%;">
+<col style="width: 13.6363%;">
+<col style="width: 59.0909%;">
+<col style="width: 13.6365%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Argument</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Required?</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Description</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Default value</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>a</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">First operand</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>b</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Second operand</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p><strong>Examples</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>signed_diff(img(0); img(1))</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>signed_diff(a: img(0); b: img(1))</pre>
 </div>
 </div>
 </div>
