@@ -27,20 +27,24 @@ import javafx.scene.image.Image;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import me.champeau.a4j.jsolex.app.jfx.Corrector;
 import me.champeau.a4j.jsolex.app.jfx.MultipleImagesViewer;
 import me.champeau.a4j.jsolex.app.jfx.WritableImageSupport;
 import me.champeau.a4j.jsolex.app.jfx.ZoomableImageView;
 import me.champeau.a4j.jsolex.app.jfx.bass2000.ComparisonModeManager;
 import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
 import me.champeau.a4j.jsolex.processing.expr.impl.Scaling;
+import me.champeau.a4j.jsolex.processing.params.AutocropMode;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
+import me.champeau.a4j.jsolex.processing.util.SolarParametersUtils;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.GONG;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import org.slf4j.Logger;
@@ -199,6 +203,7 @@ class Step3OrientationHandler implements StepHandler {
                     wrapper = fbi.unwrapToMemory();
                 }
                 var image = wrapper.copy();
+                image = applyPAngleCorrectionIfNeeded(image, representative.kind());
                 image = scaling.rescaleToRadius(image, 225, 512, 512);
                 LinearStrechingStrategy.DEFAULT.stretch(image);
                 if (image instanceof ImageWrapper32 mono) {
@@ -267,6 +272,21 @@ class Step3OrientationHandler implements StepHandler {
         if (gongImageContainer.getChildren().size() > 1) {
             gongImageContainer.getChildren().set(1, gongImageView);
         }
+    }
+
+    private ImageWrapper applyPAngleCorrectionIfNeeded(ImageWrapper image, GeneratedImageKind kind) {
+        if (processParams == null || processParams.observationDetails().date() == null) {
+            return image;
+        }
+        boolean pAlreadyCorrected = kind == GeneratedImageKind.TECHNICAL_CARD
+                || (processParams.geometryParams().isAutocorrectAngleP() && !kind.cannotPerformManualRotation());
+        if (!pAlreadyCorrected) {
+            var p = SolarParametersUtils.computeSolarParams(processParams.observationDetails().date().toLocalDateTime()).p();
+            if (p != 0) {
+                image = Corrector.rotate(image, p, processParams.geometryParams().autocropMode() == AutocropMode.OFF);
+            }
+        }
+        return image;
     }
 
     private MultipleImagesViewer.ImageInfo findRepresentativeImage(List<MultipleImagesViewer.ImageInfo> images) {

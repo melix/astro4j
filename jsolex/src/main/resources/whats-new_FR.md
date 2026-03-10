@@ -1,5 +1,10 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+## Nouveautés de la version 5.0.1
+
+- Correction du téléversement SpectroSolHub qui n'appliquait pas les transformations (comme la correction de l'angle P) aux images non consultées individuellement avant le téléversement
+- Correction de l'étape de comparaison d'orientation SpectroSolHub qui n'appliquait pas la correction de l'angle P à l'image utilisateur lors de la comparaison avec la référence GONG
+
 ## Nouveautés de la version 5.0.0
 
 - [Intégration SpectroSolHub](#intégration-spectrosolhub)

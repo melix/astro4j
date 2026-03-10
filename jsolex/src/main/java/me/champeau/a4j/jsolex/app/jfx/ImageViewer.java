@@ -701,6 +701,16 @@ public class ImageViewer implements WithRootNode {
     }
 
     private void stretchAndDisplay(boolean resetZoom) {
+        computeStretchedImage();
+        if (onStretchedImageUpdate != null) {
+            onStretchedImageUpdate.accept(stretchedImage);
+        }
+        Platform.runLater(() -> stretchedImageDebounce.playFromStart());
+        var writable = WritableImageSupport.asWritable(stretchedImage);
+        Platform.runLater(() -> updateDisplay(writable, resetZoom));
+    }
+
+    private void computeStretchedImage() {
         var unwrapped = this.image.unwrapToMemory();
         var transformedImage = applyTransformations(unwrapped);
         if (stretchingMode == StretchingMode.NO_STRETCH) {
@@ -712,12 +722,6 @@ public class ImageViewer implements WithRootNode {
                 stretchedImage = stretch(rgb);
             }
         }
-        if (onStretchedImageUpdate != null) {
-            onStretchedImageUpdate.accept(stretchedImage);
-        }
-        Platform.runLater(() -> stretchedImageDebounce.playFromStart());
-        var writable = WritableImageSupport.asWritable(stretchedImage);
-        Platform.runLater(() -> updateDisplay(writable, resetZoom));
     }
 
     private ImageWrapper applyTransformations(ImageWrapper image) {
@@ -745,6 +749,9 @@ public class ImageViewer implements WithRootNode {
      * @return the stretched image
      */
     public ImageWrapper getStretchedImage() {
+        if (stretchedImage == null && image != null) {
+            computeStretchedImage();
+        }
         var result = stretchedImage == null ? image : stretchedImage;
         return result == null ? null : result.unwrapToMemory();
     }
