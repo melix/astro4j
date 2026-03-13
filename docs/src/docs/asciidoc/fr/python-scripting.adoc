@@ -40,15 +40,88 @@ Pour les bibliothèques externes comme NumPy, voir <<external-python-libraries>>
 [[external-python-libraries]]
 == Utiliser des bibliothèques externes (NumPy, etc.)
 
-Pour utiliser des bibliothèques externes comme NumPy, configurez un environnement virtuel GraalPy :
-
-1. Installez GraalPy (voir https://www.graalvm.org/python/docs/#installing-graalpy[les instructions d'installation])
-2. Créez un environnement virtuel : `graalpy -m venv /chemin/vers/venv`
-3. Installez les packages : `/chemin/vers/venv/bin/pip install numpy pyarrow`
-4. Dans JSol'Ex : **Fichier -> Paramètres avancés -> Scripting Python**, naviguez vers `/chemin/vers/venv/bin/graalpy`
-5. Redémarrez JSol'Ex
+Pour utiliser des bibliothèques externes comme NumPy, configurez un environnement virtuel GraalPy.
 
 IMPORTANT: Pour de meilleures performances, installez NumPy et PyArrow ensemble. PyArrow permet un transfert de données efficace sans copie entre Java et Python, accélérant significativement les opérations `toNumpy()` et `fromNumpy()` sur les grandes images.
+
+=== Support par plateforme
+
+WARNING: **Windows ne supporte pas NumPy ni les autres extensions natives.** GraalPy sous Windows ne peut installer que des packages Python purs (pas d'extensions C, pas de compilation depuis les sources). NumPy, PyArrow et les bibliothèques similaires nécessitant du code natif ne fonctionneront pas. Si vous avez besoin de ces bibliothèques, utilisez Linux ou macOS.
+
+Sous Windows, vous pouvez tout de même utiliser GraalPy pour du scripting Python pur (sans `import numpy`). Pour mettre cela en place, passez directement à <<graalpy-venv-windows>>.
+
+=== Étape 1 : Installer GraalPy
+
+Téléchargez et installez GraalPy depuis la https://www.graalvm.org/python/docs/#installing-graalpy[page officielle de GraalPy].
+
+=== Étape 2 : Installer les prérequis (Linux / macOS uniquement)
+
+NumPy peut nécessiter une compilation depuis les sources sous GraalPy, ce qui requiert un compilateur C et l'utilitaire `patch`.
+
+**Linux**
+
+Installez un compilateur C et patch s'ils ne sont pas déjà disponibles :
+
+[source,bash]
+----
+# Debian/Ubuntu
+sudo apt install build-essential patch
+
+# Fedora
+sudo dnf install gcc gcc-c++ patch
+----
+
+**macOS**
+
+Installez les outils en ligne de commande Xcode s'ils ne sont pas déjà installés :
+
+[source,bash]
+----
+xcode-select --install
+----
+
+=== Étape 3 : Créer un environnement virtuel et installer les packages
+
+Choisissez un répertoire pour votre environnement virtuel, par exemple `graalpy-venv` dans votre dossier personnel.
+
+**Linux / macOS**
+
+[source,bash]
+----
+graalpy -m venv ~/graalpy-venv
+~/graalpy-venv/bin/pip install numpy pyarrow
+----
+
+NOTE: L'installation peut prendre plusieurs minutes si NumPy doit être compilé depuis les sources.
+
+[[graalpy-venv-windows]]
+**Windows** (Python pur uniquement, sans NumPy)
+
+[source,cmd]
+----
+graalpy -m venv C:\Users\<votre-utilisateur>\graalpy-venv
+----
+
+TIP: Sous Windows, l'environnement virtuel place les exécutables dans le dossier `Scripts` (et non `bin`). Pour installer des packages Python purs, utilisez le `python.exe` de l'environnement virtuel avec le flag `--no-cache-dir` : `C:\Users\<votre-utilisateur>\graalpy-venv\Scripts\python.exe -m pip --no-cache-dir install <package>`.
+
+=== Étape 4 : Configurer JSol'Ex
+
+Dans JSol'Ex, allez dans **Fichier -> Paramètres avancés -> Scripting Python** et naviguez vers l'exécutable GraalPy dans votre environnement virtuel :
+
+- **Windows** : `C:\Users\<votre-utilisateur>\graalpy-venv\Scripts\graalpy.exe`
+- **Linux / macOS** : `~/graalpy-venv/bin/graalpy`
+
+Redémarrez JSol'Ex pour que le changement prenne effet.
+
+=== Dépannage
+
+**`pip` n'est pas reconnu (Windows)** -- N'appelez pas `pip` ou `pip.exe` directement. Utilisez `Scripts\python.exe -m pip --no-cache-dir install ...` depuis l'environnement virtuel.
+
+**L'installation de NumPy échoue sous Windows** -- GraalPy sous Windows ne supporte pas les extensions natives. NumPy ne peut pas être installé. Utilisez Linux ou macOS si vous avez besoin de NumPy.
+
+**`GraalPy needs the 'patch' utility` (Linux / macOS)** -- Installez la commande `patch` via le gestionnaire de packages de votre système (voir les prérequis ci-dessus).
+
+**Avertissements de certificats SSL (Windows)** -- L'avertissement `unable to enumerate Windows certificate store` peut être ignoré sans risque ; il n'empêche pas l'installation des packages.
 
 Une fois configuré :
 

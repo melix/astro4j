@@ -40,15 +40,88 @@ For external libraries like NumPy, see <<external-python-libraries>>.
 [[external-python-libraries]]
 == Using External Libraries (NumPy, etc.)
 
-To use external libraries like NumPy, configure a GraalPy virtual environment:
-
-1. Install GraalPy (see https://www.graalvm.org/python/docs/#installing-graalpy[installation instructions])
-2. Create a virtual environment: `graalpy -m venv /path/to/venv`
-3. Install packages: `/path/to/venv/bin/pip install numpy pyarrow`
-4. In JSol'Ex: **File -> Advanced Parameters -> Python Scripting**, browse to `/path/to/venv/bin/graalpy`
-5. Restart JSol'Ex
+To use external libraries like NumPy, configure a GraalPy virtual environment.
 
 IMPORTANT: For best performance, install both NumPy and PyArrow together. PyArrow enables efficient zero-copy data transfer between Java and Python, significantly speeding up `toNumpy()` and `fromNumpy()` operations on large images.
+
+=== Platform support
+
+WARNING: **Windows does not support NumPy or other native extensions.** GraalPy on Windows can only install pure Python packages (no C extensions, no source builds). NumPy, PyArrow, and similar libraries requiring native code will not work. If you need these libraries, use Linux or macOS.
+
+On Windows, you can still use GraalPy for pure Python scripting (no `import numpy`). To set this up, skip to <<graalpy-venv-windows>>.
+
+=== Step 1: Install GraalPy
+
+Download and install GraalPy from the https://www.graalvm.org/python/docs/#installing-graalpy[official GraalPy page].
+
+=== Step 2: Install prerequisites (Linux / macOS only)
+
+NumPy may need to be compiled from source under GraalPy, which requires a C compiler and the `patch` utility.
+
+**Linux**
+
+Install a C compiler and patch if not already available:
+
+[source,bash]
+----
+# Debian/Ubuntu
+sudo apt install build-essential patch
+
+# Fedora
+sudo dnf install gcc gcc-c++ patch
+----
+
+**macOS**
+
+Install Xcode command line tools if not already installed:
+
+[source,bash]
+----
+xcode-select --install
+----
+
+=== Step 3: Create a virtual environment and install packages
+
+Choose a directory for your virtual environment, for example `graalpy-venv` in your home folder.
+
+**Linux / macOS**
+
+[source,bash]
+----
+graalpy -m venv ~/graalpy-venv
+~/graalpy-venv/bin/pip install numpy pyarrow
+----
+
+NOTE: The installation may take several minutes if NumPy needs to be compiled from source.
+
+[[graalpy-venv-windows]]
+**Windows** (pure Python only, no NumPy)
+
+[source,cmd]
+----
+graalpy -m venv C:\Users\<your-username>\graalpy-venv
+----
+
+TIP: On Windows, the virtual environment places executables in the `Scripts` folder (not `bin`). To install pure Python packages, use the `python.exe` from inside the venv with the `--no-cache-dir` flag: `C:\Users\<your-username>\graalpy-venv\Scripts\python.exe -m pip --no-cache-dir install <package>`.
+
+=== Step 4: Configure JSol'Ex
+
+In JSol'Ex, go to **File -> Advanced Parameters -> Python Scripting** and browse to the GraalPy executable inside your virtual environment:
+
+- **Windows**: `C:\Users\<your-username>\graalpy-venv\Scripts\graalpy.exe`
+- **Linux / macOS**: `~/graalpy-venv/bin/graalpy`
+
+Restart JSol'Ex for the change to take effect.
+
+=== Troubleshooting
+
+**`pip` is not recognized (Windows)** -- Do not call `pip` or `pip.exe` directly. Use `Scripts\python.exe -m pip --no-cache-dir install ...` from inside the virtual environment.
+
+**NumPy installation fails on Windows** -- GraalPy on Windows does not support native extensions. NumPy cannot be installed. Use Linux or macOS if you need NumPy.
+
+**`GraalPy needs the 'patch' utility` (Linux / macOS)** -- Install the `patch` command using your system package manager (see prerequisites above).
+
+**SSL certificate warnings (Windows)** -- The warning `unable to enumerate Windows certificate store` can be safely ignored; it does not prevent package installation.
 
 Once configured:
 
