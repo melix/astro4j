@@ -466,7 +466,16 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <div id="toctitle">Table of Contents</div>
 <ul class="sectlevel1">
 <li><a href="#_basic_usage">Basic Usage</a></li>
-<li><a href="#external-python-libraries">Using External Libraries (NumPy, etc.)</a></li>
+<li><a href="#external-python-libraries">Using External Libraries (NumPy, etc.)</a>
+<ul class="sectlevel2">
+<li><a href="#_platform_support">Platform support</a></li>
+<li><a href="#_step_1_install_graalpy">Step 1: Install GraalPy</a></li>
+<li><a href="#_step_2_install_prerequisites_linux_macos_only">Step 2: Install prerequisites (Linux / macOS only)</a></li>
+<li><a href="#_step_3_create_a_virtual_environment_and_install_packages">Step 3: Create a virtual environment and install packages</a></li>
+<li><a href="#_step_4_configure_jsolex">Step 4: Configure JSol&#8217;Ex</a></li>
+<li><a href="#_troubleshooting">Troubleshooting</a></li>
+</ul>
+</li>
 <li><a href="#_the_jsolex_module">The jsolex Module</a>
 <ul class="sectlevel2">
 <li><a href="#_calling_imagemath_functions_jsolex_funcs">Calling ImageMath Functions (jsolex.funcs)</a></li>
@@ -562,26 +571,7 @@ For external libraries like NumPy, see <a href="#external-python-libraries">Usin
 <h2 id="external-python-libraries">Using External Libraries (NumPy, etc.)</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>To use external libraries like NumPy, configure a GraalPy virtual environment:</p>
-</div>
-<div class="olist arabic">
-<ol class="arabic">
-<li>
-<p>Install GraalPy (see <a href="https://www.graalvm.org/python/docs/#installing-graalpy">installation instructions</a>)</p>
-</li>
-<li>
-<p>Create a virtual environment: <code>graalpy -m venv /path/to/venv</code></p>
-</li>
-<li>
-<p>Install packages: <code>/path/to/venv/bin/pip install numpy pyarrow</code></p>
-</li>
-<li>
-<p>In JSol&#8217;Ex: <strong>File &#8594; Advanced Parameters &#8594; Python Scripting</strong>, browse to <code>/path/to/venv/bin/graalpy</code></p>
-</li>
-<li>
-<p>Restart JSol&#8217;Ex</p>
-</li>
-</ol>
+<p>To use external libraries like NumPy, configure a GraalPy virtual environment.</p>
 </div>
 <div class="admonitionblock important">
 <table>
@@ -595,6 +585,142 @@ For best performance, install both NumPy and PyArrow together. PyArrow enables e
 </tr>
 </table>
 </div>
+<div class="sect2">
+<h3 id="_platform_support">Platform support</h3>
+<div class="admonitionblock warning">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-warning" title="Warning"></i>
+</td>
+<td class="content">
+<strong>Windows does not support NumPy or other native extensions.</strong> GraalPy on Windows can only install pure Python packages (no C extensions, no source builds). NumPy, PyArrow, and similar libraries requiring native code will not work. If you need these libraries, use Linux or macOS.
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>On Windows, you can still use GraalPy for pure Python scripting (no <code>import numpy</code>). To set this up, skip to <a href="#graalpy-venv-windows">[graalpy-venv-windows]</a>.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_step_1_install_graalpy">Step 1: Install GraalPy</h3>
+<div class="paragraph">
+<p>Download and install GraalPy from the <a href="https://www.graalvm.org/python/docs/#installing-graalpy">official GraalPy page</a>.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_step_2_install_prerequisites_linux_macos_only">Step 2: Install prerequisites (Linux / macOS only)</h3>
+<div class="paragraph">
+<p>NumPy may need to be compiled from source under GraalPy, which requires a C compiler and the <code>patch</code> utility.</p>
+</div>
+<div class="paragraph">
+<p><strong>Linux</strong></p>
+</div>
+<div class="paragraph">
+<p>Install a C compiler and patch if not already available:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash"># Debian/Ubuntu
+sudo apt install build-essential patch
+
+# Fedora
+sudo dnf install gcc gcc-c++ patch</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p><strong>macOS</strong></p>
+</div>
+<div class="paragraph">
+<p>Install Xcode command line tools if not already installed:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">xcode-select --install</code></pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_step_3_create_a_virtual_environment_and_install_packages">Step 3: Create a virtual environment and install packages</h3>
+<div class="paragraph">
+<p>Choose a directory for your virtual environment, for example <code>graalpy-venv</code> in your home folder.</p>
+</div>
+<div class="paragraph">
+<p><strong>Linux / macOS</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">graalpy -m venv ~/graalpy-venv
+~/graalpy-venv/bin/pip install numpy pyarrow</code></pre>
+</div>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+The installation may take several minutes if NumPy needs to be compiled from source.
+</td>
+</tr>
+</table>
+</div>
+<div id="graalpy-venv-windows" class="paragraph">
+<p><strong>Windows</strong> (pure Python only, no NumPy)</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-cmd hljs" data-lang="cmd">graalpy -m venv C:\Users\&lt;your-username&gt;\graalpy-venv</code></pre>
+</div>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+On Windows, the virtual environment places executables in the <code>Scripts</code> folder (not <code>bin</code>). To install pure Python packages, use the <code>python.exe</code> from inside the venv with the <code>--no-cache-dir</code> flag: <code>C:\Users\&lt;your-username&gt;\graalpy-venv\Scripts\python.exe -m pip --no-cache-dir install &lt;package&gt;</code>.
+</td>
+</tr>
+</table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_step_4_configure_jsolex">Step 4: Configure JSol&#8217;Ex</h3>
+<div class="paragraph">
+<p>In JSol&#8217;Ex, go to <strong>File &#8594; Advanced Parameters &#8594; Python Scripting</strong> and browse to the GraalPy executable inside your virtual environment:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Windows</strong>: <code>C:\Users\&lt;your-username&gt;\graalpy-venv\Scripts\graalpy.exe</code></p>
+</li>
+<li>
+<p><strong>Linux / macOS</strong>: <code>~/graalpy-venv/bin/graalpy</code></p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Restart JSol&#8217;Ex for the change to take effect.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_troubleshooting">Troubleshooting</h3>
+<div class="paragraph">
+<p><strong><code>pip</code> is not recognized (Windows)</strong>&#8201;&#8212;&#8201;Do not call <code>pip</code> or <code>pip.exe</code> directly. Use <code>Scripts\python.exe -m pip --no-cache-dir install &#8230;&#8203;</code> from inside the virtual environment.</p>
+</div>
+<div class="paragraph">
+<p><strong>NumPy installation fails on Windows</strong>&#8201;&#8212;&#8201;GraalPy on Windows does not support native extensions. NumPy cannot be installed. Use Linux or macOS if you need NumPy.</p>
+</div>
+<div class="paragraph">
+<p><strong><code>GraalPy needs the 'patch' utility</code> (Linux / macOS)</strong>&#8201;&#8212;&#8201;Install the <code>patch</code> command using your system package manager (see prerequisites above).</p>
+</div>
+<div class="paragraph">
+<p><strong>SSL certificate warnings (Windows)</strong>&#8201;&#8212;&#8201;The warning <code>unable to enumerate Windows certificate store</code> can be safely ignored; it does not prevent package installation.</p>
+</div>
 <div class="paragraph">
 <p>Once configured:</p>
 </div>
@@ -606,6 +732,7 @@ img = jsolex.funcs.img(0)
 data = jsolex.toNumpy(img)
 enhanced = np.clip(data * 1.5, 0, 65535).astype(np.float32)
 result = jsolex.fromNumpy(enhanced)</code></pre>
+</div>
 </div>
 </div>
 </div>

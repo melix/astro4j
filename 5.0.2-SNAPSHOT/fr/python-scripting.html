@@ -466,7 +466,16 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <div id="toctitle">Table of Contents</div>
 <ul class="sectlevel1">
 <li><a href="#_utilisation_de_base">Utilisation de base</a></li>
-<li><a href="#external-python-libraries">Utiliser des bibliothèques externes (NumPy, etc.)</a></li>
+<li><a href="#external-python-libraries">Utiliser des bibliothèques externes (NumPy, etc.)</a>
+<ul class="sectlevel2">
+<li><a href="#_support_par_plateforme">Support par plateforme</a></li>
+<li><a href="#_étape_1_installer_graalpy">Étape 1 : Installer GraalPy</a></li>
+<li><a href="#_étape_2_installer_les_prérequis_linux_macos_uniquement">Étape 2 : Installer les prérequis (Linux / macOS uniquement)</a></li>
+<li><a href="#_étape_3_créer_un_environnement_virtuel_et_installer_les_packages">Étape 3 : Créer un environnement virtuel et installer les packages</a></li>
+<li><a href="#_étape_4_configurer_jsolex">Étape 4 : Configurer JSol&#8217;Ex</a></li>
+<li><a href="#_dépannage">Dépannage</a></li>
+</ul>
+</li>
 <li><a href="#_le_module_jsolex">Le module jsolex</a>
 <ul class="sectlevel2">
 <li><a href="#_appeler_des_fonctions_imagemath_jsolex_funcs">Appeler des fonctions ImageMath (jsolex.funcs)</a></li>
@@ -562,26 +571,7 @@ Pour les bibliothèques externes comme NumPy, voir <a href="#external-python-lib
 <h2 id="external-python-libraries">Utiliser des bibliothèques externes (NumPy, etc.)</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>Pour utiliser des bibliothèques externes comme NumPy, configurez un environnement virtuel GraalPy :</p>
-</div>
-<div class="olist arabic">
-<ol class="arabic">
-<li>
-<p>Installez GraalPy (voir <a href="https://www.graalvm.org/python/docs/#installing-graalpy">les instructions d&#8217;installation</a>)</p>
-</li>
-<li>
-<p>Créez un environnement virtuel : <code>graalpy -m venv /chemin/vers/venv</code></p>
-</li>
-<li>
-<p>Installez les packages : <code>/chemin/vers/venv/bin/pip install numpy pyarrow</code></p>
-</li>
-<li>
-<p>Dans JSol&#8217;Ex : <strong>Fichier &#8594; Paramètres avancés &#8594; Scripting Python</strong>, naviguez vers <code>/chemin/vers/venv/bin/graalpy</code></p>
-</li>
-<li>
-<p>Redémarrez JSol&#8217;Ex</p>
-</li>
-</ol>
+<p>Pour utiliser des bibliothèques externes comme NumPy, configurez un environnement virtuel GraalPy.</p>
 </div>
 <div class="admonitionblock important">
 <table>
@@ -595,6 +585,142 @@ Pour de meilleures performances, installez NumPy et PyArrow ensemble. PyArrow pe
 </tr>
 </table>
 </div>
+<div class="sect2">
+<h3 id="_support_par_plateforme">Support par plateforme</h3>
+<div class="admonitionblock warning">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-warning" title="Warning"></i>
+</td>
+<td class="content">
+<strong>Windows ne supporte pas NumPy ni les autres extensions natives.</strong> GraalPy sous Windows ne peut installer que des packages Python purs (pas d&#8217;extensions C, pas de compilation depuis les sources). NumPy, PyArrow et les bibliothèques similaires nécessitant du code natif ne fonctionneront pas. Si vous avez besoin de ces bibliothèques, utilisez Linux ou macOS.
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>Sous Windows, vous pouvez tout de même utiliser GraalPy pour du scripting Python pur (sans <code>import numpy</code>). Pour mettre cela en place, passez directement à <a href="#graalpy-venv-windows">[graalpy-venv-windows]</a>.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_étape_1_installer_graalpy">Étape 1 : Installer GraalPy</h3>
+<div class="paragraph">
+<p>Téléchargez et installez GraalPy depuis la <a href="https://www.graalvm.org/python/docs/#installing-graalpy">page officielle de GraalPy</a>.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_étape_2_installer_les_prérequis_linux_macos_uniquement">Étape 2 : Installer les prérequis (Linux / macOS uniquement)</h3>
+<div class="paragraph">
+<p>NumPy peut nécessiter une compilation depuis les sources sous GraalPy, ce qui requiert un compilateur C et l&#8217;utilitaire <code>patch</code>.</p>
+</div>
+<div class="paragraph">
+<p><strong>Linux</strong></p>
+</div>
+<div class="paragraph">
+<p>Installez un compilateur C et patch s&#8217;ils ne sont pas déjà disponibles :</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash"># Debian/Ubuntu
+sudo apt install build-essential patch
+
+# Fedora
+sudo dnf install gcc gcc-c++ patch</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p><strong>macOS</strong></p>
+</div>
+<div class="paragraph">
+<p>Installez les outils en ligne de commande Xcode s&#8217;ils ne sont pas déjà installés :</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">xcode-select --install</code></pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_étape_3_créer_un_environnement_virtuel_et_installer_les_packages">Étape 3 : Créer un environnement virtuel et installer les packages</h3>
+<div class="paragraph">
+<p>Choisissez un répertoire pour votre environnement virtuel, par exemple <code>graalpy-venv</code> dans votre dossier personnel.</p>
+</div>
+<div class="paragraph">
+<p><strong>Linux / macOS</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">graalpy -m venv ~/graalpy-venv
+~/graalpy-venv/bin/pip install numpy pyarrow</code></pre>
+</div>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+L&#8217;installation peut prendre plusieurs minutes si NumPy doit être compilé depuis les sources.
+</td>
+</tr>
+</table>
+</div>
+<div id="graalpy-venv-windows" class="paragraph">
+<p><strong>Windows</strong> (Python pur uniquement, sans NumPy)</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-cmd hljs" data-lang="cmd">graalpy -m venv C:\Users\&lt;votre-utilisateur&gt;\graalpy-venv</code></pre>
+</div>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+Sous Windows, l&#8217;environnement virtuel place les exécutables dans le dossier <code>Scripts</code> (et non <code>bin</code>). Pour installer des packages Python purs, utilisez le <code>python.exe</code> de l&#8217;environnement virtuel avec le flag <code>--no-cache-dir</code> : <code>C:\Users\&lt;votre-utilisateur&gt;\graalpy-venv\Scripts\python.exe -m pip --no-cache-dir install &lt;package&gt;</code>.
+</td>
+</tr>
+</table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_étape_4_configurer_jsolex">Étape 4 : Configurer JSol&#8217;Ex</h3>
+<div class="paragraph">
+<p>Dans JSol&#8217;Ex, allez dans <strong>Fichier &#8594; Paramètres avancés &#8594; Scripting Python</strong> et naviguez vers l&#8217;exécutable GraalPy dans votre environnement virtuel :</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Windows</strong> : <code>C:\Users\&lt;votre-utilisateur&gt;\graalpy-venv\Scripts\graalpy.exe</code></p>
+</li>
+<li>
+<p><strong>Linux / macOS</strong> : <code>~/graalpy-venv/bin/graalpy</code></p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Redémarrez JSol&#8217;Ex pour que le changement prenne effet.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_dépannage">Dépannage</h3>
+<div class="paragraph">
+<p><strong><code>pip</code> n&#8217;est pas reconnu (Windows)</strong>&#8201;&#8212;&#8201;N&#8217;appelez pas <code>pip</code> ou <code>pip.exe</code> directement. Utilisez <code>Scripts\python.exe -m pip --no-cache-dir install &#8230;&#8203;</code> depuis l&#8217;environnement virtuel.</p>
+</div>
+<div class="paragraph">
+<p><strong>L&#8217;installation de NumPy échoue sous Windows</strong>&#8201;&#8212;&#8201;GraalPy sous Windows ne supporte pas les extensions natives. NumPy ne peut pas être installé. Utilisez Linux ou macOS si vous avez besoin de NumPy.</p>
+</div>
+<div class="paragraph">
+<p><strong><code>GraalPy needs the 'patch' utility</code> (Linux / macOS)</strong>&#8201;&#8212;&#8201;Installez la commande <code>patch</code> via le gestionnaire de packages de votre système (voir les prérequis ci-dessus).</p>
+</div>
+<div class="paragraph">
+<p><strong>Avertissements de certificats SSL (Windows)</strong>&#8201;&#8212;&#8201;L&#8217;avertissement <code>unable to enumerate Windows certificate store</code> peut être ignoré sans risque ; il n&#8217;empêche pas l&#8217;installation des packages.</p>
+</div>
 <div class="paragraph">
 <p>Une fois configuré :</p>
 </div>
@@ -606,6 +732,7 @@ img = jsolex.funcs.img(0)
 data = jsolex.toNumpy(img)
 enhanced = np.clip(data * 1.5, 0, 65535).astype(np.float32)
 result = jsolex.fromNumpy(enhanced)</code></pre>
+</div>
 </div>
 </div>
 </div>
