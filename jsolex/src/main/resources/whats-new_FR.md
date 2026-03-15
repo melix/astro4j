@@ -1,5 +1,9 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+## Nouveautés de la version 5.0.2
+
+- Ajout de la possibilité de configurer le niveau de parallélisme utilisé dans le mode traitement par lots
+
 ## Nouveautés de la version 5.0.1
 
 - Correction du téléversement SpectroSolHub qui n'appliquait pas les transformations (comme la correction de l'angle P) aux images non consultées individuellement avant le téléversement

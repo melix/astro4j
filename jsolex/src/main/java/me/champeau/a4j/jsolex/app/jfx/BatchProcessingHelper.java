@@ -23,6 +23,7 @@ import javafx.collections.FXCollections;
 import javafx.scene.control.Button;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
+import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.listeners.BatchProcessingContext;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
@@ -38,6 +39,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -186,7 +188,8 @@ public final class BatchProcessingHelper {
                 header,
                 new HashMap<>(),
                 new HashMap<>(),
-                new ReentrantReadWriteLock()
+                new ReentrantReadWriteLock(),
+                System.nanoTime()
         );
     }
 
@@ -201,7 +204,9 @@ public final class BatchProcessingHelper {
                                        Runnable onComplete) {
         var batchThread = new Thread(() -> {
             try {
-                try (var executor = Executors.newFixedThreadPool(2)) {
+                var parallelism = Configuration.getInstance().getBatchParallelism();
+                var semaphore = new Semaphore(parallelism);
+                try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
                     for (int fileIdx = 0; fileIdx < selectedFiles.size(); fileIdx++) {
                         if (Thread.currentThread().isInterrupted() || interrupted.get()) {
                             Thread.currentThread().interrupt();
@@ -213,6 +218,12 @@ public final class BatchProcessingHelper {
                         context.updateProgress(singleOperation);
                         int finalFileIdx = fileIdx;
                         executor.submit(() -> {
+                            try {
+                                semaphore.acquire();
+                            } catch (InterruptedException ie) {
+                                Thread.currentThread().interrupt();
+                                return;
+                            }
                             try {
                                 processFile(
                                         context,
@@ -226,6 +237,7 @@ public final class BatchProcessingHelper {
                                         autoTrimSerFile
                                 );
                             } finally {
+                                semaphore.release();
                                 context.updateProgress(singleOperation.complete());
                             }
                         });

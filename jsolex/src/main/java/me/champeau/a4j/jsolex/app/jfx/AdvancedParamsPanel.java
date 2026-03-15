@@ -22,6 +22,8 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
+import javafx.scene.control.Spinner;
+import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
 import javafx.scene.control.Tooltip;
@@ -57,6 +59,7 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
     private final CheckBox generateMp4;
     private final CheckBox generateGif;
     private final CheckBox gpuAcceleration;
+    private final Spinner<Integer> batchParallelism;
     private final TextField graalPyExecutable;
     private final Button browseGraalPy;
     private final Button clearGraalPy;
@@ -85,6 +88,8 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
         generateMp4 = createCheckBox("MP4", I18N.string(JSolEx.class, "advanced-params", "generate.mp4.files"));
         generateGif = createCheckBox("GIF", I18N.string(JSolEx.class, "advanced-params", "generate.gif.files"));
         gpuAcceleration = createCheckBox("", I18N.string(JSolEx.class, "advanced-params", "gpu.acceleration.tooltip"));
+        batchParallelism = new Spinner<>(new SpinnerValueFactory.IntegerSpinnerValueFactory(1, Runtime.getRuntime().availableProcessors(), 2));
+        batchParallelism.setEditable(false);
         graalPyExecutable = createTextField("", I18N.string(JSolEx.class, "advanced-params", "graalpy.executable.tooltip"));
         graalPyExecutable.setEditable(false);
         browseGraalPy = new Button(I18N.string(JSolEx.class, "advanced-params", "browse"));
@@ -172,6 +177,11 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
                 gpuAcceleration,
                 "gpu.acceleration.tooltip");
 
+        addGridRow(performanceGrid, 3,
+                I18N.string(JSolEx.class, "advanced-params", "batch.parallelism"),
+                batchParallelism,
+                "batch.parallelism.tooltip");
+
         performanceSection.getChildren().add(performanceGrid);
 
         var pythonSection = createSection("python.section");
@@ -258,6 +268,8 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
         initialGpuAcceleration = config.isGpuAccelerationEnabled();
         gpuAcceleration.setSelected(initialGpuAcceleration);
 
+        batchParallelism.getValueFactory().setValue(config.getBatchParallelism());
+
         initialGraalPyExecutable = config.getGraalPyExecutable()
                 .map(Path::toString)
                 .orElse("");
@@ -304,6 +316,7 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
         config.setAnimationFormats(animationFormats);
 
         config.setGpuAccelerationEnabled(gpuAcceleration.isSelected());
+        config.setBatchParallelism(batchParallelism.getValue());
 
         var execPath = graalPyExecutable.getText();
         if (execPath == null || execPath.isEmpty()) {
