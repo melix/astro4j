@@ -60,6 +60,7 @@ public class Configuration {
     private static final String ANIMATION_FORMATS = "animation.formats";
     private static final String SCRIPT_REPOSITORIES = "script.repositories";
     private static final String GPU_ACCELERATION = "gpu.acceleration";
+    private static final String BATCH_PARALLELISM = "batch.parallelism";
     private static final String GRAALPY_EXECUTABLE = "graalpy.executable";
     private static final String HELP_ANIMATION_SEEN_PREFIX = "help.animation.seen.";
     private static final String SPECTROSOLHUB_TOKEN = "spectrosolhub.token";
@@ -367,6 +368,22 @@ public class Configuration {
         } else {
             System.clearProperty("opencl.enabled");
         }
+    }
+
+    /**
+     * Returns the batch processing parallelism level.
+     * @return the number of files to process simultaneously
+     */
+    public int getBatchParallelism() {
+        return prefs.getInt(BATCH_PARALLELISM, 2);
+    }
+
+    /**
+     * Sets the batch processing parallelism level.
+     * @param parallelism the number of files to process simultaneously
+     */
+    public void setBatchParallelism(int parallelism) {
+        prefs.putInt(BATCH_PARALLELISM, Math.max(1, Math.min(parallelism, Runtime.getRuntime().availableProcessors())));
     }
 
     /**

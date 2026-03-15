@@ -58,12 +58,10 @@ import me.champeau.a4j.jsolex.processing.stretching.RangeExpansionStrategy;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.workflow.DefaultImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
-import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.NamingStrategyAwareImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.sun.workflow.RenamingImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.SourceInfo;
-import me.champeau.a4j.jsolex.processing.util.AnimationFormat;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.DurationFormatter;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
@@ -89,9 +87,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
@@ -103,9 +99,7 @@ import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.LOGGER;
 /** Event listener for batch mode processing. */
 public class BatchModeEventListener implements ProcessingEventListener, ImageMathScriptExecutor {
 
-    private static final ReentrantLock ELLIPSE_FITTING_LOCK = new ReentrantLock();
-    private static final Condition ELLIPSE_FITTING_CONDITION = ELLIPSE_FITTING_LOCK.newCondition();
-    private static final AtomicBoolean ELLIPSE_FITTING_IN_PROGRESS = new AtomicBoolean();
+    private static final Semaphore ELLIPSE_FITTING_SEMAPHORE = new Semaphore(1);
 
     private final JSolExInterface owner;
     private final SingleModeProcessingEventListener delegate;
@@ -128,7 +122,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     private final Map<Integer, File> serFilesByIndex;
     private final Map<Integer, SolarParameters> solarParametersByIndex;
     private final Map<Integer, ProcessParams> processParamsByIndex;
-    private final long sd = System.nanoTime();
+    private final long sd;
     private ProcessParams adjustedParams;
     private final ReentrantReadWriteLock dataLock;
     private final BatchImageCollector imageCollector;
@@ -164,6 +158,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         this.allItems = context.items();
         this.sequenceNumber = sequenceNumber;
         this.dataLock = context.dataLock();
+        this.sd = context.batchStartNanos();
     }
     
     private SolarParameters computeAverageSolarParameters() {
@@ -268,61 +263,29 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
 
     @Override
     public void onEllipseFittingRequest(EllipseFittingRequestEvent e) {
-        ELLIPSE_FITTING_LOCK.lock();
         try {
-            // Wait if another ellipse fitting is in progress
-            while (ELLIPSE_FITTING_IN_PROGRESS.get()) {
-                try {
-                    ELLIPSE_FITTING_CONDITION.await();
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    e.resultFuture().completeExceptionally(ie);
-                    return;
-                }
-            }
-            
-            // Mark ellipse fitting as in progress
-            ELLIPSE_FITTING_IN_PROGRESS.set(true);
-            
-            // Show dialog on FX thread
-            Platform.runLater(() -> {
-                owner.showEllipseFittingDialog(
-                    e.image(),
-                    e.initialEllipse(),
-                    item.file().getName(),
-                    sequenceNumber + 1, // Display as 1-based
-                    progressTracker.getTotalItems()
-                ).thenAccept(result -> {
-                    // Complete the future with result
-                    e.resultFuture().complete(result);
-                    
-                    // Signal that ellipse fitting is done
-                    ELLIPSE_FITTING_LOCK.lock();
-                    try {
-                        ELLIPSE_FITTING_IN_PROGRESS.set(false);
-                        ELLIPSE_FITTING_CONDITION.signalAll();
-                    } finally {
-                        ELLIPSE_FITTING_LOCK.unlock();
-                    }
-                }).exceptionally(throwable -> {
-                    // Handle error case
-                    e.resultFuture().completeExceptionally(throwable);
-                    
-                    // Signal that ellipse fitting is done
-                    ELLIPSE_FITTING_LOCK.lock();
-                    try {
-                        ELLIPSE_FITTING_IN_PROGRESS.set(false);
-                        ELLIPSE_FITTING_CONDITION.signalAll();
-                    } finally {
-                        ELLIPSE_FITTING_LOCK.unlock();
-                    }
-                    return null;
-                });
-            });
-            
-        } finally {
-            ELLIPSE_FITTING_LOCK.unlock();
+            ELLIPSE_FITTING_SEMAPHORE.acquire();
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            e.resultFuture().completeExceptionally(ie);
+            return;
         }
+        Platform.runLater(() -> {
+            owner.showEllipseFittingDialog(
+                e.image(),
+                e.initialEllipse(),
+                item.file().getName(),
+                sequenceNumber + 1,
+                progressTracker.getTotalItems()
+            ).thenAccept(result -> {
+                e.resultFuture().complete(result);
+                ELLIPSE_FITTING_SEMAPHORE.release();
+            }).exceptionally(throwable -> {
+                e.resultFuture().completeExceptionally(throwable);
+                ELLIPSE_FITTING_SEMAPHORE.release();
+                return null;
+            });
+        });
     }
 
     @Override
