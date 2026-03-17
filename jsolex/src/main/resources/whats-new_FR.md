@@ -3,6 +3,7 @@
 ## Nouveautés de la version 5.0.2
 
 - Ajout de la possibilité de configurer le niveau de parallélisme utilisé dans le mode traitement par lots
+- Correction de l'accélération GPU qui échouait sur les appareils avec une taille de groupe de travail limitée, provoquant un repli inutile sur le CPU
 
 ## Nouveautés de la version 5.0.1
 

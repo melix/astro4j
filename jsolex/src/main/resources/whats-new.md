@@ -8,6 +8,7 @@
 ## What's New in Version 5.0.2
 
 - Added the ability to configure the level of parallelism used in batch processing mode
+- Fixed GPU acceleration failing on devices with limited work group sizes, causing unnecessary fallback to CPU
 
 ## What's New in Version 5.0.0
 

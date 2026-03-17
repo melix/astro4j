@@ -96,10 +96,9 @@ public class CorrelationTools {
         int tileSize = refTiles[0].length;
         long maxWorkGroupSize = context.getCapabilities().maxWorkGroupSize();
 
-        // Check if device supports required work group sizes before attempting GPU path
-        if (tileSize == 32 && maxWorkGroupSize >= 1024) {
+        if (isSupported(tileSize, maxWorkGroupSize, 32)) {
             return batchedCorrelationGPU32(context, refTiles, targetTiles, normalize);
-        } else if ((tileSize == 64 || tileSize == 128) && maxWorkGroupSize >= 256) {
+        } else if (isSupported(tileSize, maxWorkGroupSize, 64, 128)) {
             return batchedCorrelationGPULarge(context, refTiles, targetTiles, tileSize, normalize);
         } else {
             return batchedCorrelationCPU(refTiles, targetTiles, normalize);
@@ -474,11 +473,12 @@ public class CorrelationTools {
 
     private float[][] batchedNCCGPU(OpenCLContext context, float[][][] refTiles, float[][][] targetTiles) {
         int tileSize = refTiles[0].length;
+        long maxWorkGroupSize = context.getCapabilities().maxWorkGroupSize();
 
-        if (tileSize == 64 || tileSize == 128) {
-            return batchedNCCGPULarge(context, refTiles, targetTiles, tileSize);
-        } else if (tileSize == 32) {
+        if (isSupported(tileSize, maxWorkGroupSize, 32)) {
             return batchedNCCGPU32(context, refTiles, targetTiles);
+        } else if (isSupported(tileSize, maxWorkGroupSize, 64, 128)) {
+            return batchedNCCGPULarge(context, refTiles, targetTiles, tileSize);
         } else {
             return batchedNCCCPU(refTiles, targetTiles);
         }
@@ -1348,11 +1348,22 @@ public class CorrelationTools {
         if (tileSize != 32 && tileSize != 64 && tileSize != 128) {
             return false;
         }
-        long maxWorkGroupSize = context.getCapabilities().maxWorkGroupSize();
-        // NCC32 uses 32x32 work groups = 1024 work items
-        // NCC64/128 use smaller work groups (typically 256 or less for statistics passes)
-        long requiredWorkGroupSize = (tileSize == 32) ? 1024 : 256;
-        return maxWorkGroupSize >= requiredWorkGroupSize;
+        return context.getCapabilities().maxWorkGroupSize() >= requiredWorkGroupSize(tileSize);
+    }
+
+    private static long requiredWorkGroupSize(int tileSize) {
+        // 32x32 tiles use 32x32 work groups = 1024 work items
+        // 64/128 tiles use smaller work groups (256 for statistics passes)
+        return (tileSize == 32) ? 1024 : 256;
+    }
+
+    private static boolean isSupported(int tileSize, long maxWorkGroupSize, int... supportedTileSizes) {
+        for (int supported : supportedTileSizes) {
+            if (tileSize == supported) {
+                return maxWorkGroupSize >= requiredWorkGroupSize(tileSize);
+            }
+        }
+        return false;
     }
 
     /**
@@ -1380,7 +1391,7 @@ public class CorrelationTools {
                                                  int tileSize) {
         if (!isGpuResidentCorrelationSupported(context, tileSize)) {
             long maxWorkGroupSize = context.getCapabilities().maxWorkGroupSize();
-            long required = (tileSize == 32) ? 1024 : 256;
+            long required = requiredWorkGroupSize(tileSize);
             throw new UnsupportedOperationException(
                     String.format("GPU does not support tile size %d: requires work group size %d but device supports max %d",
                             tileSize, required, maxWorkGroupSize));
