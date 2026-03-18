@@ -1352,9 +1352,13 @@ public class CorrelationTools {
     }
 
     private static long requiredWorkGroupSize(int tileSize) {
-        // 32x32 tiles use 32x32 work groups = 1024 work items
-        // 64/128 tiles use smaller work groups (256 for statistics passes)
-        return (tileSize == 32) ? 1024 : 256;
+        return switch (tileSize) {
+            // 32x32 tiles use 32x32 work groups = 1024 work items
+            case 32 -> 1024;
+            // 64/128 tiles use smaller work groups (256 for statistics passes)
+            case 64, 128 -> 256;
+            default -> throw new IllegalArgumentException("Unsupported tile size: " + tileSize);
+        };
     }
 
     private static boolean isSupported(int tileSize, long maxWorkGroupSize, int... supportedTileSizes) {
