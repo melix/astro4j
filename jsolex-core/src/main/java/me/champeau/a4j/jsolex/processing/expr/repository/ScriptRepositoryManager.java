@@ -97,7 +97,7 @@ public class ScriptRepositoryManager {
             return scripts;
         }
 
-        try (var stream = Files.list(repoDir)) {
+        try (var stream = Files.walk(repoDir)) {
             stream.filter(path -> {
                     var pathStr = path.toString();
                     return pathStr.endsWith(".math") || pathStr.endsWith(".py");

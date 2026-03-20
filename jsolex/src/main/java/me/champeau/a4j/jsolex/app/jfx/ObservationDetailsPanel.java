@@ -279,7 +279,7 @@ public class ObservationDetailsPanel extends BaseParameterPanel {
         }
         
         if (metadata != null) {
-            if (metadata.camera() != null) {
+            if (metadata.camera() != null && !CaptureSoftwareMetadataHelper.currentCameraContainsMetadata(obsDetails.camera(), metadata.camera())) {
                 camera.setText(metadata.camera());
             }
             binning.setValue(metadata.binning());

@@ -130,6 +130,18 @@ public class CaptureSoftwareMetadataHelper {
         return List.of("unknown");
     }
 
+    /**
+     * Returns true if the current camera label already contains the metadata
+     * camera name, meaning the existing label is more complete and should
+     * not be overwritten.
+     */
+    public static boolean currentCameraContainsMetadata(String currentCamera, String metadataCamera) {
+        if (currentCamera == null || metadataCamera == null) {
+            return false;
+        }
+        return currentCamera.toLowerCase(Locale.US).contains(metadataCamera.toLowerCase(Locale.US));
+    }
+
     public record CaptureMetadata(
         String camera,
         int binning
