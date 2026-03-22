@@ -531,6 +531,9 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             LOGGER.info(message("gpu.support"), OpenCLSupport.isEnabled() ? message("gpu.enabled") : message("gpu.disabled"));
             OpenGLAvailability.checkAsync().thenAccept(available -> {
                 LOGGER.info(message("opengl.support"), available ? message("opengl.available") : message("opengl.unavailable"));
+                if (OpenGLAvailability.isPreviousCrashDetected()) {
+                    Platform.runLater(this::showOpenGLCrashRecoveryDialog);
+                }
             });
             updateServerStatus(false);
             server.addStatusChangeListener(this::updateServerStatus);
@@ -779,6 +782,31 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         watcherThread.setDaemon(true);
         watcherThread.start();
         return watcherThread;
+    }
+
+    private void showOpenGLCrashRecoveryDialog() {
+        var alert = AlertFactory.warning(message("opengl.crash.detected.details"));
+        alert.setTitle(message("opengl.crash.detected.title"));
+        alert.setHeaderText(message("opengl.crash.detected.header"));
+        alert.getButtonTypes().clear();
+        var retry = new ButtonType(message("opengl.crash.retry"));
+        var deactivate = new ButtonType(message("opengl.crash.deactivate"));
+        alert.getButtonTypes().addAll(retry, deactivate);
+        alert.showAndWait().ifPresent(button -> {
+            if (button == retry) {
+                OpenGLAvailability.retryCheck().thenAccept(available ->
+                    Platform.runLater(() -> {
+                        if (available) {
+                            AlertFactory.info(message("opengl.crash.retry.success")).showAndWait();
+                        } else {
+                            AlertFactory.warning(message("opengl.crash.retry.failure")).showAndWait();
+                        }
+                    })
+                );
+            } else if (button == deactivate) {
+                OpenGLAvailability.disableOpenGL();
+            }
+        });
     }
 
     private void maybeWarnAboutNewRelease(UpdateChecker.ReleaseInfo release) {

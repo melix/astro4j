@@ -4,6 +4,7 @@
 
 - Ajout de la possibilité de configurer le niveau de parallélisme utilisé dans le mode traitement par lots
 - Correction de l'accélération GPU qui échouait sur les appareils avec une taille de groupe de travail limitée, provoquant un repli inutile sur le CPU
+- Lorsqu'un crash OpenGL précédent est détecté, une boîte de dialogue propose de réessayer au lieu de désactiver silencieusement le visualiseur 3D
 
 ## Nouveautés de la version 5.0.1
 

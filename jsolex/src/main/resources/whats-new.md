@@ -9,6 +9,7 @@
 
 - Added the ability to configure the level of parallelism used in batch processing mode
 - Fixed GPU acceleration failing on devices with limited work group sizes, causing unnecessary fallback to CPU
+- When a previous OpenGL crash is detected, a dialog now offers the option to retry instead of silently disabling the 3D viewer
 
 ## What's New in Version 5.0.0
 
