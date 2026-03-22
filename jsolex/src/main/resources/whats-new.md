@@ -1,15 +1,15 @@
 # Welcome to JSol'Ex {{version}}!
 
-## What's New in Version 5.0.1
-
-- Fixed SpectroSolHub image upload not applying transformations (such as P angle correction) to images that were not individually viewed before uploading
-- Fixed SpectroSolHub orientation comparison step not applying P angle correction to the user image when comparing with the GONG reference
-
 ## What's New in Version 5.0.2
 
 - Added the ability to configure the level of parallelism used in batch processing mode
 - Fixed GPU acceleration failing on devices with limited work group sizes, causing unnecessary fallback to CPU
 - When a previous OpenGL crash is detected, a dialog now offers the option to retry instead of silently disabling the 3D viewer
+
+## What's New in Version 5.0.1
+
+- Fixed SpectroSolHub image upload not applying transformations (such as P angle correction) to images that were not individually viewed before uploading
+- Fixed SpectroSolHub orientation comparison step not applying P angle correction to the user image when comparing with the GONG reference
 
 ## What's New in Version 5.0.0
 
