@@ -28,6 +28,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.lwjgl.glfw.GLFW.glfwMakeContextCurrent;
 
@@ -40,10 +41,13 @@ public final class OpenGLAvailability {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(OpenGLAvailability.class);
     private static final String CRASH_MARKER_FILENAME = "opengl-init.marker";
+    private static final String MARKER_CONTENT_CRASH = "crash";
+    private static final String MARKER_CONTENT_DISABLED = "disabled";
 
     private static final AtomicBoolean CHECKED = new AtomicBoolean(false);
     private static final AtomicBoolean AVAILABLE = new AtomicBoolean(false);
-    private static volatile String errorMessage = null;
+    private static final AtomicReference<String> ERROR_MESSAGE = new AtomicReference<>();
+    private static final AtomicBoolean PREVIOUS_CRASH_DETECTED = new AtomicBoolean(false);
 
     private OpenGLAvailability() {
     }
@@ -83,21 +87,68 @@ public final class OpenGLAvailability {
         return AVAILABLE.get();
     }
 
+    /**
+     * Returns whether a previous crash was detected during OpenGL initialization.
+     * When true, the caller should offer the user the option to retry.
+     *
+     * @return true if a previous crash marker was found
+     */
+    public static boolean isPreviousCrashDetected() {
+        return PREVIOUS_CRASH_DETECTED.get();
+    }
+
+    /**
+     * Retries the OpenGL availability check after deleting the crash marker.
+     * Should be called when the user chooses to retry after a previous crash.
+     *
+     * @return a CompletableFuture that completes with true if OpenGL is available
+     */
+    public static CompletableFuture<Boolean> retryCheck() {
+        deleteCrashMarker();
+        CHECKED.set(false);
+        AVAILABLE.set(false);
+        PREVIOUS_CRASH_DETECTED.set(false);
+        ERROR_MESSAGE.set(null);
+        return checkAsync();
+    }
+
+    /**
+     * Records the user's decision to disable OpenGL permanently.
+     * Writes a marker so the popup is not shown again.
+     */
+    public static void disableOpenGL() {
+        try {
+            Files.writeString(getCrashMarkerPath(), MARKER_CONTENT_DISABLED);
+        } catch (IOException e) {
+            LOGGER.warn("Could not write OpenGL disabled marker: {}", e.getMessage());
+        }
+    }
+
     private static void performCheck() {
         LOGGER.debug("Checking OpenGL availability...");
 
         var crashMarker = getCrashMarkerPath();
 
-        // If crash marker exists, a previous initialization crashed the app
         if (Files.exists(crashMarker)) {
-            errorMessage = "OpenGL initialization previously crashed the application - skipping. You may delete the marker file at " + crashMarker + " to retry.";
-            LOGGER.warn("OpenGL not available: {}", errorMessage);
+            try {
+                var content = Files.readString(crashMarker).strip();
+                if (MARKER_CONTENT_DISABLED.equals(content)) {
+                    ERROR_MESSAGE.set("OpenGL has been disabled by the user.");
+                    LOGGER.info("OpenGL disabled by user preference.");
+                    return;
+                }
+            } catch (IOException e) {
+                LOGGER.warn("Could not read OpenGL crash marker file: {}", e.getMessage());
+            }
+            ERROR_MESSAGE.set("OpenGL initialization previously crashed the application.");
+            LOGGER.warn("OpenGL not available: {}", ERROR_MESSAGE.get());
+            PREVIOUS_CRASH_DETECTED.set(true);
             return;
         }
 
         // Create crash marker before attempting initialization
         try {
-            Files.createFile(crashMarker);
+            Files.writeString(crashMarker, MARKER_CONTENT_CRASH);
         } catch (IOException e) {
             LOGGER.warn("Could not create OpenGL crash marker file: {}", e.getMessage());
         }
@@ -114,8 +165,8 @@ public final class OpenGLAvailability {
         long window = 0;
         try {
             if (!GLFW.glfwInit()) {
-                errorMessage = "Failed to initialize GLFW";
-                LOGGER.warn("OpenGL not available: {}", errorMessage);
+                ERROR_MESSAGE.set("Failed to initialize GLFW");
+                LOGGER.warn("OpenGL not available: {}", ERROR_MESSAGE.get());
                 return;
             }
 
@@ -127,8 +178,8 @@ public final class OpenGLAvailability {
 
             window = GLFW.glfwCreateWindow(1, 1, "", 0, 0);
             if (window == 0) {
-                errorMessage = "Failed to create GLFW window - OpenGL may not be supported";
-                LOGGER.warn("OpenGL not available: {}", errorMessage);
+                ERROR_MESSAGE.set("Failed to create GLFW window - OpenGL may not be supported");
+                LOGGER.warn("OpenGL not available: {}", ERROR_MESSAGE.get());
                 return;
             }
 
@@ -138,8 +189,8 @@ public final class OpenGLAvailability {
             AVAILABLE.set(true);
 
         } catch (Exception e) {
-            errorMessage = e.getMessage();
-            LOGGER.warn("OpenGL not available: {}", errorMessage, e);
+            ERROR_MESSAGE.set(e.getMessage());
+            LOGGER.warn("OpenGL not available: {}", ERROR_MESSAGE.get(), e);
         } finally {
             if (window != 0) {
                 GLFW.glfwDestroyWindow(window);
@@ -158,6 +209,6 @@ public final class OpenGLAvailability {
     }
 
     public static String errorMessage() {
-        return errorMessage;
+        return ERROR_MESSAGE.get();
     }
 }
