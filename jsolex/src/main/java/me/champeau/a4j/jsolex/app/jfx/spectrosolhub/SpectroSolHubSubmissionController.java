@@ -17,10 +17,16 @@ package me.champeau.a4j.jsolex.app.jfx.spectrosolhub;
 
 import javafx.application.Platform;
 import javafx.fxml.FXML;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.control.Button;
+import javafx.scene.control.Hyperlink;
+import me.champeau.a4j.jsolex.app.jfx.ExplorerSupport;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import me.champeau.a4j.jsolex.app.AlertFactory;
 import me.champeau.a4j.jsolex.app.Configuration;
@@ -46,10 +52,14 @@ import java.awt.Desktop;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
 import java.awt.image.DataBufferUShort;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.text.MessageFormat;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -86,6 +96,7 @@ public class SpectroSolHubSubmissionController {
     private Step2ImageSelectionHandler step2Handler;
     private Step3OrientationHandler step3Handler;
     private Step4SessionMetadataHandler step4Handler;
+    private Path postProcessTempDir;
 
     public void setup(Stage stage,
                       ProcessParams processParams,
@@ -158,13 +169,18 @@ public class SpectroSolHubSubmissionController {
 
     @FXML
     private void onCancel() {
+        cleanupTempDir();
         stage.close();
     }
 
     private void updateButtons() {
         previousButton.setDisable(currentStep == 1);
         if (currentStep == TOTAL_STEPS) {
-            nextButton.setText(message("button.submit"));
+            if (step2Handler.wantsPostProcessing()) {
+                nextButton.setText(message("button.submit.postprocess"));
+            } else {
+                nextButton.setText(message("button.submit"));
+            }
         } else {
             nextButton.setText(message("button.next"));
         }
@@ -194,7 +210,160 @@ public class SpectroSolHubSubmissionController {
         };
     }
 
+    private record PostProcessEntry(String filename, MultipleImagesViewer.ImageInfo imageInfo, int expectedWidth, int expectedHeight) {
+    }
+
     private void performUpload() {
+        if (step2Handler.wantsPostProcessing()) {
+            startPostProcessingFlow();
+        } else {
+            doUpload(this::readImagesFromMemory);
+        }
+    }
+
+    private List<ImageData> readImagesFromMemory() throws IOException {
+        var images = step2Handler.getSelectedImages();
+        var result = new ArrayList<ImageData>();
+        for (var imageInfo : images) {
+            var jpegBytes = imageToJpeg(imageInfo.image());
+            result.add(new ImageData(jpegBytes, imageInfo));
+        }
+        return result;
+    }
+
+    private void startPostProcessingFlow() {
+        nextButton.setDisable(true);
+        previousButton.setDisable(true);
+        nextButton.setText(message("postprocess.generating"));
+        Platform.runLater(() -> wizardProgress.setProgress(-1));
+
+        BackgroundOperations.async(() -> {
+            try {
+                var tempDir = Files.createTempDirectory("spectrosolhub-upload");
+                postProcessTempDir = tempDir;
+                var images = step2Handler.getSelectedImages();
+                var entries = new ArrayList<PostProcessEntry>();
+
+                for (int i = 0; i < images.size(); i++) {
+                    var imageInfo = images.get(i);
+                    var sanitizedTitle = imageInfo.title().replaceAll("[^a-zA-Z0-9_\\-]", "_");
+                    var filename = String.format("%03d_%s.jpg", i + 1, sanitizedTitle);
+                    var jpegBytes = imageToJpeg(imageInfo.image());
+
+                    Files.write(tempDir.resolve(filename), jpegBytes);
+
+                    var buffered = ImageIO.read(new ByteArrayInputStream(jpegBytes));
+                    entries.add(new PostProcessEntry(filename, imageInfo, buffered.getWidth(), buffered.getHeight()));
+                }
+
+                Platform.runLater(() -> showPostProcessingView(tempDir, entries));
+
+            } catch (IOException ex) {
+                LOGGER.error("Failed to generate post-processing files", ex);
+                Platform.runLater(() -> {
+                    wizardProgress.setProgress(0);
+                    nextButton.setText(message("button.submit"));
+                    nextButton.setDisable(false);
+                    previousButton.setDisable(false);
+                    AlertFactory.error(ex.getMessage()).showAndWait();
+                });
+            }
+        });
+    }
+
+    private void showPostProcessingView(Path tempDir, List<PostProcessEntry> entries) {
+        wizardProgress.setProgress(1.0);
+
+        var view = new VBox(12);
+        view.setPadding(new Insets(15));
+
+        var title = new Label(message("postprocess.title"));
+        title.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
+
+        var warning = new Label(message("postprocess.warning"));
+        warning.setWrapText(true);
+        warning.setStyle("-fx-font-size: 13px;");
+
+        var openFolderLink = new Hyperlink(message("postprocess.open.folder"));
+        openFolderLink.setStyle("-fx-font-size: 13px;");
+        openFolderLink.setOnAction(e -> ExplorerSupport.openInExplorer(tempDir.resolve(entries.getFirst().filename())));
+
+        var continueButton = new Button(message("postprocess.continue"));
+        continueButton.getStyleClass().add("primary-button");
+        continueButton.setOnAction(e -> onPostProcessingContinue(tempDir, entries));
+
+        var buttonsBox = new HBox(10);
+        buttonsBox.setAlignment(Pos.CENTER_LEFT);
+        buttonsBox.getChildren().addAll(openFolderLink, continueButton);
+
+        view.getChildren().addAll(title, warning, buttonsBox);
+
+        contentPane.getChildren().clear();
+        contentPane.getChildren().add(view);
+
+        cancelButton.setDisable(false);
+        nextButton.setVisible(false);
+        previousButton.setVisible(false);
+    }
+
+    private void onPostProcessingContinue(Path tempDir, List<PostProcessEntry> entries) {
+        var errors = validatePostProcessedFiles(tempDir, entries);
+        if (!errors.isEmpty()) {
+            AlertFactory.error(String.join("\n", errors)).showAndWait();
+            return;
+        }
+
+        nextButton.setVisible(true);
+        previousButton.setVisible(true);
+        loadCurrentStep();
+        doUpload(() -> readImagesFromDisk(tempDir, entries));
+    }
+
+    private List<String> validatePostProcessedFiles(Path tempDir, List<PostProcessEntry> entries) {
+        var errors = new ArrayList<String>();
+        for (var entry : entries) {
+            var file = tempDir.resolve(entry.filename());
+            if (!Files.exists(file)) {
+                errors.add(MessageFormat.format(message("postprocess.validation.missing"), entry.filename()));
+                continue;
+            }
+            try {
+                var buffered = ImageIO.read(file.toFile());
+                if (buffered == null) {
+                    errors.add(MessageFormat.format(message("postprocess.validation.missing"), entry.filename()));
+                    continue;
+                }
+                if (buffered.getWidth() != entry.expectedWidth() || buffered.getHeight() != entry.expectedHeight()) {
+                    errors.add(MessageFormat.format(message("postprocess.validation.dimensions"),
+                            entry.filename(),
+                            entry.expectedWidth(), entry.expectedHeight(),
+                            buffered.getWidth(), buffered.getHeight()));
+                }
+            } catch (IOException ex) {
+                errors.add(MessageFormat.format(message("postprocess.validation.missing"), entry.filename()));
+            }
+        }
+        return errors;
+    }
+
+    private List<ImageData> readImagesFromDisk(Path tempDir, List<PostProcessEntry> entries) throws IOException {
+        var result = new ArrayList<ImageData>();
+        for (var entry : entries) {
+            var jpegBytes = Files.readAllBytes(tempDir.resolve(entry.filename()));
+            result.add(new ImageData(jpegBytes, entry.imageInfo()));
+        }
+        return result;
+    }
+
+    private record ImageData(byte[] jpegBytes, MultipleImagesViewer.ImageInfo imageInfo) {
+    }
+
+    @FunctionalInterface
+    private interface ImageDataSupplier {
+        List<ImageData> get() throws IOException;
+    }
+
+    private void doUpload(ImageDataSupplier imageDataSupplier) {
         nextButton.setDisable(true);
         previousButton.setDisable(true);
         cancelButton.setDisable(true);
@@ -213,11 +382,11 @@ public class SpectroSolHubSubmissionController {
                 var session = client.createSession(sessionRequest);
                 var sessionId = session.id();
 
-                var images = step2Handler.getSelectedImages();
-                int total = images.size();
+                var imageDataList = imageDataSupplier.get();
+                int total = imageDataList.size();
 
                 for (int i = 0; i < total; i++) {
-                    var imageInfo = images.get(i);
+                    var imageData = imageDataList.get(i);
                     int idx = i;
 
                     Platform.runLater(() -> {
@@ -225,11 +394,11 @@ public class SpectroSolHubSubmissionController {
                         wizardProgress.setProgress((double) idx / total);
                     });
 
-                    var wrapper = imageInfo.image();
-                    var jpegBytes = imageToJpeg(wrapper);
+                    var imageInfo = imageData.imageInfo();
+                    var jpegBytes = imageData.jpegBytes();
                     var imageKind = imageInfo.kind().name();
                     var imageTitle = imageInfo.title();
-                    var metadata = ImageMetadata.fromImage(wrapper, imageInfo.kind());
+                    var metadata = ImageMetadata.fromImage(imageInfo.image(), imageInfo.kind());
                     var metadataJson = metadata != null ? gson.toJson(metadata) : null;
 
                     client.uploadImage(sessionId, imageTitle, imageKind, metadataJson, jpegBytes, (partCompleted, totalParts) -> {
@@ -257,6 +426,7 @@ public class SpectroSolHubSubmissionController {
                     }
                 }
 
+                cleanupTempDir();
                 Platform.runLater(() -> {
                     wizardProgress.setProgress(1.0);
                     stage.close();
@@ -265,6 +435,7 @@ public class SpectroSolHubSubmissionController {
 
             } catch (SpectroSolHubException | IOException ex) {
                 LOGGER.error("Upload failed", ex);
+                cleanupTempDir();
                 Platform.runLater(() -> {
                     wizardProgress.setProgress(0);
                     nextButton.setText(message("button.submit"));
@@ -277,6 +448,24 @@ public class SpectroSolHubSubmissionController {
                 });
             }
         });
+    }
+
+    private void cleanupTempDir() {
+        if (postProcessTempDir != null && Files.exists(postProcessTempDir)) {
+            try (var stream = Files.list(postProcessTempDir)) {
+                stream.forEach(file -> {
+                    try {
+                        Files.deleteIfExists(file);
+                    } catch (IOException e) {
+                        LOGGER.warn("Failed to delete temp file: {}", file, e);
+                    }
+                });
+                Files.deleteIfExists(postProcessTempDir);
+            } catch (IOException e) {
+                LOGGER.warn("Failed to cleanup temp directory: {}", postProcessTempDir, e);
+            }
+            postProcessTempDir = null;
+        }
     }
 
     private static void openInBrowser(String url) {
