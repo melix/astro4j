@@ -39,6 +39,10 @@
                 <MenuItem onAction="#showSHGEditor" text="%shg.editor"/>
                 <MenuItem onAction="#showSetupEditor" text="%setup.editor"/>
             </Menu>
+            <Menu text="%sharing">
+                <MenuItem fx:id="bass2000MenuItem" onAction="#showBass2000Submission" text="%bass2000.menu.submit" disable="true"/>
+                <MenuItem fx:id="spectroSolHubMenuItem" onAction="#showSpectroSolHubPublishing" text="%spectrosolhub.menu.publish" disable="true"/>
+            </Menu>
             <Menu text="%help">
                 <MenuItem onAction="#showHelp" text="%documentation"/>
                 <MenuItem onAction="#openDiscord" text="%discord"/>

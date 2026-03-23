@@ -304,6 +304,12 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     private Button spectroSolHubButton;
 
     @FXML
+    private MenuItem bass2000MenuItem;
+
+    @FXML
+    private MenuItem spectroSolHubMenuItem;
+
+    @FXML
     private Label spectralLinePrefix;
 
     @FXML
@@ -989,7 +995,10 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         if (detectedSpectralRay != null) {
             this.detectedSpectralRay = detectedSpectralRay;
         }
-        Platform.runLater(() -> spectroSolHubButton.setDisable(false));
+        Platform.runLater(() -> {
+            spectroSolHubButton.setDisable(false);
+            spectroSolHubMenuItem.setDisable(false);
+        });
     }
 
     private static Color wavelengthToColor(double wavelengthNm) {
@@ -1829,7 +1838,9 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         multipleImagesViewer.setCollageContext(this, lastExecutionProcessParams, outputDirectory);
         hideTabHeaderWhenSingleTab(mainPane);
         bass2000Button.setDisable(true);
+        bass2000MenuItem.setDisable(true);
         spectroSolHubButton.setDisable(true);
+        spectroSolHubMenuItem.setDisable(true);
     }
 
     @Override
@@ -1844,7 +1855,9 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         Platform.runLater(() -> {
             redshiftTab.setDisable(redshifts.isEmpty());
             if (lastExecutionProcessParams != null) {
-                bass2000Button.setDisable(!lastExecutionProcessParams.observationDetails().instrument().isSupportedByBass2000());
+                var bass2000Disabled = !lastExecutionProcessParams.observationDetails().instrument().isSupportedByBass2000();
+                bass2000Button.setDisable(bass2000Disabled);
+                bass2000MenuItem.setDisable(bass2000Disabled);
             }
             fullRangePanels.disableProperty().bind(redshiftCreatorKind.valueProperty().isEqualTo(RedshiftImagesProcessor.RedshiftCreatorKind.ANIMATION));
             fullRangePanelsLabel.disableProperty().bind(redshiftCreatorKind.valueProperty().isEqualTo(RedshiftImagesProcessor.RedshiftCreatorKind.ANIMATION));
