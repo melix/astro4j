@@ -84,6 +84,7 @@ class Step2ImageSelectionHandler implements StepHandler {
     private VBox content;
     private FlowPane gallery;
     private VBox loadingPane;
+    private CheckBox postProcessCheckBox;
     private int dragSourceIndex = -1;
 
     Step2ImageSelectionHandler(Supplier<List<MultipleImagesViewer.ImageInfo>> imagesSupplier, SpectralRay detectedSpectralRay) {
@@ -116,6 +117,9 @@ class Step2ImageSelectionHandler implements StepHandler {
         var reorderHint = new Label(message("images.reorder.hint"));
         reorderHint.setStyle("-fx-font-size: 0.85em; -fx-text-fill: gray;");
 
+        postProcessCheckBox = new CheckBox(message("postprocess.checkbox"));
+        postProcessCheckBox.setStyle("-fx-padding: 5 0 0 0;");
+
         gallery = new FlowPane(10, 10);
         gallery.setPadding(new Insets(5));
 
@@ -127,7 +131,7 @@ class Step2ImageSelectionHandler implements StepHandler {
         loadingPane.setAlignment(Pos.CENTER);
         VBox.setVgrow(loadingPane, Priority.ALWAYS);
 
-        content.getChildren().addAll(title, instruction, buttonsBox, reorderHint, loadingPane);
+        content.getChildren().addAll(title, instruction, buttonsBox, reorderHint, postProcessCheckBox, loadingPane);
 
         return content;
     }
@@ -348,6 +352,10 @@ class Step2ImageSelectionHandler implements StepHandler {
             return false;
         }
         return true;
+    }
+
+    boolean wantsPostProcessing() {
+        return postProcessCheckBox != null && postProcessCheckBox.isSelected();
     }
 
     List<MultipleImagesViewer.ImageInfo> getSelectedImages() {

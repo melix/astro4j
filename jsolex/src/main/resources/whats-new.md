@@ -1,5 +1,10 @@
 # Welcome to JSol'Ex {{version}}!
 
+## What's New in Version 5.0.3
+
+- Added a new "Sharing" menu with items for publishing to BASS2000 and sharing on SpectroSolHub
+- Added the ability to post-process images externally before uploading to SpectroSolHub. In the image selection step, check the post-processing option to edit your images (contrast, sharpening, etc.) in your favorite editor before upload.
+
 ## What's New in Version 5.0.2
 
 - Added the ability to configure the level of parallelism used in batch processing mode
