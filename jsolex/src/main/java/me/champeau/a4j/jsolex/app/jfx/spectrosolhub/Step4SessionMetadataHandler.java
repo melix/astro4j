@@ -108,6 +108,7 @@ class Step4SessionMetadataHandler implements StepHandler {
 
         grid.add(new Label(message("session.notes.label")), 0, row);
         notesArea = new TextArea();
+        notesArea.setWrapText(true);
         notesArea.setPrefRowCount(3);
         notesArea.setPrefWidth(400);
         grid.add(notesArea, 1, row);

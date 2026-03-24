@@ -106,6 +106,12 @@ class Step2ImageSelectionHandler implements StepHandler {
         var instruction = new Label(message("images.instruction"));
         instruction.setWrapText(true);
 
+        var recommendation = new Label(message("images.recommendation"));
+        recommendation.setWrapText(true);
+        recommendation.setMaxWidth(Double.MAX_VALUE);
+        recommendation.setMinHeight(Label.USE_PREF_SIZE);
+        recommendation.setStyle("-fx-font-style: italic; -fx-text-fill: #555555; -fx-padding: 4 8 4 8; -fx-background-color: #fff8e1; -fx-background-radius: 4; -fx-border-color: #ffe082; -fx-border-radius: 4;");
+
         var buttonsBox = new HBox(10);
         buttonsBox.setAlignment(Pos.CENTER_LEFT);
         var selectAll = new Button(message("images.select.all"));
@@ -131,7 +137,7 @@ class Step2ImageSelectionHandler implements StepHandler {
         loadingPane.setAlignment(Pos.CENTER);
         VBox.setVgrow(loadingPane, Priority.ALWAYS);
 
-        content.getChildren().addAll(title, instruction, buttonsBox, reorderHint, postProcessCheckBox, loadingPane);
+        content.getChildren().addAll(title, instruction, recommendation, buttonsBox, reorderHint, postProcessCheckBox, loadingPane);
 
         return content;
     }
@@ -164,7 +170,31 @@ class Step2ImageSelectionHandler implements StepHandler {
         card.setAlignment(Pos.CENTER);
         card.setPadding(new Insets(6));
         card.setPrefWidth(THUMBNAIL_SIZE + 20);
-        card.getChildren().addAll(imageStack, label);
+
+        var moveLeft = new Button("\u25C0");
+        moveLeft.setStyle("-fx-font-size: 0.75em; -fx-padding: 1 4 1 4; -fx-min-width: 20;");
+        moveLeft.setOnAction(e -> {
+            int idx = gallery.getChildren().indexOf(card);
+            if (idx > 0) {
+                moveImage(idx, idx - 1);
+            }
+            e.consume();
+        });
+
+        var moveRight = new Button("\u25B6");
+        moveRight.setStyle("-fx-font-size: 0.75em; -fx-padding: 1 4 1 4; -fx-min-width: 20;");
+        moveRight.setOnAction(e -> {
+            int idx = gallery.getChildren().indexOf(card);
+            if (idx < gallery.getChildren().size() - 1) {
+                moveImage(idx, idx + 1);
+            }
+            e.consume();
+        });
+
+        var moveButtons = new HBox(4, moveLeft, moveRight);
+        moveButtons.setAlignment(Pos.CENTER);
+
+        card.getChildren().addAll(imageStack, label, moveButtons);
         updateCardStyle(card, cb.isSelected());
 
         Tooltip.install(card, new Tooltip(imageInfo.title()));

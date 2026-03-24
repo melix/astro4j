@@ -97,6 +97,8 @@ class Step3OrientationHandler implements StepHandler {
 
         var warning = new Label(message("orientation.warning"));
         warning.setWrapText(true);
+        warning.setMaxWidth(Double.MAX_VALUE);
+        warning.setMinHeight(Label.USE_PREF_SIZE);
         warning.setStyle("-fx-background-color: #fff3e0; -fx-text-fill: #e65100; -fx-padding: 10; -fx-border-color: #e65100; -fx-border-width: 1; -fx-border-radius: 5; -fx-background-radius: 5;");
 
         var imageComparisonBox = new HBox(10);

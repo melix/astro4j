@@ -282,6 +282,8 @@ public class SpectroSolHubSubmissionController {
 
         var warning = new Label(message("postprocess.warning"));
         warning.setWrapText(true);
+        warning.setMaxWidth(Double.MAX_VALUE);
+        warning.setMinHeight(Label.USE_PREF_SIZE);
         warning.setStyle("-fx-font-size: 13px;");
 
         var openFolderLink = new Hyperlink(message("postprocess.open.folder"));
