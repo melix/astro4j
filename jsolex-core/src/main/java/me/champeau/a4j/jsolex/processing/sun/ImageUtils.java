@@ -74,7 +74,6 @@ public class ImageUtils {
             createDirectoryFor(outputFile);
             var baseName = baseNameOf(outputFile);
             return imageFormats.stream()
-                    .parallel()
                     .map(format -> {
                         if (format.equals(ImageFormat.FITS)) {
                             return null;

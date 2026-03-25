@@ -70,12 +70,12 @@ public class PhenomenaDetector {
     private final Map<Integer, List<Redshift>> redshiftsPerFrame = new ConcurrentHashMap<>();
     private final List<CandidateFlare> candidateFlares = new CopyOnWriteArrayList<>();
     private final Map<Integer, BitSet> activeRegionsPerFrame = new ConcurrentHashMap<>();
-    private BorderDetection borderDetection;
+    private volatile BorderDetection borderDetection;
     private final Lock lock = new ReentrantLock();
     private final Dispersion dispersion;
     private final Wavelen lambda0;
     private final int reconstructedWidth;
-    private final ImageMath imageMath = ImageMath.newInstance();
+    private final ImageMath imageMath = ImageMath.newCpuInstance();
 
     private List<Flare> flares;
     private PhenomenaListener detectionListener;
@@ -131,29 +131,31 @@ public class PhenomenaDetector {
         if (!detectRedshifts && !detectActiveRegions && !findBorders && !detectEllermanBombs) {
             return;
         }
-        var spectrumFrameAnalyzer = new SpectrumFrameAnalyzer(width, height, header.isJSolexTrimmedSer(), 20000d);
-        var bordersAnalysis = spectrumFrameAnalyzer.findBorders(original);
         // 10 is to convert nm to angstrom
         int wingShiftInPixels = (int) Math.floor(0.5d / dispersion.angstromsPerPixel());
-        lock.lock();
-        try {
-            if (borderDetection == null) {
-                borderDetection = BorderDetection.create(header.frameCount());
+        if (borderDetection == null) {
+            lock.lock();
+            try {
+                if (borderDetection == null) {
+                    borderDetection = BorderDetection.create(header.frameCount());
+                }
+            } finally {
+                lock.unlock();
             }
-        } finally {
-            lock.unlock();
         }
-        new SpectrumFrameAnalyzer(width, height, header.isJSolexTrimmedSer(), null)
-                .findBorders(original)
-                .ifPresent(borders -> {
-                    var left = borders.a();
-                    var right = borders.b();
-                    borderDetection.left()[frameId] = left;
-                    borderDetection.right()[frameId] = right;
-                });
+        if (findBorders) {
+            new SpectrumFrameAnalyzer(width, height, header.isJSolexTrimmedSer(), null)
+                    .findBorders(original)
+                    .ifPresent(borders -> {
+                        borderDetection.left()[frameId] = borders.a();
+                        borderDetection.right()[frameId] = borders.b();
+                    });
+        }
         if (!detectRedshifts && !detectActiveRegions && !detectEllermanBombs) {
             return;
         }
+        var spectrumFrameAnalyzer = new SpectrumFrameAnalyzer(width, height, header.isJSolexTrimmedSer(), 20000d);
+        var bordersAnalysis = spectrumFrameAnalyzer.findBorders(original);
         bordersAnalysis.ifPresent(borders -> {
             var left = borders.a();
             var right = borders.b();

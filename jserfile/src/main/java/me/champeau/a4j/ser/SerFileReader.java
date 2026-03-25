@@ -367,7 +367,6 @@ public class SerFileReader implements AutoCloseable {
         accessFile.close();
         Arrays.fill(imageBuffers, null);
         timestampsBuffer[0] = null;
-        System.gc();
     }
 
     /**

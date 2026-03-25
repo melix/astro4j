@@ -4,6 +4,8 @@
 
 - Ajout d'un nouveau menu « Partage » avec des entrées pour publier sur BASS2000 et partager sur SpectroSolHub
 - Ajout de la possibilité de post-traiter les images en externe avant de les téléverser sur SpectroSolHub. Dans l'étape de sélection des images, cochez l'option de post-traitement pour modifier vos images (contraste, netteté, etc.) dans votre éditeur préféré avant le téléversement.
+- Correction de résultats de dédistorsion non déterministes
+- Amélioration des performances sur les systèmes multi-core
 
 ## Nouveautés de la version 5.0.2
 

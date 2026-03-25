@@ -42,12 +42,13 @@ public abstract class TimestampConverter {
         if (timestamp <= 0) {
             return Optional.empty();
         }
-        LocalDateTime localDateTime = LocalDateTime.of(1, 1, 1, 0, 0, 0, 0);
-        // Looping to avoid number overflow
-        for (int i = 0; i < 100; i++) {
-            localDateTime = localDateTime.plusNanos(timestamp);
-        }
-        return Optional.of(localDateTime);
+        // Decompose 100ns ticks into days/seconds/nanos to avoid long overflow
+        long ticksPerDay = 24L * 60 * 60 * 10_000_000;
+        long days = timestamp / ticksPerDay;
+        long remaining = timestamp % ticksPerDay;
+        long seconds = remaining / 10_000_000;
+        int nanos = (int) ((remaining % 10_000_000) * 100);
+        return Optional.of(BASE_DATE_TIME.plusDays(days).plusSeconds(seconds).plusNanos(nanos));
     }
 
 

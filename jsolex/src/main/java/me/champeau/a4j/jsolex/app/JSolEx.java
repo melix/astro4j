@@ -1815,7 +1815,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         var rootOperation = createRootOperation(selectedFile.getName());
         Platform.runLater(() -> imageMathRun.setDisable(true));
         var processingThread =
-                new Thread(() -> processSingleFile(params, rootOperation, selectedFile, false, 0, selectedFile, firstHeader, () -> Platform.runLater(() -> {
+                new Thread(() -> processSingleFile(params, rootOperation, selectedFile, false, 0, selectedFile, firstHeader, () -> {}, () -> Platform.runLater(() -> {
                     workButtons.getChildren().remove(interruptButton);
                     imageMathRun.setDisable(false);
                 })));
@@ -2092,8 +2092,9 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
                                   int sequenceNumber,
                                   BatchProcessingContext context,
                                   Header header,
+                                  Runnable onReconstructionComplete,
                                   Runnable onComplete) {
-        processSingleFile(params, operation, selectedFile, true, sequenceNumber, context, header, onComplete);
+        processSingleFile(params, operation, selectedFile, true, sequenceNumber, context, header, onReconstructionComplete, onComplete);
     }
 
     private void processSingleFile(ProcessParams params,
@@ -2103,6 +2104,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
                                    int sequenceNumber,
                                    Object context,
                                    Header header,
+                                   Runnable onReconstructionComplete,
                                    Runnable onComplete) {
         Thread.currentThread().setUncaughtExceptionHandler((t, e) -> LoggingSupport.logError(e));
         lastExecutionProcessParams = params;
@@ -2123,7 +2125,8 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         var appender = LogbackConfigurer.createContextualFileAppender(sequenceNumber, logFile);
         LoggingSupport.LOGGER.info(message("output.dir.set"), outputDirectory);
         var processorContext = Map.<Class<?>, Object>of(AnimationFormat.class, config.getAnimationFormats());
-        var processor = new SolexVideoProcessor(selectedFile, outputDirectory.toPath(), sequenceNumber, params, processingDate, batchMode, config.getMemoryRestrictionMultiplier(), operation, processorContext);
+        var processor = new SolexVideoProcessor(selectedFile, outputDirectory.toPath(), sequenceNumber, params, processingDate, batchMode, batchMode ? config.getBatchParallelism() : 1, config.getMemoryRestrictionMultiplier(), operation, processorContext);
+        processor.setOnReconstructionComplete(onReconstructionComplete);
         var listener = createListener(operation, baseName, params, batchMode, sequenceNumber, context);
         processor.addEventListener(listener);
         try {

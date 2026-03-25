@@ -90,10 +90,6 @@ public class ImageCombination extends AbstractFunctionImpl {
     }
 
     private static ImageWrapper combineSideBySide(ImageWrapper left, ImageWrapper right) {
-        if (left.height() != right.height()) {
-            throw new IllegalArgumentException("Images must have the same height for side by side combination");
-        }
-
         if (left instanceof ImageWrapper32 leftMono && right instanceof ImageWrapper32 rightMono) {
             return combineSideBySideMono(leftMono, rightMono);
         }
@@ -105,7 +101,7 @@ public class ImageCombination extends AbstractFunctionImpl {
     }
 
     private static ImageWrapper32 combineSideBySideMono(ImageWrapper32 left, ImageWrapper32 right) {
-        int height = left.height();
+        int height = Math.max(left.height(), right.height());
         int leftWidth = left.width();
         int rightWidth = right.width();
         int totalWidth = leftWidth + rightWidth;
@@ -115,8 +111,12 @@ public class ImageCombination extends AbstractFunctionImpl {
         var rightData = right.data();
 
         for (int y = 0; y < height; y++) {
-            System.arraycopy(leftData[y], 0, result[y], 0, leftWidth);
-            System.arraycopy(rightData[y], 0, result[y], leftWidth, rightWidth);
+            if (y < left.height()) {
+                System.arraycopy(leftData[y], 0, result[y], 0, leftWidth);
+            }
+            if (y < right.height()) {
+                System.arraycopy(rightData[y], 0, result[y], leftWidth, rightWidth);
+            }
         }
 
         var metadata = MetadataMerger.merge(List.of(left, right));
@@ -124,7 +124,7 @@ public class ImageCombination extends AbstractFunctionImpl {
     }
 
     private static RGBImage combineSideBySideRgb(RGBImage left, RGBImage right) {
-        int height = left.height();
+        int height = Math.max(left.height(), right.height());
         int leftWidth = left.width();
         int rightWidth = right.width();
         int totalWidth = leftWidth + rightWidth;
@@ -134,12 +134,16 @@ public class ImageCombination extends AbstractFunctionImpl {
         var resultB = new float[height][totalWidth];
 
         for (int y = 0; y < height; y++) {
-            System.arraycopy(left.r()[y], 0, resultR[y], 0, leftWidth);
-            System.arraycopy(right.r()[y], 0, resultR[y], leftWidth, rightWidth);
-            System.arraycopy(left.g()[y], 0, resultG[y], 0, leftWidth);
-            System.arraycopy(right.g()[y], 0, resultG[y], leftWidth, rightWidth);
-            System.arraycopy(left.b()[y], 0, resultB[y], 0, leftWidth);
-            System.arraycopy(right.b()[y], 0, resultB[y], leftWidth, rightWidth);
+            if (y < left.height()) {
+                System.arraycopy(left.r()[y], 0, resultR[y], 0, leftWidth);
+                System.arraycopy(left.g()[y], 0, resultG[y], 0, leftWidth);
+                System.arraycopy(left.b()[y], 0, resultB[y], 0, leftWidth);
+            }
+            if (y < right.height()) {
+                System.arraycopy(right.r()[y], 0, resultR[y], leftWidth, rightWidth);
+                System.arraycopy(right.g()[y], 0, resultG[y], leftWidth, rightWidth);
+                System.arraycopy(right.b()[y], 0, resultB[y], leftWidth, rightWidth);
+            }
         }
 
         var metadata = MetadataMerger.merge(List.of(left, right));
@@ -147,10 +151,6 @@ public class ImageCombination extends AbstractFunctionImpl {
     }
 
     private static ImageWrapper combineTopBottom(ImageWrapper top, ImageWrapper bottom) {
-        if (top.width() != bottom.width()) {
-            throw new IllegalArgumentException("Images must have the same width for top/bottom combination");
-        }
-
         if (top instanceof ImageWrapper32 topMono && bottom instanceof ImageWrapper32 bottomMono) {
             return combineTopBottomMono(topMono, bottomMono);
         }
@@ -162,7 +162,7 @@ public class ImageCombination extends AbstractFunctionImpl {
     }
 
     private static ImageWrapper32 combineTopBottomMono(ImageWrapper32 top, ImageWrapper32 bottom) {
-        int width = top.width();
+        int width = Math.max(top.width(), bottom.width());
         int topHeight = top.height();
         int bottomHeight = bottom.height();
         int totalHeight = topHeight + bottomHeight;
@@ -172,10 +172,10 @@ public class ImageCombination extends AbstractFunctionImpl {
         var bottomData = bottom.data();
 
         for (int y = 0; y < topHeight; y++) {
-            System.arraycopy(topData[y], 0, result[y], 0, width);
+            System.arraycopy(topData[y], 0, result[y], 0, top.width());
         }
         for (int y = 0; y < bottomHeight; y++) {
-            System.arraycopy(bottomData[y], 0, result[topHeight + y], 0, width);
+            System.arraycopy(bottomData[y], 0, result[topHeight + y], 0, bottom.width());
         }
 
         var metadata = MetadataMerger.merge(List.of(top, bottom));
@@ -183,7 +183,7 @@ public class ImageCombination extends AbstractFunctionImpl {
     }
 
     private static RGBImage combineTopBottomRgb(RGBImage top, RGBImage bottom) {
-        int width = top.width();
+        int width = Math.max(top.width(), bottom.width());
         int topHeight = top.height();
         int bottomHeight = bottom.height();
         int totalHeight = topHeight + bottomHeight;
@@ -193,14 +193,14 @@ public class ImageCombination extends AbstractFunctionImpl {
         var resultB = new float[totalHeight][width];
 
         for (int y = 0; y < topHeight; y++) {
-            System.arraycopy(top.r()[y], 0, resultR[y], 0, width);
-            System.arraycopy(top.g()[y], 0, resultG[y], 0, width);
-            System.arraycopy(top.b()[y], 0, resultB[y], 0, width);
+            System.arraycopy(top.r()[y], 0, resultR[y], 0, top.width());
+            System.arraycopy(top.g()[y], 0, resultG[y], 0, top.width());
+            System.arraycopy(top.b()[y], 0, resultB[y], 0, top.width());
         }
         for (int y = 0; y < bottomHeight; y++) {
-            System.arraycopy(bottom.r()[y], 0, resultR[topHeight + y], 0, width);
-            System.arraycopy(bottom.g()[y], 0, resultG[topHeight + y], 0, width);
-            System.arraycopy(bottom.b()[y], 0, resultB[topHeight + y], 0, width);
+            System.arraycopy(bottom.r()[y], 0, resultR[topHeight + y], 0, bottom.width());
+            System.arraycopy(bottom.g()[y], 0, resultG[topHeight + y], 0, bottom.width());
+            System.arraycopy(bottom.b()[y], 0, resultB[topHeight + y], 0, bottom.width());
         }
 
         var metadata = MetadataMerger.merge(List.of(top, bottom));

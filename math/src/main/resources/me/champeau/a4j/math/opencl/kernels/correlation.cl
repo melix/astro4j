@@ -248,37 +248,37 @@ void find_peak_32x32(__local float data[32][32],
     }
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    // Find max across all rows (use row 0 threads) with tie-breaking
+    // Find max across all rows (use row 0 threads, all threads hit barriers)
     if (localY == 0) {
         colData[localX] = rowMax[localX];
         colIdxY[localX] = localX;
         colIdxX[localX] = rowMaxX[localX];
         colDistSq[localX] = rowMaxDistSq[localX];
-        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
 
-        for (int stride = 16; stride > 0; stride >>= 1) {
-            if (localX < stride) {
-                float valA = colData[localX];
-                float valB = colData[localX + stride];
-                int distA = colDistSq[localX];
-                int distB = colDistSq[localX + stride];
+    for (int stride = 16; stride > 0; stride >>= 1) {
+        if (localY == 0 && localX < stride) {
+            float valA = colData[localX];
+            float valB = colData[localX + stride];
+            int distA = colDistSq[localX];
+            int distB = colDistSq[localX + stride];
 
-                // Tie-breaking: prefer peak closer to center
-                if (valB > valA || (valB == valA && distB < distA)) {
-                    colData[localX] = valB;
-                    colIdxY[localX] = colIdxY[localX + stride];
-                    colIdxX[localX] = colIdxX[localX + stride];
-                    colDistSq[localX] = distB;
-                }
+            // Tie-breaking: prefer peak closer to center
+            if (valB > valA || (valB == valA && distB < distA)) {
+                colData[localX] = valB;
+                colIdxY[localX] = colIdxY[localX + stride];
+                colIdxX[localX] = colIdxX[localX + stride];
+                colDistSq[localX] = distB;
             }
-            barrier(CLK_LOCAL_MEM_FENCE);
         }
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
 
-        if (localX == 0) {
-            *peakVal = colData[0];
-            *peakY = colIdxY[0];
-            *peakX = colIdxX[0];
-        }
+    if (localX == 0 && localY == 0) {
+        *peakVal = colData[0];
+        *peakY = colIdxY[0];
+        *peakX = colIdxX[0];
     }
     barrier(CLK_LOCAL_MEM_FENCE);
 }
@@ -1129,102 +1129,129 @@ __kernel void batched_ncc_32(
     float refVal = refTiles[offset];
     float tgtVal = targetTiles[offset];
 
-    // Step 1: Compute means using parallel reduction
-    // Each row computes partial sum, then reduce across rows
-    __local float rowSumRef[32];
-    __local float rowSumTgt[32];
-
-    // Warp-level sum within row using shared memory
+    // Step 1: Compute means using parallel float reduction
+    // Reduce ref values within row
     rowData[localY][localX] = refVal;
-    rowIdx[localY][localX] = (int)(tgtVal * 1000);  // Reuse as temp storage
     barrier(CLK_LOCAL_MEM_FENCE);
-
-    // Reduce within row
     for (int stride = 16; stride > 0; stride >>= 1) {
         if (localX < stride) {
             rowData[localY][localX] += rowData[localY][localX + stride];
-            rowIdx[localY][localX] += rowIdx[localY][localX + stride];
         }
         barrier(CLK_LOCAL_MEM_FENCE);
     }
-
     if (localX == 0) {
-        rowSumRef[localY] = rowData[localY][0];
-        rowSumTgt[localY] = (float)rowIdx[localY][0] / 1000.0f;
+        partialSumRef[localY] = rowData[localY][0];
     }
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    // Reduce across rows (use thread column 0)
+    // Reduce ref across rows
     if (localY == 0) {
-        partialSumRef[localX] = rowSumRef[localX];
-        partialSumTgt[localX] = rowSumTgt[localX];
+        rowData[0][localX] = partialSumRef[localX];
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+    for (int stride = 16; stride > 0; stride >>= 1) {
+        if (localY == 0 && localX < stride) {
+            rowData[0][localX] += rowData[0][localX + stride];
+        }
         barrier(CLK_LOCAL_MEM_FENCE);
-
-        for (int stride = 16; stride > 0; stride >>= 1) {
-            if (localX < stride) {
-                partialSumRef[localX] += partialSumRef[localX + stride];
-                partialSumTgt[localX] += partialSumTgt[localX + stride];
-            }
-            barrier(CLK_LOCAL_MEM_FENCE);
-        }
-
-        if (localX == 0) {
-            meanRef = partialSumRef[0] / 1024.0f;
-            meanTgt = partialSumTgt[0] / 1024.0f;
-        }
+    }
+    if (localX == 0 && localY == 0) {
+        meanRef = rowData[0][0] / 1024.0f;
     }
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    // Reload original values (we corrupted rowData/rowIdx)
-    refVal = refTiles[offset];
-    tgtVal = targetTiles[offset];
+    // Reduce tgt values within row
+    rowData[localY][localX] = tgtVal;
+    barrier(CLK_LOCAL_MEM_FENCE);
+    for (int stride = 16; stride > 0; stride >>= 1) {
+        if (localX < stride) {
+            rowData[localY][localX] += rowData[localY][localX + stride];
+        }
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+    if (localX == 0) {
+        partialSumTgt[localY] = rowData[localY][0];
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
 
-    // Step 2: Compute sum of squared deviations
+    // Reduce tgt across rows
+    if (localY == 0) {
+        rowData[0][localX] = partialSumTgt[localX];
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+    for (int stride = 16; stride > 0; stride >>= 1) {
+        if (localY == 0 && localX < stride) {
+            rowData[0][localX] += rowData[0][localX + stride];
+        }
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+    if (localX == 0 && localY == 0) {
+        meanTgt = rowData[0][0] / 1024.0f;
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    // Step 2: Compute sum of squared deviations (all float, no int conversion)
     float devRef = refVal - meanRef;
     float devTgt = tgtVal - meanTgt;
-    float sqRef = devRef * devRef;
-    float sqTgt = devTgt * devTgt;
 
-    rowData[localY][localX] = sqRef;
-    rowDistSq[localY][localX] = (int)(sqTgt * 1000);  // Reuse as temp
+    // Reduce sumSqRef within row
+    rowData[localY][localX] = devRef * devRef;
     barrier(CLK_LOCAL_MEM_FENCE);
-
-    // Reduce sum of squares within row
     for (int stride = 16; stride > 0; stride >>= 1) {
         if (localX < stride) {
             rowData[localY][localX] += rowData[localY][localX + stride];
-            rowDistSq[localY][localX] += rowDistSq[localY][localX + stride];
         }
         barrier(CLK_LOCAL_MEM_FENCE);
     }
-
     if (localX == 0) {
         partialSumSqRef[localY] = rowData[localY][0];
-        partialSumSqTgt[localY] = (float)rowDistSq[localY][0] / 1000.0f;
     }
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    // Reduce across rows
+    // Reduce sumSqRef across rows
     if (localY == 0) {
-        colData[localX] = partialSumSqRef[localX];
-        colDistSq[localX] = (int)(partialSumSqTgt[localX] * 1000);
-        barrier(CLK_LOCAL_MEM_FENCE);
-
-        for (int stride = 16; stride > 0; stride >>= 1) {
-            if (localX < stride) {
-                colData[localX] += colData[localX + stride];
-                colDistSq[localX] += colDistSq[localX + stride];
-            }
-            barrier(CLK_LOCAL_MEM_FENCE);
+        rowData[0][localX] = partialSumSqRef[localX];
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+    for (int stride = 16; stride > 0; stride >>= 1) {
+        if (localY == 0 && localX < stride) {
+            rowData[0][localX] += rowData[0][localX + stride];
         }
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+    float sumSqRefVal = rowData[0][0];
+    barrier(CLK_LOCAL_MEM_FENCE);
 
-        if (localX == 0) {
-            float sumSqRef = colData[0];
-            float sumSqTgt = (float)colDistSq[0] / 1000.0f;
-            normFactor = sqrt(sumSqRef * sumSqTgt);
-            if (normFactor < 1e-10f) {
-                normFactor = 1e-10f;
-            }
+    // Reduce sumSqTgt within row
+    rowData[localY][localX] = devTgt * devTgt;
+    barrier(CLK_LOCAL_MEM_FENCE);
+    for (int stride = 16; stride > 0; stride >>= 1) {
+        if (localX < stride) {
+            rowData[localY][localX] += rowData[localY][localX + stride];
+        }
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+    if (localX == 0) {
+        partialSumSqTgt[localY] = rowData[localY][0];
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    // Reduce sumSqTgt across rows
+    if (localY == 0) {
+        rowData[0][localX] = partialSumSqTgt[localX];
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+    for (int stride = 16; stride > 0; stride >>= 1) {
+        if (localY == 0 && localX < stride) {
+            rowData[0][localX] += rowData[0][localX + stride];
+        }
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+
+    if (localX == 0 && localY == 0) {
+        normFactor = sqrt(sumSqRefVal * rowData[0][0]);
+        if (normFactor < 1e-10f) {
+            normFactor = 1e-10f;
         }
     }
     barrier(CLK_LOCAL_MEM_FENCE);
@@ -1659,92 +1686,129 @@ __kernel void correlate_resident_ncc_32(
     __local int colIdxX[32];
     __local int colDistSq[32];
 
-    __local float rowSumRef[32];
-    __local float rowSumTgt[32];
-
-    // Step 1: Compute means using parallel reduction
+    // Step 1: Compute means using parallel float reduction
+    // Reduce ref values within row
     rowData[localY][localX] = refVal;
-    rowIdx[localY][localX] = (int)(tgtVal * 1000);
     barrier(CLK_LOCAL_MEM_FENCE);
-
     for (int stride = 16; stride > 0; stride >>= 1) {
         if (localX < stride) {
             rowData[localY][localX] += rowData[localY][localX + stride];
-            rowIdx[localY][localX] += rowIdx[localY][localX + stride];
         }
         barrier(CLK_LOCAL_MEM_FENCE);
     }
-
     if (localX == 0) {
-        rowSumRef[localY] = rowData[localY][0];
-        rowSumTgt[localY] = (float)rowIdx[localY][0] / 1000.0f;
+        partialSumRef[localY] = rowData[localY][0];
     }
     barrier(CLK_LOCAL_MEM_FENCE);
 
+    // Reduce ref across rows
     if (localY == 0) {
-        partialSumRef[localX] = rowSumRef[localX];
-        partialSumTgt[localX] = rowSumTgt[localX];
+        rowData[0][localX] = partialSumRef[localX];
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+    for (int stride = 16; stride > 0; stride >>= 1) {
+        if (localY == 0 && localX < stride) {
+            rowData[0][localX] += rowData[0][localX + stride];
+        }
         barrier(CLK_LOCAL_MEM_FENCE);
-
-        for (int stride = 16; stride > 0; stride >>= 1) {
-            if (localX < stride) {
-                partialSumRef[localX] += partialSumRef[localX + stride];
-                partialSumTgt[localX] += partialSumTgt[localX + stride];
-            }
-            barrier(CLK_LOCAL_MEM_FENCE);
-        }
-
-        if (localX == 0) {
-            meanRef = partialSumRef[0] / 1024.0f;
-            meanTgt = partialSumTgt[0] / 1024.0f;
-        }
+    }
+    if (localX == 0 && localY == 0) {
+        meanRef = rowData[0][0] / 1024.0f;
     }
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    // Step 2: Compute sum of squared deviations
+    // Reduce tgt values within row
+    rowData[localY][localX] = tgtVal;
+    barrier(CLK_LOCAL_MEM_FENCE);
+    for (int stride = 16; stride > 0; stride >>= 1) {
+        if (localX < stride) {
+            rowData[localY][localX] += rowData[localY][localX + stride];
+        }
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+    if (localX == 0) {
+        partialSumTgt[localY] = rowData[localY][0];
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    // Reduce tgt across rows
+    if (localY == 0) {
+        rowData[0][localX] = partialSumTgt[localX];
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+    for (int stride = 16; stride > 0; stride >>= 1) {
+        if (localY == 0 && localX < stride) {
+            rowData[0][localX] += rowData[0][localX + stride];
+        }
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+    if (localX == 0 && localY == 0) {
+        meanTgt = rowData[0][0] / 1024.0f;
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    // Step 2: Compute sum of squared deviations (all float, no int conversion)
     float devRef = refVal - meanRef;
     float devTgt = tgtVal - meanTgt;
-    float sqRef = devRef * devRef;
-    float sqTgt = devTgt * devTgt;
 
-    rowData[localY][localX] = sqRef;
-    rowDistSq[localY][localX] = (int)(sqTgt * 1000);
+    // Reduce sumSqRef within row
+    rowData[localY][localX] = devRef * devRef;
     barrier(CLK_LOCAL_MEM_FENCE);
-
     for (int stride = 16; stride > 0; stride >>= 1) {
         if (localX < stride) {
             rowData[localY][localX] += rowData[localY][localX + stride];
-            rowDistSq[localY][localX] += rowDistSq[localY][localX + stride];
         }
         barrier(CLK_LOCAL_MEM_FENCE);
     }
-
     if (localX == 0) {
         partialSumSqRef[localY] = rowData[localY][0];
-        partialSumSqTgt[localY] = (float)rowDistSq[localY][0] / 1000.0f;
     }
     barrier(CLK_LOCAL_MEM_FENCE);
 
+    // Reduce sumSqRef across rows
     if (localY == 0) {
-        colData[localX] = partialSumSqRef[localX];
-        colDistSq[localX] = (int)(partialSumSqTgt[localX] * 1000);
-        barrier(CLK_LOCAL_MEM_FENCE);
-
-        for (int stride = 16; stride > 0; stride >>= 1) {
-            if (localX < stride) {
-                colData[localX] += colData[localX + stride];
-                colDistSq[localX] += colDistSq[localX + stride];
-            }
-            barrier(CLK_LOCAL_MEM_FENCE);
+        rowData[0][localX] = partialSumSqRef[localX];
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+    for (int stride = 16; stride > 0; stride >>= 1) {
+        if (localY == 0 && localX < stride) {
+            rowData[0][localX] += rowData[0][localX + stride];
         }
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+    float sumSqRefVal = rowData[0][0];
+    barrier(CLK_LOCAL_MEM_FENCE);
 
-        if (localX == 0) {
-            float sumSqRef = colData[0];
-            float sumSqTgt = (float)colDistSq[0] / 1000.0f;
-            normFactor = sqrt(sumSqRef * sumSqTgt);
-            if (normFactor < 1e-10f) {
-                normFactor = 1e-10f;
-            }
+    // Reduce sumSqTgt within row
+    rowData[localY][localX] = devTgt * devTgt;
+    barrier(CLK_LOCAL_MEM_FENCE);
+    for (int stride = 16; stride > 0; stride >>= 1) {
+        if (localX < stride) {
+            rowData[localY][localX] += rowData[localY][localX + stride];
+        }
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+    if (localX == 0) {
+        partialSumSqTgt[localY] = rowData[localY][0];
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    // Reduce sumSqTgt across rows
+    if (localY == 0) {
+        rowData[0][localX] = partialSumSqTgt[localX];
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+    for (int stride = 16; stride > 0; stride >>= 1) {
+        if (localY == 0 && localX < stride) {
+            rowData[0][localX] += rowData[0][localX + stride];
+        }
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+
+    if (localX == 0 && localY == 0) {
+        normFactor = sqrt(sumSqRefVal * rowData[0][0]);
+        if (normFactor < 1e-10f) {
+            normFactor = 1e-10f;
         }
     }
     barrier(CLK_LOCAL_MEM_FENCE);
