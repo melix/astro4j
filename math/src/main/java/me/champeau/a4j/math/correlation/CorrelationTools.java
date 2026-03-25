@@ -70,10 +70,10 @@ public class CorrelationTools {
         var context = OpenCLSupport.getContext();
         if (context != null && OpenCLSupport.isEnabled() && numTiles >= MIN_TILES_FOR_GPU) {
             try {
-                return batchedCorrelationGPU(context, refTiles, targetTiles, normalize);
+                return context.tryExecuteWithLock(
+                        () -> batchedCorrelationGPU(context, refTiles, targetTiles, normalize),
+                        () -> batchedCorrelationCPU(refTiles, targetTiles, normalize));
             } catch (Exception e) {
-                System.err.println("[Correlation] GPU failed, falling back to CPU | " + context.getMemoryStats());
-                e.printStackTrace();
                 context.recordError("Correlation.batchedCorrelation", e);
             }
         }
@@ -449,10 +449,10 @@ public class CorrelationTools {
         var context = OpenCLSupport.getContext();
         if (context != null && OpenCLSupport.isEnabled() && numTiles >= MIN_TILES_FOR_GPU) {
             try {
-                return batchedNCCGPU(context, refTiles, targetTiles);
+                return context.tryExecuteWithLock(
+                        () -> batchedNCCGPU(context, refTiles, targetTiles),
+                        () -> batchedNCCCPU(refTiles, targetTiles));
             } catch (Exception e) {
-                System.err.println("[Correlation] GPU NCC failed, falling back to CPU | " + context.getMemoryStats());
-                e.printStackTrace();
                 context.recordError("Correlation.batchedNCC", e);
             }
         }

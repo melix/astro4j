@@ -4,6 +4,8 @@
 
 - Added a new "Sharing" menu with items for publishing to BASS2000 and sharing on SpectroSolHub
 - Added the ability to post-process images externally before uploading to SpectroSolHub. In the image selection step, check the post-processing option to edit your images (contrast, sharpening, etc.) in your favorite editor before upload.
+- Fixed non deterministic dedistorsion results
+- Improved performance on multi-core systems
 
 ## What's New in Version 5.0.2
 

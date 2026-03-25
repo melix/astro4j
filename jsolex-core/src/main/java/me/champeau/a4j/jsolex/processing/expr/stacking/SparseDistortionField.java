@@ -461,17 +461,34 @@ public class SparseDistortionField {
          * @return a new SparseDistortionField
          */
         public SparseDistortionField build() {
+            // Sort samples by (y, x) to ensure deterministic KDTree construction
+            // regardless of insertion order
+            var sortOrder = new Integer[sampleCount];
+            for (int i = 0; i < sampleCount; i++) {
+                sortOrder[i] = i;
+            }
+            Arrays.sort(sortOrder, (a, b) -> {
+                int cmp = Float.compare(sampleY[a], sampleY[b]);
+                if (cmp != 0) {
+                    return cmp;
+                }
+                return Float.compare(sampleX[a], sampleX[b]);
+            });
+
             var finalX = new float[sampleCount];
             var finalY = new float[sampleCount];
             var finalDx = new float[sampleCount];
             var finalDy = new float[sampleCount];
             var finalTileSize = new int[sampleCount];
 
-            System.arraycopy(sampleX, 0, finalX, 0, sampleCount);
-            System.arraycopy(sampleY, 0, finalY, 0, sampleCount);
-            System.arraycopy(sampleDx, 0, finalDx, 0, sampleCount);
-            System.arraycopy(sampleDy, 0, finalDy, 0, sampleCount);
-            System.arraycopy(sampleTileSize, 0, finalTileSize, 0, sampleCount);
+            for (int i = 0; i < sampleCount; i++) {
+                int src = sortOrder[i];
+                finalX[i] = sampleX[src];
+                finalY[i] = sampleY[src];
+                finalDx[i] = sampleDx[src];
+                finalDy[i] = sampleDy[src];
+                finalTileSize[i] = sampleTileSize[src];
+            }
 
             var spatialIndex = KDTree2D.build(finalX, finalY, sampleCount);
 

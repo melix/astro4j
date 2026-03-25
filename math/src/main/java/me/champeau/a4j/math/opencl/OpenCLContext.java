@@ -378,6 +378,27 @@ public class OpenCLContext implements AutoCloseable {
     }
 
     /**
+     * Attempts to execute a GPU operation without blocking.
+     * If the GPU lock is available, acquires it and runs the GPU operation.
+     * If the GPU is busy (lock held by another thread), runs the CPU fallback immediately.
+     *
+     * @param gpuOperation the GPU operation to execute if the lock is available
+     * @param cpuFallback  the CPU fallback to execute if the GPU is busy
+     * @param <T>          the return type
+     * @return the result from either the GPU operation or the CPU fallback
+     */
+    public <T> T tryExecuteWithLock(Supplier<T> gpuOperation, Supplier<T> cpuFallback) {
+        if (gpuLock.tryLock()) {
+            try {
+                return gpuOperation.get();
+            } finally {
+                gpuLock.unlock();
+            }
+        }
+        return cpuFallback.get();
+    }
+
+    /**
      * Verifies that the current thread holds the GPU lock.
      * All GPU operations must be performed while holding the lock.
      *

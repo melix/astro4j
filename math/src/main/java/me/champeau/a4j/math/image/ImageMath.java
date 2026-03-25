@@ -43,6 +43,17 @@ public interface ImageMath {
         if (OpenCLSupport.isEnabled()) {
             return new OpenCLImageMath(OpenCLSupport.getContext());
         }
+        return newCpuInstance();
+    }
+
+    /**
+     * Creates a CPU-only instance, bypassing GPU acceleration.
+     * Use this in parallel processing paths where GPU lock contention
+     * would negate the benefits of GPU acceleration.
+     *
+     * @return a CPU-only ImageMath instance
+     */
+    static ImageMath newCpuInstance() {
         // Vector API enabled by default when available
         if (VectorApiSupport.isEnabled()) {
             return new VectorApiImageMath();

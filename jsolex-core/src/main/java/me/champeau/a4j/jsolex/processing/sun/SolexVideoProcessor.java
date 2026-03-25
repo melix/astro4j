@@ -20,9 +20,9 @@ import me.champeau.a4j.jsolex.processing.event.EllipseFittingRequestEvent;
 import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
 import me.champeau.a4j.jsolex.processing.event.GenericMessage;
+import me.champeau.a4j.jsolex.processing.event.GeometryDetectedEvent;
 import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.ImageLine;
-import me.champeau.a4j.jsolex.processing.event.GeometryDetectedEvent;
 import me.champeau.a4j.jsolex.processing.event.Notification;
 import me.champeau.a4j.jsolex.processing.event.NotificationEvent;
 import me.champeau.a4j.jsolex.processing.event.OutputImageDimensionsDeterminedEvent;
@@ -41,18 +41,18 @@ import me.champeau.a4j.jsolex.processing.event.TrimmingParametersDeterminedEvent
 import me.champeau.a4j.jsolex.processing.event.VideoMetadataEvent;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
-import me.champeau.a4j.jsolex.processing.expr.ScriptExecutionContext;
 import me.champeau.a4j.jsolex.processing.expr.InvalidExpression;
+import me.champeau.a4j.jsolex.processing.expr.ScriptExecutionContext;
 import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
 import me.champeau.a4j.jsolex.processing.expr.impl.Loader;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.EllipseFittingMode;
 import me.champeau.a4j.jsolex.processing.params.EnhancementParams;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
-import me.champeau.a4j.jsolex.processing.params.ScriptParameterExtractor;
 import me.champeau.a4j.jsolex.processing.params.OutputMetadata;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.RotationKind;
+import me.champeau.a4j.jsolex.processing.params.ScriptParameterExtractor;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
 import me.champeau.a4j.jsolex.processing.spectrum.FlatCreator;
@@ -81,7 +81,6 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShiftRange;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ProcessingWorkflow;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
 import me.champeau.a4j.jsolex.processing.sun.workflow.RenamingImageEmitter;
-import me.champeau.a4j.jsolex.processing.sun.workflow.SourceInfo;
 import me.champeau.a4j.jsolex.processing.sun.workflow.SpectralLinePolynomial;
 import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
 import me.champeau.a4j.jsolex.processing.sun.workflow.TruncatedDisk;
@@ -95,7 +94,6 @@ import me.champeau.a4j.jsolex.processing.util.LocaleUtils;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
-import me.champeau.a4j.jsolex.processing.util.SolarParameters;
 import me.champeau.a4j.jsolex.processing.util.SolarParametersUtils;
 import me.champeau.a4j.jsolex.processing.util.SpectralLineFrameImageCreator;
 import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
@@ -132,8 +130,10 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -157,12 +157,20 @@ public class SolexVideoProcessor implements Broadcaster {
     private static final Logger LOGGER = LoggerFactory.getLogger(SolexVideoProcessor.class);
     public static final int INMEMORY_BUFFERS_PER_CORE = 32;
 
+    private static final ExecutorService DETECTION_POOL = Executors.newFixedThreadPool(
+            Math.max(2, Runtime.getRuntime().availableProcessors() / 2),
+            daemonThreadFactory("detection-worker"));
+    private static final ExecutorService CONVERSION_POOL = Executors.newFixedThreadPool(
+            Math.max(2, Runtime.getRuntime().availableProcessors()),
+            daemonThreadFactory("conversion-worker"));
+
     private final Set<ProcessingEventListener> progressEventListeners = new HashSet<>();
 
     private final File serFile;
     private final int sequenceNumber;
     private final LocalDateTime processingDate;
     private final boolean batchMode;
+    private final int batchParallelism;
     private final int memoryRestrictionMultiplier;
     private final ProgressOperation rootOperation;
     private final Path outputDirectory;
@@ -177,6 +185,7 @@ public class SolexVideoProcessor implements Broadcaster {
     private PixelShiftRange pixelShiftRange;
     private boolean ignoreIncompleteShifts;
     private boolean forceDetectActiveRegions;
+    private Runnable onReconstructionComplete = () -> {};
     private EllipseFittingTask.Result cachedEllipse;
     private Map<Class<?>, Object> additionalContext;
 
@@ -186,6 +195,7 @@ public class SolexVideoProcessor implements Broadcaster {
                                ProcessParams processParametersProvider,
                                LocalDateTime processingDate,
                                boolean batchMode,
+                               int batchParallelism,
                                int memoryRestrictionMultiplier,
                                ProgressOperation rootOperation,
                                Map<Class<?>, Object> additionalContext) {
@@ -195,6 +205,7 @@ public class SolexVideoProcessor implements Broadcaster {
         this.processParams = processParametersProvider;
         this.processingDate = processingDate;
         this.batchMode = batchMode;
+        this.batchParallelism = batchParallelism;
         this.memoryRestrictionMultiplier = memoryRestrictionMultiplier;
         this.rootOperation = rootOperation;
         this.additionalContext = additionalContext != null ? additionalContext : Map.of();
@@ -208,7 +219,16 @@ public class SolexVideoProcessor implements Broadcaster {
                                boolean batchMode,
                                int memoryRestrictionMultiplier,
                                ProgressOperation rootOperation) {
-        this(serFile, outputDirectory, sequenceNumber, processParametersProvider, processingDate, batchMode, memoryRestrictionMultiplier, rootOperation, null);
+        this(serFile, outputDirectory, sequenceNumber, processParametersProvider, processingDate, batchMode, 1, memoryRestrictionMultiplier, rootOperation, null);
+    }
+
+    private static ThreadFactory daemonThreadFactory(String namePrefix) {
+        var counter = new AtomicInteger();
+        return r -> {
+            var t = new Thread(r, namePrefix + "-" + counter.getAndIncrement());
+            t.setDaemon(true);
+            return t;
+        };
     }
 
     public void setCachedEllipse(Ellipse cachedEllipse) {
@@ -225,6 +245,10 @@ public class SolexVideoProcessor implements Broadcaster {
 
     public void setPolynomial(DoubleUnaryOperator polynomial) {
         this.polynomial = polynomial;
+    }
+
+    public void setOnReconstructionComplete(Runnable onReconstructionComplete) {
+        this.onReconstructionComplete = onReconstructionComplete;
     }
 
     public Redshifts getRedshifts() {
@@ -455,9 +479,9 @@ public class SolexVideoProcessor implements Broadcaster {
                     throw new ProcessingException(e);
                 }
                 FileBackedImage.flushImages();
-                System.gc();
             }
 
+            onReconstructionComplete.run();
             if (activeRegions != null) {
                 for (WorkflowState state : imageList) {
                     state.reconstructed().metadata().put(ActiveRegions.class, activeRegions);
@@ -1476,7 +1500,7 @@ public class SolexVideoProcessor implements Broadcaster {
         var hasRedshifts = new AtomicBoolean();
         var hasActiveRegions = new AtomicBoolean();
         var hasFlares = new AtomicBoolean();
-        var semaphore = new Semaphore(INMEMORY_BUFFERS_PER_CORE * Runtime.getRuntime().availableProcessors());
+        var semaphore = new Semaphore(INMEMORY_BUFFERS_PER_CORE * Math.max(2, Runtime.getRuntime().availableProcessors()));
         var jSolexSer = reader.header().isJSolexTrimmedSer();
         var flat = loadReadFlat(geometry.width(), geometry.height()).orElse(null);
         var detectRedshifts = processParams.spectrumParams().ray().label().equalsIgnoreCase(SpectralRay.H_ALPHA.label()) && processParams.requestedImages().isEnabled(GeneratedImageKind.REDSHIFT);
@@ -1485,78 +1509,81 @@ public class SolexVideoProcessor implements Broadcaster {
         var detectBorders = processParams.enhancementParams().jaggingCorrectionParams().enabled();
         var detectPhenomena = detectBorders || detectRedshifts || detectEllermanBombs || detectActiveRegions;
         var ops = new TaskCoordinator();
-        int conversionProcs = Runtime.getRuntime().availableProcessors();
-        try (var detectionPool = Executors.newFixedThreadPool(Math.max(2, Runtime.getRuntime().availableProcessors() / 2))) {
-            try (var conversionPool = Executors.newFixedThreadPool(Math.max(2, conversionProcs))) {
-                var reconstructedImages = new float[images.length][totalLines][width];
-                var reconstructionOperation = newOperation(message("reconstruction"));
-                var completedFrames = new AtomicInteger(0);
-                for (int i = start, j = 0; i < end; i++, j += 1) {
-                    semaphore.acquire();
-                    var currentFrame = reader.currentFrame().data().array();
-                    byte[] copy = new byte[currentFrame.length];
-                    System.arraycopy(currentFrame, 0, copy, 0, currentFrame.length);
-                    reader.nextFrame();
-                    var original = converter.createBuffer(geometry);
-                    int y = j;
-                    int frameId = i;
-                    ops.countUp();
-                    conversionPool.submit(() -> {
-                        boolean detectionSubmitted = false;
-                        try {
-                            // The converter makes sure we only have a single channel
-                            converter.convert(frameId, ByteBuffer.wrap(copy), geometry, original);
-                            if (flat != null) {
-                                applyFlatCorrection(original, flat);
-                            }
-                            for (int idx = 0; idx < images.length; idx++) {
-                                var state = images[idx];
-                                var buffer = reconstructedImages[idx];
-                                var truncationDetails = new TruncationDetails();
-                                processSingleFrame(state.isInternal(), width, height, buffer, y, original, polynomial, state.pixelShift(), totalLines, jSolexSer, truncationDetails);
-                                state.setTruncationDetails(truncationDetails);
-                                if (detectPhenomena && state.pixelShift() == 0) {
-                                    detectionSubmitted = true;
-                                    ops.countUp();
-                                    detectionPool.submit(() -> {
-                                        try {
-                                            phenomenaDetector.setDetectBorders(detectBorders);
-                                            phenomenaDetector.setDetectRedshifts(detectRedshifts);
-                                            phenomenaDetector.setDetectEllermanBombsOrFlares(detectEllermanBombs);
-                                            phenomenaDetector.setDetectActiveRegions(detectActiveRegions);
-                                            phenomenaDetector.performDetection(frameId, width, height, original, polynomial, reader.header());
-                                            hasRedshifts.set(hasRedshifts.get() || phenomenaDetector.isRedShiftDetectionEnabled());
-                                            hasActiveRegions.set(hasActiveRegions.get() || phenomenaDetector.isActiveRegionsDetectionEnabled());
-                                            hasFlares.set(hasFlares.get() || phenomenaDetector.isEllermanBombsDetectionEnabled());
-                                        } finally {
-                                            semaphore.release();
-                                            ops.countDown();
-                                        }
-                                    });
-                                }
-                            }
-                        } finally {
-                            if (!detectionSubmitted) {
-                                semaphore.release();
-                            }
-                            broadcast(reconstructionOperation.update((double) completedFrames.incrementAndGet() / totalLines));
-                            ops.countDown();
+        var reconstructedImages = new float[images.length][totalLines][width];
+        var reconstructionOperation = newOperation(message("reconstruction"));
+        var completedFrames = new AtomicInteger(0);
+        try {
+            for (int i = start, j = 0; i < end; i++, j += 1) {
+                semaphore.acquire();
+                var currentFrame = reader.currentFrame().data().array();
+                byte[] copy = new byte[currentFrame.length];
+                System.arraycopy(currentFrame, 0, copy, 0, currentFrame.length);
+                reader.nextFrame();
+                var original = converter.createBuffer(geometry);
+                int y = j;
+                int frameId = i;
+                ops.countUp();
+                CONVERSION_POOL.submit(() -> {
+                    boolean detectionSubmitted = false;
+                    try {
+                        // The converter makes sure we only have a single channel
+                        converter.convert(frameId, ByteBuffer.wrap(copy), geometry, original);
+                        if (flat != null) {
+                            applyFlatCorrection(original, flat);
                         }
-                    });
-                }
-                ops.awaitZero();
-                broadcast(reconstructionOperation.complete());
-                if (hasRedshifts.get() && !phenomenaDetector.hasRedshifts()) {
-                    LOGGER.warn(message("no.redshifts.detected"));
-                }
-                var borders = phenomenaDetector.getBorderDetection();
-                for (int i = 0; i < images.length; i++) {
-                    var state = images[i];
-                    var reconstructedImage = reconstructedImages[i];
-                    var recon = new ImageWrapper32(width, totalLines, reconstructedImage, MutableMap.of());
-                    state.recordResult(WorkflowResults.RECONSTRUCTED, recon);
-                    state.recordResult(WorkflowResults.BORDERS, borders);
-                }
+                        for (int idx = 0; idx < images.length; idx++) {
+                            var state = images[idx];
+                            var buffer = reconstructedImages[idx];
+                            var truncationDetails = new TruncationDetails();
+                            processSingleFrame(state.isInternal(), width, height, buffer, y, original, polynomial, state.pixelShift(), totalLines, jSolexSer, truncationDetails);
+                            state.setTruncationDetails(truncationDetails);
+                            if (detectPhenomena && state.pixelShift() == 0) {
+                                detectionSubmitted = true;
+                                ops.countUp();
+                                DETECTION_POOL.submit(() -> {
+                                    try {
+                                        phenomenaDetector.setDetectBorders(detectBorders);
+                                        phenomenaDetector.setDetectRedshifts(detectRedshifts);
+                                        phenomenaDetector.setDetectEllermanBombsOrFlares(detectEllermanBombs);
+                                        phenomenaDetector.setDetectActiveRegions(detectActiveRegions);
+                                        phenomenaDetector.performDetection(frameId, width, height, original, polynomial, reader.header());
+                                        if (phenomenaDetector.isRedShiftDetectionEnabled()) {
+                                            hasRedshifts.set(true);
+                                        }
+                                        if (phenomenaDetector.isActiveRegionsDetectionEnabled()) {
+                                            hasActiveRegions.set(true);
+                                        }
+                                        if (phenomenaDetector.isEllermanBombsDetectionEnabled()) {
+                                            hasFlares.set(true);
+                                        }
+                                    } finally {
+                                        semaphore.release();
+                                        ops.countDown();
+                                    }
+                                });
+                            }
+                        }
+                    } finally {
+                        if (!detectionSubmitted) {
+                            semaphore.release();
+                        }
+                        broadcast(reconstructionOperation.update((double) completedFrames.incrementAndGet() / totalLines));
+                        ops.countDown();
+                    }
+                });
+            }
+            ops.awaitZero();
+            broadcast(reconstructionOperation.complete());
+            if (hasRedshifts.get() && !phenomenaDetector.hasRedshifts()) {
+                LOGGER.warn(message("no.redshifts.detected"));
+            }
+            var borders = phenomenaDetector.getBorderDetection();
+            for (int i = 0; i < images.length; i++) {
+                var state = images[i];
+                var reconstructedImage = reconstructedImages[i];
+                var recon = new ImageWrapper32(width, totalLines, reconstructedImage, MutableMap.of());
+                state.recordResult(WorkflowResults.RECONSTRUCTED, recon);
+                state.recordResult(WorkflowResults.BORDERS, borders);
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();

@@ -60,6 +60,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
@@ -534,7 +535,7 @@ public class Dedistort extends AbstractFunctionImpl {
                 break;
             }
             if (relativeImprovement < CONVERGENCE_THRESHOLD && iteration > 0) {
-                LOGGER.debug(message("dedistort.iteration.converged"), iteration + 1, String.format("%.2f", relativeImprovement * 100), CONVERGENCE_THRESHOLD * 100);
+                LOGGER.info(message("dedistort.iteration.converged"), iteration + 1, String.format("%.2f", relativeImprovement * 100), CONVERGENCE_THRESHOLD * 100);
                 distorsionMapList.add(iterationMap);
                 break;
             }
@@ -711,7 +712,8 @@ public class Dedistort extends AbstractFunctionImpl {
         }
 
         // Group tiles by size for GPU batching (GPU requires uniform tile sizes per batch)
-        var tilesBySize = new HashMap<Integer, TileBatch>();
+        // TreeMap ensures deterministic iteration order across runs
+        var tilesBySize = new TreeMap<Integer, TileBatch>();
 
         for (int i = 0; i < positions.count(); i++) {
             int px = positions.x()[i];
@@ -1026,7 +1028,7 @@ public class Dedistort extends AbstractFunctionImpl {
         var safeTileSize = Math.max(ABSOLUTE_MIN_TILE_SIZE, tileSize);
         var context = OpenCLSupport.getContext();
         boolean supportedTileSize = (safeTileSize == 32 || safeTileSize == 64 || safeTileSize == 128);
-        boolean gpuAvailable = context != null && supportedTileSize;
+        boolean gpuAvailable = context != null && OpenCLSupport.isEnabled() && supportedTileSize;
 
         // For GPU-resident warping, we need all images to fit in cache
         // This avoids complexity of hybrid CPU/GPU warping with cache eviction
@@ -1071,7 +1073,7 @@ public class Dedistort extends AbstractFunctionImpl {
             var useSubsampling = comparisonsPerImage < imageCount - 1;
 
             // For each image, determine which other images to compare with
-            var comparisonsPerSourceImage = new HashMap<Integer, List<Integer>>();
+            var comparisonsPerSourceImage = new TreeMap<Integer, List<Integer>>();
             for (int i = 0; i < imageCount; i++) {
                 var targetIndices = new ArrayList<Integer>(imageCount - 1);
                 for (int j = 0; j < imageCount; j++) {
@@ -1215,26 +1217,32 @@ public class Dedistort extends AbstractFunctionImpl {
                     computedMaps.putAll(gpuResults);
                     pairIndex += pairsToCompute.size();
                 } else {
-                    // CPU path: process pairs individually
-                    for (long pairKey : pairsToCompute) {
-                        int i = (int) (pairKey / imageCount);
-                        int j = (int) (pairKey % imageCount);
+                    // CPU path: process pairs in parallel
+                    var cpuResults = new ConcurrentHashMap<Long, DistorsionMap>();
+                    var progress = new AtomicInteger(0);
+                    var pairList = new ArrayList<>(pairsToCompute);
+                    pairList.stream()
+                            .parallel()
+                            .forEach(pairKey -> {
+                                int i = (int) (pairKey / imageCount);
+                                int j = (int) (pairKey % imageCount);
 
-                        broadcaster.broadcast(pairOperation.update((double) pairIndex / totalPairs,
-                                String.format("Pair %d/%d (%d→%d)", pairIndex + 1, totalPairs, i + 1, j + 1)));
+                                var sourceImage = currentImages.get(i);
+                                var targetImage = currentImages.get(j);
+                                var positions = positionsPerSource.get(i);
 
-                        var sourceImage = currentImages.get(i);
-                        var targetImage = currentImages.get(j);
-                        var positions = positionsPerSource.get(i);
+                                var passName = String.format("Iter %d - Pair %d→%d (tile=%d, %s)",
+                                        finalIteration + 1, i + 1, j + 1, tileSize, strategy.getName());
+                                var pairMap = computeDistortionMapWithPositions(sourceImage.data(), targetImage, width, height,
+                                        tileSize, sampling, strategy, positions, passName, pairOperation);
 
-                        var passName = String.format("Iter %d - Pair %d→%d (tile=%d, %s)",
-                                iteration + 1, i + 1, j + 1, tileSize, strategy.getName());
-                        var pairMap = computeDistortionMapWithPositions(sourceImage.data(), targetImage, width, height,
-                                tileSize, sampling, strategy, positions, passName, pairOperation);
-
-                        computedMaps.put(pairKey, pairMap);
-                        pairIndex++;
-                    }
+                                cpuResults.put(pairKey, pairMap);
+                                var currentProgress = progress.incrementAndGet();
+                                broadcaster.broadcast(pairOperation.update((double) currentProgress / totalPairs,
+                                        String.format("Pair %d/%d", currentProgress, totalPairs)));
+                            });
+                    computedMaps.putAll(cpuResults);
+                    pairIndex += pairsToCompute.size();
                 }
 
                 if (finalGpuCache != null) {
@@ -1279,7 +1287,7 @@ public class Dedistort extends AbstractFunctionImpl {
                     ? (previousAvgDistortion - avgDistortion) / previousAvgDistortion
                     : 1.0;
 
-            LOGGER.debug("Consensus reference iteration {}: avgDistortion={}, improvement={}%",
+            LOGGER.info("Consensus reference iteration {}: avgDistortion={}, improvement={}%",
                     iteration + 1, avgDistortion, String.format("%.4f", relativeImprovement * 100));
 
             if (avgDistortion > previousAvgDistortion) {
@@ -1373,12 +1381,17 @@ public class Dedistort extends AbstractFunctionImpl {
             });
             LOGGER.debug("GPU-resident warping completed for {} images", imageCount);
         } else {
-            // CPU warping: use existing method
-            for (int i = 0; i < imageCount; i++) {
-                var map = iterationMaps.get(i);
-                accumulatedMaps.set(i, accumulatedMaps.get(i).append(map));
-                currentImages.set(i, dedistortSingleWithoutMetadata(currentImages.get(i), map, mainOperation, height, width));
-            }
+            // CPU warping: process images in parallel
+            var warpOperation = mainOperation.createChild(message("dedistorting"));
+            broadcaster.broadcast(warpOperation);
+            IntStream.range(0, imageCount)
+                    .parallel()
+                    .forEach(i -> {
+                        var map = iterationMaps.get(i);
+                        accumulatedMaps.set(i, accumulatedMaps.get(i).append(map));
+                        currentImages.set(i, dedistortSingleWithoutMetadata(currentImages.get(i), map, warpOperation, height, width));
+                    });
+            broadcaster.broadcast(warpOperation.complete());
         }
     }
 
@@ -1424,7 +1437,8 @@ public class Dedistort extends AbstractFunctionImpl {
         var correlationTools = CorrelationTools.getInstance();
 
         // Group positions by tile size for efficient batching
-        var positionsByTileSize = new HashMap<Integer, List<Integer>>();
+        // TreeMap ensures deterministic iteration order across runs
+        var positionsByTileSize = new TreeMap<Integer, List<Integer>>();
         for (int i = 0; i < numPositions; i++) {
             int ts = positions.tileSize()[i];
             positionsByTileSize.computeIfAbsent(ts, k -> new ArrayList<>()).add(i);

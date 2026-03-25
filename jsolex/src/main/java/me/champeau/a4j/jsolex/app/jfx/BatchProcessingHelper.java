@@ -27,6 +27,7 @@ import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.listeners.BatchProcessingContext;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.jsolex.processing.spectrum.ReferenceIntensities;
 import me.champeau.a4j.jsolex.processing.spectrum.SerFileTrimmer;
 import me.champeau.a4j.jsolex.processing.sun.TrimmingParameters;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
@@ -78,6 +79,7 @@ public final class BatchProcessingHelper {
                                int sequenceNumber,
                                BatchProcessingContext context,
                                Header header,
+                               Runnable onReconstructionComplete,
                                Runnable onComplete);
 
         TrimmingParameters getTrimmingParameters();
@@ -203,6 +205,9 @@ public final class BatchProcessingHelper {
                                        boolean autoTrimSerFile,
                                        Runnable onComplete) {
         var batchThread = new Thread(() -> {
+            // Eagerly initialize ReferenceIntensities to avoid virtual thread
+            // pinning when all batch threads trigger class loading simultaneously
+            var unused = ReferenceIntensities.INSTANCE;
             try {
                 var parallelism = Configuration.getInstance().getBatchParallelism();
                 var semaphore = new Semaphore(parallelism);
@@ -224,6 +229,12 @@ public final class BatchProcessingHelper {
                                 Thread.currentThread().interrupt();
                                 return;
                             }
+                            var released = new AtomicBoolean(false);
+                            Runnable releaseOnce = () -> {
+                                if (released.compareAndSet(false, true)) {
+                                    semaphore.release();
+                                }
+                            };
                             try {
                                 processFile(
                                         context,
@@ -234,10 +245,11 @@ public final class BatchProcessingHelper {
                                         batchContext,
                                         header,
                                         interrupted,
-                                        autoTrimSerFile
+                                        autoTrimSerFile,
+                                        releaseOnce
                                 );
                             } finally {
-                                semaphore.release();
+                                releaseOnce.run();
                                 context.updateProgress(singleOperation.complete());
                             }
                         });
@@ -259,8 +271,9 @@ public final class BatchProcessingHelper {
                               BatchProcessingContext batchContext,
                               Header header,
                               AtomicBoolean interrupted,
-                              boolean autoTrimSerFile) {
-        context.processSingleFile(params, operation, selectedFile, sequenceNumber, batchContext, header, () -> {
+                              boolean autoTrimSerFile,
+                              Runnable onReconstructionComplete) {
+        context.processSingleFile(params, operation, selectedFile, sequenceNumber, batchContext, header, onReconstructionComplete, () -> {
             if (autoTrimSerFile && !interrupted.get()) {
                 var trimmingParams = context.getTrimmingParameters();
                 if (trimmingParams != null) {

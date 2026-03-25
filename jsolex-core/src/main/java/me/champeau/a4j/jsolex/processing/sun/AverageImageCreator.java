@@ -24,7 +24,7 @@ import me.champeau.a4j.ser.SerFileReader;
 import me.champeau.a4j.ser.bayer.ImageConverter;
 
 import java.nio.ByteBuffer;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
@@ -35,7 +35,7 @@ import static me.champeau.a4j.jsolex.processing.util.Constants.message;
  * and computes an incremental average to produce a single averaged image.
  */
 public class AverageImageCreator {
-    private static final int IO_PARALLELISM = 4 * Runtime.getRuntime().availableProcessors();
+    private static final int IO_PARALLELISM = Runtime.getRuntime().availableProcessors();
 
     private final ImageConverter<float[][]> imageConverter;
     private final ProgressOperation rootOperation;
@@ -70,12 +70,23 @@ public class AverageImageCreator {
         ImageGeometry geometry = reader.header().geometry();
         var limbDetectionMessage = message("computing.average.image.limb.detect");
         var imageMath = ImageMath.newInstance();
-        averageImage = new float[geometry.height()][geometry.width()];
-        var counter = new AtomicInteger(0);
-        var averageLock = new ReentrantLock();
+        int height = geometry.height();
+        int width = geometry.width();
         var progressOperation = rootOperation.createChild(limbDetectionMessage);
         var maxMean = findMaxMeanBySampling(reader, frameCount, progressOperation, geometry, imageMath);
         var threshold = 0.5f * maxMean;
+
+        // Per-thread sum accumulators (double precision to avoid overflow) to eliminate lock contention
+        var accumulators = new ConcurrentLinkedQueue<double[][]>();
+        var counters = new ConcurrentLinkedQueue<int[]>();
+        var localAccumulator = ThreadLocal.withInitial(() -> {
+            var sum = new double[height][width];
+            accumulators.add(sum);
+            var count = new int[]{0};
+            counters.add(count);
+            return new Object[]{sum, count};
+        });
+
         try (var ioExecutor = ParallelExecutor.newExecutor(IO_PARALLELISM)) {
             reader.seekFrame(0);
             for (int i = 0; i < frameCount; i++) {
@@ -90,12 +101,17 @@ public class AverageImageCreator {
                     imageConverter.convert(frameId, ByteBuffer.wrap(copy), geometry, buffer);
                     var frameAvg = imageMath.averageOf(buffer);
                     if (frameAvg > threshold) {
-                        averageLock.lock();
-                        try {
-                            imageMath.incrementalAverage(buffer, averageImage, counter.incrementAndGet());
-                        } finally {
-                            averageLock.unlock();
+                        var local = localAccumulator.get();
+                        var sum = (double[][]) local[0];
+                        var count = (int[]) local[1];
+                        for (int y = 0; y < height; y++) {
+                            var sumRow = sum[y];
+                            var bufRow = buffer[y];
+                            for (int x = 0; x < width; x++) {
+                                sumRow[x] += bufRow[x];
+                            }
                         }
+                        count[0]++;
                     }
                 });
             }
@@ -103,6 +119,35 @@ public class AverageImageCreator {
             throw ProcessingException.wrap(ex);
         } finally {
             broadcaster.broadcast(progressOperation.complete());
+        }
+
+        // Merge per-thread sums into the final average
+        averageImage = new float[height][width];
+        int totalCount = 0;
+        for (var count : counters) {
+            totalCount += count[0];
+        }
+        if (totalCount > 0) {
+            // Accumulate all thread sums in double precision
+            var merged = new double[height][width];
+            for (var sum : accumulators) {
+                for (int y = 0; y < height; y++) {
+                    var mergedRow = merged[y];
+                    var sumRow = sum[y];
+                    for (int x = 0; x < width; x++) {
+                        mergedRow[x] += sumRow[x];
+                    }
+                }
+            }
+            // Convert to float average
+            double invCount = 1.0 / totalCount;
+            for (int y = 0; y < height; y++) {
+                var avgRow = averageImage[y];
+                var mergedRow = merged[y];
+                for (int x = 0; x < width; x++) {
+                    avgRow[x] = (float) (mergedRow[x] * invCount);
+                }
+            }
         }
     }
 
