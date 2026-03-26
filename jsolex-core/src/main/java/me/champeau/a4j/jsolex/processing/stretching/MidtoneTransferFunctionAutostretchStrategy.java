@@ -17,6 +17,8 @@ package me.champeau.a4j.jsolex.processing.stretching;
 
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
+import java.util.function.BiPredicate;
+
 import static java.util.Arrays.*;
 import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
 
@@ -35,17 +37,31 @@ public final class MidtoneTransferFunctionAutostretchStrategy implements Stretch
 
     private final double shadowsClip;
     private final double targetBg;
+    private final BiPredicate<Integer, Integer> pixelMask;
 
     public MidtoneTransferFunctionAutostretchStrategy() {
         this(DEFAULT_SHADOWS_CLIP, DEFAULT_TARGET_BG);
     }
 
     public MidtoneTransferFunctionAutostretchStrategy(double shadowsClip, double targetBg) {
+        this(shadowsClip, targetBg, null);
+    }
+
+    /**
+     * Creates a new MTF autostretch strategy.
+     * @param shadowsClip number of MADs below median for shadow clipping (negative value, e.g. -2.8)
+     * @param targetBg target background level after stretch (0 to 1)
+     * @param pixelMask optional predicate (x, y) -&gt; boolean indicating which pixels to include
+     *                  in statistics computation. If null, all pixels are included. The stretch
+     *                  itself is always applied to the entire image.
+     */
+    public MidtoneTransferFunctionAutostretchStrategy(double shadowsClip, double targetBg, BiPredicate<Integer, Integer> pixelMask) {
         if (targetBg < 0 || targetBg > 1) {
             throw new IllegalArgumentException("Target background must be in range [0, 1]");
         }
         this.shadowsClip = shadowsClip;
         this.targetBg = targetBg;
+        this.pixelMask = pixelMask;
     }
 
     @Override
@@ -68,15 +84,44 @@ public final class MidtoneTransferFunctionAutostretchStrategy implements Stretch
         return Math.clamp(value / 256, 0, 255);
     }
 
-    private MTFParams calculateMTFParams(float[][] data, int width, int height) {
-        var totalPixels = width * height;
-        var pixels = new float[totalPixels];
-        var index = 0;
-
+    private float[] collectPixels(float[][] data, int width, int height) {
+        if (pixelMask == null) {
+            var totalPixels = width * height;
+            var pixels = new float[totalPixels];
+            var index = 0;
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    pixels[index++] = data[y][x];
+                }
+            }
+            return pixels;
+        }
+        int count = 0;
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
-                pixels[index++] = data[y][x];
+                if (pixelMask.test(x, y)) {
+                    count++;
+                }
             }
+        }
+        var pixels = new float[count];
+        int index = 0;
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                if (pixelMask.test(x, y)) {
+                    pixels[index++] = data[y][x];
+                }
+            }
+        }
+        return pixels;
+    }
+
+    private MTFParams calculateMTFParams(float[][] data, int width, int height) {
+        var pixels = collectPixels(data, width, height);
+        var totalPixels = pixels.length;
+
+        if (totalPixels == 0) {
+            return new MTFParams(0, 0.5, MAX_PIXEL_VALUE);
         }
 
         sort(pixels);

@@ -22,8 +22,8 @@ import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
-import me.champeau.a4j.jsolex.processing.stretching.AutohistogramStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
+import me.champeau.a4j.jsolex.processing.stretching.MidtoneTransferFunctionAutostretchStrategy;
 import me.champeau.a4j.jsolex.processing.sun.BandingReduction;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.WorkflowState;
@@ -31,6 +31,8 @@ import me.champeau.a4j.jsolex.processing.sun.tasks.GeometryCorrector;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
+import me.champeau.a4j.math.image.BlurKernel;
+import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.math.image.Kernel33;
 import me.champeau.a4j.math.regression.Ellipse;
@@ -42,10 +44,11 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval.backgroundModel;
+import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
 /**
- * A workflow dedicated to generating an helium image.
+ * A workflow dedicated to generating a helium image.
  */
 public class HeliumLineProcessor {
     public record HeliumImageKind(boolean extracted) {
@@ -53,7 +56,12 @@ public class HeliumLineProcessor {
         public static final HeliumImageKind EXTRACTED = new HeliumImageKind(true);
     }
 
-    private final ProcessParams processParams;
+    private static final float CONTRAST_FACTOR = 2.5f;
+    private static final float TARGET_DISK_MEDIAN = 0.7f;
+    private static final float COLOR_GAMMA = 1.3f;
+    private static final float COLOR_G = 0.92f;
+    private static final float COLOR_B = 0.25f;
+
     private final ProgressOperation progressOperation;
     private final PixelShiftRange pixelShiftRange;
     private final Map<PixelShift, WorkflowState> imageByPixelShift;
@@ -68,7 +76,6 @@ public class HeliumLineProcessor {
                                double heliumLineShift,
                                ImageEmitter imageEmitter,
                                Broadcaster broadcaster) {
-        this.processParams = processParams;
         this.progressOperation = progressOperation;
         this.pixelShiftRange = pixelShiftRange;
         this.imageByPixelShift = imageList.stream().collect(Collectors.toMap(s -> new PixelShift(s.pixelShift()), s -> s, (e1, e2) -> e1, LinkedHashMap::new));
@@ -108,33 +115,195 @@ public class HeliumLineProcessor {
             var ellipse = image.findMetadata(Ellipse.class).orElse(null);
             var bgModel = backgroundModel(image, 2, 2.5).orElse(null);
             if (bgModel == null) {
-                // create dummy model
                 bgModel = new ImageWrapper32(image.width(), image.height(), new float[image.height()][image.width()], Map.of());
             }
             bgModel = (ImageWrapper32) evaluator.mul(0.8, bgModel);
             bgModel = (ImageWrapper32) evaluator.functionCall(BuiltinFunction.DISK_FILL, Map.of("img", bgModel));
             image = (ImageWrapper32) evaluator.minus(image, bgModel);
-            if (ellipse != null) {
-                var bandSize = (ellipse.semiAxis().a() + ellipse.semiAxis().b()) / 16;
-                for (int i = 0; i < 2; i++) {
-                    BandingReduction.reduceBanding(image.width(), image.height(), image.data(), (int) bandSize, ellipse);
-                }
-            }
             var protus = image.copy();
             protus = (ImageWrapper32) evaluator.functionCall(BuiltinFunction.DISK_FILL, Map.of("img", protus, "fill", 0));
-            new ArcsinhStretchingStrategy(0, 10, 10).stretch(protus);
-            image = (ImageWrapper32) evaluator.functionCall(BuiltinFunction.POW, Map.of("v", image, "exp", 2));
-            LinearStrechingStrategy.DEFAULT.stretch(image);
-            new AutohistogramStrategy(1, false, AutohistogramStrategy.DEFAULT_BACKGROUND_THRESHOLD, AutohistogramStrategy.DEFAULT_PROM_STRETCH).stretch(image);
-            new ArcsinhStretchingStrategy(0, 3, 3).stretch(image);
+            if (ellipse != null) {
+                var protusData = protus.data();
+                new MidtoneTransferFunctionAutostretchStrategy(-2, 0.25, (x, y) -> !ellipse.isWithin(x, y) && protusData[y][x] > 0).stretch(protus);
+            } else {
+                new ArcsinhStretchingStrategy(0, 10, 10).stretch(protus);
+            }
+            if (ellipse != null) {
+                LinearStrechingStrategy.DEFAULT.stretch(image);
+
+                // Local normalization with masked convolution
+                var normKernel = Math.max(3, (int) ((ellipse.semiAxis().a() + ellipse.semiAxis().b()) / 16) | 1);
+                var imageMath = ImageMath.newInstance();
+                var mask = new float[image.height()][image.width()];
+                for (int y = 0; y < image.height(); y++) {
+                    for (int x = 0; x < image.width(); x++) {
+                        mask[y][x] = ellipse.isWithin(x, y) ? 1f : 0f;
+                    }
+                }
+                var blurKernel = BlurKernel.of(normKernel);
+                // Blur image * mask (not raw image) so outside-disk values
+                // don't contaminate the local mean estimate near the limb
+                var maskedImageData = new float[image.height()][image.width()];
+                var imgData = image.data();
+                for (int y = 0; y < image.height(); y++) {
+                    for (int x = 0; x < image.width(); x++) {
+                        maskedImageData[y][x] = imgData[y][x] * mask[y][x];
+                    }
+                }
+                var blurredImage = imageMath.convolve(new Image(image.width(), image.height(), maskedImageData), blurKernel);
+                var blurredMask = imageMath.convolve(new Image(image.width(), image.height(), mask), blurKernel);
+                localNormalize(image, ImageWrapper32.fromImage(blurredImage), ImageWrapper32.fromImage(blurredMask), ellipse);
+                LinearStrechingStrategy.DEFAULT.stretch(image);
+            }
+            if (ellipse != null) {
+                // Mild denoise before contrast amplification to prevent noise enhancement
+                var denoised = ImageMath.newInstance().convolve(image.asImage(), Kernel33.GAUSSIAN_BLUR);
+                var srcData = denoised.data();
+                var dstData = image.data();
+                for (int y = 0; y < image.height(); y++) {
+                    System.arraycopy(srcData[y], 0, dstData[y], 0, image.width());
+                }
+                stretchDiskOnly(image, ellipse);
+            }
             var blurred = ImageMath.newInstance().convolve(image.asImage(), Kernel33.GAUSSIAN_BLUR);
             image = (ImageWrapper32) evaluator.functionCall(BuiltinFunction.MAX, Map.of("list", List.of(protus, ImageWrapper32.fromImage(blurred))));
+            if (ellipse != null) {
+                darkenBackground(image, ellipse);
+                var bandSize = (int) Math.max(32, (ellipse.semiAxis().a() + ellipse.semiAxis().b()) / 8);
+                while (bandSize >= 64) {
+                    adaptiveBandingReduction(image, bandSize, ellipse);
+                    bandSize /= 2;
+                }
+            }
             image.metadata().put(SpectralRay.class, SpectralRay.HELIUM_D3);
             image.metadata().put(HeliumImageKind.class, HeliumImageKind.EXTRACTED);
             imageEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED, "helium", message("helium.d3.processed"), "helium-extracted", message("helium.extracted.description"), image);
-            if (evaluator.functionCall(BuiltinFunction.COLORIZE, Map.of("img", image, "profile", colorProfile)) instanceof RGBImage colorized) {
-                imageEmitter.newColorImage(GeneratedImageKind.COLORIZED, "helium",
-                        message("helium.d3.processed.colorized"), "helium-extracted-colorized", message("helium.extracted.description"), image.width(), image.height(), new HashMap<>(image.metadata()), () -> new float[][][]{colorized.r(), colorized.g(), colorized.b()});
+            var colorResult = colorizeGoldenYellow(image);
+            imageEmitter.newColorImage(GeneratedImageKind.COLORIZED, "helium",
+                    message("helium.d3.processed.colorized"), "helium-extracted-colorized", message("helium.extracted.description"), image.width(), image.height(), new HashMap<>(image.metadata()), () -> colorResult);
+        }
+    }
+
+    private static float[][][] colorizeGoldenYellow(ImageWrapper32 image) {
+        var mono = image.data();
+        var height = image.height();
+        var width = image.width();
+        float max = MAX_PIXEL_VALUE;
+        var r = new float[height][width];
+        var g = new float[height][width];
+        var b = new float[height][width];
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                // Gamma > 1 darkens midtones to compensate for the high
+                // perceived luminance of yellow, preserving feature contrast
+                var v = (float) (max * Math.pow(mono[y][x] / max, COLOR_GAMMA));
+                r[y][x] = v;
+                g[y][x] = v * COLOR_G;
+                b[y][x] = v * COLOR_B;
+            }
+        }
+        return new float[][][]{r, g, b};
+    }
+
+    private void adaptiveBandingReduction(ImageWrapper32 image, int bandSize, Ellipse ellipse) {
+        int maxIterations = 10;
+        double convergenceRatio = 0.05;
+        double firstPassDeviation = 0;
+        for (int iter = 0; iter < maxIterations; iter++) {
+            broadcaster.broadcast(progressOperation.update(
+                    (double) iter / maxIterations,
+                    message("helium.banding.reduction") + " (band=" + bandSize + ", pass=" + (iter + 1) + ")"
+            ));
+            var deviation = BandingReduction.reduceBanding(image.width(), image.height(), image.data(), bandSize, ellipse);
+            if (iter == 0) {
+                firstPassDeviation = deviation;
+                if (firstPassDeviation < 1e-6) {
+                    return;
+                }
+            } else if (deviation < firstPassDeviation * convergenceRatio) {
+                return;
+            }
+        }
+    }
+
+    private static void stretchDiskOnly(ImageWrapper32 image, Ellipse ellipse) {
+        var data = image.data();
+        var width = image.width();
+        var height = image.height();
+        double sum = 0;
+        int count = 0;
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                if (ellipse.isWithin(x, y)) {
+                    sum += data[y][x];
+                    count++;
+                }
+            }
+        }
+        if (count == 0) {
+            return;
+        }
+        float mean = (float) (sum / count);
+        // Softplus transition width: controls how smoothly values
+        // compress toward 0 instead of clipping
+        float k = mean * 0.15f;
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                if (ellipse.isWithin(x, y)) {
+                    float raw = mean + (data[y][x] - mean) * CONTRAST_FACTOR;
+                    // Softplus: smooth, continuous, no clipping
+                    // Approaches raw for raw >> k, approaches 0 for raw << -k
+                    data[y][x] = Math.min(MAX_PIXEL_VALUE, k * (float) Math.log1p(Math.exp(raw / k)));
+                }
+            }
+        }
+        // Adaptive gamma: normalize disk median to consistent brightness
+        float normalizedMean = mean / MAX_PIXEL_VALUE;
+        if (normalizedMean > 0.01f && normalizedMean < TARGET_DISK_MEDIAN) {
+            double gamma = Math.log(TARGET_DISK_MEDIAN) / Math.log(normalizedMean);
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    data[y][x] = (float) (MAX_PIXEL_VALUE * Math.pow(data[y][x] / MAX_PIXEL_VALUE, gamma));
+                }
+            }
+        }
+    }
+
+    private static void darkenBackground(ImageWrapper32 image, Ellipse ellipse) {
+        var data = image.data();
+        var width = image.width();
+        var height = image.height();
+        var center = ellipse.center();
+        double cx = center.a();
+        double cy = center.b();
+        double ra = ellipse.semiAxis().a();
+        double rb = ellipse.semiAxis().b();
+        double feather = Math.min(ra, rb) * 0.05;
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                if (!ellipse.isWithin(x, y)) {
+                    double dx = (x - cx) / ra;
+                    double dy = (y - cy) / rb;
+                    double dist = Math.sqrt(dx * dx + dy * dy) - 1.0;
+                    double fade = Math.exp(-dist * Math.min(ra, rb) / feather);
+                    data[y][x] *= (float) Math.max(0, fade);
+                }
+            }
+        }
+    }
+
+    private static void localNormalize(ImageWrapper32 image, ImageWrapper32 blurredImage, ImageWrapper32 blurredMask, Ellipse ellipse) {
+        var data = image.data();
+        var imgData = blurredImage.data();
+        var maskData = blurredMask.data();
+        for (int y = 0; y < image.height(); y++) {
+            for (int x = 0; x < image.width(); x++) {
+                if (ellipse.isWithin(x, y) && maskData[y][x] > 0.1f) {
+                    var localMean = imgData[y][x] / maskData[y][x];
+                    if (localMean > 1f) {
+                        data[y][x] = data[y][x] / localMean * 32768f;
+                    }
+                }
             }
         }
     }
