@@ -55,13 +55,23 @@ public class BandingReduction {
      * @param bandSize the size of the bands for correction
      * @param ellipse optional ellipse defining the region to correct, or null for full image
      */
-    public static void reduceBanding(int width, int height, float[][] data, int bandSize, Ellipse ellipse) {
+    /**
+     * Reduces banding artifacts and returns the average correction magnitude.
+     * A return value close to 0 means little correction was needed.
+     *
+     * @return the mean absolute deviation of per-line corrections from 1.0
+     */
+    public static double reduceBanding(int width, int height, float[][] data, int bandSize, Ellipse ellipse) {
         var lineAverages = lineAverages(width, height, data, ellipse);
         var corrections = computeMultiScaleCorrections(height, lineAverages, bandSize, ellipse);
 
+        double totalDeviation = 0;
+        int deviationCount = 0;
         for (var y = 0; y < height; y++) {
             var correction = corrections[y];
             if (!Double.isInfinite(correction) && !Double.isNaN(correction)) {
+                totalDeviation += Math.abs(correction - 1.0);
+                deviationCount++;
                 for (var x = 0; x < width; x++) {
                     if (ellipse == null || ellipse.isWithin(x, y)) {
                         data[y][x] *= correction;
@@ -78,6 +88,7 @@ public class BandingReduction {
                 data[y][x] = Math.min(v, Constants.MAX_PIXEL_VALUE);
             }
         }
+        return deviationCount > 0 ? totalDeviation / deviationCount : 0;
     }
 
     private static double[] computeMultiScaleCorrections(int height, double[] lineAverages, int baseBandSize, Ellipse ellipse) {

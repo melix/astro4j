@@ -6,6 +6,7 @@
 - Added the ability to post-process images externally before uploading to SpectroSolHub. In the image selection step, check the post-processing option to edit your images (contrast, sharpening, etc.) in your favorite editor before upload.
 - Fixed non deterministic dedistorsion results
 - Improved performance on multi-core systems
+- Reworked Helium line image extraction
 
 ## What's New in Version 5.0.2
 

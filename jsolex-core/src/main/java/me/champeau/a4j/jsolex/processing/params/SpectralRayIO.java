@@ -35,7 +35,7 @@ import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectorie
 public abstract class SpectralRayIO {
     private static final Logger LOGGER = LoggerFactory.getLogger(SpectralRayIO.class);
     private static final String SCHEMA_KEY = "spectral-ray";
-    private static final int SCHEMA_VERSION = 1;
+    private static final int SCHEMA_VERSION = 2;
 
     private SpectralRayIO() {
 
