@@ -266,8 +266,9 @@ public class ImageMathParameterExtractor {
 
         Map<String, String> title = extractLocalizedValues(paramObj, "title");
         Map<String, String> description = extractLocalizedValues(paramObj, "description");
+        String imageType = paramObj.getProperty("image_type").orElse(null);
 
-        return new OutputMetadata(name, title, description);
+        return new OutputMetadata(name, title, description, imageType);
     }
 
 

@@ -99,6 +99,7 @@ import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.OutputMetadata;
+import me.champeau.a4j.jsolex.processing.sun.workflow.SpectroSolHubImageKind;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.RequestedImages;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
@@ -2964,8 +2965,11 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             var description = metadata != null ? metadata.getDisplayDescription(language) : null;
             var name = namingStrategy.render(0, null, Constants.TYPE_PROCESSED, label, "batch", entry.getValue());
             var outputFile = new File(outputDirectory.toFile(), name);
+            var image = entry.getValue();
+            image.metadata().put(SpectroSolHubImageKind.class,
+                new SpectroSolHubImageKind(OutputMetadata.computeSpectroSolHubImageKind(label, metadata)));
             onImageGenerated(new ImageGeneratedEvent(
-                    new GeneratedImage(GeneratedImageKind.IMAGE_MATH, label, outputFile.toPath(), entry.getValue(), description, displayTitle)
+                    new GeneratedImage(GeneratedImageKind.IMAGE_MATH, label, outputFile.toPath(), image, description, displayTitle)
             ));
         });
         result.filesByLabel().entrySet().stream().parallel().forEach(entry -> {

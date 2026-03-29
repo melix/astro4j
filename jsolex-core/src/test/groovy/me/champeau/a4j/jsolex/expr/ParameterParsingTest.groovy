@@ -20,6 +20,8 @@ import me.champeau.a4j.jsolex.expr.ast.MetaBlock
 import me.champeau.a4j.jsolex.expr.ast.ParameterObject
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor
 import me.champeau.a4j.jsolex.processing.params.ImageMathParameterExtractor
+import me.champeau.a4j.jsolex.processing.params.OutputMetadata
+import me.champeau.a4j.jsolex.processing.params.PythonParameterExtractor
 import spock.lang.Specification
 
 class ParameterParsingTest extends Specification {
@@ -489,6 +491,90 @@ result = adjust_gamma(img(0), gamma)"""
         result.outputsMetadata.size() == 1
         result.getOutputMetadata("result").isPresent()
         result.getOutputMetadata("result").get().getDisplayTitle("en") == "Result Image"
+    }
+
+    def "parses image_type from ImageMath output metadata"() {
+        def script = """meta {
+    outputs {
+        Ha {
+            image_type = "enhanced_ha"
+            title {
+                en = "H-alpha"
+            }
+        }
+        continuum {
+            title {
+                en = "Continuum"
+            }
+        }
+    }
+}
+
+[[single]]
+Ha = img(0)
+continuum = img(1)"""
+        def extractor = new ImageMathParameterExtractor()
+
+        when:
+        def result = extractor.extractParameters(script)
+
+        then:
+        result != null
+        result.outputsMetadata.size() == 2
+
+        def haMeta = result.getOutputMetadata("Ha")
+        haMeta.isPresent()
+        haMeta.get().imageType() == "enhanced_ha"
+        haMeta.get().getDisplayTitle("en") == "H-alpha"
+
+        def contMeta = result.getOutputMetadata("continuum")
+        contMeta.isPresent()
+        contMeta.get().imageType() == null
+        contMeta.get().getDisplayTitle("en") == "Continuum"
+    }
+
+    def "computes SpectroSolHub image kind correctly"() {
+        expect:
+        OutputMetadata.computeSpectroSolHubImageKind("Ha", null) == "IMAGE_MATH_HA"
+        OutputMetadata.computeSpectroSolHubImageKind("my-output", null) == "IMAGE_MATH_MY_OUTPUT"
+        OutputMetadata.computeSpectroSolHubImageKind("Ha", new OutputMetadata("Ha", Map.of(), Map.of(), "enhanced_ha")) == "IMAGE_MATH_ENHANCED_HA"
+        OutputMetadata.computeSpectroSolHubImageKind("Ha", new OutputMetadata("Ha", Map.of(), Map.of(), null)) == "IMAGE_MATH_HA"
+        OutputMetadata.computeSpectroSolHubImageKind("Ha", new OutputMetadata("Ha", Map.of(), Map.of(), "")) == "IMAGE_MATH_HA"
+        OutputMetadata.computeSpectroSolHubImageKind("h-alpha enhanced", null) == "IMAGE_MATH_H_ALPHA_ENHANCED"
+    }
+
+    def "parses image_type from Python output metadata"() {
+        def script = """# meta:title = "Test Script"
+# meta:author = "Test"
+# meta:version = "1.0"
+#
+# output:Ha:image_type = enhanced_ha
+# output:Ha:title = "H-alpha"
+# output:Ha:title:fr = "H-alpha"
+#
+# output:continuum:title = "Continuum"
+
+def single():
+    pass"""
+        def extractor = new PythonParameterExtractor()
+
+        when:
+        def result = extractor.extractParameters(script, "test.py")
+
+        then:
+        result != null
+        result.outputsMetadata.size() == 2
+
+        def haMeta = result.getOutputMetadata("Ha")
+        haMeta.isPresent()
+        haMeta.get().imageType() == "enhanced_ha"
+        haMeta.get().getDisplayTitle("en") == "H-alpha"
+        haMeta.get().getDisplayTitle("fr") == "H-alpha"
+
+        def contMeta = result.getOutputMetadata("continuum")
+        contMeta.isPresent()
+        contMeta.get().imageType() == null
+        contMeta.get().getDisplayTitle("en") == "Continuum"
     }
 
     def "section named outputs is correctly identified"() {

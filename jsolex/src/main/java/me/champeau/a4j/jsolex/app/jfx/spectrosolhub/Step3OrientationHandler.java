@@ -293,8 +293,14 @@ class Step3OrientationHandler implements StepHandler {
 
     private MultipleImagesViewer.ImageInfo findRepresentativeImage(List<MultipleImagesViewer.ImageInfo> images) {
         var mainShift = processParams != null ? new PixelShift(processParams.spectrumParams().pixelShift()) : new PixelShift(0);
+        var zeroShift = new PixelShift(0);
         MultipleImagesViewer.ImageInfo processedAtMainShift = null;
         MultipleImagesViewer.ImageInfo rawAtMainShift = null;
+        MultipleImagesViewer.ImageInfo imageMathAtMainShift = null;
+        MultipleImagesViewer.ImageInfo processedAtZeroShift = null;
+        MultipleImagesViewer.ImageInfo rawAtZeroShift = null;
+        MultipleImagesViewer.ImageInfo imageMathAtZeroShift = null;
+        MultipleImagesViewer.ImageInfo continuum = null;
         for (var image : images) {
             var ps = image.image().findMetadata(PixelShift.class).orElse(null);
             if (ps != null && ps.equals(mainShift)) {
@@ -302,7 +308,21 @@ class Step3OrientationHandler implements StepHandler {
                     processedAtMainShift = image;
                 } else if (image.kind() == GeneratedImageKind.GEOMETRY_CORRECTED) {
                     rawAtMainShift = image;
+                } else if (image.kind() == GeneratedImageKind.IMAGE_MATH && imageMathAtMainShift == null) {
+                    imageMathAtMainShift = image;
                 }
+            }
+            if (ps != null && ps.equals(zeroShift)) {
+                if (image.kind() == GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED) {
+                    processedAtZeroShift = image;
+                } else if (image.kind() == GeneratedImageKind.GEOMETRY_CORRECTED) {
+                    rawAtZeroShift = image;
+                } else if (image.kind() == GeneratedImageKind.IMAGE_MATH && imageMathAtZeroShift == null) {
+                    imageMathAtZeroShift = image;
+                }
+            }
+            if (image.kind() == GeneratedImageKind.CONTINUUM && continuum == null) {
+                continuum = image;
             }
         }
         if (processedAtMainShift != null) {
@@ -310,6 +330,21 @@ class Step3OrientationHandler implements StepHandler {
         }
         if (rawAtMainShift != null) {
             return rawAtMainShift;
+        }
+        if (imageMathAtMainShift != null) {
+            return imageMathAtMainShift;
+        }
+        if (processedAtZeroShift != null) {
+            return processedAtZeroShift;
+        }
+        if (rawAtZeroShift != null) {
+            return rawAtZeroShift;
+        }
+        if (imageMathAtZeroShift != null) {
+            return imageMathAtZeroShift;
+        }
+        if (continuum != null) {
+            return continuum;
         }
         for (var image : images) {
             if (image.kind() == GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED) {

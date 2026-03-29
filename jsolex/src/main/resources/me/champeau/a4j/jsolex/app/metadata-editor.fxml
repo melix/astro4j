@@ -185,6 +185,11 @@
                                         <TextField fx:id="outputNameField" styleClass="modern-text-field" onAction="#handleOutputNameChanged"/>
                                     </VBox>
 
+                                    <VBox spacing="4">
+                                        <Label text="%output.image_type" styleClass="field-label"/>
+                                        <TextField fx:id="outputImageTypeField" styleClass="modern-text-field" promptText="%output.image_type.prompt" onAction="#handleOutputImageTypeChanged"/>
+                                    </VBox>
+
                                     <VBox spacing="8">
                                         <Label text="%output.title.en" styleClass="field-label"/>
                                         <TextField fx:id="outputTitleEnField" styleClass="modern-text-field" onAction="#handleOutputTitleEnChanged"/>

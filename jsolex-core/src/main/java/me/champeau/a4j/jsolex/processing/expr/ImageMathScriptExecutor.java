@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.processing.expr;
 import me.champeau.a4j.jsolex.processing.params.OutputMetadata;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
+import me.champeau.a4j.jsolex.processing.sun.workflow.SpectroSolHubImageKind;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
@@ -58,6 +59,8 @@ public interface ImageMathScriptExecutor {
             var metadata = outputsMetadata.get(label);
             var displayTitle = metadata != null ? metadata.getDisplayTitle(language) : label;
             var description = metadata != null ? metadata.getDisplayDescription(language) : null;
+            var sshKind = OutputMetadata.computeSpectroSolHubImageKind(label, metadata);
+            image.metadata().put(SpectroSolHubImageKind.class, new SpectroSolHubImageKind(sshKind));
             if (image instanceof ImageWrapper32 mono) {
                 emitter.newMonoImage(
                     GeneratedImageKind.IMAGE_MATH,

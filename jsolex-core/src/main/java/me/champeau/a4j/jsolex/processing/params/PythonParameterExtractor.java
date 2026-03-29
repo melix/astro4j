@@ -56,6 +56,10 @@ public class PythonParameterExtractor {
         "^\\s*#\\s*param:([a-zA-Z_][a-zA-Z0-9_]*):([a-zA-Z_][a-zA-Z0-9_]*)(?::([a-z]{2}))?\\s*=\\s*(.+)$"
     );
 
+    private static final Pattern OUTPUT_PATTERN = Pattern.compile(
+        "^\\s*#\\s*output:([a-zA-Z_][a-zA-Z0-9_]*):([a-zA-Z_][a-zA-Z0-9_]*)(?::([a-z]{2}))?\\s*=\\s*(.+)$"
+    );
+
     public ParameterExtractionResult extractParameters(Path scriptFile) throws IOException {
         var content = Files.readString(scriptFile);
         var fileName = scriptFile.getFileName().toString();
@@ -71,6 +75,8 @@ public class PythonParameterExtractor {
 
         // Collect parameter properties by parameter name
         Map<String, Map<String, Object>> paramProperties = new HashMap<>();
+        // Collect output properties by output name
+        Map<String, Map<String, Object>> outputProperties = new HashMap<>();
 
         for (var line : scriptContent.lines().toList()) {
             // Try meta pattern
@@ -114,6 +120,28 @@ public class PythonParameterExtractor {
                 } else {
                     props.put(propertyName, value);
                 }
+                continue;
+            }
+
+            // Try output pattern
+            var outputMatcher = OUTPUT_PATTERN.matcher(line);
+            if (outputMatcher.matches()) {
+                var outputName = outputMatcher.group(1);
+                var propertyName = outputMatcher.group(2);
+                var language = outputMatcher.group(3); // may be null
+                var value = unquote(outputMatcher.group(4).trim());
+
+                var props = outputProperties.computeIfAbsent(outputName, k -> new HashMap<>());
+
+                if ("title".equals(propertyName) || "description".equals(propertyName)) {
+                    @SuppressWarnings("unchecked")
+                    var localizedMap = (Map<String, String>) props.computeIfAbsent(
+                        propertyName, k -> new HashMap<String, String>()
+                    );
+                    localizedMap.put(language != null ? language : "default", value);
+                } else {
+                    props.put(propertyName, value);
+                }
             }
         }
 
@@ -128,6 +156,25 @@ public class PythonParameterExtractor {
             }
         }
 
+        // Convert output properties to OutputMetadata records
+        Map<String, OutputMetadata> outputsMetadata = new HashMap<>();
+        for (var entry : outputProperties.entrySet()) {
+            var outputName = entry.getKey();
+            var props = entry.getValue();
+            @SuppressWarnings("unchecked")
+            var outputTitle = props.containsKey("title")
+                ? (Map<String, String>) props.get("title")
+                : Map.<String, String>of();
+            @SuppressWarnings("unchecked")
+            var outputDesc = props.containsKey("description")
+                ? (Map<String, String>) props.get("description")
+                : Map.<String, String>of();
+            var imageType = props.containsKey("image_type")
+                ? (String) props.get("image_type")
+                : null;
+            outputsMetadata.put(outputName, new OutputMetadata(outputName, outputTitle, outputDesc, imageType));
+        }
+
         return new ParameterExtractionResult(
             parameters,
             !parameters.isEmpty(),
@@ -137,7 +184,7 @@ public class PythonParameterExtractor {
             requiredVersion,
             author,
             version,
-            Map.of() // No outputs metadata for Python scripts
+            outputsMetadata
         );
     }
 

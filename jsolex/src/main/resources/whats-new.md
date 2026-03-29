@@ -7,6 +7,7 @@
 - Fixed non deterministic dedistorsion results
 - Improved performance on multi-core systems
 - Reworked Helium line image extraction
+- Added the ability to declare the type of image generated in scripts
 
 ## What's New in Version 5.0.2
 
