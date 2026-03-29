@@ -51,6 +51,7 @@ import me.champeau.a4j.jsolex.processing.expr.ScriptExecutionContext;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.AutocropMode;
 import me.champeau.a4j.jsolex.processing.params.OutputMetadata;
+import me.champeau.a4j.jsolex.processing.sun.workflow.SpectroSolHubImageKind;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
@@ -579,8 +580,11 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             var description = metadata != null ? metadata.getDisplayDescription(language) : null;
             var name = namingStrategy.render(0, null, Constants.TYPE_PROCESSED, label, "batch", entry.getValue());
             var outputFile = new File(outputDirectory, name);
+            var image = entry.getValue();
+            image.metadata().put(SpectroSolHubImageKind.class,
+                new SpectroSolHubImageKind(OutputMetadata.computeSpectroSolHubImageKind(label, metadata)));
             delegate.onImageGenerated(new ImageGeneratedEvent(
-                new GeneratedImage(GeneratedImageKind.IMAGE_MATH, label, outputFile.toPath(), entry.getValue(), description, displayTitle)
+                new GeneratedImage(GeneratedImageKind.IMAGE_MATH, label, outputFile.toPath(), image, description, displayTitle)
             ));
         });
         result.filesByLabel().entrySet().stream().parallel().forEach(entry -> {

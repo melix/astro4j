@@ -15,16 +15,39 @@
  */
 package me.champeau.a4j.jsolex.processing.params;
 
+import java.util.Locale;
 import java.util.Map;
 
 public record OutputMetadata(
         String name,
         Map<String, String> title,
-        Map<String, String> description
+        Map<String, String> description,
+        String imageType
 ) {
+    public OutputMetadata(String name, Map<String, String> title, Map<String, String> description) {
+        this(name, title, description, null);
+    }
+
     public OutputMetadata {
         title = title != null ? Map.copyOf(title) : Map.of();
         description = description != null ? Map.copyOf(description) : Map.of();
+    }
+
+    public static String computeSpectroSolHubImageKind(String label, OutputMetadata metadata) {
+        String raw;
+        if (metadata != null && metadata.imageType() != null && !metadata.imageType().isBlank()) {
+            raw = metadata.imageType();
+        } else {
+            raw = label;
+        }
+        return "IMAGE_MATH_" + normalize(raw);
+    }
+
+    private static String normalize(String input) {
+        var upper = input.toUpperCase(Locale.ROOT);
+        var replaced = upper.replaceAll("[^A-Z0-9_]", "_");
+        var collapsed = replaced.replaceAll("_+", "_");
+        return collapsed.replaceAll("^_|_$", "");
     }
 
     public String getDisplayTitle(String language) {

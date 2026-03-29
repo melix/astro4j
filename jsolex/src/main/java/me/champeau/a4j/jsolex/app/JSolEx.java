@@ -1100,6 +1100,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
                 // Mark script operation complete after all sections have finished
                 var formatted = DurationFormatter.formatNanos(System.nanoTime() - startTime);
                 updateProgress(scriptOperation.complete(String.format(message("script.completed.in.format"), formatted)));
+                enableSpectroSolHubSubmission(null);
             });
         });
 

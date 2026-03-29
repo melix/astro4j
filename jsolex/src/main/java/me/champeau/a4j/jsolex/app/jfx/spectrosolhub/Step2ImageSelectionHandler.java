@@ -45,6 +45,7 @@ import javafx.application.Platform;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.OptionalDouble;
@@ -325,6 +326,10 @@ class Step2ImageSelectionHandler implements StepHandler {
                 notPreselected.add(imageInfo);
             }
         }
+        var imageComparator = Comparator.<MultipleImagesViewer.ImageInfo>comparingInt(img -> img.kind().ordinal())
+                .thenComparing(MultipleImagesViewer.ImageInfo::title);
+        preselected.sort(imageComparator);
+        notPreselected.sort(imageComparator);
         for (var imageInfo : preselected) {
             eligibleImages.add(imageInfo);
             gallery.getChildren().add(createImageCard(imageInfo, true));

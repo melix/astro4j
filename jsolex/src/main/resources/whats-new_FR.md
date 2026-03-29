@@ -7,6 +7,7 @@
 - Correction de résultats de dédistorsion non déterministes
 - Amélioration des performances sur les systèmes multi-core
 - Refonte de l'extraction des images hélium
+- Ajout de la possibilité de déclarer le type d'image généré dans les scripts
 
 ## Nouveautés de la version 5.0.2
 

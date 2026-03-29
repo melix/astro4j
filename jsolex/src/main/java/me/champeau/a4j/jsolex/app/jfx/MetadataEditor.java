@@ -141,6 +141,8 @@ public class MetadataEditor {
     @FXML
     private TextArea outputDescFrField;
     @FXML
+    private TextField outputImageTypeField;
+    @FXML
     private VBox outputFormContainer;
 
     private Stage stage;
@@ -225,6 +227,11 @@ public class MetadataEditor {
 
         setupValidationListeners();
         setupHelpIcons();
+        var imageTypeTooltip = new Tooltip(I18N.string(JSolEx.class, "metadata-editor", "tooltip.image_type"));
+        imageTypeTooltip.setShowDelay(Duration.millis(100));
+        imageTypeTooltip.setWrapText(true);
+        imageTypeTooltip.setMaxWidth(300);
+        outputImageTypeField.setTooltip(imageTypeTooltip);
         updateButtonStates();
     }
 
@@ -686,6 +693,7 @@ public class MetadataEditor {
         if (selectedOutput == null) {
             outputFormContainer.setDisable(true);
             outputNameField.clear();
+            outputImageTypeField.clear();
             outputTitleEnField.clear();
             outputTitleFrField.clear();
             outputDescEnField.clear();
@@ -693,6 +701,7 @@ public class MetadataEditor {
         } else {
             outputFormContainer.setDisable(false);
             outputNameField.setText(selectedOutput.getName());
+            outputImageTypeField.setText(selectedOutput.getImageType());
             outputTitleEnField.setText(selectedOutput.getTitleEn());
             outputTitleFrField.setText(selectedOutput.getTitleFr());
             outputDescEnField.setText(selectedOutput.getDescriptionEn());
@@ -785,6 +794,13 @@ public class MetadataEditor {
     }
 
     @FXML
+    private void handleOutputImageTypeChanged() {
+        if (selectedOutput != null) {
+            selectedOutput.setImageType(outputImageTypeField.getText());
+        }
+    }
+
+    @FXML
     private void handleOk() {
         saveCurrentParameterChanges();
         saveCurrentOutputChanges();
@@ -855,6 +871,7 @@ public class MetadataEditor {
             }
         }
 
+        output.setImageType(outputImageTypeField.getText());
         output.setTitleEn(outputTitleEnField.getText());
         output.setTitleFr(outputTitleFrField.getText());
         output.setDescriptionEn(outputDescEnField.getText());
@@ -1008,6 +1025,7 @@ public class MetadataEditor {
         writer.writeLine(output.getName() + " {");
         writer.indent();
 
+        writeStringProperty(writer, "image_type", output.getImageType());
         writeLocalizedBlock(writer, "title", output.getTitleEn(), output.getTitleFr());
         writeLocalizedBlock(writer, "description", output.getDescriptionEn(), output.getDescriptionFr());
 
@@ -1175,6 +1193,10 @@ public class MetadataEditor {
         // Outputs
         for (var output : outputs) {
             sb.append("#\n");
+            var outImageType = output.getImageType();
+            if (outImageType != null && !outImageType.isEmpty()) {
+                sb.append("# output:").append(output.getName()).append(":image_type = ").append(outImageType).append("\n");
+            }
             var outTitleEn = output.getTitleEn();
             var outTitleFr = output.getTitleFr();
             if (outTitleEn != null && !outTitleEn.isEmpty()) {
@@ -1490,6 +1512,7 @@ public class MetadataEditor {
      */
     public static class OutputModel {
         private final StringProperty name = new SimpleStringProperty();
+        private final StringProperty imageType = new SimpleStringProperty("");
         private final StringProperty titleEn = new SimpleStringProperty("");
         private final StringProperty titleFr = new SimpleStringProperty("");
         private final StringProperty descriptionEn = new SimpleStringProperty("");
@@ -1511,6 +1534,9 @@ public class MetadataEditor {
          */
         public OutputModel(OutputMetadata metadata) {
             this.name.set(metadata.name());
+            if (metadata.imageType() != null) {
+                this.imageType.set(metadata.imageType());
+            }
 
             metadata.title().forEach((lang, text) -> {
                 if ("en".equals(lang) || "default".equals(lang)) {
@@ -1545,6 +1571,14 @@ public class MetadataEditor {
          */
         public void setName(String name) {
             this.name.set(name);
+        }
+
+        public String getImageType() {
+            return imageType.get();
+        }
+
+        public void setImageType(String imageType) {
+            this.imageType.set(imageType != null ? imageType : "");
         }
 
         /**

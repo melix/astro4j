@@ -47,6 +47,7 @@ import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.workflow.DisplayCategory;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
+import me.champeau.a4j.jsolex.processing.sun.workflow.SpectroSolHubImageKind;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
 
@@ -302,6 +303,7 @@ public class MultipleImagesViewer extends Pane {
 
         var viewer = linkToViewer.remove(link);
         if (viewer != null) {
+            imageViews.remove(viewer);
             viewerTitles.remove(viewer);
             viewerKinds.remove(viewer);
         }
@@ -502,8 +504,9 @@ public class MultipleImagesViewer extends Pane {
      * @param image the image wrapper
      * @param title the image title
      * @param kind the kind of generated image
+     * @param spectroSolHubImageKind the SpectroSolHub-specific image kind for IMAGE_MATH outputs, or null
      */
-    public record ImageInfo(ImageWrapper image, String title, GeneratedImageKind kind) {
+    public record ImageInfo(ImageWrapper image, String title, GeneratedImageKind kind, String spectroSolHubImageKind) {
     }
 
     /**
@@ -515,11 +518,18 @@ public class MultipleImagesViewer extends Pane {
         try {
             return imageViews.stream()
                     .filter(viewer -> viewer.getStretchedImage() != null)
-                    .map(viewer -> new ImageInfo(
-                            viewer.getStretchedImage().wrap(),
-                            getImageTitle(viewer),
-                            getImageKind(viewer)
-                    ))
+                    .map(viewer -> {
+                        var stretched = viewer.getStretchedImage();
+                        var spectroSolHubKind = stretched.findMetadata(SpectroSolHubImageKind.class)
+                                .map(SpectroSolHubImageKind::value)
+                                .orElse(null);
+                        return new ImageInfo(
+                                stretched.wrap(),
+                                getImageTitle(viewer),
+                                getImageKind(viewer),
+                                spectroSolHubKind
+                        );
+                    })
                     .toList();
         } finally {
             lock.unlock();
