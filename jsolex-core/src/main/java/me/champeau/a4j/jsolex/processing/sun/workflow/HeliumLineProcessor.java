@@ -21,6 +21,8 @@ import me.champeau.a4j.jsolex.processing.expr.ImageExpressionEvaluator;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
+import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
+import me.champeau.a4j.jsolex.processing.util.Wavelen;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.MidtoneTransferFunctionAutostretchStrategy;
@@ -37,6 +39,7 @@ import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.math.image.Kernel33;
 import me.champeau.a4j.math.regression.Ellipse;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -56,12 +59,15 @@ public class HeliumLineProcessor {
         public static final HeliumImageKind EXTRACTED = new HeliumImageKind(true);
     }
 
+    private static final double CONTINUUM_OFFSET_ANGSTROMS = 0.5;
+    private static final float CONTINUUM_REINTRODUCTION_COEFF = 0.8f;
     private static final float CONTRAST_FACTOR = 2.5f;
     private static final float TARGET_DISK_MEDIAN = 0.7f;
     private static final float COLOR_GAMMA = 1.3f;
     private static final float COLOR_G = 0.92f;
     private static final float COLOR_B = 0.25f;
 
+    private final ProcessParams processParams;
     private final ProgressOperation progressOperation;
     private final PixelShiftRange pixelShiftRange;
     private final Map<PixelShift, WorkflowState> imageByPixelShift;
@@ -76,6 +82,7 @@ public class HeliumLineProcessor {
                                double heliumLineShift,
                                ImageEmitter imageEmitter,
                                Broadcaster broadcaster) {
+        this.processParams = processParams;
         this.progressOperation = progressOperation;
         this.pixelShiftRange = pixelShiftRange;
         this.imageByPixelShift = imageList.stream().collect(Collectors.toMap(s -> new PixelShift(s.pixelShift()), s -> s, (e1, e2) -> e1, LinkedHashMap::new));
@@ -108,7 +115,11 @@ public class HeliumLineProcessor {
                         message("helium.d3.direct.colorized"), "helium-direct-colorized", message("helium.direct.description"), colorized.width(), colorized.height(), new HashMap<>(colorized.metadata()), () -> new float[][][]{colorized.r(), colorized.g(), colorized.b()});
             }
         }
-        var continuum = evaluator.functionCall(BuiltinFunction.ELLIPSE_FIT, Map.of("img", evaluator.createContinuumImage()));
+        var continuumImage = createFixedShiftContinuum(evaluator);
+        if (continuumImage == null) {
+            return;
+        }
+        var continuum = evaluator.functionCall(BuiltinFunction.ELLIPSE_FIT, Map.of("img", continuumImage));
         var raw = evaluator.minus(source, continuum);
         if (raw instanceof ImageWrapper32 image) {
             LinearStrechingStrategy.DEFAULT.stretch(image);
@@ -124,7 +135,7 @@ public class HeliumLineProcessor {
             protus = (ImageWrapper32) evaluator.functionCall(BuiltinFunction.DISK_FILL, Map.of("img", protus, "fill", 0));
             if (ellipse != null) {
                 var protusData = protus.data();
-                new MidtoneTransferFunctionAutostretchStrategy(-2, 0.25, (x, y) -> !ellipse.isWithin(x, y) && protusData[y][x] > 0).stretch(protus);
+                new MidtoneTransferFunctionAutostretchStrategy(-2.5, 0.3, (x, y) -> !ellipse.isWithin(x, y) && protusData[y][x] > 0).stretch(protus);
             } else {
                 new ArcsinhStretchingStrategy(0, 10, 10).stretch(protus);
             }
@@ -156,14 +167,16 @@ public class HeliumLineProcessor {
                 LinearStrechingStrategy.DEFAULT.stretch(image);
             }
             if (ellipse != null) {
-                // Mild denoise before contrast amplification to prevent noise enhancement
+                stretchDiskOnly(image, ellipse);
                 var denoised = ImageMath.newInstance().convolve(image.asImage(), Kernel33.GAUSSIAN_BLUR);
                 var srcData = denoised.data();
                 var dstData = image.data();
                 for (int y = 0; y < image.height(); y++) {
                     System.arraycopy(srcData[y], 0, dstData[y], 0, image.width());
                 }
-                stretchDiskOnly(image, ellipse);
+            }
+            if (ellipse != null && continuum instanceof ImageWrapper32 continuumImg) {
+                reintroduceContinuum(image, continuumImg, ellipse);
             }
             var blurred = ImageMath.newInstance().convolve(image.asImage(), Kernel33.GAUSSIAN_BLUR);
             image = (ImageWrapper32) evaluator.functionCall(BuiltinFunction.MAX, Map.of("list", List.of(protus, ImageWrapper32.fromImage(blurred))));
@@ -269,6 +282,34 @@ public class HeliumLineProcessor {
         }
     }
 
+    private static void reintroduceContinuum(ImageWrapper32 image, ImageWrapper32 continuum, Ellipse ellipse) {
+        var data = image.data();
+        var contData = continuum.data();
+        var width = image.width();
+        var height = image.height();
+        float midpoint = MAX_PIXEL_VALUE / 2f;
+        float max = 0;
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                if (ellipse.isWithin(x, y)) {
+                    float centered = contData[y][x] - midpoint;
+                    data[y][x] = data[y][x] + CONTINUUM_REINTRODUCTION_COEFF * centered;
+                    max = Math.max(max, data[y][x]);
+                }
+            }
+        }
+        if (max > 0) {
+            float scale = MAX_PIXEL_VALUE / max;
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    if (ellipse.isWithin(x, y)) {
+                        data[y][x] = Math.max(0, data[y][x] * scale);
+                    }
+                }
+            }
+        }
+    }
+
     private static void darkenBackground(ImageWrapper32 image, Ellipse ellipse) {
         var data = image.data();
         var width = image.width();
@@ -306,6 +347,44 @@ public class HeliumLineProcessor {
                 }
             }
         }
+    }
+
+    public static List<Double> computeContinuumPixelShifts(ProcessParams processParams) {
+        var heliumD3 = SpectralRay.HELIUM_D3.wavelength();
+        var lambda0 = processParams.spectrumParams().ray().wavelength();
+        var pixelSize = processParams.observationDetails().pixelSize();
+        var binning = processParams.observationDetails().binning();
+        var instrument = processParams.observationDetails().instrument();
+        if (pixelSize == null || binning == null) {
+            return List.of();
+        }
+        var shifts = new ArrayList<Double>();
+        for (var offsetAngstroms : new double[]{-CONTINUUM_OFFSET_ANGSTROMS, CONTINUUM_OFFSET_ANGSTROMS}) {
+            var targetWavelength = Wavelen.ofAngstroms(heliumD3.angstroms() + offsetAngstroms);
+            shifts.add(SpectrumAnalyzer.computePixelShift(pixelSize, binning, lambda0, targetWavelength, instrument));
+        }
+        return shifts;
+    }
+
+    private ImageWrapper32 createFixedShiftContinuum(ImageExpressionEvaluator evaluator) {
+        var continuumShifts = computeContinuumPixelShifts(processParams);
+        var images = new ArrayList<ImageWrapper>();
+        for (var shift : continuumShifts) {
+            var pixelShift = new PixelShift(shift);
+            if (pixelShiftRange.includes(pixelShift.pixelShift())) {
+                var img = findEnhancedImage(pixelShift);
+                if (img != null) {
+                    images.add(img);
+                }
+            }
+        }
+        if (images.isEmpty()) {
+            return null;
+        }
+        if (images.size() == 1) {
+            return (ImageWrapper32) images.getFirst().unwrapToMemory();
+        }
+        return (ImageWrapper32) evaluator.functionCall(BuiltinFunction.AVG, Map.of("list", images));
     }
 
     private ImageWrapper findEnhancedImage(PixelShift shift) {

@@ -936,7 +936,7 @@ public class SolexVideoProcessor implements Broadcaster {
     }
 
     private void addPixelShiftsForAutoContinnum(boolean canGenerateHeliumD3Images, int width, int newHeight, List<WorkflowState> imageList, Double heliumLineShift) {
-        if (canGenerateHeliumD3Images || processParams.requestedImages().autoContinuum()) {
+        if (processParams.requestedImages().autoContinuum()) {
             var explicit = processParams.requestedImages().pixelShifts();
             var internal = processParams.requestedImages().internalPixelShifts();
             var min = pixelShiftRange.minPixelShift();
@@ -950,13 +950,22 @@ public class SolexVideoProcessor implements Broadcaster {
                     imageList.add(state);
                 }
             }
-            if (canGenerateHeliumD3Images && heliumLineShift != null) {
-                if (imageList.stream().map(WorkflowState::pixelShift).noneMatch(heliumLineShift::equals)) {
-                    var state = new WorkflowState(width, newHeight, heliumLineShift);
-                    state.setInternal(true);
-                    imageList.add(state);
+        }
+        if (canGenerateHeliumD3Images && heliumLineShift != null) {
+            addInternalShiftIfMissing(width, newHeight, imageList, heliumLineShift);
+            for (var shift : HeliumLineProcessor.computeContinuumPixelShifts(processParams)) {
+                if (pixelShiftRange.includes(shift)) {
+                    addInternalShiftIfMissing(width, newHeight, imageList, shift);
                 }
             }
+        }
+    }
+
+    private static void addInternalShiftIfMissing(int width, int newHeight, List<WorkflowState> imageList, double shift) {
+        if (imageList.stream().map(WorkflowState::pixelShift).noneMatch(s -> s == shift)) {
+            var state = new WorkflowState(width, newHeight, shift);
+            state.setInternal(true);
+            imageList.add(state);
         }
     }
 

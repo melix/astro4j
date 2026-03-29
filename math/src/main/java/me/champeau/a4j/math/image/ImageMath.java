@@ -830,6 +830,37 @@ public interface ImageMath {
         return (a * Math.sin(pix) * Math.sin(pix / a)) / (pix * pix);
     }
 
+    /**
+     * Applies a median filter to an image.
+     *
+     * @param image the source image
+     * @param radius the filter radius (kernel size = 2*radius+1)
+     * @return the filtered image
+     */
+    default Image medianFilter(Image image, int radius) {
+        var source = image.data();
+        var height = image.height();
+        var width = image.width();
+        var result = new float[height][width];
+        int kSize = 2 * radius + 1;
+        var buffer = new float[kSize * kSize];
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                int count = 0;
+                for (int ky = -radius; ky <= radius; ky++) {
+                    int sy = Math.clamp(y + ky, 0, height - 1);
+                    for (int kx = -radius; kx <= radius; kx++) {
+                        int sx = Math.clamp(x + kx, 0, width - 1);
+                        buffer[count++] = source[sy][sx];
+                    }
+                }
+                Arrays.sort(buffer, 0, count);
+                result[y][x] = buffer[count / 2];
+            }
+        }
+        return image.withData(result);
+    }
+
     private static float bilinear2D(float[][] image, double xx, double yy, int width, int height) {
         int x0 = (int) Math.floor(xx);
         int y0 = (int) Math.floor(yy);
