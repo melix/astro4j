@@ -486,6 +486,62 @@ public interface ImageMath {
     }
 
     /**
+     * Applies a box blur using a sliding window in two separable passes.
+     *
+     * @param image the source image
+     * @param kernelSize the blur kernel size (must be odd)
+     * @return the blurred image
+     */
+    default Image boxBlur(Image image, int kernelSize) {
+        var source = image.data();
+        var height = image.height();
+        var width = image.width();
+        var halfK = kernelSize / 2;
+        float invN2 = 1f / ((float) kernelSize * kernelSize);
+
+        // Horizontal pass: sliding window across each row
+        var hPass = new float[height][width];
+        for (int y = 0; y < height; y++) {
+            var srcRow = source[y];
+            var dstRow = hPass[y];
+            float sum = 0;
+            for (int kx = -halfK; kx <= halfK; kx++) {
+                sum += srcRow[Math.clamp(kx, 0, width - 1)];
+            }
+            dstRow[0] = sum;
+            for (int x = 1; x < width; x++) {
+                sum -= srcRow[Math.clamp(x - halfK - 1, 0, width - 1)];
+                sum += srcRow[Math.clamp(x + halfK, 0, width - 1)];
+                dstRow[x] = sum;
+            }
+        }
+
+        // Vertical pass: sliding window down columns, row-by-row for cache locality
+        var result = new float[height][width];
+        var colSums = new float[width];
+        for (int ky = -halfK; ky <= halfK; ky++) {
+            var row = hPass[Math.clamp(ky, 0, height - 1)];
+            for (int x = 0; x < width; x++) {
+                colSums[x] += row[x];
+            }
+        }
+        for (int x = 0; x < width; x++) {
+            result[0][x] = Math.clamp(colSums[x] * invN2, 0, MAX_VALUE);
+        }
+        for (int y = 1; y < height; y++) {
+            var removeRow = hPass[Math.clamp(y - halfK - 1, 0, height - 1)];
+            var addRow = hPass[Math.clamp(y + halfK, 0, height - 1)];
+            var resultRow = result[y];
+            for (int x = 0; x < width; x++) {
+                colSums[x] += addRow[x] - removeRow[x];
+                resultRow[x] = Math.clamp(colSums[x] * invN2, 0, MAX_VALUE);
+            }
+        }
+
+        return image.withData(result);
+    }
+
+    /**
      * Applies a convolution kernel to an image.
      *
      * @param image the source image

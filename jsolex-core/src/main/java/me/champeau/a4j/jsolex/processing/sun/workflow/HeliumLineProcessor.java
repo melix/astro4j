@@ -33,7 +33,6 @@ import me.champeau.a4j.jsolex.processing.sun.tasks.GeometryCorrector;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
-import me.champeau.a4j.math.image.BlurKernel;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.math.image.Kernel33;
@@ -151,7 +150,6 @@ public class HeliumLineProcessor {
                         mask[y][x] = ellipse.isWithin(x, y) ? 1f : 0f;
                     }
                 }
-                var blurKernel = BlurKernel.of(normKernel);
                 // Blur image * mask (not raw image) so outside-disk values
                 // don't contaminate the local mean estimate near the limb
                 var maskedImageData = new float[image.height()][image.width()];
@@ -161,8 +159,8 @@ public class HeliumLineProcessor {
                         maskedImageData[y][x] = imgData[y][x] * mask[y][x];
                     }
                 }
-                var blurredImage = imageMath.convolve(new Image(image.width(), image.height(), maskedImageData), blurKernel);
-                var blurredMask = imageMath.convolve(new Image(image.width(), image.height(), mask), blurKernel);
+                var blurredImage = imageMath.boxBlur(new Image(image.width(), image.height(), maskedImageData), normKernel);
+                var blurredMask = imageMath.boxBlur(new Image(image.width(), image.height(), mask), normKernel);
                 localNormalize(image, ImageWrapper32.fromImage(blurredImage), ImageWrapper32.fromImage(blurredMask), ellipse);
                 LinearStrechingStrategy.DEFAULT.stretch(image);
             }

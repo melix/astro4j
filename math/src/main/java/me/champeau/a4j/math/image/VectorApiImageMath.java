@@ -194,6 +194,81 @@ class VectorApiImageMath implements ImageMath {
     }
 
     @Override
+    public Image boxBlur(Image image, int kernelSize) {
+        var source = image.data();
+        var height = image.height();
+        var width = image.width();
+        var halfK = kernelSize / 2;
+        float invN2 = 1f / ((float) kernelSize * kernelSize);
+
+        // Horizontal pass: sliding window across each row (sequential per row)
+        var hPass = new float[height][width];
+        for (int y = 0; y < height; y++) {
+            var srcRow = source[y];
+            var dstRow = hPass[y];
+            float sum = 0;
+            for (int kx = -halfK; kx <= halfK; kx++) {
+                sum += srcRow[Math.clamp(kx, 0, width - 1)];
+            }
+            dstRow[0] = sum;
+            for (int x = 1; x < width; x++) {
+                sum -= srcRow[Math.clamp(x - halfK - 1, 0, width - 1)];
+                sum += srcRow[Math.clamp(x + halfK, 0, width - 1)];
+                dstRow[x] = sum;
+            }
+        }
+
+        // Vertical pass: vectorized column sum updates
+        var result = new float[height][width];
+        var colSums = new float[width];
+        for (int ky = -halfK; ky <= halfK; ky++) {
+            var row = hPass[Math.clamp(ky, 0, height - 1)];
+            int x = 0;
+            for (; x < FLOAT_SPECIES.loopBound(width); x += FLOAT_LEN) {
+                var cs = FloatVector.fromArray(FLOAT_SPECIES, colSums, x);
+                var rv = FloatVector.fromArray(FLOAT_SPECIES, row, x);
+                cs.add(rv).intoArray(colSums, x);
+            }
+            for (; x < width; x++) {
+                colSums[x] += row[x];
+            }
+        }
+        var invN2Vec = FloatVector.broadcast(FLOAT_SPECIES, invN2);
+        var zeroVec = FloatVector.zero(FLOAT_SPECIES);
+        var maxVec = FloatVector.broadcast(FLOAT_SPECIES, MAX_VALUE);
+        {
+            int x = 0;
+            for (; x < FLOAT_SPECIES.loopBound(width); x += FLOAT_LEN) {
+                var cs = FloatVector.fromArray(FLOAT_SPECIES, colSums, x);
+                cs.mul(invN2Vec).max(zeroVec).min(maxVec).intoArray(result[0], x);
+            }
+            for (; x < width; x++) {
+                result[0][x] = Math.clamp(colSums[x] * invN2, 0, MAX_VALUE);
+            }
+        }
+        for (int y = 1; y < height; y++) {
+            var removeRow = hPass[Math.clamp(y - halfK - 1, 0, height - 1)];
+            var addRow = hPass[Math.clamp(y + halfK, 0, height - 1)];
+            var resultRow = result[y];
+            int x = 0;
+            for (; x < FLOAT_SPECIES.loopBound(width); x += FLOAT_LEN) {
+                var cs = FloatVector.fromArray(FLOAT_SPECIES, colSums, x);
+                var add = FloatVector.fromArray(FLOAT_SPECIES, addRow, x);
+                var rem = FloatVector.fromArray(FLOAT_SPECIES, removeRow, x);
+                cs = cs.add(add).sub(rem);
+                cs.intoArray(colSums, x);
+                cs.mul(invN2Vec).max(zeroVec).min(maxVec).intoArray(resultRow, x);
+            }
+            for (; x < width; x++) {
+                colSums[x] += addRow[x] - removeRow[x];
+                resultRow[x] = Math.clamp(colSums[x] * invN2, 0, MAX_VALUE);
+            }
+        }
+
+        return image.withData(result);
+    }
+
+    @Override
     public void incrementalAverage(float[][] current, float[][] average, int n) {
         var invN = FloatVector.broadcast(FLOAT_SPECIES, 1.0f / n);
         for (int j = 0; j < current.length; j++) {

@@ -2,6 +2,7 @@
 
 ## Nouveautés de la version 5.0.4
 
+- Correction d'un problème de performance dans l'extraction Hélium si l'accélération GPU était désactivée
 - Correction d'une limite de traitement en parallèle qui pouvait conduire à un traitement incomplet
 
 ## Nouveautés de la version 5.0.3
