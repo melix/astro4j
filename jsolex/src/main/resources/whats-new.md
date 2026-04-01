@@ -1,5 +1,9 @@
 # Welcome to JSol'Ex {{version}}!
 
+## What's New in Version 5.0.4
+
+- Fixed a thread starvation issue that could lead to incomplete processing
+
 ## What's New in Version 5.0.3
 
 - Added a new "Sharing" menu with items for publishing to BASS2000 and sharing on SpectroSolHub

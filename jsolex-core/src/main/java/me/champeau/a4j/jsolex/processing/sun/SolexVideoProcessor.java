@@ -525,16 +525,19 @@ public class SolexVideoProcessor implements Broadcaster {
                         header);
             });
             var progress = new AtomicInteger();
-            runnables.stream()
-                    .parallel()
-                    .forEach(task -> {
-                        broadcast(generationOperation.update(((double) progress.get()) / runnables.size()));
-                        try {
-                            task.run();
-                        } finally {
-                            broadcast(generationOperation.update(((double) progress.incrementAndGet()) / runnables.size()));
-                        }
-                    });
+            try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+                var futures = runnables.stream()
+                        .map(task -> CompletableFuture.runAsync(() -> {
+                            broadcast(generationOperation.update(((double) progress.get()) / runnables.size()));
+                            try {
+                                task.run();
+                            } finally {
+                                broadcast(generationOperation.update(((double) progress.incrementAndGet()) / runnables.size()));
+                            }
+                        }, executor))
+                        .toList();
+                futures.forEach(CompletableFuture::join);
+            }
             broadcast(generationOperation.complete());
         } else {
             LOGGER.error(message("unable.find.spectral.line"));
@@ -1117,8 +1120,9 @@ public class SolexVideoProcessor implements Broadcaster {
             ImageStats finalImageStats = imageStats;
             var scriptsOperation = newOperation(message("running.scripts"));
             // Create a shared SerFileReader for scripts that need SER file access
-            try (var scriptsReader = SerFileReader.of(serFile)) {
-            mathImages.scriptFiles().stream().parallel().forEach(scriptFile -> {
+            try (var scriptsReader = SerFileReader.of(serFile);
+                 var scriptExecutor = Executors.newVirtualThreadPerTaskExecutor()) {
+            var scriptFutures = mathImages.scriptFiles().stream().map(scriptFile -> CompletableFuture.runAsync(() -> {
                 broadcast(scriptsOperation.update(0, message("running.scripts") + " : " + scriptFile.getName()));
                 var context = createMetadata(processParams, serFile.toPath(), pixelShiftRange, header)
                     .imageEmitter(emitter)
@@ -1186,7 +1190,8 @@ public class SolexVideoProcessor implements Broadcaster {
                 } finally {
                     broadcast(scriptsOperation.update(1.0, "Running script " + scriptFile.getName()));
                 }
-            });
+            }, scriptExecutor)).toList();
+            scriptFutures.forEach(CompletableFuture::join);
             } catch (Exception e) {
                 throw new ProcessingException(e);
             }
