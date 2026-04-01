@@ -146,6 +146,97 @@ class ImageMathTest extends Specification {
         }
     }
 
+    def "boxBlur matches naive convolve with BlurKernel (#label, size=#kernelSize)"() {
+        var image = newImage(width, height)
+
+        when:
+        def boxResult = imageMath.boxBlur(image, kernelSize)
+        def naiveResult = imageMath.convolve(image, BlurKernel.of(kernelSize))
+
+        then:
+        boxResult.width() == naiveResult.width()
+        boxResult.height() == naiveResult.height()
+        compareImages(boxResult, naiveResult, 0.5f)
+
+        where:
+        label        | imageMath                | width | height | kernelSize
+        'fallback'   | new FallbackImageMath()  | 64    | 64     | 3
+        'fallback'   | new FallbackImageMath()  | 64    | 64     | 5
+        'fallback'   | new FallbackImageMath()  | 64    | 64     | 15
+        'fallback'   | new FallbackImageMath()  | 100   | 80     | 31
+        'vectorized' | new VectorApiImageMath() | 64    | 64     | 3
+        'vectorized' | new VectorApiImageMath() | 64    | 64     | 5
+        'vectorized' | new VectorApiImageMath() | 64    | 64     | 15
+        'vectorized' | new VectorApiImageMath() | 100   | 80     | 31
+    }
+
+    def "boxBlur with kernel size 1 returns original values (#label)"() {
+        var image = newImage(32, 32)
+
+        when:
+        def result = imageMath.boxBlur(image, 1)
+
+        then:
+        compareImages(result, image, 0.001f)
+
+        where:
+        label        | imageMath
+        'fallback'   | new FallbackImageMath()
+        'vectorized' | new VectorApiImageMath()
+    }
+
+    def "boxBlur preserves image dimensions (#label)"() {
+        var image = newImage(width, height)
+
+        when:
+        def result = imageMath.boxBlur(image, 7)
+
+        then:
+        result.width() == width
+        result.height() == height
+
+        where:
+        label        | imageMath                | width | height
+        'fallback'   | new FallbackImageMath()  | 64    | 64
+        'fallback'   | new FallbackImageMath()  | 100   | 50
+        'vectorized' | new VectorApiImageMath() | 64    | 64
+        'vectorized' | new VectorApiImageMath() | 100   | 50
+    }
+
+    def "boxBlur on uniform image returns same values (#label)"() {
+        var data = new float[32][32]
+        for (int y = 0; y < 32; y++) {
+            for (int x = 0; x < 32; x++) {
+                data[y][x] = 1000f
+            }
+        }
+        var image = new Image(32, 32, data)
+
+        when:
+        def result = imageMath.boxBlur(image, 11)
+
+        then:
+        compareImages(result, image, 0.01f)
+
+        where:
+        label        | imageMath
+        'fallback'   | new FallbackImageMath()
+        'vectorized' | new VectorApiImageMath()
+    }
+
+    def "vectorized boxBlur matches fallback for large images"() {
+        var fallback = new FallbackImageMath()
+        var vectorized = new VectorApiImageMath()
+        var image = newImage(200, 150)
+
+        when:
+        def fallbackResult = fallback.boxBlur(image, 51)
+        def vectorizedResult = vectorized.boxBlur(image, 51)
+
+        then:
+        compareImages(fallbackResult, vectorizedResult, 0.001f)
+    }
+
     static Image newImage(int width, int height) {
         var data = new float[height][width]
         for (int y = 0; y < height; y++) {
@@ -154,5 +245,31 @@ class ImageMathTest extends Specification {
             }
         }
         return new Image(width, height, data)
+    }
+
+    private static boolean compareImages(Image a, Image b, float tolerance) {
+        if (a.width() != b.width() || a.height() != b.height()) {
+            System.err.println("Dimension mismatch: ${a.width()}x${a.height()} vs ${b.width()}x${b.height()}")
+            return false
+        }
+        def dataA = a.data()
+        def dataB = b.data()
+        int mismatches = 0
+        for (int y = 0; y < a.height(); y++) {
+            for (int x = 0; x < a.width(); x++) {
+                def diff = Math.abs(dataA[y][x] - dataB[y][x])
+                if (diff > tolerance) {
+                    if (mismatches < 5) {
+                        System.err.println("Mismatch at ($x, $y): a=${dataA[y][x]}, b=${dataB[y][x]}, diff=$diff")
+                    }
+                    mismatches++
+                }
+            }
+        }
+        if (mismatches > 0) {
+            System.err.println("Total mismatches: $mismatches out of ${a.width() * a.height()}")
+            return false
+        }
+        return true
     }
 }

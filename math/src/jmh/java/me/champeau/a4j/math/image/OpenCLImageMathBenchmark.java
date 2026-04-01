@@ -239,6 +239,18 @@ public class OpenCLImageMathBenchmark {
         return gpuMath.multiply(image, image2);
     }
 
+    // ========== Box Blur Benchmarks ==========
+
+    @Benchmark
+    public Image cpuBoxBlur183() {
+        return cpuMath.boxBlur(image, 183);
+    }
+
+    @Benchmark
+    public Image cpuBoxBlur31() {
+        return cpuMath.boxBlur(image, 31);
+    }
+
     // ========== Dedistort Benchmarks ==========
 
     @Benchmark

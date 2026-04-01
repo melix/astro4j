@@ -2,6 +2,7 @@
 
 ## What's New in Version 5.0.4
 
+- Fixed a performance issue in Helium extraction when GPU acceleration was disabled
 - Fixed a thread starvation issue that could lead to incomplete processing
 
 ## What's New in Version 5.0.3
