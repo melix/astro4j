@@ -4,6 +4,7 @@
 
 - Correction d'un problème de performance dans l'extraction Hélium si l'accélération GPU était désactivée
 - Correction d'une limite de traitement en parallèle qui pouvait conduire à un traitement incomplet
+- Ajout d'un alignement automatique dans l'assistant de soumission BASS2000
 
 ## Nouveautés de la version 5.0.3
 

@@ -4,6 +4,7 @@
 
 - Fixed a performance issue in Helium extraction when GPU acceleration was disabled
 - Fixed a thread starvation issue that could lead to incomplete processing
+- Added auto-alignment in BASS2000 submission wizard
 
 ## What's New in Version 5.0.3
 

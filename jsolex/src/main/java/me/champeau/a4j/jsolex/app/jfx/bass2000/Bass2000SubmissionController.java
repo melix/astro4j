@@ -254,6 +254,18 @@ public class Bass2000SubmissionController {
                     step2Handler.performReset();
                 }
             }
+
+            @Override
+            public void onAutoAlign() {
+                if (step2Handler != null) {
+                    step2Handler.performAutoAlignment();
+                }
+            }
+
+            @Override
+            public boolean isAutoAlignAvailable() {
+                return step2Handler != null && step2Handler.isAutoAlignAvailable();
+            }
         });
 
         this.step2Handler = new Step2ImageOrientationHandler(comparisonModeManager, new Step2ImageOrientationHandler.ImageTransformationListener() {

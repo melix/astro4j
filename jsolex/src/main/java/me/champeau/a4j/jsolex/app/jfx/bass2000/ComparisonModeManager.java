@@ -88,6 +88,8 @@ public class ComparisonModeManager {
         void onRotation(int degrees);
         void onAngleAdjustment(double angle);
         void onReset();
+        default void onAutoAlign() {}
+        default boolean isAutoAlignAvailable() { return false; }
     }
 
     public ComparisonModeManager(Function<String, String> messageFunction, ImageTransformationListener transformationListener) {
@@ -568,10 +570,18 @@ public class ComparisonModeManager {
 
             leftControls.getChildren().addAll(horizontalFlipButton, verticalFlipButton, rotateLeftButton, rotateRightButton, resetButton);
 
+            if (transformationListener.isAutoAlignAvailable()) {
+                var autoAlignButton = new Button(message("orientation.button.auto.align"));
+                autoAlignButton.getStyleClass().add("dark-button");
+                autoAlignButton.setOnAction(e -> transformationListener.onAutoAlign());
+                leftControls.getChildren().add(autoAlignButton);
+            }
+
             var angleLabel = new Label(message("fine.tilt.adjust") + ":");
             angleLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
 
-            var angleSlider = new Slider(-2.0, 2.0, angleAdjustment);
+            var limit = Math.max(2.0, Math.ceil(Math.abs(angleAdjustment)) + 2);
+            var angleSlider = new Slider(-limit, limit, angleAdjustment);
             angleSlider.getStyleClass().add("dark-slider");
             angleSlider.setShowTickLabels(true);
             angleSlider.setShowTickMarks(true);

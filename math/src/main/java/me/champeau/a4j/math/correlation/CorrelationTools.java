@@ -1249,6 +1249,21 @@ public class CorrelationTools {
     }
 
     /**
+     * Computes the 2D phase correlation between two square patches.
+     * Returns the displacement (dy, dx) of the target relative to
+     * the reference, with sub-pixel accuracy via Gaussian fitting.
+     *
+     * @param patchRef  reference patch [size][size]
+     * @param patchDef  target patch [size][size]
+     * @param normalize if true, use phase correlation (magnitude-normalized);
+     *                  if false, use cross-correlation
+     * @return the displacement with confidence
+     */
+    public static ShiftResult phaseCorrelation2D(float[][] patchRef, float[][] patchDef, boolean normalize) {
+        return correlationShiftFFTWithConfidence(patchRef, patchDef, normalize);
+    }
+
+    /**
      * Computes the sub-pixel cross-correlation shift between two 1D signals.
      * Uses mean-subtracted cross-correlation with parabolic sub-pixel interpolation.
      * <p>
