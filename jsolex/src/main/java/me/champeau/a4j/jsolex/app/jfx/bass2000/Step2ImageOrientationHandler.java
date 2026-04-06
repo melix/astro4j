@@ -32,30 +32,30 @@ import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 import me.champeau.a4j.jsolex.app.AlertFactory;
 import me.champeau.a4j.jsolex.app.JSolEx;
-import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
+import me.champeau.a4j.jsolex.app.jfx.Corrector;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
+import me.champeau.a4j.jsolex.app.jfx.WritableImageSupport;
 import me.champeau.a4j.jsolex.app.jfx.ZoomableImageView;
+import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
+import me.champeau.a4j.jsolex.processing.expr.impl.Scaling;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
-import me.champeau.a4j.jsolex.processing.util.SolarParametersUtils;
-import me.champeau.a4j.jsolex.app.jfx.Corrector;
-import me.champeau.a4j.jsolex.processing.expr.impl.Scaling;
-import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
+import me.champeau.a4j.jsolex.processing.sun.align.AngularCorrelation;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
+import me.champeau.a4j.jsolex.processing.util.GONG;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
+import me.champeau.a4j.jsolex.processing.util.RGBImage;
+import me.champeau.a4j.jsolex.processing.util.SolarParametersUtils;
+import me.champeau.a4j.math.regression.Ellipse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import me.champeau.a4j.jsolex.processing.util.RGBImage;
-import me.champeau.a4j.jsolex.app.jfx.WritableImageSupport;
-import me.champeau.a4j.jsolex.processing.util.GONG;
 
 import java.text.MessageFormat;
 import java.util.Map;
-import java.util.Optional;
 
 class Step2ImageOrientationHandler implements StepHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(Step2ImageOrientationHandler.class);
@@ -85,10 +85,12 @@ class Step2ImageOrientationHandler implements StepHandler {
     private Image gongReferenceImage;
     private WritableImage userDisplayImage;
     private Image gongDisplayImage;
+    private Button autoAlignButton;
 
     private int rotation = 0;
     private boolean horizontalFlip = false;
     private boolean verticalFlip = false;
+    private ChangeListener<Number> angleSliderListener;
 
     private final ComparisonModeManager comparisonModeManager;
     private final ImageTransformationListener transformationListener;
@@ -174,7 +176,7 @@ class Step2ImageOrientationHandler implements StepHandler {
         mainAngleSlider.setMinorTickCount(4);
         mainAngleSlider.setPrefWidth(300);
 
-        var angleSliderListener = (ChangeListener<Number>) (observable, oldValue, newValue) -> {
+        angleSliderListener = (ChangeListener<Number>) (observable, oldValue, newValue) -> {
             comparisonModeManager.setAngleAdjustment(newValue.doubleValue());
             applyCurrentTransformations();
         };
@@ -206,11 +208,8 @@ class Step2ImageOrientationHandler implements StepHandler {
 
         angleAdjustmentBox.getChildren().addAll(angleLabel, mainAngleSlider, comparisonModeLabel, comparisonModeSlider);
 
-        var controlsBox = new HBox(8);
+        var controlsBox = new HBox(4);
         controlsBox.setStyle("-fx-alignment: center; -fx-padding: 1;");
-
-        var controlsLabel = new Label(message("orientation.controls.label"));
-        controlsLabel.setStyle("-fx-font-weight: bold;");
 
         var horizontalFlipButton = new Button("⇄ " + message("orientation.button.horizontal.flip"));
         horizontalFlipButton.getStyleClass().add("default-button");
@@ -242,11 +241,18 @@ class Step2ImageOrientationHandler implements StepHandler {
             mainAngleSlider.valueProperty().addListener(angleSliderListener);
         });
 
-        controlsBox.getChildren().addAll(controlsLabel, horizontalFlipButton, verticalFlipButton, rotateLeftButton, rotateRightButton, resetButton, comparisonModeButton, fullscreenButton);
+        controlsBox.getChildren().addAll(horizontalFlipButton, verticalFlipButton, rotateLeftButton, rotateRightButton, resetButton, comparisonModeButton, fullscreenButton);
+
+        var processParams = transformationListener.findProcessParams();
+        var autoAlignButton = new Button(message("orientation.button.auto.align"));
+        autoAlignButton.getStyleClass().add("custom-button");
+        autoAlignButton.setDisable(gongReferenceImage == null);
+        autoAlignButton.setOnAction(e -> performAutoAlignment(autoAlignButton, angleSliderListener));
+        controlsBox.getChildren().add(autoAlignButton);
+        this.autoAlignButton = autoAlignButton;
 
         comparisonModeManager.setOriginalImageComparisonBox(imageComparisonBox);
 
-        var processParams = transformationListener.findProcessParams();
         if (processParams != null && processParams.spectrumParams().ray() != SpectralRay.H_ALPHA) {
             var tipLabel = new Label(message("orientation.tip.non.halpha"));
             tipLabel.setStyle("-fx-background-color: #e8f4fd; -fx-text-fill: #0066cc; -fx-padding: 4; -fx-border-color: #0066cc; -fx-border-width: 1; -fx-border-radius: 5; -fx-background-radius: 5;");
@@ -296,6 +302,17 @@ class Step2ImageOrientationHandler implements StepHandler {
 
     void performRotation(int degrees) {
         applyRotation(degrees);
+    }
+
+    void performAutoAlignment() {
+        if (autoAlignButton != null) {
+            performAutoAlignment(autoAlignButton, angleSliderListener);
+        }
+    }
+
+    boolean isAutoAlignAvailable() {
+        return gongReferenceImage != null
+            && !gongReferenceImage.isError();
     }
 
     void performReset() {
@@ -354,6 +371,9 @@ class Step2ImageOrientationHandler implements StepHandler {
                                 gongImageView.setImage(gongReferenceImage);
                                 gongImageView.resetZoom();
                                 gongDisplayImage = gongReferenceImage;
+                                if (autoAlignButton != null) {
+                                    autoAlignButton.setDisable(false);
+                                }
                                 if (comparisonModeManager != null && userDisplayImage != null) {
                                     comparisonModeManager.setImages(userDisplayImage, gongDisplayImage);
                                 }
@@ -557,6 +577,165 @@ class Step2ImageOrientationHandler implements StepHandler {
         }
 
         return Corrector.rotate(image, pAngle, false);
+    }
+
+    private void performAutoAlignment(Button button, ChangeListener<Number> sliderListener) {
+        if (gongReferenceImage == null || gongReferenceImage.isError()) {
+            var alert = AlertFactory.info(message("orientation.auto.align.no.gong"));
+            alert.showAndWait();
+            return;
+        }
+
+        var originalImage = transformationListener.getOriginalImage();
+        if (originalImage == null) {
+            return;
+        }
+
+        button.setDisable(true);
+        button.setText(message("orientation.auto.align.computing"));
+
+        BackgroundOperations.async(() -> {
+            try {
+                var processParams = transformationListener.findProcessParams();
+                var observationDate = processParams.observationDetails().date();
+                var solarParams = SolarParametersUtils.computeSolarParams(observationDate.toLocalDateTime());
+                var pAngle = solarParams.p();
+
+                var gongGray = convertGongToGrayscale(gongReferenceImage);
+                var gongWidth = (int) gongReferenceImage.getWidth();
+                var gongHeight = (int) gongReferenceImage.getHeight();
+                var gongCx = gongWidth / 2.0;
+                var gongCy = gongHeight / 2.0;
+                var gongRadius = Math.min(gongWidth, gongHeight) * 0.45;
+                var targetRadius = (int) Math.round(gongRadius);
+
+                // Try all 4 flip combinations. For each: apply flip → apply
+                // p-angle → rescale → detect angle. Score by confidence × alignedNCC.
+                var flips = new boolean[][]{{false, false}, {true, false}, {false, true}, {true, true}};
+                var flipNames = new String[]{"NONE", "HORIZONTAL", "VERTICAL", "BOTH"};
+                var bestScore = -1.0;
+                var bestAngle = 0.0;
+                var bestHFlip = false;
+                var bestVFlip = false;
+
+                for (var i = 0; i < flips.length; i++) {
+                    var candidate = originalImage.copy();
+                    if (flips[i][0]) {
+                        candidate = Corrector.rotate(candidate, Math.PI, false);
+                        candidate = Corrector.verticalFlip(candidate);
+                    }
+                    if (flips[i][1]) {
+                        candidate = Corrector.verticalFlip(candidate);
+                    }
+                    candidate = Corrector.rotate(candidate, pAngle, false);
+                    var rescaled = scaling.rescaleToRadius(candidate, targetRadius, gongWidth, gongHeight);
+                    var mono = toMono(rescaled);
+                    if (mono == null) {
+                        continue;
+                    }
+                    var ellipse = mono.findMetadata(Ellipse.class).orElse(null);
+                    double cx;
+                    double cy;
+                    double radius;
+                    if (ellipse != null) {
+                        cx = ellipse.center().a();
+                        cy = ellipse.center().b();
+                        radius = (ellipse.semiAxis().a() + ellipse.semiAxis().b()) / 2.0;
+                    } else {
+                        cx = gongCx;
+                        cy = gongCy;
+                        radius = targetRadius;
+                    }
+
+                    var result = AngularCorrelation.detectAngularOffset(
+                        mono.data(), cx, cy, radius,
+                        gongGray, gongCx, gongCy, gongRadius
+                    );
+                    LOGGER.info("  {} : angle={} deg, confidence={}, alignedNCC={}",
+                        flipNames[i],
+                        String.format("%.2f", result.angleDegrees()),
+                        String.format("%.3f", result.confidence()),
+                        String.format("%.4f", result.alignedNCC()));
+
+                    var score = result.confidence() * result.alignedNCC();
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestAngle = result.angleDegrees();
+                        bestHFlip = flips[i][0];
+                        bestVFlip = flips[i][1];
+                    }
+                }
+
+                // Normalize: if |angle| > 90°, convert to equivalent flip
+                // with smaller angle (BOTH±180° ≡ NONE, H±180° ≡ V)
+                if (Math.abs(bestAngle) > 90) {
+                    bestHFlip = !bestHFlip;
+                    bestVFlip = !bestVFlip;
+                    bestAngle = bestAngle > 0 ? bestAngle - 180 : bestAngle + 180;
+                }
+
+                LOGGER.info("Best: hFlip={}, vFlip={}, angle={} deg",
+                    bestHFlip, bestVFlip, String.format("%.2f", bestAngle));
+
+                final boolean fHFlip = bestHFlip;
+                final boolean fVFlip = bestVFlip;
+                final double fAngle = bestAngle;
+                Platform.runLater(() -> {
+                    button.setDisable(false);
+                    button.setText(message("orientation.button.auto.align"));
+                    horizontalFlip = fHFlip;
+                    verticalFlip = fVFlip;
+                    rotation = 0;
+                    mainAngleSlider.valueProperty().removeListener(sliderListener);
+                    if (Math.abs(fAngle) > mainAngleSlider.getMax()) {
+                        var limit = Math.ceil(Math.abs(fAngle)) + 2;
+                        mainAngleSlider.setMin(-limit);
+                        mainAngleSlider.setMax(limit);
+                    }
+                    mainAngleSlider.setValue(fAngle);
+                    comparisonModeManager.setAngleAdjustment(fAngle);
+                    mainAngleSlider.valueProperty().addListener(sliderListener);
+                    applyCurrentTransformations();
+                });
+            } catch (Exception e) {
+                LOGGER.error("Auto-alignment failed", e);
+                Platform.runLater(() -> restoreAutoAlignButton(button, null));
+            }
+        });
+    }
+
+    private static ImageWrapper32 toMono(ImageWrapper image) {
+        if (image instanceof ImageWrapper32 mono) {
+            return mono;
+        } else if (image instanceof RGBImage rgb) {
+            var mono = rgb.toMono();
+            rgb.findMetadata(Ellipse.class).ifPresent(e -> mono.metadata().put(Ellipse.class, e));
+            return mono;
+        }
+        return null;
+    }
+
+    private void restoreAutoAlignButton(Button button, String alertMessage) {
+        button.setDisable(false);
+        button.setText(message("orientation.button.auto.align"));
+        if (alertMessage != null) {
+            var alert = AlertFactory.info(alertMessage);
+            alert.showAndWait();
+        }
+    }
+
+    private static float[][] convertGongToGrayscale(Image gongImage) {
+        var width = (int) gongImage.getWidth();
+        var height = (int) gongImage.getHeight();
+        var reader = gongImage.getPixelReader();
+        var gray = new float[height][width];
+        for (var y = 0; y < height; y++) {
+            for (var x = 0; x < width; x++) {
+                var color = reader.getColor(x, y);
+                gray[y][x] = (float) ((0.299 * color.getRed() + 0.587 * color.getGreen() + 0.114 * color.getBlue()) * 65535);
+            }
+        }
+        return gray;
     }
 
     private static String message(String messageKey) {
