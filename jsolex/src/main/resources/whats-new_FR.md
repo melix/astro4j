@@ -1,5 +1,9 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+## Nouveautés de la version 5.0.5
+
+- Toutes les images peuvent désormais être téléversées sur SpectroSolHub, et non plus uniquement celles où le disque solaire a été détecté
+
 ## Nouveautés de la version 5.0.4
 
 - Correction d'un problème de performance dans l'extraction Hélium si l'accélération GPU était désactivée

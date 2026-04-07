@@ -1,5 +1,9 @@
 # Welcome to JSol'Ex {{version}}!
 
+## What's New in Version 5.0.5
+
+- All images can now be uploaded to SpectroSolHub, not just those where the solar disk was detected
+
 ## What's New in Version 5.0.4
 
 - Fixed a performance issue in Helium extraction when GPU acceleration was disabled

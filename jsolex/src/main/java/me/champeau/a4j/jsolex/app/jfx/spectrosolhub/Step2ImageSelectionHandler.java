@@ -39,8 +39,6 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.HeliumLineProcessor.HeliumImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.util.ThumbnailGenerator;
-import me.champeau.a4j.math.regression.Ellipse;
-
 import javafx.application.Platform;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 
@@ -285,9 +283,6 @@ class Step2ImageSelectionHandler implements StepHandler {
             var filtered = new ArrayList<MultipleImagesViewer.ImageInfo>();
             for (var imageInfo : allImages) {
                 if (EXCLUDED_KINDS.contains(imageInfo.kind())) {
-                    continue;
-                }
-                if (imageInfo.image().findMetadata(Ellipse.class).isEmpty()) {
                     continue;
                 }
                 filtered.add(imageInfo);
