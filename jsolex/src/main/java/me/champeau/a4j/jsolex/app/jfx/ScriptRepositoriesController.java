@@ -42,6 +42,8 @@ import me.champeau.a4j.jsolex.processing.expr.repository.ScriptRepository;
 import me.champeau.a4j.jsolex.processing.expr.repository.ScriptRepositoryManager;
 import me.champeau.a4j.jsolex.processing.params.ScriptParameterExtractor;
 import me.champeau.a4j.jsolex.processing.util.LocaleUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.file.Files;
 import java.time.Instant;
@@ -58,6 +60,7 @@ import static me.champeau.a4j.jsolex.app.jfx.FXUtils.*;
  * as well as viewing available scripts from each repository.
  */
 public class ScriptRepositoriesController {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ScriptRepositoriesController.class);
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
         .withZone(ZoneId.systemDefault());
 
@@ -208,7 +211,8 @@ public class ScriptRepositoriesController {
             dialogStage.setScene(scene);
             dialogStage.showAndWait();
         } catch (Exception e) {
-            var alert = AlertFactory.error(I18N.string(JSolEx.class, "script-repositories", "repository.add.error") + ": " + e.getMessage());
+            LOGGER.error("Failed to add repository", e);
+            var alert = AlertFactory.error(I18N.string(JSolEx.class, "script-repositories", "repository.add.error") + ": " + extractMessage(e));
             alert.initOwner(stage);
             alert.showAndWait();
         }
@@ -237,7 +241,8 @@ public class ScriptRepositoriesController {
             dialogStage.setScene(scene);
             dialogStage.showAndWait();
         } catch (Exception e) {
-            var alert = AlertFactory.error(I18N.string(JSolEx.class, "script-repositories", "repository.browse.spectrosolhub.error") + ": " + e.getMessage());
+            LOGGER.error("Failed to open SpectroSolHub browser", e);
+            var alert = AlertFactory.error(I18N.string(JSolEx.class, "script-repositories", "repository.browse.spectrosolhub.error") + ": " + extractMessage(e));
             alert.initOwner(stage);
             alert.showAndWait();
         }
@@ -268,7 +273,8 @@ public class ScriptRepositoriesController {
             dialogStage.setScene(scene);
             dialogStage.showAndWait();
         } catch (Exception e) {
-            var alert = AlertFactory.error(I18N.string(JSolEx.class, "script-repositories", "repository.edit.error") + ": " + e.getMessage());
+            LOGGER.error("Failed to edit repository", e);
+            var alert = AlertFactory.error(I18N.string(JSolEx.class, "script-repositories", "repository.edit.error") + ": " + extractMessage(e));
             alert.initOwner(stage);
             alert.showAndWait();
         }
@@ -322,9 +328,10 @@ public class ScriptRepositoriesController {
                         repositoriesTable.refresh();
                     });
                 } catch (Exception e) {
+                    LOGGER.error("Failed to refresh repository {}", repository.name(), e);
                     final int index = i;
                     Platform.runLater(() -> {
-                        var alert = AlertFactory.error(I18N.string(JSolEx.class, "script-repositories", "repository.refresh.error") + " (" + repositories.get(index).name() + "): " + e.getMessage());
+                        var alert = AlertFactory.error(I18N.string(JSolEx.class, "script-repositories", "repository.refresh.error") + " (" + repositories.get(index).name() + "): " + extractMessage(e));
                         alert.showAndWait();
                     });
                 }
@@ -351,13 +358,14 @@ public class ScriptRepositoriesController {
                     }
                 });
             } catch (Exception e) {
+                LOGGER.error("Failed to refresh repository {}", repository.name(), e);
                 Platform.runLater(() -> {
                     if (refreshButton != null) {
                         refreshButton.setDisable(false);
                         refreshButton.setText(I18N.string(JSolEx.class, "script-repositories", "repository.refresh"));
                     }
 
-                    var alert = AlertFactory.error(I18N.string(JSolEx.class, "script-repositories", "repository.refresh.error") + ": " + e.getMessage());
+                    var alert = AlertFactory.error(I18N.string(JSolEx.class, "script-repositories", "repository.refresh.error") + ": " + extractMessage(e));
                     alert.showAndWait();
                 });
             }
@@ -371,6 +379,20 @@ public class ScriptRepositoriesController {
 
     private void saveRepositories() {
         configuration.setScriptRepositories(new ArrayList<>(repositories));
+    }
+
+    private static String extractMessage(Exception e) {
+        var deepest = e;
+        var cause = e.getCause();
+        while (cause instanceof Exception nested) {
+            deepest = nested;
+            cause = nested.getCause();
+        }
+        var message = deepest.getMessage();
+        if (message != null && !message.isBlank()) {
+            return message;
+        }
+        return deepest.getClass().getSimpleName();
     }
 
     private void showScriptsSummary(ScriptRepository repository) {

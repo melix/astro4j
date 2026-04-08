@@ -19,6 +19,7 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.encoder.PatternLayoutEncoder;
 import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.classic.spi.IThrowableProxy;
 import ch.qos.logback.core.Appender;
 import ch.qos.logback.core.AppenderBase;
 import ch.qos.logback.core.FileAppender;
@@ -77,7 +78,13 @@ class LogbackConfigurer {
             protected void append(ILoggingEvent eventObject) {
                 Platform.runLater(() -> {
                     var level = eventObject.getLevel();
-                    var message = eventObject.getFormattedMessage() + System.lineSeparator();
+                    var sb = new StringBuilder(eventObject.getFormattedMessage());
+                    sb.append(System.lineSeparator());
+                    var throwableProxy = eventObject.getThrowableProxy();
+                    if (throwableProxy != null) {
+                        appendThrowable(sb, throwableProxy, "");
+                    }
+                    var message = sb.toString();
                     int start = console.getLength();
                     console.append(message, "log_" + level.levelStr.toLowerCase());
                     int end = console.getLength() - 1;
@@ -90,6 +97,21 @@ class LogbackConfigurer {
         };
         logbackLogger.addAppender(appender);
         appender.start();
+    }
+
+    private static void appendThrowable(StringBuilder sb, IThrowableProxy proxy, String prefix) {
+        sb.append(prefix).append(proxy.getClassName());
+        if (proxy.getMessage() != null) {
+            sb.append(": ").append(proxy.getMessage());
+        }
+        sb.append(System.lineSeparator());
+        for (var ste : proxy.getStackTraceElementProxyArray()) {
+            sb.append(prefix).append("\tat ").append(ste).append(System.lineSeparator());
+        }
+        if (proxy.getCause() != null) {
+            sb.append(prefix).append("Caused by: ");
+            appendThrowable(sb, proxy.getCause(), prefix);
+        }
     }
 
     private static Logger findRootLogger() {

@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.zip.ZipEntry;
@@ -31,6 +32,7 @@ import java.util.zip.ZipInputStream;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -186,7 +188,7 @@ public class ScriptRepositoryManager {
         if (!url.endsWith("/")) {
             url = url + "/";
         }
-        var zipUrl = url + zipFilename;
+        var zipUrl = url + URLEncoder.encode(zipFilename, StandardCharsets.UTF_8).replace("+", "%20");
 
         var request = HttpRequest.newBuilder()
             .uri(URI.create(zipUrl))
@@ -331,7 +333,7 @@ public class ScriptRepositoryManager {
         if (!url.endsWith("/")) {
             url = url + "/";
         }
-        var scriptUrl = url + filename;
+        var scriptUrl = url + URLEncoder.encode(filename, StandardCharsets.UTF_8).replace("+", "%20");
 
         var request = HttpRequest.newBuilder()
             .uri(URI.create(scriptUrl))
