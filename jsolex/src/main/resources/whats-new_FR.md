@@ -3,6 +3,8 @@
 ## Nouveautés de la version 5.0.5
 
 - Toutes les images peuvent désormais être téléversées sur SpectroSolHub, et non plus uniquement celles où le disque solaire a été détecté
+- Correction du téléchargement des dépôts de scripts dont les noms de fichiers contiennent des espaces
+- Amélioration des messages d'erreur lors du chargement des dépôts SpectroSolHub
 
 ## Nouveautés de la version 5.0.4
 

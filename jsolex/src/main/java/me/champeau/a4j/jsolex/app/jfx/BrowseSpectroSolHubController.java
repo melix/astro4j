@@ -35,12 +35,15 @@ import javafx.stage.Stage;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.app.jfx.SpectroSolHubApi.RepositoryDetail;
 import me.champeau.a4j.jsolex.app.jfx.SpectroSolHubApi.ScriptInfo;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashSet;
 import java.util.Set;
 import java.util.function.BiConsumer;
 
 public class BrowseSpectroSolHubController {
+    private static final Logger LOGGER = LoggerFactory.getLogger(BrowseSpectroSolHubController.class);
     private static final String CARD_STYLE = "-fx-border-color: #dee2e6; -fx-border-width: 1; -fx-border-radius: 6; -fx-background-radius: 6; -fx-background-color: #ffffff;";
     private static final String CARD_HOVER_STYLE = "-fx-border-color: #007bff; -fx-border-width: 1; -fx-border-radius: 6; -fx-background-radius: 6; -fx-background-color: #f8f9fa;";
 
@@ -98,9 +101,10 @@ public class BrowseSpectroSolHubController {
                     }
                 });
             } catch (Exception e) {
+                LOGGER.error("Failed to fetch SpectroSolHub repositories", e);
                 Platform.runLater(() -> {
                     progressIndicator.setVisible(false);
-                    statusLabel.setText(I18N.string(JSolEx.class, "browse-spectrosolhub", "fetch.error") + ": " + e.getMessage());
+                    statusLabel.setText(I18N.string(JSolEx.class, "browse-spectrosolhub", "fetch.error") + ": " + extractMessage(e));
                 });
             }
         }).start();
@@ -233,5 +237,19 @@ public class BrowseSpectroSolHubController {
     @FXML
     private void close() {
         stage.close();
+    }
+
+    private static String extractMessage(Exception e) {
+        var deepest = e;
+        var cause = e.getCause();
+        while (cause instanceof Exception nested) {
+            deepest = nested;
+            cause = nested.getCause();
+        }
+        var message = deepest.getMessage();
+        if (message != null && !message.isBlank()) {
+            return message;
+        }
+        return deepest.getClass().getSimpleName();
     }
 }

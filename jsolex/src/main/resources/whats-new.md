@@ -3,6 +3,8 @@
 ## What's New in Version 5.0.5
 
 - All images can now be uploaded to SpectroSolHub, not just those where the solar disk was detected
+- Fixed script repositories with spaces in script filenames failing to download
+- Improved error messages when loading SpectroSolHub repositories fails
 
 ## What's New in Version 5.0.4
 
