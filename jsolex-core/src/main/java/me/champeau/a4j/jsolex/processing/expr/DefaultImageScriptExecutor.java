@@ -25,7 +25,9 @@ import me.champeau.a4j.jsolex.expr.ast.Assignment;
 import me.champeau.a4j.jsolex.expr.ast.Expression;
 import me.champeau.a4j.jsolex.expr.ast.FunctionCall;
 import me.champeau.a4j.jsolex.expr.ast.FunctionDef;
+import me.champeau.a4j.jsolex.expr.ast.Identifier;
 import me.champeau.a4j.jsolex.expr.ast.ImageMathScript;
+import me.champeau.a4j.jsolex.expr.ast.NamedArgument;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.expr.python.PythonScriptExecutor;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParameterExtractor;
@@ -47,6 +49,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -83,6 +86,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     private final AtomicInteger executionCount = new AtomicInteger(0);
     private final Broadcaster broadcaster;
     private final Map<String, Object> variables = new LinkedHashMap<>();
+    private final Map<String, Object> persistentMemoizeCache = new ConcurrentHashMap<>();
 
     private Path includesDir;
     private boolean outputLogging = true;
@@ -374,16 +378,42 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     public ImageMathScriptResult execute(String script, SectionKind kind) {
         long nanoTime = System.nanoTime();
         var operation = getProgressOperation();
+        var preExistingKeys = new HashSet<>(persistentMemoizeCache.keySet());
+        var evaluator = new MemoizingExpressionEvaluator(broadcaster);
         try {
             var index = executionCount.getAndIncrement();
-            var evaluator = new MemoizingExpressionEvaluator(broadcaster);
             evaluator.setIncludesDir(includesDir);
             populateContext(evaluator, operation);
             return doExecuteScript(script, index, evaluator, kind, operation);
         } finally {
+            pruneUntouchedCacheEntries(preExistingKeys, evaluator.getTouchedKeys());
             if (!isCollectingShifts() && outputLogging) {
                 var formatted = DurationFormatter.formatNanos(System.nanoTime() - nanoTime);
                 LOGGER.info(message("script.completed.in"), formatted);
+            }
+        }
+    }
+
+    /**
+     * Clears the script-level memoization cache. This should be called when the
+     * underlying images may have changed (e.g. when a different SER file is loaded
+     * into the same executor instance).
+     */
+    public void clearScriptCache() {
+        persistentMemoizeCache.clear();
+    }
+
+    /**
+     * @return the current size of the persistent memoize cache (test hook).
+     */
+    public int scriptCacheSize() {
+        return persistentMemoizeCache.size();
+    }
+
+    private void pruneUntouchedCacheEntries(Set<String> preExistingKeys, Set<String> touchedKeys) {
+        for (var key : preExistingKeys) {
+            if (!touchedKeys.contains(key)) {
+                persistentMemoizeCache.remove(key);
             }
         }
     }
@@ -767,10 +797,13 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     }
 
     public class MemoizingExpressionEvaluator extends ShiftCollectingImageExpressionEvaluator {
-        private final Map<String, Object> memoizeCache = new ConcurrentHashMap<>();
+        private final Map<String, Object> memoizeCache;
+        private final Map<String, String> variableHashes = new ConcurrentHashMap<>();
+        private final Set<String> touchedKeys = ConcurrentHashMap.newKeySet();
 
         public MemoizingExpressionEvaluator(Broadcaster broadcaster) {
             super(broadcaster, DefaultImageScriptExecutor.this.imagesByShift);
+            this.memoizeCache = DefaultImageScriptExecutor.this.persistentMemoizeCache;
         }
 
         @Override
@@ -789,11 +822,13 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
             // Skip caching for functions with side effects (e.g., python scripts)
             boolean hasSideEffect = hasSideEffects(expression);
             // Not using `computeIfAbsent` to avoid recursive update
-            var cacheKey = expression.getAllTokens(false).stream().map(Objects::toString).collect(Collectors.joining());
+            var cacheKey = computeCacheKey(expression);
             if (!hasSideEffect && memoizeCache.containsKey(cacheKey)) {
                 var o = memoizeCache.get(cacheKey);
+                touchedKeys.add(cacheKey);
+                Object hit;
                 if (o instanceof ImageWrapper image) {
-                    return image.copy();
+                    hit = image.copy();
                 } else if (o instanceof List<?> list) {
                     var copy = new ArrayList<>(list.size());
                     for (Object object : list) {
@@ -803,9 +838,12 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                             copy.add(object);
                         }
                     }
-                    return Collections.unmodifiableList(copy);
+                    hit = Collections.unmodifiableList(copy);
+                } else {
+                    hit = o;
                 }
-                return o;
+                applyAssignmentSideEffects(expression, hit, cacheKey);
+                return hit;
             }
             var result = super.doEvaluate(expression);
             if (result instanceof ImageWrapper image) {
@@ -820,27 +858,105 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                             .toList();
                 }
             }
-            if (!hasSideEffect && result != null) {
+            if (!hasSideEffect && result != null && isCacheable(result)) {
                 memoizeCache.put(cacheKey, result);
+                touchedKeys.add(cacheKey);
             }
+            applyAssignmentSideEffects(expression, result, cacheKey);
             return result;
+        }
+
+        /**
+         * File-output results (e.g. produced by {@code anim()}) reference temporary files
+         * that get moved out of their original location during the rendering phase. Caching
+         * them across runs would return stale paths, so they must always be recomputed.
+         */
+        private static boolean isCacheable(Object result) {
+            if (result instanceof FileOutputResult) {
+                return false;
+            }
+            if (result instanceof List<?> list) {
+                for (var item : list) {
+                    if (item instanceof FileOutputResult) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        /**
+         * After evaluating an Assignment node, ensure both the variable binding and the
+         * symbolic variable hash are recorded. The binding is normally performed by
+         * {@code super.doEvaluate} on a cache miss, but on a cache hit the parent logic
+         * is bypassed, so we need to do it ourselves to keep the rest of the script
+         * coherent across reruns.
+         */
+        private void applyAssignmentSideEffects(Node expression, Object value, String cacheKey) {
+            if (value == null || !(expression instanceof Assignment assignment)) {
+                return;
+            }
+            assignment.variableName().ifPresent(name -> {
+                putVariable(name, value);
+                variableHashes.put(name, cacheKey);
+            });
+        }
+
+        private String computeCacheKey(Node expression) {
+            var tokens = expression.getAllTokens(false).stream().map(Objects::toString).collect(Collectors.joining());
+            var freeVarNode = expression instanceof Assignment a ? a.expression() : expression;
+            var freeVars = collectFreeVariableReferences(freeVarNode);
+            if (freeVars.isEmpty()) {
+                return tokens;
+            }
+            var sb = new StringBuilder(tokens).append('|');
+            for (var name : freeVars) {
+                sb.append(name).append('=');
+                var hash = variableHashes.get(name);
+                if (hash != null) {
+                    sb.append('@').append(hash);
+                } else {
+                    sb.append(scalarValueHash(getVariables().get(name)));
+                }
+                sb.append(';');
+            }
+            return sb.toString();
+        }
+
+        public Set<String> getTouchedKeys() {
+            return touchedKeys;
         }
 
         public void clearCache() {
             super.clearCache();
             memoizeCache.clear();
+            variableHashes.clear();
+            touchedKeys.clear();
         }
 
         private boolean hasSideEffects(Node expression) {
-            if (expression instanceof FunctionCall funCall) {
-                var builtin = funCall.getBuiltinFunction();
-                if (builtin.isPresent()) {
-                    return builtin.get().hasSideEffect();
+            if (functionCallHasSideEffects(expression)) {
+                return true;
+            }
+            for (var call : expression.descendantsOfType(FunctionCall.class)) {
+                if (functionCallHasSideEffects(call)) {
+                    return true;
                 }
-                var userFun = getUserFunctions().get(funCall.getFunctionName());
-                if (userFun != null) {
-                    return userFunctionHasSideEffects(userFun, new HashSet<>());
-                }
+            }
+            return false;
+        }
+
+        private boolean functionCallHasSideEffects(Node expression) {
+            if (!(expression instanceof FunctionCall funCall)) {
+                return false;
+            }
+            var builtin = funCall.getBuiltinFunction();
+            if (builtin.isPresent()) {
+                return builtin.get().hasSideEffect();
+            }
+            var userFun = getUserFunctions().get(funCall.getFunctionName());
+            if (userFun != null) {
+                return userFunctionHasSideEffects(userFun, new HashSet<>());
             }
             return false;
         }
@@ -864,6 +980,59 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                 }
             }
             return false;
+        }
+
+        /**
+         * Returns the names of variables actually read by the given expression node,
+         * excluding identifiers that play a structural role (function names being
+         * called, named-argument labels). The result is order-independent so that
+         * cache keys are stable.
+         */
+        private Set<String> collectFreeVariableReferences(Node expression) {
+            var allIdentifiers = expression.descendantsOfType(Identifier.class);
+            if (allIdentifiers == null || allIdentifiers.isEmpty()) {
+                return Set.of();
+            }
+            Set<Identifier> excluded = Collections.newSetFromMap(new IdentityHashMap<>());
+            for (var fc : expression.descendantsOfType(FunctionCall.class)) {
+                var fn = fc.getFunction();
+                if (fn != null) {
+                    excluded.add(fn);
+                }
+            }
+            for (var na : expression.descendantsOfType(NamedArgument.class)) {
+                var nameIdent = na.firstChildOfType(Identifier.class);
+                if (nameIdent != null) {
+                    excluded.add(nameIdent);
+                }
+            }
+            var names = new TreeSet<String>();
+            for (var id : allIdentifiers) {
+                if (!excluded.contains(id)) {
+                    names.add(id.toString());
+                }
+            }
+            return names;
+        }
+
+        private String scalarValueHash(Object value) {
+            if (value == null) {
+                return "null";
+            }
+            if (value instanceof Number || value instanceof String || value instanceof Boolean || value instanceof Character) {
+                return value.getClass().getSimpleName() + ":" + value;
+            }
+            if (value instanceof ImageWrapper) {
+                return "img@" + System.identityHashCode(value);
+            }
+            if (value instanceof List<?> list) {
+                var sb = new StringBuilder("[");
+                for (var item : list) {
+                    sb.append(scalarValueHash(item)).append(',');
+                }
+                return sb.append(']').toString();
+            }
+            return value.getClass().getName() + "@" + System.identityHashCode(value);
         }
     }
 
