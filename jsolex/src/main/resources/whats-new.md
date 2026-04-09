@@ -5,6 +5,7 @@
 - All images can now be uploaded to SpectroSolHub, not just those where the solar disk was detected
 - Fixed script repositories with spaces in script filenames failing to download
 - Improved error messages when loading SpectroSolHub repositories fails
+- Re-running an ImageMath script after tweaking a parameter is now much faster: only expressions that depend on the changed parameter are recomputed.
 
 ## What's New in Version 5.0.4
 
