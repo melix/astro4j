@@ -8,6 +8,7 @@
 - Réexécuter un script ImageMath après avoir modifié un paramètre est désormais beaucoup plus rapide : seules les expressions qui dépendent du paramètre modifié sont recalculées.
 - Ajout de deux fonctions ImageMath, `scale_to_unit` et `scale_from_unit`, pour convertir les valeurs des pixels entre les plages [0;65535] et [0;1] (avec écrêtage optionnel).
 - Amélioration de la qualité de `dedistort` sur les exécutions multi-itérations en mode consensus grâce à une convergence adaptative par tuile.
+- Ajout de raccourcis clavier dans l'inspecteur d'images.
 
 ## Nouveautés de la version 5.0.4
 

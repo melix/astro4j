@@ -30,7 +30,7 @@
                 <buttons>
                     <Button fx:id="previousButton" mnemonicParsing="false" text="%previous"/>
                     <Button fx:id="nextButton" mnemonicParsing="false" text="%next"/>
-                    <Button mnemonicParsing="false" onAction="#finish" text="%finish"/>
+                    <Button fx:id="finishButton" mnemonicParsing="false" onAction="#finish" text="%finish"/>
                 </buttons>
                 <opaqueInsets>
                     <Insets/>

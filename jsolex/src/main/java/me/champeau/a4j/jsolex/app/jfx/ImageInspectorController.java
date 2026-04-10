@@ -31,6 +31,8 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.Pane;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -55,6 +57,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -89,6 +92,8 @@ public class ImageInspectorController {
     private Button previousButton;
     @FXML
     private Button nextButton;
+    @FXML
+    private Button finishButton;
     @FXML
     private ListView<CandidateImageDescriptor> imageList;
     @FXML
@@ -150,6 +155,7 @@ public class ImageInspectorController {
             var stage = new Stage();
             controller.setup(stage, processParams, images, filesPerIndex, serFilesByIndex, outputDirectory, onClose);
             var scene = new Scene(node);
+            controller.installAccelerators(scene);
             stage.setTitle(I18N.string(JSolEx.class, "image-selector", "frame.title"));
             stage.setScene(scene);
             stage.initModality(Modality.APPLICATION_MODAL);
@@ -223,10 +229,15 @@ public class ImageInspectorController {
         discardButton.setOnAction(e -> {
             var selection = selections.get(currentImageIndex.get());
             if (selection != null) {
+                var wasBest = selection.getState() == SelectionState.BEST;
                 selection.setState(SelectionState.DISCARD);
+                if (wasBest) {
+                    promoteNextBest();
+                }
                 keepButton.setSelected(false);
                 setBestButton.setSelected(false);
                 updateSummary();
+                updateImage();
             }
         });
         discardButton.setGraphic(new FontIcon("fltfal-delete-forever-24:24:CRIMSON"));
@@ -256,6 +267,12 @@ public class ImageInspectorController {
             }
         });
         setBestButton.setGraphic(new FontIcon("fltfmz-star-add-24:24:DARKKHAKI"));
+        previousButton.setText(I18N.string(JSolEx.class, "image-selector", "previous") + " (←)");
+        nextButton.setText(I18N.string(JSolEx.class, "image-selector", "next") + " (→)");
+        discardButton.setText(I18N.string(JSolEx.class, "image-selector", "discard") + " (D)");
+        keepButton.setText(I18N.string(JSolEx.class, "image-selector", "keep") + " (K)");
+        setBestButton.setText(I18N.string(JSolEx.class, "image-selector", "set.best") + " (B)");
+        finishButton.setText(I18N.string(JSolEx.class, "image-selector", "finish") + " (Ctrl+↵)");
         var loader = new Loader(Map.of(), Broadcaster.NO_OP);
         var bestIndex = new AtomicInteger(0);
         var bestSharpness = new AtomicReference<Double>();
@@ -271,6 +288,7 @@ public class ImageInspectorController {
                     }
                     if (loaded instanceof ImageWrapper32 mono) {
                         var sharpness = imageMath.estimateSharpness(mono.asImage());
+                        imageSelection.sharpness = sharpness;
                         if (bestSharpness.get() == null || sharpness > bestSharpness.get()) {
                             bestSharpness.set(sharpness);
                             bestIndex.set(index);
@@ -294,6 +312,64 @@ public class ImageInspectorController {
         });
         updateImage();
         updateSummary();
+    }
+
+    private void promoteNextBest() {
+        selections.values().stream()
+            .filter(s -> s.getState() == SelectionState.KEEP)
+            .max(Comparator.comparingDouble(s -> s.sharpness != null ? s.sharpness : Double.NEGATIVE_INFINITY))
+            .ifPresent(s -> s.setState(SelectionState.BEST));
+    }
+
+    private void installAccelerators(Scene scene) {
+        scene.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            if (event.isAltDown() || event.isMetaDown()) {
+                return;
+            }
+            var code = event.getCode();
+            if (code == KeyCode.ENTER && (event.isControlDown() || event.isShortcutDown())) {
+                finish();
+                event.consume();
+                return;
+            }
+            if (event.isControlDown() || event.isShortcutDown() || event.isShiftDown()) {
+                return;
+            }
+            switch (code) {
+                case LEFT, PAGE_UP -> {
+                    if (!previousButton.isDisabled()) {
+                        previousButton.fire();
+                    }
+                    event.consume();
+                }
+                case RIGHT, PAGE_DOWN -> {
+                    if (!nextButton.isDisabled()) {
+                        nextButton.fire();
+                    }
+                    event.consume();
+                }
+                case D -> {
+                    if (!discardButton.isSelected()) {
+                        discardButton.fire();
+                    }
+                    event.consume();
+                }
+                case K -> {
+                    if (!keepButton.isSelected()) {
+                        keepButton.fire();
+                    }
+                    event.consume();
+                }
+                case B -> {
+                    if (!setBestButton.isSelected()) {
+                        setBestButton.fire();
+                    }
+                    event.consume();
+                }
+                default -> {
+                }
+            }
+        });
     }
 
     private void updateSummary() {
@@ -358,6 +434,7 @@ public class ImageInspectorController {
         discardButton.setSelected(state == SelectionState.DISCARD);
         keepButton.setSelected(state == SelectionState.KEEP);
         setBestButton.setSelected(state == SelectionState.BEST);
+        keepButton.setDisable(state == SelectionState.BEST);
         var bestIndexOpt = getBestImage();
         if (bestIndexOpt.isPresent()) {
             var bestIndex = bestIndexOpt.get();
@@ -614,6 +691,7 @@ public class ImageInspectorController {
         private final Integer index;
         private final List<CandidateImageDescriptor> images;
         private SelectionState state;
+        private Double sharpness;
 
         ImageSelection(Integer index, List<CandidateImageDescriptor> images) {
             this.index = index;
