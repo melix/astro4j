@@ -70,6 +70,28 @@ public sealed interface SamplingStrategy permits GridSamplingStrategy, InterestP
                                      float signalThreshold);
 
     /**
+     * Selects sample positions and applies a per-tile active-region mask. Frozen tiles
+     * (already converged in a previous iteration) are excluded from the result.
+     *
+     * @param referenceData    the reference image data
+     * @param width            image width
+     * @param height           image height
+     * @param tileSize         base tile size for correlation
+     * @param signalThreshold  minimum signal level for valid samples
+     * @param mask             active-region mask, or {@code null} for no filtering
+     * @return the selected sample positions, with frozen tiles removed
+     */
+    default SamplePositions selectPositions(float[][] referenceData,
+                                            int width,
+                                            int height,
+                                            int tileSize,
+                                            float signalThreshold,
+                                            ActiveRegionMask mask) {
+        var positions = selectPositions(referenceData, width, height, tileSize, signalThreshold);
+        return mask == null ? positions : mask.filter(positions);
+    }
+
+    /**
      * Returns the recommended grid step for converting sparse results to a regular grid.
      * This determines the resolution of the final distortion map used for warping.
      *

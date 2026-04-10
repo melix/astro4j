@@ -940,6 +940,55 @@ public class DistorsionMap {
     }
 
     /**
+     * Returns a newly allocated grid of per-cell displacement magnitudes, aligned with
+     * the {@code dxy} sample grid (one entry per grid cell, in pixels). Used by the
+     * adaptive convergence tracking to evaluate which tiles have settled.
+     */
+    public double[][] computeGridMagnitudes() {
+        var result = new double[gridYSize][gridXSize];
+        for (var y = 0; y < gridYSize; y++) {
+            for (var x = 0; x < gridXSize; x++) {
+                result[y][x] = Math.hypot(dxy[y][x][0], dxy[y][x][1]);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Forces the displacement at every grid cell flagged as frozen to {@code (0, 0)}
+     * and marks it as sampled. Used by adaptive consensus dedistortion to inject
+     * "no further correction" entries for tiles that have already converged in
+     * previous iterations, so that averaging and warping treat them as stable.
+     *
+     * @param frozen frozen mask aligned with the dxy grid (same dimensions). Cells
+     *               outside the mask are left untouched.
+     */
+    public void zeroOutFrozenTiles(boolean[][] frozen) {
+        if (frozen == null || frozen.length == 0) {
+            return;
+        }
+        var rows = Math.min(frozen.length, gridYSize);
+        var cols = Math.min(frozen[0].length, gridXSize);
+        for (var y = 0; y < rows; y++) {
+            var row = frozen[y];
+            for (var x = 0; x < cols; x++) {
+                if (row[x]) {
+                    dxy[y][x][0] = 0;
+                    dxy[y][x][1] = 0;
+                    sampled[y][x] = true;
+                }
+            }
+        }
+        totalDistorsion = -1;
+        cacheLock.lock();
+        try {
+            cachedTileErrors = null;
+        } finally {
+            cacheLock.unlock();
+        }
+    }
+
+    /**
      * Removes outliers and returns a map of rejected samples for debugging.
      *
      * @return boolean array where true indicates the sample was rejected as outlier

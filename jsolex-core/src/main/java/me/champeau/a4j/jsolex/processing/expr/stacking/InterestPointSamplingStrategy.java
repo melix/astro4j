@@ -78,26 +78,26 @@ public final class InterestPointSamplingStrategy implements SamplingStrategy {
 
             // Layer 1: Large tiles (tileSize*2) for coarse coverage
             var largeSize = tileSize * 2;
-            addInterestPointLayer(allPoints, width, height, largeSize,
+            addInterestPointLayer(allPoints, referenceData, width, height, largeSize,
                     integralImg, gradientMag, signalThreshold,
                     MAX_GRADIENT_THRESHOLD, "coarse");
 
             // Layer 2: Main tiles (tileSize) - the primary density layer
-            addInterestPointLayer(allPoints, width, height, tileSize,
+            addInterestPointLayer(allPoints, referenceData, width, height, tileSize,
                     integralImg, gradientMag, signalThreshold,
                     MAX_GRADIENT_THRESHOLD, "main");
 
             // Layer 3: Small tiles (tileSize/2) for high-detail areas
             var smallSize = Math.max(MIN_TILE_SIZE, tileSize / 2);
             if (smallSize < tileSize) {
-                addInterestPointLayer(allPoints, width, height, smallSize,
+                addInterestPointLayer(allPoints, referenceData, width, height, smallSize,
                         integralImg, gradientMag, signalThreshold,
                         MAX_GRADIENT_THRESHOLD,
                         "detail");
             }
         } else {
             // Single scale: interest-point selection
-            addInterestPointLayer(allPoints, width, height, tileSize,
+            addInterestPointLayer(allPoints, referenceData, width, height, tileSize,
                     integralImg, gradientMag, signalThreshold,
                     MAX_GRADIENT_THRESHOLD, "uniform");
         }
@@ -139,6 +139,7 @@ public final class InterestPointSamplingStrategy implements SamplingStrategy {
      * Points are placed at actual local maxima of the gradient image.
      */
     private void addInterestPointLayer(List<SelectedPoint> points,
+                                       float[][] referenceData,
                                        int width, int height,
                                        int tileSize,
                                        Image integralImg,
@@ -152,11 +153,29 @@ public final class InterestPointSamplingStrategy implements SamplingStrategy {
         // Get gradient magnitude data directly
         var gradientData = gradientMag.data();
 
-        // First pass: find maximum gradient value for thresholding
+        // First pass: find maximum gradient value for thresholding. We restrict
+        // the max-gradient anchor to "deep interior" pixels — those whose
+        // tile-sized neighborhood is entirely above the signal threshold,
+        // tested via the four corners of the enclosing box. Limb pixels are
+        // excluded because at least one corner of their enclosing box lies in
+        // the sky, which lets on-disk chromospheric features (whose gradients
+        // are much weaker than the solar edge) set the selection threshold
+        // instead of the limb. The test uses only the signal mask, making no
+        // geometric assumption about disk shape — this matters because the
+        // whole point of dedistort is that the input is not yet perfectly
+        // round.
         float maxGradient = 0;
         for (var y = halfTile; y < height - halfTile; y++) {
             var row = gradientData[y];
+            var rowTop = referenceData[y - halfTile];
+            var rowBot = referenceData[y + halfTile];
             for (var x = halfTile; x < width - halfTile; x++) {
+                if (rowTop[x - halfTile] < signalThreshold
+                        || rowTop[x + halfTile] < signalThreshold
+                        || rowBot[x - halfTile] < signalThreshold
+                        || rowBot[x + halfTile] < signalThreshold) {
+                    continue;
+                }
                 maxGradient = Math.max(maxGradient, row[x]);
             }
         }
