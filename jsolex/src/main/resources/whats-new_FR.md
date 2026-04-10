@@ -6,6 +6,7 @@
 - Correction du téléchargement des dépôts de scripts dont les noms de fichiers contiennent des espaces
 - Amélioration des messages d'erreur lors du chargement des dépôts SpectroSolHub
 - Réexécuter un script ImageMath après avoir modifié un paramètre est désormais beaucoup plus rapide : seules les expressions qui dépendent du paramètre modifié sont recalculées.
+- Ajout de deux fonctions ImageMath, `scale_to_unit` et `scale_from_unit`, pour convertir les valeurs des pixels entre les plages [0;65535] et [0;1] (avec écrêtage optionnel).
 
 ## Nouveautés de la version 5.0.4
 

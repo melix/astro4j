@@ -420,6 +420,8 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case REMOTE_SCRIPTGEN -> remoteScriptGen.callRemoteScriptGen(arguments);
             case RGB -> RGBCombination.combine(arguments);
             case SATURATE -> saturation.saturate(arguments);
+            case SCALE_TO_UNIT -> math.scaleToUnit(arguments);
+            case SCALE_FROM_UNIT -> math.scaleFromUnit(arguments);
             case SHARPEN -> convolution.sharpen(arguments);
             case SIDE_BY_SIDE -> imageCombination.sideBySide(arguments);
             case SIGNED_DIFF -> signedDiff.signedDiff(arguments);

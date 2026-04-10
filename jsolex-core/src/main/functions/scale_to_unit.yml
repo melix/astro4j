@@ -1,0 +1,20 @@
+name: SCALE_TO_UNIT
+category: MATHS
+description:
+  fr: "Rééchelonne les valeurs des pixels d'une image en divisant chaque pixel par 65535, de sorte qu'une image dont les valeurs sont dans la plage [0;65535] aura ses valeurs ramenées à [0;1]. Utile pour les calculs en virgule flottante ou l'interopérabilité avec d'autres outils."
+  en: "Rescales the pixel values of an image by dividing each pixel by 65535, so that an image whose values are in the [0;65535] range gets its values mapped to [0;1]. Useful for floating-point computations or interoperability with other tools."
+arguments:
+  - name: img
+    description:
+      fr: "Image(s) ou valeur"
+      en: "Image(s) or value"
+  - name: clamp
+    optional: true
+    default: 1
+    description:
+      fr: "Si 1 (par défaut), les valeurs sont écrêtées dans la plage [0;1]. Si 0, les valeurs hors plage sont conservées telles quelles."
+      en: "If 1 (default), values are clamped to the [0;1] range. If 0, out-of-range values are kept as-is."
+examples:
+  - "scale_to_unit(img(0))"
+  - "scale_to_unit(img(0); 0)"
+  - "scale_to_unit(img: img(0); clamp: 0)"
