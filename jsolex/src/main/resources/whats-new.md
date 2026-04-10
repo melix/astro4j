@@ -7,6 +7,7 @@
 - Improved error messages when loading SpectroSolHub repositories fails
 - Re-running an ImageMath script after tweaking a parameter is now much faster: only expressions that depend on the changed parameter are recomputed.
 - Added two ImageMath functions, `scale_to_unit` and `scale_from_unit`, to convert pixel values between the [0;65535] and [0;1] ranges (with optional clamping).
+- Improved `dedistort` quality on multi-iteration consensus runs via adaptive per-tile convergence.
 
 ## What's New in Version 5.0.4
 

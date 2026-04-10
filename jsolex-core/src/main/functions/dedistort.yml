@@ -58,6 +58,12 @@ arguments:
     description:
       fr: "Active le mode multi-échelle (1=activé, 0=désactivé). Lorsqu'activé, des tuiles de différentes tailles sont utilisées : grandes tuiles dans les zones à faible gradient, petites tuiles dans les zones à fort gradient. Nécessite sparse > 0."
       en: "Enables multi-scale mode (1=enabled, 0=disabled). When enabled, tiles of different sizes are used: large tiles in low-gradient areas, small tiles in high-gradient areas. Requires sparse > 0."
+  - name: adaptive
+    optional: true
+    default: 1
+    description:
+      fr: "Active la convergence adaptative par tuile en mode consensus (1=activé, 0=désactivé). Lorsqu'activé, les tuiles déjà convergées sont gelées et ignorées dans les itérations suivantes, ce qui accélère significativement les exécutions multi-itérations sans perte de qualité."
+      en: "Enables per-tile adaptive convergence in consensus mode (1=enabled, 0=disabled). When enabled, tiles that have already converged are frozen and skipped in subsequent iterations, significantly speeding up multi-iteration runs without quality loss."
 examples:
   - "crop_rect(img(0), 1024, 1024)"
   - "crop_rect(img: img(0), width: 200, height: 200)"

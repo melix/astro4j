@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
+import me.champeau.a4j.jsolex.processing.expr.stacking.ActiveRegionMask;
 import me.champeau.a4j.jsolex.processing.expr.stacking.ConsensusReference;
 import me.champeau.a4j.jsolex.processing.expr.stacking.DistorsionMap;
 import me.champeau.a4j.jsolex.processing.expr.stacking.DistorsionMaps;
@@ -85,6 +86,13 @@ public class Dedistort extends AbstractFunctionImpl {
 
     // Reject bottom N% of samples by confidence (adaptive filtering)
     private static final double CONFIDENCE_REJECTION_PERCENTILE = 0.50;
+
+    // Adaptive per-tile convergence (consensus mode)
+    private static final double FREEZE_ABS_MAGNITUDE = 0.15;
+    private static final double TILE_CONVERGENCE_THRESHOLD = 0.01;
+    private static final int FREEZE_STREAK = 2;
+    private static final int MIN_ITERATIONS_BEFORE_FREEZE = 2;
+    private static final double FULL_FREEZE_FRACTION = 0.98;
 
     private final CorrelationStrategy correlationStrategy = NCCCorrelationStrategy.INSTANCE;
 
@@ -989,6 +997,7 @@ public class Dedistort extends AbstractFunctionImpl {
         var iterations = intArg(arguments, "iterations", 1);
         var useSparse = booleanArg(arguments, "sparse", false);
         var multiscale = booleanArg(arguments, "multiscale", false);
+        var adaptive = booleanArg(arguments, "adaptive", true);
         if (iterations < 1) {
             iterations = 1;
         }
@@ -1009,8 +1018,8 @@ public class Dedistort extends AbstractFunctionImpl {
 
         var width = images.getFirst().width();
         var height = images.getFirst().height();
-        LOGGER.debug("Consensus dedistort: images={}, tileSize={}, sampling={}, iterations={}, sparse={}, multiscale={}",
-                imageCount, tileSize, sampling, iterations, useSparse, multiscale);
+        LOGGER.debug("Consensus dedistort: images={}, tileSize={}, sampling={}, iterations={}, sparse={}, multiscale={}, adaptive={}",
+                imageCount, tileSize, sampling, iterations, useSparse, multiscale, adaptive);
 
         var mainOperation = newOperation().createChild(DEDISTORT);
 
@@ -1018,6 +1027,15 @@ public class Dedistort extends AbstractFunctionImpl {
         var accumulatedMaps = new ArrayList<DistorsionMaps>(imageCount);
         for (int i = 0; i < imageCount; i++) {
             accumulatedMaps.add(new DistorsionMaps(List.of()));
+        }
+
+        // Per-image adaptive convergence state (one entry per image, populated lazily
+        // after the first iteration). Empty when adaptive=false so all checks are no-ops.
+        var perImageConvergence = new ArrayList<TileConvergenceState>(imageCount);
+        if (adaptive) {
+            for (int i = 0; i < imageCount; i++) {
+                perImageConvergence.add(new TileConvergenceState());
+            }
         }
 
         // Current working images (will be warped after each iteration)
@@ -1092,14 +1110,31 @@ public class Dedistort extends AbstractFunctionImpl {
             }
 
             // Collect directed pairs to compute (i → j means distortion from i's perspective)
-            // We compute BOTH directions so each image uses its own interest points
+            // We compute BOTH directions so each image uses its own interest points,
+            // except sources whose convergence state is fully frozen.
             var pairsToCompute = new LinkedHashSet<Long>();
+            int skippedFullyFrozen = 0;
             for (int i = 0; i < imageCount; i++) {
-                for (int j : comparisonsPerSourceImage.get(i)) {
-                    // Add both directions: i→j and j→i
-                    pairsToCompute.add(encodeDirectedPair(i, j, imageCount));
-                    pairsToCompute.add(encodeDirectedPair(j, i, imageCount));
+                var sourceFrozen = adaptive && perImageConvergence.get(i).fullyFrozen();
+                if (sourceFrozen) {
+                    skippedFullyFrozen++;
                 }
+                for (int j : comparisonsPerSourceImage.get(i)) {
+                    if (!sourceFrozen) {
+                        pairsToCompute.add(encodeDirectedPair(i, j, imageCount));
+                    }
+                    if (!(adaptive && perImageConvergence.get(j).fullyFrozen())) {
+                        pairsToCompute.add(encodeDirectedPair(j, i, imageCount));
+                    }
+                }
+            }
+            if (adaptive && skippedFullyFrozen > 0) {
+                LOGGER.debug("Consensus reference iteration {}: {} fully frozen source images skipped",
+                        iteration + 1, skippedFullyFrozen);
+            }
+            if (pairsToCompute.isEmpty()) {
+                LOGGER.info(message("consensus.reference.all.frozen"), iteration + 1);
+                break;
             }
 
             LOGGER.debug("Consensus reference iteration {}: {} directed pairs to compute (from {} comparisons)",
@@ -1113,11 +1148,13 @@ public class Dedistort extends AbstractFunctionImpl {
                     .distinct()
                     .toArray();
             int finalIteration = iteration;
+            boolean adaptiveFinal = adaptive;
             Arrays.stream(sourceIndices)
                     .parallel()
                     .forEach(srcIdx -> {
                         var srcData = currentImages.get(srcIdx).data();
-                        var positions = strategy.selectPositions(srcData, width, height, safeTileSize, signal);
+                        var mask = adaptiveFinal ? perImageConvergence.get(srcIdx).buildMask() : null;
+                        var positions = strategy.selectPositions(srcData, width, height, safeTileSize, signal, mask);
                         positionsPerSource.put(srcIdx, positions);
 
                         // Save debug image showing interest points when debug logging is enabled
@@ -1259,36 +1296,78 @@ public class Dedistort extends AbstractFunctionImpl {
             // For each image, gather maps and compute average
             // Each map is now computed directly (i → j uses i's interest points)
             var iterationMaps = new ArrayList<DistorsionMap>(imageCount);
+            DistorsionMap referenceShapeMap = computedMaps.values().stream().findFirst().orElse(null);
             for (int i = 0; i < imageCount; i++) {
-                var mapsToOthers = new ArrayList<DistorsionMap>(comparisonsPerImage);
+                var sourceFrozen = adaptive && perImageConvergence.get(i).fullyFrozen();
+                DistorsionMap imageToTruth;
+                if (sourceFrozen) {
+                    // Fully frozen image: no source pairs were computed; emit a zero
+                    // correction map shaped like any existing computed map.
+                    var shape = referenceShapeMap;
+                    imageToTruth = new DistorsionMap(width, height,
+                            shape != null ? shape.getTileSize() : tileSize,
+                            shape != null ? shape.getStep() : Math.max(MIN_STEP, (int) (tileSize * sampling)));
+                } else {
+                    var mapsToOthers = new ArrayList<DistorsionMap>(comparisonsPerImage);
+                    for (int j : comparisonsPerSourceImage.get(i)) {
+                        long pairKey = encodeDirectedPair(i, j, imageCount);
+                        var map = computedMaps.get(pairKey);
+                        if (map != null) {
+                            mapsToOthers.add(map);
+                        }
+                    }
 
-                for (int j : comparisonsPerSourceImage.get(i)) {
-                    long pairKey = encodeDirectedPair(i, j, imageCount);
-                    var map = computedMaps.get(pairKey);
-                    mapsToOthers.add(map);
+                    // Average: average(image[i] → image[j]) ≈ -d_i (negative of image[i]'s distortion)
+                    // So we negate to get the correction: image[i] → truth ≈ d_i
+                    var avgMap = DistorsionMap.average(mapsToOthers);
+                    if (adaptive) {
+                        perImageConvergence.get(i).applyFreezeMaskInPlace(avgMap);
+                    }
+                    imageToTruth = avgMap.negate();
                 }
-
-                // Average: average(image[i] → image[j]) ≈ -d_i (negative of image[i]'s distortion)
-                // So we negate to get the correction: image[i] → truth ≈ d_i
-                var avgMap = DistorsionMap.average(mapsToOthers);
-                var imageToTruth = avgMap.negate();
                 iterationMaps.add(imageToTruth);
-                LOGGER.debug("Consensus reference iteration {}: image {}: toTruth distortion={}",
-                        iteration + 1, i, imageToTruth.totalDistorsion());
+                if (adaptive) {
+                    perImageConvergence.get(i).update(imageToTruth, iteration);
+                }
+                LOGGER.debug("Consensus reference iteration {}: image {}: toTruth distortion={}, frozenFraction={}",
+                        iteration + 1, i, imageToTruth.totalDistorsion(),
+                        adaptive ? String.format("%.2f", perImageConvergence.get(i).frozenFraction()) : "n/a");
             }
             broadcaster.broadcast(comparingOperation.complete());
 
             // Check convergence: stop if distortion increased or improvement below threshold
-            var avgDistortion = iterationMaps.stream()
+            var totalDistortion = iterationMaps.stream()
                     .mapToDouble(DistorsionMap::totalDistorsion)
-                    .average()
-                    .orElse(0);
+                    .sum();
+            var avgDistortion = iterationMaps.isEmpty() ? 0 : totalDistortion / iterationMaps.size();
             var relativeImprovement = previousAvgDistortion > 0
                     ? (previousAvgDistortion - avgDistortion) / previousAvgDistortion
                     : 1.0;
 
-            LOGGER.info("Consensus reference iteration {}: avgDistortion={}, improvement={}%",
-                    iteration + 1, avgDistortion, String.format("%.4f", relativeImprovement * 100));
+            LOGGER.info(message("consensus.reference.iteration.summary"),
+                    iteration + 1,
+                    String.format("%.2f", avgDistortion),
+                    String.format("%.2f", relativeImprovement * 100));
+
+            if (adaptive) {
+                var avgFrozenFraction = perImageConvergence.stream()
+                        .mapToDouble(TileConvergenceState::frozenFraction)
+                        .average()
+                        .orElse(0);
+                var fullyFrozenCount = (int) perImageConvergence.stream()
+                        .filter(TileConvergenceState::fullyFrozen)
+                        .count();
+                var totalPositions = positionsPerSource.values().stream()
+                        .mapToInt(SamplingStrategy.SamplePositions::count)
+                        .sum();
+                LOGGER.info(message("consensus.reference.adaptive.summary"),
+                        iteration + 1,
+                        String.format("%.2f", totalDistortion),
+                        String.format("%.1f", avgFrozenFraction * 100),
+                        fullyFrozenCount, imageCount,
+                        pairsToCompute.size(),
+                        totalPositions);
+            }
 
             if (avgDistortion > previousAvgDistortion) {
                 LOGGER.warn(message("consensus.reference.distortion.increased"), iteration + 1, avgDistortion, previousAvgDistortion);
@@ -1619,6 +1698,95 @@ public class Dedistort extends AbstractFunctionImpl {
             LOGGER.debug("Saved interest point debug image: {}", debugFile.getAbsolutePath());
         } catch (IOException e) {
             LOGGER.warn("Failed to save interest point debug image", e);
+        }
+    }
+
+    /**
+     * Tracks per-tile convergence state for one image across multiple iterations of
+     * the consensus dedistortion loop. A tile becomes <em>frozen</em> when its
+     * displacement magnitude has been small and not improving for a configured number
+     * of consecutive iterations; frozen tiles are then skipped from sample selection
+     * in subsequent iterations and zeroed out in the resulting averaged map.
+     */
+    private static final class TileConvergenceState {
+        private boolean[][] frozen;
+        private double[][] lastMagnitude;
+        private int[][] belowStreak;
+        private int gridStep;
+        private int gridXSize;
+        private int gridYSize;
+        private boolean initialized;
+
+        void update(DistorsionMap imageToTruth, int iteration) {
+            var magnitudes = imageToTruth.computeGridMagnitudes();
+            if (!initialized) {
+                gridYSize = magnitudes.length;
+                gridXSize = gridYSize == 0 ? 0 : magnitudes[0].length;
+                gridStep = imageToTruth.getStep();
+                frozen = new boolean[gridYSize][gridXSize];
+                lastMagnitude = new double[gridYSize][gridXSize];
+                belowStreak = new int[gridYSize][gridXSize];
+                initialized = true;
+            }
+            for (var y = 0; y < gridYSize; y++) {
+                for (var x = 0; x < gridXSize; x++) {
+                    if (frozen[y][x]) {
+                        continue;
+                    }
+                    var current = magnitudes[y][x];
+                    var prev = lastMagnitude[y][x];
+                    var improvement = prev > 0 ? (prev - current) / prev : 1.0;
+                    var smallEnough = current < FREEZE_ABS_MAGNITUDE;
+                    var notImproving = improvement < TILE_CONVERGENCE_THRESHOLD;
+                    if (smallEnough && notImproving) {
+                        belowStreak[y][x]++;
+                    } else {
+                        belowStreak[y][x] = 0;
+                    }
+                    if (iteration + 1 >= MIN_ITERATIONS_BEFORE_FREEZE
+                            && belowStreak[y][x] >= FREEZE_STREAK) {
+                        frozen[y][x] = true;
+                    }
+                    lastMagnitude[y][x] = current;
+                }
+            }
+        }
+
+        void applyFreezeMaskInPlace(DistorsionMap avgMap) {
+            if (!initialized) {
+                return;
+            }
+            avgMap.zeroOutFrozenTiles(frozen);
+        }
+
+        ActiveRegionMask buildMask() {
+            if (!initialized) {
+                return null;
+            }
+            return new ActiveRegionMask(frozen, gridStep);
+        }
+
+        double frozenFraction() {
+            if (!initialized) {
+                return 0.0;
+            }
+            var total = gridXSize * gridYSize;
+            if (total == 0) {
+                return 0.0;
+            }
+            var count = 0;
+            for (var row : frozen) {
+                for (var f : row) {
+                    if (f) {
+                        count++;
+                    }
+                }
+            }
+            return (double) count / total;
+        }
+
+        boolean fullyFrozen() {
+            return frozenFraction() >= FULL_FREEZE_FRACTION;
         }
     }
 
