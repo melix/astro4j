@@ -17,12 +17,12 @@ package me.champeau.a4j.jsolex.app.jfx.spectrosolhub;
 
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.SnapshotParameters;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.ProgressIndicator;
-import javafx.scene.control.Tooltip;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.TransferMode;
@@ -31,6 +31,8 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
+import javafx.stage.Popup;
 import me.champeau.a4j.jsolex.app.AlertFactory;
 import me.champeau.a4j.jsolex.app.jfx.MultipleImagesViewer;
 import me.champeau.a4j.jsolex.app.jfx.WritableImageSupport;
@@ -54,6 +56,7 @@ import static me.champeau.a4j.jsolex.app.jfx.spectrosolhub.SpectroSolHubSubmissi
 
 class Step2ImageSelectionHandler implements StepHandler {
     private static final int THUMBNAIL_SIZE = 120;
+    private static final int PREVIEW_SIZE = 400;
     private static final Set<GeneratedImageKind> EXCLUDED_KINDS = EnumSet.of(
             GeneratedImageKind.RECONSTRUCTION,
             GeneratedImageKind.DEBUG,
@@ -75,6 +78,7 @@ class Step2ImageSelectionHandler implements StepHandler {
 
     private static final String CARD_STYLE = "-fx-border-color: lightgray; -fx-border-radius: 4; -fx-background-color: white; -fx-background-radius: 4;";
     private static final String CARD_SELECTED_STYLE = "-fx-border-color: #0078d4; -fx-border-width: 2; -fx-border-radius: 4; -fx-background-color: #f3f9ff; -fx-background-radius: 4;";
+    private static final String CARD_DRAG_OVER_STYLE = "-fx-border-color: #0078d4; -fx-border-width: 2; -fx-border-style: dashed; -fx-border-radius: 4; -fx-background-color: #e8f0fe; -fx-background-radius: 4;";
 
     private final Supplier<List<MultipleImagesViewer.ImageInfo>> imagesSupplier;
     private final SpectralRay detectedSpectralRay;
@@ -84,6 +88,10 @@ class Step2ImageSelectionHandler implements StepHandler {
     private FlowPane gallery;
     private VBox loadingPane;
     private CheckBox postProcessCheckBox;
+    private Popup hoverPopup;
+    private ImageView hoverImageView;
+    private Label hoverTitleLabel;
+    private javafx.animation.PauseTransition hoverDelay;
     private int dragSourceIndex = -1;
 
     Step2ImageSelectionHandler(Supplier<List<MultipleImagesViewer.ImageInfo>> imagesSupplier, SpectralRay detectedSpectralRay) {
@@ -196,8 +204,6 @@ class Step2ImageSelectionHandler implements StepHandler {
         card.getChildren().addAll(imageStack, label, moveButtons);
         updateCardStyle(card, cb.isSelected());
 
-        Tooltip.install(card, new Tooltip(imageInfo.title()));
-
         cb.selectedProperty().addListener((obs, oldVal, newVal) -> updateCardStyle(card, newVal));
         card.setOnMouseClicked(e -> {
             if (!e.isDragDetect()) {
@@ -205,13 +211,39 @@ class Step2ImageSelectionHandler implements StepHandler {
             }
         });
 
+        setupDragAndDrop(card);
+        setupHoverPreview(card, imageInfo);
+
+        return card;
+    }
+
+    private void moveImage(int fromIndex, int toIndex) {
+        var movedNode = gallery.getChildren().remove(fromIndex);
+        gallery.getChildren().add(toIndex, movedNode);
+
+        var movedImage = eligibleImages.remove(fromIndex);
+        eligibleImages.add(toIndex, movedImage);
+
+        var movedCheckBox = checkBoxes.remove(fromIndex);
+        checkBoxes.add(toIndex, movedCheckBox);
+    }
+
+    private static void updateCardStyle(VBox card, boolean selected) {
+        card.setStyle(selected ? CARD_SELECTED_STYLE : CARD_STYLE);
+    }
+
+    private void setupDragAndDrop(VBox card) {
         card.setOnDragDetected(e -> {
+            hideHoverPopup();
             dragSourceIndex = gallery.getChildren().indexOf(card);
             var db = card.startDragAndDrop(TransferMode.MOVE);
-            var content1 = new ClipboardContent();
-            content1.putString(String.valueOf(dragSourceIndex));
-            db.setContent(content1);
-            card.setOpacity(0.5);
+            var clipboardContent = new ClipboardContent();
+            clipboardContent.putString(String.valueOf(dragSourceIndex));
+            db.setContent(clipboardContent);
+            var params = new SnapshotParameters();
+            params.setFill(Color.TRANSPARENT);
+            db.setDragView(card.snapshot(params, null), e.getX(), e.getY());
+            card.setOpacity(0.4);
             e.consume();
         });
 
@@ -224,7 +256,7 @@ class Step2ImageSelectionHandler implements StepHandler {
 
         card.setOnDragEntered(e -> {
             if (e.getGestureSource() != card && e.getDragboard().hasString()) {
-                card.setStyle(card.getStyle() + "; -fx-effect: dropshadow(gaussian, #0078d4, 6, 0.3, 0, 0);");
+                card.setStyle(CARD_DRAG_OVER_STYLE);
             }
             e.consume();
         });
@@ -254,23 +286,71 @@ class Step2ImageSelectionHandler implements StepHandler {
             dragSourceIndex = -1;
             e.consume();
         });
-
-        return card;
     }
 
-    private void moveImage(int fromIndex, int toIndex) {
-        var movedNode = gallery.getChildren().remove(fromIndex);
-        gallery.getChildren().add(toIndex, movedNode);
+    private void setupHoverPreview(VBox card, MultipleImagesViewer.ImageInfo imageInfo) {
+        card.setOnMouseEntered(e -> {
+            if (dragSourceIndex >= 0) {
+                return;
+            }
+            if (hoverDelay != null) {
+                hoverDelay.stop();
+            }
+            hoverDelay = new javafx.animation.PauseTransition(javafx.util.Duration.millis(500));
+            hoverDelay.setOnFinished(ev -> {
+                if (dragSourceIndex >= 0) {
+                    return;
+                }
+                ensureHoverPopup();
+                var preview = ThumbnailGenerator.generateThumbnail(imageInfo.image(), PREVIEW_SIZE, PREVIEW_SIZE);
+                hoverImageView.setImage(WritableImageSupport.asWritable(preview));
+                hoverImageView.setFitWidth(preview.width());
+                hoverImageView.setFitHeight(preview.height());
+                hoverTitleLabel.setText(imageInfo.title());
+                var window = card.getScene().getWindow();
+                var bounds = card.localToScreen(card.getBoundsInLocal());
+                double popupX = bounds.getMaxX() + 10;
+                double popupY = bounds.getMinY();
+                double screenRight = window.getX() + window.getWidth();
+                if (popupX + preview.width() > screenRight) {
+                    popupX = bounds.getMinX() - preview.width() - 10;
+                }
+                hoverPopup.show(card, popupX, popupY);
+            });
+            hoverDelay.play();
+        });
 
-        var movedImage = eligibleImages.remove(fromIndex);
-        eligibleImages.add(toIndex, movedImage);
-
-        var movedCheckBox = checkBoxes.remove(fromIndex);
-        checkBoxes.add(toIndex, movedCheckBox);
+        card.setOnMouseExited(e -> {
+            if (hoverDelay != null) {
+                hoverDelay.stop();
+            }
+            hideHoverPopup();
+        });
     }
 
-    private static void updateCardStyle(VBox card, boolean selected) {
-        card.setStyle(selected ? CARD_SELECTED_STYLE : CARD_STYLE);
+    private void ensureHoverPopup() {
+        if (hoverPopup != null) {
+            return;
+        }
+        hoverPopup = new Popup();
+        hoverPopup.setAutoHide(true);
+        hoverImageView = new ImageView();
+        hoverImageView.setPreserveRatio(true);
+        hoverTitleLabel = new Label();
+        hoverTitleLabel.setStyle("-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #333333;");
+        hoverTitleLabel.setWrapText(true);
+        hoverTitleLabel.setMaxWidth(PREVIEW_SIZE);
+        hoverTitleLabel.setAlignment(Pos.CENTER);
+        var container = new VBox(4, hoverImageView, hoverTitleLabel);
+        container.setAlignment(Pos.CENTER);
+        container.setStyle("-fx-background-color: white; -fx-border-color: #cccccc; -fx-border-radius: 4; -fx-background-radius: 4; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 8, 0, 2, 2); -fx-padding: 6;");
+        hoverPopup.getContent().add(container);
+    }
+
+    private void hideHoverPopup() {
+        if (hoverPopup != null && hoverPopup.isShowing()) {
+            hoverPopup.hide();
+        }
     }
 
     @Override
