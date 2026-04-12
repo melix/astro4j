@@ -9,50 +9,62 @@
 <StackPane xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:id="rootStackPane">
 <BorderPane>
     <top>
-        <MenuBar>
-            <Menu text="%file">
-                <MenuItem onAction="#open" text="%open.ser.file"/>
-                <MenuItem onAction="#openBatch" text="%open.batch"/>
-                <MenuItem onAction="#watchMode" text="%open.watch"/>
-                <Menu fx:id="recentFilesMenu" text="%recent.files"/>
-                <SeparatorMenuItem/>
-                <MenuItem onAction="#showAdvancedParams" text="%advanced.params"/>
-                <SeparatorMenuItem/>
-                <MenuItem onAction="#exit" text="%exit"/>
-            </Menu>
-            <Menu text="%tools">
-                <MenuItem onAction="#showFrameDebugger" text="%video.analyzer"/>
-                <MenuItem onAction="#showExposureCalculator" text="%exposure.calculator"/>
-                <MenuItem onAction="#showMosaicParams" text="%mosaic.stacking"/>
-                <MenuItem onAction="#showSpectrumBrowser" text="%spectrum.browser"/>
-                <SeparatorMenuItem/>
-                <MenuItem onAction="#showFileNamePatternEditor" text="%filename.pattern.editor"/>
-                <MenuItem onAction="#showSpectralRayEditor" text="%spectralray.editor"/>
-                <MenuItem onAction="#showImageMathEditor" text="%imagemath.editor"/>
-                <MenuItem onAction="#showScriptRepositories" text="%script.repositories"/>
-                <SeparatorMenuItem/>
-                <MenuItem onAction="#loadImages" text="%load.images"/>
-                <SeparatorMenuItem/>
-                <MenuItem onAction="#showEmbeddedServerMenu" text="%embedded.server"/>
-            </Menu>
-            <Menu text="%equipment">
-                <MenuItem onAction="#showSHGEditor" text="%shg.editor"/>
-                <MenuItem onAction="#showSetupEditor" text="%setup.editor"/>
-            </Menu>
-            <Menu text="%sharing">
-                <MenuItem fx:id="bass2000MenuItem" onAction="#showBass2000Submission" text="%bass2000.menu.submit" disable="true"/>
-                <MenuItem fx:id="spectroSolHubMenuItem" onAction="#showSpectroSolHubPublishing" text="%spectrosolhub.menu.publish" disable="true"/>
-            </Menu>
-            <Menu text="%help">
-                <MenuItem onAction="#showHelp" text="%documentation"/>
-                <MenuItem onAction="#openDiscord" text="%discord"/>
-                <SeparatorMenuItem/>
-                <MenuItem onAction="#exportPythonStubs" text="%export.python.stubs"/>
-                <SeparatorMenuItem/>
-                <MenuItem onAction="#donate" text="%donate"/>
-                <MenuItem onAction="#about" text="%about"/>
-            </Menu>
-        </MenuBar>
+        <HBox alignment="CENTER_LEFT">
+            <MenuBar HBox.hgrow="NEVER">
+                <Menu text="%file">
+                    <MenuItem onAction="#open" text="%open.ser.file"/>
+                    <MenuItem onAction="#openBatch" text="%open.batch"/>
+                    <MenuItem onAction="#watchMode" text="%open.watch"/>
+                    <Menu fx:id="recentFilesMenu" text="%recent.files"/>
+                    <SeparatorMenuItem/>
+                    <MenuItem onAction="#showAdvancedParams" text="%advanced.params"/>
+                    <SeparatorMenuItem/>
+                    <MenuItem onAction="#exit" text="%exit"/>
+                </Menu>
+                <Menu text="%tools">
+                    <MenuItem onAction="#showFrameDebugger" text="%video.analyzer"/>
+                    <MenuItem onAction="#showExposureCalculator" text="%exposure.calculator"/>
+                    <MenuItem onAction="#showMosaicParams" text="%mosaic.stacking"/>
+                    <MenuItem onAction="#showSpectrumBrowser" text="%spectrum.browser"/>
+                    <SeparatorMenuItem/>
+                    <MenuItem onAction="#showFileNamePatternEditor" text="%filename.pattern.editor"/>
+                    <MenuItem onAction="#showSpectralRayEditor" text="%spectralray.editor"/>
+                    <MenuItem onAction="#showImageMathEditor" text="%imagemath.editor"/>
+                    <MenuItem onAction="#showScriptRepositories" text="%script.repositories"/>
+                    <SeparatorMenuItem/>
+                    <MenuItem onAction="#loadImages" text="%load.images"/>
+                    <SeparatorMenuItem/>
+                    <MenuItem onAction="#showEmbeddedServerMenu" text="%embedded.server"/>
+                </Menu>
+                <Menu text="%equipment">
+                    <MenuItem onAction="#showSHGEditor" text="%shg.editor"/>
+                    <MenuItem onAction="#showSetupEditor" text="%setup.editor"/>
+                </Menu>
+                <Menu text="%sharing">
+                    <MenuItem fx:id="bass2000MenuItem" onAction="#showBass2000Submission" text="%bass2000.menu.submit" disable="true"/>
+                    <MenuItem fx:id="spectroSolHubMenuItem" onAction="#showSpectroSolHubPublishing" text="%spectrosolhub.menu.publish" disable="true"/>
+                    <SeparatorMenuItem/>
+                    <MenuItem onAction="#showLiveSessionDialog" text="%live.menu"/>
+                </Menu>
+                <Menu text="%help">
+                    <MenuItem onAction="#showHelp" text="%documentation"/>
+                    <MenuItem onAction="#openDiscord" text="%discord"/>
+                    <SeparatorMenuItem/>
+                    <MenuItem onAction="#exportPythonStubs" text="%export.python.stubs"/>
+                    <SeparatorMenuItem/>
+                    <MenuItem onAction="#donate" text="%donate"/>
+                    <MenuItem onAction="#about" text="%about"/>
+                </Menu>
+            </MenuBar>
+            <Pane HBox.hgrow="ALWAYS"/>
+            <HBox alignment="CENTER_RIGHT" spacing="8">
+                <padding>
+                    <Insets right="8.0"/>
+                </padding>
+                <Button fx:id="serverStatus" onMouseClicked="#showEmbeddedServerMenu" alignment="BASELINE_CENTER" styleClass="primary-button,regular-button"/>
+                <Button fx:id="liveStatus" onMouseClicked="#toggleLive" alignment="BASELINE_CENTER" styleClass="primary-button,regular-button"/>
+            </HBox>
+        </HBox>
     </top>
     <center>
         <SplitPane dividerPositions="0.7">
@@ -77,7 +89,6 @@
                             <Tooltip text="%trim.ser.file.tooltip"/>
                         </tooltip>
                     </Button>
-                    <Button fx:id="serverStatus" onMouseClicked="#showEmbeddedServerMenu" alignment="BASELINE_CENTER" styleClass="primary-button,regular-button"/>
                     <Button fx:id="bass2000Button" onAction="#showBass2000Submission" text="%bass2000.submit" disable="true" styleClass="default-button"/>
                 </HBox>
                 <SplitPane dividerPositions="0.5" orientation="VERTICAL">

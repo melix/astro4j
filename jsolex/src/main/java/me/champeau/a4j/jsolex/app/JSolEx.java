@@ -37,6 +37,7 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
@@ -66,6 +67,7 @@ import javafx.stage.Stage;
 import javafx.util.Duration;
 import javafx.util.StringConverter;
 import javafx.util.converter.IntegerStringConverter;
+import me.champeau.a4j.jsolex.app.AlertFactory;
 import me.champeau.a4j.jsolex.app.jfx.AdvancedParamsController;
 import me.champeau.a4j.jsolex.app.jfx.ApplyUserRotation;
 import me.champeau.a4j.jsolex.app.jfx.AssistedEllipseFittingController;
@@ -98,6 +100,7 @@ import me.champeau.a4j.jsolex.app.jfx.SpectroHeliographEditor;
 import me.champeau.a4j.jsolex.app.jfx.SpectrumBrowser;
 import me.champeau.a4j.jsolex.app.jfx.StandaloneImagesLoader;
 import me.champeau.a4j.jsolex.app.jfx.bass2000.Bass2000SubmissionController;
+import me.champeau.a4j.jsolex.app.jfx.spectrosolhub.SpectroSolHubLoginPane;
 import me.champeau.a4j.jsolex.app.jfx.spectrosolhub.SpectroSolHubSubmissionController;
 import me.champeau.a4j.jsolex.app.jfx.ime.ImageMathTextArea;
 import me.champeau.a4j.jsolex.app.jfx.stacking.StackingAndMosaicController;
@@ -111,6 +114,7 @@ import me.champeau.a4j.jsolex.app.script.JSolExScriptExecutor;
 import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
 import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
+import me.champeau.a4j.jsolex.processing.event.LivePushEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
@@ -138,8 +142,11 @@ import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.jsolex.processing.util.Bass2000ConfigService;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.DurationFormatter;
+import me.champeau.a4j.jsolex.processing.util.SpectroSolHubClient;
+import me.champeau.a4j.jsolex.processing.util.spectrosolhub.SpectroSolHubException;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.LiveSessionManager;
 import me.champeau.a4j.jsolex.processing.util.LocaleUtils;
 import me.champeau.a4j.jsolex.processing.util.LoggingSupport;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
@@ -361,10 +368,15 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     @FXML
     private Button serverStatus;
 
+    @FXML
+    private Button liveStatus;
+
     private final Map<String, ImageViewer> popupViewers = new ConcurrentHashMap<>();
 
     private final MultipleImagesViewer multipleImagesViewer = new MultipleImagesViewer();
     private final JSolExServerHolder server = new JSolExServerHolder();
+    private volatile LiveSessionManager liveSessionManager;
+    private volatile LivePushEventListener livePushListener;
     private ProcessParams reusedProcessParams;
     private ProcessParams lastExecutionProcessParams;
     private SpectralRay detectedSpectralRay;
@@ -543,6 +555,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             });
             updateServerStatus(false);
             server.addStatusChangeListener(this::updateServerStatus);
+            updateLiveStatus();
             maybeShowWelcomeMessage(rootScene);
         } catch (IOException exception) {
             throw new ProcessingException(exception);
@@ -587,6 +600,18 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             statusBox.setSpacing(4);
             statusBox.setAlignment(Pos.CENTER_LEFT);
             serverStatus.setGraphic(statusBox);
+        });
+    }
+
+    private void updateLiveStatus() {
+        Platform.runLater(() -> {
+            var active = liveSessionManager != null && liveSessionManager.isActive();
+            var liveText = new Text(message("live") + "");
+            var statusCircle = new Circle(6, active ? Color.GREEN : Color.RED);
+            var statusBox = new HBox(liveText, statusCircle);
+            statusBox.setSpacing(4);
+            statusBox.setAlignment(Pos.CENTER_LEFT);
+            liveStatus.setGraphic(statusBox);
         });
     }
 
@@ -1615,6 +1640,96 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         }
     }
 
+    @FXML
+    private void showLiveSessionDialog() {
+        var dialog = new Dialog<Void>();
+        dialog.setTitle(I18N.string(JSolEx.class, "app", "live.menu"));
+        dialog.initOwner(rootStage);
+        dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+
+        var grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(16);
+        grid.setPadding(new javafx.geometry.Insets(20));
+
+        var titleField = new TextField(config.getLiveSessionTitle());
+        titleField.setPromptText(message("live.title.prompt"));
+        titleField.setPrefWidth(350);
+
+        grid.add(new Label(message("live.title.label")), 0, 0);
+        grid.add(titleField, 1, 0);
+
+        var isActive = liveSessionManager != null && liveSessionManager.isActive();
+        var actionButton = new Button(message(isActive ? "live.stop" : "live.start"));
+        actionButton.getStyleClass().add("primary-button");
+        actionButton.setOnAction(e -> {
+            config.setLiveSessionTitle(titleField.getText());
+            dialog.close();
+            toggleLive();
+        });
+
+        grid.add(actionButton, 1, 1);
+
+        dialog.getDialogPane().setContent(grid);
+        dialog.getDialogPane().getStylesheets().add(JSolEx.class.getResource("components.css").toExternalForm());
+        dialog.showAndWait();
+    }
+
+    @FXML
+    private void toggleLive() {
+        if (liveSessionManager != null && liveSessionManager.isActive()) {
+            liveSessionManager.stop();
+            liveSessionManager = null;
+            livePushListener = null;
+            updateLiveStatus();
+            return;
+        }
+        var token = config.getSpectroSolHubToken();
+        if (token.isEmpty()) {
+            var loginResult = SpectroSolHubLoginPane.showLoginDialog(rootStage);
+            if (loginResult.isEmpty()) {
+                return;
+            }
+            token = loginResult;
+        }
+        startLiveSession(token.get());
+    }
+
+    private void startLiveSession(String token) {
+        liveStatus.setDisable(true);
+        Thread.startVirtualThread(() -> {
+            try {
+                var client = new SpectroSolHubClient(config.getSpectroSolHubUrl(), token);
+                var manager = new LiveSessionManager(client);
+                var viewUrl = manager.start(config.getLiveSessionTitle());
+                liveSessionManager = manager;
+                livePushListener = new LivePushEventListener(manager);
+                Platform.runLater(() -> {
+                    liveStatus.setDisable(false);
+                    updateLiveStatus();
+                    getHostServices().showDocument(viewUrl);
+                });
+            } catch (SpectroSolHubException e) {
+                LOGGER.error("Failed to start live session (status {})", e.statusCode(), e);
+                if (e.statusCode() == 401) {
+                    config.clearSpectroSolHubToken();
+                    Platform.runLater(() -> {
+                        liveStatus.setDisable(false);
+                        var loginResult = SpectroSolHubLoginPane.showLoginDialog(rootStage);
+                        if (loginResult.isPresent()) {
+                            startLiveSession(loginResult.get());
+                        }
+                    });
+                } else {
+                    Platform.runLater(() -> {
+                        liveStatus.setDisable(false);
+                        updateLiveStatus();
+                    });
+                }
+            }
+        });
+    }
+
     private void executeStandaloneScripts(ProcessParams params, ProgressOperation rootOperation) {
         var scriptFiles = params.combinedImageMathParams().scriptFiles();
         var scriptFile = scriptFiles.stream().findFirst();
@@ -1688,14 +1803,30 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     }
 
     private ProcessingEventListener delegatingListener(SingleModeProcessingEventListener singleModeProcessingEventListener) {
+        var extraListeners = Stream.<ProcessingEventListener>empty();
         if (server.isStarted()) {
-            List<ProcessingEventListener> listeners = Stream.concat(
-                    Stream.of(singleModeProcessingEventListener),
-                    server.getListeners().stream()
-            ).toList();
+            extraListeners = Stream.concat(extraListeners, server.getListeners().stream());
+        }
+        var currentLivePushListener = livePushListener;
+        if (currentLivePushListener != null && liveSessionManager != null && liveSessionManager.isActive()) {
+            extraListeners = Stream.concat(extraListeners, Stream.of(currentLivePushListener));
+        }
+        var allExtras = extraListeners.toList();
+        if (!allExtras.isEmpty()) {
+            var listeners = new ArrayList<ProcessingEventListener>();
+            listeners.add(singleModeProcessingEventListener);
+            listeners.addAll(allExtras);
             return new DelegatingProcessingEventListener(listeners);
         }
         return singleModeProcessingEventListener;
+    }
+
+    public LiveSessionManager getLiveSessionManager() {
+        return liveSessionManager;
+    }
+
+    public void setLiveSessionManager(LiveSessionManager liveSessionManager) {
+        this.liveSessionManager = liveSessionManager;
     }
 
     /**
