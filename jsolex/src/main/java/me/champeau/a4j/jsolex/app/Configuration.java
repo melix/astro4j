@@ -64,6 +64,7 @@ public class Configuration {
     private static final String GRAALPY_EXECUTABLE = "graalpy.executable";
     private static final String HELP_ANIMATION_SEEN_PREFIX = "help.animation.seen.";
     private static final String SPECTROSOLHUB_TOKEN = "spectrosolhub.token";
+    private static final String LIVE_SESSION_TITLE = "live.session.title";
     private static final String DEFAULT_SPECTROSOLHUB_URL = "https://spectrosolhub.com";
 
     /**
@@ -638,6 +639,18 @@ public class Configuration {
 
     public void clearSpectroSolHubToken() {
         prefs.remove(SPECTROSOLHUB_TOKEN);
+    }
+
+    public String getLiveSessionTitle() {
+        return prefs.get(LIVE_SESSION_TITLE, "");
+    }
+
+    public void setLiveSessionTitle(String title) {
+        if (title == null || title.isBlank()) {
+            prefs.remove(LIVE_SESSION_TITLE);
+        } else {
+            prefs.put(LIVE_SESSION_TITLE, title.length() > 255 ? title.substring(0, 255) : title);
+        }
     }
 
     public String getSpectroSolHubUrl() {

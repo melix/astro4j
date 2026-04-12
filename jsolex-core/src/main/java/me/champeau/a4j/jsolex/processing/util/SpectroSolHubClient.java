@@ -20,6 +20,7 @@ import me.champeau.a4j.jsolex.processing.util.spectrosolhub.CreateSessionRequest
 import me.champeau.a4j.jsolex.processing.util.spectrosolhub.ImageResponse;
 import me.champeau.a4j.jsolex.processing.util.spectrosolhub.InitiateUploadRequest;
 import me.champeau.a4j.jsolex.processing.util.spectrosolhub.InitiateUploadResponse;
+import me.champeau.a4j.jsolex.processing.util.spectrosolhub.LiveSessionResponse;
 import me.champeau.a4j.jsolex.processing.util.spectrosolhub.QuotaResponse;
 import me.champeau.a4j.jsolex.processing.util.spectrosolhub.SessionResponse;
 import me.champeau.a4j.jsolex.processing.util.spectrosolhub.SpectroSolHubException;
@@ -28,9 +29,11 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -165,6 +168,77 @@ public class SpectroSolHubClient {
         }
 
         return completeUpload(uploadId);
+    }
+
+    public LiveSessionResponse startLiveSession(String title) throws SpectroSolHubException {
+        var path = "/api/live/start";
+        if (title != null && !title.isBlank()) {
+            path += "?title=" + URLEncoder.encode(title, StandardCharsets.UTF_8);
+        }
+        var request = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + path))
+                .timeout(TIMEOUT)
+                .header("Authorization", "Bearer " + token)
+                .header("Content-Type", "application/json")
+                .header("User-Agent", USER_AGENT)
+                .POST(HttpRequest.BodyPublishers.noBody())
+                .build();
+
+        try {
+            var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() == 201 || response.statusCode() == 409) {
+                var parsed = gson.fromJson(response.body(), LiveSessionResponse.class);
+                var viewUrl = parsed.viewUrl();
+                if (viewUrl != null && viewUrl.startsWith("/")) {
+                    viewUrl = baseUrl + viewUrl;
+                }
+                return new LiveSessionResponse(parsed.sessionId(), viewUrl);
+            }
+            throw new SpectroSolHubException(response.statusCode(), response.body());
+        } catch (IOException e) {
+            throw new SpectroSolHubException("Failed to connect to SpectroSolHub", e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new SpectroSolHubException("Connection interrupted", e);
+        }
+    }
+
+    public void pushLiveImage(String sessionId, String category, String title, String imageKind, byte[] jpgData, String observationDate) throws SpectroSolHubException {
+        var path = "/api/live/" + sessionId + "/image"
+                + "?category=" + URLEncoder.encode(category, StandardCharsets.UTF_8)
+                + "&title=" + URLEncoder.encode(title, StandardCharsets.UTF_8)
+                + "&imageKind=" + URLEncoder.encode(imageKind, StandardCharsets.UTF_8);
+        if (observationDate != null) {
+            path += "&observationDate=" + URLEncoder.encode(observationDate, StandardCharsets.UTF_8);
+        }
+        var request = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + path))
+                .timeout(TIMEOUT)
+                .header("Authorization", "Bearer " + token)
+                .header("Content-Type", "image/jpeg")
+                .header("User-Agent", USER_AGENT)
+                .POST(HttpRequest.BodyPublishers.ofByteArray(jpgData))
+                .build();
+
+        try {
+            var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() != 200 && response.statusCode() != 201) {
+                throw new SpectroSolHubException(response.statusCode(), "Failed to push live image: " + response.body());
+            }
+        } catch (IOException e) {
+            throw new SpectroSolHubException("Failed to push live image", e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new SpectroSolHubException("Live image push interrupted", e);
+        }
+    }
+
+    public void sendHeartbeat(String sessionId) throws SpectroSolHubException {
+        post("/api/live/" + sessionId + "/heartbeat", null, Void.class, 200);
+    }
+
+    public void stopLiveSession(String sessionId) throws SpectroSolHubException {
+        post("/api/live/" + sessionId + "/stop", null, Void.class, 200);
     }
 
     private <T> T get(String path, Class<T> responseType) throws SpectroSolHubException {

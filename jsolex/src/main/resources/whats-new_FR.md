@@ -1,7 +1,8 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
-## Nouveautés de la version 5.0.5
+## Nouveautés de la version 5.1.0
 
+- Ajout du mode SpectroSolHub En Direct : diffusez votre session de traitement en temps réel pour que d'autres puissent la suivre sur spectrosolhub.com/live. Accessible depuis le menu Partage.
 - Toutes les images peuvent désormais être téléversées sur SpectroSolHub, et non plus uniquement celles où le disque solaire a été détecté
 - Correction du téléchargement des dépôts de scripts dont les noms de fichiers contiennent des espaces
 - Amélioration des messages d'erreur lors du chargement des dépôts SpectroSolHub

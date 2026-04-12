@@ -522,7 +522,7 @@ public class SpectroSolHubSubmissionController {
         return baos.toByteArray();
     }
 
-    static String message(String messageKey) {
+    public static String message(String messageKey) {
         return I18N.string(JSolEx.class, "spectrosolhub-submission", messageKey);
     }
 }
