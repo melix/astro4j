@@ -24,6 +24,7 @@
 - Improved performance on multi-core systems
 - Reworked Helium line image extraction
 - Added the ability to declare the type of image generated in scripts
+- Improved the ergonomics of the SpectroSolHub publishing wizard
 
 ## What's New in Version 5.0.2
 
