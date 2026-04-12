@@ -126,6 +126,20 @@
     -fx-background-color: #f8f9fa;
 }
 
+.menu-bar-button {
+    -fx-background-color: transparent;
+    -fx-background-radius: 0;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-padding: 4 10 4 10;
+    -fx-cursor: hand;
+    -fx-effect: null;
+}
+
+.menu-bar-button:hover {
+    -fx-background-color: rgba(0,0,0,0.06);
+}
+
 .default-button:hover {
     -fx-background-color: #f8f9fa;
     -fx-border-color: #adb5bd;
