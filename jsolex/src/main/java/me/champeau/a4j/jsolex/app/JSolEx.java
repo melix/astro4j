@@ -1807,18 +1807,24 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         if (server.isStarted()) {
             extraListeners = Stream.concat(extraListeners, server.getListeners().stream());
         }
-        var currentLivePushListener = livePushListener;
-        if (currentLivePushListener != null && liveSessionManager != null && liveSessionManager.isActive()) {
-            extraListeners = Stream.concat(extraListeners, Stream.of(currentLivePushListener));
-        }
+        // Use a dynamic wrapper that reads livePushListener at event-fire time rather than
+        // capturing it at construction time. This avoids the race between session restart
+        // completing (virtual thread) and a processing run starting (FX thread).
+        extraListeners = Stream.concat(extraListeners, Stream.of(new ProcessingEventListener() {
+            @Override
+            public void onImageGenerated(ImageGeneratedEvent event) {
+                var currentListener = livePushListener;
+                if (currentListener != null && liveSessionManager != null && liveSessionManager.isActive()) {
+                    currentListener.setBroadcaster(singleModeProcessingEventListener);
+                    currentListener.onImageGenerated(event);
+                }
+            }
+        }));
         var allExtras = extraListeners.toList();
-        if (!allExtras.isEmpty()) {
-            var listeners = new ArrayList<ProcessingEventListener>();
-            listeners.add(singleModeProcessingEventListener);
-            listeners.addAll(allExtras);
-            return new DelegatingProcessingEventListener(listeners);
-        }
-        return singleModeProcessingEventListener;
+        var listeners = new ArrayList<ProcessingEventListener>();
+        listeners.add(singleModeProcessingEventListener);
+        listeners.addAll(allExtras);
+        return new DelegatingProcessingEventListener(listeners);
     }
 
     public LiveSessionManager getLiveSessionManager() {
@@ -1827,6 +1833,21 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
 
     public void setLiveSessionManager(LiveSessionManager liveSessionManager) {
         this.liveSessionManager = liveSessionManager;
+    }
+
+    @Override
+    public boolean isLiveSessionActive() {
+        return liveSessionManager != null && liveSessionManager.isActive();
+    }
+
+    @Override
+    public boolean pushLiveImageIfActive(ImageGeneratedEvent event, Broadcaster broadcaster) {
+        if (livePushListener != null && isLiveSessionActive()) {
+            livePushListener.setBroadcaster(broadcaster);
+            livePushListener.onImageGenerated(event);
+            return true;
+        }
+        return false;
     }
 
     /**

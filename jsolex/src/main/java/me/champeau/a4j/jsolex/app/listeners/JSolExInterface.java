@@ -22,10 +22,12 @@ import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 import me.champeau.a4j.jsolex.app.jfx.ApplyUserRotation;
 import me.champeau.a4j.jsolex.app.jfx.MultipleImagesViewer;
+import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
+import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.TrimmingParameters;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.regression.Ellipse;
@@ -218,5 +220,19 @@ public interface JSolExInterface {
     void hideGeometryIndicators();
 
     void enableSpectroSolHubSubmission(SpectralRay detectedSpectralRay);
+
+    /**
+     * Returns whether a SpectroSolHub Live session is currently active.
+     * @return true if a live session is active
+     */
+    boolean isLiveSessionActive();
+
+    /**
+     * Pushes an image to the active SpectroSolHub Live session, if any.
+     * @param event the image generated event
+     * @param broadcaster the broadcaster used to fire progress events during upload
+     * @return true if a live session is active and the image was forwarded for upload
+     */
+    boolean pushLiveImageIfActive(ImageGeneratedEvent event, Broadcaster broadcaster);
 
 }

@@ -89,6 +89,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
@@ -127,6 +128,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     private ProcessParams adjustedParams;
     private final ReentrantReadWriteLock dataLock;
     private final BatchImageCollector imageCollector;
+    private final AtomicInteger liveUploadCount = new AtomicInteger(0);
 
     /**
      * Creates a new batch mode event listener.
@@ -421,6 +423,9 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
 
     private void batchFinished() {
         owner.enableSpectroSolHubSubmission(detectedSpectralLines.stream().findFirst().orElse(null));
+        if (owner.isLiveSessionActive() && liveUploadCount.get() == 0) {
+            LOGGER.warn(message("live.batch.no.uploads"));
+        }
         owner.updateProgress(1, String.format(message("batch.finished"), DurationFormatter.formatNanos(System.nanoTime() - sd)));
     }
 
@@ -583,9 +588,13 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             var image = entry.getValue();
             image.metadata().put(SpectroSolHubImageKind.class,
                 new SpectroSolHubImageKind(OutputMetadata.computeSpectroSolHubImageKind(label, metadata)));
-            delegate.onImageGenerated(new ImageGeneratedEvent(
+            var batchEvent = new ImageGeneratedEvent(
                 new GeneratedImage(GeneratedImageKind.IMAGE_MATH, label, outputFile.toPath(), image, description, displayTitle)
-            ));
+            );
+            delegate.onImageGenerated(batchEvent);
+            if (owner.pushLiveImageIfActive(batchEvent, delegate)) {
+                liveUploadCount.incrementAndGet();
+            }
         });
         result.filesByLabel().entrySet().stream().parallel().forEach(entry -> {
             var label = entry.getKey();

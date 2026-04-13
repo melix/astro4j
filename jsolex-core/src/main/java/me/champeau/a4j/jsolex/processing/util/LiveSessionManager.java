@@ -74,6 +74,10 @@ public class LiveSessionManager {
     }
 
     public void pushImage(String category, String title, String imageKind, byte[] jpgBytes, String observationDate) {
+        pushImage(category, title, imageKind, jpgBytes, observationDate, () -> {}, () -> {});
+    }
+
+    public void pushImage(String category, String title, String imageKind, byte[] jpgBytes, String observationDate, Runnable onStart, Runnable onComplete) {
         if (!active.get()) {
             return;
         }
@@ -83,6 +87,7 @@ public class LiveSessionManager {
         }
         Thread.startVirtualThread(() -> {
             try {
+                onStart.run();
                 client.pushLiveImage(currentSessionId, category, title, imageKind, jpgBytes, observationDate);
             } catch (SpectroSolHubException e) {
                 if (e.statusCode() == 404) {
@@ -91,6 +96,8 @@ public class LiveSessionManager {
                 } else {
                     LOGGER.warn("Failed to push live image '{}': {}", title, e.getMessage());
                 }
+            } finally {
+                onComplete.run();
             }
         });
     }
