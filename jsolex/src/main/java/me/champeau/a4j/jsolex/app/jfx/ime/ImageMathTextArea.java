@@ -123,6 +123,8 @@ public class ImageMathTextArea extends BorderPane {
     private int currentSearchIndex = -1;
     private List<SearchMatch> searchMatches = new ArrayList<>();
     private Runnable metadataEditorHandler;
+    private int lastBracketPos = -1;
+    private int lastMatchingBracketPos = -1;
 
     private static class SearchMatch {
         final int start;
@@ -183,6 +185,12 @@ public class ImageMathTextArea extends BorderPane {
         setupCompletion();
         setupHoverTooltip();
         setupKeyboardShortcuts();
+        codeArea.caretPositionProperty().addListener((obs, oldPos, newPos) -> {
+            if (highlightingMode == HighlightingMode.IMAGEMATH) {
+                clearBracketHighlight();
+                updateBracketHighlight(newPos);
+            }
+        });
     }
 
     /**
@@ -313,7 +321,12 @@ public class ImageMathTextArea extends BorderPane {
     }
 
     private void applyHighlighting(StyleSpans<Collection<String>> highlighting) {
+        lastBracketPos = -1;
+        lastMatchingBracketPos = -1;
         codeArea.setStyleSpans(0, highlighting);
+        if (highlightingMode == HighlightingMode.IMAGEMATH) {
+            updateBracketHighlight(codeArea.getCaretPosition());
+        }
     }
 
     /** Requests syntax highlighting to be recomputed. */
@@ -640,6 +653,103 @@ public class ImageMathTextArea extends BorderPane {
             spansBuilder.add(List.of(""), 0);
         }
         return spansBuilder.create();
+    }
+
+    private void updateBracketHighlight(int caretPos) {
+        var text = codeArea.getText();
+        if (text.isEmpty()) {
+            return;
+        }
+        int bracketPos = -1;
+        boolean forward = false;
+        // Prefer the character just before the caret (caret sits after it when typing)
+        if (caretPos > 0) {
+            char c = text.charAt(caretPos - 1);
+            if (c == '(') {
+                bracketPos = caretPos - 1;
+                forward = true;
+            } else if (c == ')') {
+                bracketPos = caretPos - 1;
+                forward = false;
+            }
+        }
+        // Fall back to the character at the caret
+        if (bracketPos == -1 && caretPos < text.length()) {
+            char c = text.charAt(caretPos);
+            if (c == '(') {
+                bracketPos = caretPos;
+                forward = true;
+            } else if (c == ')') {
+                bracketPos = caretPos;
+                forward = false;
+            }
+        }
+        if (bracketPos == -1) {
+            return;
+        }
+        var matchPos = findMatchingBracket(text, bracketPos, forward);
+        if (matchPos < 0) {
+            return;
+        }
+        applyBracketStyle(bracketPos);
+        applyBracketStyle(matchPos);
+        lastBracketPos = bracketPos;
+        lastMatchingBracketPos = matchPos;
+    }
+
+    private void clearBracketHighlight() {
+        if (lastBracketPos >= 0 && lastBracketPos < codeArea.getLength()) {
+            var styles = new ArrayList<>(codeArea.getStyleAtPosition(lastBracketPos));
+            styles.remove("bracket_match");
+            codeArea.setStyle(lastBracketPos, lastBracketPos + 1, styles);
+        }
+        if (lastMatchingBracketPos >= 0 && lastMatchingBracketPos < codeArea.getLength()) {
+            var styles = new ArrayList<>(codeArea.getStyleAtPosition(lastMatchingBracketPos));
+            styles.remove("bracket_match");
+            codeArea.setStyle(lastMatchingBracketPos, lastMatchingBracketPos + 1, styles);
+        }
+        lastBracketPos = -1;
+        lastMatchingBracketPos = -1;
+    }
+
+    private void applyBracketStyle(int pos) {
+        if (pos >= 0 && pos < codeArea.getLength()) {
+            var styles = new ArrayList<>(codeArea.getStyleAtPosition(pos));
+            if (!styles.contains("bracket_match")) {
+                styles.add("bracket_match");
+            }
+            codeArea.setStyle(pos, pos + 1, styles);
+        }
+    }
+
+    private static int findMatchingBracket(String text, int pos, boolean forward) {
+        int depth = 1;
+        if (forward) {
+            for (int i = pos + 1; i < text.length(); i++) {
+                char c = text.charAt(i);
+                if (c == '(') {
+                    depth++;
+                } else if (c == ')') {
+                    depth--;
+                    if (depth == 0) {
+                        return i;
+                    }
+                }
+            }
+        } else {
+            for (int i = pos - 1; i >= 0; i--) {
+                char c = text.charAt(i);
+                if (c == ')') {
+                    depth++;
+                } else if (c == '(') {
+                    depth--;
+                    if (depth == 0) {
+                        return i;
+                    }
+                }
+            }
+        }
+        return -1;
     }
 
     private void setupContextMenu() {
