@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+title: "JSol'Ex"
+message: "If you use this software, please cite it as below."
+type: software
+authors:
+  - family-names: Champeau
+    given-names: Cédric
+url: https://github.com/melix/astro4j
+
