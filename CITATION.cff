@@ -1,9 +1,21 @@
 cff-version: 1.2.0
-title: "JSol'Ex"
-message: "If you use this software, please cite it as below."
+title: JSol'Ex
+message: If you use this software, please cite the appropriate release DOI from Zenodo.
 type: software
 authors:
   - family-names: Champeau
     given-names: Cédric
+    orcid: https://orcid.org/0009-0009-6519-9288
+
+repository-code: https://github.com/melix/astro4j
 url: https://github.com/melix/astro4j
 
+license: Apache-2.0
+abstract: JSol'Ex is a component of the astro4j project for processing and analyzing solar spectroheliograph data.
+
+keywords:
+  - solar-physics
+  - astronomy
+  - spectroscopy
+  - image-processing
+  - java
