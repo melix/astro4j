@@ -1,5 +1,11 @@
 # Welcome to JSol'Ex {{version}}!
 
+## What's New in Version 5.1.1
+
+- SpectroSolHub Live: progress events are now displayed while images are being uploaded
+- SpectroSolHub Live: raw and reconstruction images are no longer uploaded
+- SpectroSolHub Live: in batch mode, only images produced by the `[[batch]]` output section of scripts are uploaded. A warning is logged at the end of a batch if no image was uploaded.
+
 ## What's New in Version 5.1.0
 
 - Added SpectroSolHub Live mode: stream your processing session in real-time for others to watch at spectrosolhub.com/live. Accessible from the Sharing menu.

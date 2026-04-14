@@ -1,5 +1,11 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+## Nouveautés de la version 5.1.1
+
+- SpectroSolHub En Direct : des événements de progression sont désormais affichés pendant l'envoi des images
+- SpectroSolHub En Direct : les images brutes et de reconstruction ne sont plus envoyées
+- SpectroSolHub En Direct : en mode lot, seules les images produites par la section de sortie `[[batch]]` des scripts sont envoyées. Un avertissement est consigné à la fin du lot si aucune image n'a été envoyée.
+
 ## Nouveautés de la version 5.1.0
 
 - Ajout du mode SpectroSolHub En Direct : diffusez votre session de traitement en temps réel pour que d'autres puissent la suivre sur spectrosolhub.com/live. Accessible depuis le menu Partage.

@@ -91,3 +91,8 @@
     -fx-fill: black;
     -rtfx-background-color: yellow;
 }
+
+.bracket_match {
+    -rtfx-background-color: #b8e0ff;
+    -fx-font-weight: bold;
+}

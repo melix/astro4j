@@ -15,6 +15,8 @@
  */
 package me.champeau.a4j.jsolex.processing.event;
 
+import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
+import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.SourceInfo;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
@@ -38,6 +40,7 @@ public class LivePushEventListener implements ProcessingEventListener {
     private final LiveSessionManager liveSessionManager;
     private final ImageSaver saver;
     private final AtomicLong counter = new AtomicLong(0);
+    private volatile Broadcaster broadcaster = Broadcaster.NO_OP;
 
     public LivePushEventListener(LiveSessionManager liveSessionManager) {
         this.liveSessionManager = liveSessionManager;
@@ -49,6 +52,10 @@ public class LivePushEventListener implements ProcessingEventListener {
         );
     }
 
+    public void setBroadcaster(Broadcaster broadcaster) {
+        this.broadcaster = broadcaster != null ? broadcaster : Broadcaster.NO_OP;
+    }
+
     @Override
     public void onImageGenerated(ImageGeneratedEvent event) {
         if (!liveSessionManager.isActive()) {
@@ -56,6 +63,9 @@ public class LivePushEventListener implements ProcessingEventListener {
         }
         var payload = event.getPayload();
         var imageKind = payload.kind();
+        if (imageKind == GeneratedImageKind.RAW || imageKind == GeneratedImageKind.RECONSTRUCTION) {
+            return;
+        }
         var displayCategory = imageKind.displayCategory();
         var category = Constants.message("displayCategory." + displayCategory.name());
         var kindName = imageKind.name();
@@ -73,7 +83,12 @@ public class LivePushEventListener implements ProcessingEventListener {
         try {
             saver.save(payload.image(), saved);
             var jpgBytes = Files.readAllBytes(saved.toPath());
-            liveSessionManager.pushImage(category, title, kindName, jpgBytes, observationDate);
+            var currentBroadcaster = broadcaster;
+            var operation = ProgressOperation.root(Constants.message("live.uploading") + " " + title, op -> {});
+            liveSessionManager.pushImage(
+                category, title, kindName, jpgBytes, observationDate,
+                () -> currentBroadcaster.broadcast(ProgressEvent.of(operation.update(0, Constants.message("live.uploading") + " " + title))),
+                () -> currentBroadcaster.broadcast(ProgressEvent.of(operation.complete(Constants.message("live.uploaded") + " " + title))));
         } catch (IOException e) {
             LOGGER.warn("Failed to read temporary live image: {}", e.getMessage());
         } finally {
