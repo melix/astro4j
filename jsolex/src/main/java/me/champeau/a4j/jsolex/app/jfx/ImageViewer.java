@@ -427,9 +427,15 @@ public class ImageViewer implements WithRootNode {
             dimensions = new Label();
             var zoomLabel = new Label("Zoom");
             var zoomMinus = createButton("-");
-            zoomMinus.setOnAction(evt -> imageView.setZoom(imageView.getZoom() * 0.8));
+            zoomMinus.setOnAction(evt -> {
+                clearPendingAlignment();
+                imageView.setZoom(imageView.getZoom() * 0.8);
+            });
             var zoomPlus = createButton("+");
-            zoomPlus.setOnAction(evt -> imageView.setZoom(imageView.getZoom() * 1.2));
+            zoomPlus.setOnAction(evt -> {
+                clearPendingAlignment();
+                imageView.setZoom(imageView.getZoom() * 1.2);
+            });
             var coordinatesLabel = new Label();
             imageView.setCoordinatesListener((x, y) -> {
                 var extra = "";
@@ -468,12 +474,21 @@ public class ImageViewer implements WithRootNode {
             nextButton.disableProperty().bind(currentImage.isEqualTo(imageHistory.sizeProperty().subtract(1)));
             nextButton.visibleProperty().bind(imageHistory.sizeProperty().greaterThan(1));
             var fitButton = createButton("←fit→");
-            fitButton.setOnAction(evt -> imageView.resetZoom(true));
+            fitButton.setOnAction(evt -> {
+                clearPendingAlignment();
+                imageView.resetZoom(true);
+            });
             var fitToCenter = createButton("→fit←");
             fitToCenter.disableProperty().bind(imageView.canFitToCenterProperty().map(e -> !e));
-            fitToCenter.setOnAction(evt -> imageView.fitToCenter());
+            fitToCenter.setOnAction(evt -> {
+                clearPendingAlignment();
+                imageView.fitToCenter();
+            });
             var oneToOneFit = createButton("1:1");
-            oneToOneFit.setOnAction(evt -> imageView.oneToOneZoomAndCenter());
+            oneToOneFit.setOnAction(evt -> {
+                clearPendingAlignment();
+                imageView.oneToOneZoomAndCenter();
+            });
             var leftRotate = createButton("↶");
             leftRotate.setOnAction(evt -> {
                 rotation = (rotation - 1) % 4;
@@ -697,6 +712,13 @@ public class ImageViewer implements WithRootNode {
     private void maybeRunOnUpdate() {
         if (onDisplayUpdate != null) {
             onDisplayUpdate.run();
+        }
+    }
+
+    private void clearPendingAlignment() {
+        onDisplayUpdate = null;
+        for (var viewer : siblings) {
+            viewer.onDisplayUpdate = null;
         }
     }
 

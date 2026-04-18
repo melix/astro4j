@@ -6,6 +6,7 @@
 - SpectroSolHub Live: raw and reconstruction images are no longer uploaded
 - SpectroSolHub Live: in batch mode, only images produced by the `[[batch]]` output section of scripts are uploaded. A warning is logged at the end of a batch if no image was uploaded.
 - Orientation wizards (BASS2000, SpectroSolHub): the GONG reference image can be switched to another observatory via a picker overlaid on the image, and auto-align can be restricted to rotation-only when the image is already correctly flipped.
+- Fixed image viewer alignment not being cancelled when clicking a zoom button (+, -, 1:1, fit) after having activated image alignment.
 
 ## What's New in Version 5.1.0
 
