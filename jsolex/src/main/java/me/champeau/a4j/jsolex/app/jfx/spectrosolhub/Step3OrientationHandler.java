@@ -21,11 +21,14 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuButton;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Slider;
 import javafx.scene.image.Image;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import me.champeau.a4j.jsolex.app.jfx.Corrector;
 import me.champeau.a4j.jsolex.app.jfx.MultipleImagesViewer;
@@ -50,6 +53,13 @@ import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.text.MessageFormat;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -67,6 +77,9 @@ class Step3OrientationHandler implements StepHandler {
     private ZoomableImageView userImageView;
     private ZoomableImageView gongImageView;
     private VBox gongImageContainer;
+    private StackPane gongImageStack;
+    private MenuButton gongSiteMenuButton;
+    private List<GONG.GongCandidate> gongCandidates = List.of();
     private HBox comparisonControlsBox;
     private Button comparisonModeButton;
     private Label comparisonModeLabel;
@@ -124,6 +137,10 @@ class Step3OrientationHandler implements StepHandler {
         HBox.setHgrow(gongImageContainer, Priority.ALWAYS);
         var gongImageLabel = new Label(message("orientation.gong.reference"));
         gongImageLabel.setStyle("-fx-font-weight: bold;");
+        gongSiteMenuButton = new MenuButton(message("orientation.gong.pick.site"));
+        gongSiteMenuButton.getStyleClass().add("gong-site-button");
+        gongSiteMenuButton.setMinWidth(170);
+        gongSiteMenuButton.setDisable(true);
         gongImageView = new ZoomableImageView();
         gongImageView.setPrefSize(IMAGE_VIEW_SIZE, IMAGE_VIEW_SIZE);
         gongImageView.setMinSize(200, 200);
@@ -132,7 +149,13 @@ class Step3OrientationHandler implements StepHandler {
         gongImageView.getScrollPane().setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         gongImageView.getScrollPane().setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         gongImageView.setStyle("-fx-border-color: gray; -fx-border-width: 1;");
-        gongImageContainer.getChildren().addAll(gongImageLabel, gongImageView);
+        gongImageStack = new StackPane();
+        gongImageStack.getChildren().addAll(gongImageView, gongSiteMenuButton);
+        StackPane.setAlignment(gongSiteMenuButton, Pos.TOP_RIGHT);
+        StackPane.setMargin(gongSiteMenuButton, new Insets(6, 10, 6, 6));
+        VBox.setVgrow(gongImageStack, Priority.ALWAYS);
+        HBox.setHgrow(gongImageStack, Priority.ALWAYS);
+        gongImageContainer.getChildren().addAll(gongImageLabel, gongImageStack);
 
         imageComparisonBox.getChildren().addAll(userImageContainer, gongImageContainer);
         VBox.setVgrow(imageComparisonBox, Priority.ALWAYS);
@@ -234,46 +257,138 @@ class Step3OrientationHandler implements StepHandler {
         if (processParams == null || processParams.observationDetails().date() == null) {
             return;
         }
-        var loadingLabel = new Label(message("orientation.gong.loading"));
-        loadingLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: gray;");
-        if (gongImageContainer.getChildren().size() > 1) {
-            gongImageContainer.getChildren().set(1, loadingLabel);
-        }
+        var observationDate = processParams.observationDetails().date();
+        showGongLoadingLabel();
         BackgroundOperations.async(() -> {
             try {
-                var gongImageUrl = GONG.fetchGongImage(processParams.observationDetails().date());
-                if (gongImageUrl.isPresent()) {
-                    try (var inputStream = gongImageUrl.get().openStream()) {
-                        gongReferenceImage = new Image(inputStream);
-                        Platform.runLater(() -> {
-                            restoreGongImageView();
-                            gongImageView.setImage(gongReferenceImage);
-                            gongImageView.resetZoom();
-                            if (userImageView.getImage() != null) {
-                                comparisonModeManager.setImages(userImageView.getImage(), gongReferenceImage);
-                            }
-                        });
-                    }
-                } else {
-                    Platform.runLater(() -> {
-                        loadingLabel.setText(message("orientation.gong.unavailable"));
-                        loadingLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: orange;");
-                    });
+                var candidates = GONG.listGongCandidates(observationDate);
+                Platform.runLater(() -> populateGongSiteMenu(candidates, observationDate));
+                if (candidates.isEmpty()) {
+                    Platform.runLater(this::showGongUnavailableLabel);
+                    return;
                 }
+                loadGongCandidate(candidates.getFirst());
             } catch (Exception e) {
                 LOGGER.error("Failed to load GONG reference image", e);
-                Platform.runLater(() -> {
-                    loadingLabel.setText(message("orientation.gong.unavailable"));
-                    loadingLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: orange;");
-                });
+                Platform.runLater(this::showGongUnavailableLabel);
             }
         });
     }
 
-    private void restoreGongImageView() {
-        if (gongImageContainer.getChildren().size() > 1) {
-            gongImageContainer.getChildren().set(1, gongImageView);
+    private void showGongLoadingLabel() {
+        swapGongContent(new Label(message("orientation.gong.loading")), "-fx-font-size: 14px; -fx-text-fill: gray;");
+    }
+
+    private void showGongUnavailableLabel() {
+        swapGongContent(new Label(message("orientation.gong.unavailable")), "-fx-font-size: 14px; -fx-text-fill: orange;");
+        if (gongSiteMenuButton != null && !gongCandidates.isEmpty()) {
+            gongSiteMenuButton.setDisable(false);
         }
+    }
+
+    private void swapGongContent(Label label, String style) {
+        label.setStyle(style);
+        if (gongImageStack == null) {
+            return;
+        }
+        gongImageStack.getChildren().set(0, label);
+    }
+
+    private void populateGongSiteMenu(List<GONG.GongCandidate> candidates, ZonedDateTime requestedDate) {
+        gongCandidates = oneCandidatePerSite(candidates);
+        if (gongSiteMenuButton == null) {
+            return;
+        }
+        gongSiteMenuButton.getItems().clear();
+        if (gongCandidates.isEmpty()) {
+            gongSiteMenuButton.setDisable(true);
+            return;
+        }
+        var utcRequested = requestedDate.withZoneSameInstant(ZoneId.of("UTC"));
+        var timeFormatter = DateTimeFormatter.ofPattern("HH:mm 'UTC'");
+        for (var candidate : gongCandidates) {
+            var offsetMinutes = ChronoUnit.MINUTES.between(utcRequested, candidate.timestamp());
+            var offsetText = formatOffset(offsetMinutes);
+            var label = MessageFormat.format(message("orientation.gong.candidate"),
+                candidate.siteDisplayName(),
+                candidate.timestamp().format(timeFormatter),
+                offsetText);
+            var item = new MenuItem(label);
+            item.setOnAction(e -> loadGongCandidateAsync(candidate));
+            gongSiteMenuButton.getItems().add(item);
+        }
+        gongSiteMenuButton.setDisable(false);
+    }
+
+    private static List<GONG.GongCandidate> oneCandidatePerSite(List<GONG.GongCandidate> candidates) {
+        var seen = new HashSet<String>();
+        var result = new ArrayList<GONG.GongCandidate>();
+        for (var candidate : candidates) {
+            if (seen.add(candidate.siteCode())) {
+                result.add(candidate);
+            }
+        }
+        return result;
+    }
+
+    private void loadGongCandidateAsync(GONG.GongCandidate candidate) {
+        if (gongSiteMenuButton != null) {
+            gongSiteMenuButton.setDisable(true);
+        }
+        showGongLoadingLabel();
+        BackgroundOperations.async(() -> loadGongCandidate(candidate));
+    }
+
+    private void loadGongCandidate(GONG.GongCandidate candidate) {
+        try {
+            var url = GONG.fetchCandidateImage(candidate);
+            if (url.isEmpty()) {
+                Platform.runLater(this::showGongUnavailableLabel);
+                return;
+            }
+            try (var inputStream = url.get().openStream()) {
+                var image = new Image(inputStream);
+                Platform.runLater(() -> {
+                    if (!image.isError()) {
+                        gongReferenceImage = image;
+                        restoreGongImageView();
+                        gongImageView.setImage(image);
+                        gongImageView.resetZoom();
+                        if (gongSiteMenuButton != null) {
+                            gongSiteMenuButton.setText(candidate.siteDisplayName());
+                            gongSiteMenuButton.setDisable(gongCandidates.size() <= 1);
+                        }
+                        if (userImageView.getImage() != null) {
+                            comparisonModeManager.setImages(userImageView.getImage(), image);
+                        }
+                    } else {
+                        showGongUnavailableLabel();
+                    }
+                });
+            }
+        } catch (Exception e) {
+            LOGGER.error("Failed to load GONG candidate image", e);
+            Platform.runLater(this::showGongUnavailableLabel);
+        }
+    }
+
+    private void restoreGongImageView() {
+        if (gongImageStack == null) {
+            return;
+        }
+        if (gongImageStack.getChildren().get(0) != gongImageView) {
+            gongImageStack.getChildren().set(0, gongImageView);
+        }
+    }
+
+    private static String formatOffset(long minutes) {
+        if (minutes == 0) {
+            return message("orientation.gong.offset.same");
+        }
+        if (minutes > 0) {
+            return MessageFormat.format(message("orientation.gong.offset.after"), minutes);
+        }
+        return MessageFormat.format(message("orientation.gong.offset.before"), -minutes);
     }
 
     private ImageWrapper applyPAngleCorrectionIfNeeded(ImageWrapper image, GeneratedImageKind kind) {

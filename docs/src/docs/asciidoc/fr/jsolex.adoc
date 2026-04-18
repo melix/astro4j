@@ -3,9 +3,8 @@ Cédric Champeau
 :icons: font
 :docinfo: shared
 
-JSol'Ex est un traitement d'images solaires produites par l'intermédiaire du http://www.astrosurf.com/solex/[Sol'Ex de Christian Buil].
-Il permet de traiter les fichiers SER capturés avec cet instrument pour produire des images du disque solaire, de manière similaire à http://valerie.desnoux.free.fr/inti/[INTI de Valérie Desnoux].
-S'il est principalement conçu pour traiter les images produites par Sol'Ex, il est possible qu'il donne de bons résultats sur d'autres héliospectrographes.
+JSol'Ex est un traitement d'images solaires produites par l'intermédiaire du http://www.astrosurf.com/solex/[Sol'Ex de Christian Buil] ou d'autres spectrohéliographes comme le SHG 700 ou vos propres constructions.
+Il permet de traiter les fichiers SER capturés avec cet instrument pour produire des images du disque solaire. Il a été inspiré par http://valerie.desnoux.free.fr/inti/[INTI de Valérie Desnoux] mais dispose de nombreuses fonctionnalités uniques.
 
 JSol'Ex est un logiciel libre sous licence Apache 2, écrit en Java et fourni à titre gratuit sans aucune garantie.
 

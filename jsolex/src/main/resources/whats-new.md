@@ -5,6 +5,7 @@
 - SpectroSolHub Live: progress events are now displayed while images are being uploaded
 - SpectroSolHub Live: raw and reconstruction images are no longer uploaded
 - SpectroSolHub Live: in batch mode, only images produced by the `[[batch]]` output section of scripts are uploaded. A warning is logged at the end of a batch if no image was uploaded.
+- Orientation wizards (BASS2000, SpectroSolHub): the GONG reference image can be switched to another observatory via a picker overlaid on the image, and auto-align can be restricted to rotation-only when the image is already correctly flipped.
 
 ## What's New in Version 5.1.0
 

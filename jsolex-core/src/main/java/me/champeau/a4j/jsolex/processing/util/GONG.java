@@ -33,8 +33,9 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -45,13 +46,35 @@ import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectorie
 public class GONG {
     private static final Logger LOGGER = LoggerFactory.getLogger(GONG.class);
     private static final Pattern LINK = Pattern.compile("a href=\"([^\"]*)\"");
-    private static final Pattern FILENAME = Pattern.compile("(\\d{4})(\\d{2})(\\d{2})(\\d{2})(\\d{2})(\\d{2})[a-zA-Z]+.jpg");
+    private static final Pattern FILENAME = Pattern.compile("(\\d{4})(\\d{2})(\\d{2})(\\d{2})(\\d{2})(\\d{2})([A-Za-z])h\\.jpg");
     private static final Lock LOCK = new ReentrantLock();
+    private static final Map<String, String> SITE_NAMES = Map.of(
+        "A", "Boulder",
+        "B", "Big Bear",
+        "C", "Cerro Tololo",
+        "L", "Learmonth",
+        "M", "Mauna Loa",
+        "T", "El Teide",
+        "U", "Udaipur"
+    );
 
     public static final DateTimeFormatter FORMATTER = new DateTimeFormatterBuilder()
         .appendLiteral("UT: ")
         .append(DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm"))
         .toFormatter(Locale.US);
+
+    /**
+     * A single GONG H-alpha candidate image on the server. Note that some
+     * sites (notably {@code B} for Big Bear) post continuum images in the
+     * H-alpha directory, so callers that strictly need H-alpha may want to
+     * let the user pick another site rather than silently accept the
+     * closest-in-time result.
+     */
+    public record GongCandidate(URL url, ZonedDateTime timestamp, String siteCode, String fileName) {
+        public String siteDisplayName() {
+            return SITE_NAMES.getOrDefault(siteCode, "Site " + siteCode);
+        }
+    }
 
     private GONG() {
     }
@@ -59,76 +82,47 @@ public class GONG {
     public static Optional<URL> fetchGongImage(ZonedDateTime date) {
         return fetchGongImage(date, VersionUtil.getJsolexDir().resolve("gong"));
     }
-    
+
+    public static List<GongCandidate> listGongCandidates(ZonedDateTime date) {
+        return listGongCandidates(date, VersionUtil.getJsolexDir().resolve("gong"));
+    }
+
+    public static Optional<URL> fetchCandidateImage(GongCandidate candidate) {
+        return fetchCandidateImage(candidate, VersionUtil.getJsolexDir().resolve("gong"));
+    }
+
     private static Optional<URL> fetchGongImage(ZonedDateTime date, Path targetFolder) {
+        var utcDate = date.withZoneSameInstant(ZoneId.of("UTC"));
+        var candidates = listGongCandidates(utcDate, targetFolder);
+        if (candidates.isEmpty()) {
+            return Optional.empty();
+        }
+        return fetchCandidateImage(candidates.getFirst(), targetFolder);
+    }
+
+    private static List<GongCandidate> listGongCandidates(ZonedDateTime date, Path targetFolder) {
         try {
             LOCK.lock();
             var utcDate = date.withZoneSameInstant(ZoneId.of("UTC"));
-            var cacheKey = generateCacheKey(utcDate);
-            
-            Optional<Path> cachedImage = findCachedImage(cacheKey, targetFolder);
-            if (cachedImage.isPresent()) {
-                try {
-                    return Optional.of(cachedImage.get().toUri().toURL());
-                } catch (Exception e) {
-                    LOGGER.warn("Failed to create URL from cached GONG image", e);
-                }
-            }
-            
-            return fetchAndCacheGongImage(utcDate, targetFolder);
-        } finally {
-            LOCK.unlock();
-        }
-    }
-
-    private static String generateCacheKey(ZonedDateTime utcDate) {
-        var yearmo = String.format("%04d%02d", utcDate.getYear(), utcDate.getMonthValue());
-        var yearmoday = String.format("%04d%02d%02d", utcDate.getYear(), utcDate.getMonthValue(), utcDate.getDayOfMonth());
-        var yearmohourmin = String.format("%04d%02d%02d%02d%02d", utcDate.getYear(), utcDate.getMonthValue(), utcDate.getDayOfMonth(), utcDate.getHour(), utcDate.getMinute());
-        return String.format("HA/hav/%s/%s/%s", yearmo, yearmoday, yearmohourmin);
-    }
-    
-    private static Optional<Path> findCachedImage(String cacheKey, Path targetFolder) {
-        var cacheDir = targetFolder.resolve(cacheKey);
-        if (!Files.exists(cacheDir)) {
-            return Optional.empty();
-        }
-        
-        try {
-            return Files.list(cacheDir)
-                .filter(p -> p.getFileName().toString().endsWith(".jpg"))
-                .findFirst();
-        } catch (IOException e) {
-            LOGGER.warn("Failed to list cached GONG images", e);
-            return Optional.empty();
-        }
-    }
-    
-    private static Optional<URL> fetchAndCacheGongImage(ZonedDateTime date, Path targetFolder) {
-        var yearmo = String.format("%04d%02d", date.getYear(), date.getMonthValue());
-        var yearmoday = String.format("%04d%02d%02d", date.getYear(), date.getMonthValue(), date.getDayOfMonth());
-        
-        try {
-            var baseUrl = new URI(String.format("https://gong2.nso.edu/ftp/HA/hav/%s/%s/", yearmo, yearmoday)).toURL();
-            var availableLinks = new ArrayList<String>();
-            try (var reader = new BufferedReader(new InputStreamReader(baseUrl.openStream()))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    // find all target links (a href="...")
-                    var matcher = LINK.matcher(line);
-                    while (matcher.find()) {
-                        var link = matcher.group(1);
-                        if (link.endsWith(".jpg")) {
-                            availableLinks.add(link);
+            var yearmo = String.format("%04d%02d", utcDate.getYear(), utcDate.getMonthValue());
+            var yearmoday = String.format("%04d%02d%02d", utcDate.getYear(), utcDate.getMonthValue(), utcDate.getDayOfMonth());
+            try {
+                var baseUrl = new URI(String.format("https://gong2.nso.edu/ftp/HA/hav/%s/%s/", yearmo, yearmoday)).toURL();
+                var availableLinks = new ArrayList<String>();
+                try (var reader = new BufferedReader(new InputStreamReader(baseUrl.openStream()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        var matcher = LINK.matcher(line);
+                        while (matcher.find()) {
+                            var link = matcher.group(1);
+                            if (link.endsWith(".jpg")) {
+                                availableLinks.add(link);
+                            }
                         }
                     }
                 }
-            }
-            
-            // links match a date pattern: 20240525000002Bh.jpg
-            // and we want to find the closest one to the date we're looking for
-            var closest = availableLinks.stream()
-                .map(link -> {
+                var candidates = new ArrayList<GongCandidate>();
+                for (var link : availableLinks) {
                     var parts = FILENAME.matcher(link);
                     if (parts.find()) {
                         var linkDate = ZonedDateTime.of(
@@ -140,42 +134,53 @@ public class GONG {
                             Integer.parseInt(parts.group(6)),
                             0,
                             ZoneId.of("UTC"));
-                        return new Object() {
-                            final String target = link;
-                            final ZonedDateTime date = linkDate;
-                        };
+                        var siteCode = parts.group(7).toUpperCase(Locale.ROOT);
+                        candidates.add(new GongCandidate(new URI(baseUrl + link).toURL(), linkDate, siteCode, link));
                     }
-                    return null;
-                })
-                .filter(Objects::nonNull)
-                .min(Comparator.comparingLong(l -> Math.abs(l.date.toEpochSecond() - date.toEpochSecond())));
-                
-            if (closest.isPresent()) {
-                var imageUrl = new URI(baseUrl + closest.get().target).toURL();
-                
-                // Recompute cache key based on the actual image's timestamp, not the requested time
-                var actualImageDate = closest.get().date;
-                var actualCacheKey = generateCacheKey(actualImageDate);
-                
-                // Cache the image using the actual image's timestamp
-                var cacheDir = targetFolder.resolve(actualCacheKey);
-                createDirectoriesIfNeeded(cacheDir);
-                var cachedImagePath = cacheDir.resolve(closest.get().target);
-                
-                LOGGER.debug("Downloading GONG image for {} to cache", actualImageDate.format(DateTimeFormatter.ofPattern("yyyyMMdd")));
-                try (var inputStream = imageUrl.openStream()) {
-                    Files.copy(inputStream, cachedImagePath, StandardCopyOption.REPLACE_EXISTING);
-                    LOGGER.debug("GONG image cached successfully");
+                }
+                candidates.sort(Comparator.comparingLong(c -> Math.abs(c.timestamp.toEpochSecond() - utcDate.toEpochSecond())));
+                return candidates;
+            } catch (URISyntaxException | IOException e) {
+                LOGGER.warn("Failed to list GONG images for {}", yearmoday, e);
+                return List.of();
+            }
+        } finally {
+            LOCK.unlock();
+        }
+    }
+
+    private static Optional<URL> fetchCandidateImage(GongCandidate candidate, Path targetFolder) {
+        try {
+            LOCK.lock();
+            var cacheDir = targetFolder.resolve(cacheKey(candidate.timestamp));
+            var cachedImagePath = cacheDir.resolve(candidate.fileName);
+            if (Files.exists(cachedImagePath)) {
+                try {
                     return Optional.of(cachedImagePath.toUri().toURL());
-                } catch (IOException e) {
-                    LOGGER.warn("Failed to cache GONG image, returning direct URL", e);
-                    return Optional.of(imageUrl);
+                } catch (Exception e) {
+                    LOGGER.warn("Failed to create URL from cached GONG image", e);
                 }
             }
-        } catch (URISyntaxException | IOException e) {
-            LOGGER.warn("Failed to fetch GONG image for {}", yearmoday, e);
-            return Optional.empty();
+            try {
+                createDirectoriesIfNeeded(cacheDir);
+                LOGGER.debug("Downloading GONG image {} to cache", candidate.fileName);
+                try (var inputStream = candidate.url.openStream()) {
+                    Files.copy(inputStream, cachedImagePath, StandardCopyOption.REPLACE_EXISTING);
+                    return Optional.of(cachedImagePath.toUri().toURL());
+                }
+            } catch (IOException e) {
+                LOGGER.warn("Failed to cache GONG image, returning direct URL", e);
+                return Optional.of(candidate.url);
+            }
+        } finally {
+            LOCK.unlock();
         }
-        return Optional.empty();
+    }
+
+    private static String cacheKey(ZonedDateTime utcDate) {
+        var yearmo = String.format("%04d%02d", utcDate.getYear(), utcDate.getMonthValue());
+        var yearmoday = String.format("%04d%02d%02d", utcDate.getYear(), utcDate.getMonthValue(), utcDate.getDayOfMonth());
+        var yearmohourmin = String.format("%04d%02d%02d%02d%02d", utcDate.getYear(), utcDate.getMonthValue(), utcDate.getDayOfMonth(), utcDate.getHour(), utcDate.getMinute());
+        return String.format("HA/hav/%s/%s/%s", yearmo, yearmoday, yearmohourmin);
     }
 }

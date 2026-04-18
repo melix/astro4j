@@ -159,6 +159,47 @@
     -fx-background-color: #138496;
 }
 
+/* SplitMenuButton with the custom-button (teal) palette */
+.split-menu-button.custom-button {
+    -fx-background-color: transparent;
+    -fx-background-radius: 6;
+    -fx-padding: 0;
+}
+
+.split-menu-button.custom-button .label {
+    -fx-background-color: #17a2b8;
+    -fx-text-fill: white;
+    -fx-font-weight: 500;
+    -fx-padding: 4 8;
+    -fx-background-radius: 6 0 0 6;
+    -fx-background-insets: 0;
+    -fx-border-color: transparent rgba(255,255,255,0.3) transparent transparent;
+    -fx-border-width: 0 1 0 0;
+    -fx-min-width: -1;
+}
+
+.split-menu-button.custom-button:hover .label {
+    -fx-background-color: #138496;
+}
+
+.split-menu-button.custom-button .arrow-button {
+    -fx-background-color: #17a2b8;
+    -fx-background-radius: 0 6 6 0;
+    -fx-padding: 4 8;
+    -fx-background-insets: 0;
+    -fx-alignment: CENTER;
+}
+
+.split-menu-button.custom-button:hover .arrow-button {
+    -fx-background-color: #138496;
+}
+
+.split-menu-button.custom-button .arrow-button .arrow {
+    -fx-background-color: white;
+    -fx-padding: 3;
+    -fx-shape: "M 0 0 L 4 4 L 8 0 Z";
+}
+
 .quick-button {
     -fx-background-color: #17a2b8;
     -fx-text-fill: white;
@@ -1282,4 +1323,21 @@
     -fx-font-weight: bold;
     -fx-text-fill: #333333;
     -fx-effect: dropshadow(gaussian, white, 2, 1, 0, 0);
+}
+
+/* GONG observatory picker overlay on top of the reference image */
+.gong-site-button {
+    -fx-background-color: #1e1e1e;
+    -fx-background-radius: 3;
+    -fx-padding: 3 6 3 6;
+    -fx-font-size: 11px;
+}
+.gong-site-button > .label {
+    -fx-text-fill: white;
+}
+.gong-site-button > .arrow-button > .arrow {
+    -fx-background-color: white;
+}
+.gong-site-button:hover {
+    -fx-background-color: #333333;
 }

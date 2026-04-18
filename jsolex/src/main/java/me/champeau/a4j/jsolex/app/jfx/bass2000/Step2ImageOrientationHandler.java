@@ -20,14 +20,21 @@ import javafx.animation.RotateTransition;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuButton;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Slider;
+import javafx.scene.control.SplitMenuButton;
 import javafx.scene.image.Image;
 import javafx.scene.image.WritableImage;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 import me.champeau.a4j.jsolex.app.AlertFactory;
@@ -55,6 +62,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.text.MessageFormat;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 
 class Step2ImageOrientationHandler implements StepHandler {
@@ -76,6 +90,10 @@ class Step2ImageOrientationHandler implements StepHandler {
     private ZoomableImageView userImageView;
     private ZoomableImageView gongImageView;
     private VBox gongImageContainer;
+    private StackPane gongImageStack;
+    private HBox gongImageWrapper;
+    private MenuButton gongSiteMenuButton;
+    private List<GONG.GongCandidate> gongCandidates = List.of();
     private HBox angleAdjustmentBox;
     private Slider mainAngleSlider;
     private Button comparisonModeButton;
@@ -85,7 +103,8 @@ class Step2ImageOrientationHandler implements StepHandler {
     private Image gongReferenceImage;
     private WritableImage userDisplayImage;
     private Image gongDisplayImage;
-    private Button autoAlignButton;
+    private SplitMenuButton autoAlignButton;
+    private boolean autoAlignSearchFlips = true;
 
     private int rotation = 0;
     private boolean horizontalFlip = false;
@@ -150,6 +169,10 @@ class Step2ImageOrientationHandler implements StepHandler {
         HBox.setHgrow(gongImageContainer, Priority.ALWAYS);
         var gongImageLabel = new Label(message("orientation.gong.reference"));
         gongImageLabel.setStyle("-fx-font-weight: bold;");
+        gongSiteMenuButton = new MenuButton(message("orientation.gong.pick.site"));
+        gongSiteMenuButton.getStyleClass().add("gong-site-button");
+        gongSiteMenuButton.setMinWidth(170);
+        gongSiteMenuButton.setDisable(true);
         gongImageView = new ZoomableImageView();
         gongImageView.setPrefSize(IMAGE_VIEW_SIZE, IMAGE_VIEW_SIZE);
         gongImageView.setMinSize(200, 200);
@@ -159,13 +182,18 @@ class Step2ImageOrientationHandler implements StepHandler {
         gongImageView.getScrollPane().setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         gongImageView.setStyle("-fx-border-color: gray; -fx-border-width: 1;");
 
-        var gongImageWrapper = new HBox();
+        gongImageWrapper = new HBox();
         gongImageWrapper.setStyle("-fx-alignment: center;");
         gongImageWrapper.getChildren().add(gongImageView);
-        VBox.setVgrow(gongImageWrapper, Priority.ALWAYS);
         HBox.setHgrow(gongImageView, Priority.ALWAYS);
 
-        gongImageContainer.getChildren().addAll(gongImageLabel, gongImageWrapper);
+        gongImageStack = new StackPane();
+        gongImageStack.getChildren().addAll(gongImageWrapper, gongSiteMenuButton);
+        StackPane.setAlignment(gongSiteMenuButton, Pos.TOP_RIGHT);
+        StackPane.setMargin(gongSiteMenuButton, new Insets(6, 10, 6, 6));
+        VBox.setVgrow(gongImageStack, Priority.ALWAYS);
+
+        gongImageContainer.getChildren().addAll(gongImageLabel, gongImageStack);
 
         imageComparisonBox.getChildren().addAll(userImageContainer, gongImageContainer);
 
@@ -244,12 +272,16 @@ class Step2ImageOrientationHandler implements StepHandler {
         controlsBox.getChildren().addAll(horizontalFlipButton, verticalFlipButton, rotateLeftButton, rotateRightButton, resetButton, comparisonModeButton, fullscreenButton);
 
         var processParams = transformationListener.findProcessParams();
-        var autoAlignButton = new Button(message("orientation.button.auto.align"));
+        autoAlignButton = new SplitMenuButton();
+        autoAlignButton.setText(message("orientation.button.auto.align"));
         autoAlignButton.getStyleClass().add("custom-button");
         autoAlignButton.setDisable(gongReferenceImage == null);
         autoAlignButton.setOnAction(e -> performAutoAlignment(autoAlignButton, angleSliderListener));
+        var searchFlipsItem = new CheckMenuItem(message("orientation.auto.align.search.flips"));
+        searchFlipsItem.setSelected(autoAlignSearchFlips);
+        searchFlipsItem.selectedProperty().addListener((obs, wasSelected, isSelected) -> autoAlignSearchFlips = isSelected);
+        autoAlignButton.getItems().add(searchFlipsItem);
         controlsBox.getChildren().add(autoAlignButton);
-        this.autoAlignButton = autoAlignButton;
 
         comparisonModeManager.setOriginalImageComparisonBox(imageComparisonBox);
 
@@ -360,81 +392,138 @@ class Step2ImageOrientationHandler implements StepHandler {
                     }
                 });
 
-                var gongImageUrl = GONG.fetchGongImage(observationDate);
-
-                if (gongImageUrl.isPresent()) {
-                    try (var inputStream = gongImageUrl.get().openStream()) {
-                        gongReferenceImage = new Image(inputStream);
-                        Platform.runLater(() -> {
-                            if (gongImageView != null && !gongReferenceImage.isError()) {
-                                restoreGongImageView();
-                                gongImageView.setImage(gongReferenceImage);
-                                gongImageView.resetZoom();
-                                gongDisplayImage = gongReferenceImage;
-                                if (autoAlignButton != null) {
-                                    autoAlignButton.setDisable(false);
-                                }
-                                if (comparisonModeManager != null && userDisplayImage != null) {
-                                    comparisonModeManager.setImages(userDisplayImage, gongDisplayImage);
-                                }
-                            } else {
-                                loadFallbackGongImage();
-                            }
-                        });
-                    }
-                } else {
+                var candidates = GONG.listGongCandidates(observationDate);
+                Platform.runLater(() -> populateGongSiteMenu(candidates, observationDate));
+                if (candidates.isEmpty()) {
                     Platform.runLater(this::loadFallbackGongImage);
+                    return;
                 }
+                loadGongCandidate(candidates.getFirst());
             } catch (Exception e) {
                 Platform.runLater(this::loadFallbackGongImage);
             }
         });
     }
 
-    private void showLoadingIndicator() {
-        if (gongImageView != null && gongImageContainer != null) {
-            var loadingContainer = new VBox(10);
-            loadingContainer.setStyle("-fx-alignment: center;");
+    private void populateGongSiteMenu(List<GONG.GongCandidate> candidates, ZonedDateTime requestedDate) {
+        gongCandidates = oneCandidatePerSite(candidates);
+        if (gongSiteMenuButton == null) {
+            return;
+        }
+        gongSiteMenuButton.getItems().clear();
+        if (gongCandidates.isEmpty()) {
+            gongSiteMenuButton.setDisable(true);
+            return;
+        }
+        var utcRequested = requestedDate.withZoneSameInstant(ZoneId.of("UTC"));
+        var timeFormatter = DateTimeFormatter.ofPattern("HH:mm 'UTC'");
+        for (var candidate : gongCandidates) {
+            var offsetMinutes = ChronoUnit.MINUTES.between(utcRequested, candidate.timestamp());
+            var offsetText = formatOffset(offsetMinutes);
+            var label = MessageFormat.format(message("orientation.gong.candidate"),
+                candidate.siteDisplayName(),
+                candidate.timestamp().format(timeFormatter),
+                offsetText);
+            var item = new MenuItem(label);
+            item.setOnAction(e -> loadGongCandidateAsync(candidate));
+            gongSiteMenuButton.getItems().add(item);
+        }
+        gongSiteMenuButton.setDisable(false);
+    }
 
-            var pendulum = new Label("●");
-            pendulum.setStyle("-fx-font-size: 24px; -fx-text-fill: #2196F3;");
-
-            var pendulumSwing = new RotateTransition(Duration.seconds(1.2), pendulum);
-            pendulumSwing.setFromAngle(-45);
-            pendulumSwing.setToAngle(45);
-            pendulumSwing.setCycleCount(Animation.INDEFINITE);
-            pendulumSwing.setAutoReverse(true);
-            pendulumSwing.play();
-
-            var loadingTextLabel = new Label(message("gong.loading"));
-            loadingTextLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: gray;");
-
-            loadingContainer.getChildren().addAll(pendulum, loadingTextLabel);
-
-            var loadingWrapper = new HBox();
-            loadingWrapper.setPrefSize(IMAGE_VIEW_SIZE, IMAGE_VIEW_SIZE);
-            loadingWrapper.setMinSize(200, 200);
-            loadingWrapper.setStyle("-fx-border-color: gray; -fx-border-width: 1; -fx-alignment: center;");
-            loadingWrapper.getChildren().add(loadingContainer);
-            VBox.setVgrow(loadingWrapper, Priority.ALWAYS);
-            HBox.setHgrow(loadingWrapper, Priority.ALWAYS);
-
-            if (gongImageContainer.getChildren().size() > 1) {
-                gongImageContainer.getChildren().set(1, loadingWrapper);
+    private static List<GONG.GongCandidate> oneCandidatePerSite(List<GONG.GongCandidate> candidates) {
+        var seen = new HashSet<String>();
+        var result = new ArrayList<GONG.GongCandidate>();
+        for (var candidate : candidates) {
+            if (seen.add(candidate.siteCode())) {
+                result.add(candidate);
             }
+        }
+        return result;
+    }
+
+    private void loadGongCandidateAsync(GONG.GongCandidate candidate) {
+        if (gongSiteMenuButton != null) {
+            gongSiteMenuButton.setDisable(true);
+        }
+        showLoadingIndicator();
+        BackgroundOperations.async(() -> loadGongCandidate(candidate));
+    }
+
+    private void loadGongCandidate(GONG.GongCandidate candidate) {
+        try {
+            var url = GONG.fetchCandidateImage(candidate);
+            if (url.isEmpty()) {
+                Platform.runLater(this::loadFallbackGongImage);
+                return;
+            }
+            try (var inputStream = url.get().openStream()) {
+                var image = new Image(inputStream);
+                Platform.runLater(() -> {
+                    if (gongImageView != null && !image.isError()) {
+                        gongReferenceImage = image;
+                        restoreGongImageView();
+                        gongImageView.setImage(image);
+                        gongImageView.resetZoom();
+                        gongDisplayImage = image;
+                        if (gongSiteMenuButton != null) {
+                            gongSiteMenuButton.setText(candidate.siteDisplayName());
+                            gongSiteMenuButton.setDisable(gongCandidates.size() <= 1);
+                        }
+                        if (autoAlignButton != null) {
+                            autoAlignButton.setDisable(false);
+                        }
+                        if (comparisonModeManager != null && userDisplayImage != null) {
+                            comparisonModeManager.setImages(userDisplayImage, gongDisplayImage);
+                        }
+                    } else {
+                        loadFallbackGongImage();
+                    }
+                });
+            }
+        } catch (Exception e) {
+            Platform.runLater(this::loadFallbackGongImage);
         }
     }
 
+    private void showLoadingIndicator() {
+        if (gongImageView == null || gongImageStack == null) {
+            return;
+        }
+        var loadingContainer = new VBox(10);
+        loadingContainer.setStyle("-fx-alignment: center;");
+
+        var pendulum = new Label("●");
+        pendulum.setStyle("-fx-font-size: 24px; -fx-text-fill: #2196F3;");
+
+        var pendulumSwing = new RotateTransition(Duration.seconds(1.2), pendulum);
+        pendulumSwing.setFromAngle(-45);
+        pendulumSwing.setToAngle(45);
+        pendulumSwing.setCycleCount(Animation.INDEFINITE);
+        pendulumSwing.setAutoReverse(true);
+        pendulumSwing.play();
+
+        var loadingTextLabel = new Label(message("gong.loading"));
+        loadingTextLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: gray;");
+
+        loadingContainer.getChildren().addAll(pendulum, loadingTextLabel);
+
+        var loadingWrapper = new HBox();
+        loadingWrapper.setPrefSize(IMAGE_VIEW_SIZE, IMAGE_VIEW_SIZE);
+        loadingWrapper.setMinSize(200, 200);
+        loadingWrapper.setStyle("-fx-border-color: gray; -fx-border-width: 1; -fx-alignment: center;");
+        loadingWrapper.getChildren().add(loadingContainer);
+        HBox.setHgrow(loadingWrapper, Priority.ALWAYS);
+
+        gongImageStack.getChildren().set(0, loadingWrapper);
+    }
+
     private void restoreGongImageView() {
-        if (gongImageView != null && gongImageContainer != null) {
-            if (gongImageContainer.getChildren().size() > 1) {
-                var gongImageWrapper = new HBox();
-                gongImageWrapper.setStyle("-fx-alignment: center;");
-                gongImageWrapper.getChildren().add(gongImageView);
-                VBox.setVgrow(gongImageWrapper, Priority.ALWAYS);
-                HBox.setHgrow(gongImageView, Priority.ALWAYS);
-                gongImageContainer.getChildren().set(1, gongImageWrapper);
-            }
+        if (gongImageStack == null || gongImageWrapper == null) {
+            return;
+        }
+        if (gongImageStack.getChildren().get(0) != gongImageWrapper) {
+            gongImageStack.getChildren().set(0, gongImageWrapper);
         }
     }
 
@@ -449,6 +538,9 @@ class Step2ImageOrientationHandler implements StepHandler {
                 if (comparisonModeManager != null && userDisplayImage != null) {
                     comparisonModeManager.setImages(userDisplayImage, gongDisplayImage);
                 }
+            }
+            if (gongSiteMenuButton != null && !gongCandidates.isEmpty()) {
+                gongSiteMenuButton.setDisable(false);
             }
         } catch (Exception e) {
         }
@@ -579,7 +671,7 @@ class Step2ImageOrientationHandler implements StepHandler {
         return Corrector.rotate(image, pAngle, false);
     }
 
-    private void performAutoAlignment(Button button, ChangeListener<Number> sliderListener) {
+    private void performAutoAlignment(SplitMenuButton button, ChangeListener<Number> sliderListener) {
         if (gongReferenceImage == null || gongReferenceImage.isError()) {
             var alert = AlertFactory.info(message("orientation.auto.align.no.gong"));
             alert.showAndWait();
@@ -609,9 +701,12 @@ class Step2ImageOrientationHandler implements StepHandler {
                 var gongRadius = Math.min(gongWidth, gongHeight) * 0.45;
                 var targetRadius = (int) Math.round(gongRadius);
 
-                // Try all 4 flip combinations. For each: apply flip → apply
-                // p-angle → rescale → detect angle. Score by confidence × alignedNCC.
-                var flips = new boolean[][]{{false, false}, {true, false}, {false, true}, {true, true}};
+                // When searching flips: try all 4 combinations and score by
+                // confidence × alignedNCC. When disabled: only try NONE so
+                // the search is limited to rotation for an already-oriented image.
+                var flips = autoAlignSearchFlips
+                    ? new boolean[][]{{false, false}, {true, false}, {false, true}, {true, true}}
+                    : new boolean[][]{{false, false}};
                 var flipNames = new String[]{"NONE", "HORIZONTAL", "VERTICAL", "BOTH"};
                 var bestScore = -1.0;
                 var bestAngle = 0.0;
@@ -667,8 +762,9 @@ class Step2ImageOrientationHandler implements StepHandler {
                 }
 
                 // Normalize: if |angle| > 90°, convert to equivalent flip
-                // with smaller angle (BOTH±180° ≡ NONE, H±180° ≡ V)
-                if (Math.abs(bestAngle) > 90) {
+                // with smaller angle (BOTH±180° ≡ NONE, H±180° ≡ V).
+                // Skip when the user opted out of flips — they want rotation only.
+                if (autoAlignSearchFlips && Math.abs(bestAngle) > 90) {
                     bestHFlip = !bestHFlip;
                     bestVFlip = !bestVFlip;
                     bestAngle = bestAngle > 0 ? bestAngle - 180 : bestAngle + 180;
@@ -715,7 +811,7 @@ class Step2ImageOrientationHandler implements StepHandler {
         return null;
     }
 
-    private void restoreAutoAlignButton(Button button, String alertMessage) {
+    private void restoreAutoAlignButton(SplitMenuButton button, String alertMessage) {
         button.setDisable(false);
         button.setText(message("orientation.button.auto.align"));
         if (alertMessage != null) {
@@ -736,6 +832,16 @@ class Step2ImageOrientationHandler implements StepHandler {
             }
         }
         return gray;
+    }
+
+    private static String formatOffset(long minutes) {
+        if (minutes == 0) {
+            return message("orientation.gong.offset.same");
+        }
+        if (minutes > 0) {
+            return MessageFormat.format(message("orientation.gong.offset.after"), minutes);
+        }
+        return MessageFormat.format(message("orientation.gong.offset.before"), -minutes);
     }
 
     private static String message(String messageKey) {
