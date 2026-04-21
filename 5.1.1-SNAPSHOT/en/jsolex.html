@@ -1737,7 +1737,29 @@ result = autocrop(img(pixelShift), cropRatio)</code></pre>
 <li>
 <p><strong>params</strong>: Container for parameter definitions</p>
 </li>
+<li>
+<p><strong>requirements</strong>: Container for declaring image kinds that must be generated for the script to work (see <a href="#script-requirements">Script Requirements</a>)</p>
+</li>
 </ul>
+</div>
+</div>
+<div class="sect3">
+<h4 id="script-requirements">Script Requirements</h4>
+<div class="paragraph">
+<p>A script may declare image kinds that it needs to perform its job. When a script is executed, any <code>GeneratedImageKind</code> listed in the <code>requirements</code> block will be added to the list of images to generate, as if the user had explicitly selected them in the image selection panel.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">meta {
+    title = "Active regions on continuum"
+    requirements {
+        images = [ "CONTINUUM", "ACTIVE_REGIONS" ]
+    }
+}</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Unknown image kinds are silently ignored. Implied kinds are automatically included (for example <code>ELLERMAN_BOMBS</code> implies <code>FLARES</code>).</p>
 </div>
 </div>
 <div class="sect3">
