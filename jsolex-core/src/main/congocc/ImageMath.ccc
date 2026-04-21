@@ -391,6 +391,21 @@ NumericalLiteral#NumericalLiteral :
 
 INJECT NumericalLiteral: extends Expression;
 
+SignedNumericalLiteral#SignedNumericalLiteral :
+   [<MINUS> | <PLUS>] NumericalLiteral
+;
+
+INJECT SignedNumericalLiteral: extends Expression
+{
+    public Number numberValue() {
+        var text = toString().replaceAll("\\s+", "");
+        if (text.contains(".")) {
+            return Double.parseDouble(text);
+        }
+        return Long.parseLong(text);
+    }
+}
+
 NamedArgument :
     <IDENTIFIER> <COLON> Expression =>||;
 
@@ -505,8 +520,8 @@ INJECT ParameterDef:
         return firstChildOfType(StringLiteral.class);
     }
 
-    public NumericalLiteral getNumberValue() {
-        return firstChildOfType(NumericalLiteral.class);
+    public SignedNumericalLiteral getNumberValue() {
+        return firstChildOfType(SignedNumericalLiteral.class);
     }
 
     public ParameterArray getArrayValue() {
@@ -529,7 +544,7 @@ INJECT ParameterDef:
 ParameterValue:
     ParameterObject |
     StringLiteral |
-    NumericalLiteral;
+    SignedNumericalLiteral;
 
 ParameterObject:
     <LBRACE> (ParameterProperty)* <RBRACE>;
@@ -576,7 +591,7 @@ INJECT ParameterProperty:
         // Fallback: if ParameterPropertyValue is optimized away, create a virtual one
         var virtualValue = new ParameterPropertyValue();
         virtualValue.addAll(childrenOfType(StringLiteral.class));
-        virtualValue.addAll(childrenOfType(NumericalLiteral.class));
+        virtualValue.addAll(childrenOfType(SignedNumericalLiteral.class));
         virtualValue.addAll(childrenOfType(ParameterObject.class));
         virtualValue.addAll(childrenOfType(ParameterArray.class));
         return virtualValue;
@@ -592,15 +607,10 @@ INJECT ParameterProperty:
 
     public Optional<Number> getNumberValue() {
         var value = getValue();
-        var numLiteral = value.firstChildOfType(NumericalLiteral.class);
+        var numLiteral = value.firstChildOfType(SignedNumericalLiteral.class);
         if (numLiteral != null) {
             try {
-                var str = numLiteral.toString();
-                if (str.contains(".")) {
-                    return Optional.of(Double.parseDouble(str));
-                } else {
-                    return Optional.of(Long.parseLong(str));
-                }
+                return Optional.of(numLiteral.numberValue());
             } catch (NumberFormatException e) {
                 return Optional.empty();
             }
@@ -611,7 +621,7 @@ INJECT ParameterProperty:
 
 ParameterPropertyValue:
     StringLiteral |
-    NumericalLiteral |
+    SignedNumericalLiteral |
     ParameterObject |
     ParameterArray;
 
@@ -668,7 +678,7 @@ INJECT MetaContent:
 }
 
 MetaProperty:
-    <IDENTIFIER> (<ASSIGNMENT> (StringLiteral | NumericalLiteral) | ParameterObject);
+    <IDENTIFIER> (<ASSIGNMENT> (StringLiteral | SignedNumericalLiteral) | ParameterObject);
 
 ParametersBlock:
     <PARAMS> <LBRACE> (ParameterDef)* <RBRACE>;

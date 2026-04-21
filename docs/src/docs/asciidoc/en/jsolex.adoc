@@ -640,6 +640,24 @@ JSol'Ex supports three parameter types:
 * **title**: Display name for the script (supports multiple languages)
 * **requires**: Minimum JSol'Ex version needed (displays warning if not met)
 * **params**: Container for parameter definitions
+* **requirements**: Container for declaring image kinds that must be generated for the script to work (see <<#script-requirements,Script Requirements>>)
+
+[[script-requirements]]
+==== Script Requirements
+
+A script may declare image kinds that it needs to perform its job. When a script is executed, any `GeneratedImageKind` listed in the `requirements` block will be added to the list of images to generate, as if the user had explicitly selected them in the image selection panel.
+
+[source]
+----
+meta {
+    title = "Active regions on continuum"
+    requirements {
+        images = [ "CONTINUUM", "ACTIVE_REGIONS" ]
+    }
+}
+----
+
+Unknown image kinds are silently ignored. Implied kinds are automatically included (for example `ELLERMAN_BOMBS` implies `FLARES`).
 
 ==== Localization
 

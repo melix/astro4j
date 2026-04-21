@@ -15,6 +15,10 @@
  */
 package me.champeau.a4j.jsolex.processing.sun.workflow;
 
+import java.util.ArrayDeque;
+import java.util.EnumSet;
+import java.util.Set;
+
 /**
  * The different kinds of images that this software
  * supports.
@@ -69,5 +73,42 @@ public enum GeneratedImageKind {
                 || this == GeneratedImageKind.REDSHIFT
                 || this == GeneratedImageKind.ELLERMAN_BOMBS
                 || this == GeneratedImageKind.FLARES;
+    }
+
+    /**
+     * Returns the set of image kinds implied by this kind. When a kind
+     * is requested, all its implied kinds should also be generated.
+     */
+    public Set<GeneratedImageKind> impliedKinds() {
+        if (this == ELLERMAN_BOMBS) {
+            return EnumSet.of(FLARES);
+        }
+        return EnumSet.noneOf(GeneratedImageKind.class);
+    }
+
+    /**
+     * Returns whether this image kind requires the continuum pixel shift
+     * to be available during processing.
+     */
+    public boolean requiresContinuumShift() {
+        return switch (this) {
+            case CONTINUUM, ACTIVE_REGIONS, REDSHIFT, ELLERMAN_BOMBS, FLARES -> true;
+            default -> false;
+        };
+    }
+
+    /**
+     * Expands a set of image kinds by adding all transitively implied kinds.
+     */
+    public static Set<GeneratedImageKind> expandImplied(Set<GeneratedImageKind> kinds) {
+        var expanded = EnumSet.noneOf(GeneratedImageKind.class);
+        var worklist = new ArrayDeque<>(kinds);
+        while (!worklist.isEmpty()) {
+            var kind = worklist.poll();
+            if (expanded.add(kind)) {
+                worklist.addAll(kind.impliedKinds());
+            }
+        }
+        return expanded;
     }
 }

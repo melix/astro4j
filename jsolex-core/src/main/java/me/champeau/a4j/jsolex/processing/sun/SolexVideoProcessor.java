@@ -120,6 +120,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -271,6 +272,7 @@ public class SolexVideoProcessor implements Broadcaster {
         if (tryReadMetadata()) {
             binningIsReliable = true;
         }
+        mergeScriptRequirements();
         if (processParams.extraParams().autosave()) {
             File configFile = outputDirectory.resolve("config.json").toFile();
             processParams.saveTo(configFile);
@@ -311,6 +313,35 @@ public class SolexVideoProcessor implements Broadcaster {
             }
             generateImages(converter, header, fpsRef.get(), serFile);
         }
+    }
+
+    private void mergeScriptRequirements() {
+        var mathImages = processParams.combinedImageMathParams();
+        if (mathImages.scriptFiles().isEmpty()) {
+            return;
+        }
+        var required = EnumSet.noneOf(GeneratedImageKind.class);
+        for (var scriptFile : mathImages.scriptFiles()) {
+            try {
+                var result = ScriptParameterExtractor.extractParameters(scriptFile.toPath());
+                required.addAll(result.getRequiredImages());
+            } catch (Exception e) {
+                LOGGER.warn("Could not extract requirements from script {}: {}", scriptFile, e.getMessage());
+            }
+        }
+        if (required.isEmpty()) {
+            return;
+        }
+        var currentImages = processParams.requestedImages().images();
+        var merged = EnumSet.noneOf(GeneratedImageKind.class);
+        merged.addAll(currentImages);
+        merged.addAll(required);
+        var expanded = GeneratedImageKind.expandImplied(merged);
+        if (expanded.equals(currentImages)) {
+            return;
+        }
+        LOGGER.info(message("script.requirements.added"), required);
+        processParams = processParams.withRequestedImages(processParams.requestedImages().withImages(expanded));
     }
 
     private boolean tryReadMetadata() {

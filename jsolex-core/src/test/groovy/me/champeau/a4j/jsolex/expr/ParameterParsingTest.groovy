@@ -22,6 +22,7 @@ import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor
 import me.champeau.a4j.jsolex.processing.params.ImageMathParameterExtractor
 import me.champeau.a4j.jsolex.processing.params.OutputMetadata
 import me.champeau.a4j.jsolex.processing.params.PythonParameterExtractor
+import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind
 import spock.lang.Specification
 
 class ParameterParsingTest extends Specification {
@@ -575,6 +576,131 @@ def single():
         contMeta.isPresent()
         contMeta.get().imageType() == null
         contMeta.get().getDisplayTitle("en") == "Continuum"
+    }
+
+    def "parses negative default value"() {
+        def script = """meta {
+    params {
+        shift {
+            type = "number"
+            default = -1
+            min = -10
+            max = 10
+        }
+        gamma {
+            type = "number"
+            default = -1.5
+        }
+    }
+}"""
+        def extractor = new ImageMathParameterExtractor()
+
+        when:
+        def result = extractor.extractParameters(script)
+
+        then:
+        result != null
+        result.hasParametersSection()
+        result.parameters.size() == 2
+
+        def shiftParam = result.parameters.find { it.name == "shift" }
+        shiftParam != null
+        shiftParam.defaultValue == -1L
+        shiftParam.min == -10d
+        shiftParam.max == 10d
+
+        def gammaParam = result.parameters.find { it.name == "gamma" }
+        gammaParam != null
+        gammaParam.defaultValue == -1.5d
+    }
+
+    def "extracts required images from requirements block"() {
+        def script = """meta {
+    title = "Requires continuum"
+    requirements {
+        images = [ "CONTINUUM", "ACTIVE_REGIONS" ]
+    }
+}
+
+[[single]]
+result = continuum()"""
+        def extractor = new ImageMathParameterExtractor()
+
+        when:
+        def result = extractor.extractParameters(script)
+
+        then:
+        result != null
+        result.requiredImages.size() == 2
+        result.requiredImages.contains(GeneratedImageKind.CONTINUUM)
+        result.requiredImages.contains(GeneratedImageKind.ACTIVE_REGIONS)
+    }
+
+    def "accepts comma-separated string for requirements"() {
+        def script = """meta {
+    requirements {
+        images = "CONTINUUM, ACTIVE_REGIONS"
+    }
+}"""
+        def extractor = new ImageMathParameterExtractor()
+
+        when:
+        def result = extractor.extractParameters(script)
+
+        then:
+        result != null
+        result.requiredImages.size() == 2
+        result.requiredImages.contains(GeneratedImageKind.CONTINUUM)
+        result.requiredImages.contains(GeneratedImageKind.ACTIVE_REGIONS)
+    }
+
+    def "ignores unknown image kinds in requirements"() {
+        def script = """meta {
+    requirements {
+        images = [ "CONTINUUM", "UNKNOWN_KIND" ]
+    }
+}"""
+        def extractor = new ImageMathParameterExtractor()
+
+        when:
+        def result = extractor.extractParameters(script)
+
+        then:
+        result != null
+        result.requiredImages.size() == 1
+        result.requiredImages.contains(GeneratedImageKind.CONTINUUM)
+    }
+
+    def "no requirements block yields empty required images set"() {
+        def script = """meta {
+    title = "No requirements"
+}"""
+        def extractor = new ImageMathParameterExtractor()
+
+        when:
+        def result = extractor.extractParameters(script)
+
+        then:
+        result != null
+        result.requiredImages.isEmpty()
+    }
+
+    def "python scripts support requires_images meta comment"() {
+        def script = """# meta:title = "Script"
+# meta:requires_images = "CONTINUUM,ACTIVE_REGIONS"
+
+def single():
+    pass"""
+        def extractor = new PythonParameterExtractor()
+
+        when:
+        def result = extractor.extractParameters(script, "test.py")
+
+        then:
+        result != null
+        result.requiredImages.size() == 2
+        result.requiredImages.contains(GeneratedImageKind.CONTINUUM)
+        result.requiredImages.contains(GeneratedImageKind.ACTIVE_REGIONS)
     }
 
     def "section named outputs is correctly identified"() {
