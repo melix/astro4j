@@ -210,7 +210,8 @@ public final class BatchProcessingHelper {
             var unused = ReferenceIntensities.INSTANCE;
             try {
                 var parallelism = Configuration.getInstance().getBatchParallelism();
-                var semaphore = new Semaphore(parallelism);
+                var reconstructionSemaphore = new Semaphore(parallelism);
+                var totalInFlightSemaphore = new Semaphore(parallelism + 1);
                 try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
                     for (int fileIdx = 0; fileIdx < selectedFiles.size(); fileIdx++) {
                         if (Thread.currentThread().isInterrupted() || interrupted.get()) {
@@ -224,15 +225,22 @@ public final class BatchProcessingHelper {
                         int finalFileIdx = fileIdx;
                         executor.submit(() -> {
                             try {
-                                semaphore.acquire();
+                                totalInFlightSemaphore.acquire();
                             } catch (InterruptedException ie) {
                                 Thread.currentThread().interrupt();
                                 return;
                             }
-                            var released = new AtomicBoolean(false);
-                            Runnable releaseOnce = () -> {
-                                if (released.compareAndSet(false, true)) {
-                                    semaphore.release();
+                            try {
+                                reconstructionSemaphore.acquire();
+                            } catch (InterruptedException ie) {
+                                totalInFlightSemaphore.release();
+                                Thread.currentThread().interrupt();
+                                return;
+                            }
+                            var reconstructionReleased = new AtomicBoolean(false);
+                            Runnable releaseReconstructionOnce = () -> {
+                                if (reconstructionReleased.compareAndSet(false, true)) {
+                                    reconstructionSemaphore.release();
                                 }
                             };
                             try {
@@ -246,10 +254,11 @@ public final class BatchProcessingHelper {
                                         header,
                                         interrupted,
                                         autoTrimSerFile,
-                                        releaseOnce
+                                        releaseReconstructionOnce
                                 );
                             } finally {
-                                releaseOnce.run();
+                                releaseReconstructionOnce.run();
+                                totalInFlightSemaphore.release();
                                 context.updateProgress(singleOperation.complete());
                             }
                         });

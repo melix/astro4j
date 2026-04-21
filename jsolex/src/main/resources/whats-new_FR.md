@@ -7,6 +7,8 @@
 - SpectroSolHub En Direct : en mode lot, seules les images produites par la section de sortie `[[batch]]` des scripts sont envoyées. Un avertissement est consigné à la fin du lot si aucune image n'a été envoyée.
 - Assistants d'orientation (BASS2000, SpectroSolHub) : l'image de référence GONG peut être changée pour celle d'un autre observatoire via un sélecteur superposé à l'image, et l'alignement automatique peut être restreint à la rotation seule quand l'image est déjà correctement retournée.
 - Correction de l'alignement des images qui n'était pas annulé lors d'un clic sur un bouton de zoom (+, -, 1:1, ajuster) après avoir activé l'alignement des images.
+- Correction du traitement par lot qui lançait bien plus de fichiers en parallèle que la limite configurée, ce qui pouvait épuiser la mémoire sur les gros lots.
+- Correction du tableau du traitement par lot qui affichait parfois le contenu d'une autre ligne (barre de progression, redshift ou liens vers les images générées) lors du défilement sur de nombreux fichiers.
 
 ## Nouveautés de la version 5.1.0
 

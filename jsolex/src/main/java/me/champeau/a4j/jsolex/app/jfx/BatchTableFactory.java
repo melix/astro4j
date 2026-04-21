@@ -180,56 +180,62 @@ public final class BatchTableFactory {
     private static class ProgressCellFactory implements Callback<TableColumn<BatchItem, Number>, TableCell<BatchItem, Number>> {
         @Override
         public TableCell<BatchItem, Number> call(TableColumn<BatchItem, Number> param) {
-            var cell = new TableCell<BatchItem, Number>();
-            cell.itemProperty().addListener((observable, oldValue, newValue) -> {
-                if (newValue != null) {
-                    var node = cell.graphicProperty().get();
-                    if (node instanceof ProgressBar progress) {
-                        progress.setProgress(newValue.doubleValue());
+            return new TableCell<>() {
+                @Override
+                protected void updateItem(Number item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (empty || item == null) {
+                        setGraphic(null);
+                    } else if (getGraphic() instanceof ProgressBar progress) {
+                        progress.setProgress(item.doubleValue());
                     } else {
-                        var progress = new ProgressBar(newValue.doubleValue());
-                        cell.graphicProperty().set(progress);
+                        setGraphic(new ProgressBar(item.doubleValue()));
                     }
                 }
-            });
-            return cell;
+            };
         }
     }
 
     private static class RedshiftCellFactory implements Callback<TableColumn<BatchItem, Double>, TableCell<BatchItem, Double>> {
         @Override
         public TableCell<BatchItem, Double> call(TableColumn<BatchItem, Double> column) {
-            var cell = new TableCell<BatchItem, Double>();
-            cell.itemProperty().addListener((observable, oldValue, newValue) -> {
-                if (newValue != null) {
-                    cell.graphicProperty().set(new Label(String.format("%.2f km/s", newValue)));
+            return new TableCell<>() {
+                @Override
+                protected void updateItem(Double item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (empty || item == null) {
+                        setGraphic(null);
+                    } else if (getGraphic() instanceof Label label) {
+                        label.setText(String.format("%.2f km/s", item));
+                    } else {
+                        setGraphic(new Label(String.format("%.2f km/s", item)));
+                    }
                 }
-            });
-            return cell;
+            };
         }
     }
 
     private static class ImageLinksFactory implements Callback<TableColumn<BatchItem, List<File>>, TableCell<BatchItem, List<File>>> {
         @Override
         public TableCell<BatchItem, List<File>> call(TableColumn<BatchItem, List<File>> param) {
-            var cell = new TableCell<BatchItem, List<File>>();
-            cell.itemProperty().addListener((observable, oldValue, newValue) -> {
-                if (newValue != null && !newValue.isEmpty()) {
-                    var vbox = (VBox) cell.graphicProperty().get();
-                    if (vbox == null) {
-                        vbox = new VBox();
-                        cell.graphicProperty().set(vbox);
-                    } else {
-                        vbox.getChildren().clear();
+            return new TableCell<>() {
+                @Override
+                protected void updateItem(List<File> item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (empty || item == null || item.isEmpty()) {
+                        setGraphic(null);
+                        return;
                     }
-                    for (File file : newValue) {
+                    var vbox = getGraphic() instanceof VBox existing ? existing : new VBox();
+                    vbox.getChildren().clear();
+                    for (File file : item) {
                         var link = new Hyperlink(file.getName());
                         link.setOnAction(e -> ExplorerSupport.openInExplorer(file.toPath()));
                         vbox.getChildren().add(link);
                     }
+                    setGraphic(vbox);
                 }
-            });
-            return cell;
+            };
         }
     }
 }

@@ -7,6 +7,8 @@
 - SpectroSolHub Live: in batch mode, only images produced by the `[[batch]]` output section of scripts are uploaded. A warning is logged at the end of a batch if no image was uploaded.
 - Orientation wizards (BASS2000, SpectroSolHub): the GONG reference image can be switched to another observatory via a picker overlaid on the image, and auto-align can be restricted to rotation-only when the image is already correctly flipped.
 - Fixed image viewer alignment not being cancelled when clicking a zoom button (+, -, 1:1, fit) after having activated image alignment.
+- Fixed batch processing starting many more files in parallel than the configured limit, which could exhaust memory on large batches.
+- Fixed the batch processing table occasionally displaying the wrong row's content (progress bar, redshift, or generated image links) when scrolling through many files.
 
 ## What's New in Version 5.1.0
 
