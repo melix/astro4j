@@ -22,6 +22,7 @@ import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -148,6 +149,12 @@ public class NOAARegions {
                 downloadSRSData(targetFolder, utcDate, year, month, day);
                 operation.complete();
                 broadcaster.broadcast(operation);
+            } catch (FileNotFoundException ex) {
+                LOGGER.info(String.format(message("srs.unavailable"), year, month, day));
+                operation.complete();
+                broadcaster.broadcast(operation);
+                FAILED_DATES.add(localDate);
+                return Optional.empty();
             } catch (Exception ex) {
                 LOGGER.warn(String.format(message("download.srs.failed"), year, month, day), ex);
                 operation.complete(String.format(message("download.srs.failed"), year, month, day));
@@ -166,21 +173,27 @@ public class NOAARegions {
 
     private static void downloadSRSData(Path targetFolder, ZonedDateTime utcDate, int year, int month, int day) throws IOException, URISyntaxException {
         LOGGER.info(String.format(message("download.srs.data"), year, month, day));
-        // There are 3 options:
-        // 1. the date is < 75 days, in which case we can get the file from the recent archive
-        // 2. the date is > 75 days, in which case we need to download the archive
-        //   a. if it's the same year, files are in the same year folder
-        //   b. if it's a different year, we need to download the archive
+        // Recent files are kept in /pub/forecasts/SRS/ with a sliding window; older ones
+        // must be fetched from /pub/warehouse/. If the recent endpoint returns 404 for a
+        // date older than 7 days, fall back to the warehouse.
         var now = ZonedDateTime.now().withZoneSameInstant(ZoneId.of("UTC"));
         var days = Duration.between(utcDate, now).toDays();
         if (days < 75) {
-            downloadSingleRecentFile(year, month, day, targetFolder);
-        } else {
-            if (year == now.getYear()) {
-                downloadSingleSameYearFile(year, month, day, targetFolder);
-            } else {
-                downloadArchive(year, targetFolder);
+            try {
+                downloadSingleRecentFile(year, month, day, targetFolder);
+                LOGGER.info(message("download.srs.data.done"));
+                return;
+            } catch (FileNotFoundException e) {
+                if (days <= 7) {
+                    throw e;
+                }
+                LOGGER.info("SRS file not found in recent folder, falling back to warehouse for {}-{}-{}", year, month, day);
             }
+        }
+        if (year == now.getYear()) {
+            downloadSingleSameYearFile(year, month, day, targetFolder);
+        } else {
+            downloadArchive(year, targetFolder);
         }
         LOGGER.info(message("download.srs.data.done"));
     }

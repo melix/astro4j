@@ -9,6 +9,8 @@
 - Fixed image viewer alignment not being cancelled when clicking a zoom button (+, -, 1:1, fit) after having activated image alignment.
 - Fixed batch processing starting many more files in parallel than the configured limit, which could exhaust memory on large batches.
 - Fixed the batch processing table occasionally displaying the wrong row's content (progress bar, redshift, or generated image links) when scrolling through many files.
+- ImageMath: the `meta { ... }` block now supports an optional `requirements { images = [...] }` section that ensures the listed image kinds are generated automatically when the script runs.
+- ImageMath: negative default values (e.g. `default = -1`) are now accepted in the `meta { params { ... } }` block.
 
 ## What's New in Version 5.1.0
 

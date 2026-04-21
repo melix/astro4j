@@ -22,19 +22,23 @@ import me.champeau.a4j.jsolex.expr.ast.MetaBlock;
 import me.champeau.a4j.jsolex.expr.ast.MetaProperty;
 import me.champeau.a4j.jsolex.expr.ast.OutputDef;
 import me.champeau.a4j.jsolex.expr.ast.OutputsBlock;
+import me.champeau.a4j.jsolex.expr.ast.ParameterArray;
 import me.champeau.a4j.jsolex.expr.ast.ParameterDef;
 import me.champeau.a4j.jsolex.expr.ast.ParameterObject;
 import me.champeau.a4j.jsolex.expr.ast.ParameterProperty;
 import me.champeau.a4j.jsolex.expr.ast.StringLiteral;
+import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.VersionUtil;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 public class ImageMathParameterExtractor {
 
@@ -48,6 +52,7 @@ public class ImageMathParameterExtractor {
         private final String author;
         private final String version;
         private final Map<String, OutputMetadata> outputsMetadata;
+        private final Set<GeneratedImageKind> requiredImages;
 
         public ParameterExtractionResult(List<ScriptParameter> parameters,
                                          boolean hasParametersSection,
@@ -58,6 +63,19 @@ public class ImageMathParameterExtractor {
                                          String author,
                                          String version,
                                          Map<String, OutputMetadata> outputsMetadata) {
+            this(parameters, hasParametersSection, title, description, scriptFileName, requiredVersion, author, version, outputsMetadata, Set.of());
+        }
+
+        public ParameterExtractionResult(List<ScriptParameter> parameters,
+                                         boolean hasParametersSection,
+                                         Map<String, String> title,
+                                         Map<String, String> description,
+                                         String scriptFileName,
+                                         String requiredVersion,
+                                         String author,
+                                         String version,
+                                         Map<String, OutputMetadata> outputsMetadata,
+                                         Set<GeneratedImageKind> requiredImages) {
             this.parameters = List.copyOf(parameters);
             this.hasParametersSection = hasParametersSection;
             this.title = Map.copyOf(title != null ? title : Map.of());
@@ -67,6 +85,9 @@ public class ImageMathParameterExtractor {
             this.author = author;
             this.version = version;
             this.outputsMetadata = outputsMetadata != null ? Map.copyOf(outputsMetadata) : Map.of();
+            this.requiredImages = requiredImages == null || requiredImages.isEmpty()
+                    ? Set.of()
+                    : Set.copyOf(EnumSet.copyOf(requiredImages));
         }
 
         public List<ScriptParameter> getParameters() {
@@ -107,6 +128,10 @@ public class ImageMathParameterExtractor {
 
         public Optional<OutputMetadata> getOutputMetadata(String outputName) {
             return Optional.ofNullable(outputsMetadata.get(outputName));
+        }
+
+        public Set<GeneratedImageKind> getRequiredImages() {
+            return requiredImages;
         }
 
         public boolean isVersionSupported() {
@@ -198,6 +223,7 @@ public class ImageMathParameterExtractor {
         String author = null;
         String version = null;
         Map<String, OutputMetadata> outputsMetadata = new HashMap<>();
+        Set<GeneratedImageKind> requiredImages = EnumSet.noneOf(GeneratedImageKind.class);
 
         var metaBlocks = script.childrenOfType(MetaBlock.class);
         for (var metaBlock : metaBlocks) {
@@ -227,6 +253,8 @@ public class ImageMathParameterExtractor {
                         if (stringLiteral != null) {
                             version = stringLiteral.toString();
                         }
+                    } else if ("requirements".equals(name)) {
+                        requiredImages.addAll(extractRequiredImages(property));
                     }
                 }
             }
@@ -253,7 +281,44 @@ public class ImageMathParameterExtractor {
             }
         }
 
-        return new ParameterExtractionResult(parameters, hasParametersSection, title, description, fileName, requiredVersion, author, version, outputsMetadata);
+        return new ParameterExtractionResult(parameters, hasParametersSection, title, description, fileName, requiredVersion, author, version, outputsMetadata, requiredImages);
+    }
+
+    private Set<GeneratedImageKind> extractRequiredImages(MetaProperty property) {
+        var result = EnumSet.noneOf(GeneratedImageKind.class);
+        var paramObj = property.firstChildOfType(ParameterObject.class);
+        if (paramObj == null) {
+            return result;
+        }
+        for (var prop : paramObj.getProperties()) {
+            if (!"images".equals(prop.getName())) {
+                continue;
+            }
+            var value = prop.getValue();
+            var array = value.firstChildOfType(ParameterArray.class);
+            if (array != null) {
+                for (var element : array.getElements()) {
+                    addImageKind(result, element.toString());
+                }
+            } else {
+                prop.getStringValue().ifPresent(str -> {
+                    for (var token : str.split(",")) {
+                        addImageKind(result, token.trim());
+                    }
+                });
+            }
+        }
+        return result;
+    }
+
+    private static void addImageKind(Set<GeneratedImageKind> target, String name) {
+        if (name == null || name.isBlank()) {
+            return;
+        }
+        try {
+            target.add(GeneratedImageKind.valueOf(name.trim().toUpperCase()));
+        } catch (IllegalArgumentException ignored) {
+        }
     }
 
     private OutputMetadata extractOutputMetadata(OutputDef outputDef) {

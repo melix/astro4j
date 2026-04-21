@@ -841,12 +841,12 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         }
         if (ellermanBombs.isSelected()) {
             images.add(GeneratedImageKind.ELLERMAN_BOMBS);
-            images.add(GeneratedImageKind.FLARES);
         }
         if (debug.isSelected()) {
             images.add(GeneratedImageKind.DEBUG);
         }
 
+        var expandedImages = GeneratedImageKind.expandImplied(images);
         var normalShifts = new ArrayList<>(calculatePixelShiftsForSelectedImages());
         var internalShiftsSet = new HashSet<>(calculateInternalPixelShiftsForSelectedImages());
 
@@ -862,7 +862,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         normalShifts.forEach(internalShiftsSet::remove);
         
         return new RequestedImages(
-            images,
+            expandedImages,
             normalShifts.stream().distinct().toList(),
             internalShiftsSet,
             requestedWaveLengths == null ? Set.of() : Collections.unmodifiableSet(requestedWaveLengths),
@@ -1046,11 +1046,10 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         if (activeRegions.isSelected()) images.add(GeneratedImageKind.ACTIVE_REGIONS);
         if (ellermanBombs.isSelected()) {
             images.add(GeneratedImageKind.ELLERMAN_BOMBS);
-            images.add(GeneratedImageKind.FLARES);
         }
         if (debug.isSelected()) images.add(GeneratedImageKind.DEBUG);
 
-        return images;
+        return GeneratedImageKind.expandImplied(images);
     }
 
     private void loadUserPresets() {

@@ -9,6 +9,8 @@
 - Correction de l'alignement des images qui n'était pas annulé lors d'un clic sur un bouton de zoom (+, -, 1:1, ajuster) après avoir activé l'alignement des images.
 - Correction du traitement par lot qui lançait bien plus de fichiers en parallèle que la limite configurée, ce qui pouvait épuiser la mémoire sur les gros lots.
 - Correction du tableau du traitement par lot qui affichait parfois le contenu d'une autre ligne (barre de progression, redshift ou liens vers les images générées) lors du défilement sur de nombreux fichiers.
+- ImageMath : le bloc `meta { ... }` accepte désormais une section optionnelle `requirements { images = [...] }` qui garantit la génération des types d'images listés lorsque le script s'exécute.
+- ImageMath : les valeurs par défaut négatives (par exemple `default = -1`) sont désormais acceptées dans le bloc `meta { params { ... } }`.
 
 ## Nouveautés de la version 5.1.0
 

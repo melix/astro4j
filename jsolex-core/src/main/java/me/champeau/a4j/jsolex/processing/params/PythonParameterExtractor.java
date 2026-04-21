@@ -16,14 +16,17 @@
 package me.champeau.a4j.jsolex.processing.params;
 
 import me.champeau.a4j.jsolex.processing.params.ImageMathParameterExtractor.ParameterExtractionResult;
+import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
@@ -72,6 +75,7 @@ public class PythonParameterExtractor {
         String author = null;
         String version = null;
         String requiredVersion = null;
+        Set<GeneratedImageKind> requiredImages = EnumSet.noneOf(GeneratedImageKind.class);
 
         // Collect parameter properties by parameter name
         Map<String, Map<String, Object>> paramProperties = new HashMap<>();
@@ -96,6 +100,17 @@ public class PythonParameterExtractor {
                     case "author" -> author = value;
                     case "version" -> version = value;
                     case "requires" -> requiredVersion = value;
+                    case "requires_images" -> {
+                        for (var token : value.split(",")) {
+                            var trimmed = token.trim();
+                            if (!trimmed.isEmpty()) {
+                                try {
+                                    requiredImages.add(GeneratedImageKind.valueOf(trimmed.toUpperCase()));
+                                } catch (IllegalArgumentException ignored) {
+                                }
+                            }
+                        }
+                    }
                 }
                 continue;
             }
@@ -184,7 +199,8 @@ public class PythonParameterExtractor {
             requiredVersion,
             author,
             version,
-            outputsMetadata
+            outputsMetadata,
+            requiredImages
         );
     }
 

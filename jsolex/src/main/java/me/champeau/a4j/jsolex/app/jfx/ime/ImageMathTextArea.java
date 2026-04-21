@@ -1130,10 +1130,10 @@ public class ImageMathTextArea extends BorderPane {
 
     private String getParameterContextStyle(Node token) {
         // Known parameter properties
-        var knownProperties = Set.of("type", "name", "description", "default", "min", "max", "choices", "step", "image_type");
+        var knownProperties = Set.of("type", "name", "description", "default", "min", "max", "choices", "step", "image_type", "images");
 
         // Known meta properties
-        var knownMetaProperties = Set.of("author", "title", "description", "version", "requires");
+        var knownMetaProperties = Set.of("author", "title", "description", "version", "requires", "requirements");
 
         // Language codes (extend as needed)
         var languageCodes = Set.of("en", "fr", "de", "es", "it", "pt", "nl", "sv", "da", "no", "fi", "pl", "cs", "sk", "hu", "ro", "bg", "hr", "sl", "et", "lv", "lt", "mt", "ga", "cy");

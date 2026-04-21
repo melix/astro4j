@@ -210,6 +210,13 @@
                         </VBox>
                     </HBox>
                 </VBox>
+
+                <!-- Requirements Section -->
+                <VBox styleClass="panel-section" spacing="12">
+                    <Label text="%requirements" styleClass="panel-section-title"/>
+                    <Label text="%requirements.description" wrapText="true"/>
+                    <VBox fx:id="requirementsContainer" spacing="12"/>
+                </VBox>
             </VBox>
         </ScrollPane>
     </center>

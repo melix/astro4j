@@ -22,11 +22,13 @@ import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
+import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
@@ -35,7 +37,9 @@ import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.Tooltip;
+import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.util.Duration;
@@ -51,13 +55,19 @@ import me.champeau.a4j.jsolex.processing.params.OutputMetadata;
 import me.champeau.a4j.jsolex.processing.params.ParameterType;
 import me.champeau.a4j.jsolex.processing.params.PythonParameterExtractor;
 import me.champeau.a4j.jsolex.processing.params.ScriptParameter;
+import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.VersionUtil;
 
 import java.io.IOException;
+import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.newScene;
 
@@ -125,6 +135,8 @@ public class MetadataEditor {
     @FXML
     private VBox choicesBox;
     @FXML
+    private VBox requirementsContainer;
+    @FXML
     private ListView<OutputModel> outputsList;
     @FXML
     private Button addOutputButton;
@@ -151,6 +163,7 @@ public class MetadataEditor {
     private BiConsumer<String, String> onSave;
     private final ObservableList<ParameterModel> parameters = FXCollections.observableArrayList();
     private final ObservableList<OutputModel> outputs = FXCollections.observableArrayList();
+    private final Map<GeneratedImageKind, CheckBox> requirementCheckBoxes = new EnumMap<>(GeneratedImageKind.class);
     private ParameterModel selectedParameter;
     private OutputModel selectedOutput;
 
@@ -224,6 +237,8 @@ public class MetadataEditor {
             selectedOutput = newValue;
             updateOutputForm();
         });
+
+        buildRequirementsSection();
 
         setupValidationListeners();
         setupHelpIcons();
@@ -439,6 +454,11 @@ public class MetadataEditor {
             var model = new OutputModel(metadata);
             outputs.add(model);
         });
+
+        var requiredKinds = extractionResult.getRequiredImages();
+        for (var entry : requirementCheckBoxes.entrySet()) {
+            entry.getValue().setSelected(requiredKinds.contains(entry.getKey()));
+        }
     }
 
     private MetaBlock findMetaBlock(Object node) {
@@ -932,6 +952,8 @@ public class MetadataEditor {
         writeStringProperty(writer, "version", versionField.getText());
         writeStringProperty(writer, "requires", requiresField.getText());
 
+        writeRequirementsBlock(writer);
+
         if (!parameters.isEmpty()) {
             writer.writeLine("params {");
             writer.indent();
@@ -1019,6 +1041,112 @@ public class MetadataEditor {
 
         writer.dedent();
         writer.writeLine("}");
+    }
+
+    private void writeRequirementsBlock(IndentedWriter writer) {
+        var selected = selectedRequiredKinds();
+        if (selected.isEmpty()) {
+            return;
+        }
+        writer.writeLine("requirements {");
+        writer.indent();
+        var joined = selected.stream()
+                .map(kind -> "\"" + kind.name() + "\"")
+                .collect(Collectors.joining(", "));
+        writer.writeRawProperty("images", "[ " + joined + " ]");
+        writer.dedent();
+        writer.writeLine("}");
+    }
+
+    private Set<GeneratedImageKind> selectedRequiredKinds() {
+        var result = EnumSet.noneOf(GeneratedImageKind.class);
+        for (var entry : requirementCheckBoxes.entrySet()) {
+            if (entry.getValue().isSelected()) {
+                result.add(entry.getKey());
+            }
+        }
+        return result;
+    }
+
+    private static final List<GeneratedImageKind> BASIC_REQUIREMENT_KINDS = List.of(
+            GeneratedImageKind.RAW,
+            GeneratedImageKind.RECONSTRUCTION,
+            GeneratedImageKind.CONTINUUM,
+            GeneratedImageKind.GEOMETRY_CORRECTED,
+            GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED
+    );
+
+    private static final List<GeneratedImageKind> ADVANCED_REQUIREMENT_KINDS = List.of(
+            GeneratedImageKind.COLORIZED,
+            GeneratedImageKind.VIRTUAL_ECLIPSE,
+            GeneratedImageKind.NEGATIVE,
+            GeneratedImageKind.MIXED,
+            GeneratedImageKind.DOPPLER,
+            GeneratedImageKind.DOPPLER_ROTATION_CORRECTED,
+            GeneratedImageKind.DOPPLER_ECLIPSE,
+            GeneratedImageKind.TECHNICAL_CARD,
+            GeneratedImageKind.REDSHIFT,
+            GeneratedImageKind.ACTIVE_REGIONS,
+            GeneratedImageKind.ELLERMAN_BOMBS
+    );
+
+    private void buildRequirementsSection() {
+        requirementsContainer.getChildren().clear();
+        requirementCheckBoxes.clear();
+        requirementsContainer.getChildren().add(buildRequirementsGroup("basic.images", BASIC_REQUIREMENT_KINDS));
+        requirementsContainer.getChildren().add(buildRequirementsGroup("advanced.images", ADVANCED_REQUIREMENT_KINDS));
+    }
+
+    private VBox buildRequirementsGroup(String titleKey, List<GeneratedImageKind> kinds) {
+        var group = new VBox();
+        group.setSpacing(8);
+        var title = new Label(I18N.string(JSolEx.class, "process-params", titleKey));
+        title.getStyleClass().add("field-label");
+        var grid = new GridPane();
+        grid.setHgap(12);
+        grid.setVgap(8);
+        grid.setPadding(new Insets(4, 0, 0, 0));
+        var leftCol = new ColumnConstraints();
+        leftCol.setHgrow(Priority.SOMETIMES);
+        leftCol.setMinWidth(200);
+        var rightCol = new ColumnConstraints();
+        rightCol.setHgrow(Priority.SOMETIMES);
+        rightCol.setMinWidth(200);
+        grid.getColumnConstraints().addAll(leftCol, rightCol);
+        int rows = (kinds.size() + 1) / 2;
+        for (int i = 0; i < kinds.size(); i++) {
+            var kind = kinds.get(i);
+            var checkBox = new CheckBox(requirementLabel(kind));
+            checkBox.setWrapText(true);
+            requirementCheckBoxes.put(kind, checkBox);
+            int column = i / rows;
+            int row = i % rows;
+            grid.add(checkBox, column, row);
+        }
+        group.getChildren().addAll(title, grid);
+        return group;
+    }
+
+    private static String requirementLabel(GeneratedImageKind kind) {
+        return switch (kind) {
+            case RAW -> I18N.string(JSolEx.class, "image-selection", "raw");
+            case RECONSTRUCTION -> I18N.string(JSolEx.class, "image-selection", "reconstruction");
+            case CONTINUUM -> I18N.string(JSolEx.class, "image-selection", "continuum");
+            case GEOMETRY_CORRECTED -> I18N.string(JSolEx.class, "image-selection", "geometry.corrected");
+            case GEOMETRY_CORRECTED_PROCESSED -> I18N.string(JSolEx.class, "image-selection", "geometry.corrected.stretched");
+            case COLORIZED -> I18N.string(JSolEx.class, "image-selection", "colorized");
+            case VIRTUAL_ECLIPSE -> I18N.string(JSolEx.class, "image-selection", "eclipse");
+            case NEGATIVE -> I18N.string(JSolEx.class, "image-selection", "negative.image");
+            case MIXED -> I18N.string(JSolEx.class, "image-selection", "mixed.image");
+            case DOPPLER -> I18N.string(JSolEx.class, "image-selection", "doppler.image");
+            case DOPPLER_ROTATION_CORRECTED -> I18N.string(JSolEx.class, "image-selection", "doppler.rotation.corrected");
+            case DOPPLER_ECLIPSE -> I18N.string(JSolEx.class, "image-selection", "doppler.eclipse");
+            case TECHNICAL_CARD -> I18N.string(JSolEx.class, "image-selection", "technical.card");
+            case REDSHIFT -> I18N.string(JSolEx.class, "image-selection", "redshift");
+            case ACTIVE_REGIONS -> I18N.string(JSolEx.class, "image-selection", "activeregions");
+            case ELLERMAN_BOMBS -> I18N.string(JSolEx.class, "image-selection", "ellerman.bombs");
+            default -> kind.name();
+        };
     }
 
     private void writeOutput(IndentedWriter writer, OutputModel output) {
@@ -1133,6 +1261,14 @@ public class MetadataEditor {
         var requires = requiresField.getText().trim();
         if (!requires.isEmpty()) {
             sb.append("# meta:requires = \"").append(escapePythonString(requires)).append("\"\n");
+        }
+
+        var requiredKinds = selectedRequiredKinds();
+        if (!requiredKinds.isEmpty()) {
+            var joined = requiredKinds.stream()
+                    .map(GeneratedImageKind::name)
+                    .collect(Collectors.joining(","));
+            sb.append("# meta:requires_images = \"").append(joined).append("\"\n");
         }
 
         var descEn = descriptionEnField.getText().trim();

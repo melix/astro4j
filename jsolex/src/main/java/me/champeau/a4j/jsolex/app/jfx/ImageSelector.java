@@ -355,7 +355,6 @@ public class ImageSelector {
         }
         if (ellermanBombs.isSelected()) {
             images.add(GeneratedImageKind.ELLERMAN_BOMBS);
-            images.add(GeneratedImageKind.FLARES);
             if (internalPixelShifts != null) {
                 internalPixelShifts.add(continuumShift);
             }
@@ -368,7 +367,7 @@ public class ImageSelector {
         }
         var pixelShifts = readPixelShifts();
         requestedImages = new RequestedImages(
-            images,
+            GeneratedImageKind.expandImplied(images),
             pixelShifts,
             mode.getSelectionModel().getSelectedItem() == PixelShiftMode.SIMPLE || internalPixelShifts == null ? Set.of() : internalPixelShifts,
             requestesWaveLengths == null ? Set.of() : Collections.unmodifiableSet(requestesWaveLengths),

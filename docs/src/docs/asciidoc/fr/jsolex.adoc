@@ -789,6 +789,24 @@ JSol'Ex supporte trois types de paramètres :
 * **title** : Nom d'affichage pour le script (supporte plusieurs langues)
 * **requires** : Version minimale de JSol'Ex requise (affiche un avertissement si non satisfaite)
 * **params** : Conteneur pour les définitions de paramètres
+* **requirements** : Conteneur pour déclarer les types d'images que le script a besoin pour fonctionner (voir <<#script-requirements,Prérequis de script>>)
+
+[[script-requirements]]
+==== Prérequis de script
+
+Un script peut déclarer les types d'images dont il a besoin pour accomplir sa tâche. Lorsque le script est exécuté, toute valeur de `GeneratedImageKind` listée dans le bloc `requirements` est ajoutée à la liste des images à générer, comme si l'utilisateur les avait sélectionnées explicitement dans le panneau de sélection d'images.
+
+[source]
+----
+meta {
+    title = "Régions actives sur le continuum"
+    requirements {
+        images = [ "CONTINUUM", "ACTIVE_REGIONS" ]
+    }
+}
+----
+
+Les types d'images inconnus sont ignorés silencieusement. Les types induits sont automatiquement inclus (par exemple, `ELLERMAN_BOMBS` implique `FLARES`).
 
 ==== Localisation
 
