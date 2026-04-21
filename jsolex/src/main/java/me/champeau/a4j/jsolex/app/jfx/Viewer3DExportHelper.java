@@ -69,7 +69,7 @@ import java.util.stream.Collectors;
 public final class Viewer3DExportHelper {
 
     public static final int VIDEO_FPS = 30;
-    public static final int LIVE_CYCLE_DURATION_SECONDS = 20;
+    public static final int LIVE_CYCLE_DURATION_SECONDS = 30;
     public static final int VIDEO_CYCLE_DURATION_SECONDS = 10;
     public static final double EXPORT_SIZE_FACTOR = 1.5;
     public static final double BASE_ANIMATION_FREQ = 2 * Math.PI / LIVE_CYCLE_DURATION_SECONDS;

@@ -118,7 +118,8 @@ public class SingleImage3DViewer extends BorderPane {
                 () -> {
                     renderer.setRotation(0, 0);
                     renderer.setCameraDistance(3.0f);
-                }
+                },
+                Viewer3DExportHelper.AnimationParameters.forPattern(0)
         );
         cameraAnimator.start();
 
@@ -193,8 +194,8 @@ public class SingleImage3DViewer extends BorderPane {
 
     private HBox createButtonPanel() {
         var prominencesCheckbox = new CheckBox(I18N.string(JSolEx.class, I18N_BUNDLE, "show.prominences"));
-        prominencesCheckbox.setSelected(true);
-        renderer.setShowProminences(true);
+        prominencesCheckbox.setSelected(false);
+        renderer.setShowProminences(false);
         prominencesCheckbox.selectedProperty().addListener((obs, oldVal, newVal) -> {
             renderer.setShowProminences(newVal);
             glImageView.requestRender();
