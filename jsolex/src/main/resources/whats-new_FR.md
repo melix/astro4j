@@ -1,5 +1,10 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+## Nouveautés de la version 5.1.2
+
+- Correction de la lenteur des boutons Suivant/Précédent dans l'assistant de revue des images du traitement par lot sur les machines disposant de peu de RAM.
+- Correction de l'ordre incohérent des images dans la liste latérale de l'assistant de revue des images du traitement par lot d'un fichier SER à l'autre.
+
 ## Nouveautés de la version 5.1.1
 
 - SpectroSolHub En Direct : des événements de progression sont désormais affichés pendant l'envoi des images

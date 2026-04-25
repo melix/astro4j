@@ -1,5 +1,10 @@
 # Welcome to JSol'Ex {{version}}!
 
+## What's New in Version 5.1.2
+
+- Fixed slow Next/Previous navigation in the batch image review wizard on machines with limited RAM.
+- Fixed inconsistent image ordering in the batch image review wizard side list across SER files.
+
 ## What's New in Version 5.1.1
 
 - SpectroSolHub Live: progress events are now displayed while images are being uploaded
