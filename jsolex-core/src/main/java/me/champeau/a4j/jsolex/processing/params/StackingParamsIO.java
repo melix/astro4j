@@ -89,13 +89,14 @@ public class StackingParamsIO {
 
     public static StackingWorkflow.Parameters predefined() {
         return new StackingWorkflow.Parameters(
-            Stacking.DEFAULT_TILE_SIZE,
+            MosaicComposition.DEFAULT_TILE_SIZE,
             false,
             false,
             null,
             true,
             MosaicComposition.DEFAULT_TILE_SIZE,
-            null
+            null,
+            Stacking.ReferenceSelection.SHARPNESS
         );
     }
 
@@ -142,7 +143,10 @@ public class StackingParamsIO {
                 !obj.has("createMosaic") || obj.get("createMosaic").getAsBoolean(),
                 obj.has("mosaicTileSize") ? obj.get("mosaicTileSize").getAsInt() : MosaicComposition.DEFAULT_TILE_SIZE,
                 obj.has("mosaicPostProcessingScriptFile") && !obj.get("mosaicPostProcessingScriptFile").isJsonNull()
-                    ? new File(obj.get("mosaicPostProcessingScriptFile").getAsString()) : null
+                    ? new File(obj.get("mosaicPostProcessingScriptFile").getAsString()) : null,
+                obj.has("stackingMethod") && !obj.get("stackingMethod").isJsonNull()
+                    ? Stacking.ReferenceSelection.valueOf(obj.get("stackingMethod").getAsString())
+                    : Stacking.ReferenceSelection.SHARPNESS
             );
         }
     }

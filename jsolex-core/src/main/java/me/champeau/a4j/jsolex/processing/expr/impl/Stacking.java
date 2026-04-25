@@ -99,7 +99,34 @@ public class Stacking extends AbstractFunctionImpl {
         if (images.size() == 1) {
             return images.get(0);
         }
+        if (referenceSelection == ReferenceSelection.CONSENSUS) {
+            return stackWithConsensus(images, tileSize, sampling);
+        }
         return doStack(images, tileSize, null, sampling, referenceSelection);
+    }
+
+    /**
+     * Stacks a list of images using the consensus dedistort algorithm: each frame is iteratively
+     * warped to converge towards the true undistorted geometry via pairwise distortion maps.
+     * The dedistorted frames are then averaged. Slower but higher quality than single-reference
+     * stacking when the atmosphere varies significantly across frames.
+     */
+    private ImageWrapper32 stackWithConsensus(List<ImageWrapper32> images, int tileSize, float sampling) {
+        var widths = images.stream().mapToInt(ImageWrapper::width).distinct().toArray();
+        var heights = images.stream().mapToInt(ImageWrapper::height).distinct().toArray();
+        var prepared = prepareForStacking(images, widths, heights);
+        var dedistort = new Dedistort(context, broadcaster);
+        var args = Map.<String, Object>of(
+                "ts", tileSize,
+                "sampling", (double) sampling,
+                "iterations", 3,
+                "adaptive", true
+        );
+        var dedistorted = dedistort.dedistortWithConsensusReference(prepared, args);
+        return (ImageWrapper32) utilities.weightedAverage(Map.of(
+                "images", dedistorted,
+                "weights", dedistorted.stream().map(img -> 1.0).toList()
+        ));
     }
 
     /**
@@ -481,7 +508,7 @@ public class Stacking extends AbstractFunctionImpl {
                         for (int x = 0; x < width; x += increment) {
                             findDisplacement(sourceImages, tileSize, x, width, y, height, referenceData, distorsions, signal);
                         }
-                        var progress = progressCounter.addAndGet(increment) / (double) height;
+                        var progress = Math.min(1.0, progressCounter.addAndGet(increment) / (double) height);
                         broadcaster.broadcast(progressOperation.update(progress));
                     });
             broadcaster.broadcast(progressOperation.complete());

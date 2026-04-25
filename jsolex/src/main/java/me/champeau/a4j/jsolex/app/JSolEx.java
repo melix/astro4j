@@ -1551,7 +1551,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             var node = (Parent) fxmlLoader.load();
             var controller = (StackingAndMosaicController) fxmlLoader.getController();
             controller.setup(stage, this, createRootOperation("moisaic"), ProcessParams.loadDefaults(), popupViewers);
-            Scene scene = new Scene(node);
+            Scene scene = newScene(node);
             stage.setTitle(I18N.string(JSolEx.class, "mosaic-params", "frame.title"));
             stage.setScene(scene);
             stage.show();

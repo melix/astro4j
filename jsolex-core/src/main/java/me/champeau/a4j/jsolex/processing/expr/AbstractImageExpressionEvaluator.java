@@ -196,7 +196,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         this.stretching = new Stretching(context, broadcaster);
         this.utilities = new Utilities(context, broadcaster);
         this.stacking = new Stacking(context, scaling, crop, simpleFunctionCall, imageDraw, utilities, broadcaster);
-        this.mosaicComposition = new MosaicComposition(context, broadcaster, stacking, ellipseFit, scaling);
+        this.mosaicComposition = new MosaicComposition(context, broadcaster, ellipseFit, scaling);
     }
 
     /**
