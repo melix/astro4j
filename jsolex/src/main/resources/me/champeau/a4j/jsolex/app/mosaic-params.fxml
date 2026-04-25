@@ -8,84 +8,99 @@
 <?import javafx.scene.control.ChoiceBox?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ScrollPane?>
-<?import javafx.scene.control.Slider?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.control.TitledPane?>
-<?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.FlowPane?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
-<BorderPane fx:controller="me.champeau.a4j.jsolex.app.jfx.stacking.StackingAndMosaicController" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="600.0"
-            prefWidth="1024.0" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1">
+<BorderPane fx:controller="me.champeau.a4j.jsolex.app.jfx.stacking.StackingAndMosaicController"
+            styleClass="params-dialog"
+            maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="640.0"
+            prefWidth="1100.0" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1">
     <center>
-        <VBox BorderPane.alignment="CENTER" spacing="4">
-            <opaqueInsets>
-                <Insets bottom="4.0" left="4.0" right="4.0" top="4.0"/>
-            </opaqueInsets>
-            <BorderPane.margin>
-                <Insets bottom="4.0" left="4.0" right="4.0" top="4.0"/>
-            </BorderPane.margin>
-            <Label text="%panels" style="-fx-font-weight: bold"/>
-            <Label text="%panels.help.message" wrapText="true"/>
-            <Label fx:id="mosaicWarning" text="%mosaic.warning" wrapText="true" style="-fx-font-weight: bold; -fx-text-fill: red"/>
-            <ScrollPane fx:id="cardsScrollPane" VBox.vgrow="ALWAYS" fitToWidth="true">
-                <FlowPane fx:id="cardsPane"/>
+        <VBox BorderPane.alignment="CENTER" spacing="8" styleClass="parameter-panel" fillWidth="true">
+            <Label text="%panels" styleClass="category-title" maxWidth="Infinity"/>
+            <Label text="%panels.help.message" wrapText="true" styleClass="help-text" maxWidth="Infinity"/>
+            <Label fx:id="mosaicWarning" text="%mosaic.warning" wrapText="true" maxWidth="Infinity" styleClass="inline-guidance,guidance-warning,guidance-description">
+                <padding>
+                    <Insets top="8" right="12" bottom="8" left="12"/>
+                </padding>
+            </Label>
+            <ScrollPane fx:id="cardsScrollPane" VBox.vgrow="ALWAYS" fitToWidth="true" styleClass="content-scroll-pane">
+                <FlowPane fx:id="cardsPane" hgap="8" vgap="8">
+                    <padding>
+                        <Insets top="4" right="4" bottom="4" left="4"/>
+                    </padding>
+                </FlowPane>
             </ScrollPane>
         </VBox>
     </center>
-    <opaqueInsets>
-        <Insets bottom="4.0" left="4.0" right="4.0" top="4.0"/>
-    </opaqueInsets>
     <bottom>
-        <AnchorPane minHeight="40.0" prefHeight="40.0" prefWidth="600.0" BorderPane.alignment="CENTER">
-            <Button fx:id="proceedButton" onAction="#proceed" layoutX="624.0" layoutY="8.0" mnemonicParsing="false" text="%proceed.stacking"/>
-        </AnchorPane>
+        <HBox alignment="CENTER_RIGHT" spacing="8" BorderPane.alignment="CENTER">
+            <padding>
+                <Insets top="8" right="16" bottom="8" left="16"/>
+            </padding>
+            <Button fx:id="proceedButton" onAction="#proceed" mnemonicParsing="false" text="%proceed.stacking"
+                    styleClass="primary-button" minWidth="-Infinity"/>
+        </HBox>
     </bottom>
     <right>
-        <VBox prefHeight="560.0" prefWidth="400.0" BorderPane.alignment="CENTER">
-            <Accordion fx:id="accordionParams">
+        <VBox prefHeight="560.0" prefWidth="420.0" BorderPane.alignment="CENTER">
+            <padding>
+                <Insets top="8" right="8" bottom="8" left="0"/>
+            </padding>
+            <Accordion fx:id="accordionParams" VBox.vgrow="ALWAYS">
                 <panes>
                     <TitledPane animated="false" text="%stacking.parameters">
-                        <VBox prefHeight="836.0" prefWidth="398.0" spacing="8.0">
-                            <Label text="%tile.size" fx:id="stackTileSizeLabel"/>
-                            <Slider fx:id="stackTileSize" blockIncrement="8" majorTickUnit="64.0" max="256.0" min="16.0" minorTickCount="8" showTickLabels="true" showTickMarks="true" value="32.0"/>
+                        <VBox spacing="10.0" styleClass="parameter-panel">
+                            <Label text="%stacking.method" styleClass="field-label" maxWidth="Infinity"/>
+                            <ChoiceBox fx:id="stackingMethod" maxWidth="Infinity"/>
+                            <Label text="%stacking.method.help" wrapText="true" styleClass="help-text" maxWidth="Infinity"/>
+                            <Region minHeight="4" maxHeight="4"/>
+                            <Label text="%tile.size" styleClass="field-label" maxWidth="Infinity"/>
+                            <ChoiceBox fx:id="stackTileSize" maxWidth="Infinity"/>
                             <CheckBox fx:id="stackForceRecomputeEllipse" mnemonicParsing="false" text="%force.recompute.ellipses"/>
                             <CheckBox fx:id="stackFixGeometry" mnemonicParsing="false" text="%fix.geometry"/>
-                            <Label text="%postprocessing.script"/>
+                            <Region minHeight="4" maxHeight="4"/>
+                            <Label text="%postprocessing.script" styleClass="field-label" maxWidth="Infinity"/>
                             <HBox spacing="8">
                                 <TextField HBox.hgrow="ALWAYS" fx:id="stackPostProcessingScript" disable="true"/>
-                                <Button onAction="#chooseStackingPostProcessingScript" text="%choose"/>
-                                <Button onAction="#editStackingPostProcessingScript" text="%edit"/>
+                                <Button onAction="#chooseStackingPostProcessingScript" text="%choose" styleClass="default-button"/>
+                                <Button onAction="#editStackingPostProcessingScript" text="%edit" styleClass="default-button"/>
                             </HBox>
                             <HBox alignment="CENTER_RIGHT">
-                                <Button onAction="#resetStackingParams" text="%reset.to.defaults"/>
+                                <Button onAction="#resetStackingParams" text="%reset.to.defaults" styleClass="default-button"/>
                             </HBox>
                         </VBox>
                     </TitledPane>
                     <TitledPane animated="false" text="%file.formats">
-                        <VBox spacing="8.0">
+                        <VBox spacing="10.0" styleClass="parameter-panel">
                             <CheckBox fx:id="saveFits" mnemonicParsing="false" text="%generate.fits.files"/>
                             <CheckBox fx:id="savePng" mnemonicParsing="false" text="%generate.png.files"/>
                             <CheckBox fx:id="saveJpg" mnemonicParsing="false" text="%generate.jpg.files"/>
                             <CheckBox fx:id="saveTif" mnemonicParsing="false" text="%generate.tif.files"/>
-                            <Label text="%naming.pattern"/>
-                            <ChoiceBox fx:id="namingPattern" prefHeight="24.0" prefWidth="331.0"/>
+                            <Region minHeight="4" maxHeight="4"/>
+                            <Label text="%naming.pattern" styleClass="field-label"/>
+                            <ChoiceBox fx:id="namingPattern" maxWidth="Infinity"/>
                         </VBox>
                     </TitledPane>
                     <TitledPane animated="false" text="%mosaic.parameters" fx:id="mosaicParameters">
-                        <VBox prefHeight="836.0" prefWidth="398.0" spacing="8.0">
+                        <VBox spacing="10.0" styleClass="parameter-panel">
                             <CheckBox fx:id="createMosaic" text="%create.mosaic"/>
-                            <Label text="%tile.size" fx:id="mosaicTileSizeLabel"/>
-                            <Slider fx:id="mosaicTileSize" blockIncrement="8" majorTickUnit="64.0" max="256.0" min="16.0" minorTickCount="8" showTickLabels="true" showTickMarks="true" value="64.0"/>
-                            <Label text="%postprocessing.script"/>
+                            <Region minHeight="4" maxHeight="4"/>
+                            <Label text="%tile.size" styleClass="field-label" maxWidth="Infinity"/>
+                            <ChoiceBox fx:id="mosaicTileSize" maxWidth="Infinity"/>
+                            <Region minHeight="4" maxHeight="4"/>
+                            <Label text="%postprocessing.script" styleClass="field-label" maxWidth="Infinity"/>
                             <HBox spacing="8">
                                 <TextField HBox.hgrow="ALWAYS" fx:id="mosaicPostProcessingScript" disable="true"/>
-                                <Button onAction="#chooseMosaicPostProcessingScript" text="%choose"/>
-                                <Button onAction="#editMosaicPostProcessingScript" text="%edit"/>
+                                <Button onAction="#chooseMosaicPostProcessingScript" text="%choose" styleClass="default-button"/>
+                                <Button onAction="#editMosaicPostProcessingScript" text="%edit" styleClass="default-button"/>
                             </HBox>
                             <HBox alignment="CENTER_RIGHT">
-                                <Button onAction="#resetMosaicParams" text="%reset.to.defaults"/>
+                                <Button onAction="#resetMosaicParams" text="%reset.to.defaults" styleClass="default-button"/>
                             </HBox>
                         </VBox>
                     </TitledPane>

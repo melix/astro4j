@@ -2,6 +2,11 @@
 
 ## What's New in Version 5.1.2
 
+- Mosaic composition now uses a multi-band (Laplacian pyramid) blend with local exposure equalization in the overlap area, which hides seams between tiles much more effectively when brightness differs between images.
+- Stacking &amp; mosaic wizard: a new "Stacking method" choice lets you pick between "Fast" (single sharpest reference — the previous default) and "Consensus" (multi-frame iterative dedistortion — higher quality but several times slower). Consensus was previously selected by default but never actually ran the consensus algorithm.
+- Stacking &amp; mosaic wizard now uses the application's shared styling for a more consistent look.
+- Mosaic composition now reports progress while assembling panel pairs and during the final blending step.
+- Fixed a crash during stacking (`Progress must be between 0.0 and 1.0`) when the image height was not a multiple of the tile increment.
 - Fixed slow Next/Previous navigation in the batch image review wizard on machines with limited RAM.
 - Fixed inconsistent image ordering in the batch image review wizard side list across SER files.
 

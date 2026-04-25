@@ -2,6 +2,11 @@
 
 ## Nouveautés de la version 5.1.2
 
+- La composition de mosaïques utilise désormais un mélange multi-bandes (pyramide laplacienne) avec égalisation locale de l'exposition dans la zone de recouvrement, ce qui dissimule beaucoup mieux les raccords entre tuiles lorsque la luminosité diffère entre les images.
+- Assistant d'empilement et de mosaïque : un nouveau choix « Méthode d'empilement » permet de choisir entre « Rapide » (référence unique la plus nette — le comportement précédent) et « Consensus » (dédistorsion multi-images itérative — meilleure qualité mais plusieurs fois plus lente). Le mode Consensus était sélectionné par défaut auparavant mais n'exécutait pas réellement l'algorithme de consensus.
+- L'assistant d'empilement et de mosaïque utilise désormais le style partagé de l'application pour une apparence plus cohérente.
+- La composition de mosaïques affiche maintenant la progression pendant l'assemblage des paires de panneaux et lors de l'étape finale de fusion.
+- Correction d'un plantage lors de l'empilement (« Progress must be between 0.0 and 1.0 ») lorsque la hauteur de l'image n'était pas un multiple du pas de tuile.
 - Correction de la lenteur des boutons Suivant/Précédent dans l'assistant de revue des images du traitement par lot sur les machines disposant de peu de RAM.
 - Correction de l'ordre incohérent des images dans la liste latérale de l'assistant de revue des images du traitement par lot d'un fichier SER à l'autre.
 

@@ -24,7 +24,6 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
-import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TitledPane;
 import javafx.scene.input.TransferMode;
@@ -39,7 +38,6 @@ import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
 import me.champeau.a4j.jsolex.app.listeners.JSolExInterface;
 import me.champeau.a4j.jsolex.app.listeners.SingleModeProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
-import me.champeau.a4j.jsolex.processing.expr.impl.MosaicComposition;
 import me.champeau.a4j.jsolex.processing.expr.impl.Stacking;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.FileNamingPatternsIO;
@@ -87,20 +85,21 @@ public class StackingAndMosaicController {
     private Button proceedButton;
     @FXML
     private ChoiceBox<NamedPattern> namingPattern;
+    private static final List<Integer> ALLOWED_TILE_SIZES = List.of(16, 32, 64, 128, 256);
+    private static final int DEFAULT_TILE_SIZE = 64;
+
     @FXML
-    private Slider stackTileSize;
+    private ChoiceBox<Integer> stackTileSize;
     @FXML
     private CheckBox stackForceRecomputeEllipse;
     @FXML
     private CheckBox stackFixGeometry;
     @FXML
-    private Label stackTileSizeLabel;
+    private ChoiceBox<Stacking.ReferenceSelection> stackingMethod;
     @FXML
     private TextField stackPostProcessingScript;
     @FXML
-    private Slider mosaicTileSize;
-    @FXML
-    private Label mosaicTileSizeLabel;
+    private ChoiceBox<Integer> mosaicTileSize;
     @FXML
     private CheckBox createMosaic;
     @FXML
@@ -130,6 +129,36 @@ public class StackingAndMosaicController {
         var plusCard = new PlusCard(this);
         cardsPane.getChildren().add(plusCard);
         cardsScrollPane.setStyle("-fx-background-color:transparent;");
+        stackingMethod.getItems().addAll(Stacking.ReferenceSelection.SHARPNESS, Stacking.ReferenceSelection.CONSENSUS);
+        stackingMethod.setConverter(new javafx.util.StringConverter<>() {
+            @Override
+            public String toString(Stacking.ReferenceSelection method) {
+                if (method == null) {
+                    return "";
+                }
+                return I18N.string(JSolEx.class, "mosaic-params", "stacking.method." + method.name().toLowerCase(java.util.Locale.US));
+            }
+
+            @Override
+            public Stacking.ReferenceSelection fromString(String s) {
+                return null;
+            }
+        });
+        var tileSizeConverter = new javafx.util.StringConverter<Integer>() {
+            @Override
+            public String toString(Integer value) {
+                return value == null ? "" : value + " px";
+            }
+
+            @Override
+            public Integer fromString(String s) {
+                return null;
+            }
+        };
+        stackTileSize.getItems().addAll(ALLOWED_TILE_SIZES);
+        stackTileSize.setConverter(tileSizeConverter);
+        mosaicTileSize.getItems().addAll(ALLOWED_TILE_SIZES);
+        mosaicTileSize.setConverter(tileSizeConverter);
         cardsScrollPane.setOnDragDropped(evt -> {
             var card = new PanelCard(this);
             card.handleDragDropped(evt);
@@ -179,14 +208,6 @@ public class StackingAndMosaicController {
         saveJpg.setSelected(imageFormats.contains(ImageFormat.JPG));
         savePng.setSelected(imageFormats.contains(ImageFormat.PNG));
         saveTif.setSelected(imageFormats.contains(ImageFormat.TIF));
-        stackTileSizeLabel.textProperty().bind(Bindings.createStringBinding(() -> {
-            var value = stackTileSize.getValue();
-            return String.format("%s (%dpx)", I18N.string(JSolEx.class, "mosaic-params", "tile.size"), (int) value);
-        }, stackTileSize.valueProperty()));
-        mosaicTileSizeLabel.textProperty().bind(Bindings.createStringBinding(() -> {
-            var value = mosaicTileSize.getValue();
-            return String.format("%s (%dpx)", I18N.string(JSolEx.class, "mosaic-params", "tile.size"), (int) value);
-        }, mosaicTileSize.valueProperty()));
         createMosaic.setSelected(true);
         stackForceRecomputeEllipse.selectedProperty().addListener((obs, old, val) -> {
             if (Boolean.TRUE.equals(val)) {
@@ -201,28 +222,36 @@ public class StackingAndMosaicController {
 
     private void readDefaultsFromPreviousSession() {
         var defaultParams = StackingParamsIO.loadDefaults();
-        stackTileSize.setValue(defaultParams.stackingTileSize());
+        selectTileSize(stackTileSize, defaultParams.stackingTileSize());
         stackForceRecomputeEllipse.setSelected(defaultParams.forceEllipseFit());
         stackFixGeometry.setSelected(defaultParams.fixGeometry());
+        stackingMethod.getSelectionModel().select(defaultParams.stackingMethod());
         stackPostProcessingScriptFile = defaultParams.stackPostProcessingScriptFile();
         stackPostProcessingScript.setText(stackPostProcessingScriptFile == null ? "" : stackPostProcessingScriptFile.getName());
         createMosaic.setSelected(defaultParams.createMosaic());
-        mosaicTileSize.setValue(defaultParams.mosaicTileSize());
+        selectTileSize(mosaicTileSize, defaultParams.mosaicTileSize());
         mosaicPostProcessingScriptFile = defaultParams.mosaicPostProcessingScriptFile();
         mosaicPostProcessingScript.setText(mosaicPostProcessingScriptFile == null ? "" : mosaicPostProcessingScriptFile.getName());
     }
 
+    private static void selectTileSize(ChoiceBox<Integer> box, int requested) {
+        var available = box.getItems();
+        var match = available.stream().filter(v -> v == requested).findFirst();
+        box.getSelectionModel().select(match.orElse(DEFAULT_TILE_SIZE));
+    }
+
     public void resetStackingParams() {
-        stackTileSize.setValue(Stacking.DEFAULT_TILE_SIZE);
+        selectTileSize(stackTileSize, DEFAULT_TILE_SIZE);
         stackForceRecomputeEllipse.setSelected(false);
         stackFixGeometry.setSelected(false);
+        stackingMethod.getSelectionModel().select(Stacking.ReferenceSelection.SHARPNESS);
         stackPostProcessingScriptFile = null;
         stackPostProcessingScript.setText("");
     }
 
     public void resetMosaicParams() {
         createMosaic.setSelected(true);
-        mosaicTileSize.setValue(MosaicComposition.DEFAULT_TILE_SIZE);
+        selectTileSize(mosaicTileSize, DEFAULT_TILE_SIZE);
         mosaicPostProcessingScriptFile = null;
         mosaicPostProcessingScript.setText("");
     }
@@ -264,14 +293,27 @@ public class StackingAndMosaicController {
             processingDate,
             createFakeHeader(processingDate)
         );
+        var selectedMethod = stackingMethod.getSelectionModel().getSelectedItem();
+        if (selectedMethod == null) {
+            selectedMethod = Stacking.ReferenceSelection.SHARPNESS;
+        }
+        var stackTs = stackTileSize.getSelectionModel().getSelectedItem();
+        if (stackTs == null) {
+            stackTs = DEFAULT_TILE_SIZE;
+        }
+        var mosaicTs = mosaicTileSize.getSelectionModel().getSelectedItem();
+        if (mosaicTs == null) {
+            mosaicTs = DEFAULT_TILE_SIZE;
+        }
         var params = new StackingWorkflow.Parameters(
-            (int) stackTileSize.getValue(),
+            stackTs,
             stackForceRecomputeEllipse.isSelected(),
             stackFixGeometry.isSelected(),
             stackPostProcessingScriptFile,
             createMosaic.isSelected(),
-            (int) mosaicTileSize.getValue(),
-            mosaicPostProcessingScriptFile
+            mosaicTs,
+            mosaicPostProcessingScriptFile,
+            selectedMethod
         );
         StackingParamsIO.saveDefaults(params);
         BackgroundOperations.async(() -> {

@@ -70,7 +70,7 @@ public class StackingWorkflow {
         this.geometryCorrector = new GeometryCorrection(context, broadcaster, ellipseFit);
         Scaling scaling = new Scaling(context, broadcaster, crop);
         this.stacking = new Stacking(context, scaling, crop, new SimpleFunctionCall(context, broadcaster), new ImageDraw(context, broadcaster), new Utilities(context, broadcaster), broadcaster);
-        this.mosaicComposition = new MosaicComposition(context, broadcaster, stacking, ellipseFit, scaling);
+        this.mosaicComposition = new MosaicComposition(context, broadcaster, ellipseFit, scaling);
     }
 
     public void execute(Parameters parameters, List<Panel> panels, File outputDirectory) {
@@ -190,7 +190,7 @@ public class StackingWorkflow {
                     .map(geometryCorrector::fixGeometry)
                     .toList();
         }
-        return stacking.stack(images, parameters.stackingTileSize(), Stacking.DEFAULT_SAMPLING, Stacking.ReferenceSelection.CONSENSUS);
+        return stacking.stack(images, parameters.stackingTileSize(), Stacking.DEFAULT_SAMPLING, parameters.stackingMethod());
     }
 
     public record Parameters(
@@ -200,7 +200,8 @@ public class StackingWorkflow {
             File stackPostProcessingScriptFile,
             boolean createMosaic,
             int mosaicTileSize,
-            File mosaicPostProcessingScriptFile
+            File mosaicPostProcessingScriptFile,
+            Stacking.ReferenceSelection stackingMethod
     ) {
     }
 

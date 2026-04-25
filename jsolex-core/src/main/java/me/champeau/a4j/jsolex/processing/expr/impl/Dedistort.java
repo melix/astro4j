@@ -972,8 +972,8 @@ public class Dedistort extends AbstractFunctionImpl {
      * pairs (i,j) where i < j and derive the inverse by negation. This cuts the number
      * of expensive distortion map computations in half.
      */
-    private List<ImageWrapper32> dedistortWithConsensusReference(List<?> listOfImages,
-                                                                Map<String, Object> arguments) {
+    List<ImageWrapper32> dedistortWithConsensusReference(List<?> listOfImages,
+                                                         Map<String, Object> arguments) {
         var images = asMonoImages(listOfImages);
 
         // Sort by filename for deterministic processing order across JVM restarts
