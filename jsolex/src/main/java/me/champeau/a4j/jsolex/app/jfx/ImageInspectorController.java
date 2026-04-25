@@ -60,11 +60,11 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.WeakHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -128,7 +128,13 @@ public class ImageInspectorController {
     private Path discardedDir;
     private final ImageMath imageMath = ImageMath.newInstance();
     private final IntegerProperty currentImageIndex = new SimpleIntegerProperty(0);
-    private final Map<CandidateImageDescriptor, Image> imageCache = new WeakHashMap<>();
+    private static final int IMAGE_CACHE_SIZE = 4;
+    private final Map<CandidateImageDescriptor, Image> imageCache = new LinkedHashMap<>(IMAGE_CACHE_SIZE + 1, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<CandidateImageDescriptor, Image> eldest) {
+            return size() > IMAGE_CACHE_SIZE;
+        }
+    };
     private final Map<Integer, ImageSelection> selections = new HashMap<>();
     private final Set<File> deletedFiles = new HashSet<>();
     private final Map<File, File> movedFiles = new HashMap<>();
@@ -176,6 +182,10 @@ public class ImageInspectorController {
                        Consumer<? super ImageInspectorController> onClose) {
         this.stage = stage;
         this.images = images;
+        var candidateOrder = Comparator.comparingInt((CandidateImageDescriptor c) -> c.kind().ordinal())
+            .thenComparingDouble(CandidateImageDescriptor::pixelShift)
+            .thenComparing(CandidateImageDescriptor::title);
+        images.values().forEach(list -> list.sort(candidateOrder));
         this.processParams = processParams;
         this.filesByIndex = filesPerIndex;
         this.onClose = onClose;
