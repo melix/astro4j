@@ -7,7 +7,8 @@
 - L'assistant d'empilement et de mosaïque utilise désormais le style partagé de l'application pour une apparence plus cohérente.
 - La composition de mosaïques affiche maintenant la progression pendant l'assemblage des paires de panneaux et lors de l'étape finale de fusion.
 - Correction d'un plantage lors de l'empilement (« Progress must be between 0.0 and 1.0 ») lorsque la hauteur de l'image n'était pas un multiple du pas de tuile.
-- Correction de la lenteur des boutons Suivant/Précédent dans l'assistant de revue des images du traitement par lot sur les machines disposant de peu de RAM.
+- Correction de la lenteur des boutons Suivant/Précédent et de l'ouverture de l'assistant de revue des images du traitement par lot.
+- Correction de l'affichage bref du mauvais type d'image dans le panneau de référence de l'assistant de revue des images après navigation.
 - Correction de l'ordre incohérent des images dans la liste latérale de l'assistant de revue des images du traitement par lot d'un fichier SER à l'autre.
 
 ## Nouveautés de la version 5.1.1

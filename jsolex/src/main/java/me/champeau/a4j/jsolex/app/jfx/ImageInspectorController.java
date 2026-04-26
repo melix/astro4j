@@ -41,6 +41,7 @@ import me.champeau.a4j.jsolex.processing.expr.impl.Loader;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
+import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -65,7 +66,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
@@ -138,6 +138,10 @@ public class ImageInspectorController {
     private final Map<Integer, ImageSelection> selections = new HashMap<>();
     private final Set<File> deletedFiles = new HashSet<>();
     private final Map<File, File> movedFiles = new HashMap<>();
+    private final AtomicReference<CandidateImageDescriptor> currentDisplayed = new AtomicReference<>();
+    private final AtomicReference<CandidateImageDescriptor> bestDisplayed = new AtomicReference<>();
+    private boolean bestManuallyChosen;
+    private boolean suppressSelectionListener;
 
     /**
      * Creates and shows the image inspector dialog.
@@ -222,12 +226,13 @@ public class ImageInspectorController {
                 }
             }
         });
-        imageList.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) ->
-            Platform.runLater(() -> {
-                displaySelectedImage();
-                updateBestImageView();
-            })
-        );
+        imageList.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) -> {
+            if (suppressSelectionListener) {
+                return;
+            }
+            displaySelectedImage();
+            updateBestImageView();
+        });
         previousButton.disableProperty().bind(currentImageIndex.lessThanOrEqualTo(0));
         nextButton.disableProperty().bind(currentImageIndex.greaterThanOrEqualTo(images.size() - 1));
         previousButton.setOnAction(e -> currentImageIndex.set(currentImageIndex.get() - 1));
@@ -264,6 +269,7 @@ public class ImageInspectorController {
         setBestButton.setOnAction(e -> {
             var selection = selections.get(currentImageIndex.get());
             if (selection != null) {
+                bestManuallyChosen = true;
                 for (var value : selections.values()) {
                     if (value.getState() == SelectionState.BEST) {
                         value.setState(SelectionState.KEEP);
@@ -283,36 +289,15 @@ public class ImageInspectorController {
         keepButton.setText(I18N.string(JSolEx.class, "image-selector", "keep") + " (K)");
         setBestButton.setText(I18N.string(JSolEx.class, "image-selector", "set.best") + " (B)");
         finishButton.setText(I18N.string(JSolEx.class, "image-selector", "finish") + " (Ctrl+↵)");
-        var loader = new Loader(Map.of(), Broadcaster.NO_OP);
-        var bestIndex = new AtomicInteger(0);
-        var bestSharpness = new AtomicReference<Double>();
-        // create selection map
+        // Synchronously create selections with default state; sharpness is computed asynchronously below.
         images.forEach((index, generatedImages) -> {
             var imageSelection = new ImageSelection(index, generatedImages);
-            findMainImage(generatedImages).ifPresent(c -> {
-                var path = findImageFile(c);
-                if (path != null) {
-                    var loaded = (ImageWrapper) loader.load(Map.of("file", path.toAbsolutePath().toString()));
-                    if (loaded instanceof RGBImage rgb) {
-                        loaded = rgb.toMono();
-                    }
-                    if (loaded instanceof ImageWrapper32 mono) {
-                        var sharpness = imageMath.estimateSharpness(mono.asImage());
-                        imageSelection.sharpness = sharpness;
-                        if (bestSharpness.get() == null || sharpness > bestSharpness.get()) {
-                            bestSharpness.set(sharpness);
-                            bestIndex.set(index);
-                        }
-                    }
-                }
-            });
             imageSelection.setState(SelectionState.KEEP);
             selections.put(index, imageSelection);
         });
-        var imageSelection = selections.get(bestIndex.get());
-        if (imageSelection != null) {
-            imageSelection.setState(SelectionState.BEST);
-        }
+        selections.keySet().stream().min(Integer::compare)
+            .map(selections::get)
+            .ifPresent(s -> s.setState(SelectionState.BEST));
         stage.setOnCloseRequest(e -> {
             try {
                 tempFile.delete();
@@ -322,6 +307,70 @@ public class ImageInspectorController {
         });
         updateImage();
         updateSummary();
+        startAsyncSharpnessComputation();
+    }
+
+    private void startAsyncSharpnessComputation() {
+        var snapshot = Map.copyOf(images);
+        BackgroundOperations.async(() -> {
+            var loader = new Loader(Map.of(), Broadcaster.NO_OP);
+            for (var entry : snapshot.entrySet()) {
+                var index = entry.getKey();
+                var mainOpt = findMainImage(entry.getValue());
+                if (mainOpt.isEmpty()) {
+                    continue;
+                }
+                var path = findImageFile(mainOpt.get());
+                if (path == null) {
+                    continue;
+                }
+                Double sharpness = null;
+                try {
+                    ImageWrapper loaded = (ImageWrapper) loader.load(Map.of("file", path.toAbsolutePath().toString()));
+                    if (loaded instanceof RGBImage rgb) {
+                        loaded = rgb.toMono();
+                    }
+                    if (loaded instanceof ImageWrapper32 mono) {
+                        sharpness = imageMath.estimateSharpness(mono.asImage());
+                    }
+                } catch (Exception ex) {
+                    LOGGER.warn("Could not compute sharpness for index {}: {}", index, ex.getMessage());
+                }
+                if (sharpness != null) {
+                    var finalSharpness = sharpness;
+                    Platform.runLater(() -> {
+                        var sel = selections.get(index);
+                        if (sel != null) {
+                            sel.sharpness = finalSharpness;
+                        }
+                    });
+                }
+            }
+            Platform.runLater(this::autoSelectBestBySharpness);
+        });
+    }
+
+    private void autoSelectBestBySharpness() {
+        if (bestManuallyChosen) {
+            return;
+        }
+        var bestSelection = selections.values().stream()
+            .filter(s -> s.sharpness != null)
+            .max(Comparator.comparingDouble(s -> s.sharpness));
+        if (bestSelection.isEmpty()) {
+            return;
+        }
+        var newBest = bestSelection.get();
+        if (newBest.getState() == SelectionState.BEST) {
+            return;
+        }
+        for (var s : selections.values()) {
+            if (s.getState() == SelectionState.BEST) {
+                s.setState(SelectionState.KEEP);
+            }
+        }
+        newBest.setState(SelectionState.BEST);
+        updateImage();
     }
 
     private void promoteNextBest() {
@@ -417,48 +466,48 @@ public class ImageInspectorController {
 
     private void updateImage() {
         if (images.isEmpty()) {
-            bestImageView.setImage(null);
-            currentImageView.setImage(null);
+            loadInto(currentImageView, currentDisplayed, null);
+            loadInto(bestImageView, bestDisplayed, null);
             return;
         }
 
         var currentImages = images.get(currentImageIndex.get());
-        var newItemToSelect = findCurrentSelectionInNewCandidateList(imageList.getSelectionModel().getSelectedItem(), currentImages);
-        imageList.getItems().setAll(currentImages);
-        newItemToSelect.ifPresentOrElse(newItem -> {
-            imageList.getSelectionModel().select(newItem);
-            var currentImg = getFromCacheOrCreateImage(newItem);
-            currentImageView.setImage(currentImg);
-        }, () -> {
-            var selectedOpt = findMainImage(currentImages);
-            if (selectedOpt.isPresent()) {
-                var selectedCandidate = selectedOpt.get();
-                imageList.getSelectionModel().select(selectedCandidate);
-                var currentImg = getFromCacheOrCreateImage(selectedCandidate);
-                currentImageView.setImage(currentImg);
+        var previouslySelected = imageList.getSelectionModel().getSelectedItem();
+        var currentCandidate = findCurrentSelectionInNewCandidateList(previouslySelected, currentImages)
+            .or(() -> findMainImage(currentImages))
+            .orElse(null);
+
+        suppressSelectionListener = true;
+        try {
+            imageList.getItems().setAll(currentImages);
+            if (currentCandidate != null) {
+                imageList.getSelectionModel().select(currentCandidate);
             } else {
-                currentImageView.setImage(null);
+                imageList.getSelectionModel().clearSelection();
             }
-        });
+        } finally {
+            suppressSelectionListener = false;
+        }
+        loadInto(currentImageView, currentDisplayed, currentCandidate);
+
         var state = selections.get(currentImageIndex.get()).getState();
         discardButton.setSelected(state == SelectionState.DISCARD);
         keepButton.setSelected(state == SelectionState.KEEP);
         setBestButton.setSelected(state == SelectionState.BEST);
         keepButton.setDisable(state == SelectionState.BEST);
+
         var bestIndexOpt = getBestImage();
+        CandidateImageDescriptor bestCandidate = null;
         if (bestIndexOpt.isPresent()) {
-            var bestIndex = bestIndexOpt.get();
-            var bestImages = images.get(bestIndex);
-            var bestCandidateOpt = findMainImage(bestImages);
-            if (bestCandidateOpt.isPresent()) {
-                var bestImg = getFromCacheOrCreateImage(bestCandidateOpt.get());
-                bestImageView.setImage(bestImg);
-            } else {
-                bestImageView.setImage(null);
+            var bestImages = images.get(bestIndexOpt.get());
+            if (currentCandidate != null) {
+                bestCandidate = findCurrentSelectionInNewCandidateList(currentCandidate, bestImages).orElse(null);
             }
-        } else {
-            bestImageView.setImage(null);
+            if (bestCandidate == null) {
+                bestCandidate = findMainImage(bestImages).orElse(null);
+            }
         }
+        loadInto(bestImageView, bestDisplayed, bestCandidate);
     }
 
     private Optional<CandidateImageDescriptor> findMainImage(List<CandidateImageDescriptor> currentImages) {
@@ -486,24 +535,19 @@ public class ImageInspectorController {
 
     private void displaySelectedImage() {
         var selectedItem = imageList.getSelectionModel().getSelectedItem();
-        if (selectedItem == null) {
-            currentImageView.setImage(null);
-            return;
-        }
-        var image = getFromCacheOrCreateImage(selectedItem);
-        currentImageView.setImage(image);
+        loadInto(currentImageView, currentDisplayed, selectedItem);
     }
 
     private void updateBestImageView() {
         Optional<Integer> bestIndexOpt = getBestImage();
         if (bestIndexOpt.isEmpty()) {
-            bestImageView.setImage(null);
+            loadInto(bestImageView, bestDisplayed, null);
             return;
         }
         int bestIndex = bestIndexOpt.get();
         List<CandidateImageDescriptor> bestImages = images.get(bestIndex);
         if (bestImages.isEmpty()) {
-            bestImageView.setImage(null);
+            loadInto(bestImageView, bestDisplayed, null);
             return;
         }
         // Get the current reference candidate from the ListView
@@ -513,13 +557,7 @@ public class ImageInspectorController {
         if (candidateOpt.isEmpty()) {
             candidateOpt = findMainImage(bestImages);
         }
-        if (candidateOpt.isPresent()) {
-            CandidateImageDescriptor bestCandidate = candidateOpt.get();
-            Image bestImg = getFromCacheOrCreateImage(bestCandidate);
-            bestImageView.setImage(bestImg);
-        } else {
-            bestImageView.setImage(null);
-        }
+        loadInto(bestImageView, bestDisplayed, candidateOpt.orElse(null));
     }
 
     private static Optional<CandidateImageDescriptor> findCurrentSelectionInNewCandidateList(CandidateImageDescriptor referenceCandidate,
@@ -545,26 +583,37 @@ public class ImageInspectorController {
         return null;
     }
 
-    private Image getFromCacheOrCreateImage(CandidateImageDescriptor selectedItem) {
-        var cached = imageCache.get(selectedItem);
+    private void loadInto(ImageView view, AtomicReference<CandidateImageDescriptor> displayed, CandidateImageDescriptor item) {
+        displayed.set(item);
+        if (item == null) {
+            view.setImage(null);
+            return;
+        }
+        var cached = imageCache.get(item);
         if (cached != null) {
-            return cached;
+            view.setImage(cached);
+            return;
         }
-        var path = findImageFile(selectedItem);
-        if (path != null) {
-            var supportedByJavaFX = path.toString().toLowerCase().endsWith(".png") || path.toString().endsWith(".jpg");
-            if (supportedByJavaFX) {
-                var image = new Image(path.toFile().toURI().toString());
-                imageCache.put(selectedItem, image);
-                return image;
+        view.setImage(null);
+        BackgroundOperations.async(() -> {
+            var path = findImageFile(item);
+            if (path == null) {
+                return;
             }
-        }
-        if (path != null) {
-            var image = WritableImageSupport.asWritable(Loader.loadImage(path.toFile()));
-            imageCache.put(selectedItem, image);
-            return image;
-        }
-        return null;
+            var lower = path.toString().toLowerCase();
+            Image image;
+            if (lower.endsWith(".png") || lower.endsWith(".jpg")) {
+                image = new Image(path.toFile().toURI().toString(), true);
+            } else {
+                image = WritableImageSupport.asWritable(Loader.loadImage(path.toFile()));
+            }
+            Platform.runLater(() -> {
+                imageCache.put(item, image);
+                if (displayed.get() == item) {
+                    view.setImage(image);
+                }
+            });
+        });
     }
 
     /**

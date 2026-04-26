@@ -7,7 +7,8 @@
 - Stacking &amp; mosaic wizard now uses the application's shared styling for a more consistent look.
 - Mosaic composition now reports progress while assembling panel pairs and during the final blending step.
 - Fixed a crash during stacking (`Progress must be between 0.0 and 1.0`) when the image height was not a multiple of the tile increment.
-- Fixed slow Next/Previous navigation in the batch image review wizard on machines with limited RAM.
+- Fixed slow Next/Previous navigation and slow opening of the batch image review wizard.
+- Fixed the batch image review wizard's reference panel briefly showing the wrong image kind after navigating.
 - Fixed inconsistent image ordering in the batch image review wizard side list across SER files.
 
 ## What's New in Version 5.1.1
