@@ -29,6 +29,7 @@ import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
 import javafx.util.converter.IntegerStringConverter;
 import me.champeau.a4j.jsolex.app.JSolEx;
+import me.champeau.a4j.jsolex.processing.expr.impl.Clahe;
 import me.champeau.a4j.jsolex.processing.params.AutoStretchParams;
 import me.champeau.a4j.jsolex.processing.params.BandingCorrectionParams;
 import me.champeau.a4j.jsolex.processing.params.ClaheParams;
@@ -72,6 +73,7 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
 
     private VBox autostretchSection;
     private VBox claheSection;
+    private VBox clahe2Section;
     private VBox rlSection;
     private VBox sharpeningSection;
     private VBox protusStretchRow;
@@ -80,6 +82,7 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
     private ChoiceBox<Integer> claheTileSize;
     private ChoiceBox<Integer> claheBins;
     private TextField claheClipping;
+    private TextField clahe2Clipping;
     
     private TextField flatFilePath;
     private Path selectedFlatFilePath;
@@ -176,7 +179,23 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
             }
         });
         
-        sharpeningRadius = new TextField("1.0");
+        sharpeningRadius = new TextField("3");
+        sharpeningRadius.setTextFormatter(new TextFormatter<>(new IntegerStringConverter() {
+            @Override
+            public Integer fromString(String s) {
+                var value = super.fromString(s);
+                if (value == null) {
+                    return null;
+                }
+                if (value < 3) {
+                    value = 3;
+                }
+                if (value % 2 == 0) {
+                    value++;
+                }
+                return value;
+            }
+        }));
         sharpeningAmount = new TextField("1.0");
         
         
@@ -192,6 +211,9 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
         
         claheClipping = new TextField(String.valueOf(ClaheStrategy.DEFAULT_CLIP));
         claheClipping.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "clipping")));
+
+        clahe2Clipping = new TextField(String.valueOf(Clahe.CLAHE2_DEFAULT_CLIP));
+        clahe2Clipping.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "clipping")));
         
         claheTileSize.valueProperty().addListener((obs, oldValue, newValue) -> {
             if (newValue != null && claheBins.getValue() != null && claheBins.getValue() > newValue * newValue) {
@@ -309,9 +331,18 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
         claheSection.getChildren().add(claheGrid);
         claheSection.setVisible(false);
         claheSection.setManaged(false);
-        
+
+        clahe2Section = new VBox(8);
+        clahe2Section.getStyleClass().add("subsection");
+        var clahe2Grid = createGrid();
+        addGridRow(clahe2Grid, 0, I18N.string(JSolEx.class, "process-params", "clipping") + ":", clahe2Clipping);
+        clahe2Section.getChildren().add(clahe2Grid);
+        clahe2Section.setVisible(false);
+        clahe2Section.setManaged(false);
+
         contrastGrid.add(autostretchSection, 0, 1, 2, 1);
         contrastGrid.add(claheSection, 0, 2, 2, 1);
+        contrastGrid.add(clahe2Section, 0, 3, 2, 1);
         
         contrastSection.getChildren().add(contrastGrid);
         
@@ -435,6 +466,7 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
         claheTileSize.setValue(ClaheStrategy.DEFAULT_TILE_SIZE);
         claheBins.setValue(ClaheStrategy.DEFAULT_BINS);
         claheClipping.setText(String.valueOf(ClaheStrategy.DEFAULT_CLIP));
+        clahe2Clipping.setText(String.valueOf(Clahe.CLAHE2_DEFAULT_CLIP));
         
         bandingCorrectionPasses.setText(String.valueOf(BandingReduction.DEFAULT_PASS_COUNT));
         bandingCorrectionWidth.setText(String.valueOf(BandingReduction.DEFAULT_BAND_SIZE));
@@ -445,7 +477,7 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
         rlIterations.setText(String.valueOf(Deconvolution.DEFAULT_ITERATIONS));
         
         sharpeningMethod.setValue(SharpeningMethod.NONE);
-        sharpeningRadius.setText("3.0");
+        sharpeningRadius.setText("3");
         sharpeningAmount.setText("1.0");
         
         jaggingCorrection.setSelected(false);
@@ -475,7 +507,13 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
         var claheParams = params.claheParams();
         claheTileSize.setValue(claheParams.tileSize());
         claheBins.setValue(claheParams.bins());
-        claheClipping.setText(String.valueOf(claheParams.clipping()));
+        if (params.contrastEnhancement() == ContrastEnhancement.CLAHE2) {
+            claheClipping.setText(String.valueOf(ClaheStrategy.DEFAULT_CLIP));
+            clahe2Clipping.setText(String.valueOf(claheParams.clipping()));
+        } else {
+            claheClipping.setText(String.valueOf(claheParams.clipping()));
+            clahe2Clipping.setText(String.valueOf(Clahe.CLAHE2_DEFAULT_CLIP));
+        }
         
         
         var bandingParams = params.bandingCorrectionParams();
@@ -528,7 +566,7 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
                 sharpeningAmount.setText(String.valueOf(unsharp.strength()));
             }
             case SharpeningParams.None none -> {
-                sharpeningRadius.setText("1.0");
+                sharpeningRadius.setText("3");
                 sharpeningAmount.setText("1.0");
             }
         }
@@ -561,8 +599,10 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
     public ClaheParams getClaheParams() {
         var tileSize = claheTileSize.getValue() != null ? claheTileSize.getValue() : ClaheStrategy.DEFAULT_TILE_SIZE;
         var bins = claheBins.getValue() != null ? claheBins.getValue() : ClaheStrategy.DEFAULT_BINS;
-        var clipping = parseDouble(claheClipping.getText(), ClaheStrategy.DEFAULT_CLIP);
-        
+        var clipping = contrastEnhancementChoice.getValue() == ContrastEnhancement.CLAHE2
+                ? parseDouble(clahe2Clipping.getText(), Clahe.CLAHE2_DEFAULT_CLIP)
+                : parseDouble(claheClipping.getText(), ClaheStrategy.DEFAULT_CLIP);
+
         return new ClaheParams(tileSize, bins, clipping);
     }
     
@@ -577,18 +617,32 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
                     autostretchSection.setManaged(true);
                     claheSection.setVisible(false);
                     claheSection.setManaged(false);
+                    clahe2Section.setVisible(false);
+                    clahe2Section.setManaged(false);
                     break;
                 case CLAHE:
                     autostretchSection.setVisible(false);
                     autostretchSection.setManaged(false);
                     claheSection.setVisible(true);
                     claheSection.setManaged(true);
+                    clahe2Section.setVisible(false);
+                    clahe2Section.setManaged(false);
+                    break;
+                case CLAHE2:
+                    autostretchSection.setVisible(false);
+                    autostretchSection.setManaged(false);
+                    claheSection.setVisible(false);
+                    claheSection.setManaged(false);
+                    clahe2Section.setVisible(true);
+                    clahe2Section.setManaged(true);
                     break;
                 default:
                     autostretchSection.setVisible(false);
                     autostretchSection.setManaged(false);
                     claheSection.setVisible(false);
                     claheSection.setManaged(false);
+                    clahe2Section.setVisible(false);
+                    clahe2Section.setManaged(false);
                     break;
             }
         }

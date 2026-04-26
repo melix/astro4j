@@ -119,7 +119,7 @@ Le deuxième panneau de paramètres permet de configurer les options cosmétique
 
 image::params-2-fr.jpg[]
 
-- Méthode d'amélioration du contraste : vous pouvez choisir entre Autostretch (JSol'Ex) et CLAHE. Selon votre choix, des paramètres supplémentaires seront disponibles.
+- Méthode d'amélioration du contraste : vous pouvez choisir entre Autostretch (JSol'Ex), CLAHE et CLAHE (multi-échelle). Selon votre choix, des paramètres supplémentaires seront disponibles.
 
 Pour la méthode Autostretch, vous pouvez configurer:
 
@@ -132,6 +132,8 @@ Pour la méthode CLAHE, vous pouvez configurer:
 - la taille des tuiles
 - le nombre de niveaux de l'histogramme
 - le facteur de clipping
+
+La méthode CLAHE (multi-échelle) exécute plusieurs passes CLAHE à des tailles de tuiles déduites automatiquement du diamètre du disque solaire et en moyenne les résultats. Cela atténue fortement l'« anneau » brillant que la CLAHE classique peut produire au limbe, tout en rehaussant le contraste local à plusieurs échelles. Seul le facteur de clipping est configurable ; les tailles de tuiles et le nombre de niveaux sont choisis automatiquement.
 
 Viennent ensuite les paramètres de correction de bandes, qui permettent de corriger les bandes transversales qui peuvent apparaître sur les images par exemple à cause de poussières sur la fente.
 

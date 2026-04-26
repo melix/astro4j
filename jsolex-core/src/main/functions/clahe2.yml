@@ -1,0 +1,17 @@
+name: CLAHE2
+category: ENHANCEMENT
+description:
+  fr: "Variante adaptative de CLAHE qui calcule la moyenne de plusieurs passes CLAHE à des tailles de tuiles différentes, déterminées automatiquement à partir du diamètre du disque solaire. Cette approche multi-échelle réduit fortement l'anneau brillant qui apparaît au limbe avec une CLAHE classique."
+  en: "Adaptive variant of CLAHE that averages several CLAHE passes at different tile sizes, derived automatically from the solar disk diameter. This multi-scale approach strongly reduces the bright limb ring that classic CLAHE produces."
+arguments:
+  - name: img
+    description: Image(s)
+  - name: clip
+    optional: true
+    default: 1.5
+    description:
+      fr: "Valeur de coupure"
+      en: "Clip limit"
+examples:
+  - "clahe2(img(0))"
+  - "clahe2(img: img(0), clip: 2.0)"

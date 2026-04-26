@@ -20,5 +20,6 @@ package me.champeau.a4j.jsolex.processing.params;
  */
 public enum ContrastEnhancement {
     CLAHE,
+    CLAHE2,
     AUTOSTRETCH
 }

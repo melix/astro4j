@@ -121,7 +121,7 @@ The second parameter panel allows you to configure cosmetic options:
 
 image::params-2-en.jpg[]
 
-- Contrast enhancement method: you can choose between Autostretch (JSol'Ex) and CLAHE. Depending on your choice, additional parameters will be available.
+- Contrast enhancement method: you can choose between Autostretch (JSol'Ex), CLAHE and CLAHE (multi-scale). Depending on your choice, additional parameters will be available.
 
 For the Autostretch method, you can configure:
 
@@ -134,6 +134,8 @@ For the CLAHE method, you can configure:
 - tile size
 - number of histogram levels
 - clipping factor
+
+The CLAHE (multi-scale) method runs CLAHE several times at tile sizes derived automatically from the solar disk diameter and averages the results. This greatly reduces the bright "ring" artifact that classic CLAHE can produce at the limb, while still enhancing local contrast at multiple scales. Only the clipping factor is configurable; tile sizes and histogram levels are chosen automatically.
 
 Next come the banding correction parameters, which allow to correct transversal bands which can appear on images, for example because of dust on the slit.
 
