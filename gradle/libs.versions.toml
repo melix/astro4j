@@ -13,7 +13,7 @@ jcodec="0.2.5"
 ikonli="12.4.0"
 sqlite="3.53.0.0"
 lwjgl="3.4.1"
-graalpy="25.0.2"
+graalpy="25.0.3"
 arrow="18.3.0"
 
 [libraries]
