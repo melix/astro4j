@@ -773,7 +773,7 @@ A configuration window opens, with several sections:</p>
 <div class="ulist">
 <ul>
 <li>
-<p>Contrast enhancement method: you can choose between Autostretch (JSol&#8217;Ex) and CLAHE. Depending on your choice, additional parameters will be available.</p>
+<p>Contrast enhancement method: you can choose between Autostretch (JSol&#8217;Ex), CLAHE and CLAHE (multi-scale). Depending on your choice, additional parameters will be available.</p>
 </li>
 </ul>
 </div>
@@ -808,6 +808,9 @@ A configuration window opens, with several sections:</p>
 <p>clipping factor</p>
 </li>
 </ul>
+</div>
+<div class="paragraph">
+<p>The CLAHE (multi-scale) method runs CLAHE several times at tile sizes derived automatically from the solar disk diameter and averages the results. This greatly reduces the bright "ring" artifact that classic CLAHE can produce at the limb, while still enhancing local contrast at multiple scales. Only the clipping factor is configurable; tile sizes and histogram levels are chosen automatically.</p>
 </div>
 <div class="paragraph">
 <p>Next come the banding correction parameters, which allow to correct transversal bands which can appear on images, for example because of dust on the slit.</p>

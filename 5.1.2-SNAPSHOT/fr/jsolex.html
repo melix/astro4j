@@ -771,7 +771,7 @@ Une fenêtre de paramétrage s&#8217;ouvre, avec plusieurs sections:</p>
 <div class="ulist">
 <ul>
 <li>
-<p>Méthode d&#8217;amélioration du contraste : vous pouvez choisir entre Autostretch (JSol&#8217;Ex) et CLAHE. Selon votre choix, des paramètres supplémentaires seront disponibles.</p>
+<p>Méthode d&#8217;amélioration du contraste : vous pouvez choisir entre Autostretch (JSol&#8217;Ex), CLAHE et CLAHE (multi-échelle). Selon votre choix, des paramètres supplémentaires seront disponibles.</p>
 </li>
 </ul>
 </div>
@@ -806,6 +806,9 @@ Une fenêtre de paramétrage s&#8217;ouvre, avec plusieurs sections:</p>
 <p>le facteur de clipping</p>
 </li>
 </ul>
+</div>
+<div class="paragraph">
+<p>La méthode CLAHE (multi-échelle) exécute plusieurs passes CLAHE à des tailles de tuiles déduites automatiquement du diamètre du disque solaire et en moyenne les résultats. Cela atténue fortement l'« anneau » brillant que la CLAHE classique peut produire au limbe, tout en rehaussant le contraste local à plusieurs échelles. Seul le facteur de clipping est configurable ; les tailles de tuiles et le nombre de niveaux sont choisis automatiquement.</p>
 </div>
 <div class="paragraph">
 <p>Viennent ensuite les paramètres de correction de bandes, qui permettent de corriger les bandes transversales qui peuvent apparaître sur les images par exemple à cause de poussières sur la fente.</p>

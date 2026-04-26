@@ -533,6 +533,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_auto_contrast">AUTO_CONTRAST</a></li>
 <li><a href="#_blur">BLUR</a></li>
 <li><a href="#_clahe">CLAHE</a></li>
+<li><a href="#_clahe2">CLAHE2</a></li>
 <li><a href="#_colorize">COLORIZE</a></li>
 <li><a href="#_colorize2">COLORIZE2</a></li>
 <li><a href="#_curve_transform">CURVE_TRANSFORM</a></li>
@@ -3476,6 +3477,56 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <div class="listingblock">
 <div class="content">
 <pre>clahe(img(0), 16, 128, 1.1)</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_clahe2">CLAHE2</h3>
+<div class="paragraph">
+<p>Variante adaptative de CLAHE qui calcule la moyenne de plusieurs passes CLAHE à des tailles de tuiles différentes, déterminées automatiquement à partir du diamètre du disque solaire. Cette approche multi-échelle réduit fortement l&#8217;anneau brillant qui apparaît au limbe avec une CLAHE classique.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 13.6363%;">
+<col style="width: 13.6363%;">
+<col style="width: 59.0909%;">
+<col style="width: 13.6365%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Argument</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Requis ?</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Description</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Valeur par défaut</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>img</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Image(s)</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>clip</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Valeur de coupure</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">1.5</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p><strong>Exemples</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>clahe2(img(0))</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>clahe2(img: img(0), clip: 2.0)</pre>
 </div>
 </div>
 </div>
