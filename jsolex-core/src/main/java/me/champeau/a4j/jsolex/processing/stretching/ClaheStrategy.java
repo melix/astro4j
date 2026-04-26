@@ -242,7 +242,14 @@ public final class ClaheStrategy implements StretchingStrategy {
     }
 
     private int findHistogramBin(float src) {
-        return Math.round(src * (bins - 1) / MAX_PIXEL_VALUE);
+        int bin = Math.round(src * (bins - 1) / MAX_PIXEL_VALUE);
+        if (bin < 0) {
+            return 0;
+        }
+        if (bin >= bins) {
+            return bins - 1;
+        }
+        return bin;
     }
 
     private float linearInterpolation(

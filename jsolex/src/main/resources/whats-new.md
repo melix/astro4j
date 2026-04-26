@@ -2,6 +2,8 @@
 
 ## What's New in Version 5.1.2
 
+- Added a new ImageMath function `clahe2` that averages several CLAHE passes at tile sizes adapted to the solar disk, producing much softer limb artifacts than classic CLAHE.
+- Fixed the default sharpening kernel size shown when picking "Sharpen" or "Unsharp mask" being 1 instead of the documented minimum of 3, which made the effect a no-op until the user manually edited the field. The kernel size field now also enforces an odd value greater than or equal to 3.
 - Mosaic composition now uses a multi-band (Laplacian pyramid) blend with local exposure equalization in the overlap area, which hides seams between tiles much more effectively when brightness differs between images.
 - Stacking &amp; mosaic wizard: a new "Stacking method" choice lets you pick between "Fast" (single sharpest reference — the previous default) and "Consensus" (multi-frame iterative dedistortion — higher quality but several times slower). Consensus was previously selected by default but never actually ran the consensus algorithm.
 - Stacking &amp; mosaic wizard now uses the application's shared styling for a more consistent look.

@@ -326,6 +326,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case BG_MODEL -> bgRemoval.backgroundModel(arguments);
             case BLUR -> convolution.blur(arguments);
             case CLAHE -> clahe.clahe(arguments);
+            case CLAHE2 -> clahe.clahe2(arguments);
             case COLLAGE -> collageComposition.collage(arguments);
             case CHOOSE_FILE -> loader.chooseFile(arguments);
             case CHOOSE_FILES -> loader.chooseFiles(arguments);

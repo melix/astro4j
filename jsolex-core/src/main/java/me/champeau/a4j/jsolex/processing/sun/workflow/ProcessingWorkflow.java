@@ -20,6 +20,7 @@ import me.champeau.a4j.jsolex.processing.event.OutputImageDimensionsDeterminedEv
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
+import me.champeau.a4j.jsolex.processing.expr.impl.Clahe;
 import me.champeau.a4j.jsolex.processing.expr.impl.Colorize;
 import me.champeau.a4j.jsolex.processing.expr.impl.Convolution;
 import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
@@ -484,6 +485,10 @@ public class ProcessingWorkflow {
             case CLAHE -> {
                 ClaheStrategy.of(claheParams).stretch(stretched);
                 TransformationHistory.recordTransform(stretched, "CLAHE (tile size: " + claheParams.tileSize() + ", clip limit: " + claheParams.clipping() + ", bins: " + claheParams.bins() + ")");
+            }
+            case CLAHE2 -> {
+                Clahe.applyMultiScaleClahe(stretched, claheParams.clipping());
+                TransformationHistory.recordTransform(stretched, "CLAHE2 (clip limit: " + claheParams.clipping() + ")");
             }
         }
         return stretched;

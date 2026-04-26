@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.spectrum;
 
+import me.champeau.a4j.jsolex.processing.expr.impl.Clahe;
 import me.champeau.a4j.jsolex.processing.params.AutoStretchParams;
 import me.champeau.a4j.jsolex.processing.params.ClaheParams;
 import me.champeau.a4j.jsolex.processing.params.ContrastEnhancement;
@@ -150,9 +151,10 @@ public final class SphericalTomographyExtractor {
 
         var copy = new ImageWrapper32(width, height, copyData, metadata);
 
-        // Apply the appropriate stretching strategy
         if (contrastEnhancement == ContrastEnhancement.CLAHE && claheParams != null) {
             ClaheStrategy.of(claheParams).stretch(copy);
+        } else if (contrastEnhancement == ContrastEnhancement.CLAHE2 && claheParams != null) {
+            Clahe.applyMultiScaleClahe(copy, claheParams.clipping());
         } else if (contrastEnhancement == ContrastEnhancement.AUTOSTRETCH && autoStretchParams != null) {
             new AutohistogramStrategy(
                     autoStretchParams.gamma(),
