@@ -65,6 +65,7 @@ public class Configuration {
     private static final String HELP_ANIMATION_SEEN_PREFIX = "help.animation.seen.";
     private static final String SPECTROSOLHUB_TOKEN = "spectrosolhub.token";
     private static final String LIVE_SESSION_TITLE = "live.session.title";
+    private static final String LIVE_STARTED_DIALOG_HIDDEN = "live.started.dialog.hidden";
     private static final String DEFAULT_SPECTROSOLHUB_URL = "https://spectrosolhub.com";
 
     /**
@@ -651,6 +652,14 @@ public class Configuration {
         } else {
             prefs.put(LIVE_SESSION_TITLE, title.length() > 255 ? title.substring(0, 255) : title);
         }
+    }
+
+    public boolean isLiveStartedDialogHidden() {
+        return prefs.getBoolean(LIVE_STARTED_DIALOG_HIDDEN, false);
+    }
+
+    public void setLiveStartedDialogHidden(boolean hidden) {
+        prefs.putBoolean(LIVE_STARTED_DIALOG_HIDDEN, hidden);
     }
 
     public String getSpectroSolHubUrl() {

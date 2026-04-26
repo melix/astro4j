@@ -57,6 +57,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.scene.text.Text;
@@ -1712,6 +1713,21 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
                 Platform.runLater(() -> {
                     liveStatus.setDisable(false);
                     updateLiveStatus();
+                    if (!config.isLiveStartedDialogHidden()) {
+                        var alert = AlertFactory.info();
+                        alert.setTitle(message("live.started.title"));
+                        alert.setHeaderText(message("live.started.header"));
+                        var messageLabel = new Label(message("live.started.message"));
+                        messageLabel.setWrapText(true);
+                        messageLabel.setMaxWidth(480);
+                        var dontShowAgain = new CheckBox(message("live.started.dont.show.again"));
+                        var content = new VBox(12, messageLabel, dontShowAgain);
+                        alert.getDialogPane().setContent(content);
+                        alert.showAndWait();
+                        if (dontShowAgain.isSelected()) {
+                            config.setLiveStartedDialogHidden(true);
+                        }
+                    }
                     getHostServices().showDocument(viewUrl);
                 });
             } catch (SpectroSolHubException e) {
