@@ -572,7 +572,7 @@ public class MultipleImagesViewer extends Pane {
             var node = (Parent) fxmlLoader.load();
             var controller = (CollageController) fxmlLoader.getController();
             var params = processParams != null ? processParams : ProcessParams.loadDefaults();
-            var outputDir = outputDirectory != null ? outputDirectory : Path.of(".");
+            var outputDir = outputDirectory != null ? outputDirectory : Path.of(System.getProperty("user.home"));
             controller.setup(stage, owner, availableImagesWithInfo, outputDir, params);
             Scene scene = JSolEx.newScene(node);
             stage.setTitle(I18N.string(JSolEx.class, "collage", "frame.title"));

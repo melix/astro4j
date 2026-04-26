@@ -59,19 +59,22 @@ public class StandaloneImagesLoader {
     private final FileChooser.ExtensionFilter imageFilesFilter;
     private final BiConsumer<Double, String> progressConsumer;
     private final ProcessParams processParams;
+    private final Map<String, ImageViewer> popupViewers;
 
     public StandaloneImagesLoader(Stage stage,
                                   Configuration config,
                                   MultipleImagesViewer multipleImagesViewer,
                                   FileChooser.ExtensionFilter imageFilesFilter,
                                   BiConsumer<Double, String> progressConsumer,
-                                  ProcessParams processParams) {
+                                  ProcessParams processParams,
+                                  Map<String, ImageViewer> popupViewers) {
         this.stage = stage;
         this.config = config;
         this.multipleImagesViewer = multipleImagesViewer;
         this.imageFilesFilter = imageFilesFilter;
         this.progressConsumer = progressConsumer;
         this.processParams = processParams;
+        this.popupViewers = popupViewers;
     }
 
     /**
@@ -159,7 +162,7 @@ public class StandaloneImagesLoader {
                 finalImage,
                 fileWithBaseName,
                 processParams,
-                Map.of(),
+                popupViewers,
                 new PixelShift(0),
                 viewer -> viewer,
                 _ -> {}

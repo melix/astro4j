@@ -10,6 +10,9 @@
 - Correction de la lenteur des boutons Suivant/Précédent et de l'ouverture de l'assistant de revue des images du traitement par lot.
 - Correction de l'affichage bref du mauvais type d'image dans le panneau de référence de l'assistant de revue des images après navigation.
 - Correction de l'ordre incohérent des images dans la liste latérale de l'assistant de revue des images du traitement par lot d'un fichier SER à l'autre.
+- Correction du collage créé via Outils | Charger des images qui était enregistré dans le dossier d'installation de JSol'Ex ; il est désormais placé dans le dossier des images chargées.
+- Correction de la fenêtre de collage qui s'ouvrait parfois avec une bande d'images vide ou bloquait l'interface pendant le chargement des miniatures.
+- Correction de « Ouvrir dans une nouvelle fenêtre » qui produisait une fenêtre vide impossible à fermer lorsqu'elle était utilisée sur une image ouverte via Outils | Charger des images.
 
 ## Nouveautés de la version 5.1.1
 
