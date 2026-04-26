@@ -65,6 +65,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
@@ -210,13 +211,24 @@ public class CollageController {
         }
     }
 
+    private static void loadThumbnailAsync(ImageWrapper source, int width, int height, ImageView target, String label) {
+        BackgroundOperations.asyncIo(() -> {
+            try {
+                var thumbnail = ThumbnailGenerator.generateThumbnail(source, width, height);
+                var writable = WritableImageSupport.asWritable(thumbnail);
+                Platform.runLater(() -> target.setImage(writable));
+            } catch (Exception e) {
+                LOGGER.error("Failed to generate thumbnail for {}", label, e);
+            }
+        });
+    }
+
     private VBox createImageThumbnail(MultipleImagesViewer.ImageInfo imageInfo) {
         var imageView = new ImageView();
         imageView.setFitWidth(70);
         imageView.setFitHeight(70);
         imageView.setPreserveRatio(true);
-        var thumbnail = ThumbnailGenerator.generateThumbnail(imageInfo.image(), 70, 70);
-        imageView.setImage(WritableImageSupport.asWritable(thumbnail));
+        loadThumbnailAsync(imageInfo.image(), 70, 70, imageView, imageInfo.title());
 
         var label = new Label(imageInfo.title());
         label.setStyle("-fx-font-size: 0.75em; -fx-text-alignment: center;");
@@ -541,8 +553,7 @@ public class CollageController {
         if (slotHeight <= 0) {
             slotHeight = 150;
         }
-        var thumbnail = ThumbnailGenerator.generateThumbnail(imageInfo.image(), slotWidth, slotHeight);
-        imageView.setImage(WritableImageSupport.asWritable(thumbnail));
+        loadThumbnailAsync(imageInfo.image(), slotWidth, slotHeight, imageView, imageInfo.title());
 
         var label = new Label(imageInfo.title());
         label.setStyle("-fx-background-color: rgba(0,0,0,0.7); -fx-text-fill: white; -fx-padding: 2 4 2 4; -fx-font-size: 10px; -fx-background-radius: 3;");
@@ -768,7 +779,7 @@ public class CollageController {
                     collageImage,
                     outputFile,
                     ProcessParams.loadDefaults(),
-                    Map.of(),
+                    new ConcurrentHashMap<>(),
                     new PixelShift(0),
                     viewer -> viewer,
                     _ -> {}

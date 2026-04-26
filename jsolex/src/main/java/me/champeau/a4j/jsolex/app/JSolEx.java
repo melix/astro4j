@@ -1421,7 +1421,12 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             mainPane.getTabs().add(imagesViewerTab);
             hideTabHeaderWhenSingleTab(mainPane);
         }
-        new StandaloneImagesLoader(rootStage, config, multipleImagesViewer, IMAGE_FILES_EXTENSIONS, this::updateProgress, ProcessParams.loadDefaults()).loadImages();
+        var defaults = ProcessParams.loadDefaults();
+        new StandaloneImagesLoader(rootStage, config, multipleImagesViewer, IMAGE_FILES_EXTENSIONS, this::updateProgress, defaults, popupViewers).loadImages();
+        config.findLastOpenDirectory().ifPresent(dir -> {
+            this.outputDirectory = dir;
+            multipleImagesViewer.setCollageContext(this, defaults, dir);
+        });
     }
 
     private Button addInterruptClearParamsButton() {
