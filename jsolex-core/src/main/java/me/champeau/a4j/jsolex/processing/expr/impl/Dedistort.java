@@ -30,6 +30,7 @@ import me.champeau.a4j.jsolex.processing.expr.stacking.SamplingStrategy;
 import me.champeau.a4j.jsolex.processing.expr.stacking.SparseDistortionField;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.MetadataTable;
+import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
@@ -95,13 +96,21 @@ public class Dedistort extends AbstractFunctionImpl {
     private static final double FULL_FREEZE_FRACTION = 0.98;
 
     private final CorrelationStrategy correlationStrategy = NCCCorrelationStrategy.INSTANCE;
+    private final Crop crop;
+    private final Scaling scaling;
 
     static {
 //        ((ch.qos.logback.classic.Logger) LoggerFactory.getLogger(Dedistort.class)).setLevel(Level.DEBUG);
     }
 
     public Dedistort(Map<Class<?>, Object> context, Broadcaster broadcaster) {
+        this(context, broadcaster, null, null);
+    }
+
+    public Dedistort(Map<Class<?>, Object> context, Broadcaster broadcaster, Crop crop, Scaling scaling) {
         super(context, broadcaster);
+        this.crop = crop;
+        this.scaling = scaling;
     }
 
     private static float[][] getOrCreateHannWindow(int size) {
@@ -483,6 +492,34 @@ public class Dedistort extends AbstractFunctionImpl {
                 .filter(ImageWrapper.class::isInstance)
                 .map(ImageWrapper.class::cast)
                 .map(ImageWrapper::unwrapToMemory)
+                .map(ImageWrapper32.class::cast)
+                .toList();
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<ImageWrapper32> prepareImagesForConsensus(List<ImageWrapper32> images) {
+        if (images.size() < 2 || crop == null || scaling == null) {
+            return images;
+        }
+        var widths = images.stream().mapToInt(ImageWrapper::width).distinct().toArray();
+        var heights = images.stream().mapToInt(ImageWrapper::height).distinct().toArray();
+        if (widths.length == 1 && heights.length == 1) {
+            return images;
+        }
+        LOGGER.info(message("dedistort.normalizing.sizes"), images.size());
+        List<ImageWrapper> normalized = images.stream().map(ImageWrapper.class::cast).toList();
+        normalized = (List<ImageWrapper>) crop.autocrop2(Map.of("img", normalized));
+        normalized = (List<ImageWrapper>) scaling.radiusRescale(Map.of("images", normalized));
+        return normalized.stream()
+                .map(img -> {
+                    if (img instanceof FileBackedImage fbi) {
+                        return fbi.unwrapToMemory();
+                    }
+                    if (img instanceof ImageWrapper32 img32) {
+                        return img32;
+                    }
+                    throw new IllegalStateException("Unexpected image type: " + img.getClass());
+                })
                 .map(ImageWrapper32.class::cast)
                 .toList();
     }
@@ -975,6 +1012,11 @@ public class Dedistort extends AbstractFunctionImpl {
     List<ImageWrapper32> dedistortWithConsensusReference(List<?> listOfImages,
                                                          Map<String, Object> arguments) {
         var images = asMonoImages(listOfImages);
+
+        // Normalize image dimensions and solar radius before correlation: the GPU image
+        // cache assumes all frames share the same (width, height), and consensus correlation
+        // requires consistent physical scale across frames.
+        images = prepareImagesForConsensus(images);
 
         // Sort by filename for deterministic processing order across JVM restarts
         var sortedImages = new ArrayList<>(images);

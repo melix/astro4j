@@ -1,0 +1,17 @@
+name: COPY_METADATA
+category: UTILS
+description:
+  fr: "Copie les métadonnées (date d'observation, observateur, raie, paramètres de processus, etc.) depuis `from` vers `to` et retourne l'image résultante. Utile lorsque les opérations arithmétiques fusionnent les métadonnées d'une manière indésirable, par exemple lorsqu'une soustraction par une image partagée écrase la date propre à chaque image d'un lot. Les pixels ne sont pas modifiés. Si `to` et `from` sont des listes de même taille, la copie est faite élément par élément. Si `from` est une image unique et `to` une liste, toutes les images de la liste reçoivent les mêmes métadonnées."
+  en: "Copies the metadata (observation date, observer, ray, process parameters, etc.) from `from` onto `to` and returns the resulting image. Useful when arithmetic operations merge metadata in an unwanted way, for example when subtracting a shared image overwrites each frame's own observation date in a batch. Pixel values are not modified. If `to` and `from` are lists of the same length, the copy is done element-wise. If `from` is a single image and `to` is a list, every image in the list gets the same metadata."
+arguments:
+  - name: to
+    description:
+      fr: "Image(s) destinataire(s) des métadonnées"
+      en: "Image(s) that will receive the metadata"
+  - name: from
+    description:
+      fr: "Image(s) source des métadonnées"
+      en: "Source image(s) for the metadata"
+examples:
+  - "copy_metadata(to: enhanced; from: original)"
+  - "copy_metadata(to: enhanced_list; from: original_list)"

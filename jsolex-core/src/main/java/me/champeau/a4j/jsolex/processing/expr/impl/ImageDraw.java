@@ -222,7 +222,10 @@ public class ImageDraw extends AbstractFunctionImpl {
             // fast exit path
             return message;
         }
-        var params = (ProcessParams) context.get(ProcessParams.class);
+        var params = findProcessParams(image).orElse(null);
+        if (params == null) {
+            return message;
+        }
         if (message.contains("%WAVELEN%")) {
             var wl = AbstractImageExpressionEvaluator.determineWavelengthOf(context, image);
             message = message.replace("%WAVELEN%", String.format(Locale.US, "%.2f", wl));

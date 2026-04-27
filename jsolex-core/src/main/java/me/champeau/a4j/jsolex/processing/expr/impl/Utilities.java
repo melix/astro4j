@@ -166,6 +166,45 @@ public class Utilities extends AbstractFunctionImpl {
         throw new IllegalArgumentException("Unexpected argument type: " + image.getClass());
     }
 
+    public Object copyMetadata(Map<String, Object> arguments) {
+        BuiltinFunction.COPY_METADATA.validateArgs(arguments);
+        var toArg = arguments.get("to");
+        var fromArg = arguments.get("from");
+        if (toArg instanceof List<?> toList) {
+            if (fromArg instanceof List<?> fromList) {
+                if (fromList.size() != toList.size()) {
+                    throw new IllegalArgumentException("copy_metadata: 'to' and 'from' lists must have the same size (got "
+                            + toList.size() + " and " + fromList.size() + ")");
+                }
+                var result = new ArrayList<>(toList.size());
+                for (int i = 0; i < toList.size(); i++) {
+                    result.add(copyMetadataSingle(toList.get(i), fromList.get(i)));
+                }
+                return result;
+            }
+            return toList.stream()
+                    .map(item -> copyMetadataSingle(item, fromArg))
+                    .toList();
+        }
+        if (fromArg instanceof List<?>) {
+            throw new IllegalArgumentException("copy_metadata: cannot copy metadata from a list of images onto a single image");
+        }
+        return copyMetadataSingle(toArg, fromArg);
+    }
+
+    private static ImageWrapper copyMetadataSingle(Object target, Object source) {
+        if (!(target instanceof ImageWrapper targetWrapper)) {
+            throw new IllegalArgumentException("copy_metadata: 'to' must be an image, got " + (target == null ? "null" : target.getClass()));
+        }
+        if (!(source instanceof ImageWrapper sourceWrapper)) {
+            throw new IllegalArgumentException("copy_metadata: 'from' must be an image, got " + (source == null ? "null" : source.getClass()));
+        }
+        var copy = targetWrapper.unwrapToMemory().copy();
+        copy.metadata().clear();
+        copy.metadata().putAll(sourceWrapper.unwrapToMemory().metadata());
+        return copy;
+    }
+
     public Object toMono(Map<String ,Object> arguments) {
         BuiltinFunction.MONO.validateArgs(arguments);
         if (arguments.get("img") instanceof List) {

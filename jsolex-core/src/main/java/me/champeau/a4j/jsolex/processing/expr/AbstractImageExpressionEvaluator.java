@@ -172,7 +172,8 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         this.conditionals = new Conditionals(context, broadcaster);
         this.convolution = new Convolution(context, broadcaster);
         this.crop = new Crop(context, broadcaster);
-        this.dedistort = new Dedistort(context, broadcaster);
+        this.scaling = new Scaling(context, broadcaster, crop);
+        this.dedistort = new Dedistort(context, broadcaster, crop, scaling);
         this.diskFill = new DiskFill(context, broadcaster);
         this.ellipseFit = new EllipseFit(context, broadcaster);
         this.filtering = new Filtering(context, broadcaster);
@@ -190,7 +191,6 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         this.remoteScriptGen = new RemoteScriptGen(this, context, broadcaster);
         this.rotate = new Rotate(context, broadcaster);
         this.saturation = new Saturation(context, broadcaster);
-        this.scaling = new Scaling(context, broadcaster, crop);
         this.signedDiff = new SignedDiff(context, broadcaster);
         this.simpleFunctionCall = new SimpleFunctionCall(context, broadcaster);
         this.stretching = new Stretching(context, broadcaster);
@@ -334,6 +334,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case COLORIZE2 -> colorize.colorize2(arguments);
             case CONCAT -> utilities.concat(arguments);
             case CONTINUUM -> createContinuumImage();
+            case COPY_METADATA -> utilities.copyMetadata(arguments);
             case CROP -> crop.crop(arguments);
             case CROP_RECT -> crop.cropToRect(arguments);
             case CROP_AR -> crop.cropActiveRegions(arguments);

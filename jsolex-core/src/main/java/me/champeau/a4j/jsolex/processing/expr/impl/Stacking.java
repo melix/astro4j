@@ -112,17 +112,14 @@ public class Stacking extends AbstractFunctionImpl {
      * stacking when the atmosphere varies significantly across frames.
      */
     private ImageWrapper32 stackWithConsensus(List<ImageWrapper32> images, int tileSize, float sampling) {
-        var widths = images.stream().mapToInt(ImageWrapper::width).distinct().toArray();
-        var heights = images.stream().mapToInt(ImageWrapper::height).distinct().toArray();
-        var prepared = prepareForStacking(images, widths, heights);
-        var dedistort = new Dedistort(context, broadcaster);
+        var dedistort = new Dedistort(context, broadcaster, crop, scaling);
         var args = Map.<String, Object>of(
                 "ts", tileSize,
                 "sampling", (double) sampling,
                 "iterations", 3,
                 "adaptive", true
         );
-        var dedistorted = dedistort.dedistortWithConsensusReference(prepared, args);
+        var dedistorted = dedistort.dedistortWithConsensusReference(images, args);
         return (ImageWrapper32) utilities.weightedAverage(Map.of(
                 "images", dedistorted,
                 "weights", dedistorted.stream().map(img -> 1.0).toList()

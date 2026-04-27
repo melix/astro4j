@@ -17,6 +17,9 @@
 - Correction de « Ouvrir dans une nouvelle fenêtre » qui produisait une fenêtre vide impossible à fermer lorsqu'elle était utilisée sur une image ouverte via Outils | Charger des images.
 - Correction de la fonction ImageMath `sort` qui retournait la liste non triée lorsque le suffixe `asc` était utilisé dans l'argument d'ordre (par exemple `sort(images, "date asc")`).
 - Correction des fonctions ImageMath `rotate_deg`, `rotate_left` et `rotate_right` qui échouaient ou tournaient d'un angle erroné lorsqu'elles étaient appliquées à une liste d'images.
+- Correction de `dedistort` qui échouait sur des listes d'images de tailles différentes ; les images sont désormais alignées automatiquement.
+- Les marqueurs de `draw_text` utilisent désormais les métadonnées propres à chaque image lorsqu'elles sont disponibles.
+- Ajout de `copy_metadata(to: ...; from: ...)` pour copier les métadonnées d'observation entre images.
 
 ## Nouveautés de la version 5.1.1
 
