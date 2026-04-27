@@ -16,6 +16,7 @@
 - Fixed the collage dialog occasionally opening with an empty image strip or freezing the UI while loading thumbnails.
 - Fixed "Open in new window" producing an empty popup that could not be closed when used on an image opened via Tools | Load images.
 - Fixed the ImageMath `sort` function returning the unsorted list when the order argument used the `asc` suffix (e.g. `sort(images, "date asc")`).
+- Fixed `rotate_deg`, `rotate_left` and `rotate_right` ImageMath functions failing or rotating by the wrong angle when applied to a list of images.
 
 ## What's New in Version 5.1.1
 

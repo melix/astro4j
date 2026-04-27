@@ -120,7 +120,7 @@ public class Rotate extends AbstractFunctionImpl {
     private Object doRotate(String functionName, Map<String, Object> arguments, double angle) {
         var arg = arguments.get("img");
         if (arg instanceof List<?>) {
-            return expandToImageList(functionName, "img", arguments, this::rotateRadians);
+            return expandToImageList(functionName, "img", arguments, args -> doRotate(functionName, args, angle));
         }
         if (arg instanceof FileBackedImage fileBackedImage) {
             arg = fileBackedImage.unwrapToMemory();

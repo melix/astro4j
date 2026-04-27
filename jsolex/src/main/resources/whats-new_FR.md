@@ -16,6 +16,7 @@
 - Correction de la fenêtre de collage qui s'ouvrait parfois avec une bande d'images vide ou bloquait l'interface pendant le chargement des miniatures.
 - Correction de « Ouvrir dans une nouvelle fenêtre » qui produisait une fenêtre vide impossible à fermer lorsqu'elle était utilisée sur une image ouverte via Outils | Charger des images.
 - Correction de la fonction ImageMath `sort` qui retournait la liste non triée lorsque le suffixe `asc` était utilisé dans l'argument d'ordre (par exemple `sort(images, "date asc")`).
+- Correction des fonctions ImageMath `rotate_deg`, `rotate_left` et `rotate_right` qui échouaient ou tournaient d'un angle erroné lorsqu'elles étaient appliquées à une liste d'images.
 
 ## Nouveautés de la version 5.1.1
 
