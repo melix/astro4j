@@ -118,6 +118,8 @@ public class Utilities extends AbstractFunctionImpl {
         boolean reverse = ordering.endsWith(" desc");
         if (reverse) {
             ordering = ordering.substring(0, ordering.length() - 5);
+        } else if (ordering.endsWith(" asc")) {
+            ordering = ordering.substring(0, ordering.length() - 4);
         }
         Comparator<? super ImageWrapper> comparator = null;
         if ("date".equals(ordering)) {

@@ -15,6 +15,7 @@
 - Fixed the collage created via Tools | Load images being saved inside the JSol'Ex installation folder; it now lands in the directory of the loaded images.
 - Fixed the collage dialog occasionally opening with an empty image strip or freezing the UI while loading thumbnails.
 - Fixed "Open in new window" producing an empty popup that could not be closed when used on an image opened via Tools | Load images.
+- Fixed the ImageMath `sort` function returning the unsorted list when the order argument used the `asc` suffix (e.g. `sort(images, "date asc")`).
 
 ## What's New in Version 5.1.1
 

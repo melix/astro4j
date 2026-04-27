@@ -15,6 +15,7 @@
 - Correction du collage créé via Outils | Charger des images qui était enregistré dans le dossier d'installation de JSol'Ex ; il est désormais placé dans le dossier des images chargées.
 - Correction de la fenêtre de collage qui s'ouvrait parfois avec une bande d'images vide ou bloquait l'interface pendant le chargement des miniatures.
 - Correction de « Ouvrir dans une nouvelle fenêtre » qui produisait une fenêtre vide impossible à fermer lorsqu'elle était utilisée sur une image ouverte via Outils | Charger des images.
+- Correction de la fonction ImageMath `sort` qui retournait la liste non triée lorsque le suffixe `asc` était utilisé dans l'argument d'ordre (par exemple `sort(images, "date asc")`).
 
 ## Nouveautés de la version 5.1.1
 
