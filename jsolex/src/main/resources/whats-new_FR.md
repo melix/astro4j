@@ -3,11 +3,9 @@
 ## Nouveautés de la version 5.1.2
 
 - Ajout d'une nouvelle fonction ImageMath `clahe2` qui calcule la moyenne de plusieurs passes CLAHE à des tailles de tuiles adaptées au disque solaire, produisant des artefacts au limbe nettement plus doux qu'une CLAHE classique.
-- Correction de la taille de noyau par défaut affichée à la sélection de « Renforcement » ou « Masque flou » qui valait 1 au lieu du minimum documenté de 3, ce qui rendait l'effet sans action tant que l'utilisateur ne modifiait pas la valeur. Le champ contraint désormais la saisie à un entier impair supérieur ou égal à 3.
-- La composition de mosaïques utilise désormais un mélange multi-bandes (pyramide laplacienne) avec égalisation locale de l'exposition dans la zone de recouvrement, ce qui dissimule beaucoup mieux les raccords entre tuiles lorsque la luminosité diffère entre les images.
-- Assistant d'empilement et de mosaïque : un nouveau choix « Méthode d'empilement » permet de choisir entre « Rapide » (référence unique la plus nette — le comportement précédent) et « Consensus » (dédistorsion multi-images itérative — meilleure qualité mais plusieurs fois plus lente). Le mode Consensus était sélectionné par défaut auparavant mais n'exécutait pas réellement l'algorithme de consensus.
-- L'assistant d'empilement et de mosaïque utilise désormais le style partagé de l'application pour une apparence plus cohérente.
-- La composition de mosaïques affiche maintenant la progression pendant l'assemblage des paires de panneaux et lors de l'étape finale de fusion.
+- Correction de la taille de noyau par défaut affichée à la sélection de « Renforcement » ou « Masque flou ».
+- La composition de mosaïques utilise désormais un mélange multi-bandes (pyramide laplacienne) avec égalisation locale de l'exposition dans la zone de recouvrement.
+- Assistant d'empilement et de mosaïque : un nouveau choix « Méthode d'empilement » permet de choisir entre « Rapide » et « Consensus ».
 - Correction d'un plantage lors de l'empilement (« Progress must be between 0.0 and 1.0 ») lorsque la hauteur de l'image n'était pas un multiple du pas de tuile.
 - Correction de la lenteur des boutons Suivant/Précédent et de l'ouverture de l'assistant de revue des images du traitement par lot.
 - Correction de l'affichage bref du mauvais type d'image dans le panneau de référence de l'assistant de revue des images après navigation.
