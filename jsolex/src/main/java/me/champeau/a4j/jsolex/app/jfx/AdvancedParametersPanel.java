@@ -52,6 +52,7 @@ public class AdvancedParametersPanel extends BaseParameterPanel {
     private CheckBox disallowDownsampling;
     private CheckBox spectrumVFlip;
     private CheckBox assumeMonoVideo;
+    private CheckBox trustSerFileBitDepth;
 
     /** Creates a new advanced parameters panel. */
     public AdvancedParametersPanel() {
@@ -103,6 +104,9 @@ public class AdvancedParametersPanel extends BaseParameterPanel {
         assumeMonoVideo.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "assume.mono.images.tooltip")));
         assumeMonoVideo.setSelected(true);
 
+        trustSerFileBitDepth = new CheckBox(I18N.string(JSolEx.class, "process-params", "trust.ser.bitdepth"));
+        trustSerFileBitDepth.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "trust.ser.bitdepth.tooltip")));
+
         tiltValue.disableProperty().bind(forceTilt.selectedProperty().not());
         xyRatioValue.disableProperty().bind(forceXYRatio.selectedProperty().not());
         forcedPolynomial.disableProperty().bind(forcePolynomial.selectedProperty().not());
@@ -128,6 +132,7 @@ public class AdvancedParametersPanel extends BaseParameterPanel {
         addGridRow(advancedGrid, 4, disallowDownsampling);
         addGridRow(advancedGrid, 5, spectrumVFlip, "spectrum.vflip.tooltip");
         addGridRow(advancedGrid, 6, assumeMonoVideo, "assume.mono.images.tooltip");
+        addGridRow(advancedGrid, 7, trustSerFileBitDepth, "trust.ser.bitdepth.tooltip");
         
         advancedSection.getChildren().add(advancedGrid);
         
@@ -149,6 +154,7 @@ public class AdvancedParametersPanel extends BaseParameterPanel {
         ellipseFittingMode.setValue(EllipseFittingMode.AUTOMATIC);
         disallowDownsampling.setSelected(false);
         spectrumVFlip.setSelected(false);
+        trustSerFileBitDepth.setSelected(false);
     }
 
     /**
@@ -190,6 +196,7 @@ public class AdvancedParametersPanel extends BaseParameterPanel {
         
         var videoParams = params.videoParams();
         assumeMonoVideo.setSelected(videoParams.colorMode() != null && videoParams.colorMode() == ColorMode.MONO);
+        trustSerFileBitDepth.setSelected(videoParams.trustSerFileBitDepth());
     }
 
     /**
@@ -270,6 +277,14 @@ public class AdvancedParametersPanel extends BaseParameterPanel {
      */
     public boolean isAssumeMonoVideoSelected() {
         return assumeMonoVideo.isSelected();
+    }
+
+    /**
+     * Returns whether the SER file declared bit depth should be trusted.
+     * @return true if the declared bit depth should be used as-is
+     */
+    public boolean isTrustSerFileBitDepthSelected() {
+        return trustSerFileBitDepth.isSelected();
     }
 
     /**

@@ -17,8 +17,16 @@ package me.champeau.a4j.jsolex.processing.params;
 
 import me.champeau.a4j.ser.ColorMode;
 
-public record VideoParams(ColorMode colorMode) {
+public record VideoParams(ColorMode colorMode, boolean trustSerFileBitDepth) {
+    public VideoParams(ColorMode colorMode) {
+        this(colorMode, false);
+    }
+
     public VideoParams withColorMode(ColorMode colorMode) {
-        return new VideoParams(colorMode);
+        return new VideoParams(colorMode, trustSerFileBitDepth);
+    }
+
+    public VideoParams withTrustSerFileBitDepth(boolean trustSerFileBitDepth) {
+        return new VideoParams(colorMode, trustSerFileBitDepth);
     }
 }
