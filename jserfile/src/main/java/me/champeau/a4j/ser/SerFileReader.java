@@ -154,7 +154,23 @@ public class SerFileReader implements AutoCloseable {
      * @throws IOException if an I/O error occurs
      */
     public static SerFileReader of(File file) throws IOException {
+        return of(file, false);
+    }
+
+    /**
+     * Opens a SER file for reading.
+     *
+     * @param file the file to read
+     * @param trustDeclaredBitDepth if true, the pixel depth declared in the SER header is used as-is
+     *                              and the heuristic detection of the actual pixel depth is skipped
+     * @return a new SerFileReader
+     * @throws IOException if an I/O error occurs
+     */
+    public static SerFileReader of(File file, boolean trustDeclaredBitDepth) throws IOException {
         var tmpReader = createBaseReader(file);
+        if (trustDeclaredBitDepth) {
+            return tmpReader;
+        }
         return fixReader(tmpReader);
     }
 

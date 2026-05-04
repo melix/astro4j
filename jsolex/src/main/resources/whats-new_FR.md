@@ -1,5 +1,9 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+## Nouveautés de la version 5.1.3
+
+- Ajout d'une option « Faire confiance à la profondeur de bits déclarée » dans les paramètres de traitement avancés pour contourner la détection automatique lorsqu'elle donne un résultat incorrect.
+
 ## Nouveautés de la version 5.1.2
 
 - Ajout d'une nouvelle fonction ImageMath `clahe2` qui calcule la moyenne de plusieurs passes CLAHE à des tailles de tuiles adaptées au disque solaire, produisant des artefacts au limbe nettement plus doux qu'une CLAHE classique.

@@ -421,7 +421,9 @@ public class ProcessParamsController {
                 .withEllipseFittingMode(advancedPanel.getEllipseFittingMode())
                 .withRichardsonLucyDeconvolutionParams(enhancementPanel.getRichardsonLucyParams());
         
-        var videoParams = new VideoParams(advancedPanel.isAssumeMonoVideoSelected() ? ColorMode.MONO : null);
+        var videoParams = new VideoParams(
+                advancedPanel.isAssumeMonoVideoSelected() ? ColorMode.MONO : null,
+                advancedPanel.isTrustSerFileBitDepthSelected());
         
         processParams = processParams
                 .withSpectrumParams(processingPanel.getSpectrumParams())

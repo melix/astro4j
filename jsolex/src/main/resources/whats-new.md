@@ -1,5 +1,9 @@
 # Welcome to JSol'Ex {{version}}!
 
+## What's New in Version 5.1.3
+
+- Added a "Trust SER file bit depth" option in the advanced process parameters to bypass automatic bit depth detection when it produces an incorrect result.
+
 ## What's New in Version 5.1.2
 
 - Added a new ImageMath function `clahe2` that averages several CLAHE passes at tile sizes adapted to the solar disk, producing much softer limb artifacts than classic CLAHE.

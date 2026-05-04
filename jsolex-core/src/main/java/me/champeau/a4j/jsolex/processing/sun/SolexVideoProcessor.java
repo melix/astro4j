@@ -283,7 +283,7 @@ public class SolexVideoProcessor implements Broadcaster {
         AtomicInteger frameCountRef = new AtomicInteger();
         AtomicReference<Header> headerRef = new AtomicReference<>();
         AtomicReference<Double> fpsRef = new AtomicReference<>();
-        try (SerFileReader reader = SerFileReader.of(serFile)) {
+        try (SerFileReader reader = SerFileReader.of(serFile, processParams.videoParams().trustSerFileBitDepth())) {
             var header = reader.header();
             broadcast(new VideoMetadataEvent(header));
             maybeUpdateProcessParams(header);
@@ -485,7 +485,7 @@ public class SolexVideoProcessor implements Broadcaster {
             for (int i = 0; i < batches.size(); i++) {
                 var batch = batches.get(i);
                 LOGGER.info(message("processing.batch"), i + 1, batches.size());
-                try (var reader = serFileReader.get() != null ? serFileReader.get().reopen() : SerFileReader.of(serFile)) {
+                try (var reader = serFileReader.get() != null ? serFileReader.get().reopen() : SerFileReader.of(serFile, processParams.videoParams().trustSerFileBitDepth())) {
                     long serFileSize = Files.size(serFile.toPath());
                     long unitSd = System.nanoTime();
                     var outputs = performImageReconstruction(converter, reader, 0, end, geometry, width, height, polynomial, current, totalImages, imageNamingStrategy, batch.toArray(new WorkflowState[0]));
@@ -684,7 +684,7 @@ public class SolexVideoProcessor implements Broadcaster {
                                                   String baseName,
                                                   List<WorkflowState> imageList) {
         missingShiftLock.lock();
-        try (var reader = SerFileReader.of(serFile)) {
+        try (var reader = SerFileReader.of(serFile, processParams.videoParams().trustSerFileBitDepth())) {
             var state = new WorkflowState(width, newHeight, shift.pixelShift());
             imageList.add(state);
             state.setInternal(true);
@@ -1151,7 +1151,7 @@ public class SolexVideoProcessor implements Broadcaster {
             ImageStats finalImageStats = imageStats;
             var scriptsOperation = newOperation(message("running.scripts"));
             // Create a shared SerFileReader for scripts that need SER file access
-            try (var scriptsReader = SerFileReader.of(serFile);
+            try (var scriptsReader = SerFileReader.of(serFile, processParams.videoParams().trustSerFileBitDepth());
                  var scriptExecutor = Executors.newVirtualThreadPerTaskExecutor()) {
             var scriptFutures = mathImages.scriptFiles().stream().map(scriptFile -> CompletableFuture.runAsync(() -> {
                 broadcast(scriptsOperation.update(0, message("running.scripts") + " : " + scriptFile.getName()));
