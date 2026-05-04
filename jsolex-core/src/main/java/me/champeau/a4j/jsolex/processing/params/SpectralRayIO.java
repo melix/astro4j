@@ -85,7 +85,7 @@ public abstract class SpectralRayIO {
                     if (current.label().equals(SpectralRay.HELIUM_D3.label())) {
                         current = new SpectralRay(current.label(), SpectralRay.HELIUM_D3.colorCurve(), SpectralRay.HELIUM_D3.wavelength(), true, current.automaticScripts());
                     }
-                    if (!current.label().equals(SpectralRay.H_ALPHA.label())) {
+                    if (current.colorCurve() == null && !current.label().equals(SpectralRay.H_ALPHA.label())) {
                         current = new SpectralRay(current.label(), ray.colorCurve(), current.wavelength(), current.emission(), current.automaticScripts());
                     }
                     newRays.add(current);
