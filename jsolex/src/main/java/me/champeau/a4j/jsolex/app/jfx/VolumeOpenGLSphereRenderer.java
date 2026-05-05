@@ -21,6 +21,7 @@ import me.champeau.a4j.jsolex.app.jfx.gl.Volume3DTexture;
 import me.champeau.a4j.jsolex.processing.spectrum.SphericalTomographyData;
 import me.champeau.a4j.math.regression.Ellipse;
 import org.lwjgl.BufferUtils;
+import org.lwjgl.opengl.GL12;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -167,34 +168,54 @@ public class VolumeOpenGLSphereRenderer implements SphereRenderer {
     private void preprocessData() {
         var shellCount = data.shellCount();
 
-        imageDataList = new ArrayList<>();
+        var max3D = glGetInteger(GL12.GL_MAX_3D_TEXTURE_SIZE);
+        LOGGER.debug("GPU max 3D texture size: {}", max3D);
+
+        var rawList = new ArrayList<float[][]>();
         Ellipse ellipse = null;
+        int rawWidth = 0;
+        int rawHeight = 0;
         for (var i = 0; i < shellCount; i++) {
             var shellData = data.shells().get(i);
             var image = shellData.image();
             var imgData = image.data();
-            imageDataList.add(imgData);
+            rawList.add(imgData);
 
             if (i == 0) {
-                textureWidth = imgData[0].length;
-                textureHeight = imgData.length;
+                rawWidth = imgData[0].length;
+                rawHeight = imgData.length;
                 ellipse = image.findMetadata(Ellipse.class).orElse(null);
             }
         }
 
+        textureWidth = rawWidth;
+        textureHeight = rawHeight;
+        if (max3D > 0 && (rawWidth > max3D || rawHeight > max3D || shellCount > max3D)) {
+            var scale = Math.min((float) max3D / rawWidth, (float) max3D / rawHeight);
+            textureWidth = (int) (rawWidth * scale);
+            textureHeight = (int) (rawHeight * scale);
+            LOGGER.debug("Downscaling volume slices from {}x{} to {}x{} (GPU 3D limit: {})",
+                    rawWidth, rawHeight, textureWidth, textureHeight, max3D);
+        }
+        imageDataList = (textureWidth != rawWidth || textureHeight != rawHeight)
+                ? downsampleAll(rawList, textureWidth, textureHeight)
+                : rawList;
+
         if (ellipse != null) {
-            diskCenterU = (float) (ellipse.center().a() / textureWidth);
-            diskCenterV = (float) (ellipse.center().b() / textureHeight);
-            diskRadiusU = (float) (ellipse.semiAxis().a() / textureWidth);
-            diskRadiusV = (float) (ellipse.semiAxis().b() / textureHeight);
+            diskCenterU = (float) (ellipse.center().a() / rawWidth);
+            diskCenterV = (float) (ellipse.center().b() / rawHeight);
+            diskRadiusU = (float) (ellipse.semiAxis().a() / rawWidth);
+            diskRadiusV = (float) (ellipse.semiAxis().b() / rawHeight);
         }
 
         if (data.hasEnhancedShells()) {
-            enhancedImageDataList = new ArrayList<>();
+            var rawEnhanced = new ArrayList<float[][]>();
             for (var shellData : data.enhancedShells()) {
-                var imgData = shellData.image().data();
-                enhancedImageDataList.add(imgData);
+                rawEnhanced.add(shellData.image().data());
             }
+            enhancedImageDataList = (textureWidth != rawWidth || textureHeight != rawHeight)
+                    ? downsampleAll(rawEnhanced, textureWidth, textureHeight)
+                    : rawEnhanced;
         }
 
         minRadius = Double.MAX_VALUE;
@@ -221,6 +242,30 @@ public class VolumeOpenGLSphereRenderer implements SphereRenderer {
         lineCenterDepth = shellCount > 1 ? (float) lineCenterIndex / (shellCount - 1) : 0.5f;
         LOGGER.debug("Line center at index {} (depth={}), pixelShift={}",
                      lineCenterIndex, lineCenterDepth, data.shells().get(lineCenterIndex).pixelShift());
+    }
+
+    private static List<float[][]> downsampleAll(List<float[][]> src, int targetWidth, int targetHeight) {
+        var result = new ArrayList<float[][]>(src.size());
+        for (var data : src) {
+            result.add(downsample(data, targetWidth, targetHeight));
+        }
+        return result;
+    }
+
+    private static float[][] downsample(float[][] src, int targetWidth, int targetHeight) {
+        int srcHeight = src.length;
+        int srcWidth = src[0].length;
+        var dst = new float[targetHeight][targetWidth];
+        float sx = (float) srcWidth / targetWidth;
+        float sy = (float) srcHeight / targetHeight;
+        for (int y = 0; y < targetHeight; y++) {
+            int srcY = Math.min((int) (y * sy), srcHeight - 1);
+            for (int x = 0; x < targetWidth; x++) {
+                int srcX = Math.min((int) (x * sx), srcWidth - 1);
+                dst[y][x] = src[srcY][srcX];
+            }
+        }
+        return dst;
     }
 
     private void createVolumeTexture() {

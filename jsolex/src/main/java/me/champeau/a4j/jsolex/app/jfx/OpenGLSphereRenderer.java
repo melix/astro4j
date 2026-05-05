@@ -15,6 +15,9 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
+import me.champeau.a4j.jsolex.app.jfx.gl.GlMatrix;
+import me.champeau.a4j.jsolex.app.jfx.gl.ShaderProgram;
+import me.champeau.a4j.jsolex.app.jfx.gl.SphereMeshBuilder;
 import me.champeau.a4j.jsolex.processing.spectrum.SphericalTomographyData;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
@@ -22,6 +25,10 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.regression.Ellipse;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL12;
+import org.lwjgl.opengl.GL13;
+import org.lwjgl.opengl.GL15;
+import org.lwjgl.opengl.GL20;
+import org.lwjgl.opengl.GL30;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -68,6 +75,16 @@ public class OpenGLSphereRenderer implements SphereRenderer {
     private int maxTextureSize = -1;
     private int textureWidth;
     private int textureHeight;
+
+    private ShaderProgram shader;
+    private int sphereVao = -1;
+    private int sphereVbo = -1;
+    private int sphereEbo = -1;
+    private int sphereIndexCount;
+    private int bandVao = -1;
+    private int bandVbo = -1;
+    private int bandEbo = -1;
+    private int bandIndexCount;
 
     /**
      * Creates a new OpenGL sphere renderer for the given tomography data.
@@ -590,32 +607,30 @@ public class OpenGLSphereRenderer implements SphereRenderer {
             return;
         }
 
-        // Clear to black background
+        ensureGpuResources();
+
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        setupProjection(viewWidth, viewHeight);
-        setupModelView();
-
-        // Enable depth test for proper occlusion
         glEnable(GL_DEPTH_TEST);
         glDepthFunc(GL_LEQUAL);
 
-        // Filter to only visible shells
         var visibleShells = shellRenderData.stream()
                 .filter(this::isShellVisible)
                 .toList();
 
-        // Enable texturing
-        glEnable(GL_TEXTURE_2D);
-        glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+        var viewProjection = computeViewProjection(viewWidth, viewHeight);
 
-        // Shells are sorted by radius (innermost first)
-        // Render innermost first (opaque base), then outer shells on top with alpha blending
+        shader.use();
+        shader.setUniform("tint", 1f, 1f, 1f, 1f);
+        shader.setUniform("tex", 0);
+        GL13.glActiveTexture(GL13.GL_TEXTURE0);
+
         if (!visibleShells.isEmpty()) {
             glDisable(GL_BLEND);
-            glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-            renderShell(visibleShells.getFirst());
+            shader.setUniform("discardOutOfRange", 0);
+            GL30.glBindVertexArray(sphereVao);
+            drawShell(viewProjection, visibleShells.getFirst());
         }
 
         if (visibleShells.size() > 1) {
@@ -624,276 +639,148 @@ public class OpenGLSphereRenderer implements SphereRenderer {
             glDepthMask(false);
 
             for (var i = 1; i < visibleShells.size(); i++) {
-                glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-                renderShell(visibleShells.get(i));
+                drawShell(viewProjection, visibleShells.get(i));
             }
 
             glDepthMask(true);
         }
 
-        // Render prominence band using MAX blending (if enabled)
-        // MAX blending ensures prominences only show where they're brighter than the shells
-        // This prevents the ring artifact from showing through the disk
         if (showProminences && !visibleShells.isEmpty()) {
             var outermostShell = visibleShells.getLast();
             var outermostRadius = getShellRadius(outermostShell);
             glEnable(GL_BLEND);
-            // MAX blending: result = max(src, dst) for each color component
             glBlendEquation(GL_MAX);
-            renderProminenceBand(outermostRadius, outermostShell);
-            // Reset to normal blending equation
+            drawProminenceBand(viewProjection, outermostShell, outermostRadius);
             glBlendEquation(GL_FUNC_ADD);
             glDisable(GL_BLEND);
         }
 
-        glDisable(GL_TEXTURE_2D);
+        GL30.glBindVertexArray(0);
+        shader.unbind();
+
         glDisable(GL_BLEND);
         glDisable(GL_DEPTH_TEST);
     }
 
-    private void setupProjection(int width, int height) {
-        glMatrixMode(GL_PROJECTION);
-        glLoadIdentity();
-
+    private float[] computeViewProjection(int width, int height) {
         var aspect = (float) width / height;
         var fov = 45.0f;
         var near = 0.1f;
         var far = 100.0f;
-
         var top = (float) (near * Math.tan(Math.toRadians(fov / 2)));
-        var bottom = -top;
         var right = top * aspect;
-        var left = -right;
+        var projection = GlMatrix.frustum(-right, right, -top, top, near, far);
 
-        glFrustum(left, right, bottom, top, near, far);
+        var translate = GlMatrix.translation(0f, 0f, -cameraDistance);
+        var rotX = GlMatrix.rotationX(rotationX);
+        var rotY = GlMatrix.rotationY(rotationY);
+        var view = GlMatrix.multiply(GlMatrix.multiply(translate, rotX), rotY);
+        return GlMatrix.multiply(projection, view);
     }
 
-    private void setupModelView() {
-        glMatrixMode(GL_MODELVIEW);
-        glLoadIdentity();
-
-        // Camera translation
-        glTranslatef(0, 0, -cameraDistance);
-
-        // Apply rotations
-        glRotatef(rotationX, 1, 0, 0);
-        glRotatef(rotationY, 0, 1, 0);
-    }
-
-    private float getShellRadius(ShellRenderData shell) {
-        return BASE_RADIUS * (1.0f + ((float) shell.normalizedRadius - 1.0f) * radialExaggeration);
-    }
-
-    private void renderShell(ShellRenderData shell) {
+    private void drawShell(float[] viewProjection, ShellRenderData shell) {
         var radius = getShellRadius(shell);
+        var mvp = GlMatrix.multiply(viewProjection, GlMatrix.scale(radius));
+        shader.setUniformMatrix4("mvp", mvp);
+
+        var diskUv = computeDiskUv(shell);
+        shader.setUniform("diskCenter", diskUv[0], diskUv[1]);
+        shader.setUniform("diskRadius", diskUv[2], diskUv[3]);
 
         glBindTexture(GL_TEXTURE_2D, shell.textureId);
-
-        // White color - grayscale texture only, no tinting with multiply blend
-        glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-
-        // Render textured front hemisphere
-        renderHemisphere(radius, shell);
+        glDrawElements(GL_TRIANGLES, sphereIndexCount, GL_UNSIGNED_INT, 0L);
     }
 
-    private void renderHemisphere(float radius, ShellRenderData shell) {
-        // Calculate UV mapping based on ellipse if available
-        var diskCenterU = 0.5f;
-        var diskCenterV = 0.5f;
-        var diskRadiusU = 0.5f;
-        var diskRadiusV = 0.5f;
-
-        if (shell.ellipse != null) {
-            var center = shell.ellipse.center();
-            var semiAxis = shell.ellipse.semiAxis();
-            diskCenterU = (float) (center.a() / shell.imageWidth);
-            diskCenterV = (float) (center.b() / shell.imageHeight);
-            diskRadiusU = (float) (semiAxis.a() / shell.imageWidth);
-            diskRadiusV = (float) (semiAxis.b() / shell.imageHeight);
-        }
-
-        var divisions = SPHERE_DIVISIONS;
-
-        glBegin(GL_TRIANGLES);
-
-        for (var i = 0; i < divisions; i++) {
-            for (var j = 0; j < divisions; j++) {
-                var nx1 = -1.0f + 2.0f * i / divisions;
-                var ny1 = -1.0f + 2.0f * j / divisions;
-                var nx2 = -1.0f + 2.0f * (i + 1) / divisions;
-                var ny2 = -1.0f + 2.0f * (j + 1) / divisions;
-
-                var r1sq = nx1 * nx1 + ny1 * ny1;
-                var r2sq = nx2 * nx2 + ny1 * ny1;
-                var r3sq = nx2 * nx2 + ny2 * ny2;
-                var r4sq = nx1 * nx1 + ny2 * ny2;
-
-                // Skip cells entirely outside the unit disk
-                if (r1sq > 1.0f && r2sq > 1.0f && r3sq > 1.0f && r4sq > 1.0f) {
-                    continue;
-                }
-
-                // Clamp vertices to sphere surface if outside
-                float z1, z2, z3, z4;
-                float px1 = nx1, py1 = ny1, px2 = nx2, py2 = ny1, px3 = nx2, py3 = ny2, px4 = nx1, py4 = ny2;
-
-                if (r1sq >= 1.0f) {
-                    var scale = 1.0f / (float) Math.sqrt(r1sq);
-                    px1 = nx1 * scale;
-                    py1 = ny1 * scale;
-                    z1 = 0;
-                } else {
-                    z1 = (float) Math.sqrt(1.0f - r1sq);
-                }
-
-                if (r2sq >= 1.0f) {
-                    var scale = 1.0f / (float) Math.sqrt(r2sq);
-                    px2 = nx2 * scale;
-                    py2 = ny1 * scale;
-                    z2 = 0;
-                } else {
-                    z2 = (float) Math.sqrt(1.0f - r2sq);
-                }
-
-                if (r3sq >= 1.0f) {
-                    var scale = 1.0f / (float) Math.sqrt(r3sq);
-                    px3 = nx2 * scale;
-                    py3 = ny2 * scale;
-                    z3 = 0;
-                } else {
-                    z3 = (float) Math.sqrt(1.0f - r3sq);
-                }
-
-                if (r4sq >= 1.0f) {
-                    var scale = 1.0f / (float) Math.sqrt(r4sq);
-                    px4 = nx1 * scale;
-                    py4 = ny2 * scale;
-                    z4 = 0;
-                } else {
-                    z4 = (float) Math.sqrt(1.0f - r4sq);
-                }
-
-                var u1 = diskCenterU + px1 * diskRadiusU;
-                var v1 = diskCenterV - py1 * diskRadiusV;
-                var u2 = diskCenterU + px2 * diskRadiusU;
-                var v2 = diskCenterV - py2 * diskRadiusV;
-                var u3 = diskCenterU + px3 * diskRadiusU;
-                var v3 = diskCenterV - py3 * diskRadiusV;
-                var u4 = diskCenterU + px4 * diskRadiusU;
-                var v4 = diskCenterV - py4 * diskRadiusV;
-
-                glTexCoord2f(u1, v1);
-                glVertex3f(px1 * radius, py1 * radius, z1 * radius);
-                glTexCoord2f(u2, v2);
-                glVertex3f(px2 * radius, py2 * radius, z2 * radius);
-                glTexCoord2f(u3, v3);
-                glVertex3f(px3 * radius, py3 * radius, z3 * radius);
-
-                glTexCoord2f(u1, v1);
-                glVertex3f(px1 * radius, py1 * radius, z1 * radius);
-                glTexCoord2f(u3, v3);
-                glVertex3f(px3 * radius, py3 * radius, z3 * radius);
-                glTexCoord2f(u4, v4);
-                glVertex3f(px4 * radius, py4 * radius, z4 * radius);
-            }
-        }
-
-        glEnd();
-    }
-
-    private void renderProminenceBand(float radius, ShellRenderData shell) {
+    private void drawProminenceBand(float[] viewProjection, ShellRenderData shell, float radius) {
         if (shell.ellipse == null || prominenceTextureId == -1) {
             return;
         }
 
+        var mvp = GlMatrix.multiply(viewProjection, GlMatrix.scale(radius));
+        shader.setUniformMatrix4("mvp", mvp);
+
+        var diskUv = computeDiskUv(shell);
+        shader.setUniform("diskCenter", diskUv[0], diskUv[1]);
+        shader.setUniform("diskRadius", diskUv[2], diskUv[3]);
+        shader.setUniform("discardOutOfRange", 1);
+
         glBindTexture(GL_TEXTURE_2D, prominenceTextureId);
+        GL30.glBindVertexArray(bandVao);
+        glDrawElements(GL_TRIANGLES, bandIndexCount, GL_UNSIGNED_INT, 0L);
 
-        var center = shell.ellipse.center();
-        var semiAxis = shell.ellipse.semiAxis();
-        var diskCenterU = (float) (center.a() / shell.imageWidth);
-        var diskCenterV = (float) (center.b() / shell.imageHeight);
-        var diskRadiusU = (float) (semiAxis.a() / shell.imageWidth);
-        var diskRadiusV = (float) (semiAxis.b() / shell.imageHeight);
+        shader.setUniform("discardOutOfRange", 0);
+    }
 
-        // Render prominences as a flat ring at the limb plane (z slightly positive)
-        // extending radially outward from the outermost shell
-        var angularDivisions = SPHERE_DIVISIONS * 2;
-        var radialSteps = 8;
+    private float[] computeDiskUv(ShellRenderData shell) {
+        if (shell.ellipse != null) {
+            var center = shell.ellipse.center();
+            var semiAxis = shell.ellipse.semiAxis();
+            return new float[]{
+                    (float) (center.a() / shell.imageWidth),
+                    (float) (center.b() / shell.imageHeight),
+                    (float) (semiAxis.a() / shell.imageWidth),
+                    (float) (semiAxis.b() / shell.imageHeight)
+            };
+        }
+        return new float[]{0.5f, 0.5f, 0.5f, 0.5f};
+    }
 
-        var maxImageExtent = 1.25f;
-
-        // The prominence ring sits just in front of the limb plane
-        // Use a z value that's always in front of all shells
-        var zOffset = 0.01f * radius;
-
-        glBegin(GL_TRIANGLES);
-
-        for (var i = 0; i < angularDivisions; i++) {
-            var angle1 = (float) (2.0 * Math.PI * i / angularDivisions);
-            var angle2 = (float) (2.0 * Math.PI * (i + 1) / angularDivisions);
-
-            var cosA1 = (float) Math.cos(angle1);
-            var sinA1 = (float) Math.sin(angle1);
-            var cosA2 = (float) Math.cos(angle2);
-            var sinA2 = (float) Math.sin(angle2);
-
-            for (var j = 0; j < radialSteps; j++) {
-                var t1 = (float) j / radialSteps;
-                var t2 = (float) (j + 1) / radialSteps;
-
-                // Image sampling goes from r=1.0 (disk edge) to r=1.25 (outside)
-                var imgR1 = 1.0f + t1 * (maxImageExtent - 1.0f);
-                var imgR2 = 1.0f + t2 * (maxImageExtent - 1.0f);
-
-                // UV coordinates - sample outside the disk
-                var u1 = diskCenterU + cosA1 * imgR1 * diskRadiusU;
-                var v1 = diskCenterV - sinA1 * imgR1 * diskRadiusV;
-                var u2 = diskCenterU + cosA2 * imgR1 * diskRadiusU;
-                var v2 = diskCenterV - sinA2 * imgR1 * diskRadiusV;
-                var u3 = diskCenterU + cosA2 * imgR2 * diskRadiusU;
-                var v3 = diskCenterV - sinA2 * imgR2 * diskRadiusV;
-                var u4 = diskCenterU + cosA1 * imgR2 * diskRadiusU;
-                var v4 = diskCenterV - sinA1 * imgR2 * diskRadiusV;
-
-                if (u1 < 0 || u1 > 1 || v1 < 0 || v1 > 1 ||
-                    u2 < 0 || u2 > 1 || v2 < 0 || v2 > 1 ||
-                    u3 < 0 || u3 > 1 || v3 < 0 || v3 > 1 ||
-                    u4 < 0 || u4 > 1 || v4 < 0 || v4 > 1) {
-                    continue;
-                }
-
-                // 3D positions: flat ring extending from radius outward
-                // The ring starts at the outermost shell's limb (x²+y² = radius²)
-                // and extends outward to radius * maxImageExtent
-                var r1 = radius * imgR1;
-                var r2 = radius * imgR2;
-
-                float x1 = cosA1 * r1, y1 = sinA1 * r1;
-                float x2 = cosA2 * r1, y2 = sinA2 * r1;
-                float x3 = cosA2 * r2, y3 = sinA2 * r2;
-                float x4 = cosA1 * r2, y4 = sinA1 * r2;
-
-                // Render at constant z (flat ring in front of limb)
-                glTexCoord2f(u1, v1);
-                glVertex3f(x1, y1, zOffset);
-                glTexCoord2f(u2, v2);
-                glVertex3f(x2, y2, zOffset);
-                glTexCoord2f(u3, v3);
-                glVertex3f(x3, y3, zOffset);
-
-                glTexCoord2f(u1, v1);
-                glVertex3f(x1, y1, zOffset);
-                glTexCoord2f(u3, v3);
-                glVertex3f(x3, y3, zOffset);
-                glTexCoord2f(u4, v4);
-                glVertex3f(x4, y4, zOffset);
-            }
+    private void ensureGpuResources() {
+        if (shader != null) {
+            return;
+        }
+        try {
+            shader = new ShaderProgram();
+            shader.compile(
+                    ShaderProgram.loadShaderSource("/me/champeau/a4j/jsolex/app/shaders/textured_sphere.vert"),
+                    ShaderProgram.loadShaderSource("/me/champeau/a4j/jsolex/app/shaders/textured_sphere.frag"));
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to compile sphere shader", e);
         }
 
-        glEnd();
+        var sphereMesh = SphereMeshBuilder.buildHemisphere(SPHERE_DIVISIONS);
+        var sphereBuffers = uploadMesh(sphereMesh);
+        sphereVao = sphereBuffers[0];
+        sphereVbo = sphereBuffers[1];
+        sphereEbo = sphereBuffers[2];
+        sphereIndexCount = sphereMesh.indexCount();
 
-        // Restore the original shell texture
-        glBindTexture(GL_TEXTURE_2D, shell.textureId);
+        var bandMesh = SphereMeshBuilder.buildProminenceBand(SPHERE_DIVISIONS * 2, 8, 1.25f, 0.01f);
+        var bandBuffers = uploadMesh(bandMesh);
+        bandVao = bandBuffers[0];
+        bandVbo = bandBuffers[1];
+        bandEbo = bandBuffers[2];
+        bandIndexCount = bandMesh.indexCount();
+    }
+
+    private int[] uploadMesh(SphereMeshBuilder.Mesh mesh) {
+        int vao = GL30.glGenVertexArrays();
+        GL30.glBindVertexArray(vao);
+
+        int vbo = GL15.glGenBuffers();
+        GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, vbo);
+        var posBuf = BufferUtils.createFloatBuffer(mesh.positions().length);
+        posBuf.put(mesh.positions()).flip();
+        GL15.glBufferData(GL15.GL_ARRAY_BUFFER, posBuf, GL15.GL_STATIC_DRAW);
+
+        int positionLoc = GL20.glGetAttribLocation(shader.getProgramId(), "position");
+        GL20.glEnableVertexAttribArray(positionLoc);
+        GL20.glVertexAttribPointer(positionLoc, 3, GL_FLOAT, false, 0, 0L);
+
+        int ebo = GL15.glGenBuffers();
+        GL15.glBindBuffer(GL15.GL_ELEMENT_ARRAY_BUFFER, ebo);
+        var idxBuf = BufferUtils.createIntBuffer(mesh.indices().length);
+        idxBuf.put(mesh.indices()).flip();
+        GL15.glBufferData(GL15.GL_ELEMENT_ARRAY_BUFFER, idxBuf, GL15.GL_STATIC_DRAW);
+
+        GL30.glBindVertexArray(0);
+        GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, 0);
+        GL15.glBindBuffer(GL15.GL_ELEMENT_ARRAY_BUFFER, 0);
+        return new int[]{vao, vbo, ebo};
+    }
+
+    private float getShellRadius(ShellRenderData shell) {
+        return BASE_RADIUS * (1.0f + ((float) shell.normalizedRadius - 1.0f) * radialExaggeration);
     }
 
     /**
@@ -1055,6 +942,34 @@ public class OpenGLSphereRenderer implements SphereRenderer {
             prominenceTextureId = -1;
         }
         shellRenderData.clear();
+        if (sphereVao != -1) {
+            GL30.glDeleteVertexArrays(sphereVao);
+            sphereVao = -1;
+        }
+        if (sphereVbo != -1) {
+            GL15.glDeleteBuffers(sphereVbo);
+            sphereVbo = -1;
+        }
+        if (sphereEbo != -1) {
+            GL15.glDeleteBuffers(sphereEbo);
+            sphereEbo = -1;
+        }
+        if (bandVao != -1) {
+            GL30.glDeleteVertexArrays(bandVao);
+            bandVao = -1;
+        }
+        if (bandVbo != -1) {
+            GL15.glDeleteBuffers(bandVbo);
+            bandVbo = -1;
+        }
+        if (bandEbo != -1) {
+            GL15.glDeleteBuffers(bandEbo);
+            bandEbo = -1;
+        }
+        if (shader != null) {
+            shader.dispose();
+            shader = null;
+        }
         texturesLoaded = false;
     }
 

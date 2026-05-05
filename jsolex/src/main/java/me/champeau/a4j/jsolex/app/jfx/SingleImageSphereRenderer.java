@@ -15,6 +15,9 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
+import me.champeau.a4j.jsolex.app.jfx.gl.GlMatrix;
+import me.champeau.a4j.jsolex.app.jfx.gl.ShaderProgram;
+import me.champeau.a4j.jsolex.app.jfx.gl.SphereMeshBuilder;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -22,6 +25,10 @@ import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.math.regression.Ellipse;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL12;
+import org.lwjgl.opengl.GL13;
+import org.lwjgl.opengl.GL15;
+import org.lwjgl.opengl.GL20;
+import org.lwjgl.opengl.GL30;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,6 +61,16 @@ public class SingleImageSphereRenderer {
     private int textureHeight;
     private Ellipse ellipse;
     private int maxTextureSize = -1;
+
+    private ShaderProgram shader;
+    private int sphereVao = -1;
+    private int sphereVbo = -1;
+    private int sphereEbo = -1;
+    private int sphereIndexCount;
+    private int bandVao = -1;
+    private int bandVbo = -1;
+    private int bandEbo = -1;
+    private int bandIndexCount;
 
     public SingleImageSphereRenderer(ImageWrapper image) {
         this.originalImage = unwrapImage(image);
@@ -311,243 +328,132 @@ public class SingleImageSphereRenderer {
             return;
         }
 
+        ensureGpuResources();
+
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        setupProjection(viewWidth, viewHeight);
-        setupModelView();
 
         glEnable(GL_DEPTH_TEST);
         glDepthFunc(GL_LEQUAL);
 
-        glEnable(GL_TEXTURE_2D);
-        glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+        var mvp = computeMvp(viewWidth, viewHeight);
+        var diskUv = computeDiskUv();
+
+        shader.use();
+        shader.setUniformMatrix4("mvp", mvp);
+        shader.setUniform("diskCenter", diskUv[0], diskUv[1]);
+        shader.setUniform("diskRadius", diskUv[2], diskUv[3]);
+        shader.setUniform("tint", 1f, 1f, 1f, 1f);
+        shader.setUniform("tex", 0);
+
+        GL13.glActiveTexture(GL13.GL_TEXTURE0);
 
         glDisable(GL_BLEND);
-        glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+        shader.setUniform("discardOutOfRange", 0);
         glBindTexture(GL_TEXTURE_2D, textureId);
-        renderHemisphere(BASE_RADIUS);
+        GL30.glBindVertexArray(sphereVao);
+        glDrawElements(GL_TRIANGLES, sphereIndexCount, GL_UNSIGNED_INT, 0L);
 
         if (showProminences && ellipse != null && prominenceTextureId != -1) {
             glEnable(GL_BLEND);
             glBlendEquation(GL_MAX);
-            renderProminenceBand(BASE_RADIUS);
+            shader.setUniform("discardOutOfRange", 1);
+            glBindTexture(GL_TEXTURE_2D, prominenceTextureId);
+            GL30.glBindVertexArray(bandVao);
+            glDrawElements(GL_TRIANGLES, bandIndexCount, GL_UNSIGNED_INT, 0L);
             glBlendEquation(GL_FUNC_ADD);
             glDisable(GL_BLEND);
         }
 
-        glDisable(GL_TEXTURE_2D);
+        GL30.glBindVertexArray(0);
+        shader.unbind();
+
         glDisable(GL_DEPTH_TEST);
     }
 
-    private void setupProjection(int width, int height) {
-        glMatrixMode(GL_PROJECTION);
-        glLoadIdentity();
+    private void ensureGpuResources() {
+        if (shader != null) {
+            return;
+        }
+        try {
+            shader = new ShaderProgram();
+            shader.compile(
+                    ShaderProgram.loadShaderSource("/me/champeau/a4j/jsolex/app/shaders/textured_sphere.vert"),
+                    ShaderProgram.loadShaderSource("/me/champeau/a4j/jsolex/app/shaders/textured_sphere.frag"));
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to compile sphere shader", e);
+        }
 
-        var aspect = (float) width / height;
+        var sphereMesh = SphereMeshBuilder.buildHemisphere(SPHERE_DIVISIONS);
+        var sphereBuffers = uploadMesh(sphereMesh);
+        sphereVao = sphereBuffers[0];
+        sphereVbo = sphereBuffers[1];
+        sphereEbo = sphereBuffers[2];
+        sphereIndexCount = sphereMesh.indexCount();
+
+        var bandMesh = SphereMeshBuilder.buildProminenceBand(SPHERE_DIVISIONS * 2, 8, 1.25f, 0.01f);
+        var bandBuffers = uploadMesh(bandMesh);
+        bandVao = bandBuffers[0];
+        bandVbo = bandBuffers[1];
+        bandEbo = bandBuffers[2];
+        bandIndexCount = bandMesh.indexCount();
+    }
+
+    private int[] uploadMesh(SphereMeshBuilder.Mesh mesh) {
+        int vao = GL30.glGenVertexArrays();
+        GL30.glBindVertexArray(vao);
+
+        int vbo = GL15.glGenBuffers();
+        GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, vbo);
+        var posBuf = BufferUtils.createFloatBuffer(mesh.positions().length);
+        posBuf.put(mesh.positions()).flip();
+        GL15.glBufferData(GL15.GL_ARRAY_BUFFER, posBuf, GL15.GL_STATIC_DRAW);
+
+        int positionLoc = GL20.glGetAttribLocation(shader.getProgramId(), "position");
+        GL20.glEnableVertexAttribArray(positionLoc);
+        GL20.glVertexAttribPointer(positionLoc, 3, GL_FLOAT, false, 0, 0L);
+
+        int ebo = GL15.glGenBuffers();
+        GL15.glBindBuffer(GL15.GL_ELEMENT_ARRAY_BUFFER, ebo);
+        var idxBuf = BufferUtils.createIntBuffer(mesh.indices().length);
+        idxBuf.put(mesh.indices()).flip();
+        GL15.glBufferData(GL15.GL_ELEMENT_ARRAY_BUFFER, idxBuf, GL15.GL_STATIC_DRAW);
+
+        GL30.glBindVertexArray(0);
+        GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, 0);
+        GL15.glBindBuffer(GL15.GL_ELEMENT_ARRAY_BUFFER, 0);
+        return new int[]{vao, vbo, ebo};
+    }
+
+    private float[] computeMvp(int viewWidth, int viewHeight) {
+        var aspect = (float) viewWidth / viewHeight;
         var fov = 45.0f;
         var near = 0.1f;
         var far = 100.0f;
-
         var top = (float) (near * Math.tan(Math.toRadians(fov / 2)));
-        var bottom = -top;
         var right = top * aspect;
-        var left = -right;
+        var projection = GlMatrix.frustum(-right, right, -top, top, near, far);
 
-        glFrustum(left, right, bottom, top, near, far);
+        var translate = GlMatrix.translation(0f, 0f, -cameraDistance);
+        var rotX = GlMatrix.rotationX(rotationX);
+        var rotY = GlMatrix.rotationY(rotationY);
+        var scale = GlMatrix.scale(BASE_RADIUS);
+        var modelview = GlMatrix.multiply(GlMatrix.multiply(GlMatrix.multiply(translate, rotX), rotY), scale);
+        return GlMatrix.multiply(projection, modelview);
     }
 
-    private void setupModelView() {
-        glMatrixMode(GL_MODELVIEW);
-        glLoadIdentity();
-
-        glTranslatef(0, 0, -cameraDistance);
-        glRotatef(rotationX, 1, 0, 0);
-        glRotatef(rotationY, 0, 1, 0);
-    }
-
-    private void renderHemisphere(float radius) {
-        float diskCenterU = 0.5f;
-        float diskCenterV = 0.5f;
-        float diskRadiusU = 0.5f;
-        float diskRadiusV = 0.5f;
-
+    private float[] computeDiskUv() {
         if (ellipse != null) {
             var center = ellipse.center();
             var semiAxis = ellipse.semiAxis();
-            diskCenterU = (float) (center.a() / textureWidth);
-            diskCenterV = (float) (center.b() / textureHeight);
-            diskRadiusU = (float) (semiAxis.a() / textureWidth);
-            diskRadiusV = (float) (semiAxis.b() / textureHeight);
+            return new float[]{
+                    (float) (center.a() / textureWidth),
+                    (float) (center.b() / textureHeight),
+                    (float) (semiAxis.a() / textureWidth),
+                    (float) (semiAxis.b() / textureHeight)
+            };
         }
-
-        int divisions = SPHERE_DIVISIONS;
-
-        glBegin(GL_TRIANGLES);
-
-        for (int i = 0; i < divisions; i++) {
-            for (int j = 0; j < divisions; j++) {
-                float nx1 = -1.0f + 2.0f * i / divisions;
-                float ny1 = -1.0f + 2.0f * j / divisions;
-                float nx2 = -1.0f + 2.0f * (i + 1) / divisions;
-                float ny2 = -1.0f + 2.0f * (j + 1) / divisions;
-
-                float r1sq = nx1 * nx1 + ny1 * ny1;
-                float r2sq = nx2 * nx2 + ny1 * ny1;
-                float r3sq = nx2 * nx2 + ny2 * ny2;
-                float r4sq = nx1 * nx1 + ny2 * ny2;
-
-                if (r1sq > 1.0f && r2sq > 1.0f && r3sq > 1.0f && r4sq > 1.0f) {
-                    continue;
-                }
-
-                float z1, z2, z3, z4;
-                float px1 = nx1, py1 = ny1, px2 = nx2, py2 = ny1, px3 = nx2, py3 = ny2, px4 = nx1, py4 = ny2;
-
-                if (r1sq >= 1.0f) {
-                    float scale = 1.0f / (float) Math.sqrt(r1sq);
-                    px1 = nx1 * scale;
-                    py1 = ny1 * scale;
-                    z1 = 0;
-                } else {
-                    z1 = (float) Math.sqrt(1.0f - r1sq);
-                }
-
-                if (r2sq >= 1.0f) {
-                    float scale = 1.0f / (float) Math.sqrt(r2sq);
-                    px2 = nx2 * scale;
-                    py2 = ny1 * scale;
-                    z2 = 0;
-                } else {
-                    z2 = (float) Math.sqrt(1.0f - r2sq);
-                }
-
-                if (r3sq >= 1.0f) {
-                    float scale = 1.0f / (float) Math.sqrt(r3sq);
-                    px3 = nx2 * scale;
-                    py3 = ny2 * scale;
-                    z3 = 0;
-                } else {
-                    z3 = (float) Math.sqrt(1.0f - r3sq);
-                }
-
-                if (r4sq >= 1.0f) {
-                    float scale = 1.0f / (float) Math.sqrt(r4sq);
-                    px4 = nx1 * scale;
-                    py4 = ny2 * scale;
-                    z4 = 0;
-                } else {
-                    z4 = (float) Math.sqrt(1.0f - r4sq);
-                }
-
-                float u1 = diskCenterU + px1 * diskRadiusU;
-                float v1 = diskCenterV - py1 * diskRadiusV;
-                float u2 = diskCenterU + px2 * diskRadiusU;
-                float v2 = diskCenterV - py2 * diskRadiusV;
-                float u3 = diskCenterU + px3 * diskRadiusU;
-                float v3 = diskCenterV - py3 * diskRadiusV;
-                float u4 = diskCenterU + px4 * diskRadiusU;
-                float v4 = diskCenterV - py4 * diskRadiusV;
-
-                glTexCoord2f(u1, v1);
-                glVertex3f(px1 * radius, py1 * radius, z1 * radius);
-                glTexCoord2f(u2, v2);
-                glVertex3f(px2 * radius, py2 * radius, z2 * radius);
-                glTexCoord2f(u3, v3);
-                glVertex3f(px3 * radius, py3 * radius, z3 * radius);
-
-                glTexCoord2f(u1, v1);
-                glVertex3f(px1 * radius, py1 * radius, z1 * radius);
-                glTexCoord2f(u3, v3);
-                glVertex3f(px3 * radius, py3 * radius, z3 * radius);
-                glTexCoord2f(u4, v4);
-                glVertex3f(px4 * radius, py4 * radius, z4 * radius);
-            }
-        }
-
-        glEnd();
-    }
-
-    private void renderProminenceBand(float radius) {
-        if (ellipse == null || prominenceTextureId == -1) {
-            return;
-        }
-
-        glBindTexture(GL_TEXTURE_2D, prominenceTextureId);
-
-        var center = ellipse.center();
-        var semiAxis = ellipse.semiAxis();
-        float diskCenterU = (float) (center.a() / textureWidth);
-        float diskCenterV = (float) (center.b() / textureHeight);
-        float diskRadiusU = (float) (semiAxis.a() / textureWidth);
-        float diskRadiusV = (float) (semiAxis.b() / textureHeight);
-
-        int angularDivisions = SPHERE_DIVISIONS * 2;
-        int radialSteps = 8;
-        float maxImageExtent = 1.25f;
-        float zOffset = 0.01f * radius;
-
-        glBegin(GL_TRIANGLES);
-
-        for (int i = 0; i < angularDivisions; i++) {
-            float angle1 = (float) (2.0 * Math.PI * i / angularDivisions);
-            float angle2 = (float) (2.0 * Math.PI * (i + 1) / angularDivisions);
-
-            float cosA1 = (float) Math.cos(angle1);
-            float sinA1 = (float) Math.sin(angle1);
-            float cosA2 = (float) Math.cos(angle2);
-            float sinA2 = (float) Math.sin(angle2);
-
-            for (int j = 0; j < radialSteps; j++) {
-                float t1 = (float) j / radialSteps;
-                float t2 = (float) (j + 1) / radialSteps;
-
-                float imgR1 = 1.0f + t1 * (maxImageExtent - 1.0f);
-                float imgR2 = 1.0f + t2 * (maxImageExtent - 1.0f);
-
-                float u1 = diskCenterU + cosA1 * imgR1 * diskRadiusU;
-                float v1 = diskCenterV - sinA1 * imgR1 * diskRadiusV;
-                float u2 = diskCenterU + cosA2 * imgR1 * diskRadiusU;
-                float v2 = diskCenterV - sinA2 * imgR1 * diskRadiusV;
-                float u3 = diskCenterU + cosA2 * imgR2 * diskRadiusU;
-                float v3 = diskCenterV - sinA2 * imgR2 * diskRadiusV;
-                float u4 = diskCenterU + cosA1 * imgR2 * diskRadiusU;
-                float v4 = diskCenterV - sinA1 * imgR2 * diskRadiusV;
-
-                if (u1 < 0 || u1 > 1 || v1 < 0 || v1 > 1 ||
-                    u2 < 0 || u2 > 1 || v2 < 0 || v2 > 1 ||
-                    u3 < 0 || u3 > 1 || v3 < 0 || v3 > 1 ||
-                    u4 < 0 || u4 > 1 || v4 < 0 || v4 > 1) {
-                    continue;
-                }
-
-                float r1 = radius * imgR1;
-                float r2 = radius * imgR2;
-
-                float x1 = cosA1 * r1, y1 = sinA1 * r1;
-                float x2 = cosA2 * r1, y2 = sinA2 * r1;
-                float x3 = cosA2 * r2, y3 = sinA2 * r2;
-                float x4 = cosA1 * r2, y4 = sinA1 * r2;
-
-                glTexCoord2f(u1, v1);
-                glVertex3f(x1, y1, zOffset);
-                glTexCoord2f(u2, v2);
-                glVertex3f(x2, y2, zOffset);
-                glTexCoord2f(u3, v3);
-                glVertex3f(x3, y3, zOffset);
-
-                glTexCoord2f(u1, v1);
-                glVertex3f(x1, y1, zOffset);
-                glTexCoord2f(u3, v3);
-                glVertex3f(x3, y3, zOffset);
-                glTexCoord2f(u4, v4);
-                glVertex3f(x4, y4, zOffset);
-            }
-        }
-
-        glEnd();
-
-        glBindTexture(GL_TEXTURE_2D, textureId);
+        return new float[]{0.5f, 0.5f, 0.5f, 0.5f};
     }
 
     public void setCameraDistance(float distance) {
@@ -587,6 +493,34 @@ public class SingleImageSphereRenderer {
         if (prominenceTextureId != -1) {
             glDeleteTextures(prominenceTextureId);
             prominenceTextureId = -1;
+        }
+        if (sphereVao != -1) {
+            GL30.glDeleteVertexArrays(sphereVao);
+            sphereVao = -1;
+        }
+        if (sphereVbo != -1) {
+            GL15.glDeleteBuffers(sphereVbo);
+            sphereVbo = -1;
+        }
+        if (sphereEbo != -1) {
+            GL15.glDeleteBuffers(sphereEbo);
+            sphereEbo = -1;
+        }
+        if (bandVao != -1) {
+            GL30.glDeleteVertexArrays(bandVao);
+            bandVao = -1;
+        }
+        if (bandVbo != -1) {
+            GL15.glDeleteBuffers(bandVbo);
+            bandVbo = -1;
+        }
+        if (bandEbo != -1) {
+            GL15.glDeleteBuffers(bandEbo);
+            bandEbo = -1;
+        }
+        if (shader != null) {
+            shader.dispose();
+            shader = null;
         }
         texturesLoaded = false;
     }
