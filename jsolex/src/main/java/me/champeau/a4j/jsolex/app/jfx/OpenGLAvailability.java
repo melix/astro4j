@@ -17,8 +17,10 @@ package me.champeau.a4j.jsolex.app.jfx;
 
 import me.champeau.a4j.jsolex.processing.util.VersionUtil;
 import org.lwjgl.glfw.GLFW;
+import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.system.Configuration;
+import org.lwjgl.system.MemoryUtil;
 import org.lwjgl.system.Platform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -163,7 +165,13 @@ public final class OpenGLAvailability {
         }
 
         long window = 0;
+        GLFWErrorCallback errorCallback = null;
         try {
+            errorCallback = GLFWErrorCallback.create((error, description) -> {
+                String desc = MemoryUtil.memUTF8Safe(description);
+                LOGGER.warn("GLFW error 0x{}: {}", Integer.toHexString(error), desc);
+            });
+            GLFW.glfwSetErrorCallback(errorCallback);
             if (!GLFW.glfwInit()) {
                 ERROR_MESSAGE.set("Failed to initialize GLFW");
                 LOGGER.warn("OpenGL not available: {}", ERROR_MESSAGE.get());
@@ -174,7 +182,8 @@ public final class OpenGLAvailability {
             GLFW.glfwWindowHint(GLFW.GLFW_VISIBLE, GLFW.GLFW_FALSE);
             GLFW.glfwWindowHint(GLFW.GLFW_CONTEXT_VERSION_MAJOR, 3);
             GLFW.glfwWindowHint(GLFW.GLFW_CONTEXT_VERSION_MINOR, 2);
-            GLFW.glfwWindowHint(GLFW.GLFW_OPENGL_PROFILE, GLFW.GLFW_OPENGL_COMPAT_PROFILE);
+            GLFW.glfwWindowHint(GLFW.GLFW_OPENGL_PROFILE, GLFW.GLFW_OPENGL_CORE_PROFILE);
+            GLFW.glfwWindowHint(GLFW.GLFW_OPENGL_FORWARD_COMPAT, GLFW.GLFW_TRUE);
 
             window = GLFW.glfwCreateWindow(1, 1, "", 0, 0);
             if (window == 0) {
@@ -194,6 +203,10 @@ public final class OpenGLAvailability {
         } finally {
             if (window != 0) {
                 GLFW.glfwDestroyWindow(window);
+            }
+            if (errorCallback != null) {
+                GLFW.glfwSetErrorCallback(null);
+                errorCallback.free();
             }
             // Delete crash marker since we completed without crashing
             deleteCrashMarker();
