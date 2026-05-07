@@ -28,16 +28,21 @@ final class SpectrumImageConverter {
     }
 
     /**
-     * Converts a spectrum image to an RGB byte array for display.
-     * Applies normalization and contrast stretching.
+     * Converts a spectrum image to a BGRA byte array for display.
+     * BGRA matches JavaFX's native pixel format so {@code WritableImage.setPixels}
+     * skips the on-FX-thread {@code ToByteBgrfConv} conversion. Output layout
+     * is {@code [B, G, R, A=0xFF]} per pixel; with greyscale data the three
+     * colour bytes are identical so the order doesn't matter, but the alpha
+     * byte must still be written. Caller passes
+     * {@link javafx.scene.image.PixelFormat#getByteBgraPreInstance()}.
      *
      * @param spectrum the spectrum image to convert
-     * @return RGB byte array suitable for display
+     * @return BGRA byte array suitable for display, sized {@code 4 * width * height}
      */
     static byte[] convertSpectrumImage(Image spectrum) {
         var width = spectrum.width();
         var height = spectrum.height();
-        var spectrumBuffer = new byte[3 * width * height];
+        var spectrumBuffer = new byte[4 * width * height];
 
         // Single pass: find max and store normalized values
         var max = 0;
@@ -56,14 +61,15 @@ final class SpectrumImageConverter {
             }
         }
 
-        // Second pass: apply stretching and convert to RGB bytes
+        // Second pass: apply stretching and convert to BGRA bytes
         var maxInverse = max > 0 ? 255.0 / max : 0.0;
         for (var i = 0; i < normalizedValues.length; i++) {
             var s = (byte) (normalizedValues[i] * maxInverse);
-            var offset = 3 * i;
+            var offset = 4 * i;
             spectrumBuffer[offset] = s;
             spectrumBuffer[offset + 1] = s;
             spectrumBuffer[offset + 2] = s;
+            spectrumBuffer[offset + 3] = (byte) 0xFF;
         }
 
         return spectrumBuffer;
@@ -73,7 +79,7 @@ final class SpectrumImageConverter {
      * Stretches pixel values to fill the full 0-255 range.
      *
      * @param pixels the ARGB pixel array to stretch
-     * @param width image width
+     * @param width  image width
      * @param height image height
      * @return stretched pixel array
      */

@@ -131,8 +131,12 @@ tasks.withType<JavaCompile>().configureEach {
 tasks.named<JavaExec>("run") {
     doFirst {
         jvmArgs(
-//            listOf("--module-path", classpath.asPath, "-XX:StartFlightRecording=filename=/tmp/batch.jfr,settings=profile,duration=300s")
-            listOf("--module-path", classpath.asPath)
+            listOf(
+                "--module-path",
+                classpath.asPath,
+                "-XX:StartFlightRecording=filename=/tmp/batch.jfr,settings=profile,duration=300s"
+            )
+//            listOf("--module-path", classpath.asPath)
         )
         classpath = files()
     }

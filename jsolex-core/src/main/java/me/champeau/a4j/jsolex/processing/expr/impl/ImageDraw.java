@@ -40,6 +40,7 @@ import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferInt;
 import java.awt.image.DataBufferUShort;
 import java.io.IOException;
 import java.time.format.DateTimeFormatter;
@@ -568,19 +569,20 @@ public class ImageDraw extends AbstractFunctionImpl {
 
     /**
      * Draws distance scale for prominences outside the solar limb
-     * @param g the graphics context
+     *
+     * @param g       the graphics context
      * @param centerX the center X coordinate of the sun
      * @param centerY the center Y coordinate of the sun
-     * @param radius the radius of the sun in pixels
+     * @param radius  the radius of the sun in pixels
      */
     private void drawProminenceDistanceScale(Graphics2D g,
                                              double centerX,
                                              double centerY,
                                              double radius,
                                              double labelAngleOffset) {
-        var originalFont      = g.getFont();
-        var originalColor     = g.getColor();
-        var originalStroke    = g.getStroke();
+        var originalFont = g.getFont();
+        var originalColor = g.getColor();
+        var originalStroke = g.getStroke();
         var originalTransform = g.getTransform();
 
         g.setFont(originalFont);
@@ -610,7 +612,7 @@ public class ImageDraw extends AbstractFunctionImpl {
                 var distanceText = String.format("%,d km", distanceKm).replace(",", " ");
                 var labelX = centerX + Math.cos(labelAngle) * circleRadius;
                 var labelY = centerY + Math.sin(labelAngle) * circleRadius;
-                
+
                 var tangentAngle = labelAngle + Math.PI / 2;
 
                 var saved = g.getTransform();
@@ -848,22 +850,60 @@ public class ImageDraw extends AbstractFunctionImpl {
     }
 
     private static BufferedImage toBufferedImage(int width, int height, float[][] r, float[][] g, float[][] b) {
-        BufferedImage image;
-        image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-        int[] rgbArray = new int[width * height];
-        for (int x = 0; x < width; x++) {
-            for (int y = 0; y < height; y++) {
-                int rv = round(r[y][x]);
-                int gv = round(g[y][x]);
-                int bv = round(b[y][x]);
-                rv = (rv >> 8) & 0xFF;
-                gv = (gv >> 8) & 0xFF;
-                bv = (bv >> 8) & 0xFF;
-                rgbArray[y * width + x] = (rv << 16) | (gv << 8) | bv;
+        var image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        var rgbArray = ((DataBufferInt) image.getRaster().getDataBuffer()).getData();
+        for (int y = 0; y < height; y++) {
+            var rRow = r[y];
+            var gRow = g[y];
+            var bRow = b[y];
+            int rowOffset = y * width;
+            for (int x = 0; x < width; x++) {
+                int rv = (round(rRow[x]) >> 8) & 0xFF;
+                int gv = (round(gRow[x]) >> 8) & 0xFF;
+                int bv = (round(bRow[x]) >> 8) & 0xFF;
+                rgbArray[rowOffset + x] = (rv << 16) | (gv << 8) | bv;
             }
         }
-        image.setRGB(0, 0, width, height, rgbArray, 0, width);
         return image;
+    }
+
+    /**
+     * Renders {@code consumer}'s annotations into {@code rgb}'s float buffers
+     * in place, returning the same instance. Caller must own the float arrays
+     * and not need them in their original form afterwards. Used by emission
+     * paths that allocate fresh r/g/b inside a converter and would otherwise
+     * round-trip them through {@link Loader#toImageWrapper} just to pick up
+     * a few painted pixels.
+     */
+    public static RGBImage drawOnImageInPlace(RGBImage rgb, BiConsumer<? super Graphics2D, ? super ImageWrapper> consumer) {
+        if (rgb.width() == 0 || rgb.height() == 0) {
+            return rgb;
+        }
+        int width = rgb.width();
+        int height = rgb.height();
+        var image = toBufferedImage(width, height, rgb.r(), rgb.g(), rgb.b());
+        var g2 = image.createGraphics();
+        int greyValue = Math.clamp((80L * maxValue(rgb)) / 100, 0, 255);
+        g2.setColor(new Color(greyValue, greyValue, greyValue));
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        consumer.accept(g2, rgb);
+        var rendered = ((DataBufferInt) image.getRaster().getDataBuffer()).getData();
+        var rArr = rgb.r();
+        var gArr = rgb.g();
+        var bArr = rgb.b();
+        for (int y = 0; y < height; y++) {
+            var rRow = rArr[y];
+            var gRow = gArr[y];
+            var bRow = bArr[y];
+            int rowOffset = y * width;
+            for (int x = 0; x < width; x++) {
+                int pixel = rendered[rowOffset + x];
+                rRow[x] = ((pixel >> 16) & 0xFF) << 8;
+                gRow[x] = ((pixel >> 8) & 0xFF) << 8;
+                bRow[x] = (pixel & 0xFF) << 8;
+            }
+        }
+        return rgb;
     }
 
     private static Coordinates ofSpherical(double ascension, double declination, double radius) {

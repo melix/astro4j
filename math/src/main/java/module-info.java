@@ -28,8 +28,10 @@ module me.champeau.a4j.math {
     exports me.champeau.a4j.math.tuples;
     exports me.champeau.a4j.math.image.analysis;
     exports me.champeau.a4j.math.spatial;
+    requires transitive me.champeau.a4j.utilities;
     requires jdk.incubator.vector;
     requires commons.math3;
+    requires org.slf4j;
     requires static org.lwjgl;
     requires static org.lwjgl.opencl;
 }

@@ -126,6 +126,18 @@ public class ProcessingWorkflow {
     }
 
     public void start() {
+        try {
+            startInternal();
+        } finally {
+            // Wait for all asynchronously-submitted image emissions to finish
+            // before returning. This is the workflow boundary: callers expect
+            // the workflow to be fully complete (including disk writes) when
+            // start() returns.
+            imagesEmitter.await();
+        }
+    }
+
+    private void startInternal() {
         emitReconImage();
         var existingFitting = state.findResult(WorkflowResults.MAIN_ELLIPSE_FITTING);
         if (existingFitting.isPresent()) {
@@ -220,31 +232,39 @@ public class ProcessingWorkflow {
             imagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED, null, message("processed"), processParams.contrastEnhancement().name().toLowerCase(Locale.US),
                     String.format(message("contrast.enhanced.description"), state.pixelShift(), processParams.contrastEnhancement()), stretched);
         }
+        // Each runnable below runs on a parallel worker. Many of the produce*
+        // methods stretch/smooth their input image in place, so callers must
+        // hand them a private copy — otherwise concurrent runnables racing on
+        // the same float[][] would corrupt each other's outputs.
         var runnables = new ArrayList<Runnable>();
         if (isMainShift() && shouldProduce(GeneratedImageKind.NEGATIVE)) {
-            runnables.add(() -> produceNegativeImage(enhanced));
+            runnables.add(() -> produceNegativeImage(enhanced.copy()));
         }
         if (isMainShift() && shouldProduce(GeneratedImageKind.COLORIZED)) {
-            runnables.add(() -> produceColorizedImage(blackPoint, stretched, processParams));
+            runnables.add(() -> produceColorizedImage(blackPoint, stretched.copy(), processParams));
         }
         if (isMainShift()) {
-            runnables.add(() -> produceCoronagraph(blackPoint, enhanced));
+            runnables.add(() -> produceCoronagraph(blackPoint, enhanced.copy()));
         }
         if (isMainShift() && shouldProduce(GeneratedImageKind.TECHNICAL_CARD)) {
-            produceTechnicalCard(stretched);
+            if (stretched != null) {
+                runnables.add(() ->
+                        produceTechnicalCard(stretched.copy())
+                );
+            }
         }
         if (shouldProduce(GeneratedImageKind.ACTIVE_REGIONS)) {
             if (isMainShift()) {
-                produceActiveRegionsImage(enhanced);
+                runnables.add(() -> produceActiveRegionsImage(enhanced.copy()));
             }
             if (shouldProduce(GeneratedImageKind.CONTINUUM) && state.pixelShift() == processParams.spectrumParams().continuumShift()) {
-                produceActiveRegionsImage(enhanced);
+                runnables.add(() -> produceActiveRegionsImage(enhanced.copy()));
             }
         }
         if (processParams.spectrumParams().pixelShift() == 0 && isMainShift() && shouldProduce(GeneratedImageKind.REDSHIFT)) {
             geometryFixed.findMetadata(Redshifts.class).ifPresent(redshifts -> {
                 if (!redshifts.redshifts().isEmpty()) {
-                    runnables.add(() -> produceRedshiftsImage(geometryFixed, redshifts.redshifts()));
+                    runnables.add(() -> produceRedshiftsImage(geometryFixed.copy(), redshifts.redshifts()));
                 }
             });
         }
@@ -253,7 +273,7 @@ public class ProcessingWorkflow {
             geometryFixed.findMetadata(Flares.class).ifPresent(flares -> {
                 var flareList = flares.flares();
                 if (!flareList.isEmpty()) {
-                    runnables.add(() -> produceEllermanBombsImage(geometryFixed, flareList));
+                    runnables.add(() -> produceEllermanBombsImage(geometryFixed.copy(), flareList));
                 }
             });
         }

@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.util;
 
+
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;

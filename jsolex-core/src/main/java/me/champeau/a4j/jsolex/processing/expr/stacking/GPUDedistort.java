@@ -1,5 +1,5 @@
 /*
- * Copyright 2025-2025 the original author or authors.
+ * Copyright 2025-2026 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,23 +15,13 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.stacking;
 
-import me.champeau.a4j.math.opencl.OpenCLContext;
-import me.champeau.a4j.math.opencl.OpenCLException;
-import org.lwjgl.BufferUtils;
-
 import static org.lwjgl.opencl.CL10.CL_MEM_READ_WRITE;
-import static org.lwjgl.opencl.CL10.CL_SUCCESS;
-import static org.lwjgl.opencl.CL10.clEnqueueNDRangeKernel;
-import static org.lwjgl.opencl.CL10.clSetKernelArg1i;
-import static org.lwjgl.opencl.CL10.clSetKernelArg1p;
 
 /**
  * Performs GPU-accelerated image dedistortion using displacement grids.
  * <p>
- * This class provides a GPU-to-GPU dedistortion operation that keeps data
- * on the GPU, avoiding CPU transfers during multi-step processing.
- * <p>
- * All methods must be called within {@link OpenCLContext#executeWithLock}.
+ * Keeps data on the GPU, avoiding CPU transfers during multi-step processing.
+ * Per-call kernel borrow makes this safe to invoke from concurrent threads.
  */
 public final class GPUDedistort {
 
@@ -40,17 +30,8 @@ public final class GPUDedistort {
 
     /**
      * Applies dedistortion to a GPU-resident image using a GPU-resident displacement grid.
-     * <p>
-     * The operation reads from the input image, applies the displacement correction
-     * specified by the grid, and writes to a new output buffer. The input image
-     * and grid are not modified.
-     * <p>
-     * Must be called within executeWithLock.
-     *
-     * @param gpuImage   GPU-resident input image
-     * @param gpuGrid    GPU-resident distortion grid
-     * @param useLanczos true for Lanczos interpolation (sharper), false for bilinear (faster)
-     * @return new GPU-resident image with dedistortion applied (caller must close)
+     * The output is allocated as a fresh buffer wrapped in a new {@link GPUImage}; the
+     * caller owns it and must close.
      */
     public static GPUImage dedistort(GPUImage gpuImage, GPUDistortionGrid gpuGrid, boolean useLanczos) {
         var context = gpuImage.getContext();
@@ -58,41 +39,25 @@ public final class GPUDedistort {
         int height = gpuImage.getHeight();
         int n = width * height;
 
+        // Output buffer's lifetime escapes this call (returned via GPUImage), so it is
+        // allocated directly through the context and not via op.allocateBuffer.
         long outputBuffer = context.allocateBuffer(n * Float.BYTES, CL_MEM_READ_WRITE);
-
         try {
             var kernelName = useLanczos ? "dedistort_sparse_lanczos" : "dedistort_sparse_bilinear";
-            var kernel = context.getKernelManager().getKernel("dedistort", kernelName);
-
-            clSetKernelArg1p(kernel, 0, gpuImage.getBuffer());
-            clSetKernelArg1p(kernel, 1, gpuGrid.getDxBuffer());
-            clSetKernelArg1p(kernel, 2, gpuGrid.getDyBuffer());
-            clSetKernelArg1p(kernel, 3, outputBuffer);
-            clSetKernelArg1i(kernel, 4, width);
-            clSetKernelArg1i(kernel, 5, height);
-            clSetKernelArg1i(kernel, 6, gpuGrid.getGridWidth());
-            clSetKernelArg1i(kernel, 7, gpuGrid.getGridHeight());
-            clSetKernelArg1i(kernel, 8, gpuGrid.getGridStep());
-
-            executeKernel2D(context, kernel, width, height);
-
+            context.runOp(op -> {
+                op.kernel("dedistort", kernelName)
+                        .arg(gpuImage.getBuffer())
+                        .arg(gpuGrid.getDxBuffer())
+                        .arg(gpuGrid.getDyBuffer())
+                        .arg(outputBuffer)
+                        .arg(width).arg(height)
+                        .arg(gpuGrid.getGridWidth()).arg(gpuGrid.getGridHeight()).arg(gpuGrid.getGridStep())
+                        .run(width, height);
+            });
             return GPUImage.fromBuffer(outputBuffer, width, height, context);
         } catch (Exception e) {
             context.releaseBuffer(outputBuffer);
             throw e;
         }
-    }
-
-    private static void executeKernel2D(OpenCLContext context, long kernel, int width, int height) {
-        var globalWorkSize = BufferUtils.createPointerBuffer(2);
-        globalWorkSize.put(0, width);
-        globalWorkSize.put(1, height);
-
-        int err = clEnqueueNDRangeKernel(context.getCommandQueue(), kernel, 2,
-                null, globalWorkSize, null, null, null);
-        if (err != CL_SUCCESS) {
-            throw new OpenCLException("Failed to execute kernel: " + err);
-        }
-        context.finish();
     }
 }

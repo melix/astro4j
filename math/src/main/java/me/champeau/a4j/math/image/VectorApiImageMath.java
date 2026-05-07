@@ -201,7 +201,6 @@ class VectorApiImageMath implements ImageMath {
         var halfK = kernelSize / 2;
         float invN2 = 1f / ((float) kernelSize * kernelSize);
 
-        // Horizontal pass: sliding window across each row (sequential per row)
         var hPass = new float[height][width];
         for (int y = 0; y < height; y++) {
             var srcRow = source[y];
@@ -218,7 +217,6 @@ class VectorApiImageMath implements ImageMath {
             }
         }
 
-        // Vertical pass: vectorized column sum updates
         var result = new float[height][width];
         var colSums = new float[width];
         for (int ky = -halfK; ky <= halfK; ky++) {

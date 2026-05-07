@@ -21,7 +21,7 @@ package me.champeau.a4j.math.opencl;
  * This class determines how much GPU memory is available for caching images,
  * accounting for memory needed by correlation kernels and driver overhead.
  */
-public final class GPUMemoryBudget {
+public final class GPUImageCacheBudget {
     private static final double KERNEL_WORKSPACE_FRACTION = 0.3;
     private static final double IMAGE_CACHE_FRACTION = 0.5;
 
@@ -36,7 +36,7 @@ public final class GPUMemoryBudget {
      * @param tileSize        the tile size used for correlation (32, 64, or 128)
      * @param maxTilesPerBatch maximum number of tiles processed in a single batch
      */
-    public GPUMemoryBudget(OpenCLContext context, int tileSize, int maxTilesPerBatch) {
+    public GPUImageCacheBudget(OpenCLContext context, int tileSize, int maxTilesPerBatch) {
         this.totalGpuMemory = context.getCapabilities().globalMemSize();
 
         // Reserve memory for correlation workspace:
@@ -63,7 +63,7 @@ public final class GPUMemoryBudget {
      *
      * @param context the OpenCL context
      */
-    public GPUMemoryBudget(OpenCLContext context) {
+    public GPUImageCacheBudget(OpenCLContext context) {
         this(context, 32, 10000);
     }
 
@@ -105,7 +105,7 @@ public final class GPUMemoryBudget {
 
     @Override
     public String toString() {
-        return String.format("GPUMemoryBudget[total=%d MB, reserved=%d MB, available=%d MB]",
+        return String.format("GPUImageCacheBudget[total=%d MB, reserved=%d MB, available=%d MB]",
                 totalGpuMemory / (1024 * 1024),
                 reservedForKernels / (1024 * 1024),
                 availableForImages / (1024 * 1024));

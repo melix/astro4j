@@ -20,6 +20,7 @@ import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.MemoryAwareStreams;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.math.regression.Ellipse;
 import org.slf4j.Logger;
@@ -36,7 +37,9 @@ import java.util.function.DoubleUnaryOperator;
 import java.util.function.Function;
 import java.util.stream.IntStream;
 
-/** Base class for function implementations. */
+/**
+ * Base class for function implementations.
+ */
 class AbstractFunctionImpl {
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractFunctionImpl.class);
 
@@ -53,7 +56,7 @@ class AbstractFunctionImpl {
     /**
      * Creates a new function implementation.
      *
-     * @param context the evaluation context
+     * @param context     the evaluation context
      * @param broadcaster the broadcaster for progress events
      */
     protected AbstractFunctionImpl(Map<Class<?>, Object> context, Broadcaster broadcaster) {
@@ -91,7 +94,7 @@ class AbstractFunctionImpl {
      * Gets an ellipse from arguments or context.
      *
      * @param arguments the function arguments
-     * @param key the argument key
+     * @param key       the argument key
      * @return the ellipse, if found
      */
     protected Optional<Ellipse> getEllipse(Map<String, Object> arguments, String key) {
@@ -112,7 +115,7 @@ class AbstractFunctionImpl {
      * Gets a value from the evaluation context.
      *
      * @param type the type to retrieve
-     * @param <T> the type parameter
+     * @param <T>  the type parameter
      * @return the value, if found
      */
     protected <T> Optional<T> getFromContext(Class<T> type) {
@@ -123,9 +126,9 @@ class AbstractFunctionImpl {
      * Gets an argument from the argument map.
      *
      * @param clazz the expected type
-     * @param args the arguments map
-     * @param key the argument key
-     * @param <T> the type parameter
+     * @param args  the arguments map
+     * @param key   the argument key
+     * @param <T>   the type parameter
      * @return the argument value, if found
      */
     protected <T> Optional<T> getArgument(Class<T> clazz, Map<String, Object> args, String key) {
@@ -135,8 +138,8 @@ class AbstractFunctionImpl {
     /**
      * Gets a double argument with default value.
      *
-     * @param arguments the arguments map
-     * @param key the argument key
+     * @param arguments    the arguments map
+     * @param key          the argument key
      * @param defaultValue the default value
      * @return the argument value or default
      */
@@ -150,8 +153,8 @@ class AbstractFunctionImpl {
     /**
      * Gets a float argument with default value.
      *
-     * @param arguments the arguments map
-     * @param key the argument key
+     * @param arguments    the arguments map
+     * @param key          the argument key
      * @param defaultValue the default value
      * @return the argument value or default
      */
@@ -165,7 +168,7 @@ class AbstractFunctionImpl {
     /**
      * Converts an object to a float value.
      *
-     * @param obj the object to convert
+     * @param obj          the object to convert
      * @param defaultValue the default value if obj is null
      * @return the float value
      */
@@ -184,8 +187,8 @@ class AbstractFunctionImpl {
     /**
      * Gets an int argument with default value.
      *
-     * @param arguments the arguments map
-     * @param key the argument key
+     * @param arguments    the arguments map
+     * @param key          the argument key
      * @param defaultValue the default value
      * @return the argument value or default
      */
@@ -199,8 +202,8 @@ class AbstractFunctionImpl {
     /**
      * Gets a string argument with default value.
      *
-     * @param arguments the arguments map
-     * @param key the argument key
+     * @param arguments    the arguments map
+     * @param key          the argument key
      * @param defaultValue the default value
      * @return the argument value or default
      */
@@ -215,8 +218,8 @@ class AbstractFunctionImpl {
      * Gets a boolean argument with default value.
      * Supports both numeric values (0=false, non-zero=true) and string values ("true"/"false").
      *
-     * @param arguments the arguments map
-     * @param key the argument key
+     * @param arguments    the arguments map
+     * @param key          the argument key
      * @param defaultValue the default value
      * @return the argument value or default
      */
@@ -239,7 +242,7 @@ class AbstractFunctionImpl {
      * Gets an argument as a Number.
      *
      * @param arguments the arguments map
-     * @param key the argument key
+     * @param key       the argument key
      * @return the argument value as a Number
      */
     protected Number getAsNumber(Map<String, Object> arguments, String key) {
@@ -256,9 +259,9 @@ class AbstractFunctionImpl {
      * Expands a list argument to process each element in parallel.
      *
      * @param currentFunction the function name
-     * @param key the argument key
-     * @param arguments the arguments map
-     * @param function the function to apply to each element
+     * @param key             the argument key
+     * @param arguments       the arguments map
+     * @param function        the function to apply to each element
      * @return the list of results
      */
     @SuppressWarnings("unchecked")
@@ -275,8 +278,7 @@ class AbstractFunctionImpl {
                 .toList();
         var progress = new AtomicInteger(0);
         var parallelOperation = newOperation("ImageMath: " + currentFunction);
-        var processed = itemsToProcess.stream()
-                .parallel()
+        var processed = MemoryAwareStreams.maybeParallel(itemsToProcess.stream())
                 .map(o -> {
                     var idx = o.idx;
                     var image = o.image;
@@ -307,10 +309,10 @@ class AbstractFunctionImpl {
     /**
      * Applies a transformation to mono images.
      *
-     * @param name the function name
-     * @param key the argument key
+     * @param name      the function name
+     * @param key       the argument key
      * @param arguments the arguments map
-     * @param consumer the image consumer
+     * @param consumer  the image consumer
      * @return the transformed image or list of images
      */
     public Object monoToMonoImageTransformer(String name, String key, Map<String, Object> arguments, ImageConsumer consumer) {
@@ -329,9 +331,9 @@ class AbstractFunctionImpl {
      * Applies a unary function to images.
      *
      * @param arguments the arguments map
-     * @param name the function name
-     * @param key the argument key
-     * @param function the unary function
+     * @param name      the function name
+     * @param key       the argument key
+     * @param function  the unary function
      * @return the transformed image or list of images
      */
     protected Object applyUnary(Map<String, Object> arguments, String name, String key, DoubleUnaryOperator function) {
@@ -349,9 +351,9 @@ class AbstractFunctionImpl {
     /**
      * Applies a unary transformation to images.
      *
-     * @param arguments the arguments map
-     * @param name the function name
-     * @param key the argument key
+     * @param arguments   the arguments map
+     * @param name        the function name
+     * @param key         the argument key
      * @param transformer the mono image transformer
      * @return the transformed image or list of images
      */
@@ -368,10 +370,10 @@ class AbstractFunctionImpl {
      * Applies a binary function to images.
      *
      * @param arguments the arguments map
-     * @param left the left argument key
-     * @param right the right argument key
-     * @param name the function name
-     * @param function the binary function
+     * @param left      the left argument key
+     * @param right     the right argument key
+     * @param name      the function name
+     * @param function  the binary function
      * @return the transformed image or list of images
      */
     protected Object applyBinary(Map<String, Object> arguments, String left, String right, String name, DoubleBinaryOperator function) {
@@ -425,7 +427,9 @@ class AbstractFunctionImpl {
         throw new IllegalStateException("Unexpected image type " + img);
     }
 
-    /** Functional interface for consuming images. */
+    /**
+     * Functional interface for consuming images.
+     */
     @FunctionalInterface
     public interface ImageConsumer {
         /**
@@ -436,15 +440,17 @@ class AbstractFunctionImpl {
         void accept(ImageWrapper image);
     }
 
-    /** Functional interface for transforming mono images. */
+    /**
+     * Functional interface for transforming mono images.
+     */
     @FunctionalInterface
     public interface MonoImageTransformer {
         /**
          * Transforms image data.
          *
-         * @param width the image width
+         * @param width  the image width
          * @param height the image height
-         * @param data the image data
+         * @param data   the image data
          */
         void transform(int width, int height, float[][] data);
 

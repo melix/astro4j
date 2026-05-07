@@ -44,13 +44,13 @@ import java.util.regex.Pattern;
 public class Loader extends AbstractFunctionImpl {
     private static final Logger LOGGER = LoggerFactory.getLogger(Loader.class);
     private static final Set<String> RECOGNIZED_IMAGE_FORMATS = Set.of(
-        "png",
-        "jpg",
-        "jpeg",
-        "tif",
-        "tiff",
-        "fits",
-        "fit"
+            "png",
+            "jpg",
+            "jpeg",
+            "tif",
+            "tiff",
+            "fits",
+            "fit"
     );
 
     public Loader(Map<Class<?>, Object> context, Broadcaster broadcaster) {
@@ -59,7 +59,7 @@ public class Loader extends AbstractFunctionImpl {
 
     private Path workingDirectory = new File(".").getAbsoluteFile().toPath();
 
-    public Object load(Map<String ,Object> arguments) {
+    public Object load(Map<String, Object> arguments) {
         BuiltinFunction.LOAD.validateArgs(arguments);
         var arg = arguments.get("file");
         if (arg instanceof List<?>) {
@@ -140,7 +140,7 @@ public class Loader extends AbstractFunctionImpl {
         }
     }
 
-    public List<ImageWrapper> loadMany(Map<String ,Object> arguments) {
+    public List<ImageWrapper> loadMany(Map<String, Object> arguments) {
         BuiltinFunction.LOAD_MANY.validateArgs(arguments);
         var directory = (String) arguments.get("dir");
         var pattern = Pattern.compile(stringArg(arguments, "pattern", ".*"));
@@ -148,11 +148,11 @@ public class Loader extends AbstractFunctionImpl {
         if (Files.isDirectory(lookupDir)) {
             try (var stream = Files.list(lookupDir)) {
                 return stream.map(Path::toFile)
-                    .filter(p -> pattern.matcher(p.getName()).matches())
-                    .filter(Loader::isImageFile)
-                    .parallel()
-                    .map(Loader::loadImage)
-                    .toList();
+                        .filter(p -> pattern.matcher(p.getName()).matches())
+                        .filter(Loader::isImageFile)
+                        .parallel()
+                        .map(Loader::loadImage)
+                        .toList();
             } catch (IOException e) {
                 LOGGER.error("Unable to load files", e);
                 return List.of();
@@ -178,7 +178,7 @@ public class Loader extends AbstractFunctionImpl {
         this.workingDirectory = workingDirectory;
     }
 
-    public Object chooseFile(Map<String ,Object> arguments) {
+    public Object chooseFile(Map<String, Object> arguments) {
         BuiltinFunction.CHOOSE_FILES.validateArgs(arguments);
         var id = stringArg(arguments, "id", null);
         var message = stringArg(arguments, "message", null);
@@ -200,7 +200,7 @@ public class Loader extends AbstractFunctionImpl {
         return file.map(Loader::loadImage).orElse(ImageWrapper32.createEmpty());
     }
 
-    public Object chooseFiles(Map<String ,Object> arguments) {
+    public Object chooseFiles(Map<String, Object> arguments) {
         BuiltinFunction.CHOOSE_FILES.validateArgs(arguments);
         var id = stringArg(arguments, "id", null);
         var message = stringArg(arguments, "message", null);
@@ -210,8 +210,8 @@ public class Loader extends AbstractFunctionImpl {
         }
         var files = chooser.chooseFiles(id, message);
         return files.<Object>map(fileList -> fileList
-            .stream()
-            .map(Loader::loadImage)
-            .toList()).orElse(List.of());
+                .stream()
+                .map(Loader::loadImage)
+                .toList()).orElse(List.of());
     }
 }

@@ -41,15 +41,17 @@ public class CoronagraphTask extends AbstractTask<ImageWrapper32> {
 
     @Override
     protected ImageWrapper32 doCall() throws Exception {
-        var buffer = getBuffer();
-        DiskFill.doFillWithGradient(fitting, buffer, 0);
+        // The disk-fill, background-removal and stretching steps below mutate
+        // their target buffer in place. The base class no longer provides a
+        // defensive copy, so we make our own owned copy here.
+        var work = workImage.copy();
+        DiskFill.doFillWithGradient(fitting, work.data(), 0);
         for (int i = 0; i < 2; i++) {
-            workImage = BackgroundRemoval.neutralizeBackground(workImage);
+            work = BackgroundRemoval.neutralizeBackground(work);
         }
-        buffer = workImage.data();
-        new ArcsinhStretchingStrategy(0, 50, 50).stretch(workImage);
-        workImage = new ImageWrapper32(width, height, buffer, workImage.metadata());
-        return workImage;
+        var buffer = work.data();
+        new ArcsinhStretchingStrategy(0, 50, 50).stretch(work);
+        return new ImageWrapper32(width, height, buffer, work.metadata());
     }
 
 }

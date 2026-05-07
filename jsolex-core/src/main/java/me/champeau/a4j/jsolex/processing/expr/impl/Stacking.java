@@ -50,6 +50,7 @@ import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
+import static me.champeau.a4j.jsolex.processing.util.MemoryAwareStreams.maybeParallel;
 
 public class Stacking extends AbstractFunctionImpl {
     private static final Logger LOGGER = LoggerFactory.getLogger(Stacking.class);
@@ -144,8 +145,7 @@ public class Stacking extends AbstractFunctionImpl {
             if (list.size() == 1) {
                 return list.getFirst();
             }
-            var images = list.stream()
-                    .parallel()
+            var images = maybeParallel(list.stream())
                     .filter(ImageWrapper.class::isInstance)
                     .map(img -> {
                         if (img instanceof FileBackedImage fbi) {
@@ -385,8 +385,7 @@ public class Stacking extends AbstractFunctionImpl {
             if (list.size() == 1) {
                 return list.getFirst();
             }
-            var images = list.stream()
-                    .parallel()
+            var images = maybeParallel(list.stream())
                     .filter(ImageWrapper.class::isInstance)
                     .map(img -> {
                         if (img instanceof FileBackedImage fbi) {
@@ -428,8 +427,7 @@ public class Stacking extends AbstractFunctionImpl {
             if (list.size() == 1) {
                 return list.getFirst();
             }
-            var images = list.stream()
-                    .parallel()
+            var images = maybeParallel(list.stream())
                     .filter(ImageWrapper.class::isInstance)
                     .map(img -> {
                         if (img instanceof FileBackedImage fbi) {
@@ -537,7 +535,13 @@ public class Stacking extends AbstractFunctionImpl {
         } else {
             generateDebugImages = params.requestedImages().isEnabled(GeneratedImageKind.DEBUG);
         }
-        var dedistorted = generateDebugImages ? new float[sourceImages.size()][height][width] : null;
+        float[][][] dedistorted = null;
+        if (generateDebugImages) {
+            dedistorted = new float[sourceImages.size()][][];
+            for (int i = 0; i < sourceImages.size(); i++) {
+                dedistorted[i] = new float[height][width];
+            }
+        }
         var finalImage = assembleImage(sourceImages, weights, distorsions, width, height, tileSize, referenceImage, dedistorted);
         var stacked = new ImageWrapper32(width, height, finalImage, metadata);
         if (generateDebugImages) {
@@ -560,9 +564,8 @@ public class Stacking extends AbstractFunctionImpl {
         if (context.get(ImageEmitter.class) instanceof ImageEmitter imageEmitter) {
             var progress = new AtomicInteger(0);
             var progressOperation = newOperation().createChild(message("Generating stacking debug images"));
-            var creator = new DistorsionDebugImageCreator(imageEmitter, scaling, imageDraw);
-            IntStream.range(0, images.size())
-                    .parallel()
+            var creator = new DistorsionDebugImageCreator(imageEmitter, scaling);
+            maybeParallel(IntStream.range(0, images.size()))
                     .forEach(i -> {
                         creator.createDebugImage(referenceImage, stacked, distorsions[i], images.get(i), tileSize, increment, i, dedistorted[i], referenceSelection);
                         var pg = (double) progress.incrementAndGet() / images.size();
@@ -593,8 +596,11 @@ public class Stacking extends AbstractFunctionImpl {
                     .min(Comparator.comparingDouble(a -> a.eccentricity))
                     .map(o -> o.image)
                     .orElseThrow();
+            // Sharpness is computed sequentially: each laplacian allocates
+            // ~5 full-image buffers, and the underlying OpenCL operations are
+            // serialized via a global GPU lock — parallelism multiplies memory
+            // without improving throughput.
             case SHARPNESS -> IntStream.range(0, images.size())
-                    .parallel()
                     .mapToObj(i -> {
                         var img = images.get(i);
                         var v = imageMath.estimateSharpness(img.asImage());

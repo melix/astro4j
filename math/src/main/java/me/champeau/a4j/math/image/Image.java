@@ -15,26 +15,29 @@
  */
 package me.champeau.a4j.math.image;
 
+
 import java.util.Arrays;
 
 /**
  * Represents a 2D image with floating-point pixel values.
  *
- * @param width the width of the image
+ * @param width  the width of the image
  * @param height the height of the image
- * @param data the pixel data organized as [y][x]
+ * @param data   the pixel data organized as [y][x]
  */
 public record Image(int width, int height, float[][] data) {
 
     /**
-     * Creates a new image with different pixel data but same dimensions.
+     * Creates a new image that adopts the given pixel data array. The caller
+     * transfers ownership: the array must not be modified after this call,
+     * since the returned {@code Image} aliases it directly. Use {@link #copy()}
+     * if a defensive snapshot is needed.
      *
-     * @param newData the new pixel data
-     * @return a new image with the updated data
+     * @param newData the new pixel data (ownership transferred)
+     * @return a new image backed by the given array
      */
     public Image withData(float[][] newData) {
-        var copyData = deepCopy(newData);
-        return new Image(width, height, copyData);
+        return new Image(width, height, newData);
     }
 
     /**
@@ -48,14 +51,14 @@ public record Image(int width, int height, float[][] data) {
     }
 
     private float[][] deepCopy(float[][] original) {
-        if (original.length==0) {
+        if (original.length == 0) {
             return new float[0][];
         }
-        var copy = new float[original.length][];
-        for (int i = 0; i < original.length; i++) {
-            var length = original[i].length;
-            copy[i] = new float[length];
-            System.arraycopy(original[i], 0, copy[i], 0, length);
+        int height = original.length;
+        int width = original[0].length;
+        var copy = new float[height][width];
+        for (int i = 0; i < height; i++) {
+            System.arraycopy(original[i], 0, copy[i], 0, width);
         }
         return copy;
     }

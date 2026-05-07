@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.util;
 
+
 public class ThumbnailGenerator {
     public static ImageWrapper generateThumbnail(ImageWrapper source, int maxWidth, int maxHeight) {
         if (source instanceof FileBackedImage fbi) {

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import javafx.scene.control.ProgressIndicator?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.StackPane?>
 <?import me.champeau.a4j.jsolex.app.jfx.ZoomableImageView?>
@@ -13,6 +14,7 @@
     <center>
         <StackPane fx:id="imageContainer">
             <ZoomableImageView fx:id="imageView"/>
+            <ProgressIndicator fx:id="loadingIndicator" maxWidth="80" maxHeight="80" visible="false" mouseTransparent="true"/>
         </StackPane>
     </center>
 </BorderPane>

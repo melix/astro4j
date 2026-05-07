@@ -41,7 +41,7 @@ import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.math.correlation.CorrelationTools;
 import me.champeau.a4j.math.opencl.GPUImageCache;
-import me.champeau.a4j.math.opencl.GPUMemoryBudget;
+import me.champeau.a4j.math.opencl.GPUImageCacheBudget;
 import me.champeau.a4j.math.opencl.OpenCLContext;
 import me.champeau.a4j.math.opencl.OpenCLSupport;
 import me.champeau.a4j.math.tuples.DoublePair;
@@ -649,15 +649,15 @@ public class Dedistort extends AbstractFunctionImpl {
      * correlation steps differ in implementation.
      */
     private DistorsionMap computeDistortionMapWithStrategy(float[][] referenceData,
-                                                            ImageWrapper32 currentImage,
-                                                            int width,
-                                                            int height,
-                                                            int tileSize,
-                                                            double sampling,
-                                                            float signal,
-                                                            SamplingStrategy strategy,
-                                                            String passName,
-                                                            ProgressOperation parent) {
+                                                           ImageWrapper32 currentImage,
+                                                           int width,
+                                                           int height,
+                                                           int tileSize,
+                                                           double sampling,
+                                                           float signal,
+                                                           SamplingStrategy strategy,
+                                                           String passName,
+                                                           ProgressOperation parent) {
         var safeTileSize = Math.max(ABSOLUTE_MIN_TILE_SIZE, tileSize);
 
         var progressOperation = parent.createChild(FIND_CORRESP_MESSAGE);
@@ -680,15 +680,15 @@ public class Dedistort extends AbstractFunctionImpl {
      * Use this when the same positions should be reused across multiple comparisons.
      */
     private DistorsionMap computeDistortionMapWithPositions(float[][] referenceData,
-                                                             ImageWrapper32 currentImage,
-                                                             int width,
-                                                             int height,
-                                                             int tileSize,
-                                                             double sampling,
-                                                             SamplingStrategy strategy,
-                                                             SamplingStrategy.SamplePositions positions,
-                                                             String passName,
-                                                             ProgressOperation progressOperation) {
+                                                            ImageWrapper32 currentImage,
+                                                            int width,
+                                                            int height,
+                                                            int tileSize,
+                                                            double sampling,
+                                                            SamplingStrategy strategy,
+                                                            SamplingStrategy.SamplePositions positions,
+                                                            String passName,
+                                                            ProgressOperation progressOperation) {
         var safeTileSize = Math.max(ABSOLUTE_MIN_TILE_SIZE, tileSize);
         var outputGridStep = strategy.getOutputGridStep(safeTileSize, sampling);
 
@@ -728,12 +728,12 @@ public class Dedistort extends AbstractFunctionImpl {
      * Tiles are grouped by size to ensure GPU batches contain uniform tile sizes.
      */
     private SparseDistortionField computeDisplacementsAtPositions(float[][] referenceData,
-                                                                    float[][] targetData,
-                                                                    int width,
-                                                                    int height,
-                                                                    int baseTileSize,
-                                                                    SamplingStrategy.SamplePositions positions,
-                                                                    ProgressOperation progressOperation) {
+                                                                  float[][] targetData,
+                                                                  int width,
+                                                                  int height,
+                                                                  int baseTileSize,
+                                                                  SamplingStrategy.SamplePositions positions,
+                                                                  ProgressOperation progressOperation) {
         // Verify reference and target are different arrays
         boolean sameData = (referenceData == targetData);
         if (sameData) {
@@ -912,9 +912,9 @@ public class Dedistort extends AbstractFunctionImpl {
     }
 
     private List<DisplacementSample> processBatchToSamples(List<int[]> gridPositions,
-                                                            List<float[][]> refTilesList,
-                                                            List<float[][]> targetTilesList,
-                                                            int tileSize) {
+                                                           List<float[][]> refTilesList,
+                                                           List<float[][]> targetTilesList,
+                                                           int tileSize) {
         var refTiles = refTilesList.toArray(new float[0][][]);
         var targetTiles = targetTilesList.toArray(new float[0][][]);
 
@@ -1096,7 +1096,7 @@ public class Dedistort extends AbstractFunctionImpl {
         boolean useGPUResidentWarping = false;
 
         if (gpuAvailable && iterations > 1) {
-            var budget = new GPUMemoryBudget(context, safeTileSize, 10000);
+            var budget = new GPUImageCacheBudget(context, safeTileSize, 10000);
             int maxResidentImages = budget.maxResidentImages(width, height);
 
             if (maxResidentImages >= imageCount) {
@@ -1119,153 +1119,151 @@ public class Dedistort extends AbstractFunctionImpl {
         }
 
         try {
-        for (int iteration = 0; iteration < iterations; iteration++) {
-            var suffix = iterations > 1 ? " (" + (iteration + 1) + "/" + iterations + ")" : "";
-            LOGGER.debug("Consensus reference iteration {}/{}: computing distortion maps for {} images",
-                    iteration + 1, iterations, imageCount);
-            var computingMessage = message("consensus.reference.computing");
-            broadcaster.broadcast(mainOperation.update((double) iteration / iterations, computingMessage + suffix));
+            for (int iteration = 0; iteration < iterations; iteration++) {
+                var suffix = iterations > 1 ? " (" + (iteration + 1) + "/" + iterations + ")" : "";
+                LOGGER.debug("Consensus reference iteration {}/{}: computing distortion maps for {} images",
+                        iteration + 1, iterations, imageCount);
+                var computingMessage = message("consensus.reference.computing");
+                broadcaster.broadcast(mainOperation.update((double) iteration / iterations, computingMessage + suffix));
 
-            var comparingOperation = mainOperation.createChild(computingMessage);
+                var comparingOperation = mainOperation.createChild(computingMessage);
 
-            // Determine how many comparisons to make per image
-            var comparisonsPerImage = Math.min(imageCount - 1, MAX_CONSENSUS_COMPARISONS);
-            var useSubsampling = comparisonsPerImage < imageCount - 1;
+                // Determine how many comparisons to make per image
+                var comparisonsPerImage = Math.min(imageCount - 1, MAX_CONSENSUS_COMPARISONS);
+                var useSubsampling = comparisonsPerImage < imageCount - 1;
 
-            // For each image, determine which other images to compare with
-            var comparisonsPerSourceImage = new TreeMap<Integer, List<Integer>>();
-            for (int i = 0; i < imageCount; i++) {
-                var targetIndices = new ArrayList<Integer>(imageCount - 1);
-                for (int j = 0; j < imageCount; j++) {
-                    if (j != i) {
-                        targetIndices.add(j);
-                    }
-                }
-
-                if (useSubsampling) {
-                    var random = new Random(42L + i + (long) iteration * imageCount);
-                    Collections.shuffle(targetIndices, random);
-                    targetIndices = new ArrayList<>(targetIndices.subList(0, comparisonsPerImage));
-                }
-
-                comparisonsPerSourceImage.put(i, targetIndices);
-            }
-
-            // Collect directed pairs to compute (i → j means distortion from i's perspective)
-            // We compute BOTH directions so each image uses its own interest points,
-            // except sources whose convergence state is fully frozen.
-            var pairsToCompute = new LinkedHashSet<Long>();
-            int skippedFullyFrozen = 0;
-            for (int i = 0; i < imageCount; i++) {
-                var sourceFrozen = adaptive && perImageConvergence.get(i).fullyFrozen();
-                if (sourceFrozen) {
-                    skippedFullyFrozen++;
-                }
-                for (int j : comparisonsPerSourceImage.get(i)) {
-                    if (!sourceFrozen) {
-                        pairsToCompute.add(encodeDirectedPair(i, j, imageCount));
-                    }
-                    if (!(adaptive && perImageConvergence.get(j).fullyFrozen())) {
-                        pairsToCompute.add(encodeDirectedPair(j, i, imageCount));
-                    }
-                }
-            }
-            if (adaptive && skippedFullyFrozen > 0) {
-                LOGGER.debug("Consensus reference iteration {}: {} fully frozen source images skipped",
-                        iteration + 1, skippedFullyFrozen);
-            }
-            if (pairsToCompute.isEmpty()) {
-                LOGGER.info(message("consensus.reference.all.frozen"), iteration + 1);
-                break;
-            }
-
-            LOGGER.debug("Consensus reference iteration {}: {} directed pairs to compute (from {} comparisons)",
-                    iteration + 1, pairsToCompute.size(),
-                    comparisonsPerSourceImage.values().stream().mapToInt(List::size).sum());
-
-            // Pre-compute interest points for each unique source image
-            var positionsPerSource = new ConcurrentHashMap<Integer, SamplingStrategy.SamplePositions>();
-            var sourceIndices = pairsToCompute.stream()
-                    .mapToInt(pairKey -> (int) (pairKey / imageCount)) // source index from directed pair
-                    .distinct()
-                    .toArray();
-            int finalIteration = iteration;
-            boolean adaptiveFinal = adaptive;
-            Arrays.stream(sourceIndices)
-                    .parallel()
-                    .forEach(srcIdx -> {
-                        var srcData = currentImages.get(srcIdx).data();
-                        var mask = adaptiveFinal ? perImageConvergence.get(srcIdx).buildMask() : null;
-                        var positions = strategy.selectPositions(srcData, width, height, safeTileSize, signal, mask);
-                        positionsPerSource.put(srcIdx, positions);
-
-                        // Save debug image showing interest points when debug logging is enabled
-                        if (LoggerFactory.getLogger(InterestPointSamplingStrategy.class).isDebugEnabled()
-                                && strategy instanceof InterestPointSamplingStrategy) {
-                            var passName = String.format("Iter_%d_Src_%d", finalIteration + 1, srcIdx + 1);
-                            saveInterestPointDebugImage(srcData, positions, width, height, passName);
-
+                // For each image, determine which other images to compare with
+                var comparisonsPerSourceImage = new TreeMap<Integer, List<Integer>>();
+                for (int i = 0; i < imageCount; i++) {
+                    var targetIndices = new ArrayList<Integer>(imageCount - 1);
+                    for (int j = 0; j < imageCount; j++) {
+                        if (j != i) {
+                            targetIndices.add(j);
                         }
-                    });
-            LOGGER.debug("Consensus reference iteration {}: computed interest points for {} source images",
-                    iteration + 1, positionsPerSource.size());
-
-            // Compute distortion maps for unique pairs only
-            var computedMaps = new HashMap<Long, DistorsionMap>();
-            int pairIndex = 0;
-            int totalPairs = pairsToCompute.size();
-            var pairOperation = comparingOperation.createChild(message("consensus.reference.comparing"));
-
-            // Use outer GPU cache if available, otherwise create per-iteration cache for correlation only
-            boolean useGPUResident = gpuAvailable;
-            GPUImageCache iterationCache = null;
-            GPUImageCache effectiveCache = gpuCache; // Use outer cache if GPU-resident warping enabled
-
-            if (useGPUResident && effectiveCache == null) {
-                // Create per-iteration cache for correlation (no cross-iteration warping)
-                var budget = new GPUMemoryBudget(context, safeTileSize, 10000);
-                int maxResidentImages = budget.maxResidentImages(width, height);
-                useGPUResident = maxResidentImages >= 2;
-
-                if (useGPUResident) {
-                    int cacheCapacity = Math.min(maxResidentImages, imageCount);
-                    if (iteration == 0) {
-                        LOGGER.debug("Using GPU-resident image correlation: cache capacity={}/{} images, tileSize={}, multiscale={}, {}",
-                                cacheCapacity, imageCount, safeTileSize, multiscale, budget);
                     }
 
-                    iterationCache = new GPUImageCache(
-                            context,
-                            cacheCapacity,
-                            width,
-                            height,
-                            idx -> flattenImageData(currentImages.get(idx).data())
-                    );
-                    effectiveCache = iterationCache;
-                } else if (iteration == 0) {
-                    LOGGER.debug("GPU memory insufficient for resident images (max={}, need>=2)", maxResidentImages);
+                    if (useSubsampling) {
+                        var random = new Random(42L + i + (long) iteration * imageCount);
+                        Collections.shuffle(targetIndices, random);
+                        targetIndices = new ArrayList<>(targetIndices.subList(0, comparisonsPerImage));
+                    }
+
+                    comparisonsPerSourceImage.put(i, targetIndices);
                 }
-            } else if (!gpuAvailable && iteration == 0) {
-                if (context == null) {
-                    LOGGER.debug("GPU not available, using CPU correlation");
-                } else {
-                    LOGGER.debug("GPU-resident correlation requires tile size 32, 64, or 128, using CPU (tile size={})", safeTileSize);
+
+                // Collect directed pairs to compute (i → j means distortion from i's perspective)
+                // We compute BOTH directions so each image uses its own interest points,
+                // except sources whose convergence state is fully frozen.
+                var pairsToCompute = new LinkedHashSet<Long>();
+                int skippedFullyFrozen = 0;
+                for (int i = 0; i < imageCount; i++) {
+                    var sourceFrozen = adaptive && perImageConvergence.get(i).fullyFrozen();
+                    if (sourceFrozen) {
+                        skippedFullyFrozen++;
+                    }
+                    for (int j : comparisonsPerSourceImage.get(i)) {
+                        if (!sourceFrozen) {
+                            pairsToCompute.add(encodeDirectedPair(i, j, imageCount));
+                        }
+                        if (!(adaptive && perImageConvergence.get(j).fullyFrozen())) {
+                            pairsToCompute.add(encodeDirectedPair(j, i, imageCount));
+                        }
+                    }
                 }
-            }
+                if (adaptive && skippedFullyFrozen > 0) {
+                    LOGGER.debug("Consensus reference iteration {}: {} fully frozen source images skipped",
+                            iteration + 1, skippedFullyFrozen);
+                }
+                if (pairsToCompute.isEmpty()) {
+                    LOGGER.info(message("consensus.reference.all.frozen"), iteration + 1);
+                    break;
+                }
 
-            try {
-                GPUImageCache finalGpuCache = effectiveCache;
+                LOGGER.debug("Consensus reference iteration {}: {} directed pairs to compute (from {} comparisons)",
+                        iteration + 1, pairsToCompute.size(),
+                        comparisonsPerSourceImage.values().stream().mapToInt(List::size).sum());
 
-                if (useGPUResident) {
-                    // GPU-resident path: process ALL pairs in one lock session
-                    // This eliminates per-pair lock overhead (100-300 lock calls → 1 call)
-                    var outputGridStep = strategy.getOutputGridStep(safeTileSize, sampling);
-                    int finalPairIndex = pairIndex;
+                // Pre-compute interest points for each unique source image
+                var positionsPerSource = new ConcurrentHashMap<Integer, SamplingStrategy.SamplePositions>();
+                var sourceIndices = pairsToCompute.stream()
+                        .mapToInt(pairKey -> (int) (pairKey / imageCount)) // source index from directed pair
+                        .distinct()
+                        .toArray();
+                int finalIteration = iteration;
+                boolean adaptiveFinal = adaptive;
+                Arrays.stream(sourceIndices)
+                        .parallel()
+                        .forEach(srcIdx -> {
+                            var srcData = currentImages.get(srcIdx).data();
+                            var mask = adaptiveFinal ? perImageConvergence.get(srcIdx).buildMask() : null;
+                            var positions = strategy.selectPositions(srcData, width, height, safeTileSize, signal, mask);
+                            positionsPerSource.put(srcIdx, positions);
 
-                    var gpuResults = context.executeWithLock(() -> {
-                        var results = new HashMap<Long, DistorsionMap>();
+                            // Save debug image showing interest points when debug logging is enabled
+                            if (LoggerFactory.getLogger(InterestPointSamplingStrategy.class).isDebugEnabled()
+                                    && strategy instanceof InterestPointSamplingStrategy) {
+                                var passName = String.format("Iter_%d_Src_%d", finalIteration + 1, srcIdx + 1);
+                                saveInterestPointDebugImage(srcData, positions, width, height, passName);
+
+                            }
+                        });
+                LOGGER.debug("Consensus reference iteration {}: computed interest points for {} source images",
+                        iteration + 1, positionsPerSource.size());
+
+                // Compute distortion maps for unique pairs only
+                var computedMaps = new HashMap<Long, DistorsionMap>();
+                int pairIndex = 0;
+                int totalPairs = pairsToCompute.size();
+                var pairOperation = comparingOperation.createChild(message("consensus.reference.comparing"));
+
+                // Use outer GPU cache if available, otherwise create per-iteration cache for correlation only
+                boolean useGPUResident = gpuAvailable;
+                GPUImageCache iterationCache = null;
+                GPUImageCache effectiveCache = gpuCache; // Use outer cache if GPU-resident warping enabled
+
+                if (useGPUResident && effectiveCache == null) {
+                    // Create per-iteration cache for correlation (no cross-iteration warping)
+                    var budget = new GPUImageCacheBudget(context, safeTileSize, 10000);
+                    int maxResidentImages = budget.maxResidentImages(width, height);
+                    useGPUResident = maxResidentImages >= 2;
+
+                    if (useGPUResident) {
+                        int cacheCapacity = Math.min(maxResidentImages, imageCount);
+                        if (iteration == 0) {
+                            LOGGER.debug("Using GPU-resident image correlation: cache capacity={}/{} images, tileSize={}, multiscale={}, {}",
+                                    cacheCapacity, imageCount, safeTileSize, multiscale, budget);
+                        }
+
+                        iterationCache = new GPUImageCache(
+                                context,
+                                cacheCapacity,
+                                width,
+                                height,
+                                idx -> flattenImageData(currentImages.get(idx).data())
+                        );
+                        effectiveCache = iterationCache;
+                    } else if (iteration == 0) {
+                        LOGGER.debug("GPU memory insufficient for resident images (max={}, need>=2)", maxResidentImages);
+                    }
+                } else if (!gpuAvailable && iteration == 0) {
+                    if (context == null) {
+                        LOGGER.debug("GPU not available, using CPU correlation");
+                    } else {
+                        LOGGER.debug("GPU-resident correlation requires tile size 32, 64, or 128, using CPU (tile size={})", safeTileSize);
+                    }
+                }
+
+                try {
+                    GPUImageCache finalGpuCache = effectiveCache;
+
+                    if (useGPUResident) {
+                        // GPU-resident path: process ALL pairs in one lock session
+                        // This eliminates per-pair lock overhead (100-300 lock calls → 1 call)
+                        var outputGridStep = strategy.getOutputGridStep(safeTileSize, sampling);
+                        int finalPairIndex = pairIndex;
+
+                        var gpuResults = new HashMap<Long, DistorsionMap>();
                         int localPairIndex = finalPairIndex;
-
                         for (long pairKey : pairsToCompute) {
                             int i = (int) (pairKey / imageCount);
                             int j = (int) (pairKey % imageCount);
@@ -1278,7 +1276,7 @@ public class Dedistort extends AbstractFunctionImpl {
                             long refBuffer = finalGpuCache.getImage(i);
                             long targetBuffer = finalGpuCache.getImage(j);
 
-                            // Get CPU data for fallback on unsupported tile sizes
+                            // CPU data kept for fallback on unsupported tile sizes
                             var refData = currentImages.get(i).data();
                             var targetDataArray = currentImages.get(j).data();
 
@@ -1287,151 +1285,149 @@ public class Dedistort extends AbstractFunctionImpl {
                                     refData, targetDataArray,
                                     width, height, safeTileSize, positions);
 
-                            results.put(pairKey, sparseField.toRegularGrid(outputGridStep));
+                            gpuResults.put(pairKey, sparseField.toRegularGrid(outputGridStep));
                             localPairIndex++;
                         }
-                        return results;
-                    });
 
-                    computedMaps.putAll(gpuResults);
-                    pairIndex += pairsToCompute.size();
-                } else {
-                    // CPU path: process pairs in parallel
-                    var cpuResults = new ConcurrentHashMap<Long, DistorsionMap>();
-                    var progress = new AtomicInteger(0);
-                    var pairList = new ArrayList<>(pairsToCompute);
-                    pairList.stream()
-                            .parallel()
-                            .forEach(pairKey -> {
-                                int i = (int) (pairKey / imageCount);
-                                int j = (int) (pairKey % imageCount);
+                        computedMaps.putAll(gpuResults);
+                        pairIndex += pairsToCompute.size();
+                    } else {
+                        // CPU path: process pairs in parallel
+                        var cpuResults = new ConcurrentHashMap<Long, DistorsionMap>();
+                        var progress = new AtomicInteger(0);
+                        var pairList = new ArrayList<>(pairsToCompute);
+                        pairList.stream()
+                                .parallel()
+                                .forEach(pairKey -> {
+                                    int i = (int) (pairKey / imageCount);
+                                    int j = (int) (pairKey % imageCount);
 
-                                var sourceImage = currentImages.get(i);
-                                var targetImage = currentImages.get(j);
-                                var positions = positionsPerSource.get(i);
+                                    var sourceImage = currentImages.get(i);
+                                    var targetImage = currentImages.get(j);
+                                    var positions = positionsPerSource.get(i);
 
-                                var passName = String.format("Iter %d - Pair %d→%d (tile=%d, %s)",
-                                        finalIteration + 1, i + 1, j + 1, tileSize, strategy.getName());
-                                var pairMap = computeDistortionMapWithPositions(sourceImage.data(), targetImage, width, height,
-                                        tileSize, sampling, strategy, positions, passName, pairOperation);
+                                    var passName = String.format("Iter %d - Pair %d→%d (tile=%d, %s)",
+                                            finalIteration + 1, i + 1, j + 1, tileSize, strategy.getName());
+                                    var pairMap = computeDistortionMapWithPositions(sourceImage.data(), targetImage, width, height,
+                                            tileSize, sampling, strategy, positions, passName, pairOperation);
 
-                                cpuResults.put(pairKey, pairMap);
-                                var currentProgress = progress.incrementAndGet();
-                                broadcaster.broadcast(pairOperation.update((double) currentProgress / totalPairs,
-                                        String.format("Pair %d/%d", currentProgress, totalPairs)));
-                            });
-                    computedMaps.putAll(cpuResults);
-                    pairIndex += pairsToCompute.size();
+                                    cpuResults.put(pairKey, pairMap);
+                                    var currentProgress = progress.incrementAndGet();
+                                    broadcaster.broadcast(pairOperation.update((double) currentProgress / totalPairs,
+                                            String.format("Pair %d/%d", currentProgress, totalPairs)));
+                                });
+                        computedMaps.putAll(cpuResults);
+                        pairIndex += pairsToCompute.size();
+                    }
+
+                    if (finalGpuCache != null) {
+                        LOGGER.debug("GPU image cache stats: {}", finalGpuCache);
+                    }
+                } finally {
+                    // Clean up only per-iteration cache (outer cache is cleaned up in outer finally)
+                    if (iterationCache != null) {
+                        iterationCache.close();
+                    }
                 }
+                broadcaster.broadcast(pairOperation.complete());
 
-                if (finalGpuCache != null) {
-                    LOGGER.debug("GPU image cache stats: {}", finalGpuCache);
-                }
-            } finally {
-                // Clean up only per-iteration cache (outer cache is cleaned up in outer finally)
-                if (iterationCache != null) {
-                    context.executeWithLock(iterationCache::close);
-                }
-            }
-            broadcaster.broadcast(pairOperation.complete());
-
-            // For each image, gather maps and compute average
-            // Each map is now computed directly (i → j uses i's interest points)
-            var iterationMaps = new ArrayList<DistorsionMap>(imageCount);
-            DistorsionMap referenceShapeMap = computedMaps.values().stream().findFirst().orElse(null);
-            for (int i = 0; i < imageCount; i++) {
-                var sourceFrozen = adaptive && perImageConvergence.get(i).fullyFrozen();
-                DistorsionMap imageToTruth;
-                if (sourceFrozen) {
-                    // Fully frozen image: no source pairs were computed; emit a zero
-                    // correction map shaped like any existing computed map.
-                    var shape = referenceShapeMap;
-                    imageToTruth = new DistorsionMap(width, height,
-                            shape != null ? shape.getTileSize() : tileSize,
-                            shape != null ? shape.getStep() : Math.max(MIN_STEP, (int) (tileSize * sampling)));
-                } else {
-                    var mapsToOthers = new ArrayList<DistorsionMap>(comparisonsPerImage);
-                    for (int j : comparisonsPerSourceImage.get(i)) {
-                        long pairKey = encodeDirectedPair(i, j, imageCount);
-                        var map = computedMaps.get(pairKey);
-                        if (map != null) {
-                            mapsToOthers.add(map);
+                // For each image, gather maps and compute average
+                // Each map is now computed directly (i → j uses i's interest points)
+                var iterationMaps = new ArrayList<DistorsionMap>(imageCount);
+                DistorsionMap referenceShapeMap = computedMaps.values().stream().findFirst().orElse(null);
+                for (int i = 0; i < imageCount; i++) {
+                    var sourceFrozen = adaptive && perImageConvergence.get(i).fullyFrozen();
+                    DistorsionMap imageToTruth;
+                    if (sourceFrozen) {
+                        // Fully frozen image: no source pairs were computed; emit a zero
+                        // correction map shaped like any existing computed map.
+                        var shape = referenceShapeMap;
+                        imageToTruth = new DistorsionMap(width, height,
+                                shape != null ? shape.getTileSize() : tileSize,
+                                shape != null ? shape.getStep() : Math.max(MIN_STEP, (int) (tileSize * sampling)));
+                    } else {
+                        var mapsToOthers = new ArrayList<DistorsionMap>(comparisonsPerImage);
+                        for (int j : comparisonsPerSourceImage.get(i)) {
+                            long pairKey = encodeDirectedPair(i, j, imageCount);
+                            var map = computedMaps.get(pairKey);
+                            if (map != null) {
+                                mapsToOthers.add(map);
+                            }
                         }
-                    }
 
-                    // Average: average(image[i] → image[j]) ≈ -d_i (negative of image[i]'s distortion)
-                    // So we negate to get the correction: image[i] → truth ≈ d_i
-                    var avgMap = DistorsionMap.average(mapsToOthers);
+                        // Average: average(image[i] → image[j]) ≈ -d_i (negative of image[i]'s distortion)
+                        // So we negate to get the correction: image[i] → truth ≈ d_i
+                        var avgMap = DistorsionMap.average(mapsToOthers);
+                        if (adaptive) {
+                            perImageConvergence.get(i).applyFreezeMaskInPlace(avgMap);
+                        }
+                        imageToTruth = avgMap.negate();
+                    }
+                    iterationMaps.add(imageToTruth);
                     if (adaptive) {
-                        perImageConvergence.get(i).applyFreezeMaskInPlace(avgMap);
+                        perImageConvergence.get(i).update(imageToTruth, iteration);
                     }
-                    imageToTruth = avgMap.negate();
+                    LOGGER.debug("Consensus reference iteration {}: image {}: toTruth distortion={}, frozenFraction={}",
+                            iteration + 1, i, imageToTruth.totalDistorsion(),
+                            adaptive ? String.format("%.2f", perImageConvergence.get(i).frozenFraction()) : "n/a");
                 }
-                iterationMaps.add(imageToTruth);
-                if (adaptive) {
-                    perImageConvergence.get(i).update(imageToTruth, iteration);
-                }
-                LOGGER.debug("Consensus reference iteration {}: image {}: toTruth distortion={}, frozenFraction={}",
-                        iteration + 1, i, imageToTruth.totalDistorsion(),
-                        adaptive ? String.format("%.2f", perImageConvergence.get(i).frozenFraction()) : "n/a");
-            }
-            broadcaster.broadcast(comparingOperation.complete());
+                broadcaster.broadcast(comparingOperation.complete());
 
-            // Check convergence: stop if distortion increased or improvement below threshold
-            var totalDistortion = iterationMaps.stream()
-                    .mapToDouble(DistorsionMap::totalDistorsion)
-                    .sum();
-            var avgDistortion = iterationMaps.isEmpty() ? 0 : totalDistortion / iterationMaps.size();
-            var relativeImprovement = previousAvgDistortion > 0
-                    ? (previousAvgDistortion - avgDistortion) / previousAvgDistortion
-                    : 1.0;
-
-            LOGGER.info(message("consensus.reference.iteration.summary"),
-                    iteration + 1,
-                    String.format("%.2f", avgDistortion),
-                    String.format("%.2f", relativeImprovement * 100));
-
-            if (adaptive) {
-                var avgFrozenFraction = perImageConvergence.stream()
-                        .mapToDouble(TileConvergenceState::frozenFraction)
-                        .average()
-                        .orElse(0);
-                var fullyFrozenCount = (int) perImageConvergence.stream()
-                        .filter(TileConvergenceState::fullyFrozen)
-                        .count();
-                var totalPositions = positionsPerSource.values().stream()
-                        .mapToInt(SamplingStrategy.SamplePositions::count)
+                // Check convergence: stop if distortion increased or improvement below threshold
+                var totalDistortion = iterationMaps.stream()
+                        .mapToDouble(DistorsionMap::totalDistorsion)
                         .sum();
-                LOGGER.info(message("consensus.reference.adaptive.summary"),
-                        iteration + 1,
-                        String.format("%.2f", totalDistortion),
-                        String.format("%.1f", avgFrozenFraction * 100),
-                        fullyFrozenCount, imageCount,
-                        pairsToCompute.size(),
-                        totalPositions);
-            }
+                var avgDistortion = iterationMaps.isEmpty() ? 0 : totalDistortion / iterationMaps.size();
+                var relativeImprovement = previousAvgDistortion > 0
+                        ? (previousAvgDistortion - avgDistortion) / previousAvgDistortion
+                        : 1.0;
 
-            if (avgDistortion > previousAvgDistortion) {
-                LOGGER.warn(message("consensus.reference.distortion.increased"), iteration + 1, avgDistortion, previousAvgDistortion);
-                break;
-            }
-            if (relativeImprovement < CONVERGENCE_THRESHOLD && iteration > 0) {
-                LOGGER.info(message("consensus.reference.converged"), iteration + 1, String.format("%.2f", relativeImprovement * 100), CONVERGENCE_THRESHOLD * 100);
+                LOGGER.info(message("consensus.reference.iteration.summary"),
+                        iteration + 1,
+                        String.format("%.2f", avgDistortion),
+                        String.format("%.2f", relativeImprovement * 100));
+
+                if (adaptive) {
+                    var avgFrozenFraction = perImageConvergence.stream()
+                            .mapToDouble(TileConvergenceState::frozenFraction)
+                            .average()
+                            .orElse(0);
+                    var fullyFrozenCount = (int) perImageConvergence.stream()
+                            .filter(TileConvergenceState::fullyFrozen)
+                            .count();
+                    var totalPositions = positionsPerSource.values().stream()
+                            .mapToInt(SamplingStrategy.SamplePositions::count)
+                            .sum();
+                    LOGGER.info(message("consensus.reference.adaptive.summary"),
+                            iteration + 1,
+                            String.format("%.2f", totalDistortion),
+                            String.format("%.1f", avgFrozenFraction * 100),
+                            fullyFrozenCount, imageCount,
+                            pairsToCompute.size(),
+                            totalPositions);
+                }
+
+                if (avgDistortion > previousAvgDistortion) {
+                    LOGGER.warn(message("consensus.reference.distortion.increased"), iteration + 1, avgDistortion, previousAvgDistortion);
+                    break;
+                }
+                if (relativeImprovement < CONVERGENCE_THRESHOLD && iteration > 0) {
+                    LOGGER.info(message("consensus.reference.converged"), iteration + 1, String.format("%.2f", relativeImprovement * 100), CONVERGENCE_THRESHOLD * 100);
+                    warpImagesAfterIteration(iterationMaps, accumulatedMaps, currentImages, mainOperation,
+                            height, width, imageCount, useGPUResidentWarping, gpuCache, context);
+                    break;
+                }
+
+                previousAvgDistortion = avgDistortion;
+
+                // Warp each image and accumulate its distortion map
                 warpImagesAfterIteration(iterationMaps, accumulatedMaps, currentImages, mainOperation,
                         height, width, imageCount, useGPUResidentWarping, gpuCache, context);
-                break;
             }
-
-            previousAvgDistortion = avgDistortion;
-
-            // Warp each image and accumulate its distortion map
-            warpImagesAfterIteration(iterationMaps, accumulatedMaps, currentImages, mainOperation,
-                    height, width, imageCount, useGPUResidentWarping, gpuCache, context);
-        }
         } finally {
             // Clean up outer GPU cache (used for cross-iteration warping)
             if (gpuCache != null) {
-                context.executeWithLock(gpuCache::close);
+                gpuCache.close();
             }
         }
 
@@ -1463,18 +1459,18 @@ public class Dedistort extends AbstractFunctionImpl {
      * Uses GPU-resident warping when available (all images fit in cache).
      */
     private void warpImagesAfterIteration(List<DistorsionMap> iterationMaps,
-                                           List<DistorsionMaps> accumulatedMaps,
-                                           List<ImageWrapper32> currentImages,
-                                           ProgressOperation mainOperation,
-                                           int height,
-                                           int width,
-                                           int imageCount,
-                                           boolean useGPUResidentWarping,
-                                           GPUImageCache gpuCache,
-                                           OpenCLContext context) {
+                                          List<DistorsionMaps> accumulatedMaps,
+                                          List<ImageWrapper32> currentImages,
+                                          ProgressOperation mainOperation,
+                                          int height,
+                                          int width,
+                                          int imageCount,
+                                          boolean useGPUResidentWarping,
+                                          GPUImageCache gpuCache,
+                                          OpenCLContext context) {
         if (useGPUResidentWarping && gpuCache != null && context != null) {
             // GPU-resident warping: warp all images on GPU and update cache buffers
-            context.executeWithLock(() -> {
+            {
                 for (int i = 0; i < imageCount; i++) {
                     var map = iterationMaps.get(i);
                     accumulatedMaps.set(i, accumulatedMaps.get(i).append(map));
@@ -1499,7 +1495,7 @@ public class Dedistort extends AbstractFunctionImpl {
                         currentImages.set(i, new ImageWrapper32(width, height, warpedData, MutableMap.of()));
                     }
                 }
-            });
+            }
             LOGGER.debug("GPU-resident warping completed for {} images", imageCount);
         } else {
             // CPU warping: process images in parallel
@@ -1540,14 +1536,14 @@ public class Dedistort extends AbstractFunctionImpl {
      * Falls back to CPU correlation for tile sizes not supported by GPU (e.g., 256).
      */
     private SparseDistortionField computeDisplacementsGPUResident(OpenCLContext context,
-                                                                   long refImageBuffer,
-                                                                   long targetImageBuffer,
-                                                                   float[][] refData,
-                                                                   float[][] targetData,
-                                                                   int width,
-                                                                   int height,
-                                                                   int baseTileSize,
-                                                                   SamplingStrategy.SamplePositions positions) {
+                                                                  long refImageBuffer,
+                                                                  long targetImageBuffer,
+                                                                  float[][] refData,
+                                                                  float[][] targetData,
+                                                                  int width,
+                                                                  int height,
+                                                                  int baseTileSize,
+                                                                  SamplingStrategy.SamplePositions positions) {
         int numPositions = positions.count();
         if (numPositions == 0) {
             return SparseDistortionField.builder(width, height)
@@ -1653,11 +1649,11 @@ public class Dedistort extends AbstractFunctionImpl {
      * Extracts tiles at the given positions and correlates using the CPU strategy.
      */
     private float[][] correlateTilesCPU(float[][] refData,
-                                         float[][] targetData,
-                                         int width,
-                                         int height,
-                                         int[][] positions,
-                                         int tileSize) {
+                                        float[][] targetData,
+                                        int width,
+                                        int height,
+                                        int[][] positions,
+                                        int tileSize) {
         int tileOffset = tileSize / 2;
         var refTiles = new ArrayList<float[][]>(positions.length);
         var targetTiles = new ArrayList<float[][]>(positions.length);
@@ -1711,10 +1707,10 @@ public class Dedistort extends AbstractFunctionImpl {
     }
 
     private void saveInterestPointDebugImage(float[][] referenceData,
-                                              SamplingStrategy.SamplePositions positions,
-                                              int width,
-                                              int height,
-                                              String passName) {
+                                             SamplingStrategy.SamplePositions positions,
+                                             int width,
+                                             int height,
+                                             String passName) {
         try {
             var debugData = InterestPointSamplingStrategy.createDebugImage(referenceData, positions, width, height);
 

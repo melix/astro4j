@@ -20,16 +20,19 @@ import org.lwjgl.opencl.CL;
 import org.lwjgl.opencl.CL11;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.MemoryUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Supplier;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 import static org.lwjgl.opencl.CL10.*;
 
@@ -37,14 +40,15 @@ import static org.lwjgl.opencl.CL10.*;
  * Manages the OpenCL context, device, and command queue lifecycle.
  * Provides device selection prioritizing discrete GPUs over integrated GPUs and CPUs.
  * <p>
- * Thread-safety: OpenCL kernel objects cache their arguments, which can cause race conditions
- * if multiple threads set arguments on the same kernel simultaneously. All GPU operations
- * must be synchronized using {@link #executeWithLock(Supplier)} or {@link #executeWithLock(Runnable)}.
+ * Thread-safety: OpenCL kernel objects cache their arguments, so multiple threads
+ * cannot set arguments on the same kernel handle concurrently. To run GPU work, use
+ * {@link #runOp(Consumer)} or {@link #runOp(Function)} — the {@link GpuOp} body
+ * borrows private kernel handles per call, so concurrent ops on this context run in
+ * parallel without any global lock. Buffer allocations are gated by
+ * {@link #memoryBudget()} which blocks rather than failing when the GPU is full.
  */
 public class OpenCLContext implements AutoCloseable {
-    // Global lock for all GPU operations to prevent kernel argument race conditions.
-    // This lock must be used by all code that sets kernel arguments and executes kernels.
-    private final ReentrantLock gpuLock = new ReentrantLock();
+    private static final Logger LOGGER = LoggerFactory.getLogger(OpenCLContext.class);
 
     private final long platform;
     private final long device;
@@ -52,6 +56,7 @@ public class OpenCLContext implements AutoCloseable {
     private final long commandQueue;
     private final DeviceCapabilities capabilities;
     private final OpenCLKernelManager kernelManager;
+    private final GpuMemoryBudget memoryBudget;
 
     // Memory tracking for debugging GPU memory leaks
     private final Map<Long, Long> allocatedBuffers = new ConcurrentHashMap<>();
@@ -65,9 +70,12 @@ public class OpenCLContext implements AutoCloseable {
     private final AtomicInteger totalErrors = new AtomicInteger(0);
     private volatile GPUError lastError;
 
-    // Cache for writeBuffer operations - reused across calls
-    // Safe because gpuLock ensures sequential access
-    private FloatBuffer writeCache;
+    // Cache for writeBuffer operations — one buffer per thread so that
+    // concurrent writes via runOp don't collide. Native memory is freed by
+    // {@link #close} via {@link #freeWriteCaches}.
+    private final ThreadLocal<FloatBuffer> writeCache = new ThreadLocal<>();
+    private final Set<FloatBuffer> writeCacheBuffers =
+            ConcurrentHashMap.newKeySet();
 
     /**
      * Records a GPU error with the given message and cause.
@@ -127,6 +135,11 @@ public class OpenCLContext implements AutoCloseable {
         this.commandQueue = commandQueue;
         this.capabilities = capabilities;
         this.kernelManager = new OpenCLKernelManager(this);
+        // Reserve 25% of device global memory as headroom for the OpenCL
+        // runtime, the OS, the display compositor, etc. The remaining 75% is
+        // exposed as the budget concurrent runOp callers compete on.
+        long budget = (long) (capabilities.globalMemSize() * 0.75);
+        this.memoryBudget = new GpuMemoryBudget(Math.max(64L * 1024 * 1024, budget));
     }
 
     /**
@@ -139,8 +152,7 @@ public class OpenCLContext implements AutoCloseable {
         try {
             return create();
         } catch (Exception | UnsatisfiedLinkError e) {
-            System.err.println("[OpenCLContext] Failed to create OpenCL context");
-            e.printStackTrace();
+            LOGGER.error("Failed to create OpenCL context", e);
             return null;
         }
     }
@@ -344,85 +356,54 @@ public class OpenCLContext implements AutoCloseable {
     }
 
     /**
-     * Executes a GPU operation while holding the GPU lock.
-     * This method properly acquires and releases the lock to ensure thread-safe
-     * kernel argument setting and execution.
-     *
-     * @param operation the operation to execute
-     * @param <T>       the return type
-     * @return the result of the operation
+     * Returns the GPU memory budget. Used by {@link GpuOp} to gate buffer
+     * allocations against the device's physical memory size; concurrent ops
+     * proceed in parallel as long as their combined buffers fit, and block
+     * (rather than fail) if they would exceed the budget.
      */
-    public <T> T executeWithLock(Supplier<T> operation) {
-        gpuLock.lock();
-        try {
-            return operation.get();
-        } finally {
-            gpuLock.unlock();
+    public GpuMemoryBudget memoryBudget() {
+        return memoryBudget;
+    }
+
+    /**
+     * Runs a GPU operation in a scoped {@link GpuOp}. Buffers allocated via
+     * the op are automatically released when the body returns; kernels used
+     * via {@code op.kernel(...)} are borrowed from the per-thread pool and
+     * returned automatically. No global lock is held — concurrent calls run
+     * in parallel up to the GPU memory budget.
+     */
+    public void runOp(Consumer<? super GpuOp> body) {
+        try (var op = new GpuOp(this)) {
+            body.accept(op);
         }
     }
 
     /**
-     * Executes a GPU operation while holding the GPU lock.
-     * This method properly acquires and releases the lock to ensure thread-safe
-     * kernel argument setting and execution.
-     *
-     * @param operation the operation to execute
+     * {@link #runOp(Consumer)} variant that returns a value.
      */
-    public void executeWithLock(Runnable operation) {
-        gpuLock.lock();
-        try {
-            operation.run();
-        } finally {
-            gpuLock.unlock();
+    public <T> T runOp(Function<? super GpuOp, ? extends T> body) {
+        try (var op = new GpuOp(this)) {
+            return body.apply(op);
         }
     }
 
     /**
-     * Attempts to execute a GPU operation without blocking.
-     * If the GPU lock is available, acquires it and runs the GPU operation.
-     * If the GPU is busy (lock held by another thread), runs the CPU fallback immediately.
-     *
-     * @param gpuOperation the GPU operation to execute if the lock is available
-     * @param cpuFallback  the CPU fallback to execute if the GPU is busy
-     * @param <T>          the return type
-     * @return the result from either the GPU operation or the CPU fallback
-     */
-    public <T> T tryExecuteWithLock(Supplier<T> gpuOperation, Supplier<T> cpuFallback) {
-        if (gpuLock.tryLock()) {
-            try {
-                return gpuOperation.get();
-            } finally {
-                gpuLock.unlock();
-            }
-        }
-        return cpuFallback.get();
-    }
-
-    /**
-     * Verifies that the current thread holds the GPU lock.
-     * All GPU operations must be performed while holding the lock.
-     *
-     * @throws IllegalStateException if the current thread does not hold the lock
-     */
-    private void requireLock() {
-        if (!gpuLock.isHeldByCurrentThread()) {
-            throw new IllegalStateException(
-                    "GPU operations must be performed within executeWithLock(). " +
-                    "Current thread does not hold the GPU lock.");
-        }
-    }
-
-    /**
-     * Allocates a buffer on the device.
-     * Must be called within {@link #executeWithLock(Supplier)} or {@link #executeWithLock(Runnable)}.
+     * Allocates a buffer on the device. Prefer {@link GpuOp#allocateBuffer}
+     * for normal use — it ties the buffer's lifetime to the surrounding
+     * {@link #runOp} call. This method exists for buffers whose lifetime
+     * escapes the op (e.g. wrapped in a {@code GPUImage} returned to the
+     * caller); such buffers must be freed explicitly via {@link #releaseBuffer}.
      *
      * @param sizeInBytes the size in bytes
      * @param flags       memory flags (e.g., CL_MEM_READ_WRITE)
      * @return the buffer handle
-     * @throws IllegalStateException if not called within executeWithLock
      */
     public long allocateBuffer(int sizeInBytes, long flags) {
-        requireLock();
+        // Reserve space in the device-level budget *before* asking OpenCL.
+        // If another op is currently holding the memory we need, this blocks
+        // here rather than letting clCreateBuffer fail with a hard OOM.
+        memoryBudget.acquire(sizeInBytes);
+        boolean acquired = true;
         try (var stack = MemoryStack.stackPush()) {
             var errBuf = stack.mallocInt(1);
             long buffer = clCreateBuffer(context, flags, sizeInBytes, errBuf);
@@ -436,7 +417,7 @@ public class OpenCLContext implements AutoCloseable {
                         ", peak=" + peakMB + " MB" +
                         ", outstandingBuffers=" + outstanding);
                 recordError("allocateBuffer", ex);
-                System.err.println("[OpenCLContext] " + ex.getMessage());
+                LOGGER.error("{}", ex.getMessage());
                 throw ex;
             }
             // Track allocation
@@ -444,37 +425,43 @@ public class OpenCLContext implements AutoCloseable {
             long newTotal = totalAllocatedBytes.addAndGet(sizeInBytes);
             peakAllocatedBytes.updateAndGet(peak -> Math.max(peak, newTotal));
             allocationCount.incrementAndGet();
+            acquired = false;   // ownership transferred to the live buffer; releaseBuffer will free the budget
             return buffer;
+        } finally {
+            if (acquired) {
+                memoryBudget.release(sizeInBytes);
+            }
         }
     }
 
     /**
-     * Gets or grows the write cache to hold at least minCapacity floats.
-     * The cache is reused across writeBuffer calls to avoid repeated allocations.
+     * Gets or grows the calling thread's write cache to hold at least
+     * {@code minCapacity} floats. Each thread keeps its own buffer so
+     * concurrent {@link #writeBuffer} calls don't collide.
      */
     private FloatBuffer getOrGrowWriteCache(int minCapacity) {
-        if (writeCache == null || writeCache.capacity() < minCapacity) {
-            if (writeCache != null) {
-                MemoryUtil.memFree(writeCache);
+        var current = writeCache.get();
+        if (current == null || current.capacity() < minCapacity) {
+            if (current != null) {
+                writeCacheBuffers.remove(current);
+                MemoryUtil.memFree(current);
             }
             // Round up to power of 2 for efficient reuse
             int newCapacity = Integer.highestOneBit(minCapacity - 1) << 1;
             newCapacity = Math.max(newCapacity, 64 * 1024); // Min 64K floats (~256KB)
-            writeCache = MemoryUtil.memAllocFloat(newCapacity);
+            var fresh = MemoryUtil.memAllocFloat(newCapacity);
+            writeCache.set(fresh);
+            writeCacheBuffers.add(fresh);
+            return fresh;
         }
-        return writeCache;
+        return current;
     }
 
     /**
-     * Writes float data to a buffer.
-     * Must be called within {@link #executeWithLock(Supplier)} or {@link #executeWithLock(Runnable)}.
-     *
-     * @param buffer the buffer handle
-     * @param data the data to write
-     * @throws IllegalStateException if not called within executeWithLock
+     * Writes float data to {@code buffer}. Blocking — returns once the write
+     * is complete on the device.
      */
     public void writeBuffer(long buffer, float[] data) {
-        requireLock();
         var floatBuffer = getOrGrowWriteCache(data.length);
         floatBuffer.clear();
         floatBuffer.put(data).flip();
@@ -489,15 +476,10 @@ public class OpenCLContext implements AutoCloseable {
     }
 
     /**
-     * Writes int data to a buffer.
-     * Must be called within {@link #executeWithLock(Supplier)} or {@link #executeWithLock(Runnable)}.
-     *
-     * @param buffer the buffer handle
-     * @param data the data to write
-     * @throws IllegalStateException if not called within executeWithLock
+     * Writes int data to {@code buffer}. Blocking — returns once the write
+     * is complete on the device.
      */
     public void writeBufferInt(long buffer, int[] data) {
-        requireLock();
         var intBuffer = MemoryUtil.memAllocInt(data.length);
         try {
             intBuffer.put(data).flip();
@@ -513,37 +495,27 @@ public class OpenCLContext implements AutoCloseable {
     }
 
     /**
-     * Reads float data from a buffer, ensuring all pending operations complete first.
-     * Must be called within {@link #executeWithLock(Supplier)} or {@link #executeWithLock(Runnable)}.
-     *
-     * @param buffer the buffer handle
-     * @param data the array to read into
-     * @throws IllegalStateException if not called within executeWithLock
+     * Reads float data from {@code buffer}, finishing pending kernel work
+     * first so the read sees the post-kernel contents.
      */
     public void readBuffer(long buffer, float[] data) {
-        requireLock();
         // Ensure all pending kernel operations complete before reading
         int finishErr = clFinish(commandQueue);
         if (finishErr != CL_SUCCESS) {
             var ex = new OpenCLException("clFinish failed in readBuffer with error: " + finishErr + " | " + getMemoryStats());
             recordError("readBuffer.clFinish", ex);
-            System.err.println("[OpenCLContext] " + ex.getMessage());
+            LOGGER.error("{}", ex.getMessage());
         }
         readBufferNoSync(buffer, data);
     }
 
     /**
-     * Reads float data from a buffer without synchronizing first.
-     * Caller must ensure all kernel operations affecting this buffer have completed
-     * (typically by calling {@link #finish()} once before multiple reads).
-     * Must be called within {@link #executeWithLock(Supplier)} or {@link #executeWithLock(Runnable)}.
-     *
-     * @param buffer the buffer handle
-     * @param data the array to read into
-     * @throws IllegalStateException if not called within executeWithLock
+     * Reads float data from {@code buffer} without finishing pending kernel
+     * work first. The caller must guarantee any kernels writing this buffer
+     * have completed (typically by a single {@link #finish()} before a batch
+     * of reads).
      */
     public void readBufferNoSync(long buffer, float[] data) {
-        requireLock();
         var floatBuffer = MemoryUtil.memAllocFloat(data.length);
         try {
             // blocking=true ensures the read completes before returning
@@ -561,68 +533,79 @@ public class OpenCLContext implements AutoCloseable {
     }
 
     /**
-     * Releases a buffer.
-     * Must be called within {@link #executeWithLock(Supplier)} or {@link #executeWithLock(Runnable)}.
-     *
-     * @param buffer the buffer handle
-     * @throws IllegalStateException if not called within executeWithLock
+     * Reads int data from a buffer, finishing pending kernel work first.
+     */
+    public void readBufferInt(long buffer, int[] data) {
+        int finishErr = clFinish(commandQueue);
+        if (finishErr != CL_SUCCESS) {
+            recordError("readBufferInt.clFinish", new OpenCLException("clFinish failed: " + finishErr));
+        }
+        var intBuffer = MemoryUtil.memAllocInt(data.length);
+        try {
+            int err = clEnqueueReadBuffer(commandQueue, buffer, true, 0, intBuffer, null, null);
+            if (err != CL_SUCCESS) {
+                var ex = new OpenCLException("Failed to read int buffer: " + err + " | " + getMemoryStats());
+                recordError("readBufferInt", ex);
+                throw ex;
+            }
+            intBuffer.rewind();
+            intBuffer.get(data);
+        } finally {
+            MemoryUtil.memFree(intBuffer);
+        }
+    }
+
+    /**
+     * Releases a buffer that was allocated directly via
+     * {@link #allocateBuffer}. Buffers owned by a {@link GpuOp} are released
+     * automatically and must not be passed here.
      */
     public void releaseBuffer(long buffer) {
-        requireLock();
         // Track release
         Long size = allocatedBuffers.remove(buffer);
         if (size != null) {
             totalAllocatedBytes.addAndGet(-size);
             releaseCount.incrementAndGet();
+            memoryBudget.release(size);
         } else {
-            System.err.println("[OpenCLContext] Releasing unknown buffer: " + buffer);
+            LOGGER.error("Releasing unknown buffer: {}", buffer);
         }
         int err = clReleaseMemObject(buffer);
         if (err != CL_SUCCESS) {
             var ex = new OpenCLException("clReleaseMemObject failed with error: " + err + " | " + getMemoryStats());
             recordError("releaseBuffer", ex);
-            System.err.println("[OpenCLContext] " + ex.getMessage());
+            LOGGER.error("{}", ex.getMessage());
         }
     }
 
     /**
-     * Flushes the command queue to ensure all commands are submitted.
-     * This is lighter than finish() - it doesn't wait for completion.
-     * Must be called within {@link #executeWithLock(Supplier)} or {@link #executeWithLock(Runnable)}.
-     *
-     * @throws IllegalStateException if not called within executeWithLock
+     * Flushes the command queue. Lighter than {@link #finish()} — it submits
+     * pending commands but does not wait for them to complete.
      */
     public void flush() {
-        requireLock();
         int err = clFlush(commandQueue);
         if (err != CL_SUCCESS) {
             var ex = new OpenCLException("clFlush failed with error: " + err + " | " + getMemoryStats());
             recordError("flush", ex);
-            System.err.println("[OpenCLContext] " + ex.getMessage());
+            LOGGER.error("{}", ex.getMessage());
         }
     }
 
     /**
-     * Waits for all enqueued operations to complete.
-     * Must be called within {@link #executeWithLock(Supplier)} or {@link #executeWithLock(Runnable)}.
-     *
-     * @throws IllegalStateException if not called within executeWithLock
+     * Waits for all enqueued commands on this context's queue to complete.
      */
     public void finish() {
-        requireLock();
         int err = clFinish(commandQueue);
         if (err != CL_SUCCESS) {
             var ex = new OpenCLException("clFinish failed with error: " + err + " | " + getMemoryStats());
             recordError("finish", ex);
-            System.err.println("[OpenCLContext] " + ex.getMessage());
+            LOGGER.error("{}", ex.getMessage());
         }
     }
 
     /**
-     * Returns the current GPU memory allocation statistics for debugging.
-     * Can be called without holding the lock.
-     *
-     * @return a string describing current memory usage
+     * Returns a snapshot of the current GPU memory allocation statistics
+     * (current/peak usage, outstanding buffer count) for diagnostics.
      */
     public String getMemoryStats() {
         long currentBytes = totalAllocatedBytes.get();
@@ -641,51 +624,31 @@ public class OpenCLContext implements AutoCloseable {
      * @return true if the self-test passes
      */
     public boolean runSelfTest() {
-        return executeWithLock(() -> {
+        return runOp(op -> {
             int testSize = 16;
+            var outputBuffer = op.allocateBuffer(testSize * Float.BYTES, CL_MEM_WRITE_ONLY);
+            op.kernel("selftest", "selftest")
+                    .arg(outputBuffer)
+                    .run(testSize);
             var output = new float[testSize];
-            long outputBuffer = 0;
-
-            try {
-                var kernel = kernelManager.getKernel("selftest", "selftest");
-
-                outputBuffer = allocateBuffer(testSize * Float.BYTES, CL_MEM_WRITE_ONLY);
-
-                try (var stack = MemoryStack.stackPush()) {
-                    clSetKernelArg(kernel, 0, stack.pointers(outputBuffer));
-
-                    var globalSize = stack.pointers(testSize);
-                    int err = clEnqueueNDRangeKernel(commandQueue, kernel, 1, null, globalSize, null, null, null);
-                    if (err != CL_SUCCESS) {
-                        return false;
-                    }
-                }
-
-                finish();
-                readBuffer(outputBuffer, output);
-
-                for (int i = 0; i < testSize; i++) {
-                    float expected = i * 2 + 1;
-                    if (Math.abs(output[i] - expected) > 0.001f) {
-                        return false;
-                    }
-                }
-
-                return true;
-            } finally {
-                if (outputBuffer != 0) {
-                    releaseBuffer(outputBuffer);
+            op.read(outputBuffer, output);
+            for (int i = 0; i < testSize; i++) {
+                float expected = i * 2 + 1;
+                if (Math.abs(output[i] - expected) > 0.001f) {
+                    return false;
                 }
             }
+            return true;
         });
     }
 
     @Override
     public void close() {
-        if (writeCache != null) {
-            MemoryUtil.memFree(writeCache);
-            writeCache = null;
+        for (var buf : writeCacheBuffers) {
+            MemoryUtil.memFree(buf);
         }
+        writeCacheBuffers.clear();
+        writeCache.remove();
         kernelManager.close();
         clReleaseCommandQueue(commandQueue);
         clReleaseContext(context);
@@ -694,12 +657,12 @@ public class OpenCLContext implements AutoCloseable {
     /**
      * Capabilities of an OpenCL device.
      *
-     * @param deviceName the device name
+     * @param deviceName       the device name
      * @param maxWorkGroupSize maximum work group size
-     * @param maxMemAllocSize maximum memory allocation size for a single buffer
-     * @param globalMemSize total global memory size on the device
-     * @param maxComputeUnits number of compute units
-     * @param supportsDouble whether double precision is supported
+     * @param maxMemAllocSize  maximum memory allocation size for a single buffer
+     * @param globalMemSize    total global memory size on the device
+     * @param maxComputeUnits  number of compute units
+     * @param supportsDouble   whether double precision is supported
      */
     public record DeviceCapabilities(
             String deviceName,

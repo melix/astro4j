@@ -70,4 +70,13 @@ public interface ImageEmitter {
     void newColorImage(GeneratedImageKind kind, String category, String title, String name, String description, int width, int height, Map<Class<?>, Object> metadata, Supplier<float[][][]> rgbSupplier);
 
     void newGenericFile(GeneratedImageKind kind, String category, String title, String name, String description, Path file);
+
+    /**
+     * Awaits all pending asynchronous emissions submitted to this emitter.
+     * Implementations that emit synchronously may keep the default no-op.
+     * Wrapping emitters must override to forward to the wrapped instance.
+     */
+    default void await() {
+        // no-op for synchronous implementations
+    }
 }

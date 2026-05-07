@@ -21,8 +21,15 @@ import java.util.Optional;
 
 /**
  * A single frame data.
- * @param number the frame number (starting from 0)
- * @param data the binary data of the frame
+ *
+ * @param number    the frame number (starting from 0)
+ * @param data      the binary data of the frame. The buffer is a read-only view of
+ *                  the underlying memory-mapped file region; it is invalidated by
+ *                  the next {@link SerFileReader#nextFrame()},
+ *                  {@link SerFileReader#seekFrame(int)} or
+ *                  {@link SerFileReader#close()} call. Callers that need to retain
+ *                  the bytes must copy them explicitly. The buffer is direct
+ *                  (not heap-backed): {@link ByteBuffer#array()} is unsupported.
  * @param timestamp the timestamp
  */
 public record Frame(int number,

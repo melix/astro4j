@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
+
 /**
  * Multi-band image blender using Burt &amp; Adelson Laplacian pyramids.
  * Combines two images according to a soft float mask in {@code [0,1]}
@@ -47,10 +48,10 @@ public final class LaplacianPyramidBlend {
      * A mask value of {@code 0} selects {@code a}, {@code 1} selects {@code b},
      * intermediate values yield a multi-band feathered transition.
      *
-     * @param a        base image
-     * @param b        image to composite over {@code a}
-     * @param mask     per-pixel weight in {@code [0,1]}
-     * @param levels   requested pyramid depth; silently clamped to what the image size allows
+     * @param a      base image
+     * @param b      image to composite over {@code a}
+     * @param mask   per-pixel weight in {@code [0,1]}
+     * @param levels requested pyramid depth; silently clamped to what the image size allows
      * @return the blended image
      */
     public static float[][] blend(float[][] a, float[][] b, float[][] mask, int levels) {
@@ -86,10 +87,10 @@ public final class LaplacianPyramidBlend {
      * pixels below from {@code lower}. The pyramid's multi-band reconstruction hides the
      * hard seam at all frequency scales naturally.
      *
-     * @param upper    image providing content above the midline
-     * @param lower    image providing content below the midline
-     * @param midline  y coordinate of the seam in {@code upper}/{@code lower} frame
-     * @param levels   requested pyramid depth; clamped to what the image size allows
+     * @param upper   image providing content above the midline
+     * @param lower   image providing content below the midline
+     * @param midline y coordinate of the seam in {@code upper}/{@code lower} frame
+     * @param levels  requested pyramid depth; clamped to what the image size allows
      * @return the blended image
      */
     public static float[][] joinAtMidline(float[][] upper, float[][] lower, int midline, int levels) {

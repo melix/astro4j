@@ -77,4 +77,9 @@ public class NamingStrategyAwareImageEmitter implements ImageEmitter {
     public void newGenericFile(GeneratedImageKind kind, String category, String title, String name, String description, Path file) {
         delegate.newGenericFile(kind, null, title, rename(kind, name, category, null), description, file);
     }
+
+    @Override
+    public void await() {
+        delegate.await();
+    }
 }

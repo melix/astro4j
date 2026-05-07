@@ -14,7 +14,7 @@ javafx {
 val os = System.getProperty("os.name").lowercase(Locale.ENGLISH)
 val jvmMemorySettings = listOf(
     providers.systemProperty("memory.settings").getOrElse("-XX:MaxRAMPercentage=80"),
-    "-XX:+UseG1GC",
+    "-XX:+UseZGC",
     "-XX:+HeapDumpOnOutOfMemoryError",
     "-XX:+UseCompactObjectHeaders",
     "-Dpolyglotimpl.DisableMultiReleaseCheck=true"

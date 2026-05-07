@@ -50,20 +50,26 @@ public class ReconstructionView extends BorderPane implements WithRootNode {
     private final Semaphore lock = new Semaphore(1);
 
     private final byte[] solarImageData;
+    private final int solarImageWidth;
+    private final int solarImageHeight;
     private Image spectrumImage;
 
     /**
      * Creates a reconstruction view with synchronized spectrum and solar image displays.
      *
-     * @param solarView the zoomable solar image view
-     * @param solarImageData the raw solar image data
+     * @param solarView        the zoomable solar image view
+     * @param solarImageData   the raw BGRA solar image data ({@code 4 * width * height} bytes)
+     * @param solarImageWidth  the width in pixels of the solar buffer
+     * @param solarImageHeight the height in pixels of the solar buffer
      */
-    public ReconstructionView(ZoomableImageView solarView, byte[] solarImageData) {
+    public ReconstructionView(ZoomableImageView solarView, byte[] solarImageData, int solarImageWidth, int solarImageHeight) {
         this.spectrumView = new ImageView();
         this.solarView = solarView;
         this.spectrumViewOverlay = new Canvas();
         this.solarViewOverlay = new Canvas();
         this.solarImageData = solarImageData;
+        this.solarImageWidth = solarImageWidth;
+        this.solarImageHeight = solarImageHeight;
         spectrumView.setPreserveRatio(true);
         var solarViewStack = new StackPane(solarView, solarViewOverlay);
         var spectrumScrollPane = new ScrollPane(spectrumView);
@@ -141,6 +147,20 @@ public class ReconstructionView extends BorderPane implements WithRootNode {
      */
     public byte[] getSolarImageData() {
         return solarImageData;
+    }
+
+    /**
+     * Returns the pixel width of the solar buffer (and matching {@code WritableImage}).
+     */
+    public int getSolarImageWidth() {
+        return solarImageWidth;
+    }
+
+    /**
+     * Returns the pixel height of the solar buffer (and matching {@code WritableImage}).
+     */
+    public int getSolarImageHeight() {
+        return solarImageHeight;
     }
 
     /**

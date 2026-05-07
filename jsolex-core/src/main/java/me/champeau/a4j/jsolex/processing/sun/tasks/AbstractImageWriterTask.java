@@ -26,7 +26,9 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import java.io.File;
 import java.util.function.Supplier;
 
-/** Abstract base class for tasks that write images to files. */
+/**
+ * Abstract base class for tasks that write images to files.
+ */
 public abstract class AbstractImageWriterTask extends AbstractTask<Void> {
     private final File outputDirectory;
     private final String title;
@@ -37,14 +39,14 @@ public abstract class AbstractImageWriterTask extends AbstractTask<Void> {
     /**
      * Creates an image writer task.
      *
-     * @param broadcaster the broadcaster
-     * @param operation the progress operation
-     * @param image the image supplier
+     * @param broadcaster     the broadcaster
+     * @param operation       the progress operation
+     * @param image           the image supplier
      * @param outputDirectory the output directory
-     * @param title the image title
-     * @param name the output file name
-     * @param description the image description
-     * @param kind the image kind
+     * @param title           the image title
+     * @param name            the output file name
+     * @param description     the image description
+     * @param kind            the image kind
      */
     protected AbstractImageWriterTask(Broadcaster broadcaster,
                                       ProgressOperation operation,
@@ -62,7 +64,12 @@ public abstract class AbstractImageWriterTask extends AbstractTask<Void> {
         this.description = description;
     }
 
-    /** Transforms the image before writing. Subclasses can override this method. */
+    /**
+     * Transforms the image before writing. Subclasses can override this method.
+     * As with the rest of the {@link AbstractTask} contract, overrides must
+     * not mutate the work image — they should allocate their own buffer if
+     * a transformed result is needed.
+     */
     public void transform() {
 
     }

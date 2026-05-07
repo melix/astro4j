@@ -36,6 +36,7 @@ module me.champeau.a4j.jsolex.core {
     requires org.apache.arrow.memory.unsafe;
     requires org.apache.arrow.vector;
     requires org.apache.arrow.c;
+    requires jdk.jfr;
     uses org.apache.arrow.memory.AllocationManager.Factory;
     exports me.champeau.a4j.jsolex.expr;
     exports me.champeau.a4j.jsolex.processing.expr.python;

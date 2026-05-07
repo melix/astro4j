@@ -205,19 +205,19 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         } catch (Exception e) {
             // Capture Python errors and return them as invalid expressions for display
             var invalidExpression = new InvalidExpression(
-                scriptPath.getFileName().toString(),
-                scriptPath.toString(),
-                e
+                    scriptPath.getFileName().toString(),
+                    scriptPath.toString(),
+                    e
             );
             return new ImageMathScriptResult(
-                Map.of(),
-                Map.of(),
-                Map.of(),
-                List.of(invalidExpression),
-                Collections.emptySet(),
-                Collections.emptySet(),
-                Collections.emptySet(),
-                false
+                    Map.of(),
+                    Map.of(),
+                    Map.of(),
+                    List.of(invalidExpression),
+                    Collections.emptySet(),
+                    Collections.emptySet(),
+                    Collections.emptySet(),
+                    false
             );
         } finally {
             if (!isCollectingShifts() && outputLogging) {
@@ -263,14 +263,14 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         }
 
         return new ImageMathScriptResult(
-            imagesByLabel,
-            filesByLabel,
-            valuesByLabel,
-            List.of(),
-            Collections.emptySet(),
-            Collections.emptySet(),
-            Collections.emptySet(),
-            false
+                imagesByLabel,
+                filesByLabel,
+                valuesByLabel,
+                List.of(),
+                Collections.emptySet(),
+                Collections.emptySet(),
+                Collections.emptySet(),
+                false
         );
     }
 
@@ -352,19 +352,19 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         } catch (Exception e) {
             // Capture Python errors and return them as invalid expressions for display
             var invalidExpression = new InvalidExpression(
-                "Python script",
-                script.length() > 100 ? script.substring(0, 100) + "..." : script,
-                e
+                    "Python script",
+                    script.length() > 100 ? script.substring(0, 100) + "..." : script,
+                    e
             );
             return new ImageMathScriptResult(
-                Map.of(),
-                Map.of(),
-                Map.of(),
-                List.of(invalidExpression),
-                Collections.emptySet(),
-                Collections.emptySet(),
-                Collections.emptySet(),
-                false
+                    Map.of(),
+                    Map.of(),
+                    Map.of(),
+                    List.of(invalidExpression),
+                    Collections.emptySet(),
+                    Collections.emptySet(),
+                    Collections.emptySet(),
+                    false
             );
         } finally {
             if (!isCollectingShifts() && outputLogging) {
@@ -692,6 +692,16 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     }
 
     private void executeExpressionsInParallel(int index, MemoizingExpressionEvaluator evaluator, List<Assignment> assignments, Set<Assignment> outputAssignments, AtomicInteger cpt, Map<String, ImageWrapper> imagesByLabel, Map<String, FileOutputResult> filesByLabel, Map<String, Object> valuesByLabel, List<InvalidExpression> invalidExpressions, ReentrantLock resultsLock, ProgressOperation progressOperation) {
+        var runtime = Runtime.getRuntime();
+        if (runtime.freeMemory() < 0.2 * runtime.totalMemory()) {
+            LOGGER.debug("Memory pressure detected ({} MB free of {} MB), running {} script assignments sequentially",
+                    runtime.freeMemory() >> 20, runtime.totalMemory() >> 20, assignments.size());
+            for (var assignment : assignments) {
+                var isFromOutputSection = outputAssignments != null && outputAssignments.contains(assignment);
+                executeSingleExpression(index, evaluator, assignment, isFromOutputSection, cpt, imagesByLabel, filesByLabel, valuesByLabel, invalidExpressions, resultsLock, progressOperation);
+            }
+            return;
+        }
         var forkJoinPool = ForkJoinPool.commonPool();
         try {
             forkJoinPool.submit(() -> assignments.parallelStream().forEach(assignment -> {

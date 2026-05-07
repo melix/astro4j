@@ -23,8 +23,9 @@ import static org.lwjgl.opencl.CL10.CL_MEM_READ_WRITE;
  * Holds an image on GPU memory for multi-step processing.
  * Avoids repeated GPU↔CPU transfers during refinement loops.
  * <p>
- * This class is intended for use within a single GPU-locked context.
- * All methods must be called within {@link OpenCLContext#executeWithLock}.
+ * Instances are not thread-safe; confine each one to a single owner. The
+ * underlying buffer is allocated directly on the {@link OpenCLContext}
+ * (escaping any {@code runOp} that produced it) and freed by {@link #close}.
  */
 public class GPUImage implements AutoCloseable {
     private final int width;
@@ -42,7 +43,6 @@ public class GPUImage implements AutoCloseable {
 
     /**
      * Uploads image data from CPU to GPU.
-     * Must be called within executeWithLock.
      *
      * @param data    2D image data [height][width]
      * @param width   image width
@@ -61,7 +61,6 @@ public class GPUImage implements AutoCloseable {
     /**
      * Creates a GPU image from an existing buffer handle.
      * The buffer ownership is transferred to this GPUImage.
-     * Must be called within executeWithLock.
      *
      * @param buffer  existing GPU buffer handle
      * @param width   image width
@@ -75,7 +74,6 @@ public class GPUImage implements AutoCloseable {
 
     /**
      * Downloads image data from GPU to CPU.
-     * Must be called within executeWithLock.
      *
      * @return 2D image data [height][width]
      */
@@ -88,7 +86,6 @@ public class GPUImage implements AutoCloseable {
 
     /**
      * Returns the GPU buffer handle for use in kernel operations.
-     * Must be called within executeWithLock.
      *
      * @return buffer handle
      */
@@ -120,7 +117,6 @@ public class GPUImage implements AutoCloseable {
 
     /**
      * Releases GPU memory.
-     * Must be called within executeWithLock.
      */
     @Override
     public void close() {

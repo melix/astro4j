@@ -92,19 +92,19 @@ public final class BatchProcessingHelper {
     /**
      * Starts batch processing with full UI orchestration.
      *
-     * @param context the batch context providing callbacks
-     * @param header the SER file header
+     * @param context           the batch context providing callbacks
+     * @param header            the SER file header
      * @param progressOperation the root progress operation
-     * @param params the processing parameters
-     * @param selectedFiles the files to process
-     * @param autoTrimSerFile whether to auto-trim SER files
+     * @param params            the processing parameters
+     * @param selectedFiles     the files to process
+     * @param autoTrimSerFile   whether to auto-trim SER files
      */
     public void startBatchProcess(BatchContext context,
-                                   Header header,
-                                   ProgressOperation progressOperation,
-                                   ProcessParams params,
-                                   List<File> selectedFiles,
-                                   boolean autoTrimSerFile) {
+                                  Header header,
+                                  ProgressOperation progressOperation,
+                                  ProcessParams params,
+                                  List<File> selectedFiles,
+                                  boolean autoTrimSerFile) {
         context.newSession();
         LOGGER.info(message("batch.mode.info"));
 
@@ -172,8 +172,8 @@ public final class BatchProcessingHelper {
     }
 
     private BatchProcessingContext createBatchContext(List<BatchItem> batchItems,
-                                                       File outputDirectory,
-                                                       Header header) {
+                                                      File outputDirectory,
+                                                      Header header) {
         return new BatchProcessingContext(
                 batchItems,
                 new HashSet<>(),
@@ -196,20 +196,20 @@ public final class BatchProcessingHelper {
     }
 
     private Thread runBatchProcessing(List<File> selectedFiles,
-                                       BatchProcessingContext batchContext,
-                                       ProcessParams params,
-                                       ProgressOperation progressOperation,
-                                       Header header,
-                                       BatchContext context,
-                                       AtomicBoolean interrupted,
-                                       boolean autoTrimSerFile,
-                                       Runnable onComplete) {
+                                      BatchProcessingContext batchContext,
+                                      ProcessParams params,
+                                      ProgressOperation progressOperation,
+                                      Header header,
+                                      BatchContext context,
+                                      AtomicBoolean interrupted,
+                                      boolean autoTrimSerFile,
+                                      Runnable onComplete) {
         var batchThread = new Thread(() -> {
             // Eagerly initialize ReferenceIntensities to avoid virtual thread
             // pinning when all batch threads trigger class loading simultaneously
             var unused = ReferenceIntensities.INSTANCE;
             try {
-                var parallelism = Configuration.getInstance().getBatchParallelism();
+                var parallelism = capParallelismForMemory(Configuration.getInstance().getBatchParallelism());
                 var reconstructionSemaphore = new Semaphore(parallelism);
                 var totalInFlightSemaphore = new Semaphore(parallelism + 1);
                 try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
@@ -273,15 +273,15 @@ public final class BatchProcessingHelper {
     }
 
     private void processFile(BatchContext context,
-                              ProcessParams params,
-                              ProgressOperation operation,
-                              File selectedFile,
-                              int sequenceNumber,
-                              BatchProcessingContext batchContext,
-                              Header header,
-                              AtomicBoolean interrupted,
-                              boolean autoTrimSerFile,
-                              Runnable onReconstructionComplete) {
+                             ProcessParams params,
+                             ProgressOperation operation,
+                             File selectedFile,
+                             int sequenceNumber,
+                             BatchProcessingContext batchContext,
+                             Header header,
+                             AtomicBoolean interrupted,
+                             boolean autoTrimSerFile,
+                             Runnable onReconstructionComplete) {
         context.processSingleFile(params, operation, selectedFile, sequenceNumber, batchContext, header, onReconstructionComplete, () -> {
             if (autoTrimSerFile && !interrupted.get()) {
                 var trimmingParams = context.getTrimmingParameters();
@@ -304,5 +304,27 @@ public final class BatchProcessingHelper {
                 }
             }
         });
+    }
+
+    /**
+     * Caps batch parallelism to at most one worker per 4 GB of JVM heap, with
+     * a floor of 1. The cap exists because each parallel file processing
+     * holds a substantial in-flight working set (raw frames, reconstructed
+     * images, async writers) — running more files concurrently than the
+     * heap can comfortably hold leads to thrashing and OOMs regardless of
+     * the per-process throttling we apply elsewhere. If the user-configured
+     * parallelism exceeds the memory-derived cap we log a warning and use
+     * the cap; otherwise the user's setting wins.
+     */
+    private static int capParallelismForMemory(int configured) {
+        long maxHeapBytes = Runtime.getRuntime().maxMemory();
+        long bytesPerWorker = 4L * 1024 * 1024 * 1024;
+        int memoryCap = (int) Math.max(1, maxHeapBytes / bytesPerWorker);
+        if (configured > memoryCap) {
+            long heapGb = maxHeapBytes / (1024 * 1024 * 1024);
+            LOGGER.warn(message("batch.parallelism.capped"), configured, memoryCap, heapGb);
+            return memoryCap;
+        }
+        return configured;
     }
 }
