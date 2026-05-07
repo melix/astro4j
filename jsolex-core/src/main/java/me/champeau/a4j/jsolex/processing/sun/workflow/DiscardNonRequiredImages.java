@@ -90,4 +90,9 @@ public class DiscardNonRequiredImages implements ImageEmitter {
         }
         delegate.newGenericFile(kind, category, title, name, description, file);
     }
+
+    @Override
+    public void await() {
+        delegate.await();
+    }
 }

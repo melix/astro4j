@@ -36,6 +36,7 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.Slider;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
@@ -122,6 +123,9 @@ public class ImageViewer implements WithRootNode {
     @FXML
     private StackPane imageContainer;
 
+    @FXML
+    private ProgressIndicator loadingIndicator;
+
     private CheckBox correctAngleP;
     private Button saveButton;
     private String title;
@@ -170,16 +174,16 @@ public class ImageViewer implements WithRootNode {
      * Configures the image viewer.
      *
      * @param broadcaster the event broadcaster
-     * @param operation the progress operation
-     * @param title the title
-     * @param baseName the base name
-     * @param kind the generated image kind
+     * @param operation   the progress operation
+     * @param title       the title
+     * @param baseName    the base name
+     * @param kind        the generated image kind
      * @param description the description
-     * @param image the image
-     * @param imageName the image file name
-     * @param params the process parameters
-     * @param popupViews the popup views
-     * @param siblings the sibling viewers
+     * @param image       the image
+     * @param imageName   the image file name
+     * @param params      the process parameters
+     * @param popupViews  the popup views
+     * @param siblings    the sibling viewers
      */
     public void setup(ProcessingEventListener broadcaster,
                       ProgressOperation operation,
@@ -381,7 +385,8 @@ public class ImageViewer implements WithRootNode {
     private StretchingStrategy determineStrategy() {
         return switch (stretchingMode) {
             case NO_STRETCH -> CutoffStretchingStrategy.DEFAULT;
-            case LINEAR -> new StretchingChain(RangeExpansionStrategy.DEFAULT, contrastAdjustStrategy, RangeExpansionStrategy.DEFAULT);
+            case LINEAR ->
+                    new StretchingChain(RangeExpansionStrategy.DEFAULT, contrastAdjustStrategy, RangeExpansionStrategy.DEFAULT);
             case CURVE -> curveTransformStrategy;
         };
     }
@@ -673,7 +678,14 @@ public class ImageViewer implements WithRootNode {
 
     void display() {
         if (image != null && firstShow) {
-            BackgroundOperations.async(() -> stretchAndDisplay(true));
+            showLoadingIndicator();
+            BackgroundOperations.async(() -> {
+                try {
+                    stretchAndDisplay(true);
+                } finally {
+                    Platform.runLater(this::hideLoadingIndicator);
+                }
+            });
             firstShow = false;
         } else if (image != null) {
             BackgroundOperations.async(() -> {
@@ -683,6 +695,22 @@ public class ImageViewer implements WithRootNode {
                     onStretchedImageUpdate.accept(currentStretchedImage.unwrapToMemory());
                 }
             });
+        }
+    }
+
+    private void showLoadingIndicator() {
+        if (loadingIndicator != null) {
+            if (Platform.isFxApplicationThread()) {
+                loadingIndicator.setVisible(true);
+            } else {
+                Platform.runLater(() -> loadingIndicator.setVisible(true));
+            }
+        }
+    }
+
+    private void hideLoadingIndicator() {
+        if (loadingIndicator != null) {
+            loadingIndicator.setVisible(false);
         }
     }
 
@@ -796,9 +824,9 @@ public class ImageViewer implements WithRootNode {
      * Updates the displayed image.
      *
      * @param baseName the base name
-     * @param params the process parameters
-     * @param image the image
-     * @param path the image path
+     * @param params   the process parameters
+     * @param image    the image
+     * @param path     the image path
      */
     public synchronized void setImage(String baseName, ProcessParams params, ImageWrapper image, Path path) {
         this.processParams = params;

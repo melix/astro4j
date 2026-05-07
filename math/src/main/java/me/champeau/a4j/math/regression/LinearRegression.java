@@ -58,7 +58,7 @@ public abstract class LinearRegression {
     /**
      * Computes the first order regression of a series of points with weights.
      *
-     * @param series the series of points
+     * @param series  the series of points
      * @param weights the weights associated to each point of the series
      * @return the coefficients of the regression for the form y = a * x + b
      */
@@ -127,7 +127,7 @@ public abstract class LinearRegression {
     /**
      * Computes the second order regression of a series of points with weights.
      *
-     * @param series the series of points
+     * @param series  the series of points
      * @param weights the weights associated to each point of the series
      * @return the coefficients of the regression for the form y = a * x^2 + b * x + c
      */
@@ -184,7 +184,7 @@ public abstract class LinearRegression {
      * the direct methods which should be preferred for order 1 and 2.
      *
      * @param series the series of points
-     * @param k the order of the polynomial
+     * @param k      the order of the polynomial
      * @return the polynomial coefficients
      */
     public static double[] kOrderRegression(Point2D[] series, int k) {
@@ -218,9 +218,105 @@ public abstract class LinearRegression {
     }
 
     /**
+     * Primitive-array overload of {@link #kOrderRegression(Point2D[], int)} that avoids
+     * the {@code Point2D[]} indirection and the heavyweight matrix machinery used by the
+     * other overload. The normal equations form a Hankel-style {@code (k+1)×(k+1)} system
+     * whose entries are sums of {@code x^q}; we accumulate those sums in one pass and
+     * solve the small dense system in place via Gaussian elimination with partial pivoting.
+     * <p>For a singular system, returns an array of zeros — matching the existing overload's
+     * behaviour for inputs the matrix path can't invert.
+     *
+     * @param xs the x coordinates of the series
+     * @param ys the y coordinates of the series (must have the same length as {@code xs})
+     * @param k  the polynomial order
+     * @return the polynomial coefficients in descending power order
+     */
+    public static double[] kOrderRegression(double[] xs, double[] ys, int k) {
+        if (k < 0) {
+            throw new IllegalArgumentException("Order must be >= 0");
+        }
+        if (xs.length != ys.length) {
+            throw new IllegalArgumentException("xs and ys must have the same length");
+        }
+        int n = xs.length;
+        int p = k + 1;
+        // sumXq[q] = sum of x^q over all points, for q = 0..2k
+        // sumXqY[q] = sum of (x^q * y) over all points, for q = 0..k
+        double[] sumXq = new double[2 * k + 1];
+        double[] sumXqY = new double[p];
+        for (int i = 0; i < n; i++) {
+            double x = xs[i];
+            double y = ys[i];
+            double xq = 1.0;
+            sumXq[0] += xq;
+            sumXqY[0] += y;
+            for (int q = 1; q < 2 * k + 1; q++) {
+                xq *= x;
+                sumXq[q] += xq;
+                if (q <= k) {
+                    sumXqY[q] += xq * y;
+                }
+            }
+        }
+        // Augmented matrix [M^T M | M^T y], shape (p) x (p+1).
+        double[][] aug = new double[p][p + 1];
+        for (int i = 0; i < p; i++) {
+            for (int j = 0; j < p; j++) {
+                aug[i][j] = sumXq[i + j];
+            }
+            aug[i][p] = sumXqY[i];
+        }
+        // Forward elimination with partial pivoting.
+        for (int col = 0; col < p; col++) {
+            int pivot = col;
+            double pivotMag = Math.abs(aug[col][col]);
+            for (int r = col + 1; r < p; r++) {
+                double mag = Math.abs(aug[r][col]);
+                if (mag > pivotMag) {
+                    pivot = r;
+                    pivotMag = mag;
+                }
+            }
+            if (pivotMag == 0) {
+                return new double[p];
+            }
+            if (pivot != col) {
+                double[] tmp = aug[col];
+                aug[col] = aug[pivot];
+                aug[pivot] = tmp;
+            }
+            double inv = 1.0 / aug[col][col];
+            for (int r = col + 1; r < p; r++) {
+                double factor = aug[r][col] * inv;
+                if (factor != 0) {
+                    for (int c = col; c <= p; c++) {
+                        aug[r][c] -= factor * aug[col][c];
+                    }
+                }
+            }
+        }
+        // Back-substitution; coeff[i] is the coefficient of x^i (ascending power).
+        double[] coeff = new double[p];
+        for (int i = p - 1; i >= 0; i--) {
+            double sum = aug[i][p];
+            for (int j = i + 1; j < p; j++) {
+                sum -= aug[i][j] * coeff[j];
+            }
+            coeff[i] = sum / aug[i][i];
+        }
+        // Re-order to descending power, matching the existing convention.
+        double[] res = new double[p];
+        for (int i = 0; i <= k; i++) {
+            res[k - i] = coeff[i];
+        }
+        return res;
+    }
+
+    /**
      * Returns a polynomial function from the given coefficients.
      * The coefficients are ordered by power descending, i.e. the
      * first coefficient is the coefficient of the highest power.
+     *
      * @param coefficients the coefficients
      * @return the polynomial function
      */

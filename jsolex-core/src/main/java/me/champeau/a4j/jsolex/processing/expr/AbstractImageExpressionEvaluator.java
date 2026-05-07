@@ -112,7 +112,9 @@ import java.util.stream.Stream;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
-/** Abstract base class for evaluating image processing expressions. */
+/**
+ * Abstract base class for evaluating image processing expressions.
+ */
 public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluator {
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractImageExpressionEvaluator.class);
 
@@ -211,9 +213,9 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     /**
      * Stores a value in the evaluation context.
      *
-     * @param key the class key
+     * @param key   the class key
      * @param value the value to store
-     * @param <T> the type of the key
+     * @param <T>   the type of the key
      */
     public <T> void putInContext(Class<T> key, Object value) {
         context.put(key, value);
@@ -499,7 +501,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
                         // check if there are too many saturated pixels
                         int count = 0;
                         var limit = image.width() * image.height() / 8;
-                        for (int y=0; y < image.height(); y++) {
+                        for (int y = 0; y < image.height(); y++) {
                             for (int x = 0; x < image.width(); x++) {
                                 if (image.data()[y][x] == Constants.MAX_PIXEL_VALUE) {
                                     count++;
@@ -518,7 +520,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
                     })
                     .sorted(Comparator.comparingDouble(ImageWithAverage::average).reversed())
                     .map(ImageWithAverage::image)
-                    .limit((long) (0.8*samplesSize))
+                    .limit((long) (0.8 * samplesSize))
                     .toList();
             if (!list.isEmpty()) {
                 return (ImageWrapper32) functionCall(BuiltinFunction.MEDIAN, Map.of("list", list));
@@ -576,7 +578,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
      * Determines the wavelength of an image from its metadata.
      *
      * @param context the evaluation context
-     * @param image the image
+     * @param image   the image
      * @return the wavelength in angstroms
      */
     public static double determineWavelengthOf(Map<Class<?>, Object> context, ImageWrapper image) {
@@ -639,7 +641,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     /**
      * Computes the spectral dispersion for the given parameters.
      *
-     * @param params the processing parameters
+     * @param params  the processing parameters
      * @param lambda0 the reference wavelength
      * @return the spectral dispersion
      */
@@ -663,8 +665,8 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     /**
      * Computes the pixel shift between two wavelengths.
      *
-     * @param params the processing parameters
-     * @param targetWaveLength the target wavelength
+     * @param params              the processing parameters
+     * @param targetWaveLength    the target wavelength
      * @param referenceWavelength the reference wavelength
      * @return the pixel shift value
      */
@@ -711,7 +713,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
      * Computes the average of a stream with sigma clipping.
      *
      * @param doubleStream the stream of values
-     * @param sigma the sigma threshold for clipping
+     * @param sigma        the sigma threshold for clipping
      * @return the clipped average, or empty if the stream is empty
      */
     public static OptionalDouble applySigmaClippedAverage(DoubleStream doubleStream, double sigma) {
@@ -722,14 +724,14 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         if (array.length == 1) {
             return OptionalDouble.of(array[0]);
         }
-        
+
         // Calculate mean and standard deviation
         double mean = Arrays.stream(array).average().orElse(0.0);
         double stddev = Math.sqrt(Arrays.stream(array)
                 .map(v -> (v - mean) * (v - mean))
                 .average()
                 .orElse(0.0));
-        
+
         // Apply sigma clipping and compute average
         double threshold = sigma * stddev;
         OptionalDouble result = Arrays.stream(array)
@@ -742,7 +744,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
      * Computes the median of a stream with sigma clipping.
      *
      * @param doubleStream the stream of values
-     * @param sigma the sigma threshold for clipping
+     * @param sigma        the sigma threshold for clipping
      * @return the clipped median, or empty if the stream is empty
      */
     public static OptionalDouble applySigmaClippedMedian(DoubleStream doubleStream, double sigma) {
@@ -753,30 +755,30 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         if (array.length == 1) {
             return OptionalDouble.of(array[0]);
         }
-        
+
         // Calculate mean and standard deviation
         double mean = Arrays.stream(array).average().orElse(0.0);
         double stddev = Math.sqrt(Arrays.stream(array)
                 .map(v -> (v - mean) * (v - mean))
                 .average()
                 .orElse(0.0));
-        
+
         // Apply sigma clipping
         double threshold = sigma * stddev;
         double[] filteredValues = Arrays.stream(array)
                 .filter(v -> Math.abs(v - mean) <= threshold)
                 .toArray();
-        
+
         // If all values were filtered out, return the original mean
         if (filteredValues.length == 0) {
             return OptionalDouble.of(mean);
         }
-        
+
         // If only one value remains, return it
         if (filteredValues.length == 1) {
             return OptionalDouble.of(filteredValues[0]);
         }
-        
+
         // Calculate median of filtered values
         Arrays.sort(filteredValues);
         int length = filteredValues.length;
@@ -821,18 +823,18 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     /**
      * Applies a binary operator to images and scalars.
      *
-     * @param leftImage the left image operand
-     * @param rightImage the right image operand
-     * @param leftScalar the left scalar operand
+     * @param leftImage   the left image operand
+     * @param rightImage  the right image operand
+     * @param leftScalar  the left scalar operand
      * @param rightScalar the right scalar operand
-     * @param operator the binary operator
+     * @param operator    the binary operator
      * @return the result of the operation
      */
     public static Object applyOperator(ImageWrapper32 leftImage,
-                                        ImageWrapper32 rightImage,
-                                        Number leftScalar,
-                                        Number rightScalar,
-                                        DoubleBinaryOperator operator) {
+                                       ImageWrapper32 rightImage,
+                                       Number leftScalar,
+                                       Number rightScalar,
+                                       DoubleBinaryOperator operator) {
         if (leftImage != null && rightImage != null) {
             var leftData = leftImage.data();
             var rightData = rightImage.data();
@@ -842,7 +844,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             if (width != rightImage.width() || height != rightImage.height()) {
                 throw new IllegalArgumentException("Both images must have the same dimensions");
             }
-            float[][] result = new float[height][width];
+            var result = new float[height][width];
             float min = 0;
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
@@ -862,7 +864,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             var leftData = leftImage.data();
             var width = leftImage.width();
             var height = leftImage.height();
-            float[][] result = new float[height][width];
+            var result = new float[height][width];
             float min = 0;
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
@@ -881,7 +883,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             var rightData = rightImage.data();
             var width = rightImage.width();
             var height = rightImage.height();
-            float[][] result = new float[height][width];
+            var result = new float[height][width];
             float min = 0;
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {

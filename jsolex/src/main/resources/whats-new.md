@@ -2,6 +2,7 @@
 
 ## What's New in Version 5.1.3
 
+- Faster SER file processing thanks to reduced memory copies when reading frames.
 - Fixed custom color curves being silently lost after upgrading from a previous version.
 - Added a "Trust SER file bit depth" option in the advanced process parameters to bypass automatic bit depth detection when it produces an incorrect result.
 - Fixed the 3D viewers (single image 3D view and spherical tomography, both shell and smooth modes) failing to render on macOS.

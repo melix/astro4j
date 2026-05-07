@@ -15,6 +15,9 @@
  */
 package me.champeau.a4j.math.opencl;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.IntFunction;
@@ -29,22 +32,13 @@ import static org.lwjgl.opencl.CL10.CL_MEM_READ_ONLY;
  * efficient multi-image correlation by keeping frequently accessed images
  * on the GPU.
  * <p>
- * All methods must be called within {@link OpenCLContext#executeWithLock}.
- * The cache is not thread-safe on its own - it relies on the GPU lock for
- * synchronization.
- * <p>
- * Usage:
- * <pre>
- * try (var cache = new GPUImageCache(context, maxImages, width, height, imageSupplier)) {
- *     context.executeWithLock(() -> {
- *         long buffer0 = cache.getImage(0);  // Uploads if not cached
- *         long buffer1 = cache.getImage(1);  // May evict buffer0 if at capacity
- *         // Use buffers for correlation...
- *     });
- * }
- * </pre>
+ * The cache itself is not thread-safe — confine each cache instance to a
+ * single owner (typically the orchestrator running a sequence of GPU
+ * operations against it).
  */
 public final class GPUImageCache implements AutoCloseable {
+    private static final Logger LOGGER = LoggerFactory.getLogger(GPUImageCache.class);
+
     private final OpenCLContext context;
     private final int width;
     private final int height;
@@ -83,8 +77,6 @@ public final class GPUImageCache implements AutoCloseable {
      * If the image is already cached, returns the existing buffer and marks
      * it as recently used. If not cached, uploads the image data to GPU,
      * potentially evicting the least recently used image if at capacity.
-     * <p>
-     * Must be called within executeWithLock.
      *
      * @param imageIndex the index of the image
      * @return the GPU buffer handle
@@ -148,7 +140,6 @@ public final class GPUImageCache implements AutoCloseable {
 
     /**
      * Evicts all images from the cache, freeing GPU memory.
-     * Must be called within executeWithLock.
      */
     public void clear() {
         for (var entry : cache.values()) {
@@ -163,8 +154,6 @@ public final class GPUImageCache implements AutoCloseable {
      * This is used during iterative refinement when images are warped on GPU.
      * The old buffer is released and replaced with the new buffer.
      * The new buffer ownership is transferred to the cache.
-     * <p>
-     * Must be called within executeWithLock.
      *
      * @param imageIndex the index of the image to replace
      * @param newBuffer  the new GPU buffer handle (ownership transferred to cache)
@@ -212,12 +201,11 @@ public final class GPUImageCache implements AutoCloseable {
 
     @Override
     public void close() {
-        // Release all GPU buffers - must be called within executeWithLock
         for (var entry : cache.values()) {
             try {
                 context.releaseBuffer(entry.buffer);
             } catch (Exception e) {
-                System.err.println("[GPUImageCache] Failed to release buffer for image " + entry.imageIndex + ": " + e.getMessage());
+                LOGGER.error("Failed to release buffer for image {}", entry.imageIndex, e);
             }
         }
         cache.clear();

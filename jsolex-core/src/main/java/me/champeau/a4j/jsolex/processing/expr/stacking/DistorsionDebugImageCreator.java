@@ -36,12 +36,10 @@ import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
 public class DistorsionDebugImageCreator {
     private final ImageEmitter imageEmitter;
     private final Scaling scaling;
-    private final ImageDraw imageDraw;
 
-    public DistorsionDebugImageCreator(ImageEmitter imageEmitter, Scaling scaling, ImageDraw draw) {
+    public DistorsionDebugImageCreator(ImageEmitter imageEmitter, Scaling scaling) {
         this.imageEmitter = imageEmitter;
         this.scaling = scaling;
-        this.imageDraw = draw;
     }
 
     public void createDebugImage(ImageWrapper32 referenceImage,
@@ -58,7 +56,7 @@ public class DistorsionDebugImageCreator {
         var separator = 20 + 10 * width / 100;
         var panelHeight = 2 * height + 3 * separator;
         var panelWidth = 4 * width + 5 * separator;
-        var scale = Math.min(0.5, 2160d/panelHeight);
+        var scale = Math.min(0.5, 2160d / panelHeight);
         var scaledWidth = (int) (panelWidth * scale);
         var scaledHeight = (int) (panelHeight * scale);
         imageEmitter.newColorImage(GeneratedImageKind.DEBUG, null, "displacement", "displacementXY_" + index, null, scaledWidth, scaledHeight, new HashMap<>(stacked.metadata()), () -> {
@@ -157,7 +155,8 @@ public class DistorsionDebugImageCreator {
                 }
             }
             double finalMaxAmplitude = maxAmplitude;
-            RGBImage image = (RGBImage) scaling.relativeRescale(Map.of("img", imageDraw.drawOnImage(new RGBImage(heatmap[0][0].length, heatmap[0].length, heatmap[0], heatmap[1], heatmap[2], MutableMap.of()), (g, img) -> {
+            var heatmapImage = new RGBImage(heatmap[0][0].length, heatmap[0].length, heatmap[0], heatmap[1], heatmap[2], MutableMap.of());
+            ImageDraw.drawOnImageInPlace(heatmapImage, (g, img) -> {
                 g.setColor(Color.BLACK);
                 g.setFont(g.getFont().deriveFont(16f * (height / 384f)));
                 g.drawString("Displacement X", 2 * separator + width + width / 6, height + 1.5f * separator);
@@ -182,11 +181,11 @@ public class DistorsionDebugImageCreator {
                 g.drawLine(middleLegend, separator, middleLegend, height + separator);
                 g.setFont(g.getFont().deriveFont(12f * (height / 384f)));
                 var gradient = new GradientPaint(middleLegend - 20, separator, new Color(255, 128, 128),
-                    middleLegend - 20, separator + height / 2, new Color(128, 128, 128));
+                        middleLegend - 20, separator + height / 2, new Color(128, 128, 128));
                 g.setPaint(gradient);
                 g.fillRect(middleLegend - 40, separator, 40, height / 2);
                 gradient = new GradientPaint(middleLegend - 20, separator + height / 2, new Color(128, 128, 128),
-                    middleLegend - 20, separator + height, new Color(128, 128, 255));
+                        middleLegend - 20, separator + height, new Color(128, 128, 255));
                 g.setPaint(gradient);
                 g.fillRect(middleLegend - 40, separator + height / 2, 40, height / 2);
                 g.setPaint(Color.BLACK);
@@ -197,7 +196,8 @@ public class DistorsionDebugImageCreator {
                     g.drawString(String.format(Locale.US, "%.2fpx", pixels), (int) (2 * width + 2.5 * separator) + 15, y);
                 }
 
-            }), "sx", scale, "sy", scale));
+            });
+            RGBImage image = (RGBImage) scaling.relativeRescale(Map.of("img", heatmapImage, "sx", scale, "sy", scale));
 
             return new float[][][]{image.r(), image.g(), image.b()};
         });

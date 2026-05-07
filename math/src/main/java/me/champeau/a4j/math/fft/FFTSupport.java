@@ -15,7 +15,9 @@
  */
 package me.champeau.a4j.math.fft;
 
-/** Utility class providing support functions for FFT operations. */
+/**
+ * Utility class providing support functions for FFT operations.
+ */
 public class FFTSupport {
     private FFTSupport() {
 
@@ -23,6 +25,7 @@ public class FFTSupport {
 
     /**
      * Checks if a number is a power of 2.
+     *
      * @param number the number to check
      * @return true if the number is a power of 2, false otherwise
      */
@@ -32,6 +35,7 @@ public class FFTSupport {
 
     /**
      * Computes the next power of 2 greater than or equal to the given number.
+     *
      * @param number the input number
      * @return the next power of 2
      */
@@ -49,16 +53,23 @@ public class FFTSupport {
         return x + 1;
     }
 
-    /** Result container for 2D FFT operations with double precision. */
+    /**
+     * Result container for 2D FFT operations with double precision.
+     */
     public static class FFT2DResult {
-        /** Real component of the FFT result. */
+        /**
+         * Real component of the FFT result.
+         */
         public final double[][] real;
-        /** Imaginary component of the FFT result. */
+        /**
+         * Imaginary component of the FFT result.
+         */
         public final double[][] imaginary;
 
         /**
          * Creates a new FFT2D result.
-         * @param real the real component
+         *
+         * @param real      the real component
          * @param imaginary the imaginary component
          */
         public FFT2DResult(double[][] real, double[][] imaginary) {
@@ -68,10 +79,11 @@ public class FFTSupport {
 
         /**
          * Zeros out frequencies in the specified region.
+         *
          * @param rowStart starting row index
-         * @param rowEnd ending row index
+         * @param rowEnd   ending row index
          * @param colStart starting column index
-         * @param colEnd ending column index
+         * @param colEnd   ending column index
          */
         public void zeroFrequencies(int rowStart, int rowEnd, int colStart, int colEnd) {
             for (var y = rowStart; y < rowEnd; y++) {
@@ -83,16 +95,23 @@ public class FFTSupport {
         }
     }
 
-    /** Result container for 2D FFT operations with float precision. */
+    /**
+     * Result container for 2D FFT operations with float precision.
+     */
     public static class FloatFFT2DResult {
-        /** Real component of the FFT result. */
+        /**
+         * Real component of the FFT result.
+         */
         public final float[][] real;
-        /** Imaginary component of the FFT result. */
+        /**
+         * Imaginary component of the FFT result.
+         */
         public final float[][] imaginary;
 
         /**
          * Creates a new float FFT2D result.
-         * @param real the real component
+         *
+         * @param real      the real component
          * @param imaginary the imaginary component
          */
         public FloatFFT2DResult(float[][] real, float[][] imaginary) {
@@ -102,10 +121,11 @@ public class FFTSupport {
 
         /**
          * Zeros out frequencies in the specified region.
+         *
          * @param rowStart starting row index
-         * @param rowEnd ending row index
+         * @param rowEnd   ending row index
          * @param colStart starting column index
-         * @param colEnd ending column index
+         * @param colEnd   ending column index
          */
         public void zeroFrequencies(int rowStart, int rowEnd, int colStart, int colEnd) {
             for (var y = rowStart; y < rowEnd; y++) {
@@ -119,6 +139,7 @@ public class FFTSupport {
 
     /**
      * Performs a 2D FFT on float data.
+     *
      * @param data the input data
      * @return the FFT result
      */
@@ -154,6 +175,7 @@ public class FFTSupport {
 
     /**
      * Performs a 2D FFT on double data.
+     *
      * @param data the input data
      * @return the FFT result
      */
@@ -187,6 +209,7 @@ public class FFTSupport {
 
     /**
      * Performs an inverse 2D FFT.
+     *
      * @param frequencyDomain the frequency domain data
      * @return the spatial domain result
      */
@@ -225,6 +248,7 @@ public class FFTSupport {
 
     /**
      * Computes the cross-correlation of two FFT results.
+     *
      * @param fftRef the reference FFT
      * @param fftDef the deformed FFT
      * @return the cross-correlation result
@@ -271,8 +295,9 @@ public class FFTSupport {
 
     /**
      * Pads double array data to the next power of 2 dimensions.
-     * @param data the input data
-     * @param width the current width
+     *
+     * @param data   the input data
+     * @param width  the current width
      * @param height the current height
      * @return the padded data
      */
@@ -289,8 +314,9 @@ public class FFTSupport {
 
     /**
      * Pads float array data to the next power of 2 dimensions and converts to double.
-     * @param data the input data
-     * @param width the current width
+     *
+     * @param data   the input data
+     * @param width  the current width
      * @param height the current height
      * @return the padded data as double array
      */
@@ -309,8 +335,9 @@ public class FFTSupport {
 
     /**
      * Pads float array data to the next power of 2 dimensions.
-     * @param data the input data
-     * @param width the current width
+     *
+     * @param data   the input data
+     * @param width  the current width
      * @param height the current height
      * @return the padded float data
      */
@@ -327,6 +354,7 @@ public class FFTSupport {
 
     /**
      * Performs a 2D FFT on float data returning float results.
+     *
      * @param data the input data
      * @return the float FFT result
      */
@@ -373,6 +401,7 @@ public class FFTSupport {
 
     /**
      * Performs an inverse 2D FFT on float data.
+     *
      * @param frequencyDomain the frequency domain data
      * @return the spatial domain result
      */
@@ -413,6 +442,7 @@ public class FFTSupport {
 
     /**
      * FFT2 for complex input (when both real and imaginary parts are non-zero).
+     *
      * @param complexInput the complex input data
      * @return the FFT result
      */
@@ -454,12 +484,12 @@ public class FFTSupport {
                 imag2D[i][j] = imagCols[j][i];
             }
         }
-
         return new FloatFFT2DResult(real2D, imag2D);
     }
 
     /**
      * Computes the cross-correlation of two float FFT results.
+     *
      * @param fftRef the reference FFT
      * @param fftDef the deformed FFT
      * @return the cross-correlation result

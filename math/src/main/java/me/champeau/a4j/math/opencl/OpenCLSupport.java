@@ -15,6 +15,9 @@
  */
 package me.champeau.a4j.math.opencl;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -24,6 +27,8 @@ import java.util.concurrent.atomic.AtomicReference;
  * {@code OPENCL_ENABLED=true} or system property {@code opencl.enabled=true}.
  */
 public class OpenCLSupport {
+    private static final Logger LOGGER = LoggerFactory.getLogger(OpenCLSupport.class);
+
     /**
      * Environment variable name for enabling OpenCL.
      */
@@ -65,7 +70,7 @@ public class OpenCLSupport {
             // Run a simple test kernel to verify the full pipeline works
             return ctx.runSelfTest();
         } catch (Exception e) {
-            System.err.println("[OpenCL] Self-test failed: " + e.getMessage());
+            LOGGER.error("Self-test failed", e);
             return false;
         } finally {
             if (ctx != null) {
@@ -122,7 +127,7 @@ public class OpenCLSupport {
                 ctx.close();
                 ctx = SHARED_CONTEXT.get();
             } else if (ctx != null) {
-                System.out.println("[OpenCL] Using GPU: " + ctx.getCapabilities().deviceName());
+                LOGGER.info("Using GPU: {}", ctx.getCapabilities().deviceName());
             }
         }
         return ctx;

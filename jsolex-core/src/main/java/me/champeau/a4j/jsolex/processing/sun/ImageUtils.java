@@ -200,16 +200,35 @@ public class ImageUtils {
         float[][] r = new float[height][width];
         float[][] g = new float[height][width];
         float[][] b = new float[height][width];
+        // Hoist the precomputed polynomials out of the inner loop and apply
+        // them directly: avoids allocating an IntPair per cache lookup and a
+        // DoubleTriplet per pixel — both were dominant per-pixel allocations.
+        var rPoly = curve.rPoly();
+        var gPoly = curve.gPoly();
+        var bPoly = curve.bPoly();
         for (int y = 0; y < height; y++) {
             float[] line = mono[y];
+            float[] rRow = r[y];
+            float[] gRow = g[y];
+            float[] bRow = b[y];
             for (int x = 0; x < line.length; x++) {
-                var rgb = curve.toRGB(line[x]);
-                r[y][x] = (float) rgb.a();
-                g[y][x] = (float) rgb.b();
-                b[y][x] = (float) rgb.c();
+                double v = line[x];
+                rRow[x] = clampToRange(rPoly.applyAsDouble(v));
+                gRow[x] = clampToRange(gPoly.applyAsDouble(v));
+                bRow[x] = clampToRange(bPoly.applyAsDouble(v));
             }
         }
         return new float[][][]{r, g, b};
+    }
+
+    private static float clampToRange(double v) {
+        if (v < 0) {
+            return 0f;
+        }
+        if (v > ColorCurve.MAX) {
+            return ColorCurve.MAX;
+        }
+        return (float) Math.round(v);
     }
 
     public static void bilinearSmoothing(Ellipse e, int width, int height, float[][] data) {
@@ -227,7 +246,13 @@ public class ImageUtils {
     }
 
     public static float[][][] fromRGBtoHSL(float[][][] rgb) {
-        return fromRGBtoHSL(rgb, new float[4][rgb[0].length][rgb[0][0].length]);
+        int height = rgb[0].length;
+        int width = rgb[0][0].length;
+        var output = new float[4][][];
+        for (int i = 0; i < 4; i++) {
+            output[i] = new float[height][width];
+        }
+        return fromRGBtoHSL(rgb, output);
     }
 
     public static float[][][] fromRGBtoHSL(float[][][] rgb, float[][][] output) {
@@ -288,7 +313,13 @@ public class ImageUtils {
     }
 
     public static float[][][] fromHSLtoRGB(float[][][] hsl) {
-        return fromHSLtoRGB(hsl, new float[4][hsl[0].length][hsl[0][0].length]);
+        int height = hsl[0].length;
+        int width = hsl[0][0].length;
+        var output = new float[4][][];
+        for (int i = 0; i < 4; i++) {
+            output[i] = new float[height][width];
+        }
+        return fromHSLtoRGB(hsl, output);
     }
 
     public static float[][][] fromHSLtoRGB(float[][][] hsl, float[][][] output) {

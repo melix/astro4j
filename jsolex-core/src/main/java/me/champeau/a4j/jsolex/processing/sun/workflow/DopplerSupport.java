@@ -108,8 +108,8 @@ public class DopplerSupport {
     }
 
     private void produceRotationCorrectedDopplerImage(ImageWrapper32 grey1, ImageWrapper32 grey2,
-                                                         int width, int height,
-                                                         Map<Class<?>, Object> metadata) {
+                                                      int width, int height,
+                                                      Map<Class<?>, Object> metadata) {
         var corrected1 = grey1.copy();
         var corrected2 = grey2.copy();
         if (!cancelRotationGradient(width, height, corrected1, corrected2)) {
@@ -148,6 +148,7 @@ public class DopplerSupport {
         var xty = new double[POLY_TERMS];
         var fitRadius = 0.97 * radius;
         var fitRadius2 = fitRadius * fitRadius;
+        var terms = new double[POLY_TERMS];
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 var px = x - cx;
@@ -158,7 +159,7 @@ public class DopplerSupport {
                 var dx = px / radius;
                 var dy = py / radius;
                 var diff = d1[y][x] - d2[y][x];
-                var terms = polyTerms2D(dx, dy);
+                polyTerms2DInto(dx, dy, terms);
                 for (int i = 0; i < POLY_TERMS; i++) {
                     xty[i] += terms[i] * diff;
                     for (int j = i; j < POLY_TERMS; j++) {
@@ -199,7 +200,7 @@ public class DopplerSupport {
                 }
                 var dx = px / radius;
                 var dy = py / radius;
-                var terms = polyTerms2D(dx, dy);
+                polyTerms2DInto(dx, dy, terms);
                 double surface = 0;
                 for (int i = 0; i < POLY_TERMS; i++) {
                     surface += coeffs[i] * terms[i];
@@ -212,16 +213,14 @@ public class DopplerSupport {
         return true;
     }
 
-    private static double[] polyTerms2D(double dx, double dy) {
-        var terms = new double[POLY_TERMS];
+    private static void polyTerms2DInto(double dx, double dy, double[] out) {
         int idx = 0;
         for (int d = 0; d <= POLY_DEGREE; d++) {
             for (int px = d; px >= 0; px--) {
                 int py = d - px;
-                terms[idx++] = Math.pow(dx, px) * Math.pow(dy, py);
+                out[idx++] = Math.pow(dx, px) * Math.pow(dy, py);
             }
         }
-        return terms;
     }
 
     static float[][][] toDopplerImage(int width, int height, ImageWrapper32 grey1, ImageWrapper32 grey2) {

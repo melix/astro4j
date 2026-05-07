@@ -37,7 +37,6 @@ import me.champeau.a4j.ser.bayer.FloatPrecisionImageConverter;
 import me.champeau.a4j.ser.bayer.ImageConverter;
 import org.apache.commons.math3.complex.Complex;
 
-import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -79,12 +78,9 @@ public class FlatCreator {
                 reader.seekFrame(0);
                 for (int i = 0; i < steps; i++) {
                     broadcaster.broadcast(progressOperation.update(i / (double) steps));
-                    var currentFrame = reader.currentFrame().data().array();
-                    byte[] copy = new byte[currentFrame.length];
-                    System.arraycopy(currentFrame, 0, copy, 0, currentFrame.length);
-                    reader.nextFrame();
                     var buffer = imageConverter.createBuffer(geometry);
-                    imageConverter.convert(i, ByteBuffer.wrap(copy), geometry, buffer);
+                    imageConverter.convert(i, reader.currentFrame().data(), geometry, buffer);
+                    reader.nextFrame();
                     buffers[i] = buffer;
                 }
                 // compute average image with sigma clipping

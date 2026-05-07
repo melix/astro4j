@@ -85,32 +85,19 @@ class OpenCLImageMath extends VectorApiImageMath {
         var n = width * height;
         var flatData = flatten(source.data(), width, height);
 
-        return context.executeWithLock(() -> {
-            long inputBuffer = 0;
-            long outputBuffer = 0;
-            try {
-                inputBuffer = context.allocateBuffer(n * Float.BYTES, CL_MEM_READ_ONLY);
-                outputBuffer = context.allocateBuffer(n * Float.BYTES, CL_MEM_WRITE_ONLY);
-
-                context.writeBuffer(inputBuffer, flatData);
-
-                var kernel = context.getKernelManager().getKernel("arithmetic", "add_scalar");
-                setKernelArgs(kernel, inputBuffer, scalar, outputBuffer, n);
-
-                executeKernel(kernel, n);
-
-                var result = new float[n];
-                context.readBuffer(outputBuffer, result);
-
-                return new Image(width, height, unflatten(result, width, height));
-            } finally {
-                if (inputBuffer != 0) {
-                    context.releaseBuffer(inputBuffer);
-                }
-                if (outputBuffer != 0) {
-                    context.releaseBuffer(outputBuffer);
-                }
-            }
+        return context.runOp(op -> {
+            var inputBuffer = op.allocateBuffer(n * Float.BYTES, CL_MEM_READ_ONLY);
+            var outputBuffer = op.allocateBuffer(n * Float.BYTES, CL_MEM_WRITE_ONLY);
+            op.write(inputBuffer, flatData);
+            op.kernel("arithmetic", "add_scalar")
+                    .arg(inputBuffer)
+                    .arg(scalar)
+                    .arg(outputBuffer)
+                    .arg(n)
+                    .run(n);
+            var result = new float[n];
+            op.read(outputBuffer, result);
+            return new Image(width, height, unflatten(result, width, height));
         });
     }
 
@@ -138,32 +125,19 @@ class OpenCLImageMath extends VectorApiImageMath {
         var n = width * height;
         var flatData = flatten(source.data(), width, height);
 
-        return context.executeWithLock(() -> {
-            long inputBuffer = 0;
-            long outputBuffer = 0;
-            try {
-                inputBuffer = context.allocateBuffer(n * Float.BYTES, CL_MEM_READ_ONLY);
-                outputBuffer = context.allocateBuffer(n * Float.BYTES, CL_MEM_WRITE_ONLY);
-
-                context.writeBuffer(inputBuffer, flatData);
-
-                var kernel = context.getKernelManager().getKernel("arithmetic", "multiply_scalar");
-                setKernelArgs(kernel, inputBuffer, scalar, outputBuffer, n);
-
-                executeKernel(kernel, n);
-
-                var result = new float[n];
-                context.readBuffer(outputBuffer, result);
-
-                return new Image(width, height, unflatten(result, width, height));
-            } finally {
-                if (inputBuffer != 0) {
-                    context.releaseBuffer(inputBuffer);
-                }
-                if (outputBuffer != 0) {
-                    context.releaseBuffer(outputBuffer);
-                }
-            }
+        return context.runOp(op -> {
+            var inputBuffer = op.allocateBuffer(n * Float.BYTES, CL_MEM_READ_ONLY);
+            var outputBuffer = op.allocateBuffer(n * Float.BYTES, CL_MEM_WRITE_ONLY);
+            op.write(inputBuffer, flatData);
+            op.kernel("arithmetic", "multiply_scalar")
+                    .arg(inputBuffer)
+                    .arg(scalar)
+                    .arg(outputBuffer)
+                    .arg(n)
+                    .run(n);
+            var result = new float[n];
+            op.read(outputBuffer, result);
+            return new Image(width, height, unflatten(result, width, height));
         });
     }
 
@@ -192,38 +166,21 @@ class OpenCLImageMath extends VectorApiImageMath {
         var flatFirst = flatten(first.data(), width, height);
         var flatSecond = flatten(second.data(), width, height);
 
-        return context.executeWithLock(() -> {
-            long bufferA = 0;
-            long bufferB = 0;
-            long outputBuffer = 0;
-            try {
-                bufferA = context.allocateBuffer(n * Float.BYTES, CL_MEM_READ_ONLY);
-                bufferB = context.allocateBuffer(n * Float.BYTES, CL_MEM_READ_ONLY);
-                outputBuffer = context.allocateBuffer(n * Float.BYTES, CL_MEM_WRITE_ONLY);
-
-                context.writeBuffer(bufferA, flatFirst);
-                context.writeBuffer(bufferB, flatSecond);
-
-                var kernel = context.getKernelManager().getKernel("arithmetic", "divide_images");
-                setKernelArgsTwoInputs(kernel, bufferA, bufferB, outputBuffer, n);
-
-                executeKernel(kernel, n);
-
-                var result = new float[n];
-                context.readBuffer(outputBuffer, result);
-
-                return new Image(width, height, unflatten(result, width, height));
-            } finally {
-                if (bufferA != 0) {
-                    context.releaseBuffer(bufferA);
-                }
-                if (bufferB != 0) {
-                    context.releaseBuffer(bufferB);
-                }
-                if (outputBuffer != 0) {
-                    context.releaseBuffer(outputBuffer);
-                }
-            }
+        return context.runOp(op -> {
+            var bufferA = op.allocateBuffer(n * Float.BYTES, CL_MEM_READ_ONLY);
+            var bufferB = op.allocateBuffer(n * Float.BYTES, CL_MEM_READ_ONLY);
+            var outputBuffer = op.allocateBuffer(n * Float.BYTES, CL_MEM_WRITE_ONLY);
+            op.write(bufferA, flatFirst);
+            op.write(bufferB, flatSecond);
+            op.kernel("arithmetic", "divide_images")
+                    .arg(bufferA)
+                    .arg(bufferB)
+                    .arg(outputBuffer)
+                    .arg(n)
+                    .run(n);
+            var result = new float[n];
+            op.read(outputBuffer, result);
+            return new Image(width, height, unflatten(result, width, height));
         });
     }
 
@@ -252,38 +209,18 @@ class OpenCLImageMath extends VectorApiImageMath {
         var flatFirst = flatten(first.data(), width, height);
         var flatSecond = flatten(second.data(), width, height);
 
-        return context.executeWithLock(() -> {
-            long bufferA = 0;
-            long bufferB = 0;
-            long outputBuffer = 0;
-            try {
-                bufferA = context.allocateBuffer(n * Float.BYTES, CL_MEM_READ_ONLY);
-                bufferB = context.allocateBuffer(n * Float.BYTES, CL_MEM_READ_ONLY);
-                outputBuffer = context.allocateBuffer(n * Float.BYTES, CL_MEM_WRITE_ONLY);
-
-                context.writeBuffer(bufferA, flatFirst);
-                context.writeBuffer(bufferB, flatSecond);
-
-                var kernel = context.getKernelManager().getKernel("arithmetic", "multiply_images");
-                setKernelArgsTwoInputs(kernel, bufferA, bufferB, outputBuffer, n);
-
-                executeKernel(kernel, n);
-
-                var result = new float[n];
-                context.readBuffer(outputBuffer, result);
-
-                return new Image(width, height, unflatten(result, width, height));
-            } finally {
-                if (bufferA != 0) {
-                    context.releaseBuffer(bufferA);
-                }
-                if (bufferB != 0) {
-                    context.releaseBuffer(bufferB);
-                }
-                if (outputBuffer != 0) {
-                    context.releaseBuffer(outputBuffer);
-                }
-            }
+        return context.runOp(op -> {
+            var bufferA = op.allocateBuffer(n * Float.BYTES, CL_MEM_READ_ONLY);
+            var bufferB = op.allocateBuffer(n * Float.BYTES, CL_MEM_READ_ONLY);
+            var outputBuffer = op.allocateBuffer(n * Float.BYTES, CL_MEM_WRITE_ONLY);
+            op.write(bufferA, flatFirst);
+            op.write(bufferB, flatSecond);
+            op.kernel("arithmetic", "multiply_images")
+                    .arg(bufferA).arg(bufferB).arg(outputBuffer).arg(n)
+                    .run(n);
+            var result = new float[n];
+            op.read(outputBuffer, result);
+            return new Image(width, height, unflatten(result, width, height));
         });
     }
 
@@ -316,39 +253,19 @@ class OpenCLImageMath extends VectorApiImageMath {
         var kWidth = krows[0].length;
         var flatKernel = flattenKernel(krows, kWidth, kHeight);
 
-        return context.executeWithLock(() -> {
-            long imageBuffer = 0;
-            long kernelBuffer = 0;
-            long outputBuffer = 0;
-            try {
-                imageBuffer = context.allocateBuffer(n * Float.BYTES, CL_MEM_READ_ONLY);
-                kernelBuffer = context.allocateBuffer(flatKernel.length * Float.BYTES, CL_MEM_READ_ONLY);
-                outputBuffer = context.allocateBuffer(n * Float.BYTES, CL_MEM_WRITE_ONLY);
-
-                context.writeBuffer(imageBuffer, flatImage);
-                context.writeBuffer(kernelBuffer, flatKernel);
-
-                var clKernel = context.getKernelManager().getKernel("convolution", "convolve2d");
-                setConvolutionKernelArgs(clKernel, imageBuffer, kernelBuffer, outputBuffer,
-                        width, height, kWidth, kHeight, kernel.factor());
-
-                executeKernel2D(clKernel, width, height);
-
-                var result = new float[n];
-                context.readBuffer(outputBuffer, result);
-
-                return image.withData(unflatten(result, width, height));
-            } finally {
-                if (imageBuffer != 0) {
-                    context.releaseBuffer(imageBuffer);
-                }
-                if (kernelBuffer != 0) {
-                    context.releaseBuffer(kernelBuffer);
-                }
-                if (outputBuffer != 0) {
-                    context.releaseBuffer(outputBuffer);
-                }
-            }
+        return context.runOp(op -> {
+            var imageBuffer = op.allocateBuffer(n * Float.BYTES, CL_MEM_READ_ONLY);
+            var kernelBuffer = op.allocateBuffer(flatKernel.length * Float.BYTES, CL_MEM_READ_ONLY);
+            var outputBuffer = op.allocateBuffer(n * Float.BYTES, CL_MEM_WRITE_ONLY);
+            op.write(imageBuffer, flatImage);
+            op.write(kernelBuffer, flatKernel);
+            op.kernel("convolution", "convolve2d")
+                    .arg(imageBuffer).arg(kernelBuffer).arg(outputBuffer)
+                    .arg(width).arg(height).arg(kWidth).arg(kHeight).arg(kernel.factor())
+                    .run(width, height);
+            var result = new float[n];
+            op.read(outputBuffer, result);
+            return image.withData(unflatten(result, width, height));
         });
     }
 
@@ -464,42 +381,20 @@ class OpenCLImageMath extends VectorApiImageMath {
         int srcN = srcWidth * srcHeight;
         int dstN = dstWidth * dstHeight;
 
-        return context.executeWithLock(() -> {
-            long inputBuffer = 0;
-            long outputBuffer = 0;
-            try {
-                inputBuffer = context.allocateBuffer(srcN * Float.BYTES, CL_MEM_READ_ONLY);
-                outputBuffer = context.allocateBuffer(dstN * Float.BYTES, CL_MEM_WRITE_ONLY);
-
-                context.writeBuffer(inputBuffer, flatInput);
-
-                var kernel = context.getKernelManager().getKernel("transform", "rotate_scale");
-                clSetKernelArg1p(kernel, 0, inputBuffer);
-                clSetKernelArg1p(kernel, 1, outputBuffer);
-                clSetKernelArg1i(kernel, 2, srcWidth);
-                clSetKernelArg1i(kernel, 3, srcHeight);
-                clSetKernelArg1i(kernel, 4, dstWidth);
-                clSetKernelArg1i(kernel, 5, dstHeight);
-                clSetKernelArg1f(kernel, 6, (float) cos);
-                clSetKernelArg1f(kernel, 7, (float) sin);
-                clSetKernelArg1f(kernel, 8, (float) scaleX);
-                clSetKernelArg1f(kernel, 9, (float) scaleY);
-                clSetKernelArg1f(kernel, 10, blackpoint);
-
-                executeKernel2D(kernel, dstWidth, dstHeight);
-
-                var result = new float[dstN];
-                context.readBuffer(outputBuffer, result);
-
-                return new Image(dstWidth, dstHeight, unflatten(result, dstWidth, dstHeight));
-            } finally {
-                if (inputBuffer != 0) {
-                    context.releaseBuffer(inputBuffer);
-                }
-                if (outputBuffer != 0) {
-                    context.releaseBuffer(outputBuffer);
-                }
-            }
+        return context.runOp(op -> {
+            var inputBuffer = op.allocateBuffer(srcN * Float.BYTES, CL_MEM_READ_ONLY);
+            var outputBuffer = op.allocateBuffer(dstN * Float.BYTES, CL_MEM_WRITE_ONLY);
+            op.write(inputBuffer, flatInput);
+            op.kernel("transform", "rotate_scale")
+                    .arg(inputBuffer).arg(outputBuffer)
+                    .arg(srcWidth).arg(srcHeight).arg(dstWidth).arg(dstHeight)
+                    .arg((float) cos).arg((float) sin)
+                    .arg((float) scaleX).arg((float) scaleY)
+                    .arg(blackpoint)
+                    .run(dstWidth, dstHeight);
+            var result = new float[dstN];
+            op.read(outputBuffer, result);
+            return new Image(dstWidth, dstHeight, unflatten(result, dstWidth, dstHeight));
         });
     }
 
@@ -533,40 +428,18 @@ class OpenCLImageMath extends VectorApiImageMath {
         int srcN = srcWidth * srcHeight;
         int dstN = dstWidth * dstHeight;
 
-        return context.executeWithLock(() -> {
-            long inputBuffer = 0;
-            long outputBuffer = 0;
-            try {
-                inputBuffer = context.allocateBuffer(srcN * Float.BYTES, CL_MEM_READ_ONLY);
-                outputBuffer = context.allocateBuffer(dstN * Float.BYTES, CL_MEM_WRITE_ONLY);
-
-                context.writeBuffer(inputBuffer, flatInput);
-
-                var kernel = context.getKernelManager().getKernel("transform", "rotate");
-                clSetKernelArg1p(kernel, 0, inputBuffer);
-                clSetKernelArg1p(kernel, 1, outputBuffer);
-                clSetKernelArg1i(kernel, 2, srcWidth);
-                clSetKernelArg1i(kernel, 3, srcHeight);
-                clSetKernelArg1i(kernel, 4, dstWidth);
-                clSetKernelArg1i(kernel, 5, dstHeight);
-                clSetKernelArg1f(kernel, 6, (float) cos);
-                clSetKernelArg1f(kernel, 7, (float) sin);
-                clSetKernelArg1f(kernel, 8, blackpoint);
-
-                executeKernel2D(kernel, dstWidth, dstHeight);
-
-                var result = new float[dstN];
-                context.readBuffer(outputBuffer, result);
-
-                return new Image(dstWidth, dstHeight, unflatten(result, dstWidth, dstHeight));
-            } finally {
-                if (inputBuffer != 0) {
-                    context.releaseBuffer(inputBuffer);
-                }
-                if (outputBuffer != 0) {
-                    context.releaseBuffer(outputBuffer);
-                }
-            }
+        return context.runOp(op -> {
+            var inputBuffer = op.allocateBuffer(srcN * Float.BYTES, CL_MEM_READ_ONLY);
+            var outputBuffer = op.allocateBuffer(dstN * Float.BYTES, CL_MEM_WRITE_ONLY);
+            op.write(inputBuffer, flatInput);
+            op.kernel("transform", "rotate")
+                    .arg(inputBuffer).arg(outputBuffer)
+                    .arg(srcWidth).arg(srcHeight).arg(dstWidth).arg(dstHeight)
+                    .arg((float) cos).arg((float) sin).arg(blackpoint)
+                    .run(dstWidth, dstHeight);
+            var result = new float[dstN];
+            op.read(outputBuffer, result);
+            return new Image(dstWidth, dstHeight, unflatten(result, dstWidth, dstHeight));
         });
     }
 
@@ -596,37 +469,17 @@ class OpenCLImageMath extends VectorApiImageMath {
         int srcN = srcWidth * srcHeight;
         int dstN = dstWidth * dstHeight;
 
-        return context.executeWithLock(() -> {
-            long inputBuffer = 0;
-            long outputBuffer = 0;
-            try {
-                inputBuffer = context.allocateBuffer(srcN * Float.BYTES, CL_MEM_READ_ONLY);
-                outputBuffer = context.allocateBuffer(dstN * Float.BYTES, CL_MEM_WRITE_ONLY);
-
-                context.writeBuffer(inputBuffer, flatInput);
-
-                var kernel = context.getKernelManager().getKernel("transform", "rescale");
-                clSetKernelArg1p(kernel, 0, inputBuffer);
-                clSetKernelArg1p(kernel, 1, outputBuffer);
-                clSetKernelArg1i(kernel, 2, srcWidth);
-                clSetKernelArg1i(kernel, 3, srcHeight);
-                clSetKernelArg1i(kernel, 4, dstWidth);
-                clSetKernelArg1i(kernel, 5, dstHeight);
-
-                executeKernel2D(kernel, dstWidth, dstHeight);
-
-                var result = new float[dstN];
-                context.readBuffer(outputBuffer, result);
-
-                return new Image(dstWidth, dstHeight, unflatten(result, dstWidth, dstHeight));
-            } finally {
-                if (inputBuffer != 0) {
-                    context.releaseBuffer(inputBuffer);
-                }
-                if (outputBuffer != 0) {
-                    context.releaseBuffer(outputBuffer);
-                }
-            }
+        return context.runOp(op -> {
+            var inputBuffer = op.allocateBuffer(srcN * Float.BYTES, CL_MEM_READ_ONLY);
+            var outputBuffer = op.allocateBuffer(dstN * Float.BYTES, CL_MEM_WRITE_ONLY);
+            op.write(inputBuffer, flatInput);
+            op.kernel("transform", "rescale")
+                    .arg(inputBuffer).arg(outputBuffer)
+                    .arg(srcWidth).arg(srcHeight).arg(dstWidth).arg(dstHeight)
+                    .run(dstWidth, dstHeight);
+            var result = new float[dstN];
+            op.read(outputBuffer, result);
+            return new Image(dstWidth, dstHeight, unflatten(result, dstWidth, dstHeight));
         });
     }
 
@@ -657,37 +510,18 @@ class OpenCLImageMath extends VectorApiImageMath {
         var n = width * height;
         var flatInput = flatten(source.data(), width, height);
 
-        return context.executeWithLock(() -> {
-            long inputBuffer = 0;
-            long outputBuffer = 0;
-            try {
-                inputBuffer = context.allocateBuffer(n * Float.BYTES, CL_MEM_READ_ONLY);
-                outputBuffer = context.allocateBuffer(n * Float.BYTES, CL_MEM_WRITE_ONLY);
-
-                context.writeBuffer(inputBuffer, flatInput);
-
-                var kernel = context.getKernelManager().getKernel("transform", "mirror");
-                clSetKernelArg1p(kernel, 0, inputBuffer);
-                clSetKernelArg1p(kernel, 1, outputBuffer);
-                clSetKernelArg1i(kernel, 2, width);
-                clSetKernelArg1i(kernel, 3, height);
-                clSetKernelArg1i(kernel, 4, horizontalMirror ? 1 : 0);
-                clSetKernelArg1i(kernel, 5, verticalMirror ? 1 : 0);
-
-                executeKernel2D(kernel, width, height);
-
-                var result = new float[n];
-                context.readBuffer(outputBuffer, result);
-
-                return new Image(width, height, unflatten(result, width, height));
-            } finally {
-                if (inputBuffer != 0) {
-                    context.releaseBuffer(inputBuffer);
-                }
-                if (outputBuffer != 0) {
-                    context.releaseBuffer(outputBuffer);
-                }
-            }
+        return context.runOp(op -> {
+            var inputBuffer = op.allocateBuffer(n * Float.BYTES, CL_MEM_READ_ONLY);
+            var outputBuffer = op.allocateBuffer(n * Float.BYTES, CL_MEM_WRITE_ONLY);
+            op.write(inputBuffer, flatInput);
+            op.kernel("transform", "mirror")
+                    .arg(inputBuffer).arg(outputBuffer)
+                    .arg(width).arg(height)
+                    .arg(horizontalMirror ? 1 : 0).arg(verticalMirror ? 1 : 0)
+                    .run(width, height);
+            var result = new float[n];
+            op.read(outputBuffer, result);
+            return new Image(width, height, unflatten(result, width, height));
         });
     }
 
@@ -721,53 +555,22 @@ class OpenCLImageMath extends VectorApiImageMath {
         var flatGridDx = flatten(gridDx, gridWidth, gridHeight);
         var flatGridDy = flatten(gridDy, gridWidth, gridHeight);
 
-        return context.executeWithLock(() -> {
-            long inputBuffer = 0;
-            long outputBuffer = 0;
-            long gridDxBuffer = 0;
-            long gridDyBuffer = 0;
-            try {
-                inputBuffer = context.allocateBuffer(n * Float.BYTES, CL_MEM_READ_ONLY);
-                outputBuffer = context.allocateBuffer(n * Float.BYTES, CL_MEM_WRITE_ONLY);
-                gridDxBuffer = context.allocateBuffer(gridN * Float.BYTES, CL_MEM_READ_ONLY);
-                gridDyBuffer = context.allocateBuffer(gridN * Float.BYTES, CL_MEM_READ_ONLY);
-
-                context.writeBuffer(inputBuffer, flatInput);
-                context.writeBuffer(gridDxBuffer, flatGridDx);
-                context.writeBuffer(gridDyBuffer, flatGridDy);
-
-                var kernelName = useLanczos ? "dedistort_sparse_lanczos" : "dedistort_sparse_bilinear";
-                var kernel = context.getKernelManager().getKernel("dedistort", kernelName);
-                clSetKernelArg1p(kernel, 0, inputBuffer);
-                clSetKernelArg1p(kernel, 1, gridDxBuffer);
-                clSetKernelArg1p(kernel, 2, gridDyBuffer);
-                clSetKernelArg1p(kernel, 3, outputBuffer);
-                clSetKernelArg1i(kernel, 4, width);
-                clSetKernelArg1i(kernel, 5, height);
-                clSetKernelArg1i(kernel, 6, gridWidth);
-                clSetKernelArg1i(kernel, 7, gridHeight);
-                clSetKernelArg1i(kernel, 8, gridStep);
-
-                executeKernel2D(kernel, width, height);
-
-                var result = new float[n];
-                context.readBuffer(outputBuffer, result);
-
-                return new Image(width, height, unflatten(result, width, height));
-            } finally {
-                if (inputBuffer != 0) {
-                    context.releaseBuffer(inputBuffer);
-                }
-                if (outputBuffer != 0) {
-                    context.releaseBuffer(outputBuffer);
-                }
-                if (gridDxBuffer != 0) {
-                    context.releaseBuffer(gridDxBuffer);
-                }
-                if (gridDyBuffer != 0) {
-                    context.releaseBuffer(gridDyBuffer);
-                }
-            }
+        var kernelName = useLanczos ? "dedistort_sparse_lanczos" : "dedistort_sparse_bilinear";
+        return context.runOp(op -> {
+            var inputBuffer = op.allocateBuffer(n * Float.BYTES, CL_MEM_READ_ONLY);
+            var outputBuffer = op.allocateBuffer(n * Float.BYTES, CL_MEM_WRITE_ONLY);
+            var gridDxBuffer = op.allocateBuffer(gridN * Float.BYTES, CL_MEM_READ_ONLY);
+            var gridDyBuffer = op.allocateBuffer(gridN * Float.BYTES, CL_MEM_READ_ONLY);
+            op.write(inputBuffer, flatInput);
+            op.write(gridDxBuffer, flatGridDx);
+            op.write(gridDyBuffer, flatGridDy);
+            op.kernel("dedistort", kernelName)
+                    .arg(inputBuffer).arg(gridDxBuffer).arg(gridDyBuffer).arg(outputBuffer)
+                    .arg(width).arg(height).arg(gridWidth).arg(gridHeight).arg(gridStep)
+                    .run(width, height);
+            var result = new float[n];
+            op.read(outputBuffer, result);
+            return new Image(width, height, unflatten(result, width, height));
         });
     }
 

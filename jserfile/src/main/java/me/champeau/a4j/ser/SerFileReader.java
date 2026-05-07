@@ -18,14 +18,17 @@ package me.champeau.a4j.ser;
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -37,42 +40,98 @@ import java.util.Optional;
  */
 public class SerFileReader implements AutoCloseable {
     private static final ZoneId UTC = ZoneId.of("UTC");
-    /** The file ID for JSol'Ex trimmed SER files. */
+    /**
+     * The file ID for JSol'Ex trimmed SER files.
+     */
     public static final String JSOLEX_RECORDER = "JSOLEX-TRIMMED";
+
+    /**
+     * Target page size for the sliding-window mmap, in bytes. Each page is
+     * rounded down to a whole-frame boundary so that no frame straddles two
+     * pages. Configurable via {@code -Dme.champeau.a4j.ser.pageSize=<bytes>}.
+     */
+    private static final long PAGE_SIZE_BYTES =
+            Long.getLong("me.champeau.a4j.ser.pageSize", 256L * 1024 * 1024);
+
+    /**
+     * Maximum number of pages kept resident per reader. With the default
+     * page size this caps each reader at ~1 GB of mmap'd file pages instead
+     * of mapping the entire file.
+     */
+    private static final int PAGE_CACHE_SIZE = 4;
 
     private final File backingFile;
     private final RandomAccessFile accessFile;
-    private final ByteBuffer[] imageBuffers;
+    private final FileChannel channel;
+    private final long dataOffset;
     private final ByteBuffer[] timestampsBuffer;
     private final Header header;
-    private final byte[] frameBuffer;
     private final int bytesPerFrame;
-    private final int maxFramesPerBuffer;
+    private final int framesPerPage;
+    private final ByteOrder imageByteOrder;
+    /**
+     * Sliding-window page cache: each entry maps {@code framesPerPage} consecutive
+     * frames. Oldest entries are evicted when the size exceeds {@link #PAGE_CACHE_SIZE}
+     * so that the resident mmap footprint stays bounded regardless of file size.
+     * Single-threaded contract — callers must serialize access (matches the
+     * existing {@code currentFrame}/{@code seekFrame} contract).
+     */
+    private final LinkedHashMap<Integer, MappedByteBuffer> pageCache;
 
     private int previousFrame = -1;
     private int currentFrame = 0;
     private ZonedDateTime currentTimestamp;
     private volatile boolean closed = false;
 
-    /**
-     * Constructs a new SER file reader.
-     *
-     * @param backingFile the backing file
-     * @param accessFile the random access file
-     * @param imageBuffers the image buffers
-     * @param maxFramesPerBuffer the maximum frames per buffer
-     * @param timestampsBuffer the timestamps buffer
-     * @param header the SER file header
-     */
-    private SerFileReader(File backingFile, RandomAccessFile accessFile, ByteBuffer[] imageBuffers, int maxFramesPerBuffer, ByteBuffer timestampsBuffer, Header header) {
+    private SerFileReader(File backingFile,
+                          RandomAccessFile accessFile,
+                          FileChannel channel,
+                          long dataOffset,
+                          int framesPerPage,
+                          ByteOrder imageByteOrder,
+                          ByteBuffer timestampsBuffer,
+                          Header header) {
         this.backingFile = backingFile;
         this.accessFile = accessFile;
-        this.imageBuffers = imageBuffers;
-        this.maxFramesPerBuffer = maxFramesPerBuffer;
+        this.channel = channel;
+        this.dataOffset = dataOffset;
+        this.framesPerPage = framesPerPage;
+        this.imageByteOrder = imageByteOrder;
         this.timestampsBuffer = new ByteBuffer[]{timestampsBuffer};
         this.header = header;
         this.bytesPerFrame = header.geometry().getBytesPerFrame();
-        this.frameBuffer = new byte[bytesPerFrame];
+        this.pageCache = new LinkedHashMap<>(PAGE_CACHE_SIZE + 1, 0.75f, true) {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<Integer, MappedByteBuffer> eldest) {
+                // Eviction frees the strong reference to the MappedByteBuffer; the
+                // Cleaner attached by FileChannel.map will unmap on the next GC.
+                return size() > PAGE_CACHE_SIZE;
+            }
+        };
+    }
+
+    private MappedByteBuffer pageFor(int pageIdx) {
+        var cached = pageCache.get(pageIdx);
+        if (cached != null) {
+            return cached;
+        }
+        long offset = dataOffset + (long) pageIdx * framesPerPage * bytesPerFrame;
+        long maxSize = (long) framesPerPage * bytesPerFrame;
+        long fileSize;
+        try {
+            fileSize = channel.size();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+        long size = Math.min(maxSize, fileSize - offset);
+        try {
+            var buf = channel.map(FileChannel.MapMode.READ_ONLY, offset, size);
+            buf.order(imageByteOrder);
+            pageCache.put(pageIdx, buf);
+            return buf;
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     /**
@@ -85,20 +144,27 @@ public class SerFileReader implements AutoCloseable {
     }
 
     /**
-     * Gets the current frame.
+     * Gets the current frame. The returned {@link Frame#data()} is a read-only
+     * view of the underlying memory-mapped file region (no heap copy). The view
+     * is invalidated by the next call to {@link #nextFrame()}, {@link #seekFrame(int)}
+     * or {@link #close()}; callers that need to retain the bytes across those
+     * calls must copy them explicitly. Calling {@link ByteBuffer#array()} on the
+     * returned buffer throws {@link UnsupportedOperationException}.
      *
      * @return the current frame
      */
     public Frame currentFrame() {
         assertNotClosed();
         if (previousFrame != currentFrame) {
-            findBuffer().slice().limit(bytesPerFrame).get(frameBuffer);
             if (timestampsBuffer[0] != null) {
                 currentTimestamp = TimestampConverter.of(timestampsBuffer[0].getLong()).map(c -> c.atZone(UTC)).orElse(null);
             }
             previousFrame = currentFrame;
         }
-        return new Frame(currentFrame, ByteBuffer.wrap(frameBuffer), Optional.ofNullable(currentTimestamp));
+        var pageIdx = currentFrame / framesPerPage;
+        var offset = (currentFrame % framesPerPage) * bytesPerFrame;
+        var slice = pageFor(pageIdx).slice(offset, bytesPerFrame).asReadOnlyBuffer();
+        return new Frame(currentFrame, slice, Optional.ofNullable(currentTimestamp));
     }
 
     private void assertNotClosed() {
@@ -107,19 +173,16 @@ public class SerFileReader implements AutoCloseable {
         }
     }
 
-    /** Moves to the next frame. */
+    /**
+     * Moves to the next frame.
+     */
     public void nextFrame() {
         assertNotClosed();
         currentFrame = (currentFrame + 1) % header.frameCount();
-        positionBuffers();
+        positionTimestampBuffer();
     }
 
-    private ByteBuffer findBuffer() {
-        return imageBuffers[currentFrame / maxFramesPerBuffer];
-    }
-
-    private void positionBuffers() {
-        findBuffer().position((currentFrame % maxFramesPerBuffer) * bytesPerFrame);
+    private void positionTimestampBuffer() {
         if (timestampsBuffer[0] != null) {
             timestampsBuffer[0].position(8 * currentFrame);
         }
@@ -133,15 +196,19 @@ public class SerFileReader implements AutoCloseable {
     public void seekFrame(int frameNb) {
         assertNotClosed();
         currentFrame = frameNb % header.frameCount();
-        positionBuffers();
+        positionTimestampBuffer();
     }
 
-    /** Seeks to the last frame. */
+    /**
+     * Seeks to the last frame.
+     */
     public void seekLast() {
         seekFrame(header.frameCount() - 1);
     }
 
-    /** Seeks to the first frame. */
+    /**
+     * Seeks to the first frame.
+     */
     public void seekFirst() {
         seekFrame(0);
     }
@@ -160,7 +227,7 @@ public class SerFileReader implements AutoCloseable {
     /**
      * Opens a SER file for reading.
      *
-     * @param file the file to read
+     * @param file                  the file to read
      * @param trustDeclaredBitDepth if true, the pixel depth declared in the SER header is used as-is
      *                              and the heuristic detection of the actual pixel depth is skipped
      * @return a new SerFileReader
@@ -168,33 +235,22 @@ public class SerFileReader implements AutoCloseable {
      */
     public static SerFileReader of(File file, boolean trustDeclaredBitDepth) throws IOException {
         var tmpReader = createBaseReader(file);
-        if (trustDeclaredBitDepth) {
-            return tmpReader;
-        }
-        return fixReader(tmpReader);
+        var result = trustDeclaredBitDepth ? tmpReader : fixReader(tmpReader);
+        emitOpenEvent(result);
+        return result;
     }
 
     private static SerFileReader createBaseReader(File file) throws IOException {
         RandomAccessFile raf = new RandomAccessFile(file, "r");
         FileChannel channel = raf.getChannel();
         var headerBuffer = channel
-            .map(FileChannel.MapMode.READ_ONLY, 0, Math.min(65536, channel.size()));
+                .map(FileChannel.MapMode.READ_ONLY, 0, Math.min(65536, channel.size()));
         var fileId = readAsciiString(headerBuffer, 14);
         headerBuffer.order(ByteOrder.LITTLE_ENDIAN);
         Header header = readHeader(fileId, headerBuffer);
         long headerLength = headerBuffer.position();
         var bytesPerFrame = header.geometry().getBytesPerFrame();
-        long maxFramesInBuffer = (long) Math.floor(Integer.MAX_VALUE / (double) bytesPerFrame);
-        int numBuffers = (int) Math.ceil(header.frameCount() / (double) maxFramesInBuffer);
-        ByteBuffer[] imageBuffers = new ByteBuffer[numBuffers];
-        long remainingFrameCount = header.frameCount();
-        for (int i = 0; i < numBuffers; i++) {
-            long nFramesInBuffer = Math.min(remainingFrameCount, maxFramesInBuffer);
-            long offset = headerLength + i * maxFramesInBuffer * bytesPerFrame;
-            long size = nFramesInBuffer * bytesPerFrame;
-            imageBuffers[i] = channel.map(FileChannel.MapMode.READ_ONLY, offset, size).order(header.geometry().imageEndian());
-            remainingFrameCount -= maxFramesInBuffer;
-        }
+        int framesPerPage = framesPerPage(bytesPerFrame, header.frameCount());
         boolean hasTimestamps = header.metadata().localDateTime() != null;
         long dataLength = header.frameCount() * (long) bytesPerFrame;
         if (headerLength + dataLength + 8L * header.frameCount() > file.length()) {
@@ -203,8 +259,30 @@ public class SerFileReader implements AutoCloseable {
             header = new Header(fileId, header.camera(), header.geometry(), header.frameCount(), header.metadata().withoutTimestamps());
         }
         ByteBuffer timestampsBuffer = hasTimestamps ? channel.map(FileChannel.MapMode.READ_ONLY, headerLength + dataLength, 8L * header.frameCount()).order(ByteOrder.LITTLE_ENDIAN) : null;
-        var tmpReader = new SerFileReader(file, raf, imageBuffers, (int) maxFramesInBuffer, timestampsBuffer, header);
-        return tmpReader;
+        return new SerFileReader(file, raf, channel, headerLength, framesPerPage, header.geometry().imageEndian(), timestampsBuffer, header);
+    }
+
+    private static int framesPerPage(int bytesPerFrame, int frameCount) {
+        long target = Math.max(PAGE_SIZE_BYTES / bytesPerFrame, 1L);
+        // Guard against pathologically small files.
+        return (int) Math.min(target, Math.max(frameCount, 1));
+    }
+
+    private static void emitOpenEvent(SerFileReader reader) {
+        var event = new SerFileOpenEvent();
+        if (!event.shouldCommit()) {
+            return;
+        }
+        long perPage = (long) reader.framesPerPage * reader.bytesPerFrame;
+        long mapped = perPage * PAGE_CACHE_SIZE;
+        if (reader.timestampsBuffer[0] != null) {
+            mapped += reader.timestampsBuffer[0].capacity();
+        }
+        event.path = reader.backingFile.getAbsolutePath();
+        event.readerId = System.identityHashCode(reader);
+        event.frameCount = reader.header.frameCount();
+        event.mappedBytes = mapped;
+        event.commit();
     }
 
     /**
@@ -266,8 +344,9 @@ public class SerFileReader implements AutoCloseable {
                 return tmpReader;
             }
             var newGeometry = new ImageGeometry(geometry.colorMode(), geometry.width(), geometry.height(), pixelDepth, geometry.imageEndian());
-            return new SerFileReader(tmpReader.backingFile, tmpReader.accessFile, tmpReader.imageBuffers, tmpReader.maxFramesPerBuffer, tmpReader.timestampsBuffer[0],
-                new Header(tmpReader.header.fileId(), tmpReader.header.camera(), newGeometry, tmpReader.header.frameCount(), tmpReader.header.metadata()));
+            var newHeader = new Header(tmpReader.header.fileId(), tmpReader.header.camera(), newGeometry, tmpReader.header.frameCount(), tmpReader.header.metadata());
+            return new SerFileReader(tmpReader.backingFile, tmpReader.accessFile, tmpReader.channel, tmpReader.dataOffset,
+                    tmpReader.framesPerPage, newGeometry.imageEndian(), tmpReader.timestampsBuffer[0], newHeader);
         }
         return tmpReader;
     }
@@ -347,18 +426,18 @@ public class SerFileReader implements AutoCloseable {
             return LocalDateTime.now().atZone(UTC);
         });
         return new Header(
-            fileId,
-            camera,
-            new ImageGeometry(colorMode.get(), imageWidth, imageHeight, pixelDepthPerPlane, imageByteOrder),
-            frameCount,
-            new ImageMetadata(
-                observer,
-                instrument,
-                telescope,
-                localDate != null,
-                localDate,
-                utcDate
-            )
+                fileId,
+                camera,
+                new ImageGeometry(colorMode.get(), imageWidth, imageHeight, pixelDepthPerPlane, imageByteOrder),
+                frameCount,
+                new ImageMetadata(
+                        observer,
+                        instrument,
+                        telescope,
+                        localDate != null,
+                        localDate,
+                        utcDate
+                )
         );
     }
 
@@ -379,9 +458,18 @@ public class SerFileReader implements AutoCloseable {
 
     @Override
     public void close() throws Exception {
+        if (closed) {
+            return;
+        }
         closed = true;
+        var event = new SerFileCloseEvent();
+        if (event.shouldCommit()) {
+            event.path = backingFile.getAbsolutePath();
+            event.readerId = System.identityHashCode(this);
+            event.commit();
+        }
         accessFile.close();
-        Arrays.fill(imageBuffers, null);
+        pageCache.clear();
         timestampsBuffer[0] = null;
     }
 
@@ -402,13 +490,17 @@ public class SerFileReader implements AutoCloseable {
      */
     public SerFileReader reopen() throws IOException {
         var baseReader = createBaseReader(backingFile);
-        return new SerFileReader(
-            baseReader.backingFile,
-            baseReader.accessFile,
-            baseReader.imageBuffers,
-            baseReader.maxFramesPerBuffer,
-            baseReader.timestampsBuffer[0],
-            header
+        var reopened = new SerFileReader(
+                baseReader.backingFile,
+                baseReader.accessFile,
+                baseReader.channel,
+                baseReader.dataOffset,
+                baseReader.framesPerPage,
+                baseReader.imageByteOrder,
+                baseReader.timestampsBuffer[0],
+                header
         );
+        emitOpenEvent(reopened);
+        return reopened;
     }
 }

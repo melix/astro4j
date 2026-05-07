@@ -44,8 +44,9 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.Stack;
+import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.DoubleUnaryOperator;
@@ -62,13 +63,14 @@ public class PhenomenaDetector {
     private static final double SPEED_OF_LIGHT = 299792.458d;
     private static final double ELLERMAN_WING_LIMIT_ANGSTROMS = 0.35;
     private static final double ELLERMAN_MAX_RANGE_ANGSTROMS = 5;
-    private static final int MAX_ELLERMAN_STOP_DETECTION = 20;
+    private static final int MAX_ELLERMAN_CANDIDATE_LIMIT = 50;
     private static final int MAX_ELLERMAN_COUNT = 5;
     private static final int ELLERMAN_LOCAL_RANGE = 8;
     private static final int ELLERMAN_MIN_WIDTH_FOR_DETECTION = 12 * ELLERMAN_LOCAL_RANGE;
+    private static final int FLARE_DEDUP_DISTANCE = 16;
 
     private final Map<Integer, List<Redshift>> redshiftsPerFrame = new ConcurrentHashMap<>();
-    private final List<CandidateFlare> candidateFlares = new CopyOnWriteArrayList<>();
+    private final Queue<CandidateFlare> candidateFlares = new ConcurrentLinkedQueue<>();
     private final Map<Integer, BitSet> activeRegionsPerFrame = new ConcurrentHashMap<>();
     private volatile BorderDetection borderDetection;
     private final Lock lock = new ReentrantLock();
@@ -170,7 +172,8 @@ public class PhenomenaDetector {
             var columnsAverages = new double[width];
             var columnsStddevs = new double[width];
             // reduce noise
-            var blurred = imageMath.convolve(new Image(width, height, original), Kernel33.GAUSSIAN_BLUR).data();
+            var blurred = new float[height][width];
+            imageMath.convolve(new Image(width, height, original), Kernel33.GAUSSIAN_BLUR, blurred);
             for (int x = left; x < right; x++) {
                 var columnAvg = columnAverage(x, height, original);
                 columnStats[x] = computeColumnStatsForEllermanDetection(frameId, x, height, blurred, polynomial);
@@ -197,9 +200,14 @@ public class PhenomenaDetector {
                     : Arrays.stream(columnStats).filter(Objects::nonNull).mapToDouble(c -> c.centerLineStats().average()).average().orElse(0);
             int leftBorder = left;
             int rightBorder = right;
-            borderPoints.add(new Point2D(leftBorder, frameId));
-            borderPoints.add(new Point2D(rightBorder, frameId));
-            for (int x=left; x<=right; x++) {
+            lock.lock();
+            try {
+                borderPoints.add(new Point2D(leftBorder, frameId));
+                borderPoints.add(new Point2D(rightBorder, frameId));
+            } finally {
+                lock.unlock();
+            }
+            for (int x = left; x <= right; x++) {
                 analyzeColumn(frameId, x, width, height, original, polynomial, wingShiftInPixels, collector, finalAvgCenterLine, finalAvgOfColumnAverages, columnsAverages, columnsStddevs, models.avgModel(), models.stddevModel(), activeRegionsMask, columnStats, globalLineAvgForEllermanDetection, globalWingAvgForEllermanDetection, leftBorder, rightBorder);
             }
             if (!collector.isEmpty()) {
@@ -212,21 +220,25 @@ public class PhenomenaDetector {
     }
 
     private static ColumnModels computeColumnModels(int height, float[][] original, int left, int right, double[] columnsAverages, double[] columnsStddevs) {
-        var avgPoints = new ArrayList<Point2D>(right-left);
-        var stddevPoints = new ArrayList<Point2D>(right-left);
-        for (int x = left; x < right; x++) {
+        int n = right - left;
+        double[] xs = new double[n];
+        double[] avgYs = new double[n];
+        double[] stddevYs = new double[n];
+        for (int i = 0; i < n; i++) {
+            int x = left + i;
             var avg = columnsAverages[x];
-            avgPoints.add(new Point2D(x, avg));
+            xs[i] = x;
+            avgYs[i] = avg;
             double stddev = 0;
             for (int y = 0; y < height; y++) {
                 var delta = original[y][x] - avg;
                 stddev += delta * delta;
             }
             columnsStddevs[x] = Math.sqrt(stddev / height);
-            stddevPoints.add(new Point2D(x, columnsStddevs[x]));
+            stddevYs[i] = columnsStddevs[x];
         }
-        var avgModel = LinearRegression.thirdOrderRegression(avgPoints.toArray(Point2D[]::new)).asPolynomial();
-        var stddevModel = LinearRegression.thirdOrderRegression(stddevPoints.toArray(Point2D[]::new)).asPolynomial();
+        var avgModel = LinearRegression.asPolynomial(LinearRegression.kOrderRegression(xs, avgYs, 3));
+        var stddevModel = LinearRegression.asPolynomial(LinearRegression.kOrderRegression(xs, stddevYs, 3));
         return new ColumnModels(avgModel, stddevModel);
     }
 
@@ -366,7 +378,7 @@ public class PhenomenaDetector {
         if (detectRedshifts) {
             performRedshiftDetection(frameId, x, width, height, original, polynomial, wingShiftInPixels, collector, avgLineValue, avgOfcolumnAverages, columnsAverages);
         }
-        if (detectEllermanBombs && globalWingAvgForEllermanDetection > 0 && candidateFlares.size() < MAX_ELLERMAN_STOP_DETECTION && x > leftBorder + 16 && x < rightBorder - 16) {
+        if (detectEllermanBombs && globalWingAvgForEllermanDetection > 0 && x > leftBorder + 16 && x < rightBorder - 16) {
             performEllermanBombDetection(frameId, x, width, leftBorder, rightBorder, polynomial, columnStats, globalLineAvgForEllermanDetection, globalWingAvgForEllermanDetection)
                     .ifPresent(flare ->
                             candidateFlares.add(new CandidateFlare(
@@ -533,19 +545,29 @@ public class PhenomenaDetector {
         if (flares != null) {
             return new Flares(flares);
         }
-        filterFlaresTooCloseToBorder();
+        var candidates = new ArrayList<>(candidateFlares);
+        filterFlaresTooCloseToBorder(candidates);
         // remove candidate flares detected on too small spans
-        candidateFlares.sort(Comparator.<CandidateFlare>comparingDouble(c -> c.flare().score()).reversed());
-        if (!candidateFlares.isEmpty()) {
-            List<Flare> bombs = candidateFlares.stream().map(CandidateFlare::flare).collect(Collectors.toList());
-            // remove flares that are too close to each other
+        candidates.sort(Comparator.<CandidateFlare>comparingDouble(c -> c.flare().score()).reversed());
+        if (!candidates.isEmpty()) {
+            // Take the top-N highest-scoring candidates before the O(n²) dedup.
+            // Caps cost and acts as a noise filter: anything past rank N is too
+            // weak to compete with the strongest detections in this image.
+            var topCandidates = candidates.size() > MAX_ELLERMAN_CANDIDATE_LIMIT
+                    ? candidates.subList(0, MAX_ELLERMAN_CANDIDATE_LIMIT)
+                    : candidates;
+            List<Flare> bombs = topCandidates.stream().map(CandidateFlare::flare).collect(Collectors.toList());
+            // remove flares that are too close to each other; the dedup
+            // distance is wider for FLARE than ELLERMAN_BOMB because flares
+            // are spatially broader phenomena than thin Ellerman bombs.
             for (int i = 0; i < bombs.size(); i++) {
                 var bomb = bombs.get(i);
                 var p1 = new Point2D(bomb.x(), bomb.y());
+                var dedupDistance = bomb.kind() == Flare.Kind.FLARE ? FLARE_DEDUP_DISTANCE : ELLERMAN_LOCAL_RANGE;
                 for (int j = bombs.size() - 1; j > i; j--) {
                     var otherBomb = bombs.get(j);
                     var p2 = new Point2D(otherBomb.x(), otherBomb.y());
-                    if (p1.distanceTo(p2) < ELLERMAN_LOCAL_RANGE) {
+                    if (p1.distanceTo(p2) < dedupDistance) {
                         bombs.remove(j);
                     }
                 }
@@ -562,13 +584,13 @@ public class PhenomenaDetector {
         return new Flares(flares);
     }
 
-    private void filterFlaresTooCloseToBorder() {
+    private void filterFlaresTooCloseToBorder(List<CandidateFlare> candidates) {
         try {
             var ellipse = new EllipseRegression(borderPoints).solve();
             var semiAxis = ellipse.semiAxis();
             var maxDist = Math.max(semiAxis.a(), semiAxis.b());
             var limit = 0.08d * maxDist;
-            candidateFlares.removeIf(c -> {
+            candidates.removeIf(c -> {
                 var flare = c.flare();
                 var frameId = c.frameId();
                 var sourceX = flare.sourceX();
@@ -769,8 +791,8 @@ public class PhenomenaDetector {
     /**
      * Checks if 2 areas are less than distance apart
      *
-     * @param area1 the first area
-     * @param area2 the second area
+     * @param area1    the first area
+     * @param area2    the second area
      * @param distance the distance
      * @return true if the areas are less than distance apart
      */

@@ -70,4 +70,9 @@ public class RenamingImageEmitter implements ImageEmitter {
     public void newGenericFile(GeneratedImageKind kind, String category, String title, String name, String description, Path file) {
         delegate.newGenericFile(kind, null, titleRenamer.apply(title), fileRenamer.apply(name), description, file);
     }
+
+    @Override
+    public void await() {
+        delegate.await();
+    }
 }

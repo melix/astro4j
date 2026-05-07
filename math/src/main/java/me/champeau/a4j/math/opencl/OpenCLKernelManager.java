@@ -25,6 +25,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.stream.Collectors;
 
 import static org.lwjgl.opencl.CL10.*;
@@ -38,26 +39,57 @@ public class OpenCLKernelManager implements AutoCloseable {
 
     private final OpenCLContext context;
     private final Map<String, Long> compiledPrograms = new ConcurrentHashMap<>();
-    private final Map<String, Long> kernelCache = new ConcurrentHashMap<>();
+    /**
+     * Per-(program, kernel) pool of free kernel handles. Used by {@link #borrow}/{@link #release}.
+     */
+    private final Map<String, ConcurrentLinkedDeque<Long>> kernelPool = new ConcurrentHashMap<>();
+    /**
+     * Tracks every kernel handle ever created via this manager so {@link #close} can release them all.
+     */
+    private final ConcurrentLinkedDeque<Long> allKernels = new ConcurrentLinkedDeque<>();
 
     OpenCLKernelManager(OpenCLContext context) {
         this.context = context;
     }
 
     /**
-     * Gets a kernel by program name and kernel name.
-     * Compiles the program if not already cached.
-     *
-     * @param programName the program file name (without .cl extension)
-     * @param kernelName  the kernel function name
-     * @return the kernel handle
+     * Borrows a kernel handle private to the calling thread for the duration
+     * of one operation. The caller must {@link #release} the handle when
+     * done; while held, only the borrowing thread should call
+     * {@code clSetKernelArg} on it. Multiple concurrent borrows of the same
+     * (program, kernel) name return distinct handles, removing the need for
+     * a global lock around kernel argument setup.
      */
-    public long getKernel(String programName, String kernelName) {
+    public long borrow(String programName, String kernelName) {
         var key = programName + ":" + kernelName;
-        return kernelCache.computeIfAbsent(key, k -> {
-            var program = getOrCompileProgram(programName);
-            return createKernel(program, kernelName);
-        });
+        var pool = kernelPool.get(key);
+        if (pool != null) {
+            Long existing = pool.pollFirst();
+            if (existing != null) {
+                return existing;
+            }
+        }
+        // Miss: create a fresh kernel against the (already-compiled) program.
+        var program = getOrCompileProgram(programName);
+        long kernel = createKernel(program, kernelName);
+        allKernels.add(kernel);
+        return kernel;
+    }
+
+    /**
+     * Returns a previously-borrowed kernel handle to the pool for reuse.
+     */
+    public void release(String programName, String kernelName, long kernel) {
+        var key = programName + ":" + kernelName;
+        kernelPool.computeIfAbsent(key, k -> new ConcurrentLinkedDeque<>()).offerFirst(kernel);
+    }
+
+    /**
+     * Returns the number of free kernel handles currently in the pool for {@code (programName, kernelName)}.
+     */
+    public int poolSize(String programName, String kernelName) {
+        var pool = kernelPool.get(programName + ":" + kernelName);
+        return pool == null ? 0 : pool.size();
     }
 
     private long getOrCompileProgram(String programName) {
@@ -120,10 +152,11 @@ public class OpenCLKernelManager implements AutoCloseable {
 
     @Override
     public void close() {
-        for (var kernel : kernelCache.values()) {
+        for (var kernel : allKernels) {
             clReleaseKernel(kernel);
         }
-        kernelCache.clear();
+        allKernels.clear();
+        kernelPool.clear();
         for (var program : compiledPrograms.values()) {
             clReleaseProgram(program);
         }

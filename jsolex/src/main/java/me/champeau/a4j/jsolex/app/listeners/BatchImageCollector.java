@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.app.listeners;
 
 import me.champeau.a4j.jsolex.app.jfx.CandidateImageDescriptor;
+import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 
 import java.io.File;
@@ -92,12 +93,15 @@ final class BatchImageCollector {
     }
 
     /**
-     * Adds an image wrapper by label.
+     * Adds an image wrapper by label. The image is wrapped via {@link FileBackedImage}
+     * so its pixel data can spill to disk under memory pressure — batch-scoped retention
+     * across many files would otherwise pin every output image in heap.
      */
     void addImageByLabel(String label, ImageWrapper image) {
+        var backed = FileBackedImage.wrap(image);
         dataLock.writeLock().lock();
         try {
-            imagesByLabel.computeIfAbsent(label, unused -> new ArrayList<>()).add(image);
+            imagesByLabel.computeIfAbsent(label, unused -> new ArrayList<>()).add(backed);
         } finally {
             dataLock.writeLock().unlock();
         }
@@ -116,12 +120,15 @@ final class BatchImageCollector {
     }
 
     /**
-     * Adds an image wrapper by sequence number.
+     * Adds an image wrapper by sequence number. The image is wrapped via {@link FileBackedImage}
+     * so its pixel data can spill to disk under memory pressure — batch-scoped retention
+     * across many files would otherwise pin every output image in heap.
      */
     void addImageByIndex(int sequenceNumber, ImageWrapper image) {
+        var backed = FileBackedImage.wrap(image);
         dataLock.writeLock().lock();
         try {
-            imageWrappersByIndex.computeIfAbsent(sequenceNumber, unused -> new ArrayList<>()).add(image);
+            imageWrappersByIndex.computeIfAbsent(sequenceNumber, unused -> new ArrayList<>()).add(backed);
         } finally {
             dataLock.writeLock().unlock();
         }

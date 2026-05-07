@@ -161,6 +161,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.WeakHashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
@@ -171,7 +172,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
-import static me.champeau.a4j.jsolex.app.jfx.BatchOperations.blockingUntilResultAvailable;
 import static me.champeau.a4j.jsolex.app.jfx.FXUtils.newModalStage;
 import static me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper.computeSerFileBasename;
 
@@ -217,10 +217,13 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private static final DopplerMeasurementMethod ROTATION_PROFILE_DOPPLER_METHOD = DopplerMeasurementMethod.VOIGT_FIT;
 
     // Record to hold velocity measurement with its position data for weighted averaging
-    private record VelocityMeasurement(double velocity, double longitudeFraction) {}
+    private record VelocityMeasurement(double velocity, double longitudeFraction) {
+    }
 
     private final Map<SuggestionEvent.SuggestionKind, String> suggestions = Collections.synchronizedMap(new LinkedHashMap<>());
     private final Map<Double, ReconstructionView> imageViews;
+    private final Map<Double, byte[]> solarImageBuffers = new ConcurrentHashMap<>();
+    private final Set<Double> pendingViewCreation = ConcurrentHashMap.newKeySet();
     private final JSolExInterface owner;
     private final ProgressOperation rootOperation;
     private final String baseName;
@@ -309,7 +312,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         this.shiftImages = new HashMap<>();
         this.processingDate = processingDate;
         this.spectral3DHelper = new Spectral3DVisualizationHelper(this);
-        imageViews = new HashMap<>();
+        imageViews = new ConcurrentHashMap<>();
         sd = 0;
         width = 0;
         height = 0;
@@ -409,24 +412,24 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         height = event.getHeight();
     }
 
-    private ReconstructionView createImageView(double pixelShift) {
-        var buffer = new byte[3 * width * height];
-        var reconstructionView = blockingUntilResultAvailable(() -> owner.getImagesViewer().addImage(this,
+    private ReconstructionView createImageViewOnFx(double pixelShift, byte[] buffer, int bufferWidth, int bufferHeight,
+                                                   int spectrumWidth, int spectrumHeight) {
+        var reconstructionView = owner.getImagesViewer().addImage(this,
                 rootOperation,
                 message("image.reconstruction"), baseName,
                 GeneratedImageKind.RECONSTRUCTION, null, null, null, params, popupViews, new PixelShift(pixelShift),
                 viewer -> {
                     var parentWidth = owner.getImagesViewer().widthProperty();
                     viewer.getImageView().getScrollPane().maxWidthProperty().bind(parentWidth);
-                    return new ReconstructionView(viewer.getImageView(), buffer);
+                    return new ReconstructionView(viewer.getImageView(), buffer, bufferWidth, bufferHeight);
                 },
                 viewer -> {
 
-                }));
+                });
         var imageView = reconstructionView.getSolarView();
-        var image = new WritableImage(width, height);
-        imageView.setImage(image);
+        imageView.setImage(new WritableImage(bufferWidth, bufferHeight));
         imageView.resetZoom();
+        reconstructionView.getSpectrumView().setImage(new WritableImage(spectrumWidth, spectrumHeight));
         return reconstructionView;
     }
 
@@ -446,31 +449,52 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             return;
         }
 
-        var reconstructionView = getOrCreateImageView(event);
-        var imageView = reconstructionView.getSolarView();
-        imageView.resetZoom();
-        var image = (WritableImage) imageView.getImage();
+        var pixelShift = payload.pixelShift();
         var line = payload.data();
-        var rgb = reconstructionView.getSolarImageData();
+        var lineWidth = line.length;
+        var bufferHeight = totalLines;
+        var rgb = solarImageBuffers.computeIfAbsent(pixelShift, k -> {
+            var buf = new byte[4 * lineWidth * bufferHeight];
+            for (int i = 3; i < buf.length; i += 4) {
+                buf[i] = (byte) 0xFF;
+            }
+            return buf;
+        });
 
-        // Update the current row in the rgb buffer.
-        for (var x = 0; x < line.length; x++) {
+        // Update the current row in the BGRA buffer (alpha already 0xFF from initialization).
+        for (var x = 0; x < lineWidth; x++) {
             var v = (int) Math.round(line[x]);
             var c = (byte) (v >> 8);
-            var offset = 3 * (y * width + x);
+            var offset = 4 * (y * lineWidth + x);
             rgb[offset] = c;
             rgb[offset + 1] = c;
             rgb[offset + 2] = c;
         }
 
-        // Ensure the spectrum image is ready.
         var spectrum = payload.spectrum();
-        var pixelformat = PixelFormat.getByteRgbInstance();
-        var spectrumView = reconstructionView.getSpectrumView();
-        if (spectrumView.getImage() == null) {
-            spectrumView.setImage(new WritableImage(spectrum.width(), spectrum.height()));
+        var spectrumWidth = spectrum.width();
+        var spectrumHeight = spectrum.height();
+        var reconstructionView = imageViews.get(pixelShift);
+        if (reconstructionView == null) {
+            // View not ready yet — schedule async creation and skip this UI flush.
+            // The rgb buffer is already up to date; the next periodic flush (or the
+            // final flush in onReconstructionDone) will pick up everything.
+            if (pendingViewCreation.add(pixelShift)) {
+                Platform.runLater(() -> {
+                    try {
+                        imageViews.put(pixelShift, createImageViewOnFx(pixelShift, rgb, lineWidth, bufferHeight, spectrumWidth, spectrumHeight));
+                    } finally {
+                        pendingViewCreation.remove(pixelShift);
+                    }
+                });
+            }
+            return;
         }
-        var spectrumImage = (WritableImage) spectrumView.getImage();
+        var imageView = reconstructionView.getSolarView();
+        imageView.resetZoom();
+        var image = (WritableImage) imageView.getImage();
+        var pixelformat = PixelFormat.getByteBgraPreInstance();
+        var spectrumImage = (WritableImage) reconstructionView.getSpectrumView().getImage();
 
         var currentTime = System.currentTimeMillis();
         var lastUpdate = lastUIUpdateTime.get();
@@ -489,15 +513,15 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                                         pixelformat,
                                         spectrumBuffer,
                                         0,
-                                        3 * spectrum.width()
+                                        4 * spectrum.width()
                                 );
                                 image.getPixelWriter().setPixels(
                                         0, 0,
-                                        width, y + 1,
+                                        lineWidth, y + 1,
                                         pixelformat,
                                         rgb,
                                         0,
-                                        3 * width
+                                        4 * lineWidth
                                 );
                             } finally {
                                 lock.release();
@@ -511,38 +535,36 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
     private void forceFinalUIUpdate(ReconstructionView reconstructionView) {
         var lock = reconstructionView.getLock();
-        if (lock.tryAcquire()) {
-            Thread.startVirtualThread(() -> {
-                Platform.runLater(() -> {
-                    try {
-                        var solarView = reconstructionView.getSolarView();
-                        var solarImage = (WritableImage) solarView.getImage();
-                        var spectrumView = reconstructionView.getSpectrumView();
-                        var spectrumImage = (WritableImage) spectrumView.getImage();
-
-                        if (solarImage != null && spectrumImage != null) {
-                            var rgb = reconstructionView.getSolarImageData();
-                            var pixelformat = PixelFormat.getByteRgbInstance();
-                            var imageWidth = (int) solarImage.getWidth();
-                            var imageHeight = (int) solarImage.getHeight();
-                            var expectedSize = 3 * imageWidth * imageHeight;
-                            if (rgb.length == expectedSize) {
-                                solarImage.getPixelWriter().setPixels(
-                                        0, 0,
-                                        imageWidth, imageHeight,
-                                        pixelformat,
-                                        rgb,
-                                        0,
-                                        3 * imageWidth
-                                );
-                            }
-                        }
-                    } finally {
-                        lock.release();
+        Thread.startVirtualThread(() -> {
+            try {
+                lock.acquire();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+            Platform.runLater(() -> {
+                try {
+                    var solarView = reconstructionView.getSolarView();
+                    var solarImage = (WritableImage) solarView.getImage();
+                    if (solarImage == null) {
+                        return;
                     }
-                });
+                    var rgb = reconstructionView.getSolarImageData();
+                    var bufferWidth = reconstructionView.getSolarImageWidth();
+                    var bufferHeight = reconstructionView.getSolarImageHeight();
+                    solarImage.getPixelWriter().setPixels(
+                            0, 0,
+                            bufferWidth, bufferHeight,
+                            PixelFormat.getByteBgraPreInstance(),
+                            rgb,
+                            0,
+                            4 * bufferWidth
+                    );
+                } finally {
+                    lock.release();
+                }
             });
-        }
+        });
     }
 
     @Override
@@ -550,21 +572,28 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         var serFileReader = e.getPayload().reader();
         var frameCount = serFileReader.header().frameCount();
         var converter = ImageUtils.createImageConverter(params.videoParams().colorMode(), params.geometryParams().isSpectrumVFlip());
-        var pixelformat = PixelFormat.getByteRgbInstance();
+        var pixelformat = PixelFormat.getByteBgraPreInstance();
         if (reconstructionProgress != null) {
             onProgress(ProgressEvent.of(reconstructionProgress.complete()));
         }
         reconstructionProgress = null;
 
-        // Force final UI updates for all reconstruction views to ensure complete display
-        imageViews.entrySet().forEach(entry -> {
-            var view = entry.getValue();
-            forceFinalUIUpdate(view);
-        });
+        // Force final UI updates for all reconstruction views to ensure complete display.
+        // Iterate the rgb buffers (populated synchronously) rather than imageViews, then
+        // defer to the FX thread so any pending view-creation tasks have completed first.
+        var pixelShifts = List.copyOf(solarImageBuffers.keySet());
+        Platform.runLater(() -> pixelShifts.forEach(pixelShift -> {
+            var view = imageViews.get(pixelShift);
+            if (view != null) {
+                forceFinalUIUpdate(view);
+            }
+        }));
 
-        imageViews.entrySet().forEach(entry -> {
-            var pixelShift = entry.getKey();
-            var view = entry.getValue();
+        Platform.runLater(() -> pixelShifts.forEach(pixelShift -> {
+            var view = imageViews.get(pixelShift);
+            if (view == null) {
+                return;
+            }
             var solarViewOverlay = view.getSolarViewOverlay();
             var solarView = view.getSolarView();
             stretchReconstructionView(solarView);
@@ -609,7 +638,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     view.setSpectrumImage(spectrum);
                     Platform.runLater(() -> {
                         var pixelWriter = ((WritableImage) view.getSpectrumView().getImage()).getPixelWriter();
-                        pixelWriter.setPixels(0, 0, geometry.width(), geometry.height(), pixelformat, imageBytes, 0, 3 * geometry.width());
+                        pixelWriter.setPixels(0, 0, geometry.width(), geometry.height(), pixelformat, imageBytes, 0, 4 * geometry.width());
                     });
                     if (polynomial != null) {
                         // Store the clicked column and update the profile tab (detailed mode)
@@ -636,7 +665,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     });
                 }
             });
-        });
+        }));
     }
 
     private void stretchReconstructionView(ZoomableImageView solarView) {
@@ -669,10 +698,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         });
     }
 
-
-    private synchronized ReconstructionView getOrCreateImageView(PartialReconstructionEvent event) {
-        return imageViews.computeIfAbsent(event.getPayload().pixelShift(), this::createImageView);
-    }
 
     @Override
     public void onImageGenerated(ImageGeneratedEvent event) {
@@ -953,7 +978,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
 
     private void generateRotationProfileChart(AverageImageComputedEvent.AverageImage payload,
-                                               ReferenceCoords refCoords, Ellipse ellipse, SolarParameters solarParams) {
+                                              ReferenceCoords refCoords, Ellipse ellipse, SolarParameters solarParams) {
         var params = payload.adjustedParams();
         var lambda0 = params.spectrumParams().ray().wavelength();
         var binning = params.observationDetails().binning();
@@ -984,9 +1009,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
         // Check for HFLIP/VFLIP to determine actual image orientation
         var hasHFlip = refCoords.operations().stream()
-            .anyMatch(op -> op.kind() == ReferenceCoords.OperationKind.HFLIP);
+                .anyMatch(op -> op.kind() == ReferenceCoords.OperationKind.HFLIP);
         var hasVFlip = refCoords.operations().stream()
-            .anyMatch(op -> op.kind() == ReferenceCoords.OperationKind.VFLIP);
+                .anyMatch(op -> op.kind() == ReferenceCoords.OperationKind.VFLIP);
 
         // Longitude sign convention: East limb = negative longitude, West limb = positive
         // After LEFT_ROTATION without HFLIP: orientation is mirrored, so signs swap
@@ -1012,10 +1037,10 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         var config = differentialRotationConfig;
         Thread.startVirtualThread(() -> {
             var velocityData = computeRotationProfile(
-                refCoords, range, polynomial, start, end, height,
-                lambda0, dispersion, centerX, centerY, radius, b0, angleP, eastLonSign, latSign,
-                config,
-                progress -> Platform.runLater(() -> progressBar.setProgress(progress))
+                    refCoords, range, polynomial, start, end, height,
+                    lambda0, dispersion, centerX, centerY, radius, b0, angleP, eastLonSign, latSign,
+                    config,
+                    progress -> Platform.runLater(() -> progressBar.setProgress(progress))
             );
 
             Platform.runLater(() -> {
@@ -1028,13 +1053,13 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     }
 
     private List<double[]> computeRotationProfile(ReferenceCoords refCoords,
-                                                   PixelShiftRange range, DoubleUnaryOperator polynomial,
-                                                   int start, int end, int height,
-                                                   Wavelen lambda0, Dispersion dispersion,
-                                                   double centerX, double centerY, double radius,
-                                                   double b0, double angleP, int eastLonSign, int latSign,
-                                                   DifferentialRotationConfig config,
-                                                   DoubleConsumer progressCallback) {
+                                                  PixelShiftRange range, DoubleUnaryOperator polynomial,
+                                                  int start, int end, int height,
+                                                  Wavelen lambda0, Dispersion dispersion,
+                                                  double centerX, double centerY, double radius,
+                                                  double b0, double angleP, int eastLonSign, int latSign,
+                                                  DifferentialRotationConfig config,
+                                                  DoubleConsumer progressCallback) {
         var velocityData = new ArrayList<double[]>();
         int totalPoints = 0;
 
@@ -1120,7 +1145,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                             // longitudeFraction: 0 at limb (best accuracy), 1 at meridian (worst)
                             var longitudeFraction = 1.0 - Math.abs(lonDeg) / limbLongitude;
                             measurementsByLat.computeIfAbsent(latBin, k -> new ArrayList<>())
-                                .add(new VelocityMeasurement(equatorialVelocity, longitudeFraction));
+                                    .add(new VelocityMeasurement(equatorialVelocity, longitudeFraction));
                         }
                     }
                 }
@@ -1139,8 +1164,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             var velocities = measurements.stream().map(VelocityMeasurement::velocity).toList();
             // For weighted average: weight = 1 - longitudeFraction (higher weight at limb)
             var weights = measurements.stream()
-                .map(m -> 1.0 - m.longitudeFraction())
-                .toList();
+                    .map(m -> 1.0 - m.longitudeFraction())
+                    .toList();
             // Apply sample rejection before aggregation
             var filtered = sampleRejection.filter(velocities, weights);
             var result = noiseReduction.aggregate(filtered.velocities(), filtered.weights());
@@ -1156,10 +1181,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     }
 
 
-
     private static List<double[]> applyLatitudeSmoothingFilter(List<double[]> velocityData,
-                                                                double windowDeg,
-                                                                NoiseReductionMethod noiseReduction) {
+                                                               double windowDeg,
+                                                               NoiseReductionMethod noiseReduction) {
         var filtered = new ArrayList<double[]>();
         var halfWindow = windowDeg / 2.0;
         for (int i = 0; i < velocityData.size(); i++) {
@@ -1245,9 +1269,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 var theoreticalVEq = snodgrassVelocity(latDeg);
                 var fitVEq = fittedCoeffs.tangentialVelocity(latDeg) / cosLat; // Convert back to equatorial
                 writer.printf(Locale.US, "%.2f;%.4f;%.4f;%.4f;%.4f;%.4f;%.4f;%.4f;%.4f%n",
-                    latDeg, vEq * cosLat, madEq * cosLat, theoreticalVEq * cosLat, fittedCoeffs.tangentialVelocity(latDeg),
-                    velocityToAngularVelocity(vEq), velocityToAngularVelocity(madEq),
-                    snodgrassAngularVelocity(latDeg), fittedCoeffs.angularVelocity(latDeg));
+                        latDeg, vEq * cosLat, madEq * cosLat, theoreticalVEq * cosLat, fittedCoeffs.tangentialVelocity(latDeg),
+                        velocityToAngularVelocity(vEq), velocityToAngularVelocity(madEq),
+                        snodgrassAngularVelocity(latDeg), fittedCoeffs.angularVelocity(latDeg));
             }
             // Add fitted coefficients as a comment at the end
             writer.printf(Locale.US, "%n# Fitted coefficients: A=%.4f, B=%.4f, C=%.4f%n", fittedCoeffs.a(), fittedCoeffs.b(), fittedCoeffs.c());
@@ -1259,9 +1283,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             return createDualRotationLayout(chartTitle, vc, ac, fittedCoeffs);
         };
         registerSaveChartAction(new GraphData.DifferentialVelocityData(
-            velocityChart, dualLayoutFactory, csvWriter));
+                velocityChart, dualLayoutFactory, csvWriter));
         registerSaveChartAction(new GraphData.DifferentialVelocityData(
-            angularChart, dualLayoutFactory, csvWriter));
+                angularChart, dualLayoutFactory, csvWriter));
 
         // Display in a new window
         var stage = new Stage();
@@ -1304,9 +1328,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
         // Display fitted coefficients compared to reference (Snodgrass & Ulrich 1990)
         var coeffsLabel = new Label(String.format(Locale.US,
-            "Fitted: ω(φ) = %.3f %+.3f·sin²φ %+.3f·sin⁴φ  |  Snodgrass & Ulrich (1990): ω(φ) = %.3f %+.3f·sin²φ %+.3f·sin⁴φ  (deg/day)",
-            fittedCoeffs.a(), fittedCoeffs.b(), fittedCoeffs.c(),
-            SNODGRASS_A, SNODGRASS_B, SNODGRASS_C));
+                "Fitted: ω(φ) = %.3f %+.3f·sin²φ %+.3f·sin⁴φ  |  Snodgrass & Ulrich (1990): ω(φ) = %.3f %+.3f·sin²φ %+.3f·sin⁴φ  (deg/day)",
+                fittedCoeffs.a(), fittedCoeffs.b(), fittedCoeffs.c(),
+                SNODGRASS_A, SNODGRASS_B, SNODGRASS_C));
         coeffsLabel.setStyle("-fx-font-size: 12px; -fx-font-family: monospace;");
         coeffsLabel.setMaxWidth(Double.MAX_VALUE);
         coeffsLabel.setAlignment(Pos.CENTER);
@@ -1319,7 +1343,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         return vbox;
     }
 
-    private record ErrorBarParts(Line stem, Line topCap, Line bottomCap, double mad) {}
+    private record ErrorBarParts(Line stem, Line topCap, Line bottomCap, double mad) {
+    }
 
     private static void addErrorBarsToChart(LineChart<Number, Number> chart, List<double[]> velocityData, boolean angularVelocity) {
         var yAxis = (NumberAxis) chart.getYAxis();
@@ -1800,14 +1825,14 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
     private ScriptExecutionContext prepareExecutionContext(ProcessingDoneEvent.Outcome payload) {
         return ScriptExecutionContext.forProcessing(payload.processParams(), serFile.toPath(), payload.pixelShiftRange(), header)
-            .ellipse(payload.ellipse())
-            .imageStats(payload.imageStats())
-            .imageEmitter(payload.customImageEmitter())
-            .animationFormats(Configuration.getInstance().getAnimationFormats())
-            .progressOperation(rootOperation)
-            .serFileReader(payload.serFileReader())
-            .spectralLinePolynomial(payload.polynomialCoefficients() != null ? new SpectralLinePolynomial(payload.polynomialCoefficients()) : null)
-            .build();
+                .ellipse(payload.ellipse())
+                .imageStats(payload.imageStats())
+                .imageEmitter(payload.customImageEmitter())
+                .animationFormats(Configuration.getInstance().getAnimationFormats())
+                .progressOperation(rootOperation)
+                .serFileReader(payload.serFileReader())
+                .spectralLinePolynomial(payload.polynomialCoefficients() != null ? new SpectralLinePolynomial(payload.polynomialCoefficients()) : null)
+                .build();
     }
 
     @Override
@@ -2355,9 +2380,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         // Helper to run the measurement
         Runnable runMeasurement = () -> {
             var referenceImage = shiftImages.entrySet().stream()
-                .min(Comparator.comparingDouble(e2 -> Math.abs(e2.getKey().pixelShift())))
-                .map(Map.Entry::getValue)
-                .orElse(null);
+                    .min(Comparator.comparingDouble(e2 -> Math.abs(e2.getKey().pixelShift())))
+                    .map(Map.Entry::getValue)
+                    .orElse(null);
             if (referenceImage == null) {
                 return;
             }
@@ -2382,8 +2407,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         customMeasurementButton.setDisable(true);
         customMeasurementButton.setOnAction(evt -> {
             var result = DifferentialRotationConfigDialog.show(
-                measureVelocityButton.getScene().getWindow(),
-                differentialRotationConfig
+                    measureVelocityButton.getScene().getWindow(),
+                    differentialRotationConfig
             );
             result.ifPresent(config -> {
                 differentialRotationConfig = config;
@@ -2967,7 +2992,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             var outputFile = new File(outputDirectory.toFile(), name);
             var image = entry.getValue();
             image.metadata().put(SpectroSolHubImageKind.class,
-                new SpectroSolHubImageKind(OutputMetadata.computeSpectroSolHubImageKind(label, metadata)));
+                    new SpectroSolHubImageKind(OutputMetadata.computeSpectroSolHubImageKind(label, metadata)));
             onImageGenerated(new ImageGeneratedEvent(
                     new GeneratedImage(GeneratedImageKind.IMAGE_MATH, label, outputFile.toPath(), image, description, displayTitle)
             ));

@@ -68,7 +68,6 @@ import javafx.stage.Stage;
 import javafx.util.Duration;
 import javafx.util.StringConverter;
 import javafx.util.converter.IntegerStringConverter;
-import me.champeau.a4j.jsolex.app.AlertFactory;
 import me.champeau.a4j.jsolex.app.jfx.AdvancedParamsController;
 import me.champeau.a4j.jsolex.app.jfx.ApplyUserRotation;
 import me.champeau.a4j.jsolex.app.jfx.AssistedEllipseFittingController;
@@ -79,8 +78,6 @@ import me.champeau.a4j.jsolex.app.jfx.EmbeddedServerController;
 import me.champeau.a4j.jsolex.app.jfx.ExposureCalculator;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
 import me.champeau.a4j.jsolex.app.jfx.ImageMathEditor;
-import me.champeau.a4j.jsolex.app.jfx.ime.HighlightingMode;
-import me.champeau.a4j.jsolex.app.jfx.ScriptErrorDialog;
 import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
 import me.champeau.a4j.jsolex.app.jfx.MetadataEditor;
 import me.champeau.a4j.jsolex.app.jfx.MultipleImagesViewer;
@@ -101,9 +98,9 @@ import me.champeau.a4j.jsolex.app.jfx.SpectroHeliographEditor;
 import me.champeau.a4j.jsolex.app.jfx.SpectrumBrowser;
 import me.champeau.a4j.jsolex.app.jfx.StandaloneImagesLoader;
 import me.champeau.a4j.jsolex.app.jfx.bass2000.Bass2000SubmissionController;
+import me.champeau.a4j.jsolex.app.jfx.ime.ImageMathTextArea;
 import me.champeau.a4j.jsolex.app.jfx.spectrosolhub.SpectroSolHubLoginPane;
 import me.champeau.a4j.jsolex.app.jfx.spectrosolhub.SpectroSolHubSubmissionController;
-import me.champeau.a4j.jsolex.app.jfx.ime.ImageMathTextArea;
 import me.champeau.a4j.jsolex.app.jfx.stacking.StackingAndMosaicController;
 import me.champeau.a4j.jsolex.app.listeners.BatchModeEventListener;
 import me.champeau.a4j.jsolex.app.listeners.BatchProcessingContext;
@@ -124,14 +121,15 @@ import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
 import me.champeau.a4j.jsolex.processing.expr.InvalidExpression;
 import me.champeau.a4j.jsolex.processing.expr.ScriptExecutionContext;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
-import me.champeau.a4j.jsolex.processing.params.ScriptParameterExtractor;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.NumberParameter;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParamsIO;
 import me.champeau.a4j.jsolex.processing.params.RotationKind;
 import me.champeau.a4j.jsolex.processing.params.ScriptParameter;
+import me.champeau.a4j.jsolex.processing.params.ScriptParameterExtractor;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
+import me.champeau.a4j.jsolex.processing.spectrum.ReferenceIntensities;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper;
 import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
@@ -143,18 +141,17 @@ import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.jsolex.processing.util.Bass2000ConfigService;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.DurationFormatter;
-import me.champeau.a4j.jsolex.processing.util.SpectroSolHubClient;
-import me.champeau.a4j.jsolex.processing.util.spectrosolhub.SpectroSolHubException;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.LiveSessionManager;
 import me.champeau.a4j.jsolex.processing.util.LocaleUtils;
 import me.champeau.a4j.jsolex.processing.util.LoggingSupport;
-import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.NativeLibrariesUtils;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
+import me.champeau.a4j.jsolex.processing.util.SpectroSolHubClient;
 import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
 import me.champeau.a4j.jsolex.processing.util.VersionUtil;
+import me.champeau.a4j.jsolex.processing.util.spectrosolhub.SpectroSolHubException;
 import me.champeau.a4j.math.VectorApiSupport;
 import me.champeau.a4j.math.opencl.OpenCLSupport;
 import me.champeau.a4j.math.regression.Ellipse;
@@ -540,7 +537,11 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             });
             startWatcherThread();
             repositoryUpdateService.checkAtStartup();
-            Thread.startVirtualThread(() -> UpdateChecker.findLatestRelease().ifPresent(this::maybeWarnAboutNewRelease));
+            Thread.startVirtualThread(() -> {
+                // pre-load reference intensities in background to avoid blocking the UI later on when they're first needed
+                var _ = ReferenceIntensities.INSTANCE;
+                UpdateChecker.findLatestRelease().ifPresent(this::maybeWarnAboutNewRelease);
+            });
             LOGGER.info(message("java.runtime.version"), System.getProperty("java.version"));
             LOGGER.info(message("vector.api.support"), VectorApiSupport.isPresent() ? message("vector.api.available") : message("vector.api.missing"),
                     VectorApiSupport.isEnabled() ? message("vector.api.enabled") + MessageFormat.format(message("vector.api.enabled.disable.hint"), VectorApiSupport.VECTOR_API_ENV_VAR) : message("vector.api.disabled"));
@@ -653,8 +654,8 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     /**
      * Creates a new scene with the JSolEx stylesheet applied.
      *
-     * @param root the root node
-     * @param width the scene width
+     * @param root   the root node
+     * @param width  the scene width
      * @param height the scene height
      * @return the configured scene
      */
@@ -827,13 +828,13 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         alert.showAndWait().ifPresent(button -> {
             if (button == retry) {
                 OpenGLAvailability.retryCheck().thenAccept(available ->
-                    Platform.runLater(() -> {
-                        if (available) {
-                            AlertFactory.info(message("opengl.crash.retry.success")).showAndWait();
-                        } else {
-                            AlertFactory.warning(message("opengl.crash.retry.failure")).showAndWait();
-                        }
-                    })
+                        Platform.runLater(() -> {
+                            if (available) {
+                                AlertFactory.info(message("opengl.crash.retry.success")).showAndWait();
+                            } else {
+                                AlertFactory.warning(message("opengl.crash.retry.failure")).showAndWait();
+                            }
+                        })
                 );
             } else if (button == deactivate) {
                 OpenGLAvailability.disableOpenGL();
@@ -1092,8 +1093,8 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
                     executor.putVariable(entry.getKey(), entry.getValue());
                 }
                 var result = isPythonScript()
-                    ? executor.executePythonScript(text, section)
-                    : executor.execute(text, section);
+                        ? executor.executePythonScript(text, section)
+                        : executor.execute(text, section);
                 // Python scripts handle batch mode via explicit batch() function, not automatic "both sections"
                 if (shouldRunBothSections && !isPythonScript()) {
                     var previousVariables = new HashMap<String, Object>();
@@ -1135,9 +1136,9 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             var fileChooser = new FileChooser();
             config.findLastOpenDirectory(Configuration.DirectoryKind.IMAGE_MATH).ifPresent(dir -> fileChooser.setInitialDirectory(dir.toFile()));
             fileChooser.getExtensionFilters().addAll(
-                ImageMathEditor.ALL_SCRIPTS_EXTENSION_FILTER,
-                ImageMathEditor.MATH_SCRIPT_EXTENSION_FILTER,
-                ImageMathEditor.PY_SCRIPT_EXTENSION_FILTER
+                    ImageMathEditor.ALL_SCRIPTS_EXTENSION_FILTER,
+                    ImageMathEditor.MATH_SCRIPT_EXTENSION_FILTER,
+                    ImageMathEditor.PY_SCRIPT_EXTENSION_FILTER
             );
             var file = fileChooser.showOpenDialog(rootStage);
             loadImageMathScriptFrom(file);
@@ -1154,13 +1155,13 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             var selectedLanguage = scriptLanguageChoice.getValue();
             if (selectedLanguage == ImageMathEditor.ScriptLanguage.PYTHON) {
                 fileChooser.getExtensionFilters().addAll(
-                    ImageMathEditor.PY_SCRIPT_EXTENSION_FILTER,
-                    ImageMathEditor.MATH_SCRIPT_EXTENSION_FILTER
+                        ImageMathEditor.PY_SCRIPT_EXTENSION_FILTER,
+                        ImageMathEditor.MATH_SCRIPT_EXTENSION_FILTER
                 );
             } else {
                 fileChooser.getExtensionFilters().addAll(
-                    ImageMathEditor.MATH_SCRIPT_EXTENSION_FILTER,
-                    ImageMathEditor.PY_SCRIPT_EXTENSION_FILTER
+                        ImageMathEditor.MATH_SCRIPT_EXTENSION_FILTER,
+                        ImageMathEditor.PY_SCRIPT_EXTENSION_FILTER
                 );
             }
             var file = fileChooser.showSaveDialog(rootStage);
@@ -1989,7 +1990,8 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         var rootOperation = createRootOperation(selectedFile.getName());
         Platform.runLater(() -> imageMathRun.setDisable(true));
         var processingThread =
-                new Thread(() -> processSingleFile(params, rootOperation, selectedFile, false, 0, selectedFile, firstHeader, () -> {}, () -> Platform.runLater(() -> {
+                new Thread(() -> processSingleFile(params, rootOperation, selectedFile, false, 0, selectedFile, firstHeader, () -> {
+                }, () -> Platform.runLater(() -> {
                     workButtons.getChildren().remove(interruptButton);
                     imageMathRun.setDisable(false);
                 })));
@@ -2298,7 +2300,8 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         }
         var appender = LogbackConfigurer.createContextualFileAppender(sequenceNumber, logFile);
         LoggingSupport.LOGGER.info(message("output.dir.set"), outputDirectory);
-        var processorContext = Map.<Class<?>, Object>of(AnimationFormat.class, config.getAnimationFormats());
+        var processorContext = new HashMap<Class<?>, Object>();
+        processorContext.put(AnimationFormat.class, config.getAnimationFormats());
         var processor = new SolexVideoProcessor(selectedFile, outputDirectory.toPath(), sequenceNumber, params, processingDate, batchMode, batchMode ? config.getBatchParallelism() : 1, config.getMemoryRestrictionMultiplier(), operation, processorContext);
         processor.setOnReconstructionComplete(onReconstructionComplete);
         var listener = createListener(operation, baseName, params, batchMode, sequenceNumber, context);

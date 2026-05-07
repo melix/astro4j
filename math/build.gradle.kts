@@ -12,7 +12,9 @@ astro4j {
 }
 
 dependencies {
+    api(projects.utilities)
     implementation(libs.commons.math)
+    implementation(libs.slf4j.api)
 
     implementation(libs.lwjgl)
     implementation(libs.lwjgl.opencl)

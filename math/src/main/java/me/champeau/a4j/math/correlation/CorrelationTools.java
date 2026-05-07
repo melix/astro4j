@@ -16,14 +16,16 @@
 package me.champeau.a4j.math.correlation;
 
 import me.champeau.a4j.math.fft.FFTSupport;
+import me.champeau.a4j.math.opencl.GpuOp;
 import me.champeau.a4j.math.opencl.OpenCLContext;
 import me.champeau.a4j.math.opencl.OpenCLSupport;
-import org.lwjgl.system.MemoryStack;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static org.lwjgl.opencl.CL10.*;
+import static org.lwjgl.opencl.CL10.CL_MEM_READ_ONLY;
+import static org.lwjgl.opencl.CL10.CL_MEM_WRITE_ONLY;
+import static org.lwjgl.opencl.CL10.CL_MEM_READ_WRITE;
 
 /**
  * Batched correlation for tile-based image alignment.
@@ -70,9 +72,7 @@ public class CorrelationTools {
         var context = OpenCLSupport.getContext();
         if (context != null && OpenCLSupport.isEnabled() && numTiles >= MIN_TILES_FOR_GPU) {
             try {
-                return context.tryExecuteWithLock(
-                        () -> batchedCorrelationGPU(context, refTiles, targetTiles, normalize),
-                        () -> batchedCorrelationCPU(refTiles, targetTiles, normalize));
+                return batchedCorrelationGPU(context, refTiles, targetTiles, normalize);
             } catch (Exception e) {
                 context.recordError("Correlation.batchedCorrelation", e);
             }
@@ -112,52 +112,25 @@ public class CorrelationTools {
         var targetFlat = flatten3D(targetTiles);
         var gpuResults = new float[numTiles * 3];
 
-        return context.executeWithLock(() -> {
-            long refBuffer = 0;
-            long targetBuffer = 0;
-            long resultBuffer = 0;
-            try {
-                refBuffer = context.allocateBuffer(refFlat.length * Float.BYTES, CL_MEM_READ_ONLY);
-                targetBuffer = context.allocateBuffer(targetFlat.length * Float.BYTES, CL_MEM_READ_ONLY);
-                resultBuffer = context.allocateBuffer(gpuResults.length * Float.BYTES, CL_MEM_WRITE_ONLY);
+        return context.runOp(op -> {
+            var refBuffer = op.allocateBuffer(refFlat.length * Float.BYTES, CL_MEM_READ_ONLY);
+            var targetBuffer = op.allocateBuffer(targetFlat.length * Float.BYTES, CL_MEM_READ_ONLY);
+            var resultBuffer = op.allocateBuffer(gpuResults.length * Float.BYTES, CL_MEM_WRITE_ONLY);
+            op.write(refBuffer, refFlat);
+            op.write(targetBuffer, targetFlat);
 
-                context.writeBuffer(refBuffer, refFlat);
-                context.writeBuffer(targetBuffer, targetFlat);
+            op.kernel("correlation", "batched_correlation_32")
+                    .arg(refBuffer)
+                    .arg(targetBuffer)
+                    .arg(resultBuffer)
+                    .arg(numTiles)
+                    .arg(normalize ? 1 : 0)
+                    .global((long) numTiles * 32, 32)
+                    .local(32, 32)
+                    .run();
 
-                var kernel = context.getKernelManager().getKernel("correlation", "batched_correlation_32");
-
-                try (var stack = MemoryStack.stackPush()) {
-                    clSetKernelArg(kernel, 0, stack.pointers(refBuffer));
-                    clSetKernelArg(kernel, 1, stack.pointers(targetBuffer));
-                    clSetKernelArg(kernel, 2, stack.pointers(resultBuffer));
-                    clSetKernelArg(kernel, 3, stack.ints(numTiles));
-                    clSetKernelArg(kernel, 4, stack.ints(normalize ? 1 : 0));
-
-                    var globalSize = stack.pointers((long) numTiles * 32, 32);
-                    var localSize = stack.pointers(32, 32);
-
-                    int err = clEnqueueNDRangeKernel(
-                            context.getCommandQueue(),
-                            kernel,
-                            2,
-                            null,
-                            globalSize,
-                            localSize,
-                            null,
-                            null
-                    );
-                    if (err != 0) {
-                        throw new RuntimeException("Failed to enqueue kernel: " + err);
-                    }
-                }
-
-                context.finish();
-                context.readBufferNoSync(resultBuffer, gpuResults);
-
-                return unpackGpuResults(gpuResults, numTiles);
-            } finally {
-                safeRelease(context, refBuffer, targetBuffer, resultBuffer);
-            }
+            op.read(resultBuffer, gpuResults);
+            return unpackGpuResults(gpuResults, numTiles);
         });
     }
 
@@ -170,109 +143,82 @@ public class CorrelationTools {
         var targetFlat = flatten3D(targetTiles);
         var gpuResults = new float[numTiles * 3];
 
-        return context.executeWithLock(() -> {
-            long refInputBuffer = 0;
-            long targetInputBuffer = 0;
-            long refComplexBuffer = 0;
-            long targetComplexBuffer = 0;
-            long tempBuffer = 0;
-            long realBuffer = 0;
-            long resultBuffer = 0;
+        int complexSize = numTiles * tileElements * 2 * Float.BYTES;
+        int realSize = numTiles * tileElements * Float.BYTES;
 
-            try {
-                int complexSize = numTiles * tileElements * 2 * Float.BYTES;
-                int realSize = numTiles * tileElements * Float.BYTES;
+        return context.runOp(op -> {
+            var refInputBuffer = op.allocateBuffer(realSize, CL_MEM_READ_ONLY);
+            var targetInputBuffer = op.allocateBuffer(realSize, CL_MEM_READ_ONLY);
+            var refComplexBuffer = op.allocateBuffer(complexSize, CL_MEM_READ_WRITE);
+            var targetComplexBuffer = op.allocateBuffer(complexSize, CL_MEM_READ_WRITE);
+            var tempBuffer = op.allocateBuffer(complexSize, CL_MEM_READ_WRITE);
+            var realBuffer = op.allocateBuffer(realSize, CL_MEM_READ_WRITE);
+            var resultBuffer = op.allocateBuffer(gpuResults.length * Float.BYTES, CL_MEM_WRITE_ONLY);
 
-                refInputBuffer = context.allocateBuffer(realSize, CL_MEM_READ_ONLY);
-                targetInputBuffer = context.allocateBuffer(realSize, CL_MEM_READ_ONLY);
-                refComplexBuffer = context.allocateBuffer(complexSize, CL_MEM_READ_WRITE);
-                targetComplexBuffer = context.allocateBuffer(complexSize, CL_MEM_READ_WRITE);
-                tempBuffer = context.allocateBuffer(complexSize, CL_MEM_READ_WRITE);
-                realBuffer = context.allocateBuffer(realSize, CL_MEM_READ_WRITE);
-                resultBuffer = context.allocateBuffer(gpuResults.length * Float.BYTES, CL_MEM_WRITE_ONLY);
+            op.write(refInputBuffer, refFlat);
+            op.write(targetInputBuffer, targetFlat);
 
-                context.writeBuffer(refInputBuffer, refFlat);
-                context.writeBuffer(targetInputBuffer, targetFlat);
+            // 1. Hann window for both ref and target
+            applyHann(op, refInputBuffer, refComplexBuffer, tileSize, numTiles);
+            applyHann(op, targetInputBuffer, targetComplexBuffer, tileSize, numTiles);
 
-                var km = context.getKernelManager();
-                var applyHannKernel = km.getKernel("correlation", "apply_hann_window");
-                var fftRowsKernel = km.getKernel("correlation", "fft_rows");
-                var transposeKernel = km.getKernel("correlation", "transpose");
-                var crossPowerKernel = km.getKernel("correlation", "cross_power_spectrum");
-                var scaleIfftKernel = km.getKernel("correlation", "scale_ifft");
-                var fftShiftKernel = km.getKernel("correlation", "fft_shift_real");
-                var findPeaksKernel = km.getKernel("correlation", "find_peaks");
+            // 2-3. Forward 2D FFT for reference and target
+            fft2D(op, refComplexBuffer, tempBuffer, tileSize, logTileSize, numTiles, -1);
+            fft2D(op, targetComplexBuffer, tempBuffer, tileSize, logTileSize, numTiles, -1);
 
-                try (var stack = MemoryStack.stackPush()) {
-                    var queue = context.getCommandQueue();
+            // 4. Cross-power spectrum
+            op.kernel("correlation", "cross_power_spectrum")
+                    .arg(refComplexBuffer)
+                    .arg(targetComplexBuffer)
+                    .arg(tileSize)
+                    .arg(numTiles)
+                    .arg(normalize ? 1 : 0)
+                    .global(tileSize, tileSize, numTiles)
+                    .run();
 
-                    // 1. Apply Hann window to both ref and target
-                    clSetKernelArg(applyHannKernel, 0, stack.pointers(refInputBuffer));
-                    clSetKernelArg(applyHannKernel, 1, stack.pointers(refComplexBuffer));
-                    clSetKernelArg(applyHannKernel, 2, stack.ints(tileSize));
-                    clSetKernelArg(applyHannKernel, 3, stack.ints(numTiles));
-                    enqueue3D(queue, applyHannKernel, tileSize, tileSize, numTiles, stack);
+            // 5. Inverse 2D FFT
+            fft2D(op, refComplexBuffer, tempBuffer, tileSize, logTileSize, numTiles, +1);
 
-                    clSetKernelArg(applyHannKernel, 0, stack.pointers(targetInputBuffer));
-                    clSetKernelArg(applyHannKernel, 1, stack.pointers(targetComplexBuffer));
-                    enqueue3D(queue, applyHannKernel, tileSize, tileSize, numTiles, stack);
+            // 6. Scale by 1/N^2
+            op.kernel("correlation", "scale_ifft")
+                    .arg(refComplexBuffer)
+                    .arg(tileSize)
+                    .arg(numTiles)
+                    .global(tileSize, tileSize, numTiles)
+                    .run();
 
-                    // 2. Forward 2D FFT for reference: rows -> transpose -> rows -> transpose
-                    fft2D(queue, fftRowsKernel, transposeKernel, refComplexBuffer, tempBuffer,
-                            tileSize, logTileSize, numTiles, -1, stack);
+            // 7. FFT shift + extract real part
+            op.kernel("correlation", "fft_shift_real")
+                    .arg(refComplexBuffer)
+                    .arg(realBuffer)
+                    .arg(tileSize)
+                    .arg(numTiles)
+                    .global(tileSize, tileSize, numTiles)
+                    .run();
 
-                    // 3. Forward 2D FFT for target
-                    fft2D(queue, fftRowsKernel, transposeKernel, targetComplexBuffer, tempBuffer,
-                            tileSize, logTileSize, numTiles, -1, stack);
+            // 8. Find peaks
+            op.kernel("correlation", "find_peaks")
+                    .arg(realBuffer)
+                    .arg(resultBuffer)
+                    .arg(tileSize)
+                    .arg(numTiles)
+                    .global(numTiles * 256L)
+                    .local(256)
+                    .run();
 
-                    // 4. Cross-power spectrum (with optional normalization)
-                    clSetKernelArg(crossPowerKernel, 0, stack.pointers(refComplexBuffer));
-                    clSetKernelArg(crossPowerKernel, 1, stack.pointers(targetComplexBuffer));
-                    clSetKernelArg(crossPowerKernel, 2, stack.ints(tileSize));
-                    clSetKernelArg(crossPowerKernel, 3, stack.ints(numTiles));
-                    clSetKernelArg(crossPowerKernel, 4, stack.ints(normalize ? 1 : 0));
-                    enqueue3D(queue, crossPowerKernel, tileSize, tileSize, numTiles, stack);
-
-                    // 5. Inverse 2D FFT
-                    fft2D(queue, fftRowsKernel, transposeKernel, refComplexBuffer, tempBuffer,
-                            tileSize, logTileSize, numTiles, +1, stack);
-
-                    // 6. Scale by 1/N^2
-                    clSetKernelArg(scaleIfftKernel, 0, stack.pointers(refComplexBuffer));
-                    clSetKernelArg(scaleIfftKernel, 1, stack.ints(tileSize));
-                    clSetKernelArg(scaleIfftKernel, 2, stack.ints(numTiles));
-                    enqueue3D(queue, scaleIfftKernel, tileSize, tileSize, numTiles, stack);
-
-                    // 7. FFT shift and extract real part
-                    clSetKernelArg(fftShiftKernel, 0, stack.pointers(refComplexBuffer));
-                    clSetKernelArg(fftShiftKernel, 1, stack.pointers(realBuffer));
-                    clSetKernelArg(fftShiftKernel, 2, stack.ints(tileSize));
-                    clSetKernelArg(fftShiftKernel, 3, stack.ints(numTiles));
-                    enqueue3D(queue, fftShiftKernel, tileSize, tileSize, numTiles, stack);
-
-                    // 8. Find peaks
-                    clSetKernelArg(findPeaksKernel, 0, stack.pointers(realBuffer));
-                    clSetKernelArg(findPeaksKernel, 1, stack.pointers(resultBuffer));
-                    clSetKernelArg(findPeaksKernel, 2, stack.ints(tileSize));
-                    clSetKernelArg(findPeaksKernel, 3, stack.ints(numTiles));
-
-                    var globalSize = stack.pointers(numTiles * 256L);
-                    var localSize = stack.pointers(256);
-                    int err = clEnqueueNDRangeKernel(queue, findPeaksKernel, 1, null, globalSize, localSize, null, null);
-                    if (err != 0) {
-                        throw new RuntimeException("Failed to enqueue find_peaks kernel: " + err);
-                    }
-                }
-
-                context.finish();
-                context.readBufferNoSync(resultBuffer, gpuResults);
-
-                return unpackGpuResults(gpuResults, numTiles);
-            } finally {
-                safeRelease(context, refInputBuffer, targetInputBuffer, refComplexBuffer,
-                        targetComplexBuffer, tempBuffer, realBuffer, resultBuffer);
-            }
+            op.read(resultBuffer, gpuResults);
+            return unpackGpuResults(gpuResults, numTiles);
         });
+    }
+
+    private static void applyHann(GpuOp op, long inputBuffer, long outputComplex, int tileSize, int numTiles) {
+        op.kernel("correlation", "apply_hann_window")
+                .arg(inputBuffer)
+                .arg(outputComplex)
+                .arg(tileSize)
+                .arg(numTiles)
+                .global(tileSize, tileSize, numTiles)
+                .run();
     }
 
     private static float[][] unpackGpuResults(float[] gpuResults, int numTiles) {
@@ -286,94 +232,45 @@ public class CorrelationTools {
         return results;
     }
 
-    private static void safeRelease(OpenCLContext context, long... buffers) {
-        for (long buffer : buffers) {
-            if (buffer != 0) {
-                try {
-                    context.releaseBuffer(buffer);
-                } catch (Exception e) {
-                    System.err.println("[PhaseCorrelation] Failed to release GPU buffer");
-                    e.printStackTrace();
-                }
-            }
-        }
+    private static void fft2D(GpuOp op,
+                              long dataBuffer,
+                              long tempBuffer,
+                              int tileSize,
+                              int logTileSize,
+                              int numTiles,
+                              int direction) {
+        enqueueFFTRows(op, dataBuffer, tileSize, logTileSize, numTiles, direction);
+        enqueueTranspose(op, dataBuffer, tempBuffer, tileSize, numTiles);
+        enqueueFFTRows(op, tempBuffer, tileSize, logTileSize, numTiles, direction);
+        enqueueTranspose(op, tempBuffer, dataBuffer, tileSize, numTiles);
     }
 
-    private void fft2D(long queue,
-                       long fftRowsKernel,
-                       long transposeKernel,
-                       long dataBuffer,
-                       long tempBuffer,
-                       int tileSize,
-                       int logTileSize,
-                       int numTiles,
-                       int direction,
-                       MemoryStack stack) {
-        enqueueFFTRows(queue, fftRowsKernel, dataBuffer, tileSize, logTileSize, numTiles, direction, stack);
-        enqueueTranspose(queue, transposeKernel, dataBuffer, tempBuffer, tileSize, numTiles, stack);
-        enqueueFFTRows(queue, fftRowsKernel, tempBuffer, tileSize, logTileSize, numTiles, direction, stack);
-        enqueueTranspose(queue, transposeKernel, tempBuffer, dataBuffer, tileSize, numTiles, stack);
-    }
-
-    private static void enqueueFFTRows(long queue,
-                                       long kernel,
-                                       long buffer,
-                                       int tileSize,
-                                       int logTileSize,
-                                       int numTiles,
-                                       int direction,
-                                       MemoryStack stack) {
-        clSetKernelArg(kernel, 0, stack.pointers(buffer));
-        clSetKernelArg(kernel, 1, stack.ints(tileSize));
-        clSetKernelArg(kernel, 2, stack.ints(logTileSize));
-        clSetKernelArg(kernel, 3, stack.ints(direction));
-
-        var globalSize = stack.pointers(tileSize, (long) numTiles * tileSize);
-        var localSize = stack.pointers(tileSize, 1);
-        int err = clEnqueueNDRangeKernel(queue, kernel, 2, null, globalSize, localSize, null, null);
-        if (err != 0) {
-            throw new RuntimeException("Failed to enqueue fft_rows kernel: " + err);
-        }
+    private static void enqueueFFTRows(GpuOp op, long buffer, int tileSize, int logTileSize, int numTiles, int direction) {
+        op.kernel("correlation", "fft_rows")
+                .arg(buffer)
+                .arg(tileSize)
+                .arg(logTileSize)
+                .arg(direction)
+                .global(tileSize, (long) numTiles * tileSize)
+                .local(tileSize, 1)
+                .run();
     }
 
     private static final int TRANSPOSE_BLOCK_SIZE = 16;
 
-    private static void enqueueTranspose(long queue,
-                                         long kernel,
-                                         long src,
-                                         long dst,
-                                         int tileSize,
-                                         int numTiles,
-                                         MemoryStack stack) {
-        clSetKernelArg(kernel, 0, stack.pointers(src));
-        clSetKernelArg(kernel, 1, stack.pointers(dst));
-        clSetKernelArg(kernel, 2, stack.ints(tileSize));
-        clSetKernelArg(kernel, 3, stack.ints(numTiles));
-
+    private static void enqueueTranspose(GpuOp op, long src, long dst, int tileSize, int numTiles) {
         // Round up global size to multiple of block size for local memory blocking
-        int globalX = ((tileSize + TRANSPOSE_BLOCK_SIZE - 1) / TRANSPOSE_BLOCK_SIZE) * TRANSPOSE_BLOCK_SIZE;
-        int globalY = ((tileSize + TRANSPOSE_BLOCK_SIZE - 1) / TRANSPOSE_BLOCK_SIZE) * TRANSPOSE_BLOCK_SIZE;
-
-        var globalSize = stack.pointers(globalX, globalY, numTiles);
-        var localSize = stack.pointers(TRANSPOSE_BLOCK_SIZE, TRANSPOSE_BLOCK_SIZE, 1);
-        int err = clEnqueueNDRangeKernel(queue, kernel, 3, null, globalSize, localSize, null, null);
-        if (err != 0) {
-            throw new RuntimeException("Failed to enqueue transpose kernel: " + err);
-        }
+        int globalXY = ((tileSize + TRANSPOSE_BLOCK_SIZE - 1) / TRANSPOSE_BLOCK_SIZE) * TRANSPOSE_BLOCK_SIZE;
+        op.kernel("correlation", "transpose")
+                .arg(src)
+                .arg(dst)
+                .arg(tileSize)
+                .arg(numTiles)
+                .global(globalXY, globalXY, numTiles)
+                .local(TRANSPOSE_BLOCK_SIZE, TRANSPOSE_BLOCK_SIZE, 1)
+                .run();
     }
 
-    private static void enqueue3D(long queue,
-                                  long kernel,
-                                  int sizeX,
-                                  int sizeY,
-                                  int sizeZ,
-                                  MemoryStack stack) {
-        var globalSize = stack.pointers(sizeX, sizeY, sizeZ);
-        int err = clEnqueueNDRangeKernel(queue, kernel, 3, null, globalSize, null, null, null);
-        if (err != 0) {
-            throw new RuntimeException("Failed to enqueue 3D kernel: " + err);
-        }
-    }
 
     private static float[] flatten3D(float[][][] data) {
         int n = data.length;
@@ -449,9 +346,7 @@ public class CorrelationTools {
         var context = OpenCLSupport.getContext();
         if (context != null && OpenCLSupport.isEnabled() && numTiles >= MIN_TILES_FOR_GPU) {
             try {
-                return context.tryExecuteWithLock(
-                        () -> batchedNCCGPU(context, refTiles, targetTiles),
-                        () -> batchedNCCCPU(refTiles, targetTiles));
+                return batchedNCCGPU(context, refTiles, targetTiles);
             } catch (Exception e) {
                 context.recordError("Correlation.batchedNCC", e);
             }
@@ -491,51 +386,21 @@ public class CorrelationTools {
         var targetFlat = flatten3D(targetTiles);
         var gpuResults = new float[numTiles * 3];
 
-        return context.executeWithLock(() -> {
-            long refBuffer = 0;
-            long targetBuffer = 0;
-            long resultBuffer = 0;
-            try {
-                refBuffer = context.allocateBuffer(refFlat.length * Float.BYTES, CL_MEM_READ_ONLY);
-                targetBuffer = context.allocateBuffer(targetFlat.length * Float.BYTES, CL_MEM_READ_ONLY);
-                resultBuffer = context.allocateBuffer(gpuResults.length * Float.BYTES, CL_MEM_WRITE_ONLY);
+        return context.runOp(op -> {
+            var refBuffer = op.allocateBuffer(refFlat.length * Float.BYTES, CL_MEM_READ_ONLY);
+            var targetBuffer = op.allocateBuffer(targetFlat.length * Float.BYTES, CL_MEM_READ_ONLY);
+            var resultBuffer = op.allocateBuffer(gpuResults.length * Float.BYTES, CL_MEM_WRITE_ONLY);
+            op.write(refBuffer, refFlat);
+            op.write(targetBuffer, targetFlat);
 
-                context.writeBuffer(refBuffer, refFlat);
-                context.writeBuffer(targetBuffer, targetFlat);
+            op.kernel("correlation", "batched_ncc_32")
+                    .arg(refBuffer).arg(targetBuffer).arg(resultBuffer).arg(numTiles)
+                    .global((long) numTiles * 32, 32)
+                    .local(32, 32)
+                    .run();
 
-                var kernel = context.getKernelManager().getKernel("correlation", "batched_ncc_32");
-
-                try (var stack = MemoryStack.stackPush()) {
-                    clSetKernelArg(kernel, 0, stack.pointers(refBuffer));
-                    clSetKernelArg(kernel, 1, stack.pointers(targetBuffer));
-                    clSetKernelArg(kernel, 2, stack.pointers(resultBuffer));
-                    clSetKernelArg(kernel, 3, stack.ints(numTiles));
-
-                    var globalSize = stack.pointers((long) numTiles * 32, 32);
-                    var localSize = stack.pointers(32, 32);
-
-                    int err = clEnqueueNDRangeKernel(
-                            context.getCommandQueue(),
-                            kernel,
-                            2,
-                            null,
-                            globalSize,
-                            localSize,
-                            null,
-                            null
-                    );
-                    if (err != 0) {
-                        throw new RuntimeException("Failed to enqueue NCC kernel: " + err);
-                    }
-                }
-
-                context.finish();
-                context.readBufferNoSync(resultBuffer, gpuResults);
-
-                return unpackGpuResults(gpuResults, numTiles);
-            } finally {
-                safeRelease(context, refBuffer, targetBuffer, resultBuffer);
-            }
+            op.read(resultBuffer, gpuResults);
+            return unpackGpuResults(gpuResults, numTiles);
         });
     }
 
@@ -548,130 +413,71 @@ public class CorrelationTools {
         var targetFlat = flatten3D(targetTiles);
         var gpuResults = new float[numTiles * 3];
 
-        return context.executeWithLock(() -> {
-            long refInputBuffer = 0;
-            long targetInputBuffer = 0;
-            long refComplexBuffer = 0;
-            long targetComplexBuffer = 0;
-            long tempBuffer = 0;
-            long realBuffer = 0;
-            long resultBuffer = 0;
-            long statsBuffer = 0;
+        int complexSize = numTiles * tileElements * 2 * Float.BYTES;
+        int realSize = numTiles * tileElements * Float.BYTES;
+        int statsSize = numTiles * 3 * Float.BYTES;  // normFactor, meanRef, meanTarget per tile
 
-            try {
-                int complexSize = numTiles * tileElements * 2 * Float.BYTES;
-                int realSize = numTiles * tileElements * Float.BYTES;
-                int statsSize = numTiles * 3 * Float.BYTES;  // normFactor, meanRef, meanTarget per tile
+        return context.runOp(op -> {
+            var refInputBuffer = op.allocateBuffer(realSize, CL_MEM_READ_ONLY);
+            var targetInputBuffer = op.allocateBuffer(realSize, CL_MEM_READ_ONLY);
+            var refComplexBuffer = op.allocateBuffer(complexSize, CL_MEM_READ_WRITE);
+            var targetComplexBuffer = op.allocateBuffer(complexSize, CL_MEM_READ_WRITE);
+            var tempBuffer = op.allocateBuffer(complexSize, CL_MEM_READ_WRITE);
+            var realBuffer = op.allocateBuffer(realSize, CL_MEM_READ_WRITE);
+            var resultBuffer = op.allocateBuffer(gpuResults.length * Float.BYTES, CL_MEM_WRITE_ONLY);
+            var statsBuffer = op.allocateBuffer(statsSize, CL_MEM_READ_WRITE);
 
-                refInputBuffer = context.allocateBuffer(realSize, CL_MEM_READ_ONLY);
-                targetInputBuffer = context.allocateBuffer(realSize, CL_MEM_READ_ONLY);
-                refComplexBuffer = context.allocateBuffer(complexSize, CL_MEM_READ_WRITE);
-                targetComplexBuffer = context.allocateBuffer(complexSize, CL_MEM_READ_WRITE);
-                tempBuffer = context.allocateBuffer(complexSize, CL_MEM_READ_WRITE);
-                realBuffer = context.allocateBuffer(realSize, CL_MEM_READ_WRITE);
-                resultBuffer = context.allocateBuffer(gpuResults.length * Float.BYTES, CL_MEM_WRITE_ONLY);
-                statsBuffer = context.allocateBuffer(statsSize, CL_MEM_READ_WRITE);
+            op.write(refInputBuffer, refFlat);
+            op.write(targetInputBuffer, targetFlat);
 
-                context.writeBuffer(refInputBuffer, refFlat);
-                context.writeBuffer(targetInputBuffer, targetFlat);
+            // 1. Compute per-tile statistics
+            op.kernel("correlation", "compute_tile_stats")
+                    .arg(refInputBuffer).arg(targetInputBuffer).arg(statsBuffer)
+                    .arg(tileSize).arg(numTiles)
+                    .global(numTiles * 256L).local(256)
+                    .run();
 
-                var km = context.getKernelManager();
-                var computeStatsKernel = km.getKernel("correlation", "compute_tile_stats");
-                var zeroMeanAndHannKernel = km.getKernel("correlation", "zero_mean_and_hann");
-                var fftRowsKernel = km.getKernel("correlation", "fft_rows");
-                var transposeKernel = km.getKernel("correlation", "transpose");
-                var crossPowerKernel = km.getKernel("correlation", "cross_power_spectrum");
-                var scaleIfftKernel = km.getKernel("correlation", "scale_ifft");
-                var fftShiftKernel = km.getKernel("correlation", "fft_shift_real");
-                var findPeaksNCCKernel = km.getKernel("correlation", "find_peaks_ncc");
+            // 2. Zero-mean + Hann window for ref and target
+            op.kernel("correlation", "zero_mean_and_hann")
+                    .arg(refInputBuffer).arg(refComplexBuffer).arg(statsBuffer)
+                    .arg(tileSize).arg(numTiles).arg(0)
+                    .global(tileSize, tileSize, numTiles).run();
+            op.kernel("correlation", "zero_mean_and_hann")
+                    .arg(targetInputBuffer).arg(targetComplexBuffer).arg(statsBuffer)
+                    .arg(tileSize).arg(numTiles).arg(1)
+                    .global(tileSize, tileSize, numTiles).run();
 
-                try (var stack = MemoryStack.stackPush()) {
-                    var queue = context.getCommandQueue();
+            // 3-4. Forward 2D FFT for ref and target
+            fft2D(op, refComplexBuffer, tempBuffer, tileSize, logTileSize, numTiles, -1);
+            fft2D(op, targetComplexBuffer, tempBuffer, tileSize, logTileSize, numTiles, -1);
 
-                    // 1. Compute statistics (mean and sum of squared deviations) for both tiles
-                    clSetKernelArg(computeStatsKernel, 0, stack.pointers(refInputBuffer));
-                    clSetKernelArg(computeStatsKernel, 1, stack.pointers(targetInputBuffer));
-                    clSetKernelArg(computeStatsKernel, 2, stack.pointers(statsBuffer));
-                    clSetKernelArg(computeStatsKernel, 3, stack.ints(tileSize));
-                    clSetKernelArg(computeStatsKernel, 4, stack.ints(numTiles));
+            // 5. Cross-power spectrum (no normalization for NCC)
+            op.kernel("correlation", "cross_power_spectrum")
+                    .arg(refComplexBuffer).arg(targetComplexBuffer)
+                    .arg(tileSize).arg(numTiles).arg(0)
+                    .global(tileSize, tileSize, numTiles).run();
 
-                    var globalSizeStats = stack.pointers(numTiles * 256L);
-                    var localSizeStats = stack.pointers(256);
-                    int err = clEnqueueNDRangeKernel(queue, computeStatsKernel, 1, null, globalSizeStats, localSizeStats, null, null);
-                    if (err != 0) {
-                        throw new RuntimeException("Failed to enqueue compute_tile_stats kernel: " + err);
-                    }
+            // 6. Inverse 2D FFT
+            fft2D(op, refComplexBuffer, tempBuffer, tileSize, logTileSize, numTiles, +1);
 
-                    // 2. Apply zero-mean and Hann window to both ref and target
-                    clSetKernelArg(zeroMeanAndHannKernel, 0, stack.pointers(refInputBuffer));
-                    clSetKernelArg(zeroMeanAndHannKernel, 1, stack.pointers(refComplexBuffer));
-                    clSetKernelArg(zeroMeanAndHannKernel, 2, stack.pointers(statsBuffer));
-                    clSetKernelArg(zeroMeanAndHannKernel, 3, stack.ints(tileSize));
-                    clSetKernelArg(zeroMeanAndHannKernel, 4, stack.ints(numTiles));
-                    clSetKernelArg(zeroMeanAndHannKernel, 5, stack.ints(0));
-                    enqueue3D(queue, zeroMeanAndHannKernel, tileSize, tileSize, numTiles, stack);
+            // 7. Scale by 1/N^2
+            op.kernel("correlation", "scale_ifft")
+                    .arg(refComplexBuffer).arg(tileSize).arg(numTiles)
+                    .global(tileSize, tileSize, numTiles).run();
 
-                    clSetKernelArg(zeroMeanAndHannKernel, 0, stack.pointers(targetInputBuffer));
-                    clSetKernelArg(zeroMeanAndHannKernel, 1, stack.pointers(targetComplexBuffer));
-                    clSetKernelArg(zeroMeanAndHannKernel, 5, stack.ints(1));
-                    enqueue3D(queue, zeroMeanAndHannKernel, tileSize, tileSize, numTiles, stack);
+            // 8. FFT shift + extract real part
+            op.kernel("correlation", "fft_shift_real")
+                    .arg(refComplexBuffer).arg(realBuffer).arg(tileSize).arg(numTiles)
+                    .global(tileSize, tileSize, numTiles).run();
 
-                    // 3. Forward 2D FFT for reference
-                    fft2D(queue, fftRowsKernel, transposeKernel, refComplexBuffer, tempBuffer,
-                            tileSize, logTileSize, numTiles, -1, stack);
+            // 9. Find peaks with NCC normalization
+            op.kernel("correlation", "find_peaks_ncc")
+                    .arg(realBuffer).arg(statsBuffer).arg(resultBuffer)
+                    .arg(tileSize).arg(numTiles)
+                    .global(numTiles * 256L).local(256).run();
 
-                    // 4. Forward 2D FFT for target
-                    fft2D(queue, fftRowsKernel, transposeKernel, targetComplexBuffer, tempBuffer,
-                            tileSize, logTileSize, numTiles, -1, stack);
-
-                    // 5. Cross-power spectrum (no normalization for NCC)
-                    clSetKernelArg(crossPowerKernel, 0, stack.pointers(refComplexBuffer));
-                    clSetKernelArg(crossPowerKernel, 1, stack.pointers(targetComplexBuffer));
-                    clSetKernelArg(crossPowerKernel, 2, stack.ints(tileSize));
-                    clSetKernelArg(crossPowerKernel, 3, stack.ints(numTiles));
-                    clSetKernelArg(crossPowerKernel, 4, stack.ints(0));
-                    enqueue3D(queue, crossPowerKernel, tileSize, tileSize, numTiles, stack);
-
-                    // 6. Inverse 2D FFT
-                    fft2D(queue, fftRowsKernel, transposeKernel, refComplexBuffer, tempBuffer,
-                            tileSize, logTileSize, numTiles, +1, stack);
-
-                    // 7. Scale by 1/N^2
-                    clSetKernelArg(scaleIfftKernel, 0, stack.pointers(refComplexBuffer));
-                    clSetKernelArg(scaleIfftKernel, 1, stack.ints(tileSize));
-                    clSetKernelArg(scaleIfftKernel, 2, stack.ints(numTiles));
-                    enqueue3D(queue, scaleIfftKernel, tileSize, tileSize, numTiles, stack);
-
-                    // 8. FFT shift and extract real part
-                    clSetKernelArg(fftShiftKernel, 0, stack.pointers(refComplexBuffer));
-                    clSetKernelArg(fftShiftKernel, 1, stack.pointers(realBuffer));
-                    clSetKernelArg(fftShiftKernel, 2, stack.ints(tileSize));
-                    clSetKernelArg(fftShiftKernel, 3, stack.ints(numTiles));
-                    enqueue3D(queue, fftShiftKernel, tileSize, tileSize, numTiles, stack);
-
-                    // 9. Find peaks with NCC normalization
-                    clSetKernelArg(findPeaksNCCKernel, 0, stack.pointers(realBuffer));
-                    clSetKernelArg(findPeaksNCCKernel, 1, stack.pointers(statsBuffer));
-                    clSetKernelArg(findPeaksNCCKernel, 2, stack.pointers(resultBuffer));
-                    clSetKernelArg(findPeaksNCCKernel, 3, stack.ints(tileSize));
-                    clSetKernelArg(findPeaksNCCKernel, 4, stack.ints(numTiles));
-
-                    var globalSize = stack.pointers(numTiles * 256L);
-                    var localSize = stack.pointers(256);
-                    err = clEnqueueNDRangeKernel(queue, findPeaksNCCKernel, 1, null, globalSize, localSize, null, null);
-                    if (err != 0) {
-                        throw new RuntimeException("Failed to enqueue find_peaks_ncc kernel: " + err);
-                    }
-                }
-
-                context.finish();
-                context.readBufferNoSync(resultBuffer, gpuResults);
-
-                return unpackGpuResults(gpuResults, numTiles);
-            } finally {
-                safeRelease(context, refInputBuffer, targetInputBuffer, refComplexBuffer,
-                        targetComplexBuffer, tempBuffer, realBuffer, resultBuffer, statsBuffer);
-            }
+            op.read(resultBuffer, gpuResults);
+            return unpackGpuResults(gpuResults, numTiles);
         });
     }
 
@@ -701,7 +507,6 @@ public class CorrelationTools {
         float meanRef = (float) (sumRef / count);
         float meanDef = (float) (sumDef / count);
 
-        // 2. Zero-mean and compute variances
         var zeroMeanRef = new float[size][size];
         var zeroMeanDef = new float[size][size];
         double sumSqRef = 0, sumSqDef = 0;
@@ -717,18 +522,15 @@ public class CorrelationTools {
             }
         }
 
-        // 3. Normalization factor
         double normFactor = Math.sqrt(sumSqRef * sumSqDef);
         if (normFactor < 1e-10) {
             return new ShiftResult(0, 0, 0);
         }
 
-        // 4. Apply Hann window
         var window = getOrCreateHannWindow(size);
         var windowedRef = applyWindowCopy(zeroMeanRef, window);
         var windowedDef = applyWindowCopy(zeroMeanDef, window);
 
-        // 5. FFT cross-correlation (no normalization)
         var fftRef = FFTSupport.fft2Float(windowedRef);
         var fftDef = FFTSupport.fft2Float(windowedDef);
 
@@ -736,7 +538,6 @@ public class CorrelationTools {
         var cols = fftRef.real[0].length;
         var realResult = new float[rows][cols];
         var imagResult = new float[rows][cols];
-
         for (var i = 0; i < rows; i++) {
             for (var j = 0; j < cols; j++) {
                 var refR = fftRef.real[i][j];
@@ -748,10 +549,8 @@ public class CorrelationTools {
                 imagResult[i][j] = refI * defR - refR * defI;
             }
         }
-
         var crossCorr = fftShift(FFTSupport.ifft2Float(new FFTSupport.FloatFFT2DResult(realResult, imagResult)));
 
-        // 6. Find peak and compute NCC value
         var maxIdx = findMaxIndex(crossCorr);
         var center = new double[]{crossCorr.real.length / 2d, crossCorr.real[0].length / 2d};
         var shifts = new double[]{maxIdx[0] - center[0], maxIdx[1] - center[1]};
@@ -760,11 +559,8 @@ public class CorrelationTools {
         shifts[0] += subpixelOffset[0];
         shifts[1] += subpixelOffset[1];
 
-        // 7. NCC confidence = peak value / normalization factor
         double peakValue = crossCorr.real[maxIdx[0]][maxIdx[1]];
         double nccValue = peakValue / normFactor;
-
-        // Clamp to [0, 1] - negative correlations indicate mismatch
         double confidence = Math.max(0, Math.min(1, nccValue));
 
         return new ShiftResult(shifts[0], shifts[1], confidence);
@@ -793,7 +589,6 @@ public class CorrelationTools {
         var cols = fftRef.real[0].length;
         var realResult = new float[rows][cols];
         var imagResult = new float[rows][cols];
-
         for (var i = 0; i < rows; i++) {
             for (var j = 0; j < cols; j++) {
                 var refR = fftRef.real[i][j];
@@ -972,10 +767,8 @@ public class CorrelationTools {
      * This method eliminates tile transfer overhead by extracting tiles directly
      * from images that are already on the GPU. This is significantly faster when
      * processing multiple image pairs, as images only need to be uploaded once.
-     * <p>
-     * Must be called within {@link OpenCLContext#executeWithLock}.
      *
-     * @param context           the OpenCL context (must hold GPU lock)
+     * @param context           the OpenCL context
      * @param refImageBuffer    GPU buffer handle for reference image
      * @param targetImageBuffer GPU buffer handle for target image
      * @param imageWidth        image width in pixels
@@ -984,11 +777,11 @@ public class CorrelationTools {
      * @return displacements [N][3] containing (dx, dy, confidence) per tile
      */
     public float[][] correlateResidentImagesNCC32(OpenCLContext context,
-                                                   long refImageBuffer,
-                                                   long targetImageBuffer,
-                                                   int imageWidth,
-                                                   int imageHeight,
-                                                   int[][] tilePositions) {
+                                                  long refImageBuffer,
+                                                  long targetImageBuffer,
+                                                  int imageWidth,
+                                                  int imageHeight,
+                                                  int[][] tilePositions) {
         int numTiles = tilePositions.length;
         if (numTiles == 0) {
             return new float[0][3];
@@ -1003,50 +796,22 @@ public class CorrelationTools {
 
         var gpuResults = new float[numTiles * 3];
 
-        long positionsBuffer = 0;
-        long resultBuffer = 0;
-        try {
-            positionsBuffer = context.allocateBuffer(positionsFlat.length * Integer.BYTES, CL_MEM_READ_ONLY);
-            resultBuffer = context.allocateBuffer(gpuResults.length * Float.BYTES, CL_MEM_WRITE_ONLY);
+        return context.runOp(op -> {
+            var positionsBuffer = op.allocateBuffer(positionsFlat.length * Integer.BYTES, CL_MEM_READ_ONLY);
+            var resultBuffer = op.allocateBuffer(gpuResults.length * Float.BYTES, CL_MEM_WRITE_ONLY);
+            op.writeInts(positionsBuffer, positionsFlat);
 
-            context.writeBufferInt(positionsBuffer, positionsFlat);
+            op.kernel("correlation", "correlate_resident_ncc_32")
+                    .arg(refImageBuffer).arg(targetImageBuffer)
+                    .arg(imageWidth).arg(imageHeight)
+                    .arg(positionsBuffer).arg(resultBuffer).arg(numTiles)
+                    .global((long) numTiles * 32, 32)
+                    .local(32, 32)
+                    .run();
 
-            var kernel = context.getKernelManager().getKernel("correlation", "correlate_resident_ncc_32");
-
-            try (var stack = MemoryStack.stackPush()) {
-                clSetKernelArg(kernel, 0, stack.pointers(refImageBuffer));
-                clSetKernelArg(kernel, 1, stack.pointers(targetImageBuffer));
-                clSetKernelArg(kernel, 2, stack.ints(imageWidth));
-                clSetKernelArg(kernel, 3, stack.ints(imageHeight));
-                clSetKernelArg(kernel, 4, stack.pointers(positionsBuffer));
-                clSetKernelArg(kernel, 5, stack.pointers(resultBuffer));
-                clSetKernelArg(kernel, 6, stack.ints(numTiles));
-
-                var globalSize = stack.pointers((long) numTiles * 32, 32);
-                var localSize = stack.pointers(32, 32);
-
-                int err = clEnqueueNDRangeKernel(
-                        context.getCommandQueue(),
-                        kernel,
-                        2,
-                        null,
-                        globalSize,
-                        localSize,
-                        null,
-                        null
-                );
-                if (err != 0) {
-                    throw new RuntimeException("Failed to enqueue correlate_resident_ncc_32 kernel: " + err);
-                }
-            }
-
-            context.finish();
-            context.readBufferNoSync(resultBuffer, gpuResults);
-
+            op.read(resultBuffer, gpuResults);
             return unpackGpuResults(gpuResults, numTiles);
-        } finally {
-            safeRelease(context, positionsBuffer, resultBuffer);
-        }
+        });
     }
 
     /**
@@ -1055,10 +820,8 @@ public class CorrelationTools {
      * This method extracts tiles directly from GPU-resident images, eliminating
      * the overhead of CPU-GPU tile transfers. It uses the same FFT pipeline as
      * the regular batch NCC method.
-     * <p>
-     * Must be called within {@link OpenCLContext#executeWithLock}.
      *
-     * @param context           the OpenCL context (must hold GPU lock)
+     * @param context           the OpenCL context
      * @param refImageBuffer    GPU buffer handle for reference image
      * @param targetImageBuffer GPU buffer handle for target image
      * @param imageWidth        image width in pixels
@@ -1068,12 +831,12 @@ public class CorrelationTools {
      * @return displacements [N][3] containing (dx, dy, confidence) per tile
      */
     public float[][] correlateResidentImagesNCCLarge(OpenCLContext context,
-                                                      long refImageBuffer,
-                                                      long targetImageBuffer,
-                                                      int imageWidth,
-                                                      int imageHeight,
-                                                      int[][] tilePositions,
-                                                      int tileSize) {
+                                                     long refImageBuffer,
+                                                     long targetImageBuffer,
+                                                     int imageWidth,
+                                                     int imageHeight,
+                                                     int[][] tilePositions,
+                                                     int tileSize) {
         int numTiles = tilePositions.length;
         if (numTiles == 0) {
             return new float[0][3];
@@ -1091,161 +854,84 @@ public class CorrelationTools {
 
         var gpuResults = new float[numTiles * 3];
 
-        long positionsBuffer = 0;
-        long refMeansBuffer = 0;
-        long targetMeansBuffer = 0;
-        long refSumSqBuffer = 0;
-        long targetSumSqBuffer = 0;
-        long refComplexBuffer = 0;
-        long targetComplexBuffer = 0;
-        long tempBuffer = 0;
-        long realBuffer = 0;
-        long resultBuffer = 0;
-        long statsBuffer = 0;
+        int complexSize = numTiles * tileElements * 2 * Float.BYTES;
+        int realSize = numTiles * tileElements * Float.BYTES;
+        int statsSize = numTiles * 3 * Float.BYTES;
+        int meansSize = numTiles * Float.BYTES;
 
-        try {
-            int complexSize = numTiles * tileElements * 2 * Float.BYTES;
-            int realSize = numTiles * tileElements * Float.BYTES;
-            int statsSize = numTiles * 3 * Float.BYTES;  // normFactor per tile (plus padding)
-            int meansSize = numTiles * Float.BYTES;
+        return context.runOp(op -> {
+            var positionsBuffer = op.allocateBuffer(positionsFlat.length * Integer.BYTES, CL_MEM_READ_ONLY);
+            var refMeansBuffer = op.allocateBuffer(meansSize, CL_MEM_READ_WRITE);
+            var targetMeansBuffer = op.allocateBuffer(meansSize, CL_MEM_READ_WRITE);
+            var refSumSqBuffer = op.allocateBuffer(meansSize, CL_MEM_READ_WRITE);
+            var targetSumSqBuffer = op.allocateBuffer(meansSize, CL_MEM_READ_WRITE);
+            var refComplexBuffer = op.allocateBuffer(complexSize, CL_MEM_READ_WRITE);
+            var targetComplexBuffer = op.allocateBuffer(complexSize, CL_MEM_READ_WRITE);
+            var tempBuffer = op.allocateBuffer(complexSize, CL_MEM_READ_WRITE);
+            var realBuffer = op.allocateBuffer(realSize, CL_MEM_READ_WRITE);
+            var resultBuffer = op.allocateBuffer(gpuResults.length * Float.BYTES, CL_MEM_WRITE_ONLY);
+            var statsBuffer = op.allocateBuffer(statsSize, CL_MEM_READ_WRITE);
 
-            positionsBuffer = context.allocateBuffer(positionsFlat.length * Integer.BYTES, CL_MEM_READ_ONLY);
-            refMeansBuffer = context.allocateBuffer(meansSize, CL_MEM_READ_WRITE);
-            targetMeansBuffer = context.allocateBuffer(meansSize, CL_MEM_READ_WRITE);
-            refSumSqBuffer = context.allocateBuffer(meansSize, CL_MEM_READ_WRITE);
-            targetSumSqBuffer = context.allocateBuffer(meansSize, CL_MEM_READ_WRITE);
-            refComplexBuffer = context.allocateBuffer(complexSize, CL_MEM_READ_WRITE);
-            targetComplexBuffer = context.allocateBuffer(complexSize, CL_MEM_READ_WRITE);
-            tempBuffer = context.allocateBuffer(complexSize, CL_MEM_READ_WRITE);
-            realBuffer = context.allocateBuffer(realSize, CL_MEM_READ_WRITE);
-            resultBuffer = context.allocateBuffer(gpuResults.length * Float.BYTES, CL_MEM_WRITE_ONLY);
-            statsBuffer = context.allocateBuffer(statsSize, CL_MEM_READ_WRITE);
+            op.writeInts(positionsBuffer, positionsFlat);
 
-            context.writeBufferInt(positionsBuffer, positionsFlat);
+            // 1. Per-tile stats for ref image
+            op.kernel("correlation", "compute_tile_stats_from_images")
+                    .arg(refImageBuffer).arg(imageWidth).arg(imageHeight).arg(positionsBuffer)
+                    .arg(refMeansBuffer).arg(refSumSqBuffer).arg(tileSize).arg(numTiles)
+                    .global(256, numTiles).local(256, 1).run();
 
-            var km = context.getKernelManager();
-            var computeStatsFromImagesKernel = km.getKernel("correlation", "compute_tile_stats_from_images");
-            var extractTilesZeroMeanKernel = km.getKernel("correlation", "extract_tiles_zero_mean");
-            var fftRowsKernel = km.getKernel("correlation", "fft_rows");
-            var transposeKernel = km.getKernel("correlation", "transpose");
-            var crossPowerKernel = km.getKernel("correlation", "cross_power_spectrum");
-            var scaleIfftKernel = km.getKernel("correlation", "scale_ifft");
-            var fftShiftKernel = km.getKernel("correlation", "fft_shift_real");
-            var findPeaksNCCKernel = km.getKernel("correlation", "find_peaks_ncc");
+            // 2. Per-tile stats for target image
+            op.kernel("correlation", "compute_tile_stats_from_images")
+                    .arg(targetImageBuffer).arg(imageWidth).arg(imageHeight).arg(positionsBuffer)
+                    .arg(targetMeansBuffer).arg(targetSumSqBuffer).arg(tileSize).arg(numTiles)
+                    .global(256, numTiles).local(256, 1).run();
 
-            try (var stack = MemoryStack.stackPush()) {
-                var queue = context.getCommandQueue();
+            // 3. Extract tiles with zero-mean and Hann window
+            op.kernel("correlation", "extract_tiles_zero_mean")
+                    .arg(refImageBuffer).arg(targetImageBuffer)
+                    .arg(imageWidth).arg(imageHeight).arg(positionsBuffer)
+                    .arg(refMeansBuffer).arg(targetMeansBuffer)
+                    .arg(refComplexBuffer).arg(targetComplexBuffer)
+                    .arg(tileSize).arg(numTiles)
+                    .global(tileSize, tileSize, numTiles).run();
 
-                // 1. Compute statistics (mean and sumSqDev) for ref image tiles
-                clSetKernelArg(computeStatsFromImagesKernel, 0, stack.pointers(refImageBuffer));
-                clSetKernelArg(computeStatsFromImagesKernel, 1, stack.ints(imageWidth));
-                clSetKernelArg(computeStatsFromImagesKernel, 2, stack.ints(imageHeight));
-                clSetKernelArg(computeStatsFromImagesKernel, 3, stack.pointers(positionsBuffer));
-                clSetKernelArg(computeStatsFromImagesKernel, 4, stack.pointers(refMeansBuffer));
-                clSetKernelArg(computeStatsFromImagesKernel, 5, stack.pointers(refSumSqBuffer));
-                clSetKernelArg(computeStatsFromImagesKernel, 6, stack.ints(tileSize));
-                clSetKernelArg(computeStatsFromImagesKernel, 7, stack.ints(numTiles));
+            // 4. NCC normalization factors
+            op.kernel("correlation", "compute_ncc_norm_factors")
+                    .arg(refSumSqBuffer).arg(targetSumSqBuffer).arg(statsBuffer).arg(numTiles)
+                    .global(numTiles).run();
 
-                var globalSizeStats = stack.pointers(256, numTiles);
-                var localSizeStats = stack.pointers(256, 1);
-                int err = clEnqueueNDRangeKernel(queue, computeStatsFromImagesKernel, 2, null, globalSizeStats, localSizeStats, null, null);
-                if (err != 0) {
-                    throw new RuntimeException("Failed to enqueue compute_tile_stats_from_images kernel (ref): " + err);
-                }
+            // 5-6. Forward 2D FFT for ref and target
+            fft2D(op, refComplexBuffer, tempBuffer, tileSize, logTileSize, numTiles, -1);
+            fft2D(op, targetComplexBuffer, tempBuffer, tileSize, logTileSize, numTiles, -1);
 
-                // 2. Compute statistics for target image tiles
-                clSetKernelArg(computeStatsFromImagesKernel, 0, stack.pointers(targetImageBuffer));
-                clSetKernelArg(computeStatsFromImagesKernel, 4, stack.pointers(targetMeansBuffer));
-                clSetKernelArg(computeStatsFromImagesKernel, 5, stack.pointers(targetSumSqBuffer));
-                err = clEnqueueNDRangeKernel(queue, computeStatsFromImagesKernel, 2, null, globalSizeStats, localSizeStats, null, null);
-                if (err != 0) {
-                    throw new RuntimeException("Failed to enqueue compute_tile_stats_from_images kernel (target): " + err);
-                }
+            // 7. Cross-power spectrum (no normalization for NCC)
+            op.kernel("correlation", "cross_power_spectrum")
+                    .arg(refComplexBuffer).arg(targetComplexBuffer)
+                    .arg(tileSize).arg(numTiles).arg(0)
+                    .global(tileSize, tileSize, numTiles).run();
 
-                // 3. Extract tiles with zero-mean and Hann window from images
-                clSetKernelArg(extractTilesZeroMeanKernel, 0, stack.pointers(refImageBuffer));
-                clSetKernelArg(extractTilesZeroMeanKernel, 1, stack.pointers(targetImageBuffer));
-                clSetKernelArg(extractTilesZeroMeanKernel, 2, stack.ints(imageWidth));
-                clSetKernelArg(extractTilesZeroMeanKernel, 3, stack.ints(imageHeight));
-                clSetKernelArg(extractTilesZeroMeanKernel, 4, stack.pointers(positionsBuffer));
-                clSetKernelArg(extractTilesZeroMeanKernel, 5, stack.pointers(refMeansBuffer));
-                clSetKernelArg(extractTilesZeroMeanKernel, 6, stack.pointers(targetMeansBuffer));
-                clSetKernelArg(extractTilesZeroMeanKernel, 7, stack.pointers(refComplexBuffer));
-                clSetKernelArg(extractTilesZeroMeanKernel, 8, stack.pointers(targetComplexBuffer));
-                clSetKernelArg(extractTilesZeroMeanKernel, 9, stack.ints(tileSize));
-                clSetKernelArg(extractTilesZeroMeanKernel, 10, stack.ints(numTiles));
-                enqueue3D(queue, extractTilesZeroMeanKernel, tileSize, tileSize, numTiles, stack);
+            // 8. Inverse 2D FFT
+            fft2D(op, refComplexBuffer, tempBuffer, tileSize, logTileSize, numTiles, +1);
 
-                // 4. Compute normalization factors on GPU: normFactor = sqrt(refSumSq * targetSumSq)
-                var computeNormFactorsKernel = km.getKernel("correlation", "compute_ncc_norm_factors");
-                clSetKernelArg(computeNormFactorsKernel, 0, stack.pointers(refSumSqBuffer));
-                clSetKernelArg(computeNormFactorsKernel, 1, stack.pointers(targetSumSqBuffer));
-                clSetKernelArg(computeNormFactorsKernel, 2, stack.pointers(statsBuffer));
-                clSetKernelArg(computeNormFactorsKernel, 3, stack.ints(numTiles));
+            // 9. Scale by 1/N^2
+            op.kernel("correlation", "scale_ifft")
+                    .arg(refComplexBuffer).arg(tileSize).arg(numTiles)
+                    .global(tileSize, tileSize, numTiles).run();
 
-                var globalSizeNorm = stack.pointers(numTiles);
-                err = clEnqueueNDRangeKernel(queue, computeNormFactorsKernel, 1, null, globalSizeNorm, null, null, null);
-                if (err != 0) {
-                    throw new RuntimeException("Failed to enqueue compute_ncc_norm_factors kernel: " + err);
-                }
+            // 10. FFT shift + extract real part
+            op.kernel("correlation", "fft_shift_real")
+                    .arg(refComplexBuffer).arg(realBuffer).arg(tileSize).arg(numTiles)
+                    .global(tileSize, tileSize, numTiles).run();
 
-                // 5. Forward 2D FFT for reference
-                fft2D(queue, fftRowsKernel, transposeKernel, refComplexBuffer, tempBuffer,
-                        tileSize, logTileSize, numTiles, -1, stack);
+            // 11. Find peaks with NCC normalization
+            op.kernel("correlation", "find_peaks_ncc")
+                    .arg(realBuffer).arg(statsBuffer).arg(resultBuffer)
+                    .arg(tileSize).arg(numTiles)
+                    .global(numTiles * 256L).local(256).run();
 
-                // 6. Forward 2D FFT for target
-                fft2D(queue, fftRowsKernel, transposeKernel, targetComplexBuffer, tempBuffer,
-                        tileSize, logTileSize, numTiles, -1, stack);
-
-                // 7. Cross-power spectrum (no normalization for NCC)
-                clSetKernelArg(crossPowerKernel, 0, stack.pointers(refComplexBuffer));
-                clSetKernelArg(crossPowerKernel, 1, stack.pointers(targetComplexBuffer));
-                clSetKernelArg(crossPowerKernel, 2, stack.ints(tileSize));
-                clSetKernelArg(crossPowerKernel, 3, stack.ints(numTiles));
-                clSetKernelArg(crossPowerKernel, 4, stack.ints(0));
-                enqueue3D(queue, crossPowerKernel, tileSize, tileSize, numTiles, stack);
-
-                // 8. Inverse 2D FFT
-                fft2D(queue, fftRowsKernel, transposeKernel, refComplexBuffer, tempBuffer,
-                        tileSize, logTileSize, numTiles, +1, stack);
-
-                // 9. Scale by 1/N^2
-                clSetKernelArg(scaleIfftKernel, 0, stack.pointers(refComplexBuffer));
-                clSetKernelArg(scaleIfftKernel, 1, stack.ints(tileSize));
-                clSetKernelArg(scaleIfftKernel, 2, stack.ints(numTiles));
-                enqueue3D(queue, scaleIfftKernel, tileSize, tileSize, numTiles, stack);
-
-                // 10. FFT shift and extract real part
-                clSetKernelArg(fftShiftKernel, 0, stack.pointers(refComplexBuffer));
-                clSetKernelArg(fftShiftKernel, 1, stack.pointers(realBuffer));
-                clSetKernelArg(fftShiftKernel, 2, stack.ints(tileSize));
-                clSetKernelArg(fftShiftKernel, 3, stack.ints(numTiles));
-                enqueue3D(queue, fftShiftKernel, tileSize, tileSize, numTiles, stack);
-
-                // 11. Find peaks with NCC normalization
-                clSetKernelArg(findPeaksNCCKernel, 0, stack.pointers(realBuffer));
-                clSetKernelArg(findPeaksNCCKernel, 1, stack.pointers(statsBuffer));
-                clSetKernelArg(findPeaksNCCKernel, 2, stack.pointers(resultBuffer));
-                clSetKernelArg(findPeaksNCCKernel, 3, stack.ints(tileSize));
-                clSetKernelArg(findPeaksNCCKernel, 4, stack.ints(numTiles));
-
-                var globalSize = stack.pointers(numTiles * 256L);
-                var localSize = stack.pointers(256);
-                err = clEnqueueNDRangeKernel(queue, findPeaksNCCKernel, 1, null, globalSize, localSize, null, null);
-                if (err != 0) {
-                    throw new RuntimeException("Failed to enqueue find_peaks_ncc kernel: " + err);
-                }
-            }
-
-            context.finish();
-            context.readBufferNoSync(resultBuffer, gpuResults);
-
+            op.read(resultBuffer, gpuResults);
             return unpackGpuResults(gpuResults, numTiles);
-        } finally {
-            safeRelease(context, positionsBuffer, refMeansBuffer, targetMeansBuffer,
-                    refSumSqBuffer, targetSumSqBuffer, refComplexBuffer, targetComplexBuffer,
-                    tempBuffer, realBuffer, resultBuffer, statsBuffer);
-        }
+        });
     }
 
     /**
@@ -1388,10 +1074,8 @@ public class CorrelationTools {
     /**
      * Performs NCC correlation directly from GPU-resident images.
      * Automatically selects the appropriate implementation based on tile size.
-     * <p>
-     * Must be called within {@link OpenCLContext#executeWithLock}.
      *
-     * @param context           the OpenCL context (must hold GPU lock)
+     * @param context           the OpenCL context
      * @param refImageBuffer    GPU buffer handle for reference image
      * @param targetImageBuffer GPU buffer handle for target image
      * @param imageWidth        image width in pixels
@@ -1402,12 +1086,12 @@ public class CorrelationTools {
      * @throws UnsupportedOperationException if the device does not support the required work group size
      */
     public float[][] correlateResidentImagesNCC(OpenCLContext context,
-                                                 long refImageBuffer,
-                                                 long targetImageBuffer,
-                                                 int imageWidth,
-                                                 int imageHeight,
-                                                 int[][] tilePositions,
-                                                 int tileSize) {
+                                                long refImageBuffer,
+                                                long targetImageBuffer,
+                                                int imageWidth,
+                                                int imageHeight,
+                                                int[][] tilePositions,
+                                                int tileSize) {
         if (!isGpuResidentCorrelationSupported(context, tileSize)) {
             long maxWorkGroupSize = context.getCapabilities().maxWorkGroupSize();
             long required = requiredWorkGroupSize(tileSize);

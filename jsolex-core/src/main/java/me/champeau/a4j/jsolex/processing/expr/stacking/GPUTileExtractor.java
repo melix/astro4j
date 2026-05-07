@@ -15,14 +15,15 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.stacking;
 
+import me.champeau.a4j.math.opencl.GpuOp;
 import me.champeau.a4j.math.opencl.OpenCLContext;
 import me.champeau.a4j.math.opencl.OpenCLSupport;
-import org.lwjgl.system.MemoryStack;
-import org.lwjgl.system.MemoryUtil;
 
 import java.util.ArrayList;
 
-import static org.lwjgl.opencl.CL10.*;
+import static org.lwjgl.opencl.CL10.CL_MEM_READ_ONLY;
+import static org.lwjgl.opencl.CL10.CL_MEM_READ_WRITE;
+import static org.lwjgl.opencl.CL10.CL_MEM_WRITE_ONLY;
 
 /**
  * GPU-accelerated tile extraction for distortion map computation.
@@ -52,18 +53,19 @@ public class GPUTileExtractor {
             int validCount,
             int gridWidth,
             int gridHeight
-    ) {}
+    ) {
+    }
 
     /**
      * Extracts tiles from images using GPU acceleration.
      * Falls back to CPU if GPU is unavailable or grid is too small.
      *
-     * @param referenceData reference image data [height][width]
-     * @param targetData    target image data [height][width]
-     * @param width         image width
-     * @param height        image height
-     * @param tileSize      tile size (must be 32, 64, or 128)
-     * @param increment     grid increment
+     * @param referenceData   reference image data [height][width]
+     * @param targetData      target image data [height][width]
+     * @param width           image width
+     * @param height          image height
+     * @param tileSize        tile size (must be 32, 64, or 128)
+     * @param increment       grid increment
      * @param signalThreshold minimum signal threshold
      * @return extraction result with tiles and positions
      */
@@ -92,214 +94,128 @@ public class GPUTileExtractor {
     }
 
     private static ExtractionResult extractGPU(OpenCLContext context,
-                                                float[][] referenceData, float[][] targetData,
-                                                int width, int height, int tileSize, int increment,
-                                                float signalThreshold, int gridWidth, int gridHeight,
-                                                int totalPositions) {
+                                               float[][] referenceData, float[][] targetData,
+                                               int width, int height, int tileSize, int increment,
+                                               float signalThreshold, int gridWidth, int gridHeight,
+                                               int totalPositions) {
         var refFlat = flatten2D(referenceData, width, height);
         var targetFlat = flatten2D(targetData, width, height);
         int imageSize = width * height;
         int tileSizeSq = tileSize * tileSize;
 
-        return context.executeWithLock(() -> {
-            long refImageBuf = 0, targetImageBuf = 0;
-            long refIntegralBuf = 0, targetIntegralBuf = 0;
-            long validMaskBuf = 0, gridXBuf = 0, gridYBuf = 0;
-            long outputIndicesBuf = 0, validCountBuf = 0;
-            long refTilesBuf = 0, targetTilesBuf = 0;
+        return context.runOp(op -> {
+            // Image buffers
+            var refImageBuf = op.allocateBuffer(imageSize * Float.BYTES, CL_MEM_READ_ONLY);
+            var targetImageBuf = op.allocateBuffer(imageSize * Float.BYTES, CL_MEM_READ_ONLY);
+            var refIntegralBuf = op.allocateBuffer(imageSize * Float.BYTES, CL_MEM_READ_WRITE);
+            var targetIntegralBuf = op.allocateBuffer(imageSize * Float.BYTES, CL_MEM_READ_WRITE);
 
-            try {
-                // Allocate image buffers
-                refImageBuf = context.allocateBuffer(imageSize * Float.BYTES, CL_MEM_READ_ONLY);
-                targetImageBuf = context.allocateBuffer(imageSize * Float.BYTES, CL_MEM_READ_ONLY);
-                refIntegralBuf = context.allocateBuffer(imageSize * Float.BYTES, CL_MEM_READ_WRITE);
-                targetIntegralBuf = context.allocateBuffer(imageSize * Float.BYTES, CL_MEM_READ_WRITE);
+            // Grid buffers
+            var validMaskBuf = op.allocateBuffer(totalPositions * Integer.BYTES, CL_MEM_READ_WRITE);
+            var gridXBuf = op.allocateBuffer(totalPositions * Integer.BYTES, CL_MEM_READ_WRITE);
+            var gridYBuf = op.allocateBuffer(totalPositions * Integer.BYTES, CL_MEM_READ_WRITE);
+            var outputIndicesBuf = op.allocateBuffer(totalPositions * Integer.BYTES, CL_MEM_READ_WRITE);
+            var validCountBuf = op.allocateBuffer(Integer.BYTES, CL_MEM_READ_WRITE);
 
-                // Allocate grid buffers
-                validMaskBuf = context.allocateBuffer(totalPositions * Integer.BYTES, CL_MEM_READ_WRITE);
-                gridXBuf = context.allocateBuffer(totalPositions * Integer.BYTES, CL_MEM_READ_WRITE);
-                gridYBuf = context.allocateBuffer(totalPositions * Integer.BYTES, CL_MEM_READ_WRITE);
-                outputIndicesBuf = context.allocateBuffer(totalPositions * Integer.BYTES, CL_MEM_READ_WRITE);
-                validCountBuf = context.allocateBuffer(Integer.BYTES, CL_MEM_READ_WRITE);
+            op.write(refImageBuf, refFlat);
+            op.write(targetImageBuf, targetFlat);
 
-                // Upload images
-                context.writeBuffer(refImageBuf, refFlat);
-                context.writeBuffer(targetImageBuf, targetFlat);
+            // Compute integral images for both inputs
+            computeIntegralImage(op, refImageBuf, refIntegralBuf, width, height);
+            computeIntegralImage(op, targetImageBuf, targetIntegralBuf, width, height);
 
-                // Compute integral images
-                computeIntegralImage(context, refImageBuf, refIntegralBuf, width, height);
-                computeIntegralImage(context, targetImageBuf, targetIntegralBuf, width, height);
+            // Filter positions by signal
+            op.kernel("tile_extraction", "filter_positions_by_signal")
+                    .arg(refIntegralBuf).arg(targetIntegralBuf).arg(validMaskBuf)
+                    .arg(gridXBuf).arg(gridYBuf)
+                    .arg(width).arg(height).arg(tileSize).arg(increment)
+                    .arg(gridWidth).arg(gridHeight).arg(signalThreshold).arg(1) // hasTarget=true
+                    .global(gridWidth, gridHeight)
+                    .run();
 
-                // Filter positions by signal
-                var filterKernel = context.getKernelManager().getKernel("tile_extraction", "filter_positions_by_signal");
-                try (var stack = MemoryStack.stackPush()) {
-                    clSetKernelArg(filterKernel, 0, stack.pointers(refIntegralBuf));
-                    clSetKernelArg(filterKernel, 1, stack.pointers(targetIntegralBuf));
-                    clSetKernelArg(filterKernel, 2, stack.pointers(validMaskBuf));
-                    clSetKernelArg(filterKernel, 3, stack.pointers(gridXBuf));
-                    clSetKernelArg(filterKernel, 4, stack.pointers(gridYBuf));
-                    clSetKernelArg(filterKernel, 5, stack.ints(width));
-                    clSetKernelArg(filterKernel, 6, stack.ints(height));
-                    clSetKernelArg(filterKernel, 7, stack.ints(tileSize));
-                    clSetKernelArg(filterKernel, 8, stack.ints(increment));
-                    clSetKernelArg(filterKernel, 9, stack.ints(gridWidth));
-                    clSetKernelArg(filterKernel, 10, stack.ints(gridHeight));
-                    clSetKernelArg(filterKernel, 11, stack.floats(signalThreshold));
-                    clSetKernelArg(filterKernel, 12, stack.ints(1)); // hasTarget = true
+            // Compute tile indices (prefix sum)
+            op.kernel("tile_extraction", "compute_tile_indices")
+                    .arg(validMaskBuf).arg(outputIndicesBuf).arg(validCountBuf).arg(totalPositions)
+                    .global(1)
+                    .run();
 
-                    var globalSize = stack.pointers(gridWidth, gridHeight);
-                    int err = clEnqueueNDRangeKernel(context.getCommandQueue(), filterKernel, 2, null, globalSize, null, null, null);
-                    if (err != CL_SUCCESS) {
-                        throw new RuntimeException("Failed to enqueue filter_positions_by_signal kernel: " + err);
-                    }
-                }
+            // Read valid count (forces sync)
+            int[] validCountArr = new int[1];
+            op.readInts(validCountBuf, validCountArr);
+            int validCount = validCountArr[0];
 
-                // Compute tile indices (prefix sum)
-                var indexKernel = context.getKernelManager().getKernel("tile_extraction", "compute_tile_indices");
-                try (var stack = MemoryStack.stackPush()) {
-                    clSetKernelArg(indexKernel, 0, stack.pointers(validMaskBuf));
-                    clSetKernelArg(indexKernel, 1, stack.pointers(outputIndicesBuf));
-                    clSetKernelArg(indexKernel, 2, stack.pointers(validCountBuf));
-                    clSetKernelArg(indexKernel, 3, stack.ints(totalPositions));
-
-                    var globalSize = stack.pointers(1);
-                    int err = clEnqueueNDRangeKernel(context.getCommandQueue(), indexKernel, 1, null, globalSize, null, null, null);
-                    if (err != CL_SUCCESS) {
-                        throw new RuntimeException("Failed to enqueue compute_tile_indices kernel: " + err);
-                    }
-                }
-
-                context.finish();
-
-                // Read valid count
-                int[] validCountArr = new int[1];
-                readBufferInt(context, validCountBuf, validCountArr);
-                int validCount = validCountArr[0];
-
-                if (validCount == 0) {
-                    return new ExtractionResult(
-                            new float[0][], new float[0][],
-                            new int[0], new int[0],
-                            0, gridWidth, gridHeight
-                    );
-                }
-
-                // Allocate tile buffers - ensure we don't exceed max allocation size
-                long tileBufferSize = (long) validCount * tileSizeSq * Float.BYTES;
-                refTilesBuf = context.allocateBuffer((int) Math.min(tileBufferSize, Integer.MAX_VALUE), CL_MEM_WRITE_ONLY);
-                targetTilesBuf = context.allocateBuffer((int) Math.min(tileBufferSize, Integer.MAX_VALUE), CL_MEM_WRITE_ONLY);
-
-                // Extract tiles
-                var extractKernel = context.getKernelManager().getKernel("tile_extraction", "extract_tiles");
-                try (var stack = MemoryStack.stackPush()) {
-                    clSetKernelArg(extractKernel, 0, stack.pointers(refImageBuf));
-                    clSetKernelArg(extractKernel, 1, stack.pointers(targetImageBuf));
-                    clSetKernelArg(extractKernel, 2, stack.pointers(gridXBuf));
-                    clSetKernelArg(extractKernel, 3, stack.pointers(gridYBuf));
-                    clSetKernelArg(extractKernel, 4, stack.pointers(validMaskBuf));
-                    clSetKernelArg(extractKernel, 5, stack.pointers(outputIndicesBuf));
-                    clSetKernelArg(extractKernel, 6, stack.pointers(refTilesBuf));
-                    clSetKernelArg(extractKernel, 7, stack.pointers(targetTilesBuf));
-                    clSetKernelArg(extractKernel, 8, stack.ints(width));
-                    clSetKernelArg(extractKernel, 9, stack.ints(tileSize));
-                    clSetKernelArg(extractKernel, 10, stack.ints(totalPositions));
-
-                    var globalSize = stack.pointers(tileSize, tileSize, totalPositions);
-                    int err = clEnqueueNDRangeKernel(context.getCommandQueue(), extractKernel, 3, null, globalSize, null, null, null);
-                    if (err != CL_SUCCESS) {
-                        throw new RuntimeException("Failed to enqueue extract_tiles kernel: " + err);
-                    }
-                }
-
-                context.finish();
-
-                // Read results - use NoSync variants since we just finished
-                float[] refTilesFlat = new float[validCount * tileSizeSq];
-                float[] targetTilesFlat = new float[validCount * tileSizeSq];
-                int[] gridXArr = new int[totalPositions];
-                int[] gridYArr = new int[totalPositions];
-                int[] validMaskArr = new int[totalPositions];
-
-                context.readBufferNoSync(refTilesBuf, refTilesFlat);
-                context.readBufferNoSync(targetTilesBuf, targetTilesFlat);
-                readBufferInt(context, gridXBuf, gridXArr);
-                readBufferInt(context, gridYBuf, gridYArr);
-                readBufferInt(context, validMaskBuf, validMaskArr);
-
-                // Convert to 2D arrays and collect valid positions
-                float[][] refTiles = new float[validCount][tileSizeSq];
-                float[][] targetTiles = new float[validCount][tileSizeSq];
-                int[] validGridX = new int[validCount];
-                int[] validGridY = new int[validCount];
-
-                for (int i = 0; i < validCount; i++) {
-                    System.arraycopy(refTilesFlat, i * tileSizeSq, refTiles[i], 0, tileSizeSq);
-                    System.arraycopy(targetTilesFlat, i * tileSizeSq, targetTiles[i], 0, tileSizeSq);
-                }
-
-                int validIdx = 0;
-                for (int i = 0; i < totalPositions && validIdx < validCount; i++) {
-                    if (validMaskArr[i] == 1) {
-                        validGridX[validIdx] = gridXArr[i];
-                        validGridY[validIdx] = gridYArr[i];
-                        validIdx++;
-                    }
-                }
-
-                return new ExtractionResult(refTiles, targetTiles, validGridX, validGridY,
-                        validCount, gridWidth, gridHeight);
-
-            } finally {
-                safeRelease(context, refImageBuf);
-                safeRelease(context, targetImageBuf);
-                safeRelease(context, refIntegralBuf);
-                safeRelease(context, targetIntegralBuf);
-                safeRelease(context, validMaskBuf);
-                safeRelease(context, gridXBuf);
-                safeRelease(context, gridYBuf);
-                safeRelease(context, outputIndicesBuf);
-                safeRelease(context, validCountBuf);
-                safeRelease(context, refTilesBuf);
-                safeRelease(context, targetTilesBuf);
+            if (validCount == 0) {
+                return new ExtractionResult(
+                        new float[0][], new float[0][],
+                        new int[0], new int[0],
+                        0, gridWidth, gridHeight);
             }
+
+            // Tile output buffers — sized by validCount, capped at int range
+            long tileBufferSize = (long) validCount * tileSizeSq * Float.BYTES;
+            var refTilesBuf = op.allocateBuffer((int) Math.min(tileBufferSize, Integer.MAX_VALUE), CL_MEM_WRITE_ONLY);
+            var targetTilesBuf = op.allocateBuffer((int) Math.min(tileBufferSize, Integer.MAX_VALUE), CL_MEM_WRITE_ONLY);
+
+            op.kernel("tile_extraction", "extract_tiles")
+                    .arg(refImageBuf).arg(targetImageBuf)
+                    .arg(gridXBuf).arg(gridYBuf).arg(validMaskBuf).arg(outputIndicesBuf)
+                    .arg(refTilesBuf).arg(targetTilesBuf)
+                    .arg(width).arg(tileSize).arg(totalPositions)
+                    .global(tileSize, tileSize, totalPositions)
+                    .run();
+
+            float[] refTilesFlat = new float[validCount * tileSizeSq];
+            float[] targetTilesFlat = new float[validCount * tileSizeSq];
+            int[] gridXArr = new int[totalPositions];
+            int[] gridYArr = new int[totalPositions];
+            int[] validMaskArr = new int[totalPositions];
+
+            op.read(refTilesBuf, refTilesFlat);
+            op.read(targetTilesBuf, targetTilesFlat);
+            op.readInts(gridXBuf, gridXArr);
+            op.readInts(gridYBuf, gridYArr);
+            op.readInts(validMaskBuf, validMaskArr);
+
+            float[][] refTiles = new float[validCount][tileSizeSq];
+            float[][] targetTiles = new float[validCount][tileSizeSq];
+            int[] validGridX = new int[validCount];
+            int[] validGridY = new int[validCount];
+
+            for (int i = 0; i < validCount; i++) {
+                System.arraycopy(refTilesFlat, i * tileSizeSq, refTiles[i], 0, tileSizeSq);
+                System.arraycopy(targetTilesFlat, i * tileSizeSq, targetTiles[i], 0, tileSizeSq);
+            }
+
+            int validIdx = 0;
+            for (int i = 0; i < totalPositions && validIdx < validCount; i++) {
+                if (validMaskArr[i] == 1) {
+                    validGridX[validIdx] = gridXArr[i];
+                    validGridY[validIdx] = gridYArr[i];
+                    validIdx++;
+                }
+            }
+
+            return new ExtractionResult(refTiles, targetTiles, validGridX, validGridY,
+                    validCount, gridWidth, gridHeight);
         });
     }
 
-    private static void computeIntegralImage(OpenCLContext context, long inputBuf, long outputBuf,
-                                              int width, int height) {
-        // Horizontal pass
-        var hKernel = context.getKernelManager().getKernel("tile_extraction", "integral_image_horizontal");
-        try (var stack = MemoryStack.stackPush()) {
-            clSetKernelArg(hKernel, 0, stack.pointers(inputBuf));
-            clSetKernelArg(hKernel, 1, stack.pointers(outputBuf));
-            clSetKernelArg(hKernel, 2, stack.ints(width));
-            clSetKernelArg(hKernel, 3, stack.ints(height));
-
-            var globalSize = stack.pointers(1, height);
-            int err = clEnqueueNDRangeKernel(context.getCommandQueue(), hKernel, 2, null, globalSize, null, null, null);
-            if (err != CL_SUCCESS) {
-                throw new RuntimeException("Failed to enqueue integral_image_horizontal kernel: " + err);
-            }
-        }
-
-        // Vertical pass (in-place on output)
-        var vKernel = context.getKernelManager().getKernel("tile_extraction", "integral_image_vertical");
-        try (var stack = MemoryStack.stackPush()) {
-            clSetKernelArg(vKernel, 0, stack.pointers(outputBuf));
-            clSetKernelArg(vKernel, 1, stack.ints(width));
-            clSetKernelArg(vKernel, 2, stack.ints(height));
-
-            var globalSize = stack.pointers(width, 1);
-            int err = clEnqueueNDRangeKernel(context.getCommandQueue(), vKernel, 2, null, globalSize, null, null, null);
-            if (err != CL_SUCCESS) {
-                throw new RuntimeException("Failed to enqueue integral_image_vertical kernel: " + err);
-            }
-        }
+    private static void computeIntegralImage(GpuOp op, long inputBuf, long outputBuf, int width, int height) {
+        // Horizontal pass: writes outputBuf
+        op.kernel("tile_extraction", "integral_image_horizontal")
+                .arg(inputBuf).arg(outputBuf).arg(width).arg(height)
+                .global(1, height)
+                .run();
+        // Vertical pass (in-place on outputBuf)
+        op.kernel("tile_extraction", "integral_image_vertical")
+                .arg(outputBuf).arg(width).arg(height)
+                .global(width, 1)
+                .run();
     }
 
     private static ExtractionResult extractCPU(float[][] referenceData, float[][] targetData,
-                                                int width, int height, int tileSize, int increment,
-                                                float signalThreshold, int gridWidth, int gridHeight) {
+                                               int width, int height, int tileSize, int increment,
+                                               float signalThreshold, int gridWidth, int gridHeight) {
         var signalEvaluator = new SignalEvaluator(referenceData, targetData, width, height);
 
         var refTilesList = new ArrayList<float[]>();
@@ -346,207 +262,4 @@ public class GPUTileExtractor {
         return flat;
     }
 
-    /**
-     * Extracts tiles from GPU-resident images.
-     * Useful for refinement loops where the target image is already on GPU.
-     * Must be called within OpenCLContext.executeWithLock.
-     *
-     * @param context          OpenCL context
-     * @param refImage         GPU-resident reference image
-     * @param targetImage      GPU-resident target image
-     * @param width            image width
-     * @param height           image height
-     * @param tileSize         tile size (32, 64, or 128)
-     * @param increment        grid increment
-     * @param signalThreshold  minimum signal threshold
-     * @return extraction result with tiles and positions
-     */
-    public static ExtractionResult extractFromGPU(OpenCLContext context,
-                                                   GPUImage refImage, GPUImage targetImage,
-                                                   int width, int height, int tileSize, int increment,
-                                                   float signalThreshold) {
-        int maxY = height - tileSize;
-        int maxX = width - tileSize;
-        int gridWidth = (maxX / increment) + 1;
-        int gridHeight = (maxY / increment) + 1;
-        int totalPositions = gridWidth * gridHeight;
-        int imageSize = width * height;
-        int tileSizeSq = tileSize * tileSize;
-
-        long refIntegralBuf = 0, targetIntegralBuf = 0;
-        long validMaskBuf = 0, gridXBuf = 0, gridYBuf = 0;
-        long outputIndicesBuf = 0, validCountBuf = 0;
-        long refTilesBuf = 0, targetTilesBuf = 0;
-
-        try {
-            // Allocate integral image buffers
-            refIntegralBuf = context.allocateBuffer(imageSize * Float.BYTES, CL_MEM_READ_WRITE);
-            targetIntegralBuf = context.allocateBuffer(imageSize * Float.BYTES, CL_MEM_READ_WRITE);
-
-            // Allocate grid buffers
-            validMaskBuf = context.allocateBuffer(totalPositions * Integer.BYTES, CL_MEM_READ_WRITE);
-            gridXBuf = context.allocateBuffer(totalPositions * Integer.BYTES, CL_MEM_READ_WRITE);
-            gridYBuf = context.allocateBuffer(totalPositions * Integer.BYTES, CL_MEM_READ_WRITE);
-            outputIndicesBuf = context.allocateBuffer(totalPositions * Integer.BYTES, CL_MEM_READ_WRITE);
-            validCountBuf = context.allocateBuffer(Integer.BYTES, CL_MEM_READ_WRITE);
-
-            // Compute integral images from GPU-resident images
-            computeIntegralImage(context, refImage.getBuffer(), refIntegralBuf, width, height);
-            computeIntegralImage(context, targetImage.getBuffer(), targetIntegralBuf, width, height);
-
-            // Filter positions by signal
-            var filterKernel = context.getKernelManager().getKernel("tile_extraction", "filter_positions_by_signal");
-            try (var stack = MemoryStack.stackPush()) {
-                clSetKernelArg(filterKernel, 0, stack.pointers(refIntegralBuf));
-                clSetKernelArg(filterKernel, 1, stack.pointers(targetIntegralBuf));
-                clSetKernelArg(filterKernel, 2, stack.pointers(validMaskBuf));
-                clSetKernelArg(filterKernel, 3, stack.pointers(gridXBuf));
-                clSetKernelArg(filterKernel, 4, stack.pointers(gridYBuf));
-                clSetKernelArg(filterKernel, 5, stack.ints(width));
-                clSetKernelArg(filterKernel, 6, stack.ints(height));
-                clSetKernelArg(filterKernel, 7, stack.ints(tileSize));
-                clSetKernelArg(filterKernel, 8, stack.ints(increment));
-                clSetKernelArg(filterKernel, 9, stack.ints(gridWidth));
-                clSetKernelArg(filterKernel, 10, stack.ints(gridHeight));
-                clSetKernelArg(filterKernel, 11, stack.floats(signalThreshold));
-                clSetKernelArg(filterKernel, 12, stack.ints(1)); // hasTarget = true
-
-                var globalSize = stack.pointers(gridWidth, gridHeight);
-                int err = clEnqueueNDRangeKernel(context.getCommandQueue(), filterKernel, 2, null, globalSize, null, null, null);
-                if (err != CL_SUCCESS) {
-                    throw new RuntimeException("Failed to enqueue filter_positions_by_signal kernel: " + err);
-                }
-            }
-
-            // Compute tile indices (prefix sum)
-            var indexKernel = context.getKernelManager().getKernel("tile_extraction", "compute_tile_indices");
-            try (var stack = MemoryStack.stackPush()) {
-                clSetKernelArg(indexKernel, 0, stack.pointers(validMaskBuf));
-                clSetKernelArg(indexKernel, 1, stack.pointers(outputIndicesBuf));
-                clSetKernelArg(indexKernel, 2, stack.pointers(validCountBuf));
-                clSetKernelArg(indexKernel, 3, stack.ints(totalPositions));
-
-                var globalSize = stack.pointers(1);
-                int err = clEnqueueNDRangeKernel(context.getCommandQueue(), indexKernel, 1, null, globalSize, null, null, null);
-                if (err != CL_SUCCESS) {
-                    throw new RuntimeException("Failed to enqueue compute_tile_indices kernel: " + err);
-                }
-            }
-
-            context.finish();
-
-            // Read valid count
-            int[] validCountArr = new int[1];
-            readBufferInt(context, validCountBuf, validCountArr);
-            int validCount = validCountArr[0];
-
-            if (validCount == 0) {
-                return new ExtractionResult(
-                        new float[0][], new float[0][],
-                        new int[0], new int[0],
-                        0, gridWidth, gridHeight
-                );
-            }
-
-            // Allocate tile buffers
-            long tileBufferSize = (long) validCount * tileSizeSq * Float.BYTES;
-            refTilesBuf = context.allocateBuffer((int) Math.min(tileBufferSize, Integer.MAX_VALUE), CL_MEM_WRITE_ONLY);
-            targetTilesBuf = context.allocateBuffer((int) Math.min(tileBufferSize, Integer.MAX_VALUE), CL_MEM_WRITE_ONLY);
-
-            // Extract tiles from GPU-resident images
-            var extractKernel = context.getKernelManager().getKernel("tile_extraction", "extract_tiles");
-            try (var stack = MemoryStack.stackPush()) {
-                clSetKernelArg(extractKernel, 0, stack.pointers(refImage.getBuffer()));
-                clSetKernelArg(extractKernel, 1, stack.pointers(targetImage.getBuffer()));
-                clSetKernelArg(extractKernel, 2, stack.pointers(gridXBuf));
-                clSetKernelArg(extractKernel, 3, stack.pointers(gridYBuf));
-                clSetKernelArg(extractKernel, 4, stack.pointers(validMaskBuf));
-                clSetKernelArg(extractKernel, 5, stack.pointers(outputIndicesBuf));
-                clSetKernelArg(extractKernel, 6, stack.pointers(refTilesBuf));
-                clSetKernelArg(extractKernel, 7, stack.pointers(targetTilesBuf));
-                clSetKernelArg(extractKernel, 8, stack.ints(width));
-                clSetKernelArg(extractKernel, 9, stack.ints(tileSize));
-                clSetKernelArg(extractKernel, 10, stack.ints(totalPositions));
-
-                var globalSize = stack.pointers(tileSize, tileSize, totalPositions);
-                int err = clEnqueueNDRangeKernel(context.getCommandQueue(), extractKernel, 3, null, globalSize, null, null, null);
-                if (err != CL_SUCCESS) {
-                    throw new RuntimeException("Failed to enqueue extract_tiles kernel: " + err);
-                }
-            }
-
-            context.finish();
-
-            // Read results - use NoSync variants since we just finished
-            float[] refTilesFlat = new float[validCount * tileSizeSq];
-            float[] targetTilesFlat = new float[validCount * tileSizeSq];
-            int[] gridXArr = new int[totalPositions];
-            int[] gridYArr = new int[totalPositions];
-            int[] validMaskArr = new int[totalPositions];
-
-            context.readBufferNoSync(refTilesBuf, refTilesFlat);
-            context.readBufferNoSync(targetTilesBuf, targetTilesFlat);
-            readBufferInt(context, gridXBuf, gridXArr);
-            readBufferInt(context, gridYBuf, gridYArr);
-            readBufferInt(context, validMaskBuf, validMaskArr);
-
-            // Convert to 2D arrays and collect valid positions
-            float[][] refTiles = new float[validCount][tileSizeSq];
-            float[][] targetTiles = new float[validCount][tileSizeSq];
-            int[] validGridX = new int[validCount];
-            int[] validGridY = new int[validCount];
-
-            for (int i = 0; i < validCount; i++) {
-                System.arraycopy(refTilesFlat, i * tileSizeSq, refTiles[i], 0, tileSizeSq);
-                System.arraycopy(targetTilesFlat, i * tileSizeSq, targetTiles[i], 0, tileSizeSq);
-            }
-
-            int validIdx = 0;
-            for (int i = 0; i < totalPositions && validIdx < validCount; i++) {
-                if (validMaskArr[i] == 1) {
-                    validGridX[validIdx] = gridXArr[i];
-                    validGridY[validIdx] = gridYArr[i];
-                    validIdx++;
-                }
-            }
-
-            return new ExtractionResult(refTiles, targetTiles, validGridX, validGridY,
-                    validCount, gridWidth, gridHeight);
-
-        } finally {
-            safeRelease(context, refIntegralBuf);
-            safeRelease(context, targetIntegralBuf);
-            safeRelease(context, validMaskBuf);
-            safeRelease(context, gridXBuf);
-            safeRelease(context, gridYBuf);
-            safeRelease(context, outputIndicesBuf);
-            safeRelease(context, validCountBuf);
-            safeRelease(context, refTilesBuf);
-            safeRelease(context, targetTilesBuf);
-        }
-    }
-
-    private static void safeRelease(OpenCLContext context, long buffer) {
-        if (buffer != 0) {
-            try {
-                context.releaseBuffer(buffer);
-            } catch (Exception e) {
-                // Ignore release errors
-            }
-        }
-    }
-
-    private static void readBufferInt(OpenCLContext context, long buffer, int[] data) {
-        var intBuffer = MemoryUtil.memAllocInt(data.length);
-        try {
-            int err = clEnqueueReadBuffer(context.getCommandQueue(), buffer, true, 0, intBuffer, null, null);
-            if (err != CL_SUCCESS) {
-                throw new RuntimeException("Failed to read int buffer: " + err);
-            }
-            intBuffer.rewind();
-            intBuffer.get(data);
-        } finally {
-            MemoryUtil.memFree(intBuffer);
-        }
-    }
 }

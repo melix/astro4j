@@ -26,6 +26,7 @@ import org.apache.commons.math3.fitting.WeightedObservedPoints;
 
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.concurrent.ForkJoinPool;
 import java.util.stream.IntStream;
 
 public class FlatCorrection {
@@ -77,19 +78,25 @@ public class FlatCorrection {
         var lo = diskHistogram.percentile(loPercentile);
         var hi = diskHistogram.percentile(hiPercentile);
         var avgValues = new double[height];
-        IntStream.range(0, height).parallel().forEach(y -> {
-            double total = 0;
-            double count = 0;
-            for (int x = 0; x < width; x++) {
-                if (ellipse.isWithin(x, y)) {
-                    var v = data[y][x];
-                    if (v > lo && v < hi) {
-                        total += v;
-                        count++;
+        var chunkCount = Math.min(height, Math.max(1, ForkJoinPool.commonPool().getParallelism()));
+        var chunkSize = (height + chunkCount - 1) / chunkCount;
+        IntStream.range(0, chunkCount).parallel().forEach(chunk -> {
+            int yStart = chunk * chunkSize;
+            int yEnd = Math.min(yStart + chunkSize, height);
+            for (int y = yStart; y < yEnd; y++) {
+                double total = 0;
+                double count = 0;
+                for (int x = 0; x < width; x++) {
+                    if (ellipse.isWithin(x, y)) {
+                        var v = data[y][x];
+                        if (v > lo && v < hi) {
+                            total += v;
+                            count++;
+                        }
                     }
                 }
+                avgValues[y] = count == 0 ? 0 : total / count;
             }
-            avgValues[y] = count == 0 ? 0 : total / count;
         });
         var weights = new double[height];
         // iterate over median values. If a value is 0, then replace it with the closest non-zero value
@@ -144,8 +151,8 @@ public class FlatCorrection {
 
     public ImageWrapper32 correctImage(ImageWrapper32 source) {
         return source.findMetadata(Ellipse.class)
-            .map(ellipse -> correctImage(source, computeCorrectionFactors(source, ellipse)))
-            .orElse(source);
+                .map(ellipse -> correctImage(source, computeCorrectionFactors(source, ellipse)))
+                .orElse(source);
     }
 
 }

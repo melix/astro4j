@@ -19,10 +19,14 @@ import me.champeau.a4j.ser.ImageGeometry;
 
 import java.nio.ByteBuffer;
 
-/** An image converter that performs no conversion. */
+/**
+ * An image converter that performs no conversion.
+ */
 public class NoOpConverter implements ImageConverter<byte[]> {
 
-    /** Constructs a no-op converter. */
+    /**
+     * Constructs a no-op converter.
+     */
     public NoOpConverter() {
     }
 
@@ -33,6 +37,6 @@ public class NoOpConverter implements ImageConverter<byte[]> {
 
     @Override
     public void convert(int frameId, ByteBuffer frameData, ImageGeometry geometry, byte[] outputData) {
-        System.arraycopy(frameData.array(), 0, outputData, 0, outputData.length);
+        frameData.duplicate().get(outputData, 0, outputData.length);
     }
 }

@@ -73,9 +73,9 @@ public class PythonImageMathBridge implements AutoCloseable {
     private SerFileReader reopenedReader;
 
     public PythonImageMathBridge(AbstractImageExpressionEvaluator evaluator,
-                                  Map<Class<?>, Object> context,
-                                  Broadcaster broadcaster,
-                                  boolean allowVariableCreation) {
+                                 Map<Class<?>, Object> context,
+                                 Broadcaster broadcaster,
+                                 boolean allowVariableCreation) {
         this.evaluator = evaluator;
         this.context = context;
         this.broadcaster = broadcaster;
@@ -135,7 +135,7 @@ public class PythonImageMathBridge implements AutoCloseable {
     /**
      * Saves an image to a FITS file.
      *
-     * @param img the image to save
+     * @param img  the image to save
      * @param path the file path
      */
     @HostAccess.Export
@@ -148,10 +148,10 @@ public class PythonImageMathBridge implements AutoCloseable {
      * Emits an image to the JSol'Ex UI during script execution.
      * The image will be displayed in the image viewer as a script-generated image.
      *
-     * @param img the image to emit
-     * @param title the display title for the image
-     * @param name the file name (optional, defaults to title)
-     * @param category the category (optional)
+     * @param img         the image to emit
+     * @param title       the display title for the image
+     * @param name        the file name (optional, defaults to title)
+     * @param category    the category (optional)
      * @param description the description (optional)
      */
     @HostAccess.Export
@@ -167,7 +167,7 @@ public class PythonImageMathBridge implements AutoCloseable {
             imageEmitter.newMonoImage(GeneratedImageKind.IMAGE_MATH, category, title, effectiveName, description, mono);
         } else if (unwrapped instanceof RGBImage rgb) {
             imageEmitter.newColorImage(GeneratedImageKind.IMAGE_MATH, category, title, effectiveName, description,
-                    rgb.width(), rgb.height(), rgb.metadata(), () -> new float[][][] {rgb.r(), rgb.g(), rgb.b()});
+                    rgb.width(), rgb.height(), rgb.metadata(), () -> new float[][][]{rgb.r(), rgb.g(), rgb.b()});
         } else {
             LOGGER.warn("Unsupported image type for emit: {}", unwrapped.getClass().getName());
         }
@@ -178,7 +178,7 @@ public class PythonImageMathBridge implements AutoCloseable {
      * Generic function call - invokes any ImageMath builtin function by name.
      *
      * @param functionName the function name (case-insensitive)
-     * @param args the function arguments as a map
+     * @param args         the function arguments as a map
      * @return the function result
      */
     @HostAccess.Export
@@ -192,9 +192,9 @@ public class PythonImageMathBridge implements AutoCloseable {
      * Generic function call with positional arguments - invokes any ImageMath builtin function by name.
      * Positional arguments are mapped to parameter names based on the function's parameter order.
      *
-     * @param functionName the function name (case-insensitive)
+     * @param functionName   the function name (case-insensitive)
      * @param positionalArgs positional arguments as a list
-     * @param kwargs keyword arguments as a map
+     * @param kwargs         keyword arguments as a map
      * @return the function result
      */
     @HostAccess.Export
@@ -241,9 +241,9 @@ public class PythonImageMathBridge implements AutoCloseable {
     /**
      * Calls a user-defined ImageMath function with positional arguments.
      *
-     * @param name the function name
+     * @param name           the function name
      * @param positionalArgs positional arguments as a list
-     * @param kwargs keyword arguments as a map
+     * @param kwargs         keyword arguments as a map
      * @return the function result
      */
     @HostAccess.Export
@@ -275,7 +275,7 @@ public class PythonImageMathBridge implements AutoCloseable {
      * Calls any function by name - tries builtin first, then falls back to user-defined.
      *
      * @param functionName the function name
-     * @param args the function arguments as a map
+     * @param args         the function arguments as a map
      * @return the function result
      */
     @HostAccess.Export
@@ -301,9 +301,9 @@ public class PythonImageMathBridge implements AutoCloseable {
     /**
      * Calls any function by name with positional arguments - tries builtin first, then falls back to user-defined.
      *
-     * @param functionName the function name
+     * @param functionName   the function name
      * @param positionalArgs positional arguments as a list
-     * @param kwargs keyword arguments as a map
+     * @param kwargs         keyword arguments as a map
      * @return the function result
      */
     @HostAccess.Export
@@ -362,7 +362,7 @@ public class PythonImageMathBridge implements AutoCloseable {
     /**
      * Gets a variable from the ImageMath context with a default value.
      *
-     * @param name the variable name
+     * @param name         the variable name
      * @param defaultValue the default value to return if the variable is not found or is null
      * @return the variable value, or the default value if not found or null
      */
@@ -377,7 +377,7 @@ public class PythonImageMathBridge implements AutoCloseable {
      * For embedded Python (via python() function), the variable must already exist.
      * For standalone Python scripts, new variables can be created.
      *
-     * @param name the variable name
+     * @param name  the variable name
      * @param value the variable value
      */
     @HostAccess.Export
@@ -385,8 +385,8 @@ public class PythonImageMathBridge implements AutoCloseable {
         if (!allowVariableCreation && !evaluator.getVariables().containsKey(name)) {
             throw new IllegalArgumentException(
                     "Variable '" + name + "' does not exist. " +
-                    "Variables must be declared in ImageMath before they can be modified by Python. " +
-                    "Example: declare '" + name + " = 0' before the python() call.");
+                            "Variables must be declared in ImageMath before they can be modified by Python. " +
+                            "Example: declare '" + name + " = 0' before the python() call.");
         }
         var convertedValue = convertFromPythonValue(value);
         evaluator.putVariable(name, convertedValue);
@@ -422,9 +422,9 @@ public class PythonImageMathBridge implements AutoCloseable {
     /**
      * Creates a new mono image from pixel data.
      *
-     * @param width the image width
+     * @param width  the image width
      * @param height the image height
-     * @param data the pixel data
+     * @param data   the pixel data
      * @return the new image
      */
     @HostAccess.Export
@@ -475,22 +475,25 @@ public class PythonImageMathBridge implements AutoCloseable {
         int totalElements = width * height;
         var alloc = getAllocator();
 
-        var vector = new Float4Vector("pixels", alloc);
-        vector.allocateNew(totalElements);
-
-        int index = 0;
-        for (float[] row : data) {
-            for (float value : row) {
-                vector.set(index++, value);
+        // try-with-resources releases the Java vector after exportVector has
+        // transferred ownership of the buffers to the C-Data-Interface struct.
+        // Without this, every export leaks ~width*height*4 bytes of off-heap
+        // Arrow memory (backed by shmem under the unsafe allocator).
+        try (var vector = new Float4Vector("pixels", alloc)) {
+            vector.allocateNew(totalElements);
+            int index = 0;
+            for (float[] row : data) {
+                for (float value : row) {
+                    vector.set(index++, value);
+                }
             }
+            vector.setValueCount(totalElements);
+
+            var arrowArray = ArrowArray.allocateNew(alloc);
+            var arrowSchema = ArrowSchema.allocateNew(alloc);
+            Data.exportVector(alloc, vector, null, arrowArray, arrowSchema);
+            return new long[]{arrowArray.memoryAddress(), arrowSchema.memoryAddress(), width, height, 1};
         }
-        vector.setValueCount(totalElements);
-
-        var arrowArray = ArrowArray.allocateNew(alloc);
-        var arrowSchema = ArrowSchema.allocateNew(alloc);
-        Data.exportVector(alloc, vector, null, arrowArray, arrowSchema);
-
-        return new long[]{arrowArray.memoryAddress(), arrowSchema.memoryAddress(), width, height, 1};
     }
 
     private long[] arrowExportRGB(RGBImage rgb) {
@@ -499,33 +502,32 @@ public class PythonImageMathBridge implements AutoCloseable {
         int totalElements = width * height * 3;
         var alloc = getAllocator();
 
-        var vector = new Float4Vector("pixels", alloc);
-        vector.allocateNew(totalElements);
-
-        // Interleave RGB data: [r0, g0, b0, r1, g1, b1, ...]
-        int index = 0;
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                vector.set(index++, rgb.r()[y][x]);
-                vector.set(index++, rgb.g()[y][x]);
-                vector.set(index++, rgb.b()[y][x]);
+        try (var vector = new Float4Vector("pixels", alloc)) {
+            vector.allocateNew(totalElements);
+            // Interleave RGB data: [r0, g0, b0, r1, g1, b1, ...]
+            int index = 0;
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    vector.set(index++, rgb.r()[y][x]);
+                    vector.set(index++, rgb.g()[y][x]);
+                    vector.set(index++, rgb.b()[y][x]);
+                }
             }
+            vector.setValueCount(totalElements);
+
+            var arrowArray = ArrowArray.allocateNew(alloc);
+            var arrowSchema = ArrowSchema.allocateNew(alloc);
+            Data.exportVector(alloc, vector, null, arrowArray, arrowSchema);
+            return new long[]{arrowArray.memoryAddress(), arrowSchema.memoryAddress(), width, height, 3};
         }
-        vector.setValueCount(totalElements);
-
-        var arrowArray = ArrowArray.allocateNew(alloc);
-        var arrowSchema = ArrowSchema.allocateNew(alloc);
-        Data.exportVector(alloc, vector, null, arrowArray, arrowSchema);
-
-        return new long[]{arrowArray.memoryAddress(), arrowSchema.memoryAddress(), width, height, 3};
     }
 
     /**
      * Creates a mono image from Arrow array data.
      *
-     * @param width the image width
-     * @param height the image height
-     * @param arrayAddress the C Data Interface array memory address
+     * @param width         the image width
+     * @param height        the image height
+     * @param arrayAddress  the C Data Interface array memory address
      * @param schemaAddress the C Data Interface schema memory address
      * @return the new mono image
      */
@@ -558,9 +560,9 @@ public class PythonImageMathBridge implements AutoCloseable {
     /**
      * Creates an RGB image from Arrow array data (interleaved RGB format).
      *
-     * @param width the image width
-     * @param height the image height
-     * @param arrayAddress the C Data Interface array memory address
+     * @param width         the image width
+     * @param height        the image height
+     * @param arrayAddress  the C Data Interface array memory address
      * @param schemaAddress the C Data Interface schema memory address
      * @return the new RGB image
      */
@@ -944,9 +946,9 @@ public class PythonImageMathBridge implements AutoCloseable {
         }
 
         boolean hasHFlip = refCoords.operations().stream()
-            .anyMatch(op -> op.kind() == ReferenceCoords.OperationKind.HFLIP);
+                .anyMatch(op -> op.kind() == ReferenceCoords.OperationKind.HFLIP);
         boolean hasVFlip = refCoords.operations().stream()
-            .anyMatch(op -> op.kind() == ReferenceCoords.OperationKind.VFLIP);
+                .anyMatch(op -> op.kind() == ReferenceCoords.OperationKind.VFLIP);
 
         result.put("hasHFlip", hasHFlip);
         result.put("hasVFlip", hasVFlip);
@@ -1168,7 +1170,8 @@ public class PythonImageMathBridge implements AutoCloseable {
                     var newX = current.x() - shift + current.y() * shear;
                     current = new Point2D(newX, current.y());
                 }
-                case OFFSET_2D -> current = new Point2D(current.x() - operation.value(0), current.y() - operation.value(1));
+                case OFFSET_2D ->
+                        current = new Point2D(current.x() - operation.value(0), current.y() - operation.value(1));
                 case MARKER -> { /* Skip markers */ }
             }
         }
@@ -1181,8 +1184,8 @@ public class PythonImageMathBridge implements AutoCloseable {
         var cos = Math.cos(angle);
         var sin = Math.sin(angle);
         return new Point2D(
-            rotationCenter.x() + dx * cos - dy * sin,
-            rotationCenter.y() + dx * sin + dy * cos
+                rotationCenter.x() + dx * cos - dy * sin,
+                rotationCenter.y() + dx * sin + dy * cos
         );
     }
 
@@ -1279,9 +1282,9 @@ public class PythonImageMathBridge implements AutoCloseable {
         int latSign = 1;
         if (refCoords != null) {
             var hasHFlip = refCoords.operations().stream()
-                .anyMatch(op -> op.kind() == ReferenceCoords.OperationKind.HFLIP);
+                    .anyMatch(op -> op.kind() == ReferenceCoords.OperationKind.HFLIP);
             var hasVFlip = refCoords.operations().stream()
-                .anyMatch(op -> op.kind() == ReferenceCoords.OperationKind.VFLIP);
+                    .anyMatch(op -> op.kind() == ReferenceCoords.OperationKind.VFLIP);
             lonSign = hasHFlip ? -1 : 1;
             latSign = hasVFlip ? -1 : 1;
         }
@@ -1360,9 +1363,9 @@ public class PythonImageMathBridge implements AutoCloseable {
         int latSign = 1;
         if (refCoords != null) {
             var hasHFlip = refCoords.operations().stream()
-                .anyMatch(op -> op.kind() == ReferenceCoords.OperationKind.HFLIP);
+                    .anyMatch(op -> op.kind() == ReferenceCoords.OperationKind.HFLIP);
             var hasVFlip = refCoords.operations().stream()
-                .anyMatch(op -> op.kind() == ReferenceCoords.OperationKind.VFLIP);
+                    .anyMatch(op -> op.kind() == ReferenceCoords.OperationKind.VFLIP);
             lonSign = hasHFlip ? -1 : 1;
             latSign = hasVFlip ? -1 : 1;
         }
@@ -1427,9 +1430,9 @@ public class PythonImageMathBridge implements AutoCloseable {
     // Spherical to Cartesian conversion (matching ImageDraw.ofSpherical)
     private double[] sphericalToCartesian(double longitude, double latitude, double radius) {
         return new double[]{
-            Math.sin(longitude) * Math.sin(latitude) * radius,
-            Math.cos(latitude) * radius,
-            Math.cos(longitude) * Math.sin(latitude) * radius
+                Math.sin(longitude) * Math.sin(latitude) * radius,
+                Math.cos(latitude) * radius,
+                Math.cos(longitude) * Math.sin(latitude) * radius
         };
     }
 
@@ -1438,9 +1441,9 @@ public class PythonImageMathBridge implements AutoCloseable {
         double cos = Math.cos(angle);
         double sin = Math.sin(angle);
         return new double[]{
-            coords[0],
-            coords[1] * cos - coords[2] * sin,
-            coords[1] * sin + coords[2] * cos
+                coords[0],
+                coords[1] * cos - coords[2] * sin,
+                coords[1] * sin + coords[2] * cos
         };
     }
 
@@ -1449,9 +1452,9 @@ public class PythonImageMathBridge implements AutoCloseable {
         double cos = Math.cos(angle);
         double sin = Math.sin(angle);
         return new double[]{
-            coords[0] * cos - coords[1] * sin,
-            coords[0] * sin + coords[1] * cos,
-            coords[2]
+                coords[0] * cos - coords[1] * sin,
+                coords[0] * sin + coords[1] * cos,
+                coords[2]
         };
     }
 

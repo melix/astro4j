@@ -23,7 +23,6 @@ import me.champeau.a4j.ser.ImageGeometry;
 import me.champeau.a4j.ser.SerFileReader;
 import me.champeau.a4j.ser.bayer.ImageConverter;
 
-import java.nio.ByteBuffer;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -47,8 +46,8 @@ public class AverageImageCreator {
      * Creates a new average image creator.
      *
      * @param imageConverter the converter for processing raw frame data
-     * @param rootOperation the root progress operation for reporting progress
-     * @param broadcaster the broadcaster for publishing progress events
+     * @param rootOperation  the root progress operation for reporting progress
+     * @param broadcaster    the broadcaster for publishing progress events
      */
     public AverageImageCreator(ImageConverter<float[][]> imageConverter,
                                ProgressOperation rootOperation,
@@ -92,13 +91,11 @@ public class AverageImageCreator {
             for (int i = 0; i < frameCount; i++) {
                 int frameId = i;
                 broadcaster.broadcast(progressOperation.update(frameId / (double) frameCount));
-                var currentFrame = reader.currentFrame().data().array();
-                byte[] copy = new byte[currentFrame.length];
-                System.arraycopy(currentFrame, 0, copy, 0, currentFrame.length);
+                var frameData = reader.currentFrame().data();
                 reader.nextFrame();
                 ioExecutor.submit(() -> {
-                    var buffer = imageConverter.createBuffer(geometry);
-                    imageConverter.convert(frameId, ByteBuffer.wrap(copy), geometry, buffer);
+                    var buffer = new float[height][width];
+                    imageConverter.convert(frameId, frameData, geometry, buffer);
                     var frameAvg = imageMath.averageOf(buffer);
                     if (frameAvg > threshold) {
                         var local = localAccumulator.get();
@@ -159,13 +156,11 @@ public class AverageImageCreator {
         try (var executor = ParallelExecutor.newExecutor(IO_PARALLELISM)) {
             for (int i = 0; i < frameCount; i += sampling) {
                 reader.seekFrame(i);
-                var currentFrame = reader.currentFrame().data().array();
-                byte[] copy = new byte[currentFrame.length];
-                System.arraycopy(currentFrame, 0, copy, 0, currentFrame.length);
+                var frameData = reader.currentFrame().data();
                 int finalI = i;
                 executor.submit(() -> {
-                    var img = imageConverter.createBuffer(geometry);
-                    imageConverter.convert(finalI, ByteBuffer.wrap(copy), geometry, img);
+                    var img = new float[geometry.height()][geometry.width()];
+                    imageConverter.convert(finalI, frameData, geometry, img);
                     var mean = imageMath.averageOf(img);
                     maxLock.lock();
                     try {

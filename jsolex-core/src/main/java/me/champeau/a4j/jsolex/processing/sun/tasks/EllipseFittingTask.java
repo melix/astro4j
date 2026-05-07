@@ -119,14 +119,19 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         workImage = ImageWrapper32.fromImage(tmp);
         // Perform background neutralization to reduce impact of reflections,
         // particularly visible close to UV. We perform multiple iterations
-        // because some gradients are particularly difficult to remove
+        // because some gradients are particularly difficult to remove. The
+        // working buffer is allocated once and reused across all iterations
+        // — each call reads from the previous iteration's result (which lives
+        // in `bgBuffer`) and writes back into the same buffer. Was up to 17
+        // large allocations per task; now 1.
+        var bgBuffer = new float[height][width];
         double bg = Constants.MAX_PIXEL_VALUE;
-        var blindBg = BackgroundRemoval.blindBackgroundNeutralization(workImage);
+        var blindBg = BackgroundRemoval.blindBackgroundNeutralization(workImage, bgBuffer);
         workImage = blindBg.neutralized();
         int maxIterations = 16;
         while (Math.abs(bg - blindBg.averageBackground()) / Math.max(bg, blindBg.averageBackground()) > 0.02 && maxIterations-- > 0) {
             bg = blindBg.averageBackground();
-            blindBg = BackgroundRemoval.blindBackgroundNeutralization(workImage);
+            blindBg = BackgroundRemoval.blindBackgroundNeutralization(workImage, bgBuffer);
             workImage = blindBg.neutralized();
             LOGGER.debug("Background level was {}", blindBg.averageBackground());
         }
@@ -137,6 +142,7 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
     /**
      * Returns a list of points, sorted by their distance to the center of the
      * image.
+     *
      * @return
      */
     private List<Point2D> sortByDistanceToEdges(List<Point2D> points) {
@@ -149,13 +155,14 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
      * Only keeps 80% of the points, sorted by their distance to the edges.
      * This helps with eclipse images, where sample points can be found at the moon
      * limb, which are not relevant for the ellipse fitting.
+     *
      * @param points the initial list of points
      * @return the decimated list of points
      */
     private List<Point2D> decimate(List<Point2D> points) {
         return sortByDistanceToEdges(points)
                 .stream()
-                .limit((long) (0.8*points.size()))
+                .limit((long) (0.8 * points.size()))
                 .collect(Collectors.toList());
     }
 

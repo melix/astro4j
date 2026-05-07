@@ -85,7 +85,23 @@ public class ShiftCollectingImageExpressionEvaluator extends ImageExpressionEval
 
     public ImageWrapper findImage(PixelShift shift) {
         shifts.add(shift.pixelShift());
-        return cache.computeIfAbsent(shift, s -> FileBackedImage.wrap(super.findImage(shift)));
+        var cached = cache.get(shift);
+        if (cached != null) {
+            return cached;
+        }
+        var lock = loadLocks.computeIfAbsent(shift, k -> new ReentrantLock());
+        lock.lock();
+        try {
+            cached = cache.get(shift);
+            if (cached != null) {
+                return cached;
+            }
+            var loaded = FileBackedImage.wrap(super.findImage(shift));
+            cache.put(shift, loaded);
+            return loaded;
+        } finally {
+            lock.unlock();
+        }
     }
 
     public Set<Double> getShifts() {

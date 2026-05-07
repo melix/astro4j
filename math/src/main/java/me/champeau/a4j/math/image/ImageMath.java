@@ -123,7 +123,7 @@ public interface ImageMath {
     /**
      * Computes the average value of a specific row in the image.
      *
-     * @param image the source image
+     * @param image  the source image
      * @param lineNb the row number
      * @return the average value of the row
      */
@@ -175,7 +175,7 @@ public interface ImageMath {
      *
      * @param current the current data values
      * @param average the running average (modified in place)
-     * @param n the count of values including this one
+     * @param n       the count of values including this one
      */
     default void incrementalAverage(float[][] current, float[][] average, int n) {
         for (int j = 0; j < current.length; j++) {
@@ -190,11 +190,11 @@ public interface ImageMath {
     /**
      * Rotates and scales an image in one operation.
      *
-     * @param image the source image
-     * @param angle the rotation angle in radians
+     * @param image      the source image
+     * @param angle      the rotation angle in radians
      * @param blackpoint the value to use for pixels outside the source
-     * @param scaleX the horizontal scale factor
-     * @param scaleY the vertical scale factor
+     * @param scaleX     the horizontal scale factor
+     * @param scaleY     the vertical scale factor
      * @return the transformed image
      */
     default Image rotateAndScale(Image image, double angle, float blackpoint, double scaleX, double scaleY) {
@@ -245,10 +245,10 @@ public interface ImageMath {
     /**
      * Rotates an image by an arbitrary angle with optional resizing.
      *
-     * @param image the source image
-     * @param angle the rotation angle in radians
+     * @param image      the source image
+     * @param angle      the rotation angle in radians
      * @param blackpoint the value to use for pixels outside the source (negative for adaptive)
-     * @param resize if true, resize output to fit entire rotated image
+     * @param resize     if true, resize output to fit entire rotated image
      * @return the rotated image
      */
     default Image rotate(Image image, double angle, float blackpoint, boolean resize) {
@@ -326,8 +326,8 @@ public interface ImageMath {
     /**
      * Rescales an image to new dimensions using bilinear interpolation.
      *
-     * @param image the source image
-     * @param newWidth the target width
+     * @param image     the source image
+     * @param newWidth  the target width
      * @param newHeight the target height
      * @return the rescaled image
      */
@@ -374,9 +374,9 @@ public interface ImageMath {
     /**
      * Mirrors an image horizontally and/or vertically.
      *
-     * @param source the source image
+     * @param source           the source image
      * @param horizontalMirror if true, mirror horizontally
-     * @param verticalMirror if true, mirror vertically
+     * @param verticalMirror   if true, mirror vertically
      * @return the mirrored image
      */
     default Image mirror(Image source, boolean horizontalMirror, boolean verticalMirror) {
@@ -442,10 +442,10 @@ public interface ImageMath {
      * Computes the sum of pixel values in a rectangular area using an integral image.
      *
      * @param integralImage the precomputed integral image
-     * @param x the left coordinate of the area
-     * @param y the top coordinate of the area
-     * @param width the width of the area
-     * @param height the height of the area
+     * @param x             the left coordinate of the area
+     * @param y             the top coordinate of the area
+     * @param width         the width of the area
+     * @param height        the height of the area
      * @return the sum of values in the area
      */
     default float areaSum(Image integralImage, int x, int y, int width, int height) {
@@ -475,10 +475,10 @@ public interface ImageMath {
      * Computes the average pixel value in a rectangular area using an integral image.
      *
      * @param integralImage the precomputed integral image
-     * @param x the left coordinate of the area
-     * @param y the top coordinate of the area
-     * @param width the width of the area
-     * @param height the height of the area
+     * @param x             the left coordinate of the area
+     * @param y             the top coordinate of the area
+     * @param width         the width of the area
+     * @param height        the height of the area
      * @return the average value in the area
      */
     default float areaAverage(Image integralImage, int x, int y, int width, int height) {
@@ -488,7 +488,7 @@ public interface ImageMath {
     /**
      * Applies a box blur using a sliding window in two separable passes.
      *
-     * @param image the source image
+     * @param image      the source image
      * @param kernelSize the blur kernel size (must be odd)
      * @return the blurred image
      */
@@ -499,7 +499,6 @@ public interface ImageMath {
         var halfK = kernelSize / 2;
         float invN2 = 1f / ((float) kernelSize * kernelSize);
 
-        // Horizontal pass: sliding window across each row
         var hPass = new float[height][width];
         for (int y = 0; y < height; y++) {
             var srcRow = source[y];
@@ -516,7 +515,6 @@ public interface ImageMath {
             }
         }
 
-        // Vertical pass: sliding window down columns, row-by-row for cache locality
         var result = new float[height][width];
         var colSums = new float[width];
         for (int ky = -halfK; ky <= halfK; ky++) {
@@ -544,15 +542,31 @@ public interface ImageMath {
     /**
      * Applies a convolution kernel to an image.
      *
-     * @param image the source image
+     * @param image  the source image
      * @param kernel the convolution kernel
      * @return the convolved image
      */
     default Image convolve(Image image, Kernel kernel) {
+        var output = new float[image.height()][image.width()];
+        convolve(image, kernel, output);
+        return image.withData(output);
+    }
+
+    /**
+     * Applies a convolution kernel to an image, writing the result to a
+     * caller-supplied output buffer. The buffer must have the same dimensions
+     * as the image. Use this overload when reusing a pooled buffer to avoid
+     * per-call allocation.
+     *
+     * @param image  the source image
+     * @param kernel the convolution kernel
+     * @param output the output buffer ({@code float[height][width]})
+     * @return the {@code output} buffer, populated with the convolved data
+     */
+    default float[][] convolve(Image image, Kernel kernel, float[][] output) {
         var source = image.data();
         var height = image.height();
         var width = image.width();
-        var convolved = new float[height][width];
 
         var krows = kernel.kernel();
         var kHeight = krows.length;
@@ -577,11 +591,11 @@ public interface ImageMath {
                 }
 
                 var val = sum * factor;
-                convolved[y][x] = Math.clamp(val, 0, MAX_VALUE);
+                output[y][x] = Math.clamp(val, 0, MAX_VALUE);
             }
         }
 
-        return image.withData(convolved);
+        return output;
     }
 
     /**
@@ -642,7 +656,7 @@ public interface ImageMath {
      * Multiplies all pixel values by a scalar.
      *
      * @param source the source image
-     * @param f the multiplication factor
+     * @param f      the multiplication factor
      * @return the result image
      */
     default Image multiply(Image source, float f) {
@@ -662,7 +676,7 @@ public interface ImageMath {
      * Adds a scalar to all pixel values.
      *
      * @param source the source image
-     * @param f the value to add
+     * @param f      the value to add
      * @return the result image
      */
     default Image add(Image source, float f) {
@@ -681,7 +695,7 @@ public interface ImageMath {
     /**
      * Divides corresponding pixels of two images.
      *
-     * @param first the numerator image
+     * @param first  the numerator image
      * @param second the denominator image
      * @return the result image
      */
@@ -702,7 +716,7 @@ public interface ImageMath {
     /**
      * Multiplies corresponding pixels of two images.
      *
-     * @param first the first image
+     * @param first  the first image
      * @param second the second image
      * @return the result image
      */
@@ -759,7 +773,6 @@ public interface ImageMath {
         var width = image.width();
         var sum = new float[height][width];
         for (int y = 0; y < height; y++) {
-            sum[y] = new float[width];
             for (int x = 0; x < width; x++) {
                 sum[y][x] = a[y][x] + b[y][x];
             }
@@ -772,10 +785,10 @@ public interface ImageMath {
      * The distortion grid is a sparse representation of dx/dy displacements
      * sampled at regular intervals (gridStep).
      *
-     * @param source the source image to warp
-     * @param gridDx the x-displacement grid (gridHeight x gridWidth)
-     * @param gridDy the y-displacement grid (gridHeight x gridWidth)
-     * @param gridStep the step size between grid samples in pixels
+     * @param source     the source image to warp
+     * @param gridDx     the x-displacement grid (gridHeight x gridWidth)
+     * @param gridDy     the y-displacement grid (gridHeight x gridWidth)
+     * @param gridStep   the step size between grid samples in pixels
      * @param useLanczos if true, use Lanczos-3 interpolation; otherwise use bilinear
      * @return the warped image
      */
@@ -889,7 +902,7 @@ public interface ImageMath {
     /**
      * Applies a median filter to an image.
      *
-     * @param image the source image
+     * @param image  the source image
      * @param radius the filter radius (kernel size = 2*radius+1)
      * @return the filtered image
      */

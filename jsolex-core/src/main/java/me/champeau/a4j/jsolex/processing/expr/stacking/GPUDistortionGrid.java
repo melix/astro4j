@@ -23,8 +23,9 @@ import static org.lwjgl.opencl.CL10.CL_MEM_READ_ONLY;
  * GPU-resident distortion grid (dx, dy arrays).
  * Used during refinement loops to avoid uploading grid data repeatedly.
  * <p>
- * This class is intended for use within a single GPU-locked context.
- * All methods must be called within {@link OpenCLContext#executeWithLock}.
+ * Instances are not thread-safe; confine each one to a single owner. The
+ * underlying buffers are allocated directly on the {@link OpenCLContext}
+ * and freed by {@link #close}.
  */
 public class GPUDistortionGrid implements AutoCloseable {
     private final int gridWidth;
@@ -47,7 +48,6 @@ public class GPUDistortionGrid implements AutoCloseable {
 
     /**
      * Uploads distortion grid data from CPU to GPU.
-     * Must be called within executeWithLock.
      *
      * @param gridDx   displacement X values [gridHeight][gridWidth]
      * @param gridDy   displacement Y values [gridHeight][gridWidth]
@@ -76,7 +76,6 @@ public class GPUDistortionGrid implements AutoCloseable {
 
     /**
      * Creates a GPU distortion grid from a CPU DistorsionMap.
-     * Must be called within executeWithLock.
      *
      * @param map     source distortion map
      * @param context OpenCL context
@@ -132,7 +131,6 @@ public class GPUDistortionGrid implements AutoCloseable {
 
     /**
      * Releases GPU memory.
-     * Must be called within executeWithLock.
      */
     @Override
     public void close() {
