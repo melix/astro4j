@@ -15,7 +15,9 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
+import javafx.animation.KeyFrame;
 import javafx.animation.PauseTransition;
+import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.fxml.FXML;
@@ -34,6 +36,8 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.image.Image;
+import javafx.scene.image.PixelFormat;
+import javafx.scene.image.WritableImage;
 import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
@@ -51,17 +55,16 @@ import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.AverageImageCreator;
-import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.sun.SpectrumFrameAnalyzer;
 import me.champeau.a4j.jsolex.processing.sun.detection.PhenomenaDetector;
 import me.champeau.a4j.jsolex.processing.sun.detection.PhenomenaListener;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.jsolex.processing.util.Constants;
-import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
+import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.jsolex.processing.util.SpectralLineFrameImageCreator;
 import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
 import me.champeau.a4j.math.Point2D;
@@ -76,12 +79,14 @@ import me.champeau.a4j.ser.bayer.ImageConverter;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.DoubleUnaryOperator;
 import java.util.stream.Collectors;
@@ -144,6 +149,13 @@ public class SpectralLineDebugger {
     @FXML
     private Button resetPolynomial;
 
+    @FXML
+    private Button playButton;
+    @FXML
+    private Slider speedSlider;
+    @FXML
+    private Label speedLabel;
+
     private Image image;
     private final List<Point2D> samplePoints = new ArrayList<>();
     private final List<Double> sampleDistances = new ArrayList<>();
@@ -161,6 +173,17 @@ public class SpectralLineDebugger {
     private float[][] averageImage;
     private ProgressOperation operation;
     private DoubleQuadruplet originalPolynomial;
+    private Timeline playTimeline;
+    private volatile boolean isPlaying;
+    private ToggleGroup toggleGroup;
+    private ImageConverter<float[][]> converter;
+    private ImageGeometry geometry;
+    private Scene scene;
+    private ExecutorService frameExec;
+    private final AtomicReference<PlaybackRequest> pendingRequest = new AtomicReference<>();
+
+    private record PlaybackRequest(int frame, Double sunThreshold, double boost, DoubleUnaryOperator lockedPoly) {
+    }
 
     public static Stage open(File file, ProgressOperation operation, Consumer<? super String> onPolynomialComputed) {
         var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "frame-debugger");
@@ -184,6 +207,7 @@ public class SpectralLineDebugger {
 
     public void open(File file, ColorMode colorMode, Scene scene, Stage stage) {
         var toggleGroup = new ToggleGroup();
+        this.toggleGroup = toggleGroup;
         average.setToggleGroup(toggleGroup);
         frames.setToggleGroup(toggleGroup);
         canvasScrollPane.addEventFilter(ScrollEvent.SCROLL, event -> {
@@ -255,6 +279,7 @@ public class SpectralLineDebugger {
         });
         toggleGroup.selectedToggleProperty().addListener((obj, oldValue, newValue) -> {
             if (newValue == average) {
+                stopPlayback();
                 frameMoveGroup.setDisable(true);
             } else {
                 frameMoveGroup.setDisable(false);
@@ -340,6 +365,8 @@ public class SpectralLineDebugger {
 
     private void prepareView(File file, ColorMode colorMode, Scene scene, Stage stage, ToggleGroup toggleGroup) {
         var converter = createImageConverter(colorMode);
+        this.converter = converter;
+        this.scene = scene;
         Platform.runLater(() -> progressBox.setVisible(true));
         var detector = new AverageImageCreator(converter,
                 operation,
@@ -360,7 +387,13 @@ public class SpectralLineDebugger {
                 progressBox.setVisible(false);
                 var header = reader.header();
                 var geometry = header.geometry();
+                this.geometry = geometry;
                 int current = header.frameCount() / 2;
+                frameExec = Executors.newSingleThreadExecutor(r -> {
+                    var t = new Thread(r, "frame-debugger-decode");
+                    t.setDaemon(true);
+                    return t;
+                });
                 var screenWidth = Screen.getPrimary().getBounds().getWidth();
                 stage.setWidth(Math.max(screenWidth, Math.min(1024, header.geometry().width())));
                 stage.setHeight(stage.getHeight() + 2 * geometry.height() + 20);
@@ -379,11 +412,23 @@ public class SpectralLineDebugger {
                 ChangeListener listener = (observable, oldValue, newValue) -> {
                     int newId = newValue instanceof Number ? ((Number) newValue).intValue() : frameSlider.valueProperty().intValue();
                     frameId.setText(newId + "");
-                    pause.setOnFinished(e ->
-                            processFrame(converter, reader, geometry, newId, imageFile, toggleGroup.getSelectedToggle() == average ? averageImage : null, scene)
-                    );
-                    pause.playFromStart();
+                    if (isPlaying) {
+                        submitPlaybackFrame(newId);
+                    } else {
+                        pause.setOnFinished(e ->
+                                processFrame(converter, reader, geometry, newId, imageFile, toggleGroup.getSelectedToggle() == average ? averageImage : null, scene)
+                        );
+                        pause.playFromStart();
+                    }
                 };
+                playTimeline = new Timeline();
+                playTimeline.setCycleCount(Timeline.INDEFINITE);
+                updatePlaybackRate();
+                speedSlider.valueProperty().addListener((obs, ov, nv) -> {
+                    int fps = nv.intValue();
+                    speedLabel.setText(fps + " fps");
+                    updatePlaybackRate();
+                });
                 computePolynomial.setOnAction(e -> {
                     var polynomial = LinearRegression.thirdOrderRegression(samplePoints.toArray(new Point2D[0]));
                     lockedPolynomial = polynomial.asPolynomial();
@@ -456,7 +501,200 @@ public class SpectralLineDebugger {
 
 
     public void close() throws Exception {
+        stopPlayback();
+        if (frameExec != null) {
+            frameExec.shutdownNow();
+        }
         reader.close();
+    }
+
+    private static Image rgbToFxImage(RGBImage rgb) {
+        int w = rgb.width();
+        int h = rgb.height();
+        int[] argb = rgbToArgb(rgb);
+        var img = new WritableImage(w, h);
+        img.getPixelWriter().setPixels(0, 0, w, h, PixelFormat.getIntArgbInstance(), argb, 0, w);
+        return img;
+    }
+
+    private static int[] rgbToArgb(RGBImage rgb) {
+        int w = rgb.width();
+        int h = rgb.height();
+        int[] argb = new int[w * h];
+        var r = rgb.r();
+        var g = rgb.g();
+        var b = rgb.b();
+        int idx = 0;
+        for (int y = 0; y < h; y++) {
+            var rr = r[y];
+            var gg = g[y];
+            var bb = b[y];
+            for (int x = 0; x < w; x++) {
+                argb[idx++] = 0xFF000000 | (clamp8(rr[x]) << 16) | (clamp8(gg[x]) << 8) | clamp8(bb[x]);
+            }
+        }
+        return argb;
+    }
+
+    private static int clamp8(float v) {
+        int b = (int) (v / 256f);
+        if (b < 0) {
+            return 0;
+        }
+        if (b > 255) {
+            return 255;
+        }
+        return b;
+    }
+
+    private void submitPlaybackFrame(int frame) {
+        if (frameExec == null) {
+            return;
+        }
+        var thresholdText = sunDetectionThreshold.textProperty().getValue();
+        Double sunThr = thresholdText == null || thresholdText.isEmpty() ? null : Double.parseDouble(thresholdText);
+        double boost = contrastBoost.getValue();
+        DoubleUnaryOperator lp = lockedPolynomial;
+        pendingRequest.set(new PlaybackRequest(frame, sunThr, boost, lp));
+        frameExec.execute(this::drainPlayback);
+    }
+
+    private void drainPlayback() {
+        var req = pendingRequest.getAndSet(null);
+        if (req == null) {
+            return;
+        }
+        try {
+            renderPlaybackFrame(req);
+        } catch (Throwable t) {
+            // Swallow: a single failed playback frame must not kill the executor thread.
+        }
+    }
+
+    private void renderPlaybackFrame(PlaybackRequest req) {
+        if (converter == null || geometry == null || reader == null) {
+            return;
+        }
+        int width = geometry.width();
+        int height = geometry.height();
+        int frame = req.frame();
+        float[][] source = converter.createBuffer(geometry);
+        reader.seekFrame(frame);
+        converter.convert(frame, reader.currentFrame().data(), geometry, source);
+        float[][] buffer = ImageWrapper.copyData(source);
+        var analyzer = new SpectrumFrameAnalyzer(width, height, reader.header().isJSolexTrimmedSer(), req.sunThreshold());
+        analyzer.analyze(buffer);
+        if (req.boost() > 0) {
+            for (int i = 0; i < req.boost(); i++) {
+                new ArcsinhStretchingStrategy(0f, 0.25f, 0.25f).stretch(new ImageWrapper32(width, height, buffer, MutableMap.of()));
+            }
+        }
+        var creator = new SpectralLineFrameImageCreator(analyzer, buffer, width, height);
+        var rgb = creator.generateDebugImage(req.lockedPoly());
+        var detectedPoly = analyzer.result().distortionPolynomial().orElse(req.lockedPoly());
+        var detectionResult = spectralRayDetectionResult;
+        var params = processParams;
+        if (detectionResult != null && params != null && detectedPoly != null) {
+            var line = detectionResult.line();
+            var instrument = params.observationDetails().instrument();
+            var dispersion = SpectrumAnalyzer.computeSpectralDispersion(instrument, line.wavelength(), detectionResult.pixelSize() * detectionResult.binning());
+            var detector = new PhenomenaDetector(dispersion, line.wavelength(), 0);
+            detector.setDetectEllermanBombsOrFlares(false);
+            detector.setDetectRedshifts(line.equals(SpectralRay.H_ALPHA));
+            detector.setDetectionListener(new PhenomenaListener() {
+                @Override
+                public void onRedshift(DoublePair rs) {
+                    var x = rs.a();
+                    var y = ((int) Math.round(detectedPoly.applyAsDouble(x))) + rs.b();
+                    rgb.r()[(int) y][(int) x] = 0;
+                    rgb.g()[(int) y][(int) x] = Constants.MAX_PIXEL_VALUE;
+                    rgb.b()[(int) y][(int) x] = Constants.MAX_PIXEL_VALUE;
+                }
+
+                @Override
+                public void onActiveRegion(int x) {
+                    for (int y = 0; y < height; y++) {
+                        rgb.r()[y + height + SPACING][x] = Constants.MAX_PIXEL_VALUE;
+                        rgb.b()[y + height + SPACING][x] = Constants.MAX_PIXEL_VALUE;
+                    }
+                }
+            });
+            detector.performDetection(frame, width, height, buffer, detectedPoly, reader.header());
+        }
+        int w = rgb.width();
+        int h = rgb.height();
+        int[] argb = rgbToArgb(rgb);
+        Platform.runLater(() -> {
+            if (!isPlaying) {
+                return;
+            }
+            var img = new WritableImage(w, h);
+            img.getPixelWriter().setPixels(0, 0, w, h, PixelFormat.getIntArgbInstance(), argb, 0, w);
+            image = img;
+            updateCanvasSize(scene);
+            redraw();
+        });
+    }
+
+    @FXML
+    private void togglePlay() {
+        if (isPlaying) {
+            stopPlayback();
+        } else {
+            startPlayback();
+        }
+    }
+
+    private void startPlayback() {
+        if (playTimeline == null) {
+            return;
+        }
+        if (toggleGroup != null && toggleGroup.getSelectedToggle() == average) {
+            toggleGroup.selectToggle(frames);
+        }
+        if ((int) frameSlider.getValue() >= (int) frameSlider.getMax()) {
+            frameSlider.setValue(0);
+        }
+        isPlaying = true;
+        playButton.setText("⏸");
+        playTimeline.play();
+    }
+
+    private void stopPlayback() {
+        if (!isPlaying && playTimeline == null) {
+            return;
+        }
+        isPlaying = false;
+        if (playButton != null) {
+            playButton.setText("▶");
+        }
+        if (playTimeline != null) {
+            playTimeline.stop();
+        }
+    }
+
+    private void advanceOrStop() {
+        int current = (int) frameSlider.getValue();
+        int max = (int) frameSlider.getMax();
+        if (current >= max) {
+            stopPlayback();
+            return;
+        }
+        frameSlider.setValue(current + 1);
+    }
+
+    private void updatePlaybackRate() {
+        if (playTimeline == null) {
+            return;
+        }
+        int fps = Math.max(1, (int) speedSlider.getValue());
+        boolean wasPlaying = isPlaying;
+        playTimeline.stop();
+        playTimeline.getKeyFrames().clear();
+        playTimeline.getKeyFrames().add(new KeyFrame(Duration.millis(1000.0 / fps), e -> advanceOrStop()));
+        if (wasPlaying) {
+            playTimeline.play();
+        }
     }
 
     private void processFrame(ImageConverter<float[][]> converter,
@@ -550,8 +788,7 @@ public class SpectralLineDebugger {
             });
             detector.performDetection(frameId, width, height, buffer, polynomial, reader.header());
         }
-        ImageUtils.writeRgbImage(rgb.width(), rgb.height(), rgb.r(), rgb.g(), rgb.b(), imageFile, EnumSet.of(ImageFormat.PNG));
-        image = new Image(imageFile.toURI().toString());
+        image = rgbToFxImage(rgb);
         updateCanvasSize(scene);
         redraw();
         canvas.setOnMouseClicked(evt -> {
