@@ -49,12 +49,18 @@
                         <Button mnemonicParsing="false" onAction="#fastRewind" text="&lt;&lt;"
                                 styleClass="small-button"/>
                         <Button mnemonicParsing="false" onAction="#rewind" text="&lt;" styleClass="small-button"/>
+                        <Button fx:id="playButton" mnemonicParsing="false" onAction="#togglePlay" text="▶"
+                                styleClass="small-button"/>
                         <Slider fx:id="frameSlider" prefHeight="20" prefWidth="200" styleClass="compact-slider"/>
                         <Label text="Frame" styleClass="compact-label"/>
                         <TextField fx:id="frameId" maxWidth="60" styleClass="compact-field"/>
                         <Button mnemonicParsing="false" onAction="#forward" text="&gt;" styleClass="small-button"/>
                         <Button mnemonicParsing="false" onAction="#fastForward" text="&gt;&gt;"
                                 styleClass="small-button"/>
+                        <Label text="%speed" styleClass="compact-label"/>
+                        <Slider fx:id="speedSlider" min="1" max="300" value="30" prefWidth="160"
+                                styleClass="compact-slider"/>
+                        <Label fx:id="speedLabel" styleClass="compact-label" text="30 fps"/>
                     </HBox>
                 </HBox>
 
