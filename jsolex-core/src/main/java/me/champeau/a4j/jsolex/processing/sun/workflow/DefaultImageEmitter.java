@@ -157,7 +157,9 @@ public class DefaultImageEmitter implements ImageEmitter {
     public void newMonoImage(GeneratedImageKind kind, String category, String title, String name, String description, ImageWrapper32 image) {
         prepareOutput(name);
         var snapshot = snapshot(image, kind, title, name);
-        submit(() -> new WriteMonoImageTask(broadcaster,
+        // This intentionally bypasses the queue, because the write operation is
+        // direct, no heavy work.
+        Thread.startVirtualThread(() -> new WriteMonoImageTask(broadcaster,
                 operation,
                 () -> (ImageWrapper32) snapshot.unwrapToMemory(),
                 outputDir,
