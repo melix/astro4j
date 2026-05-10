@@ -39,6 +39,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
@@ -64,7 +65,17 @@ import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectorie
  *
  */
 public class DefaultImageEmitter implements ImageEmitter {
-    private static final ExecutorService DEFAULT_EXECUTOR = Executors.newCachedThreadPool(r -> new Thread(r, "DefaultImageEmitter"));
+    private static final int N_THREADS = Math.max(2, Math.min(
+            Runtime.getRuntime().availableProcessors() / 2,
+            (int) (Runtime.getRuntime().maxMemory() / (1L << 30))));
+    private static final int IN_FLIGHT_LIMIT = N_THREADS * 2;
+    private static final Semaphore DEFAULT_PERMITS = new Semaphore(IN_FLIGHT_LIMIT);
+    private static final AtomicInteger THREAD_SEQ = new AtomicInteger();
+    private static final ExecutorService DEFAULT_EXECUTOR = Executors.newFixedThreadPool(N_THREADS, r -> {
+        var t = new Thread(r, "DefaultImageEmitter-" + THREAD_SEQ.incrementAndGet());
+        t.setDaemon(true);
+        return t;
+    });
 
     private final Broadcaster broadcaster;
     private final ProgressOperation operation;
@@ -98,8 +109,25 @@ public class DefaultImageEmitter implements ImageEmitter {
     }
 
     private void submit(Runnable task) {
+        var permits = (executor == DEFAULT_EXECUTOR) ? DEFAULT_PERMITS : null;
+        if (permits != null) {
+            try {
+                permits.acquire();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new ProcessingException(e);
+            }
+        }
         outstanding.incrementAndGet();
-        CompletableFuture.runAsync(task, executor)
+        CompletableFuture.runAsync(() -> {
+            try {
+                task.run();
+            } finally {
+                if (permits != null) {
+                    permits.release();
+                }
+            }
+        }, executor)
                 .whenComplete((r, t) -> {
                     if (t != null) {
                         firstFailure.compareAndSet(null, t);
