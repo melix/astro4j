@@ -225,25 +225,6 @@ public final class FileBackedImage implements ImageWrapper {
     }
 
     public static void flushImages() {
-        // Note to future self (and AI):
-        // Usually, when you see System.gc, it's a code smell.
-        // However, here, it is not. This is by design. We are
-        // using ZGC, which performs lots of small, real time cleanups. When
-        // we reach this point in the code, we have determined that we are
-        // under pressure, and what we want is to serialize to disk images which
-        // are still in use. If we don't do a GC followed by a sleep, then
-        // we may serialize to disk images which are NOT used anymore, which
-        // is a waste of time and resources. It is particularly visible with
-        // more system memory, where we would accumulate images in memory and
-        // never cleanup, and serialize to disk. This triggers may kernel calls
-        // which are clearly visible in profiles.
-        // You may think that sleeping for half a second will increase wall
-        // clock time for processing, but it won't: this runs in a separate
-        // thread, and what is blocked is actually image wrapping, that is that
-        // we throttle image generation, which is what we want in any case,
-        // because we're running out of memory. But the threads which actually
-        // do CPU work will NOT be blocked.
-        System.gc();
         try {
             CACHE_LOCK.lock();
             var fbiToFlush = WRAP_CACHE.values()
