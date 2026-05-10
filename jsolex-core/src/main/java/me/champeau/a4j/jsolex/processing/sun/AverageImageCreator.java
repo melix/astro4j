@@ -23,7 +23,10 @@ import me.champeau.a4j.ser.ImageGeometry;
 import me.champeau.a4j.ser.SerFileReader;
 import me.champeau.a4j.ser.bayer.ImageConverter;
 
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
@@ -86,31 +89,53 @@ public class AverageImageCreator {
             return new Object[]{sum, count};
         });
 
+        // Per-lane pre-allocated conversion buffer: each lane in a batch owns
+        // buffers[k] for its conversion. The next batch reuses the same buffers.
+        int laneCount = IO_PARALLELISM;
+        var buffers = new float[laneCount][][];
+        for (int k = 0; k < laneCount; k++) {
+            buffers[k] = new float[height][width];
+        }
         try (var ioExecutor = ParallelExecutor.newExecutor(IO_PARALLELISM)) {
             reader.seekFrame(0);
-            for (int i = 0; i < frameCount; i++) {
-                int frameId = i;
-                broadcaster.broadcast(progressOperation.update(frameId / (double) frameCount));
-                var frameData = reader.currentFrame().data();
-                reader.nextFrame();
-                ioExecutor.submit(() -> {
-                    var buffer = new float[height][width];
-                    imageConverter.convert(frameId, frameData, geometry, buffer);
-                    var frameAvg = imageMath.averageOf(buffer);
-                    if (frameAvg > threshold) {
-                        var local = localAccumulator.get();
-                        var sum = (double[][]) local[0];
-                        var count = (int[]) local[1];
-                        for (int y = 0; y < height; y++) {
-                            var sumRow = sum[y];
-                            var bufRow = buffer[y];
-                            for (int x = 0; x < width; x++) {
-                                sumRow[x] += bufRow[x];
+            for (int batchStart = 0; batchStart < frameCount; batchStart += laneCount) {
+                int batchEnd = Math.min(batchStart + laneCount, frameCount);
+                int batchSize = batchEnd - batchStart;
+                var frameDataBatch = new ByteBuffer[batchSize];
+                for (int k = 0; k < batchSize; k++) {
+                    int frameId = batchStart + k;
+                    broadcaster.broadcast(progressOperation.update(frameId / (double) frameCount));
+                    frameDataBatch[k] = reader.currentFrame().data();
+                    reader.nextFrame();
+                }
+                var latch = new CountDownLatch(batchSize);
+                for (int k = 0; k < batchSize; k++) {
+                    int lane = k;
+                    int frameId = batchStart + k;
+                    ioExecutor.submit(() -> {
+                        try {
+                            var buffer = buffers[lane];
+                            imageConverter.convert(frameId, frameDataBatch[lane], geometry, buffer);
+                            var frameAvg = imageMath.averageOf(buffer);
+                            if (frameAvg > threshold) {
+                                var local = localAccumulator.get();
+                                var sum = (double[][]) local[0];
+                                var count = (int[]) local[1];
+                                for (int y = 0; y < height; y++) {
+                                    var sumRow = sum[y];
+                                    var bufRow = buffer[y];
+                                    for (int x = 0; x < width; x++) {
+                                        sumRow[x] += bufRow[x];
+                                    }
+                                }
+                                count[0]++;
                             }
+                        } finally {
+                            latch.countDown();
                         }
-                        count[0]++;
-                    }
-                });
+                    });
+                }
+                latch.await();
             }
         } catch (Exception ex) {
             throw ProcessingException.wrap(ex);
@@ -152,25 +177,54 @@ public class AverageImageCreator {
         var sampling = Math.max(10, frameCount / 100);
         var maxMean = new float[]{0f};
         var maxLock = new ReentrantLock();
+        int height = geometry.height();
+        int width = geometry.width();
+        var sampleFrameIds = new ArrayList<Integer>();
+        for (int i = 0; i < frameCount; i += sampling) {
+            sampleFrameIds.add(i);
+        }
+        int sampleCount = sampleFrameIds.size();
+        int laneCount = IO_PARALLELISM;
+        var buffers = new float[laneCount][][];
+        for (int k = 0; k < laneCount; k++) {
+            buffers[k] = new float[height][width];
+        }
         broadcaster.broadcast(progressOperation.update(0 / (double) frameCount));
         try (var executor = ParallelExecutor.newExecutor(IO_PARALLELISM)) {
-            for (int i = 0; i < frameCount; i += sampling) {
-                reader.seekFrame(i);
-                var frameData = reader.currentFrame().data();
-                int finalI = i;
-                executor.submit(() -> {
-                    var img = new float[geometry.height()][geometry.width()];
-                    imageConverter.convert(finalI, frameData, geometry, img);
-                    var mean = imageMath.averageOf(img);
-                    maxLock.lock();
-                    try {
-                        if (mean > maxMean[0]) {
-                            maxMean[0] = mean;
+            for (int batchStart = 0; batchStart < sampleCount; batchStart += laneCount) {
+                int batchEnd = Math.min(batchStart + laneCount, sampleCount);
+                int batchSize = batchEnd - batchStart;
+                var frameDataBatch = new ByteBuffer[batchSize];
+                var frameIdBatch = new int[batchSize];
+                for (int k = 0; k < batchSize; k++) {
+                    int frameId = sampleFrameIds.get(batchStart + k);
+                    reader.seekFrame(frameId);
+                    frameDataBatch[k] = reader.currentFrame().data();
+                    frameIdBatch[k] = frameId;
+                }
+                var latch = new CountDownLatch(batchSize);
+                for (int k = 0; k < batchSize; k++) {
+                    int lane = k;
+                    int frameId = frameIdBatch[k];
+                    executor.submit(() -> {
+                        try {
+                            var img = buffers[lane];
+                            imageConverter.convert(frameId, frameDataBatch[lane], geometry, img);
+                            var mean = imageMath.averageOf(img);
+                            maxLock.lock();
+                            try {
+                                if (mean > maxMean[0]) {
+                                    maxMean[0] = mean;
+                                }
+                            } finally {
+                                maxLock.unlock();
+                            }
+                        } finally {
+                            latch.countDown();
                         }
-                    } finally {
-                        maxLock.unlock();
-                    }
-                });
+                    });
+                }
+                latch.await();
             }
         } catch (Exception e) {
             throw new ProcessingException(e);

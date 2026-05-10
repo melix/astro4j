@@ -1536,8 +1536,10 @@ public class SolexVideoProcessor implements Broadcaster {
         // its conversion + detection. No slot/refcount logic — the lane owns the
         // buffer for the whole batch and the next batch reuses the same buffers.
         var buffers = new float[laneCount][][];
+        var blurredBuffers = new float[laneCount][][];
         for (int k = 0; k < laneCount; k++) {
             buffers[k] = new float[geometry.height()][geometry.width()];
+            blurredBuffers[k] = new float[geometry.height()][geometry.width()];
         }
         var jSolexSer = reader.header().isJSolexTrimmedSer();
         var flat = loadReadFlat(geometry.width(), geometry.height()).orElse(null);
@@ -1586,7 +1588,7 @@ public class SolexVideoProcessor implements Broadcaster {
                             processSingleFrame(state.isInternal(), width, height, buffer, y, original, polynomial, state.pixelShift(), totalLines, jSolexSer, truncationDetails);
                             state.setTruncationDetails(truncationDetails);
                             if (detectPhenomena && state.pixelShift() == 0) {
-                                phenomenaDetector.performDetection(frameId, width, height, original, polynomial, reader.header());
+                                phenomenaDetector.performDetection(frameId, width, height, original, polynomial, reader.header(), blurredBuffers[lane]);
                                 if (phenomenaDetector.isRedShiftDetectionEnabled()) {
                                     hasRedshifts.set(true);
                                 }

@@ -130,6 +130,10 @@ public class PhenomenaDetector {
     }
 
     public void performDetection(int frameId, int width, int height, float[][] original, DoubleUnaryOperator polynomial, Header header) {
+        performDetection(frameId, width, height, original, polynomial, header, null);
+    }
+
+    public void performDetection(int frameId, int width, int height, float[][] original, DoubleUnaryOperator polynomial, Header header, float[][] blurredScratch) {
         if (!detectRedshifts && !detectActiveRegions && !findBorders && !detectEllermanBombs) {
             return;
         }
@@ -171,8 +175,8 @@ public class PhenomenaDetector {
             var columnStats = new ColumnStats[width];
             var columnsAverages = new double[width];
             var columnsStddevs = new double[width];
-            // reduce noise
-            var blurred = new float[height][width];
+            // reduce noise (reuse caller-provided scratch when available; convolve fully overwrites the output)
+            var blurred = blurredScratch != null ? blurredScratch : new float[height][width];
             imageMath.convolve(new Image(width, height, original), Kernel33.GAUSSIAN_BLUR, blurred);
             for (int x = left; x < right; x++) {
                 var columnAvg = columnAverage(x, height, original);
