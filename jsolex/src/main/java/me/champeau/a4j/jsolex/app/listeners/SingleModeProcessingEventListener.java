@@ -28,19 +28,25 @@ import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.PixelFormat;
+import javafx.scene.input.MouseButton;
 import javafx.scene.image.WritableImage;
 import javafx.scene.image.WritablePixelFormat;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
@@ -164,6 +170,7 @@ import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.DoubleConsumer;
 import java.util.function.DoubleUnaryOperator;
@@ -597,35 +604,35 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             var solarViewOverlay = view.getSolarViewOverlay();
             var solarView = view.getSolarView();
             stretchReconstructionView(solarView);
-            solarView.setOnMouseClicked(evt -> {
+            BiConsumer<Double, Double> triggerAt = (imageX, frameNbObj) -> {
                 var gso = solarViewOverlay.getGraphicsContext2D();
                 var spectrumViewOverlay = view.getSpectrumViewOverlay();
                 var gsp = spectrumViewOverlay.getGraphicsContext2D();
                 gso.clearRect(0, 0, solarViewOverlay.getWidth(), solarViewOverlay.getHeight());
                 gsp.clearRect(0, 0, spectrumViewOverlay.getWidth(), spectrumViewOverlay.getHeight());
-                var zoom = solarView.getZoom();
-                var yOffset = view.getOffsetY();
-                var xOffset = view.getOffsetX();
-                var frameNb = (evt.getY() + yOffset) / zoom;
+                double frameNb = frameNbObj;
                 if (frameNb < 0 || frameNb >= frameCount) {
                     return;
                 }
-                var xIndex = (int) Math.round((evt.getX() + xOffset) / zoom);
+                var zoom = solarView.getZoom();
+                var yOffset = view.getOffsetY();
+                var xOffset = view.getOffsetX();
+                var screenX = imageX * zoom - xOffset;
+                var screenY = frameNb * zoom - yOffset;
+                var xIndex = (int) Math.round(imageX);
                 gso.setFill(Color.RED);
-                gso.fillRect(0, evt.getY(), solarViewOverlay.getWidth(), 1);
-                gso.fillRect(evt.getX(), 0, 1, solarViewOverlay.getHeight());
-                gso.fillText(xIndex + "," + (int) Math.round(frameNb), evt.getX() + 20, evt.getY() + 20);
+                gso.fillRect(0, screenY, solarViewOverlay.getWidth(), 1);
+                gso.fillRect(screenX, 0, 1, solarViewOverlay.getHeight());
+                gso.fillText(xIndex + "," + (int) Math.round(frameNb), screenX + 20, screenY + 20);
                 gso.setFill(Color.GREEN);
                 gso.setFont(Font.font(gso.getFont().getFamily(), FontWeight.BOLD, 24));
                 gso.fillText(String.format(Locale.US, "Frame %.0f", frameNb), 10, 30);
                 if (polynomial != null) {
-                    var x = (evt.getX() + xOffset) / zoom;
-                    // draw a cross on the spectrum view
-                    var spectrumY = polynomial.applyAsDouble(x) * zoom - pixelShift;
+                    var spectrumY = polynomial.applyAsDouble(imageX) * zoom - pixelShift;
                     gsp.setFill(Color.RED);
                     var cw = Math.max(4, 4 * zoom);
-                    gsp.fillRect(evt.getX() - cw, spectrumY, 2 * cw, 1);
-                    gsp.fillRect(evt.getX(), spectrumY - cw, 1, 2 * cw);
+                    gsp.fillRect(screenX - cw, spectrumY, 2 * cw, 1);
+                    gsp.fillRect(screenX, spectrumY - cw, 1, 2 * cw);
                 }
                 try (var reader = serFileReader.reopen()) {
                     reader.seekFrame((int) frameNb);
@@ -641,7 +648,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                         pixelWriter.setPixels(0, 0, geometry.width(), geometry.height(), pixelformat, imageBytes, 0, 4 * geometry.width());
                     });
                     if (polynomial != null) {
-                        // Store the clicked column and update the profile tab (detailed mode)
                         currentColumn = xIndex;
                         currentSpectrumFrameData = spectrum.data();
                         if (profileViewFactory != null) {
@@ -651,7 +657,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 } catch (Exception ex) {
                     throw new ProcessingException(ex);
                 }
-                // Synchronize with 4D viewer if open
                 var spectral4DViewer = spectral3DHelper.getSpectral4DViewer();
                 LOGGER.info("Checking 4D viewer sync: spectral4DViewer={}", spectral4DViewer);
                 if (spectral4DViewer != null) {
@@ -664,8 +669,89 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                         spectral4DViewer.bringToFront();
                     });
                 }
+            };
+            solarView.setOnMouseClicked(evt -> {
+                if (evt.getButton() != MouseButton.PRIMARY) {
+                    return;
+                }
+                var zoom = solarView.getZoom();
+                var imageX = (evt.getX() + view.getOffsetX()) / zoom;
+                var frameNb = (evt.getY() + view.getOffsetY()) / zoom;
+                triggerAt.accept(imageX, frameNb);
             });
+            var goToItem = new MenuItem(message("recon.goto"));
+            goToItem.setOnAction(ev -> showGoToDialog(solarView, frameCount, triggerAt));
+            solarView.getCtxMenu().getItems().add(goToItem);
         }));
+    }
+
+    private void showGoToDialog(ZoomableImageView solarView, int frameCount, BiConsumer<Double, Double> triggerAt) {
+        var dialog = new Dialog<int[]>();
+        dialog.setTitle(message("recon.goto.title"));
+        dialog.initOwner(solarView.getScene().getWindow());
+        var okType = ButtonType.OK;
+        dialog.getDialogPane().getButtonTypes().addAll(okType, ButtonType.CANCEL);
+
+        var grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(20));
+
+        var image = solarView.getImage();
+        var imageWidth = image != null ? (int) image.getWidth() : 0;
+
+        var xField = new TextField();
+        xField.setPromptText("0 - " + Math.max(0, imageWidth - 1));
+        var yField = new TextField();
+        yField.setPromptText("0 - " + Math.max(0, frameCount - 1));
+
+        grid.add(new Label(message("recon.goto.x")), 0, 0);
+        grid.add(xField, 1, 0);
+        grid.add(new Label(message("recon.goto.y")), 0, 1);
+        grid.add(yField, 1, 1);
+
+        dialog.getDialogPane().setContent(grid);
+        dialog.setOnShown(ev -> Platform.runLater(xField::requestFocus));
+
+        dialog.setResultConverter(bt -> bt == okType ? new int[]{0} : null);
+
+        var result = dialog.showAndWait();
+        if (result.isEmpty()) {
+            return;
+        }
+        try {
+            var x = Integer.parseInt(xField.getText().trim());
+            var y = Integer.parseInt(yField.getText().trim());
+            scrollToCenter(solarView, x, y);
+            Platform.runLater(() -> triggerAt.accept((double) x, (double) y));
+        } catch (NumberFormatException ex) {
+            var alert = new Alert(Alert.AlertType.WARNING, message("recon.goto.invalid"));
+            alert.initOwner(solarView.getScene().getWindow());
+            alert.showAndWait();
+        }
+    }
+
+    private static void scrollToCenter(ZoomableImageView solarView, double imageX, double imageY) {
+        var image = solarView.getImage();
+        if (image == null) {
+            return;
+        }
+        var zoom = solarView.getZoom();
+        var scrollPane = solarView.getScrollPane();
+        var content = (Region) scrollPane.getContent();
+        var viewportBounds = scrollPane.getViewportBounds();
+        var viewportWidth = viewportBounds.getWidth();
+        var viewportHeight = viewportBounds.getHeight();
+        var contentWidth = content.getWidth();
+        var contentHeight = content.getHeight();
+        if (contentWidth > viewportWidth) {
+            var targetX = imageX * zoom - viewportWidth / 2;
+            scrollPane.setHvalue(Math.max(0, Math.min(1, targetX / (contentWidth - viewportWidth))));
+        }
+        if (contentHeight > viewportHeight) {
+            var targetY = imageY * zoom - viewportHeight / 2;
+            scrollPane.setVvalue(Math.max(0, Math.min(1, targetY / (contentHeight - viewportHeight))));
+        }
     }
 
     private void stretchReconstructionView(ZoomableImageView solarView) {

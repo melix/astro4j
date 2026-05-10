@@ -7,6 +7,7 @@
 - Fixed custom color curves being silently lost after upgrading from a previous version.
 - Added a "Trust SER file bit depth" option in the advanced process parameters to bypass automatic bit depth detection when it produces an incorrect result.
 - Fixed the 3D viewers (single image 3D view and spherical tomography, both shell and smooth modes) failing to render on macOS.
+- Added a "Go to coordinates..." entry in the reconstruction view right-click menu to jump to a specific (X, Y) without having to click on the image.
 
 ## What's New in Version 5.1.2
 

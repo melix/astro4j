@@ -7,6 +7,7 @@
 - Ajout d'une option « Faire confiance à la profondeur de bits déclarée » dans les paramètres de traitement avancés pour contourner la détection automatique lorsqu'elle donne un résultat incorrect.
 - Correction des vues 3D (image 3D et tomographie sphérique, modes coquilles et lissé) qui ne s'affichaient pas sur macOS.
 - Analyseur de vidéo : ajout d'un bouton de lecture avec un réglage de vitesse (jusqu'à 300 i/s) pour lire les images comme une vidéo.
+- Ajout d'une entrée « Aller aux coordonnées... » dans le menu contextuel de la vue de reconstruction pour atteindre des coordonnées (X, Y) précises sans avoir à cliquer sur l'image.
 
 ## Nouveautés de la version 5.1.2
 
