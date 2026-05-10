@@ -64,6 +64,8 @@ public final class FileBackedImage implements ImageWrapper {
     private static final byte RGB = 2;
     private static final int AUTOFLUSH_TIMEOUT = 10_000;
     private static final int DEFAULT_RW_BUFFER_SIZE = 65536;
+    private static final int WRITE_PERMITS = 4;
+    private static final Semaphore WRITE_SEMAPHORE = new Semaphore(WRITE_PERMITS);
     private static final ReferenceQueue<ImageWrapper> REFERENCE_QUEUE = new ReferenceQueue<>();
 
     private static volatile BooleanSupplier underPressure = () -> HeapPressure.current() > 0.5;
@@ -256,18 +258,12 @@ public final class FileBackedImage implements ImageWrapper {
             event.imageCount = fbiToFlush.size();
             LOGGER.debug("Flushing {} images to disk to free memory", fbiToFlush.size());
             try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
-                var semaphore = new Semaphore(4);
                 for (var fbi : fbiToFlush) {
                     executor.submit(() -> {
                         if (!underPressure.getAsBoolean() || fbi.unwrapped.get() == null) {
                             return;
                         }
-                        semaphore.acquireUninterruptibly();
-                        try {
-                            fbi.writeToDisk(fbi.unwrapped.source, "BATCH");
-                        } finally {
-                            semaphore.release();
-                        }
+                        fbi.writeToDisk(fbi.unwrapped.source, "BATCH");
                     });
                 }
             } finally {
@@ -303,65 +299,70 @@ public final class FileBackedImage implements ImageWrapper {
         if (source == null) {
             return;
         }
-        var event = new FileBackedImageWriteEvent();
-        event.begin();
-        event.trigger = trigger;
-        status.lock().lock();
+        WRITE_SEMAPHORE.acquireUninterruptibly();
         try {
-            if (status.saved.get() || REF_COUNT.getOrDefault(backingFile, 0) == 0) {
-                event.skipped = true;
-                return;
-            }
-            long bytes = 0;
-            if (source instanceof ImageWrapper32 mono) {
-                try (var fos = new BufferedOutputStream(new FileOutputStream(backingFile.toFile()), DEFAULT_RW_BUFFER_SIZE);
-                     var dos = new DataOutputStream(fos)) {
-                    dos.writeByte(MONO);
-                    dos.writeInt(height);
-                    dos.writeInt(width);
-                    var data = mono.data();
-                    var rowBytes = new byte[width * Float.BYTES];
-                    var rowFloats = ByteBuffer.wrap(rowBytes).asFloatBuffer();
-                    for (int y = 0; y < height; y++) {
-                        rowFloats.clear();
-                        rowFloats.put(data[y]);
-                        fos.write(rowBytes);
-                    }
-                    bytes = 1L + 8L + (long) height * rowBytes.length;
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
+            var event = new FileBackedImageWriteEvent();
+            event.begin();
+            event.trigger = trigger;
+            status.lock().lock();
+            try {
+                if (status.saved.get() || REF_COUNT.getOrDefault(backingFile, 0) == 0) {
+                    event.skipped = true;
+                    return;
                 }
-            } else if (source instanceof RGBImage rgb) {
-                try (var fos = new BufferedOutputStream(new FileOutputStream(backingFile.toFile()), DEFAULT_RW_BUFFER_SIZE);
-                     var dos = new DataOutputStream(fos)) {
-                    dos.writeByte(RGB);
-                    dos.writeInt(height);
-                    dos.writeInt(width);
-                    var r = rgb.r();
-                    var g = rgb.g();
-                    var b = rgb.b();
-                    var rowBytes = new byte[width * 3 * Float.BYTES];
-                    var rowFloats = ByteBuffer.wrap(rowBytes).asFloatBuffer();
-                    for (int y = 0; y < height; y++) {
-                        rowFloats.clear();
-                        var rRow = r[y];
-                        var gRow = g[y];
-                        var bRow = b[y];
-                        for (int x = 0; x < width; x++) {
-                            rowFloats.put(rRow[x]).put(gRow[x]).put(bRow[x]);
+                long bytes = 0;
+                if (source instanceof ImageWrapper32 mono) {
+                    try (var fos = new BufferedOutputStream(new FileOutputStream(backingFile.toFile()), DEFAULT_RW_BUFFER_SIZE);
+                         var dos = new DataOutputStream(fos)) {
+                        dos.writeByte(MONO);
+                        dos.writeInt(height);
+                        dos.writeInt(width);
+                        var data = mono.data();
+                        var rowBytes = new byte[width * Float.BYTES];
+                        var rowFloats = ByteBuffer.wrap(rowBytes).asFloatBuffer();
+                        for (int y = 0; y < height; y++) {
+                            rowFloats.clear();
+                            rowFloats.put(data[y]);
+                            fos.write(rowBytes);
                         }
-                        fos.write(rowBytes);
+                        bytes = 1L + 8L + (long) height * rowBytes.length;
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
                     }
-                    bytes = 1L + 8L + (long) height * rowBytes.length;
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
+                } else if (source instanceof RGBImage rgb) {
+                    try (var fos = new BufferedOutputStream(new FileOutputStream(backingFile.toFile()), DEFAULT_RW_BUFFER_SIZE);
+                         var dos = new DataOutputStream(fos)) {
+                        dos.writeByte(RGB);
+                        dos.writeInt(height);
+                        dos.writeInt(width);
+                        var r = rgb.r();
+                        var g = rgb.g();
+                        var b = rgb.b();
+                        var rowBytes = new byte[width * 3 * Float.BYTES];
+                        var rowFloats = ByteBuffer.wrap(rowBytes).asFloatBuffer();
+                        for (int y = 0; y < height; y++) {
+                            rowFloats.clear();
+                            var rRow = r[y];
+                            var gRow = g[y];
+                            var bRow = b[y];
+                            for (int x = 0; x < width; x++) {
+                                rowFloats.put(rRow[x]).put(gRow[x]).put(bRow[x]);
+                            }
+                            fos.write(rowBytes);
+                        }
+                        bytes = 1L + 8L + (long) height * rowBytes.length;
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
                 }
+                event.bytes = bytes;
+            } finally {
+                fileSaved();
+                status.lock().unlock();
+                event.commit();
             }
-            event.bytes = bytes;
         } finally {
-            fileSaved();
-            status.lock().unlock();
-            event.commit();
+            WRITE_SEMAPHORE.release();
         }
     }
 

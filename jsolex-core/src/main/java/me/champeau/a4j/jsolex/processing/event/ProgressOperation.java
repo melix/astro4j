@@ -19,7 +19,6 @@ import java.lang.ref.Cleaner;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
@@ -153,10 +152,18 @@ public class ProgressOperation {
     public List<ProgressOperation> children() {
         lock.lock();
         try {
-            return children.stream()
-                    .map(WeakReference::get)
-                    .filter(Objects::nonNull)
-                    .toList();
+            var size = children.size();
+            if (size == 0) {
+                return List.of();
+            }
+            var result = new ArrayList<ProgressOperation>(size);
+            for (int i = 0; i < size; i++) {
+                var op = children.get(i).get();
+                if (op != null) {
+                    result.add(op);
+                }
+            }
+            return result;
         } finally {
             lock.unlock();
         }
