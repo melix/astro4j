@@ -98,6 +98,7 @@ public class ProcessingWorkflow {
     private final Broadcaster broadcaster;
     private final int currentStep;
     private final Path serFile;
+    private final boolean batchMode;
 
     public ProcessingWorkflow(
             ProgressOperation rootOperation,
@@ -109,7 +110,8 @@ public class ProcessingWorkflow {
             Double fps,
             ImageEmitterFactory imageEmitterFactory,
             Path serFile,
-            Header header) {
+            Header header,
+            boolean batchMode) {
         this.rootOperation = rootOperation;
         this.broadcaster = broadcaster;
         this.header = header;
@@ -119,6 +121,7 @@ public class ProcessingWorkflow {
         this.imagesEmitter = imageEmitterFactory.newEmitter(broadcaster, outputDirectory);
         this.currentStep = currentStep;
         this.serFile = serFile;
+        this.batchMode = batchMode;
     }
 
     private ProgressOperation newOperation(String task) {
@@ -277,9 +280,8 @@ public class ProcessingWorkflow {
                 }
             });
         }
-        runnables.stream()
-                .parallel()
-                .forEach(Runnable::run);
+        var stream = batchMode ? runnables.stream() : runnables.stream().parallel();
+        stream.forEach(Runnable::run);
     }
 
     private void produceActiveRegionsImage(ImageWrapper32 image) {

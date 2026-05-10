@@ -702,8 +702,7 @@ public class SolexVideoProcessor implements Broadcaster {
         // Per-state preparation is independent across pixel shifts: each state
         // has its own emitter, results map, and metadata. Run them concurrently
         // when the heap can afford the parallel working set.
-        MemoryAwareStreams.maybeParallel(imageList.stream())
-                .forEach(i -> {
+        imageList.forEach(i -> {
                     initialFit.ifPresent(e -> i.recordResult(WorkflowResults.INITIAL_ELLIPSE_FITTING, e));
                     double pg = ((double) progress.incrementAndGet()) / imageList.size();
                     prepareImageForCorrections(i, header, initialFit.orElse(null), imageEmitterFactory.newEmitter(this, outputDirectory));
@@ -734,7 +733,7 @@ public class SolexVideoProcessor implements Broadcaster {
                     var state = o.state;
                     var step = o.step;
                     var ief = new ProcessAwareImageEmitterFactory(state, imageNamingStrategy, baseName);
-                    var workflow = new ProcessingWorkflow(generationOperation, this, outputDirectory, imageList, step, processParams, fps, ief, serFile.toPath(), header);
+                    var workflow = new ProcessingWorkflow(generationOperation, this, outputDirectory, imageList, step, processParams, fps, ief, serFile.toPath(), header, batchMode);
                     workflow.start();
                     broadcast(generationOperation.update(((double) progress.incrementAndGet()) / imageList.size()));
                 });
