@@ -22,7 +22,6 @@ import java.awt.Graphics2D;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -30,10 +29,6 @@ import java.util.function.Supplier;
  * An image enitter which doesn't generate any image.
  */
 public class NoOpImageEmitter implements ImageEmitter {
-
-    @Override
-    public void newMonoImage(GeneratedImageKind kind, String category, String title, String name, String description, ImageWrapper32 image, Consumer<? super float[][]> bufferConsumer) {
-    }
 
     @Override
     public void newMonoImage(GeneratedImageKind kind, String category, String title, String name, String description, ImageWrapper32 image) {

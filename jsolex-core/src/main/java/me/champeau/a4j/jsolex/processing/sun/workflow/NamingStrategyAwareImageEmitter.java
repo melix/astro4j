@@ -24,7 +24,6 @@ import java.nio.file.Path;
 import java.util.Locale;
 import java.util.Map;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -46,11 +45,6 @@ public class NamingStrategyAwareImageEmitter implements ImageEmitter {
 
     private String rename(GeneratedImageKind kind, String name, String category, ImageWrapper image) {
         return strategy.render(sequenceNumber, category, kind.directoryKind().name().toLowerCase(Locale.US), name, serFileBaseName, image);
-    }
-
-    @Override
-    public void newMonoImage(GeneratedImageKind kind, String category, String title, String name, String description, ImageWrapper32 image, Consumer<? super float[][]> bufferConsumer) {
-        delegate.newMonoImage(kind, null, title, rename(kind, name, category, image), description, image, bufferConsumer);
     }
 
     @Override

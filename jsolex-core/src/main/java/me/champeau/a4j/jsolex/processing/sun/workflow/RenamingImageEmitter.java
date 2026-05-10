@@ -22,7 +22,6 @@ import java.awt.Graphics2D;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
@@ -39,11 +38,6 @@ public class RenamingImageEmitter implements ImageEmitter {
         this.delegate = delegate;
         this.titleRenamer = titleRenamer;
         this.fileRenamer = fileRenamer;
-    }
-
-    @Override
-    public void newMonoImage(GeneratedImageKind kind, String category, String title, String name, String description, ImageWrapper32 image, Consumer<? super float[][]> bufferConsumer) {
-        delegate.newMonoImage(kind, null, titleRenamer.apply(title), fileRenamer.apply(name), description, image, bufferConsumer);
     }
 
     @Override

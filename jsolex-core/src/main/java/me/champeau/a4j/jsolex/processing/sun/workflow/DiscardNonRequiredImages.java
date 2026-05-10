@@ -23,7 +23,6 @@ import java.nio.file.Path;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -37,14 +36,6 @@ public class DiscardNonRequiredImages implements ImageEmitter {
     public DiscardNonRequiredImages(ImageEmitter delegate, Set<GeneratedImageKind> allowed) {
         this.delegate = delegate;
         this.allowed = allowed;
-    }
-
-    @Override
-    public void newMonoImage(GeneratedImageKind kind, String category, String title, String name, String description, ImageWrapper32 image, Consumer<? super float[][]> bufferConsumer) {
-        if (discard(kind)) {
-            return;
-        }
-        delegate.newMonoImage(kind, category, title, name, description, image, bufferConsumer);
     }
 
     private boolean discard(GeneratedImageKind kind) {

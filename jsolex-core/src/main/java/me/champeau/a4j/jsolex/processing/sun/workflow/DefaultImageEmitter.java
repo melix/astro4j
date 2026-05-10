@@ -22,6 +22,7 @@ import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.tasks.WriteColorizedImageTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.WriteMonoImageTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.WriteRGBImageTask;
+import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
@@ -46,7 +47,6 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -102,10 +102,10 @@ public class DefaultImageEmitter implements ImageEmitter {
         this.executor = executor;
     }
 
-    private static ImageWrapper32 snapshot(ImageWrapper32 image, GeneratedImageKind kind, String title, String name) {
+    private static FileBackedImage snapshot(ImageWrapper32 image, GeneratedImageKind kind, String title, String name) {
         var metadata = new HashMap<>(image.metadata());
         metadata.put(GeneratedImageMetadata.class, new GeneratedImageMetadata(kind, title, name));
-        return new ImageWrapper32(image.width(), image.height(), image.data(), metadata);
+        return FileBackedImage.wrap(new ImageWrapper32(image.width(), image.height(), image.data(), metadata));
     }
 
     private void submit(Runnable task) {
@@ -143,26 +143,6 @@ public class DefaultImageEmitter implements ImageEmitter {
                 });
     }
 
-    @Override
-    public void newMonoImage(GeneratedImageKind kind, String category, String title, String name, String description, ImageWrapper32 image, Consumer<? super float[][]> bufferConsumer) {
-        prepareOutput(name);
-        var snapshot = snapshot(image, kind, title, name);
-        submit(() -> new WriteMonoImageTask(broadcaster,
-                operation,
-                () -> snapshot,
-                outputDir,
-                title,
-                name,
-                description,
-                kind
-        ) {
-            @Override
-            public void transform() {
-                bufferConsumer.accept(getBuffer());
-            }
-        }.get());
-    }
-
     private void prepareOutput(String name) {
         var file = outputDir.toPath().resolve(name);
         try {
@@ -179,7 +159,7 @@ public class DefaultImageEmitter implements ImageEmitter {
         var snapshot = snapshot(image, kind, title, name);
         submit(() -> new WriteMonoImageTask(broadcaster,
                 operation,
-                () -> snapshot,
+                () -> (ImageWrapper32) snapshot.unwrapToMemory(),
                 outputDir,
                 title,
                 name,
@@ -193,7 +173,7 @@ public class DefaultImageEmitter implements ImageEmitter {
         var snapshot = snapshot(image, kind, title, name);
         submit(() -> new WriteColorizedImageTask(broadcaster,
                 operation,
-                () -> snapshot,
+                () -> (ImageWrapper32) snapshot.unwrapToMemory(),
                 outputDir,
                 title,
                 name,
