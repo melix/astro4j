@@ -19,6 +19,7 @@ import me.champeau.a4j.ser.ImageGeometry;
 import me.champeau.a4j.ser.bayer.ImageConverter;
 
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 /**
  * A fast image converter dedicated to the ideal case in JSol'Ex where we have
@@ -72,26 +73,24 @@ public class FastImageConverter implements ImageConverter<float[][]> {
     }
 
     private void convertBPP2(ByteBuffer frameData, float[][] outputData, int height, int width, int bitsToDiscard) {
+        int startPos = frameData.position();
+        var shorts = frameData.duplicate().order(ByteOrder.LITTLE_ENDIAN).asShortBuffer();
+        var row = new short[width];
         for (int y = 0; y < height; y++) {
             var lineIdx = vflip ? height - 1 - y : y;
             var line = outputData[lineIdx];
+            shorts.get(row);
             for (int x = 0; x < width; x++) {
-                line[x] = readColorBPP2(frameData, bitsToDiscard);
+                line[x] = (short) ((row[x] & 0xFFFF) << bitsToDiscard) & 0xFFFF;
             }
         }
+        frameData.position(startPos + 2 * width * height);
     }
 
     private int readColorBPP1(ByteBuffer frameData, int bitsToDiscard) {
         // Data of between 1 and 8 bits should be stored aligned with the most significant bit
         int v = frameData.get() >> bitsToDiscard;
         var next = (short) ((v & 0xFF) << 8);
-        return Short.toUnsignedInt(next);
-    }
-
-    private int readColorBPP2(ByteBuffer frameData, int bitsToDiscard) {
-        // Data between 9 and 16 bits should be stored aligned with the least significant bit
-        var v = Short.reverseBytes(frameData.getShort()) & 0xFFFF;
-        var next = (short) (v << bitsToDiscard);
         return Short.toUnsignedInt(next);
     }
 }
