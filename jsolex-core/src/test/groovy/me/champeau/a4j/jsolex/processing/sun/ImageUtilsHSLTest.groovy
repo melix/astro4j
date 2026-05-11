@@ -58,18 +58,24 @@ class ImageUtilsHSLTest extends Specification {
         }
     }
 
-    def "RGB -> HSL -> RGB recovers original within tolerance"() {
+    def "RGB -> HSL -> RGB recovers original within tolerance for all hue segments"() {
         given:
-        // Points are restricted to hue segments where the current conversion is
-        // round-trip-stable. Segments 3 and 5 (cyan→blue, magenta→red) currently
-        // lose accuracy in fromHSLtoRGB and are intentionally not exercised here.
+        // Coverage across all six hue segments plus edge cases:
+        //   segment 0 (R→Y, 0..60°), 1 (Y→G, 60..120°), 2 (G→C, 120..180°),
+        //   segment 3 (C→B, 180..240°), 4 (B→M, 240..300°), 5 (M→R, 300..360°).
         def points = [
-                [65535f, 0f, 0f],
-                [0f, 65535f, 0f],
-                [0f, 0f, 65535f],
+                [60000f, 30000f, 10000f],  // segment 0
+                [30000f, 60000f, 10000f],  // segment 1
+                [10000f, 60000f, 30000f],  // segment 2
+                [10000f, 30000f, 60000f],  // segment 3
+                [30000f, 10000f, 60000f],  // segment 4
+                [50000f, 12000f, 40000f],  // segment 5
+                [65535f, 0f, 0f],          // pure red
+                [0f, 65535f, 0f],          // pure green
+                [0f, 0f, 65535f],          // pure blue
                 [65535f, 32767f, 100f],
-                [0f, 0f, 0f],
-                [65535f, 65535f, 65535f]
+                [0f, 0f, 0f],              // black
+                [65535f, 65535f, 65535f]   // white
         ]
 
         when:

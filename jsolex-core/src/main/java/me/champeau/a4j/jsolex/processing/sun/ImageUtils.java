@@ -340,10 +340,9 @@ public class ImageUtils {
 
                 // Calculate hue segment and offset within segment
                 float hueSegment = h / 60.0f;
-                float hueOffset = hueSegment - (float) Math.floor(hueSegment);
 
                 // Calculate intermediate values
-                float k = chroma * (1 - Math.abs(hueOffset - 1));
+                float k = chroma * (1 - Math.abs((hueSegment % 2) - 1));
                 float m = l - chroma / 2;
 
                 float r, g, b;
