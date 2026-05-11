@@ -248,8 +248,8 @@ public class ImageUtils {
     public static float[][][] fromRGBtoHSL(float[][][] rgb) {
         int height = rgb[0].length;
         int width = rgb[0][0].length;
-        var output = new float[4][][];
-        for (int i = 0; i < 4; i++) {
+        var output = new float[3][][];
+        for (int i = 0; i < 3; i++) {
             output[i] = new float[height][width];
         }
         return fromRGBtoHSL(rgb, output);
@@ -315,8 +315,8 @@ public class ImageUtils {
     public static float[][][] fromHSLtoRGB(float[][][] hsl) {
         int height = hsl[0].length;
         int width = hsl[0][0].length;
-        var output = new float[4][][];
-        for (int i = 0; i < 4; i++) {
+        var output = new float[3][][];
+        for (int i = 0; i < 3; i++) {
             output[i] = new float[height][width];
         }
         return fromHSLtoRGB(hsl, output);

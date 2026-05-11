@@ -66,21 +66,23 @@ public sealed interface StretchingStrategy permits
         var r = image.r();
         var g = image.g();
         var b = image.b();
+        int height = r.length;
+        int width = r[0].length;
         var rgb = new float[][][]{r, g, b};
-        float[][][] hsl = ImageUtils.fromRGBtoHSL(rgb);
+        var hsl = new float[][][]{new float[height][width], new float[height][width], new float[height][width]};
+        ImageUtils.fromRGBtoHSL(rgb, hsl);
         var lightness = hsl[2];
-        int height = hsl[0].length;
-        int width = hsl[0][0].length;
-        float[][] rescaledL = new float[height][width];
         for (int y = 0; y < height; y++) {
+            var row = lightness[y];
             for (int x = 0; x < width; x++) {
-                rescaledL[y][x] = lightness[y][x] * 65535f;
+                row[x] *= 65535f;
             }
         }
-        stretch(new ImageWrapper32(width, height, rescaledL, image.metadata()));
+        stretch(new ImageWrapper32(width, height, lightness, image.metadata()));
         for (int y = 0; y < height; y++) {
+            var row = lightness[y];
             for (int x = 0; x < width; x++) {
-                lightness[y][x] = rescaledL[y][x] / 65535f;
+                row[x] /= 65535f;
             }
         }
         ImageUtils.fromHSLtoRGB(hsl, rgb);
