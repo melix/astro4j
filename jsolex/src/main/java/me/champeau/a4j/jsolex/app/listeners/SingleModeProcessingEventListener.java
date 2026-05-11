@@ -40,14 +40,14 @@ import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.PixelFormat;
-import javafx.scene.input.MouseButton;
 import javafx.scene.image.WritableImage;
 import javafx.scene.image.WritablePixelFormat;
+import javafx.scene.input.MouseButton;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.Region;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Line;
@@ -105,7 +105,6 @@ import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.OutputMetadata;
-import me.champeau.a4j.jsolex.processing.sun.workflow.SpectroSolHubImageKind;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.RequestedImages;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
@@ -119,8 +118,9 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShiftRange;
-import me.champeau.a4j.jsolex.processing.sun.workflow.SpectralLinePolynomial;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
+import me.champeau.a4j.jsolex.processing.sun.workflow.SpectralLinePolynomial;
+import me.champeau.a4j.jsolex.processing.sun.workflow.SpectroSolHubImageKind;
 import me.champeau.a4j.jsolex.processing.util.AnimationFormat;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.jsolex.processing.util.Constants;
@@ -135,7 +135,6 @@ import me.champeau.a4j.jsolex.processing.util.MetadataSupport;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.jsolex.processing.util.SolarParameters;
-import me.champeau.a4j.jsolex.processing.util.SolarParametersUtils;
 import me.champeau.a4j.jsolex.processing.util.Wavelen;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.Image;
@@ -2012,15 +2011,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
     private ImageWrapper lazyReconstructMissingImage(PixelShift shift) {
         var lookup = shift.pixelShift();
-        var minShift = shiftImages.keySet().stream().mapToDouble(PixelShift::pixelShift).min().orElse(0d);
-        var maxShift = shiftImages.keySet().stream().mapToDouble(PixelShift::pixelShift).max().orElse(0d);
-        if (lookup < minShift) {
-            LOGGER.warn(String.format(message("cropping.window.invalid.shift"), lookup, minShift));
-            lookup = minShift;
-        } else if (lookup > maxShift) {
-            LOGGER.warn(String.format(message("cropping.window.invalid.shift"), lookup, maxShift));
-            lookup = maxShift;
-        }
         var img = shiftImages.get(new PixelShift(lookup));
         if (img == null) {
             restartProcessForMissingShifts(new TreeSet<>(Set.of(lookup)));

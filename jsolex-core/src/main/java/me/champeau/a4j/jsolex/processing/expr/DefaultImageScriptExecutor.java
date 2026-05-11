@@ -307,7 +307,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
             }
 
             // Execute the script text to define functions
-            var scriptResult = pythonExecutor.executeInline(script, variables);
+            var scriptResult = pythonExecutor.executeInline(script, variables, includesDir);
 
             var hasSingle = pythonExecutor.hasFunction("single");
             var hasBatch = pythonExecutor.hasFunction("batch");

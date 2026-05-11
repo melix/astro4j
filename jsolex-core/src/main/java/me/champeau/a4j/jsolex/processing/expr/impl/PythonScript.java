@@ -69,7 +69,7 @@ public class PythonScript extends AbstractFunctionImpl {
         // Merge current ImageMath variables
         var allVars = new HashMap<>(evaluator.getVariables());
 
-        return executor.executeInline(script, allVars);
+        return executor.executeInline(script, allVars, includesDir);
     }
 
     /**

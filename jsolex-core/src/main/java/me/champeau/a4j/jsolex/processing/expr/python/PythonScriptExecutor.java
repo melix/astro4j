@@ -427,7 +427,22 @@ public class PythonScriptExecutor {
      * @return the value of the 'result' variable after execution, or null
      */
     public Object executeInline(String script, Map<String, Object> variables) {
-        return runUnderLock(() -> doExecuteInline(script, variables));
+        return executeInline(script, variables, null);
+    }
+
+    /**
+     * Executes inline Python code and returns the result. When {@code scriptDir}
+     * is provided, it is added to {@code sys.path} so the script can {@code import}
+     * helper modules located alongside it, and cached helpers from that directory
+     * are evicted before execution to pick up edits.
+     *
+     * @param script    the Python code to execute
+     * @param variables variables to inject into the Python namespace
+     * @param scriptDir directory to add to sys.path, or null
+     * @return the value of the 'result' variable after execution, or null
+     */
+    public Object executeInline(String script, Map<String, Object> variables, Path scriptDir) {
+        return runUnderLock(() -> doExecuteInline(script, variables, scriptDir));
     }
 
     /**
@@ -472,11 +487,17 @@ public class PythonScriptExecutor {
                 """);
     }
 
-    private Object doExecuteInline(String script, Map<String, Object> variables) {
+    private Object doExecuteInline(String script, Map<String, Object> variables, Path scriptDir) {
         try {
             var context = getOrCreateContext();
             registerJsolexModule(context);
-            resetContext(context, null);
+            String resolvedScriptDir = null;
+            if (scriptDir != null) {
+                resolvedScriptDir = scriptDir.toAbsolutePath().toString();
+                var scriptDirEscaped = resolvedScriptDir.replace("\\", "\\\\");
+                context.eval("python", "import sys; sys.path.insert(0, '" + scriptDirEscaped + "') if '" + scriptDirEscaped + "' not in sys.path else None");
+            }
+            resetContext(context, resolvedScriptDir);
             injectVariables(context, variables);
             // Create outputs object for implicit single mode
             context.eval("python", "outputs = Outputs()");
