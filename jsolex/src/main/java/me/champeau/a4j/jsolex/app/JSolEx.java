@@ -1207,9 +1207,16 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         var values = new HashMap<String, Object>();
         for (var param : parameters) {
             if (lastExecutionProcessParams != null) {
-                var allParams = lastExecutionProcessParams.combinedImageMathParams().parameterValues();
+                var combined = lastExecutionProcessParams.combinedImageMathParams();
+                var activeScripts = new HashSet<>(combined.scriptFiles());
+                var allParams = combined.parameterValues();
                 var found = false;
                 for (var entry : allParams.entrySet()) {
+                    // Ignore entries pointing to scripts that are no longer in the active scriptFiles list
+                    // (e.g. left over from a removed script repository or a previously-selected script).
+                    if (!activeScripts.isEmpty() && !activeScripts.contains(entry.getKey())) {
+                        continue;
+                    }
                     var existingParams = entry.getValue();
                     if (existingParams != null && existingParams.containsKey(param.getName())) {
                         var value = existingParams.get(param.getName());

@@ -22,7 +22,6 @@ import me.champeau.a4j.jsolex.processing.util.Histogram;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.regression.Ellipse;
-import me.champeau.a4j.math.tuples.FloatPair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,6 +51,7 @@ public final class AutohistogramStrategy implements StretchingStrategy {
     private static final DoubleUnaryOperator BRIGHTNESS_ENHANCE = ColorCurve.cachedPolynomial(100, 128);
     private static final ClaheStrategy CLAHE_STRATEGY = new ClaheStrategy(16, 64, 1.1);
     private static final StretchingStrategy PROTUS_STRATEGY = new ClaheStrategy(8, 64, 0.8);
+    private static final double HIGHLIGHT_KNEE_PERCENTILE = 0.995;
 
     /**
      * Default gamma correction value.
@@ -127,7 +127,7 @@ public final class AutohistogramStrategy implements StretchingStrategy {
                 System.arraycopy(blended[y], 0, output[y], 0, width);
             }
         }
-        clamping(output, 0, .9998).stretch(image);
+        softKneeHighlights(output, 0, HIGHLIGHT_KNEE_PERCENTILE);
         maybeAdjustBrightness(image, height, width, output);
         RangeExpansionStrategy.DEFAULT.stretch(image);
         CutoffStretchingStrategy.DEFAULT.stretch(image);
@@ -281,16 +281,27 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         return 0;
     }
 
-    private static FloatPair clampLimits(float[][] diskData, double loPercentile, double hiPercentile) {
-        var cumulative = Histogram.of(diskData, 65536).cumulative();
-        var lo = cumulative.percentile(loPercentile);
-        var hi = cumulative.percentile(hiPercentile);
-        return new FloatPair((float) lo, (float) hi);
-    }
-
-    private static ContrastAdjustmentStrategy clamping(float[][] diskData, double loPercentile, double hiPercentile) {
-        var limits = clampLimits(diskData, loPercentile, hiPercentile);
-        return new ContrastAdjustmentStrategy(limits.a(), limits.b());
+    // Reinhard-style rational soft-knee: y = knee + s*t/(1+t), t = (x-knee)/s,
+    // s = MAX_PIXEL_VALUE - knee. C¹ at the knee, asymptotic to MAX_PIXEL_VALUE.
+    private static void softKneeHighlights(float[][] data, double loPercentile, double kneePercentile) {
+        var cumulative = Histogram.of(data, 65536).cumulative();
+        float lo = (float) cumulative.percentile(loPercentile);
+        float knee = (float) cumulative.percentile(kneePercentile);
+        float scale = MAX_PIXEL_VALUE - knee;
+        for (int y = 0; y < data.length; y++) {
+            var line = data[y];
+            for (int x = 0; x < line.length; x++) {
+                float v = line[x];
+                if (v < lo) {
+                    line[x] = 0;
+                } else if (scale > 0 && v > knee) {
+                    float excess = v - knee;
+                    line[x] = knee + scale * excess / (scale + excess);
+                } else if (v > MAX_PIXEL_VALUE) {
+                    line[x] = MAX_PIXEL_VALUE;
+                }
+            }
+        }
     }
 
 }

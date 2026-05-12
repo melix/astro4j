@@ -1,5 +1,9 @@
 # Welcome to JSol'Ex {{version}}!
 
+## What's New in Version 5.1.4
+
+- Autostretch now preserves detail in active regions instead of clipping their cores flat.
+
 ## What's New in Version 5.1.3
 
 - Video Analyzer: added a play button with a speed slider (up to 300 fps) to play frames as a video.
