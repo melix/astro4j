@@ -1,5 +1,9 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+## Nouveautés de la version 5.1.4
+
+- L'étirement automatique préserve désormais les détails dans les régions actives au lieu d'écrêter leur cœur.
+
 ## Nouveautés de la version 5.1.3
 
 - Traitement des fichiers SER plus rapide grâce à la réduction des copies mémoire lors de la lecture des images.
