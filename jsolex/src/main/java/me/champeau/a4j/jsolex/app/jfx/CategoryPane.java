@@ -19,9 +19,13 @@ import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Pos;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
+import javafx.scene.input.KeyCode;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -57,7 +61,7 @@ public class CategoryPane extends VBox {
         getStyleClass().add("category-pane");
     }
 
-    Hyperlink addImage(String title, PixelShift pixelShift, Consumer<? super Hyperlink> onClick, Consumer<? super Hyperlink> onClose) {
+    Hyperlink addImage(String title, PixelShift pixelShift, Consumer<? super Hyperlink> onClick, Consumer<? super Hyperlink> onClose, Consumer<? super String> onRename) {
         var box = new HBox();
         box.getProperties().put(PixelShift.class, pixelShift);
         box.setAlignment(Pos.CENTER_LEFT);
@@ -72,7 +76,7 @@ public class CategoryPane extends VBox {
         link.getStyleClass().add("category-link");
         safeLinks.add(link);
         box.getChildren().add(link);
-        var tooltip = title;
+        String shiftSuffix = null;
         if (pixelShift != null && pixelShift.pixelShift() != 0) {
             var label = pixelShift.pixelShift() > 0 ? "+" : "";
             var shiftValue = pixelShift.pixelShift();
@@ -84,9 +88,9 @@ public class CategoryPane extends VBox {
             var shift = new Label(label);
             shift.getStyleClass().add("category-shift");
             box.getChildren().add(shift);
-            tooltip += String.format(" (%s)", label);
+            shiftSuffix = String.format(" (%s)", label);
         }
-        link.setTooltip(new Tooltip(tooltip));
+        link.setTooltip(new Tooltip(shiftSuffix == null ? title : title + shiftSuffix));
         int insertPoint = 1;
         for (int i = 1; i < getChildren().size(); i++) {
             var child = getChildren().get(i);
@@ -101,9 +105,61 @@ public class CategoryPane extends VBox {
         box.getChildren().add(spacer);
         var close = createCloseLink(box, link, onClose);
         box.getChildren().add(close);
+        if (onRename != null) {
+            installRename(box, link, shiftSuffix, onRename);
+        }
         getChildren().add(insertPoint, box);
         Platform.runLater(() -> links.setAll(safeLinks));
         return link;
+    }
+
+    private void installRename(HBox box, Hyperlink link, String shiftSuffix, Consumer<? super String> onRename) {
+        var renameItem = new MenuItem(message("rename.image"));
+        renameItem.setOnAction(e -> beginInlineEdit(box, link, shiftSuffix, onRename));
+        link.setContextMenu(new ContextMenu(renameItem));
+    }
+
+    private void beginInlineEdit(HBox box, Hyperlink link, String shiftSuffix, Consumer<? super String> onRename) {
+        var idx = box.getChildren().indexOf(link);
+        if (idx < 0) {
+            return;
+        }
+        var editor = new TextField(link.getText());
+        editor.getStyleClass().add("category-link-editor");
+        editor.setPrefColumnCount(Math.max(8, link.getText().length()));
+        Runnable cancel = () -> {
+            if (box.getChildren().contains(editor)) {
+                box.getChildren().set(idx, link);
+            }
+        };
+        Runnable commit = () -> {
+            var newTitle = editor.getText() == null ? "" : editor.getText().trim();
+            if (newTitle.isEmpty() || newTitle.equals(link.getText())) {
+                cancel.run();
+                return;
+            }
+            link.setText(newTitle);
+            link.setTooltip(new Tooltip(shiftSuffix == null ? newTitle : newTitle + shiftSuffix));
+            if (box.getChildren().contains(editor)) {
+                box.getChildren().set(idx, link);
+            }
+            onRename.accept(newTitle);
+        };
+        editor.setOnAction(e -> commit.run());
+        editor.setOnKeyPressed(e -> {
+            if (e.getCode() == KeyCode.ESCAPE) {
+                cancel.run();
+                e.consume();
+            }
+        });
+        editor.focusedProperty().addListener((obs, was, isNow) -> {
+            if (was && !isNow) {
+                commit.run();
+            }
+        });
+        box.getChildren().set(idx, editor);
+        editor.requestFocus();
+        editor.selectAll();
     }
 
     private Hyperlink createCloseLink(HBox box, Hyperlink link, Consumer<? super Hyperlink> onClose) {

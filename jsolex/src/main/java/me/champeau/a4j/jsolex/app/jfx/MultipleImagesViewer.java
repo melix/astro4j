@@ -280,7 +280,14 @@ public class MultipleImagesViewer extends Pane {
                 selectedView = viewer;
                 onShow.accept(viewer);
                 viewer.display();
-            }, this::onClose);
+            }, this::onClose, newTitle -> {
+                try {
+                    lock.lock();
+                    viewerTitles.put(viewer, newTitle);
+                } finally {
+                    lock.unlock();
+                }
+            });
 
             linkToViewer.put(hyperlink, viewer);
             if (selected == null) {

@@ -3,6 +3,7 @@
 ## What's New in Version 5.1.4
 
 - Autostretch now preserves detail in active regions instead of clipping their cores flat.
+- Images in the sidebar can now be renamed via the right-click menu to disambiguate them in collages.
 
 ## What's New in Version 5.1.3
 
