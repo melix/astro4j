@@ -52,7 +52,7 @@ Sous Windows, vous pouvez tout de même utiliser GraalPy pour du scripting Pytho
 
 === Étape 1 : Installer GraalPy
 
-Téléchargez et installez GraalPy depuis la https://www.graalvm.org/python/docs/#installing-graalpy[page officielle de GraalPy].
+Téléchargez et installez GraalPy depuis la https://www.graalvm.org/python/python-developers/[page officielle de GraalPy].
 
 === Étape 2 : Installer les prérequis (Linux / macOS uniquement)
 

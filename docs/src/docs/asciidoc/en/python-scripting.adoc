@@ -52,7 +52,7 @@ On Windows, you can still use GraalPy for pure Python scripting (no `import nump
 
 === Step 1: Install GraalPy
 
-Download and install GraalPy from the https://www.graalvm.org/python/docs/#installing-graalpy[official GraalPy page].
+Download and install GraalPy from the https://www.graalvm.org/python/python-developers/[official GraalPy page].
 
 === Step 2: Install prerequisites (Linux / macOS only)
 
