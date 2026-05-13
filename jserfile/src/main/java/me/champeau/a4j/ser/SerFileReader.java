@@ -288,8 +288,8 @@ public class SerFileReader implements AutoCloseable {
     /**
      * It appears that some software lie about the true pixel depth of the images,
      * which means we cannot rely on the pixel depth provided in the header.
-     * This will select a few frames in the middle of the video and determine the
-     * true pixel depth by looking at the maximum pixel value.
+     * This will scan a few frames evenly spread across the video and determine
+     * the true pixel depth by looking at the maximum pixel value.
      *
      * @param tmpReader the reader to fix
      * @return a fixed reader
@@ -311,18 +311,9 @@ public class SerFileReader implements AutoCloseable {
             int maxPixel = 0;
             int minPixel = Integer.MAX_VALUE;
             int pixelDepth = 0;
-            int mid = frameCount / 2;
-            boolean goLeft = true;
 
             outer:
-            for (int step = 0; step <= mid; step += goLeft ? 0 : sampling) {
-                int i = goLeft ? mid - step : mid + step;
-                goLeft = !goLeft;
-
-                if (i < 0 || i >= frameCount) {
-                    continue;
-                }
-
+            for (int i = 0; i < frameCount; i += sampling) {
                 tmpReader.seekFrame(i);
                 var data = tmpReader.currentFrame().data();
                 var dataLen = width * height * numPlanes;
