@@ -245,6 +245,64 @@ public class ImageUtils {
         }
     }
 
+    /**
+     * Replaces the luminosity of a colored RGB image with the values from a
+     * monochrome image, while preserving hue and saturation. This is the
+     * standard "Luminosity" blend recipe: chroma comes from the color LUT,
+     * brightness comes from the original grayscale.
+     */
+    public static float[][][] applyLuminosity(float[][] mono, float[][][] rgb) {
+        return applyLuminosity(mono, rgb, 1f);
+    }
+
+    /**
+     * Variant of {@link #applyLuminosity(float[][], float[][][])} that
+     * gamma-boosts the substituted luminosity. {@code boost = 1} is identity;
+     * {@code boost > 1} brightens midtones while keeping pure black and pure
+     * white fixed. Chroma (= max - min in normalized RGB) is preserved across
+     * the lightness change: as L grows, saturation drops so the color does
+     * not collapse onto its dominant channel — the hue stays, the off
+     * channels rise, the brighter version reads as a lighter shade of the
+     * same color rather than a more saturated one.
+     */
+    public static float[][][] applyLuminosity(float[][] mono, float[][][] rgb, float boost) {
+        var hsl = fromRGBtoHSL(rgb);
+        int height = hsl[0].length;
+        int width = hsl[0][0].length;
+        var sChannel = hsl[1];
+        var lChannel = hsl[2];
+        var exp = 1.0 / Math.max(1e-6f, boost);
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                var lOld = lChannel[y][x];
+                var sOld = sChannel[y][x];
+                var chroma = (1f - Math.abs(2f * lOld - 1f)) * sOld;
+                var lNew = mono[y][x] / MAX_VALUE;
+                if (lNew < 0) {
+                    lNew = 0;
+                } else if (lNew > 1f) {
+                    lNew = 1f;
+                }
+                if (boost != 1f) {
+                    lNew = (float) Math.pow(lNew, exp);
+                }
+                var denom = 1f - Math.abs(2f * lNew - 1f);
+                float sNew;
+                if (denom < 1e-6f) {
+                    sNew = 0f;
+                } else {
+                    sNew = chroma / denom;
+                    if (sNew > 1f) {
+                        sNew = 1f;
+                    }
+                }
+                sChannel[y][x] = sNew;
+                lChannel[y][x] = lNew;
+            }
+        }
+        return fromHSLtoRGB(hsl);
+    }
+
     public static float[][][] fromRGBtoHSL(float[][][] rgb) {
         int height = rgb[0].length;
         int width = rgb[0][0].length;

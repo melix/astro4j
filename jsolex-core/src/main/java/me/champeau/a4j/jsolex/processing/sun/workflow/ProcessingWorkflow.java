@@ -38,7 +38,7 @@ import me.champeau.a4j.jsolex.processing.stretching.AutohistogramStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.ClaheStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.NegativeImageStrategy;
-import me.champeau.a4j.jsolex.processing.stretching.StretchingStrategy;
+import me.champeau.a4j.jsolex.processing.stretching.PercentileStretchStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
@@ -51,11 +51,9 @@ import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.sun.tasks.CoronagraphTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.EllipseFittingTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.GeometryCorrector;
-import me.champeau.a4j.jsolex.processing.sun.tasks.ImageAnalysis;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
-import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.jsolex.processing.util.SolarParameters;
 import me.champeau.a4j.math.Point2D;
@@ -87,6 +85,9 @@ import static me.champeau.a4j.jsolex.processing.util.DebugImageHelper.maybeDispl
  */
 public class ProcessingWorkflow {
     private static final Logger LOGGER = LoggerFactory.getLogger(ProcessingWorkflow.class);
+    private static final float COLORIZED_ARCSINH_STRETCH = 2f;
+    private static final float COLORIZED_ARCSINH_MAX = 2f;
+    private static final double COLORIZED_PERCENTILE_HIGH = 99.9d;
 
     private final ImageMath imageMath = ImageMath.newInstance();
     private final Header header;
@@ -469,31 +470,24 @@ public class ProcessingWorkflow {
         return angle;
     }
 
-    private void produceColorizedImage(float blackPoint, ImageWrapper32 corrected, ProcessParams params) {
+    private void produceColorizedImage(float blackPoint, ImageWrapper32 stretched, ProcessParams params) {
         var ray = params.spectrumParams().ray();
         ray.getColorCurve().ifPresentOrElse(curve ->
-                        imagesEmitter.newColorImage(GeneratedImageKind.COLORIZED, null, MessageFormat.format(message("colorized"), curve.ray()), "colorized", String.format(message("colorized.description"), state.pixelShift()), corrected, monoImage -> {
-                            var mono = monoImage.data();
-                            ImageWrapper32 image = new ImageWrapper32(corrected.width(), corrected.height(), mono, MutableMap.of());
-                            createStretchingForColorization(blackPoint).stretch(image);
-                            return ImageUtils.convertToRGB(curve, mono);
+                        imagesEmitter.newColorImage(GeneratedImageKind.COLORIZED, null, MessageFormat.format(message("colorized"), curve.ray()), "colorized", String.format(message("colorized.description"), state.pixelShift()), stretched, monoImage -> {
+                            new ArcsinhStretchingStrategy(blackPoint, COLORIZED_ARCSINH_STRETCH, COLORIZED_ARCSINH_MAX).stretch(monoImage);
+                            new PercentileStretchStrategy(0, COLORIZED_PERCENTILE_HIGH).stretch(monoImage);
+                            return ImageUtils.convertToRGB(curve, monoImage.data());
                         })
                 , () -> {
                     if (ray.wavelength().nanos() > 0) {
-                        imagesEmitter.newColorImage(GeneratedImageKind.COLORIZED, null, MessageFormat.format(message("colorized"), ray.label()), "colorized", String.format(message("colorized.description"), state.pixelShift()), corrected, monoImage -> {
-                            var mono = monoImage.data();
+                        imagesEmitter.newColorImage(GeneratedImageKind.COLORIZED, null, MessageFormat.format(message("colorized"), ray.label()), "colorized", String.format(message("colorized.description"), state.pixelShift()), stretched, monoImage -> {
+                            new ArcsinhStretchingStrategy(blackPoint, COLORIZED_ARCSINH_STRETCH, COLORIZED_ARCSINH_MAX).stretch(monoImage);
+                            new PercentileStretchStrategy(0, COLORIZED_PERCENTILE_HIGH).stretch(monoImage);
                             var rgb = ray.toRGB();
-                            var analysis = ImageAnalysis.of(monoImage, true);
-                            var bp = 0.5f * Math.max(0, analysis.avg() - analysis.stddev());
-                            createStretchingForColorization(bp).stretch(new ImageWrapper32(corrected.width(), corrected.height(), mono, MutableMap.of()));
-                            return Colorize.doColorize(corrected.width(), corrected.height(), mono, rgb);
+                            return Colorize.doColorize(stretched.width(), stretched.height(), monoImage.data(), rgb);
                         });
                     }
                 });
-    }
-
-    private static StretchingStrategy createStretchingForColorization(float blackPoint) {
-        return new ArcsinhStretchingStrategy(blackPoint, 3, 3);
     }
 
     private ImageWrapper32 produceStretchedImage(ImageWrapper32 geometryFixed, ClaheParams claheParams, AutoStretchParams autoStretchParams, ContrastEnhancement contrastEnhancement) {

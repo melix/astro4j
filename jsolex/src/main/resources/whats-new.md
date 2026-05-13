@@ -2,7 +2,8 @@
 
 ## What's New in Version 5.1.4
 
-- Autostretch now preserves detail in active regions instead of clipping their cores flat.
+- Autostretch produces a smoother, more natural brightness, preserving detail in active regions without crushing prominences or the limb fade.
+- Colorized images now use a more even tonal range thanks to a revised stretching pipeline.
 - Images in the sidebar can now be renamed via the right-click menu to disambiguate them in collages.
 
 ## What's New in Version 5.1.3

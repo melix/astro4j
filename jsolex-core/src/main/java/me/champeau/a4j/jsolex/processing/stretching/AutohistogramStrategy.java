@@ -17,7 +17,6 @@ package me.champeau.a4j.jsolex.processing.stretching;
 
 import me.champeau.a4j.jsolex.processing.color.ColorCurve;
 import me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval;
-import me.champeau.a4j.jsolex.processing.sun.tasks.ImageAnalysis;
 import me.champeau.a4j.jsolex.processing.util.Histogram;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -27,7 +26,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.DoubleUnaryOperator;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
 
@@ -47,12 +45,15 @@ public final class AutohistogramStrategy implements StretchingStrategy {
      */
     public static final double DEFAULT_PROM_STRETCH = 0;
 
-    private static final int TARGET_AVG = 18000;
-    private static final DoubleUnaryOperator BRIGHTNESS_ENHANCE = ColorCurve.cachedPolynomial(100, 128);
     private static final ClaheStrategy CLAHE_STRATEGY = new ClaheStrategy(16, 64, 1.1);
     private static final StretchingStrategy PROTUS_STRATEGY = new ClaheStrategy(8, 64, 0.8);
-    private static final double HIGHLIGHT_KNEE_PERCENTILE = 0.9;
-    private static final float MIDTONE_LIFT_GAIN = 1.005f;
+    private static final float DISK_MIDTONE_TARGET = 0.45f * MAX_PIXEL_VALUE;
+    private static final float MIN_PEDESTAL = 0.005f * MAX_PIXEL_VALUE;
+    private static final float MIDTONE_CONTRAST_SLOPE = 1.25f;
+    // Contrast S-curve fades from full strength to identity between these normalized-radius
+    // depths so it doesn't affect prominences and the limb fade.
+    private static final double CONTRAST_FADE_INNER = 0.85;
+    private static final double CONTRAST_FADE_OUTER = 1.05;
 
     /**
      * Default gamma correction value.
@@ -128,19 +129,8 @@ public final class AutohistogramStrategy implements StretchingStrategy {
                 System.arraycopy(blended[y], 0, output[y], 0, width);
             }
         }
-        softKneeHighlights(output, 0, HIGHLIGHT_KNEE_PERCENTILE);
         maybeAdjustBrightness(image, height, width, output);
-        RangeExpansionStrategy.DEFAULT.stretch(image);
-        liftMidtones(output);
         CutoffStretchingStrategy.DEFAULT.stretch(image);
-    }
-
-    private static void liftMidtones(float[][] data) {
-        for (var line : data) {
-            for (var x = 0; x < line.length; x++) {
-                line[x] = Math.min(MAX_PIXEL_VALUE, line[x] * MIDTONE_LIFT_GAIN);
-            }
-        }
     }
 
     private static void blendInto(float[][] img1, float[][] img2, int width, int height, double alpha, float[][] out) {
@@ -228,25 +218,220 @@ public final class AutohistogramStrategy implements StretchingStrategy {
     }
 
     private void maybeAdjustBrightness(ImageWrapper32 image, int height, int width, float[][] diskData) {
-        if (adjustBrightness) {
-            var backup = image.copy();
-            var stats = ImageAnalysis.of(image, true);
-            var maxIterations = 10;
-            while (stats.histogram().cumulative().percentile(0.75f) < TARGET_AVG && maxIterations-- > 0) {
-                for (var y = 0; y < height; y++) {
-                    for (var x = 0; x < width; x++) {
-                        diskData[y][x] = (float) Math.clamp(BRIGHTNESS_ENHANCE.applyAsDouble(diskData[y][x]), 0, MAX_PIXEL_VALUE);
-                    }
-                }
-                stats = ImageAnalysis.of(image, true);
+        if (!adjustBrightness) {
+            return;
+        }
+        var ellipse = image.findMetadata(Ellipse.class).orElse(null);
+        // Pedestal comes from the whole-frame histogram so the shadow floor stays in the bg
+        // region (typically near 0 after bg-neutralize). Using inside-ellipse p5 instead would
+        // raise pedestal into the disk's noise floor and crush filaments/dark features.
+        var cumulative = Histogram.of(diskData, 65536).cumulative();
+        var p5 = (float) cumulative.percentile(0.05);
+        var pedestal = Math.max(p5, MIN_PEDESTAL);
+        // Midtone, on the other hand, must come from inside the ellipse: for partial-disk crops
+        // the off-disk area would otherwise dominate the histogram and bias the median.
+        var midtone = diskMedianInside(diskData, ellipse, width, height, pedestal);
+        if (midtone <= pedestal || midtone >= DISK_MIDTONE_TARGET) {
+            return;
+        }
+        // Apply an asinh stretch anchored at (pedestal, pedestal) and (MAX, MAX):
+        //   y = pedestal + (MAX - pedestal) * asinh(beta * t) / asinh(beta),  t = (v - pedestal)/(MAX - pedestal)
+        // beta is solved by bisection so y(midtone) = DISK_MIDTONE_TARGET. asinh has a much
+        // gentler upper roll-off than a sigmoid (~log at the top vs ~exp), so bright disk content
+        // keeps its dynamics instead of asymptoting flat against MAX.
+        var range = MAX_PIXEL_VALUE - pedestal;
+        var tMid = (midtone - pedestal) / range;
+        var tTarget = (DISK_MIDTONE_TARGET - pedestal) / range;
+        var beta = solveAsinhBeta(tMid, tTarget);
+        var asinhBeta = Math.log(beta + Math.sqrt(beta * beta + 1));
+        LOGGER.info("Autostretch asinh: pedestal={} midtone={} beta={} target={}", pedestal, midtone, beta, DISK_MIDTONE_TARGET);
+        // Apply the curve to all pixels above the pedestal — including those just outside the
+        // detected ellipse, so prominences, the chromospheric limb fade, and any off-disk signal
+        // get the same lift as disk pixels and the limb transitions smoothly.
+        //
+        // After the asinh lift, apply a cubic contrast S-curve y = a·v³ + b·v² + c·v through
+        // (0,0), (midtone, midtone), (MAX, MAX) with slope MIDTONE_CONTRAST_SLOPE at midtone.
+        // This pushes darks darker and brights brighter symmetrically around midtone, leaving
+        // the midtone position unchanged. The cubic stays monotonic provided the slope value
+        // isn't too aggressive (≈ ≤1.3 at this midtone position).
+        var m = (double) DISK_MIDTONE_TARGET;
+        var maxD = (double) MAX_PIXEL_VALUE;
+        var ca = (MIDTONE_CONTRAST_SLOPE - 1.0) / (m * (m - maxD));
+        var cb = -ca * (maxD + m);
+        var cc = 1.0 + ca * m * maxD;
+        // The contrast S-curve is faded toward identity outside the disk so it doesn't crush
+        // prominences and the chromospheric limb fade. We use the ellipse's implicit equation:
+        //   f(x,y) = A x² + B xy + C y² + D x + E y + F
+        // is < 0 inside, 0 on the boundary, > 0 outside. Normalizing by f at the ellipse center
+        // gives a "normalized radius squared" that is 0 at the center and 1 at the limb. The
+        // fade is a smoothstep between CONTRAST_FADE_INNER (full S-curve) and CONTRAST_FADE_OUTER
+        // (identity).
+        double ellA = 0, ellB = 0, ellC = 0, ellD = 0, ellE = 0, ellF = 0, fCenter = -1;
+        var hasEllipse = ellipse != null;
+        if (hasEllipse) {
+            var coeffs = ellipse.getCartesianCoefficients();
+            ellA = coeffs.a();
+            ellB = coeffs.b();
+            ellC = coeffs.c();
+            ellD = coeffs.d();
+            ellE = coeffs.e();
+            ellF = coeffs.f();
+            var c2 = ellipse.center();
+            var cx = c2.a();
+            var cy = c2.b();
+            fCenter = ellA * cx * cx + ellB * cx * cy + ellC * cy * cy + ellD * cx + ellE * cy + ellF;
+            if (fCenter >= 0) {
+                hasEllipse = false; // degenerate; skip the fade
             }
-            if (maxIterations == -1) {
-                LOGGER.warn("Could not reach target average after 10 iterations. Skipping brightness adjustment.");
-                for (var y = 0; y < height; y++) {
-                    System.arraycopy(backup.data()[y], 0, diskData[y], 0, width);
+        }
+        for (var y = 0; y < height; y++) {
+            for (var x = 0; x < width; x++) {
+                var v = diskData[y][x];
+                if (v > pedestal) {
+                    var t = (v - pedestal) / range;
+                    var arg = beta * t;
+                    var asinhArg = Math.log(arg + Math.sqrt(arg * arg + 1));
+                    var afterAsinh = pedestal + range * asinhArg / asinhBeta;
+                    var contrasted = ca * afterAsinh * afterAsinh * afterAsinh + cb * afterAsinh * afterAsinh + cc * afterAsinh;
+                    double result;
+                    if (hasEllipse) {
+                        var fVal = ellA * x * x + ellB * x * y + ellC * y * y + ellD * x + ellE * y + ellF;
+                        var depth = 1.0 - fVal / fCenter;  // 0 at center, 1 at limb, >1 outside
+                        var s = (depth - CONTRAST_FADE_INNER) / (CONTRAST_FADE_OUTER - CONTRAST_FADE_INNER);
+                        var fadeOut = s <= 0 ? 0.0 : s >= 1 ? 1.0 : s * s * (3 - 2 * s);
+                        result = afterAsinh + (1 - fadeOut) * (contrasted - afterAsinh);
+                    } else {
+                        result = contrasted;
+                    }
+                    diskData[y][x] = (float) Math.clamp(result, 0, MAX_PIXEL_VALUE);
                 }
             }
         }
+    }
+
+    private static float percentileInsideEllipse(float[][] data, Ellipse e, int width, int height, float p) {
+        var hist = new int[65536];
+        var count = 0;
+        if (e == null) {
+            for (var line : data) {
+                for (var v : line) {
+                    hist[(int) Math.clamp(v, 0, 65535)]++;
+                    count++;
+                }
+            }
+        } else {
+            var bb = e.boundingBox();
+            var minX = (int) Math.max(0, bb.a());
+            var maxX = (int) Math.min(width - 1, bb.b());
+            var minY = (int) Math.max(0, bb.c());
+            var maxY = (int) Math.min(height - 1, bb.d());
+            for (var y = minY; y <= maxY; y++) {
+                for (var x = minX; x <= maxX; x++) {
+                    if (e.isWithin(x, y)) {
+                        hist[(int) Math.clamp(data[y][x], 0, 65535)]++;
+                        count++;
+                    }
+                }
+            }
+        }
+        if (count == 0) {
+            return 0;
+        }
+        var target = (int) (count * p);
+        var cum = 0;
+        for (var i = 0; i < hist.length; i++) {
+            cum += hist[i];
+            if (cum >= target) {
+                return i;
+            }
+        }
+        return 0;
+    }
+
+    private static float diskMedianInside(float[][] data, Ellipse e, int width, int height, float pedestal) {
+        var hist = new int[65536];
+        var count = 0;
+        if (e == null) {
+            for (var line : data) {
+                for (var v : line) {
+                    if (v > pedestal) {
+                        hist[(int) Math.clamp(v, 0, 65535)]++;
+                        count++;
+                    }
+                }
+            }
+        } else {
+            var bb = e.boundingBox();
+            var minX = (int) Math.max(0, bb.a());
+            var maxX = (int) Math.min(width - 1, bb.b());
+            var minY = (int) Math.max(0, bb.c());
+            var maxY = (int) Math.min(height - 1, bb.d());
+            for (var y = minY; y <= maxY; y++) {
+                for (var x = minX; x <= maxX; x++) {
+                    if (e.isWithin(x, y) && data[y][x] > pedestal) {
+                        hist[(int) Math.clamp(data[y][x], 0, 65535)]++;
+                        count++;
+                    }
+                }
+            }
+        }
+        if (count == 0) {
+            return 0;
+        }
+        var half = count / 2;
+        var cum = 0;
+        for (var i = 0; i < hist.length; i++) {
+            cum += hist[i];
+            if (cum >= half) {
+                return i;
+            }
+        }
+        return 0;
+    }
+
+    private static double solveAsinhBeta(double tMid, double tTarget) {
+        // Solve asinh(beta * tMid) = tTarget * asinh(beta) by bisection.
+        var lo = 0.01;
+        var hi = 10000.0;
+        for (var i = 0; i < 200; i++) {
+            var beta = (lo + hi) / 2;
+            var lhs = Math.log(beta * tMid + Math.sqrt(beta * beta * tMid * tMid + 1));
+            var rhs = tTarget * Math.log(beta + Math.sqrt(beta * beta + 1));
+            if (lhs > rhs) {
+                hi = beta;
+            } else {
+                lo = beta;
+            }
+            if (hi - lo < 1e-8) {
+                break;
+            }
+        }
+        return (lo + hi) / 2;
+    }
+
+    private static float diskMedianAbove(float[][] data, float pedestal) {
+        var hist = new int[65536];
+        var count = 0;
+        for (var line : data) {
+            for (var v : line) {
+                if (v > pedestal) {
+                    hist[(int) Math.clamp(v, 0, 65535)]++;
+                    count++;
+                }
+            }
+        }
+        if (count == 0) {
+            return 0;
+        }
+        var half = count / 2;
+        var cum = 0;
+        for (var i = 0; i < hist.length; i++) {
+            cum += hist[i];
+            if (cum >= half) {
+                return i;
+            }
+        }
+        return 0;
     }
 
     /**
