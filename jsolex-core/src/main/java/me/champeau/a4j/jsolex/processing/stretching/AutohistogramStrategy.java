@@ -51,7 +51,8 @@ public final class AutohistogramStrategy implements StretchingStrategy {
     private static final DoubleUnaryOperator BRIGHTNESS_ENHANCE = ColorCurve.cachedPolynomial(100, 128);
     private static final ClaheStrategy CLAHE_STRATEGY = new ClaheStrategy(16, 64, 1.1);
     private static final StretchingStrategy PROTUS_STRATEGY = new ClaheStrategy(8, 64, 0.8);
-    private static final double HIGHLIGHT_KNEE_PERCENTILE = 0.995;
+    private static final double HIGHLIGHT_KNEE_PERCENTILE = 0.9;
+    private static final float MIDTONE_LIFT_GAIN = 1.005f;
 
     /**
      * Default gamma correction value.
@@ -111,8 +112,8 @@ public final class AutohistogramStrategy implements StretchingStrategy {
                 PROTUS_STRATEGY.stretch(eclipse);
                 var eclipseData = eclipse.data();
                 var expand = ColorCurve.cachedPolynomial(16, (int) Math.clamp(16 * (1 + protusStretch), 16, 255));
-                for (int y = 0; y < height; y++) {
-                    for (int x = 0; x < width; x++) {
+                for (var y = 0; y < height; y++) {
+                    for (var x = 0; x < width; x++) {
                         eclipseData[y][x] = (float) expand.applyAsDouble(eclipseData[y][x]);
                     }
                 }
@@ -123,20 +124,29 @@ public final class AutohistogramStrategy implements StretchingStrategy {
             var blended = new float[height][width];
             blendInto(clahe.data(), eclipse.data(), width, height, 0.6, claheData);
             blendInto(bgNeutralized.data(), claheData, width, height, 0.8, blended);
-            for (int y = 0; y < height; y++) {
+            for (var y = 0; y < height; y++) {
                 System.arraycopy(blended[y], 0, output[y], 0, width);
             }
         }
         softKneeHighlights(output, 0, HIGHLIGHT_KNEE_PERCENTILE);
         maybeAdjustBrightness(image, height, width, output);
         RangeExpansionStrategy.DEFAULT.stretch(image);
+        liftMidtones(output);
         CutoffStretchingStrategy.DEFAULT.stretch(image);
     }
 
+    private static void liftMidtones(float[][] data) {
+        for (var line : data) {
+            for (var x = 0; x < line.length; x++) {
+                line[x] = Math.min(MAX_PIXEL_VALUE, line[x] * MIDTONE_LIFT_GAIN);
+            }
+        }
+    }
+
     private static void blendInto(float[][] img1, float[][] img2, int width, int height, double alpha, float[][] out) {
-        double beta = 1 - alpha;
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
+        var beta = 1 - alpha;
+        for (var y = 0; y < height; y++) {
+            for (var x = 0; x < width; x++) {
                 var v1 = img1[y][x];
                 var v2 = img2[y][x];
                 out[y][x] = (float) (alpha * v1 + beta * v2);
@@ -151,8 +161,8 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         var maxX = (int) Math.min(width - 1, bb.b());
         var minY = (int) Math.max(0, bb.c());
         var maxY = (int) Math.min(height - 1, bb.d());
-        for (int y = minY; y < maxY; y++) {
-            for (int x = minX; x < maxX; x++) {
+        for (var y = minY; y < maxY; y++) {
+            for (var x = minX; x < maxX; x++) {
                 if (e.isWithin(x, y)) {
                     eclipse.data()[y][x] = 0;
                 }
@@ -181,14 +191,14 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         var prevBg = Double.MAX_VALUE;
         var smoothing = (float) (1 - backgroundThreshold);
         var pedestral = -1d;
-        int maxIterations = 25;
-        boolean foundPedestral = false;
+        var maxIterations = 25;
+        var foundPedestral = false;
         while (--maxIterations >= 0) {
-            for (int y = 0; y < height; y++) {
+            for (var y = 0; y < height; y++) {
                 System.arraycopy(currentData[y], 0, scratchData[y], 0, width);
             }
             neutralizeBg(scratch, 2, 1.5, smoothing, null, bgModelBuffer);
-            double bg = neutralizeBg(eclipse, 2, 1.5, smoothing, null, bgModelBuffer);
+            var bg = neutralizeBg(eclipse, 2, 1.5, smoothing, null, bgModelBuffer);
             if (bg == 0 || bg > prevBg) {
                 break;
             }
@@ -208,8 +218,8 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         }
         var denoised = current;
         if (pedestral > 0) {
-            for (int y = 0; y < height; y++) {
-                for (int x = 0; x < width; x++) {
+            for (var y = 0; y < height; y++) {
+                for (var x = 0; x < width; x++) {
                     denoised.data()[y][x] += pedestral / 2;
                 }
             }
@@ -221,10 +231,10 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         if (adjustBrightness) {
             var backup = image.copy();
             var stats = ImageAnalysis.of(image, true);
-            int maxIterations = 10;
+            var maxIterations = 10;
             while (stats.histogram().cumulative().percentile(0.75f) < TARGET_AVG && maxIterations-- > 0) {
-                for (int y = 0; y < height; y++) {
-                    for (int x = 0; x < width; x++) {
+                for (var y = 0; y < height; y++) {
+                    for (var x = 0; x < width; x++) {
                         diskData[y][x] = (float) Math.clamp(BRIGHTNESS_ENHANCE.applyAsDouble(diskData[y][x]), 0, MAX_PIXEL_VALUE);
                     }
                 }
@@ -232,7 +242,7 @@ public final class AutohistogramStrategy implements StretchingStrategy {
             }
             if (maxIterations == -1) {
                 LOGGER.warn("Could not reach target average after 10 iterations. Skipping brightness adjustment.");
-                for (int y = 0; y < height; y++) {
+                for (var y = 0; y < height; y++) {
                     System.arraycopy(backup.data()[y], 0, diskData[y], 0, width);
                 }
             }
@@ -265,12 +275,12 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         if (optionalModel.isPresent()) {
             var data = optionalModel.get().data();
             double avg = 0;
-            for (int y = 0; y < disk.height(); y++) {
-                for (int x = 0; x < disk.width(); x++) {
-                    float v = data[y][x];
+            for (var y = 0; y < disk.height(); y++) {
+                for (var x = 0; x < disk.width(); x++) {
+                    var v = data[y][x];
                     avg += v;
                     if (e == null || !e.isWithin(x, y)) {
-                        float smoothed = smoothing * v;
+                        var smoothed = smoothing * v;
                         diskData[y][x] = Math.clamp(diskData[y][x] - smoothed, 0, MAX_PIXEL_VALUE);
                     }
                 }
@@ -281,21 +291,22 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         return 0;
     }
 
-    // Reinhard-style rational soft-knee: y = knee + s*t/(1+t), t = (x-knee)/s,
-    // s = MAX_PIXEL_VALUE - knee. C¹ at the knee, asymptotic to MAX_PIXEL_VALUE.
+    // Reinhard-style rational rolloff above the knee: y = knee + s*t/(1+t),
+    // t = (x-knee)/s, s = MAX_PIXEL_VALUE - knee. Compresses highlights toward MAX
+    // asymptotically (no flat plateau). C¹ at the knee.
     private static void softKneeHighlights(float[][] data, double loPercentile, double kneePercentile) {
         var cumulative = Histogram.of(data, 65536).cumulative();
-        float lo = (float) cumulative.percentile(loPercentile);
-        float knee = (float) cumulative.percentile(kneePercentile);
-        float scale = MAX_PIXEL_VALUE - knee;
-        for (int y = 0; y < data.length; y++) {
+        var lo = (float) cumulative.percentile(loPercentile);
+        var knee = (float) cumulative.percentile(kneePercentile);
+        var scale = MAX_PIXEL_VALUE - knee;
+        for (var y = 0; y < data.length; y++) {
             var line = data[y];
-            for (int x = 0; x < line.length; x++) {
-                float v = line[x];
+            for (var x = 0; x < line.length; x++) {
+                var v = line[x];
                 if (v < lo) {
                     line[x] = 0;
                 } else if (scale > 0 && v > knee) {
-                    float excess = v - knee;
+                    var excess = v - knee;
                     line[x] = knee + scale * excess / (scale + excess);
                 } else if (v > MAX_PIXEL_VALUE) {
                     line[x] = MAX_PIXEL_VALUE;
