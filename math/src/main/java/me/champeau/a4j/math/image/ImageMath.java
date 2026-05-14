@@ -793,20 +793,43 @@ public interface ImageMath {
      * @return the warped image
      */
     default Image dedistort(Image source, float[][] gridDx, float[][] gridDy, int gridStep, boolean useLanczos) {
+        return dedistort(source, gridDx, gridDy, gridStep, useLanczos, 1.0);
+    }
+
+    /**
+     * Applies a distortion map to warp an image, optionally producing a super-resolved
+     * output. When {@code scale} is greater than 1, the output image is allocated at
+     * {@code round(scale * width)} by {@code round(scale * height)} and each output pixel
+     * is sampled from the source at sub-pixel coordinates via the same Lanczos / bilinear
+     * kernel. This is the inverse-warp form of drizzle: combined with stack_dedis
+     * averaging, frames with sub-pixel diversity contribute high-frequency content
+     * recoverable on the finer output grid.
+     *
+     * @param source     the source image to warp
+     * @param gridDx     the x-displacement grid (gridHeight x gridWidth)
+     * @param gridDy     the y-displacement grid (gridHeight x gridWidth)
+     * @param gridStep   the step size between grid samples in pixels (in source units)
+     * @param useLanczos if true, use Lanczos-3 interpolation; otherwise use bilinear
+     * @param scale      output super-resolution factor (1.0 = native, e.g. 1.5, 2.0, 3.0)
+     * @return the warped image, sized {@code round(scale*width)} x {@code round(scale*height)}
+     */
+    default Image dedistort(Image source, float[][] gridDx, float[][] gridDy, int gridStep, boolean useLanczos, double scale) {
         var data = source.data();
         var width = source.width();
         var height = source.height();
         var gridHeight = gridDx.length;
         var gridWidth = gridDx[0].length;
-        var result = new float[height][width];
+        var outWidth = (int) Math.round(width * scale);
+        var outHeight = (int) Math.round(height * scale);
+        var result = new float[outHeight][outWidth];
 
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                // Convert pixel coords to grid coords
-                double ax = (double) x / gridStep;
-                double ay = (double) y / gridStep;
+        for (int y = 0; y < outHeight; y++) {
+            for (int x = 0; x < outWidth; x++) {
+                double sx = x / scale;
+                double sy = y / scale;
+                double ax = sx / gridStep;
+                double ay = sy / gridStep;
 
-                // Bicubic interpolation of displacement from grid
                 double dx = 0.0;
                 double dy = 0.0;
 
@@ -815,8 +838,8 @@ public interface ImageMath {
                     dy = bicubicGridSample(gridDy, ax, ay, gridWidth, gridHeight);
                 }
 
-                double srcX = x + dx;
-                double srcY = y + dy;
+                double srcX = sx + dx;
+                double srcY = sy + dy;
 
                 if (srcX >= 0 && srcX < width && srcY >= 0 && srcY < height) {
                     if (useLanczos) {
@@ -830,7 +853,7 @@ public interface ImageMath {
             }
         }
 
-        return new Image(width, height, result);
+        return new Image(outWidth, outHeight, result);
     }
 
     private static double bicubicGridSample(float[][] grid, double x, double y, int gridWidth, int gridHeight) {

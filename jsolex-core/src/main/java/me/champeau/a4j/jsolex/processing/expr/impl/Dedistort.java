@@ -428,6 +428,7 @@ public class Dedistort extends AbstractFunctionImpl {
 
     public Object dedistort(Map<String, Object> arguments) {
         BuiltinFunction.DEDISTORT.validateArgs(arguments);
+        var scale = validateScale(doubleArg(arguments, "drizzle", 1.0));
         var arg = arguments.get("ref");
         if (arg instanceof ImageWrapper wrapper) {
             var reference = wrapper.unwrapToMemory();
@@ -466,7 +467,7 @@ public class Dedistort extends AbstractFunctionImpl {
                     LOGGER.warn(message("dedistort.multiscale.requires.sparse"));
                     multiscale = false;
                 }
-                return dedistort(mono, image, tileSize, sampling, threshold == -1 ? null : threshold, iterations, useSparse, multiscale);
+                return dedistort(mono, image, tileSize, sampling, threshold == -1 ? null : threshold, iterations, useSparse, multiscale, scale);
             }
             throw new IllegalArgumentException("dedistort 2d argument must be a mono image");
         } else if (arg instanceof List<?>) {
@@ -478,13 +479,21 @@ public class Dedistort extends AbstractFunctionImpl {
                 var distorsionMaps = references.stream()
                         .map(img -> img.findMetadata(DistorsionMaps.class).orElseThrow(() -> new IllegalArgumentException("No distorsion maps found in reference image")))
                         .toList();
+                var finalScale = scale;
                 return IntStream.range(0, images.size())
                         .parallel()
-                        .mapToObj(i -> applyDistorsionMaps(images.get(i), distorsionMaps.get(i)))
+                        .mapToObj(i -> applyDistorsionMaps(images.get(i), distorsionMaps.get(i), finalScale))
                         .toList();
             }
         }
         throw new IllegalArgumentException("dedistort first argument must be a mono image");
+    }
+
+    private static double validateScale(double scale) {
+        if (Double.isNaN(scale) || scale < 1.0 || scale > 4.0) {
+            throw new IllegalArgumentException("dedistort 'drizzle' must be in [1.0, 4.0] (got " + scale + ")");
+        }
+        return scale;
     }
 
     private static List<ImageWrapper32> asMonoImages(List<?> imageList) {
@@ -538,6 +547,19 @@ public class Dedistort extends AbstractFunctionImpl {
                                     int iterations,
                                     boolean useSparse,
                                     boolean multiscale) {
+        return dedistort(reference, image, tileSize, sampling, backgroundThreshold, iterations, useSparse, multiscale, 1.0);
+    }
+
+    public ImageWrapper32 dedistort(ImageWrapper32 reference,
+                                    ImageWrapper32 image,
+                                    int tileSize,
+                                    double sampling,
+                                    Double backgroundThreshold,
+                                    int iterations,
+                                    boolean useSparse,
+                                    boolean multiscale,
+                                    double scale) {
+        validateScale(scale);
         var width = reference.width();
         var height = reference.height();
         if (image.width() != width || image.height() != height) {
@@ -605,12 +627,18 @@ public class Dedistort extends AbstractFunctionImpl {
 
         LOGGER.debug("Dedistort complete: finalDistortion={}", finalMap.totalDistorsion());
 
-        var finalImage = dedistortSingleWithoutMetadata(image, finalMap, iterationOperation, height, width);
+        var finalImage = dedistortSingleWithoutMetadata(image, finalMap, iterationOperation, height, width, scale);
+        var outWidth = (int) Math.round(width * scale);
+        var outHeight = (int) Math.round(height * scale);
 
         var metadata = MutableMap.<Class<?>, Object>of();
-        metadata.putAll(image.metadata());
+        if (scale == 1.0) {
+            metadata.putAll(image.metadata());
+        } else {
+            metadata.putAll(scaledMetadata(image, scale));
+        }
         metadata.put(DistorsionMaps.class, DistorsionMaps.of(finalMap));
-        return new ImageWrapper32(width, height, finalImage.data(), metadata);
+        return new ImageWrapper32(outWidth, outHeight, finalImage.data(), metadata);
     }
 
     private DistorsionMap computeDistortionMap(float[][] referenceData,
@@ -957,19 +985,33 @@ public class Dedistort extends AbstractFunctionImpl {
         return samples;
     }
 
-    private ImageWrapper32 applyDistorsionMaps(ImageWrapper32 image, DistorsionMaps distorsionMaps) {
-        var height = image.height();
-        var width = image.width();
+    private ImageWrapper32 applyDistorsionMaps(ImageWrapper32 image, DistorsionMaps distorsionMaps, double scale) {
+        validateScale(scale);
+        var maps = distorsionMaps.maps();
         var currentImage = image;
 
-        for (var distorsionMap : distorsionMaps.maps()) {
-            currentImage = dedistortSingleWithoutMetadata(currentImage, distorsionMap, newOperation(), height, width);
+        if (scale > 1.0 && maps.size() > 1) {
+            // At super-resolution the per-map sequential warps would each cost scale*scale times
+            // the native warp; synthesize all maps into a single map so we pay for exactly one
+            // high-resolution warp per image.
+            var synthesized = DistorsionMap.synthesize(maps, image.width(), image.height());
+            currentImage = dedistortSingleWithoutMetadata(image, synthesized, newOperation(), image.height(), image.width(), scale);
+        } else {
+            var lastIndex = maps.size() - 1;
+            for (int i = 0; i < maps.size(); i++) {
+                var stepScale = (i == lastIndex) ? scale : 1.0;
+                currentImage = dedistortSingleWithoutMetadata(currentImage, maps.get(i), newOperation(), currentImage.height(), currentImage.width(), stepScale);
+            }
         }
 
         var metadata = MutableMap.<Class<?>, Object>of();
-        metadata.putAll(image.metadata());
+        if (currentImage.width() == image.width() && currentImage.height() == image.height()) {
+            metadata.putAll(image.metadata());
+        } else {
+            metadata.putAll(scaledMetadata(image, scale));
+        }
         metadata.put(DistorsionMaps.class, distorsionMaps);
-        return new ImageWrapper32(width, height, currentImage.data(), metadata);
+        return new ImageWrapper32(currentImage.width(), currentImage.height(), currentImage.data(), metadata);
     }
 
     private ImageWrapper32 dedistortSingleWithoutMetadata(ImageWrapper32 image,
@@ -977,6 +1019,15 @@ public class Dedistort extends AbstractFunctionImpl {
                                                           ProgressOperation parent,
                                                           int height,
                                                           int width) {
+        return dedistortSingleWithoutMetadata(image, distorsionMap, parent, height, width, 1.0);
+    }
+
+    private ImageWrapper32 dedistortSingleWithoutMetadata(ImageWrapper32 image,
+                                                          DistorsionMap distorsionMap,
+                                                          ProgressOperation parent,
+                                                          int height,
+                                                          int width,
+                                                          double scale) {
         var progressOperation = parent.createChild(DEDISTORT);
         broadcaster.broadcast(progressOperation.update(0.0));
 
@@ -985,10 +1036,14 @@ public class Dedistort extends AbstractFunctionImpl {
         var gridStep = distorsionMap.getStep();
 
         var sourceImage = new Image(width, height, image.data());
-        var resultImage = IMAGE_MATH.dedistort(sourceImage, gridDx, gridDy, gridStep, true);
+        var resultImage = IMAGE_MATH.dedistort(sourceImage, gridDx, gridDy, gridStep, true, scale);
 
         broadcaster.broadcast(progressOperation.complete());
-        return new ImageWrapper32(width, height, resultImage.data(), MutableMap.of());
+        return new ImageWrapper32((int) Math.round(width * scale), (int) Math.round(height * scale), resultImage.data(), MutableMap.of());
+    }
+
+    private static Map<Class<?>, Object> scaledMetadata(ImageWrapper32 source, double scale) {
+        return Scaling.fixMetadata(source, (int) Math.round(source.width() * scale), (int) Math.round(source.height() * scale));
     }
 
 
@@ -1435,18 +1490,40 @@ public class Dedistort extends AbstractFunctionImpl {
         LOGGER.debug("Consensus reference dedistort: building results for {} images", imageCount);
         broadcaster.broadcast(mainOperation.update(0.95, "Building results"));
 
-        var results = new ArrayList<ImageWrapper32>(imageCount);
-        for (int i = 0; i < imageCount; i++) {
-            var correctedImage = currentImages.get(i);
-            var distorsionMaps = accumulatedMaps.get(i);
-
-            var metadata = MutableMap.<Class<?>, Object>of();
-            metadata.putAll(images.get(i).metadata());
-            metadata.put(DistorsionMaps.class, distorsionMaps);
-            results.add(new ImageWrapper32(width, height, correctedImage.data(), metadata));
-
-            LOGGER.debug("Consensus reference: image {}: total maps={}", i, distorsionMaps.size());
+        var scale = validateScale(doubleArg(arguments, "drizzle", 1.0));
+        var outWidth = (int) Math.round(width * scale);
+        var outHeight = (int) Math.round(height * scale);
+        var sourceImages = images;
+        var resultArray = new ImageWrapper32[imageCount];
+        if (scale == 1.0) {
+            for (int i = 0; i < imageCount; i++) {
+                var distorsionMaps = accumulatedMaps.get(i);
+                var metadata = MutableMap.<Class<?>, Object>of();
+                metadata.putAll(sourceImages.get(i).metadata());
+                metadata.put(DistorsionMaps.class, distorsionMaps);
+                resultArray[i] = new ImageWrapper32(outWidth, outHeight, currentImages.get(i).data(), metadata);
+                LOGGER.debug("Consensus reference: image {}: total maps={}", i, distorsionMaps.size());
+            }
+        } else {
+            // At super-resolution the cached iterated `currentImages` are still at native size; we
+            // need a fresh high-resolution warp per image. Parallelize: one warp per image is the
+            // dominant cost at scale>1.
+            var progressCounter = new AtomicInteger(0);
+            var srWarpOp = mainOperation.createChild(DEDISTORT);
+            broadcaster.broadcast(srWarpOp.update(0.0, "Super-resolution warp"));
+            IntStream.range(0, imageCount).parallel().forEach(i -> {
+                var distorsionMaps = accumulatedMaps.get(i);
+                var warped = applyDistorsionMaps(sourceImages.get(i), distorsionMaps, scale);
+                var metadata = MutableMap.<Class<?>, Object>of();
+                metadata.putAll(scaledMetadata(sourceImages.get(i), scale));
+                metadata.put(DistorsionMaps.class, distorsionMaps);
+                resultArray[i] = new ImageWrapper32(outWidth, outHeight, warped.data(), metadata);
+                var done = progressCounter.incrementAndGet();
+                broadcaster.broadcast(srWarpOp.update((double) done / imageCount, "Super-resolution warp " + done + "/" + imageCount));
+            });
+            broadcaster.broadcast(srWarpOp.complete());
         }
+        var results = new ArrayList<>(Arrays.asList(resultArray));
 
         broadcaster.broadcast(mainOperation.complete());
         LOGGER.debug("Consensus reference dedistort: completed for {} images with {} iterations", imageCount, iterations);
