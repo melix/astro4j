@@ -244,7 +244,6 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         var tTarget = (DISK_MIDTONE_TARGET - pedestal) / range;
         var beta = solveAsinhBeta(tMid, tTarget);
         var asinhBeta = Math.log(beta + Math.sqrt(beta * beta + 1));
-        LOGGER.info("Autostretch asinh: pedestal={} midtone={} beta={} target={}", pedestal, midtone, beta, DISK_MIDTONE_TARGET);
         // Apply the curve to all pixels above the pedestal — including those just outside the
         // detected ellipse, so prominences, the chromospheric limb fade, and any off-disk signal
         // get the same lift as disk pixels and the limb transitions smoothly.
