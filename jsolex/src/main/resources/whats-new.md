@@ -5,6 +5,7 @@
 - Autostretch produces a smoother, more natural brightness, preserving detail in active regions without crushing prominences or the limb fade.
 - Colorized images now use a more even tonal range thanks to a revised stretching pipeline.
 - Images in the sidebar can now be renamed via the right-click menu to disambiguate them in collages.
+- The `dedistort` ImageMath function gained a `drizzle` parameter (any value between 1 and 4, e.g. 1.5, 2, 3) that produces a super-resolved output to recover detail under excellent seeing.
 
 ## What's New in Version 5.1.3
 

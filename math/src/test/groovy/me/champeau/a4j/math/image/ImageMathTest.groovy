@@ -237,6 +237,129 @@ class ImageMathTest extends Specification {
         compareImages(fallbackResult, vectorizedResult, 0.001f)
     }
 
+    def "dedistort scale=2 produces 2x output dimensions"() {
+        var imageMath = ImageMath.newInstance()
+        var image = newImage(32, 24)
+        var gridStep = 8
+        var gridW = 32 / gridStep + 2
+        var gridH = 24 / gridStep + 2
+        var gridDx = new float[gridH][gridW]
+        var gridDy = new float[gridH][gridW]
+
+        when:
+        var result = imageMath.dedistort(image, gridDx, gridDy, gridStep, true, 2)
+
+        then:
+        result.width() == 64
+        result.height() == 48
+    }
+
+    def "dedistort scale=4 samples at quarter-pixel offsets on a 4x grid"() {
+        var imageMath = ImageMath.newInstance()
+        // Linear gradient: value = y + x. Output (X, Y) maps to source (X/4, Y/4).
+        var image = newImage(32, 24)
+        var gridStep = 8
+        var gridW = 32 / gridStep + 2
+        var gridH = 24 / gridStep + 2
+        var gridDx = new float[gridH][gridW]
+        var gridDy = new float[gridH][gridW]
+
+        when:
+        var hires = imageMath.dedistort(image, gridDx, gridDy, gridStep, true, 4.0)
+
+        then:
+        hires.width() == 128
+        hires.height() == 96
+        // Output (40, 32) maps to source (10, 8) => value 18
+        Math.abs(hires.data()[32][40] - 18.0f) < 1e-3f
+        // Output (41, 33) maps to source (10.25, 8.25) => value 18.5 on linear gradient
+        // Lanczos isn't exact on a linear gradient at fractional positions; allow ~0.1 slack.
+        Math.abs(hires.data()[33][41] - 18.5f) < 0.1f
+    }
+
+    def "dedistort scale=1.5 produces rounded fractional output dimensions"() {
+        var imageMath = ImageMath.newInstance()
+        var image = newImage(32, 24)
+        var gridStep = 8
+        var gridW = 32 / gridStep + 2
+        var gridH = 24 / gridStep + 2
+        var gridDx = new float[gridH][gridW]
+        var gridDy = new float[gridH][gridW]
+
+        when:
+        var result = imageMath.dedistort(image, gridDx, gridDy, gridStep, true, 1.5)
+
+        then:
+        result.width() == 48
+        result.height() == 36
+        // Output (15, 12) maps to source (10, 8) => value 18 (integer source pixel)
+        Math.abs(result.data()[12][15] - 18.0f) < 1e-3f
+    }
+
+    def "dedistort scale=1 matches default overload"() {
+        var imageMath = ImageMath.newInstance()
+        var image = newImage(32, 24)
+        var gridStep = 8
+        var gridW = 32 / gridStep + 2
+        var gridH = 24 / gridStep + 2
+        var gridDx = new float[gridH][gridW]
+        var gridDy = new float[gridH][gridW]
+
+        when:
+        var explicit = imageMath.dedistort(image, gridDx, gridDy, gridStep, true, 1)
+        var implicit = imageMath.dedistort(image, gridDx, gridDy, gridStep, true)
+
+        then:
+        compareImages(explicit, implicit, 0.0f)
+    }
+
+    def "dedistort scale=2 with identity displacement samples on a 2x grid"() {
+        var imageMath = ImageMath.newInstance()
+        // Linear gradient image: value = y + x. Interior sampling avoids Lanczos boundary bias.
+        var image = newImage(32, 24)
+        var gridStep = 8
+        var gridW = 32 / gridStep + 2
+        var gridH = 24 / gridStep + 2
+        var gridDx = new float[gridH][gridW]
+        var gridDy = new float[gridH][gridW]
+
+        when:
+        var hires = imageMath.dedistort(image, gridDx, gridDy, gridStep, true, 2)
+
+        then:
+        // Output pixel (10, 8) maps to source coord (5, 4) => integer, value 9
+        Math.abs(hires.data()[8][10] - 9.0f) < 1e-3f
+        // Output pixel (16, 12) maps to source coord (8, 6) => integer, value 14
+        Math.abs(hires.data()[12][16] - 14.0f) < 1e-3f
+        // Output pixel (11, 9) maps to source coord (5.5, 4.5) => value 10 on a linear gradient
+        Math.abs(hires.data()[9][11] - 10.0f) < 1e-2f
+    }
+
+    def "dedistort scale=2 with constant sub-pixel displacement shifts source coords"() {
+        var imageMath = ImageMath.newInstance()
+        // Linear gradient: value = y + x. A constant displacement dx=2 must shift the
+        // sampled source coord by 2 (in source pixels), not 4: srcX = sx + dx.
+        var image = newImage(32, 24)
+        var gridStep = 8
+        var gridW = 32 / gridStep + 2
+        var gridH = 24 / gridStep + 2
+        var gridDx = new float[gridH][gridW]
+        var gridDy = new float[gridH][gridW]
+        for (int gy = 0; gy < gridH; gy++) {
+            for (int gx = 0; gx < gridW; gx++) {
+                gridDx[gy][gx] = 2.0f
+                gridDy[gy][gx] = 0.0f
+            }
+        }
+
+        when:
+        var hires = imageMath.dedistort(image, gridDx, gridDy, gridStep, true, 2)
+
+        then:
+        // Output (8, 10) maps to sx=4, sy=5; srcX=6, srcY=5 => value 11
+        Math.abs(hires.data()[10][8] - 11.0f) < 1e-3f
+    }
+
     static Image newImage(int width, int height) {
         var data = new float[height][width]
         for (int y = 0; y < height; y++) {

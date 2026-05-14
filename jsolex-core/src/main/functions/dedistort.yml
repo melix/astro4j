@@ -64,6 +64,12 @@ arguments:
     description:
       fr: "Active la convergence adaptative par tuile en mode consensus (1=activé, 0=désactivé). Lorsqu'activé, les tuiles déjà convergées sont gelées et ignorées dans les itérations suivantes, ce qui accélère significativement les exécutions multi-itérations sans perte de qualité."
       en: "Enables per-tile adaptive convergence in consensus mode (1=enabled, 0=disabled). When enabled, tiles that have already converged are frozen and skipped in subsequent iterations, significantly speeding up multi-iteration runs without quality loss."
+  - name: drizzle
+    optional: true
+    default: 1.0
+    description:
+      fr: "Facteur de super-résolution (drizzle). Toute valeur entre 1 et 4 est acceptée (par ex. 1.5, 2, 2.5, 3). Le gain de résolution réel n'est obtenu que sous d'excellentes conditions et avec un échantillonnage suffisant. La mémoire consommée croît en facteur². À 4× elle est 16× celle d'un rendu natif."
+      en: "Super-resolution (drizzle) factor. Any value between 1 and 4 is accepted (e.g. 1.5, 2, 2.5, 3). Actual resolution gain only materializes under excellent seeing and with sufficient undersampling. Memory usage scales as factor² — at 4× the output uses 16× the memory of a native-resolution result."
 examples:
   - "crop_rect(img(0), 1024, 1024)"
   - "crop_rect(img: img(0), width: 200, height: 200)"
