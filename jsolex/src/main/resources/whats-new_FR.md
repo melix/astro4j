@@ -6,6 +6,7 @@
 - Les images colorisées bénéficient désormais d'une plage tonale plus équilibrée grâce à une chaîne d'étirement revue.
 - Les images dans la barre latérale peuvent désormais être renommées via le menu contextuel (clic droit) pour les distinguer dans les collages.
 - La fonction ImageMath `dedistort` accepte désormais un paramètre `drizzle` (toute valeur entre 1 et 4, par ex. 1.5, 2, 3) qui produit une image super-résolue pour récupérer des détails sous d'excellentes conditions.
+- Le double-clic sur une image pour zoomer à 1:1 centre désormais la vue sur le point cliqué.
 
 ## Nouveautés de la version 5.1.3
 

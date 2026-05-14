@@ -96,13 +96,23 @@ public class ZoomableImageView extends HBox {
         imageView.setOnMouseClicked(evt -> {
             if (evt.getButton().equals(MouseButton.PRIMARY)) {
                 if (evt.getClickCount() == 2) {
+                    var image = imageView.getImage();
+                    if (image == null) {
+                        return;
+                    }
+                    double imageX = evt.getX() / zoom;
+                    double imageY = evt.getY() / zoom;
+                    boolean zoomingIn = zoom != 1.0;
                     if (zoom == 1.0) {
-                        zoom = getWidth() / imageView.getImage().getWidth();
+                        zoom = getWidth() / image.getWidth();
                     } else {
                         zoom = 1.0;
                     }
                     applyZoom();
                     triggerOnZoomChanged();
+                    if (zoomingIn) {
+                        centerViewportOn(imageX, imageY);
+                    }
                 } else if (evt.getClickCount() == 1 && onClickListener != null) {
                     int imageX = (int) Math.round(evt.getX() / zoom);
                     int imageY = (int) Math.round(evt.getY() / zoom);
@@ -474,6 +484,29 @@ public class ZoomableImageView extends HBox {
         var boundsInLocal = imageView.getBoundsInLocal();
         scrollPane.setPrefViewportWidth(boundsInLocal.getWidth());
         scrollPane.setPrefViewportHeight(boundsInLocal.getHeight());
+    }
+
+    private void centerViewportOn(double imageX, double imageY) {
+        var image = imageView.getImage();
+        if (image == null) {
+            return;
+        }
+        scrollPane.layout();
+        var viewportBounds = scrollPane.getViewportBounds();
+        double viewportWidth = viewportBounds.getWidth();
+        double viewportHeight = viewportBounds.getHeight();
+        double contentWidth = image.getWidth() * zoom;
+        double contentHeight = image.getHeight() * zoom;
+        double hmax = Math.max(0, contentWidth - viewportWidth);
+        double vmax = Math.max(0, contentHeight - viewportHeight);
+        if (hmax > 0) {
+            double targetX = imageX * zoom - viewportWidth / 2.0;
+            scrollPane.setHvalue(Math.max(0, Math.min(1, targetX / hmax)));
+        }
+        if (vmax > 0) {
+            double targetY = imageY * zoom - viewportHeight / 2.0;
+            scrollPane.setVvalue(Math.max(0, Math.min(1, targetY / vmax)));
+        }
     }
 
     public void setRectangleSelectionListener(RectangleSelectionListener rectangleSelectionListener) {
