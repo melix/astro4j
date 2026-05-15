@@ -123,6 +123,7 @@ public class ImageInspectorController {
     private Map<Integer, File> serFilesByIndex;
     private Consumer<? super ImageInspectorController> onClose;
     private Map<Integer, List<CandidateImageDescriptor>> images;
+    private List<Integer> sortedImageKeys = List.of();
     private File outputDirectory;
     private File tempFile;
     private Path discardedDir;
@@ -186,6 +187,7 @@ public class ImageInspectorController {
                        Consumer<? super ImageInspectorController> onClose) {
         this.stage = stage;
         this.images = images;
+        this.sortedImageKeys = images.keySet().stream().sorted().toList();
         var candidateOrder = Comparator.comparingInt((CandidateImageDescriptor c) -> c.kind().ordinal())
             .thenComparingDouble(CandidateImageDescriptor::pixelShift)
             .thenComparing(CandidateImageDescriptor::title);
@@ -242,7 +244,7 @@ public class ImageInspectorController {
             updateSummary();
         });
         discardButton.setOnAction(e -> {
-            var selection = selections.get(currentImageIndex.get());
+            var selection = selections.get(currentKey());
             if (selection != null) {
                 var wasBest = selection.getState() == SelectionState.BEST;
                 selection.setState(SelectionState.DISCARD);
@@ -257,7 +259,7 @@ public class ImageInspectorController {
         });
         discardButton.setGraphic(new FontIcon("fltfal-delete-forever-24:24:CRIMSON"));
         keepButton.setOnAction(e -> {
-            var selection = selections.get(currentImageIndex.get());
+            var selection = selections.get(currentKey());
             if (selection != null) {
                 selection.setState(SelectionState.KEEP);
                 discardButton.setSelected(false);
@@ -267,7 +269,7 @@ public class ImageInspectorController {
         });
         keepButton.setGraphic(new FontIcon("fltfal-like-16:24:DARKGREEN"));
         setBestButton.setOnAction(e -> {
-            var selection = selections.get(currentImageIndex.get());
+            var selection = selections.get(currentKey());
             if (selection != null) {
                 bestManuallyChosen = true;
                 for (var value : selections.values()) {
@@ -438,7 +440,7 @@ public class ImageInspectorController {
         int kept = (int) kept().count();
 
         summaryLabel.setText(String.format(I18N.string(JSolEx.class, "image-selector", "summary"),
-            total, kept, discarded, serFilesByIndex.get(currentImageIndex.get()).getName()));
+            total, kept, discarded, serFilesByIndex.get(currentKey()).getName()));
 
         progressLabel.setText(String.format(I18N.string(JSolEx.class, "image-selector", "progress"), current, total));
         progressBar.setProgress((double) current / total);
@@ -464,6 +466,10 @@ public class ImageInspectorController {
         return tmpImage;
     }
 
+    private int currentKey() {
+        return sortedImageKeys.get(currentImageIndex.get());
+    }
+
     private void updateImage() {
         if (images.isEmpty()) {
             loadInto(currentImageView, currentDisplayed, null);
@@ -471,7 +477,7 @@ public class ImageInspectorController {
             return;
         }
 
-        var currentImages = images.get(currentImageIndex.get());
+        var currentImages = images.get(currentKey());
         var previouslySelected = imageList.getSelectionModel().getSelectedItem();
         var currentCandidate = findCurrentSelectionInNewCandidateList(previouslySelected, currentImages)
             .or(() -> findMainImage(currentImages))
@@ -490,7 +496,7 @@ public class ImageInspectorController {
         }
         loadInto(currentImageView, currentDisplayed, currentCandidate);
 
-        var state = selections.get(currentImageIndex.get()).getState();
+        var state = selections.get(currentKey()).getState();
         discardButton.setSelected(state == SelectionState.DISCARD);
         keepButton.setSelected(state == SelectionState.KEEP);
         setBestButton.setSelected(state == SelectionState.BEST);

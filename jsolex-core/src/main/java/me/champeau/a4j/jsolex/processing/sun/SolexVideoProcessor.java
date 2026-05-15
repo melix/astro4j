@@ -183,6 +183,7 @@ public class SolexVideoProcessor implements Broadcaster {
     };
     private EllipseFittingTask.Result cachedEllipse;
     private Map<Class<?>, Object> additionalContext;
+    private final DefaultImageEmitter sharedImageEmitter;
 
     public SolexVideoProcessor(File serFile,
                                Path outputDirectory,
@@ -204,6 +205,7 @@ public class SolexVideoProcessor implements Broadcaster {
         this.memoryRestrictionMultiplier = memoryRestrictionMultiplier;
         this.rootOperation = rootOperation;
         this.additionalContext = additionalContext != null ? additionalContext : Map.of();
+        this.sharedImageEmitter = new DefaultImageEmitter(this, rootOperation, outputDirectory.toFile());
     }
 
     public SolexVideoProcessor(File serFile,
@@ -401,21 +403,14 @@ public class SolexVideoProcessor implements Broadcaster {
             var continuumShift = processParams.spectrumParams().continuumShift();
             var minShift = pixelShiftRange.minPixelShift();
             var maxShift = pixelShiftRange.maxPixelShift();
-            if (continuumShift > pixelShiftRange.maxPixelShift() || continuumShift < minShift) {
-                double newContinuumShift;
-                if (-continuumShift > minShift) {
-                    newContinuumShift = -continuumShift;
-                } else if (maxShift > 0) {
-                    newContinuumShift = maxShift;
-                } else {
-                    newContinuumShift = minShift;
-                }
+            if (continuumShift > maxShift || continuumShift < minShift) {
+                double newContinuumShift = -continuumShift;
                 LOGGER.warn(String.format(message("invalid.continuum.shift"), newContinuumShift));
                 processParams = processParams.withSpectrumParams(processParams.spectrumParams().withContinuumShift(newContinuumShift));
-                if (imageList.stream().noneMatch(s -> s.pixelShift() == newContinuumShift)) {
-                    var state = new WorkflowState(width, newHeight, newContinuumShift);
-                    imageList.add(state);
-                }
+            }
+            var continuumPixelShift = processParams.spectrumParams().continuumShift();
+            if (imageList.stream().noneMatch(s -> s.pixelShift() == continuumPixelShift)) {
+                imageList.add(new WorkflowState(width, newHeight, continuumPixelShift));
             }
             if (!ignoreIncompleteShifts) {
                 imageList.removeIf(s -> s.pixelShift() < minShift || s.pixelShift() > maxShift);
@@ -612,6 +607,11 @@ public class SolexVideoProcessor implements Broadcaster {
                     });
 
         }
+        // Wait for every asynchronously-submitted image write (and its
+        // ImageGeneratedEvent listeners) to finish before signalling that the
+        // file is done — otherwise late events would reach batch collectors
+        // after the file is already marked complete.
+        sharedImageEmitter.await();
         broadcast(ProcessingDoneEvent.of(System.nanoTime(),
                 images,
                 createCustomImageEmitter(imageNamingStrategy, baseName),
@@ -1219,7 +1219,7 @@ public class SolexVideoProcessor implements Broadcaster {
     }
 
     private ImageEmitter createCustomImageEmitter(FileNamingStrategy imageNamingStrategy, String baseName) {
-        return new NamingStrategyAwareImageEmitter(new DefaultImageEmitter(this, rootOperation, outputDirectory.toFile()), imageNamingStrategy, sequenceNumber, baseName);
+        return new NamingStrategyAwareImageEmitter(sharedImageEmitter, imageNamingStrategy, sequenceNumber, baseName);
     }
 
     private EllipseFittingTask.Result performEllipseFitting(List<WorkflowState> imageList, ImageEmitterFactory imageEmitterFactory) {
@@ -1758,7 +1758,7 @@ public class SolexVideoProcessor implements Broadcaster {
 
     private DiscardNonRequiredImages createDefaultImageEmitter(FileNamingStrategy imageNamingStrategy) {
         return new DiscardNonRequiredImages(
-                new NamingStrategyAwareImageEmitter(new DefaultImageEmitter(this, rootOperation, outputDirectory.toFile()), imageNamingStrategy, sequenceNumber, serFile.getName().substring(0, serFile.getName().lastIndexOf("."))),
+                new NamingStrategyAwareImageEmitter(sharedImageEmitter, imageNamingStrategy, sequenceNumber, serFile.getName().substring(0, serFile.getName().lastIndexOf("."))),
                 processParams.requestedImages().images());
     }
 
@@ -1885,7 +1885,7 @@ public class SolexVideoProcessor implements Broadcaster {
             if (state.isInternal()) {
                 return new NoOpImageEmitter();
             }
-            ImageEmitter emitter = new DefaultImageEmitter(broadcaster, rootOperation, outputDirectory.toFile());
+            ImageEmitter emitter = sharedImageEmitter;
             var shift = state.pixelShift();
 
             emitter = new NamingStrategyAwareImageEmitter(new RenamingImageEmitter(emitter, name -> {

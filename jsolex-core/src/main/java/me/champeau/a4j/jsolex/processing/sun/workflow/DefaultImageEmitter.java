@@ -76,6 +76,7 @@ public class DefaultImageEmitter implements ImageEmitter {
         t.setDaemon(true);
         return t;
     });
+    private static final Executor VIRTUAL_EXECUTOR = command -> Thread.startVirtualThread(command);
 
     private final Broadcaster broadcaster;
     private final ProgressOperation operation;
@@ -108,26 +109,9 @@ public class DefaultImageEmitter implements ImageEmitter {
         return FileBackedImage.wrap(new ImageWrapper32(image.width(), image.height(), image.data(), metadata));
     }
 
-    private void submit(Runnable task) {
-        var permits = (executor == DEFAULT_EXECUTOR) ? DEFAULT_PERMITS : null;
-        if (permits != null) {
-            try {
-                permits.acquire();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new ProcessingException(e);
-            }
-        }
+    private void track(Runnable task, Executor exec) {
         outstanding.incrementAndGet();
-        CompletableFuture.runAsync(() -> {
-            try {
-                task.run();
-            } finally {
-                if (permits != null) {
-                    permits.release();
-                }
-            }
-        }, executor)
+        CompletableFuture.runAsync(task, exec)
                 .whenComplete((r, t) -> {
                     if (t != null) {
                         firstFailure.compareAndSet(null, t);
@@ -141,6 +125,27 @@ public class DefaultImageEmitter implements ImageEmitter {
                         }
                     }
                 });
+    }
+
+    private void submit(Runnable task) {
+        var permits = (executor == DEFAULT_EXECUTOR) ? DEFAULT_PERMITS : null;
+        if (permits != null) {
+            try {
+                permits.acquire();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new ProcessingException(e);
+            }
+        }
+        track(() -> {
+            try {
+                task.run();
+            } finally {
+                if (permits != null) {
+                    permits.release();
+                }
+            }
+        }, executor);
     }
 
     private void prepareOutput(String name) {
@@ -157,16 +162,16 @@ public class DefaultImageEmitter implements ImageEmitter {
     public void newMonoImage(GeneratedImageKind kind, String category, String title, String name, String description, ImageWrapper32 image) {
         prepareOutput(name);
         var snapshot = snapshot(image, kind, title, name);
-        // This intentionally bypasses the queue, because the write operation is
-        // direct, no heavy work.
-        Thread.startVirtualThread(() -> new WriteMonoImageTask(broadcaster,
+        // Bypass the bounded queue (mono writes are cheap) but still track
+        // outstanding so await() is a true barrier for these writes too.
+        track(() -> new WriteMonoImageTask(broadcaster,
                 operation,
                 () -> (ImageWrapper32) snapshot.unwrapToMemory(),
                 outputDir,
                 title,
                 name,
                 description,
-                kind).get());
+                kind).get(), VIRTUAL_EXECUTOR);
     }
 
     @Override
