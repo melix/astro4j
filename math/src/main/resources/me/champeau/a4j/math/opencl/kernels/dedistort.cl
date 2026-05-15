@@ -201,6 +201,10 @@ __kernel void dedistort_dense_lanczos(
 /**
  * Dedistort kernel using a sparse distortion grid (bicubic interpolation on GPU).
  * More memory efficient but requires grid interpolation per pixel.
+ * <p>
+ * When {@code scale} is greater than 1, the output is allocated at
+ * {@code outWidth}x{@code outHeight} (~scale*input) and each output pixel is sampled
+ * from the source at the corresponding sub-pixel coordinate (inverse-warp drizzle).
  */
 __kernel void dedistort_sparse_lanczos(
     __global const float* input,
@@ -211,18 +215,25 @@ __kernel void dedistort_sparse_lanczos(
     int height,
     int gridWidth,
     int gridHeight,
-    int gridStep
+    int gridStep,
+    int outWidth,
+    int outHeight,
+    float scale
 ) {
     int x = get_global_id(0);
     int y = get_global_id(1);
 
-    if (x >= width || y >= height) {
+    if (x >= outWidth || y >= outHeight) {
         return;
     }
 
-    // Convert pixel coords to grid coords
-    float ax = (float)x / gridStep;
-    float ay = (float)y / gridStep;
+    // Source-grid coordinates for this output pixel
+    float sx = (float)x / scale;
+    float sy = (float)y / scale;
+
+    // Convert source coords to grid coords
+    float ax = sx / gridStep;
+    float ay = sy / gridStep;
 
     // Bicubic interpolation of displacement from grid
     float dx = 0.0f;
@@ -233,10 +244,10 @@ __kernel void dedistort_sparse_lanczos(
         dy = bicubic_grid_sample(gridDy, ax, ay, gridWidth, gridHeight);
     }
 
-    float srcX = x + dx;
-    float srcY = y + dy;
+    float srcX = sx + dx;
+    float srcY = sy + dy;
 
-    int idx = y * width + x;
+    int idx = y * outWidth + x;
     if (srcX >= 0 && srcX < width && srcY >= 0 && srcY < height) {
         output[idx] = lanczos_sample(input, srcX, srcY, width, height);
     } else {
@@ -246,6 +257,7 @@ __kernel void dedistort_sparse_lanczos(
 
 /**
  * Sparse grid dedistort with bilinear interpolation (fastest).
+ * Supports super-resolution output via the {@code scale} parameter (see lanczos variant).
  */
 __kernel void dedistort_sparse_bilinear(
     __global const float* input,
@@ -256,18 +268,25 @@ __kernel void dedistort_sparse_bilinear(
     int height,
     int gridWidth,
     int gridHeight,
-    int gridStep
+    int gridStep,
+    int outWidth,
+    int outHeight,
+    float scale
 ) {
     int x = get_global_id(0);
     int y = get_global_id(1);
 
-    if (x >= width || y >= height) {
+    if (x >= outWidth || y >= outHeight) {
         return;
     }
 
-    // Convert pixel coords to grid coords
-    float ax = (float)x / gridStep;
-    float ay = (float)y / gridStep;
+    // Source-grid coordinates for this output pixel
+    float sx = (float)x / scale;
+    float sy = (float)y / scale;
+
+    // Convert source coords to grid coords
+    float ax = sx / gridStep;
+    float ay = sy / gridStep;
 
     // Bicubic interpolation of displacement from grid
     float dx = 0.0f;
@@ -278,10 +297,10 @@ __kernel void dedistort_sparse_bilinear(
         dy = bicubic_grid_sample(gridDy, ax, ay, gridWidth, gridHeight);
     }
 
-    float srcX = x + dx;
-    float srcY = y + dy;
+    float srcX = sx + dx;
+    float srcY = sy + dy;
 
-    int idx = y * width + x;
+    int idx = y * outWidth + x;
     if (srcX >= 0 && srcX < width && srcY >= 0 && srcY < height) {
         output[idx] = bilinear_sample(input, srcX, srcY, width, height);
     } else {

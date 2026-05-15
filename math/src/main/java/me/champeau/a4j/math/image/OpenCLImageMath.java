@@ -567,6 +567,7 @@ class OpenCLImageMath extends VectorApiImageMath {
             op.kernel("dedistort", kernelName)
                     .arg(inputBuffer).arg(gridDxBuffer).arg(gridDyBuffer).arg(outputBuffer)
                     .arg(width).arg(height).arg(gridWidth).arg(gridHeight).arg(gridStep)
+                    .arg(width).arg(height).arg(1.0f)
                     .run(width, height);
             var result = new float[n];
             op.read(outputBuffer, result);

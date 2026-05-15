@@ -34,10 +34,24 @@ public final class GPUDedistort {
      * caller owns it and must close.
      */
     public static GPUImage dedistort(GPUImage gpuImage, GPUDistortionGrid gpuGrid, boolean useLanczos) {
+        return dedistort(gpuImage, gpuGrid, useLanczos, 1.0);
+    }
+
+    /**
+     * Applies dedistortion to a GPU-resident image, optionally producing a super-resolved
+     * output. When {@code scale} is greater than 1, the result is allocated at
+     * {@code round(scale*width)} by {@code round(scale*height)} and each output pixel is
+     * sampled from the source at sub-pixel coordinates (inverse-warp drizzle).
+     * The output is a fresh buffer wrapped in a new {@link GPUImage}; the caller owns it
+     * and must close.
+     */
+    public static GPUImage dedistort(GPUImage gpuImage, GPUDistortionGrid gpuGrid, boolean useLanczos, double scale) {
         var context = gpuImage.getContext();
         int width = gpuImage.getWidth();
         int height = gpuImage.getHeight();
-        int n = width * height;
+        int outWidth = (int) Math.round(width * scale);
+        int outHeight = (int) Math.round(height * scale);
+        int n = outWidth * outHeight;
 
         // Output buffer's lifetime escapes this call (returned via GPUImage), so it is
         // allocated directly through the context and not via op.allocateBuffer.
@@ -52,9 +66,10 @@ public final class GPUDedistort {
                         .arg(outputBuffer)
                         .arg(width).arg(height)
                         .arg(gpuGrid.getGridWidth()).arg(gpuGrid.getGridHeight()).arg(gpuGrid.getGridStep())
-                        .run(width, height);
+                        .arg(outWidth).arg(outHeight).arg((float) scale)
+                        .run(outWidth, outHeight);
             });
-            return GPUImage.fromBuffer(outputBuffer, width, height, context);
+            return GPUImage.fromBuffer(outputBuffer, outWidth, outHeight, context);
         } catch (Exception e) {
             context.releaseBuffer(outputBuffer);
             throw e;

@@ -1035,11 +1035,47 @@ public class Dedistort extends AbstractFunctionImpl {
         var gridDy = distorsionMap.getGridDy();
         var gridStep = distorsionMap.getStep();
 
-        var sourceImage = new Image(width, height, image.data());
-        var resultImage = IMAGE_MATH.dedistort(sourceImage, gridDx, gridDy, gridStep, true, scale);
+        var resultData = tryDedistortGPU(image, distorsionMap, width, height, scale);
+        if (resultData == null) {
+            var sourceImage = new Image(width, height, image.data());
+            resultData = IMAGE_MATH.dedistort(sourceImage, gridDx, gridDy, gridStep, true, scale).data();
+        }
 
         broadcaster.broadcast(progressOperation.complete());
-        return new ImageWrapper32((int) Math.round(width * scale), (int) Math.round(height * scale), resultImage.data(), MutableMap.of());
+        return new ImageWrapper32((int) Math.round(width * scale), (int) Math.round(height * scale), resultData, MutableMap.of());
+    }
+
+    /**
+     * Warps an image on the GPU using the sparse dedistort kernel, optionally producing a
+     * super-resolved output when {@code scale} is greater than 1. Returns {@code null} when
+     * GPU acceleration is disabled, unavailable, the output buffer would exceed the device's
+     * single-allocation limit, or the warp fails, so the caller can fall back to the CPU
+     * implementation.
+     */
+    private static float[][] tryDedistortGPU(ImageWrapper32 image, DistorsionMap distorsionMap, int width, int height, double scale) {
+        if (!OpenCLSupport.isEnabled()) {
+            return null;
+        }
+        var context = OpenCLSupport.getContext();
+        if (context == null) {
+            return null;
+        }
+        var outWidth = (int) Math.round(width * scale);
+        var outHeight = (int) Math.round(height * scale);
+        var outputBytes = (long) outWidth * outHeight * Float.BYTES;
+        var allocLimit = Math.min(context.getCapabilities().maxMemAllocSize(), Integer.MAX_VALUE);
+        if (outputBytes > allocLimit) {
+            LOGGER.debug("GPU dedistort skipped: output buffer ({} bytes) exceeds device limit, using CPU", outputBytes);
+            return null;
+        }
+        try (var gpuImage = GPUImage.upload(image.data(), width, height, context);
+             var gpuGrid = GPUDistortionGrid.fromDistorsionMap(distorsionMap, context);
+             var warped = GPUDedistort.dedistort(gpuImage, gpuGrid, true, scale)) {
+            return warped.download();
+        } catch (Exception e) {
+            LOGGER.debug("GPU dedistort failed, falling back to CPU", e);
+            return null;
+        }
     }
 
     private static Map<Class<?>, Object> scaledMetadata(ImageWrapper32 source, double scale) {
