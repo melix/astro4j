@@ -308,45 +308,6 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         }
     }
 
-    private static float percentileInsideEllipse(float[][] data, Ellipse e, int width, int height, float p) {
-        var hist = new int[65536];
-        var count = 0;
-        if (e == null) {
-            for (var line : data) {
-                for (var v : line) {
-                    hist[(int) Math.clamp(v, 0, 65535)]++;
-                    count++;
-                }
-            }
-        } else {
-            var bb = e.boundingBox();
-            var minX = (int) Math.max(0, bb.a());
-            var maxX = (int) Math.min(width - 1, bb.b());
-            var minY = (int) Math.max(0, bb.c());
-            var maxY = (int) Math.min(height - 1, bb.d());
-            for (var y = minY; y <= maxY; y++) {
-                for (var x = minX; x <= maxX; x++) {
-                    if (e.isWithin(x, y)) {
-                        hist[(int) Math.clamp(data[y][x], 0, 65535)]++;
-                        count++;
-                    }
-                }
-            }
-        }
-        if (count == 0) {
-            return 0;
-        }
-        var target = (int) (count * p);
-        var cum = 0;
-        for (var i = 0; i < hist.length; i++) {
-            cum += hist[i];
-            if (cum >= target) {
-                return i;
-            }
-        }
-        return 0;
-    }
-
     private static float diskMedianInside(float[][] data, Ellipse e, int width, int height, float pedestal) {
         var hist = new int[65536];
         var count = 0;
@@ -408,31 +369,6 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         return (lo + hi) / 2;
     }
 
-    private static float diskMedianAbove(float[][] data, float pedestal) {
-        var hist = new int[65536];
-        var count = 0;
-        for (var line : data) {
-            for (var v : line) {
-                if (v > pedestal) {
-                    hist[(int) Math.clamp(v, 0, 65535)]++;
-                    count++;
-                }
-            }
-        }
-        if (count == 0) {
-            return 0;
-        }
-        var half = count / 2;
-        var cum = 0;
-        for (var i = 0; i < hist.length; i++) {
-            cum += hist[i];
-            if (cum >= half) {
-                return i;
-            }
-        }
-        return 0;
-    }
-
     /**
      * Neutralizes the background of an image using polynomial background modeling.
      *
@@ -473,30 +409,6 @@ public final class AutohistogramStrategy implements StretchingStrategy {
             return avg;
         }
         return 0;
-    }
-
-    // Reinhard-style rational rolloff above the knee: y = knee + s*t/(1+t),
-    // t = (x-knee)/s, s = MAX_PIXEL_VALUE - knee. Compresses highlights toward MAX
-    // asymptotically (no flat plateau). C¹ at the knee.
-    private static void softKneeHighlights(float[][] data, double loPercentile, double kneePercentile) {
-        var cumulative = Histogram.of(data, 65536).cumulative();
-        var lo = (float) cumulative.percentile(loPercentile);
-        var knee = (float) cumulative.percentile(kneePercentile);
-        var scale = MAX_PIXEL_VALUE - knee;
-        for (var y = 0; y < data.length; y++) {
-            var line = data[y];
-            for (var x = 0; x < line.length; x++) {
-                var v = line[x];
-                if (v < lo) {
-                    line[x] = 0;
-                } else if (scale > 0 && v > knee) {
-                    var excess = v - knee;
-                    line[x] = knee + scale * excess / (scale + excess);
-                } else if (v > MAX_PIXEL_VALUE) {
-                    line[x] = MAX_PIXEL_VALUE;
-                }
-            }
-        }
     }
 
 }

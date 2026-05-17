@@ -585,6 +585,7 @@ public class ProcessingWorkflow {
                         }
                     }
                     var mixedImage = new ImageWrapper32(width, height, mix, metadata);
+                    new PercentileStretchStrategy(0, COLORIZED_PERCENTILE_HIGH).stretch(mixedImage);
                     var ray = processParams.spectrumParams().ray();
                     var colorCurve = ray.getColorCurve();
                     if (colorCurve.isPresent()) {
