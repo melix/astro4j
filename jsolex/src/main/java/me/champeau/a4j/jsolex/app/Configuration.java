@@ -20,6 +20,7 @@ import me.champeau.a4j.jsolex.processing.expr.repository.ScriptRepository;
 import me.champeau.a4j.jsolex.processing.util.AnimationFormat;
 import me.champeau.a4j.jsolex.processing.util.FitsUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
+import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
 import me.champeau.a4j.jsolex.processing.util.VersionUtil;
 import me.champeau.a4j.math.tuples.IntPair;
 
@@ -62,6 +63,7 @@ public class Configuration {
     private static final String GPU_ACCELERATION = "gpu.acceleration";
     private static final String BATCH_PARALLELISM = "batch.parallelism";
     private static final String GRAALPY_EXECUTABLE = "graalpy.executable";
+    private static final String TEMP_DIRECTORY = "temp.directory";
     private static final String HELP_ANIMATION_SEEN_PREFIX = "help.animation.seen.";
     private static final String SPECTROSOLHUB_TOKEN = "spectrosolhub.token";
     private static final String LIVE_SESSION_TITLE = "live.session.title";
@@ -99,6 +101,10 @@ public class Configuration {
 
         // Set GraalPy executable if configured
         getGraalPyExecutable().ifPresent(PythonScriptExecutor::setGraalPyExecutable);
+
+        // Set temporary files directory if configured
+        getTemporaryDirectory()
+                .ifPresent(p -> System.setProperty(TemporaryFolder.TEMP_DIR_PROPERTY, p.toString()));
     }
 
     /**
@@ -412,6 +418,35 @@ public class Configuration {
             prefs.remove(GRAALPY_EXECUTABLE);
         } else {
             prefs.put(GRAALPY_EXECUTABLE, path.toString());
+        }
+    }
+
+    /**
+     * Returns the configured directory for temporary files.
+     * @return the directory, or empty if not configured or invalid
+     */
+    public Optional<Path> getTemporaryDirectory() {
+        var path = prefs.get(TEMP_DIRECTORY, null);
+        if (path != null && !path.isEmpty()) {
+            var p = Path.of(path);
+            if (Files.isDirectory(p)) {
+                return Optional.of(p);
+            }
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Sets the directory for temporary files.
+     * @param path the directory, or null to use the system default
+     */
+    public void setTemporaryDirectory(Path path) {
+        if (path == null) {
+            prefs.remove(TEMP_DIRECTORY);
+            System.clearProperty(TemporaryFolder.TEMP_DIR_PROPERTY);
+        } else {
+            prefs.put(TEMP_DIRECTORY, path.toString());
+            System.setProperty(TemporaryFolder.TEMP_DIR_PROPERTY, path.toString());
         }
     }
 

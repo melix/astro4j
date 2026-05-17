@@ -34,6 +34,7 @@ import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
+import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
 import me.champeau.a4j.math.correlation.CorrelationStrategy;
 import me.champeau.a4j.math.correlation.NCCCorrelationStrategy;
 import me.champeau.a4j.math.fft.FFTSupport;
@@ -1842,7 +1843,7 @@ public class Dedistort extends AbstractFunctionImpl {
             // Save to temp directory with unique name
             int counter = DEBUG_IMAGE_COUNTER.incrementAndGet();
             String safeName = passName.replaceAll("[^a-zA-Z0-9_-]", "_");
-            var debugFile = new File(System.getProperty("java.io.tmpdir"),
+            var debugFile = new File(TemporaryFolder.tempDir().toFile(),
                     String.format("dedistort/dedistort_debug_%03d_%s.png", counter, safeName));
             debugFile.getParentFile().mkdirs();
             ImageIO.write(image, "png", debugFile);

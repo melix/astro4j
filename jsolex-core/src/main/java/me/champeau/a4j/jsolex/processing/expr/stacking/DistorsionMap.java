@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.processing.expr.stacking;
 import me.champeau.a4j.math.MathUtils;
 import me.champeau.a4j.math.fft.FFTSupport;
 import me.champeau.a4j.math.opencl.OpenCLSupport;
+import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
 import me.champeau.a4j.math.regression.DistortionGridFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -854,7 +855,7 @@ public class DistorsionMap {
             }
 
             var counter = DEBUG_IMAGE_COUNTER.incrementAndGet();
-            var debugFile = new File(System.getProperty("java.io.tmpdir"),
+            var debugFile = new File(TemporaryFolder.tempDir().toFile(),
                     String.format("dedistort/distorsion_map_debug_%03d.png", counter));
             debugFile.getParentFile().mkdirs();
             ImageIO.write(image, "png", debugFile);

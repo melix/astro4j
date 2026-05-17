@@ -22,14 +22,33 @@ import java.nio.file.Path;
 import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectoriesIfNeeded;
 
 public class TemporaryFolder {
-    private static final Path TEMP_DIR = tempDir(ProcessHandle.current().pid());
+    /**
+     * System property which, when set to an existing directory, overrides the location
+     * where JSol'Ex stores its temporary files. When unset or pointing to an invalid
+     * directory, the standard {@code java.io.tmpdir} is used instead.
+     */
+    public static final String TEMP_DIR_PROPERTY = "jsolex.tmpdir";
     private static final String JSOLEX_PREFIX = "jsolex";
 
     private TemporaryFolder() {
     }
 
-    static {
-        var baseTempDir = tempDir(null);
+    private static Path baseTempDir() {
+        Path root = null;
+        var configured = System.getProperty(TEMP_DIR_PROPERTY);
+        if (configured != null && !configured.isBlank()) {
+            var candidate = Path.of(configured);
+            if (Files.isDirectory(candidate)) {
+                root = candidate;
+            }
+        }
+        if (root == null) {
+            root = Path.of(System.getProperty("java.io.tmpdir"));
+        }
+        return root.resolve(JSOLEX_PREFIX);
+    }
+
+    private static void cleanupStaleDirectories(Path baseTempDir) {
         if (Files.isDirectory(baseTempDir)) {
             try (var list = Files.list(baseTempDir)) {
                 list.forEach(p -> Thread.startVirtualThread(() -> {
@@ -58,20 +77,27 @@ public class TemporaryFolder {
         }
     }
 
-    private static Path tempDir(Long pid) {
-        var baseDir = Path.of(System.getProperty("java.io.tmpdir")).resolve(JSOLEX_PREFIX);
-        var dir = pid == null ? baseDir : baseDir.resolve(pid.toString());
-        dir.toFile().deleteOnExit();
-        return dir;
+    private static final class Holder {
+        private static final Path TEMP_DIR = initialize();
+
+        private static Path initialize() {
+            var baseDir = baseTempDir();
+            cleanupStaleDirectories(baseDir);
+            baseDir.toFile().deleteOnExit();
+            var dir = baseDir.resolve(Long.toString(ProcessHandle.current().pid()));
+            dir.toFile().deleteOnExit();
+            return dir;
+        }
     }
 
     public static Path tempDir() {
-        return TEMP_DIR;
+        return Holder.TEMP_DIR;
     }
 
     public static Path newTempFile(String prefix, String suffix) throws IOException {
-        createDirectoriesIfNeeded(TEMP_DIR);
-        var tempFile = Files.createTempFile(TEMP_DIR, prefix, suffix);
+        var tempDir = tempDir();
+        createDirectoriesIfNeeded(tempDir);
+        var tempFile = Files.createTempFile(tempDir, prefix, suffix);
         tempFile.toFile().deleteOnExit();
         return tempFile;
     }
@@ -93,9 +119,17 @@ public class TemporaryFolder {
     }
 
     public static Path newTempDir(String dirName) throws IOException {
-        var tempDir = TEMP_DIR.resolve(dirName);
+        var tempDir = tempDir().resolve(dirName);
         tempDir.toFile().deleteOnExit();
         createDirectoriesIfNeeded(tempDir);
         return tempDir;
+    }
+
+    public static Path newUniqueTempDir(String prefix) throws IOException {
+        var tempDir = tempDir();
+        createDirectoriesIfNeeded(tempDir);
+        var dir = Files.createTempDirectory(tempDir, prefix);
+        dir.toFile().deleteOnExit();
+        return dir;
     }
 }

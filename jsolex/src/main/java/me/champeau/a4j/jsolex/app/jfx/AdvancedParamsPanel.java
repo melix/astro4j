@@ -31,6 +31,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.util.converter.IntegerStringConverter;
 import me.champeau.a4j.jsolex.app.Configuration;
@@ -39,6 +40,7 @@ import me.champeau.a4j.jsolex.processing.util.AnimationFormat;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.LocaleUtils;
 
+import java.io.File;
 import java.nio.file.Path;
 import java.util.EnumSet;
 
@@ -63,11 +65,15 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
     private final TextField graalPyExecutable;
     private final Button browseGraalPy;
     private final Button clearGraalPy;
+    private final TextField temporaryDirectory;
+    private final Button browseTempDir;
+    private final Button clearTempDir;
 
     private int initialMemoryRestriction;
     private String initialLanguage;
     private boolean initialGpuAcceleration;
     private String initialGraalPyExecutable;
+    private String initialTemporaryDirectory;
 
     /** Creates a new advanced parameters panel with default settings. */
     public AdvancedParamsPanel() {
@@ -94,6 +100,10 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
         graalPyExecutable.setEditable(false);
         browseGraalPy = new Button(I18N.string(JSolEx.class, "advanced-params", "browse"));
         clearGraalPy = new Button(I18N.string(JSolEx.class, "advanced-params", "clear"));
+        temporaryDirectory = createTextField("", I18N.string(JSolEx.class, "advanced-params", "temp.directory.tooltip"));
+        temporaryDirectory.setEditable(false);
+        browseTempDir = new Button(I18N.string(JSolEx.class, "advanced-params", "browse"));
+        clearTempDir = new Button(I18N.string(JSolEx.class, "advanced-params", "clear"));
 
         setupLayout();
         loadConfiguration();
@@ -224,6 +234,21 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
                 pippCompatibleFits,
                 "pipp.compatible.fits.tooltip");
 
+        temporaryDirectory.setPrefWidth(300);
+        browseTempDir.setOnAction(e -> browseForTemporaryDirectory());
+        clearTempDir.setOnAction(e -> {
+            temporaryDirectory.setText("");
+            updateClearTempDirButtonState();
+        });
+
+        var tempDirBox = new HBox(8, temporaryDirectory, browseTempDir, clearTempDir);
+        HBox.setHgrow(temporaryDirectory, Priority.ALWAYS);
+
+        addGridRow(dataGrid, 2,
+                I18N.string(JSolEx.class, "advanced-params", "temp.directory"),
+                tempDirBox,
+                "temp.directory.tooltip");
+
         dataSection.getChildren().add(dataGrid);
 
         getChildren().addAll(localizationSection, outputSection, performanceSection, pythonSection, dataSection);
@@ -275,6 +300,12 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
                 .orElse("");
         graalPyExecutable.setText(initialGraalPyExecutable);
         updateClearButtonState();
+
+        initialTemporaryDirectory = config.getTemporaryDirectory()
+                .map(Path::toString)
+                .orElse("");
+        temporaryDirectory.setText(initialTemporaryDirectory);
+        updateClearTempDirButtonState();
     }
 
     /** Saves the current panel settings to the application configuration. */
@@ -324,6 +355,13 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
         } else {
             config.setGraalPyExecutable(Path.of(execPath));
         }
+
+        var tempDirPath = temporaryDirectory.getText();
+        if (tempDirPath == null || tempDirPath.isEmpty()) {
+            config.setTemporaryDirectory(null);
+        } else {
+            config.setTemporaryDirectory(Path.of(tempDirPath));
+        }
     }
 
     /**
@@ -340,8 +378,9 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
         var languageChanged = !newLanguage.equals(initialLanguage);
         var gpuChanged = initialGpuAcceleration != gpuAcceleration.isSelected();
         var graalPyChanged = !graalPyExecutable.getText().equals(initialGraalPyExecutable);
+        var tempDirChanged = !temporaryDirectory.getText().equals(initialTemporaryDirectory);
 
-        return memoryChanged || languageChanged || gpuChanged || graalPyChanged;
+        return memoryChanged || languageChanged || gpuChanged || graalPyChanged || tempDirChanged;
     }
 
     private String computeMemoryUsageHelpLabel(Number value) {
@@ -407,5 +446,26 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
 
     private void updateClearButtonState() {
         clearGraalPy.setDisable(graalPyExecutable.getText().isEmpty());
+    }
+
+    private void browseForTemporaryDirectory() {
+        var directoryChooser = new DirectoryChooser();
+        directoryChooser.setTitle(I18N.string(JSolEx.class, "advanced-params", "select.temp.directory"));
+        var current = temporaryDirectory.getText();
+        if (current != null && !current.isEmpty()) {
+            var dir = new File(current);
+            if (dir.isDirectory()) {
+                directoryChooser.setInitialDirectory(dir);
+            }
+        }
+        var selected = directoryChooser.showDialog(getScene().getWindow());
+        if (selected != null) {
+            temporaryDirectory.setText(selected.getAbsolutePath());
+            updateClearTempDirButtonState();
+        }
+    }
+
+    private void updateClearTempDirButtonState() {
+        clearTempDir.setDisable(temporaryDirectory.getText().isEmpty());
     }
 }
