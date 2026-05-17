@@ -39,6 +39,9 @@ public class FileBackedImageWriteEvent extends Event {
     @Label("Bytes written")
     public long bytes;
 
+    @Label("Uncompressed bytes")
+    public long uncompressedBytes;
+
     @Label("Skipped")
     public boolean skipped;
 }
