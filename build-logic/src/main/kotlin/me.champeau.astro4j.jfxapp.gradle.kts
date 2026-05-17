@@ -88,7 +88,7 @@ val jlinkZipArchive = tasks.register<Zip>("jlinkZipArchive") {
 }
 
 tasks.register("allDistributions") {
-    dependsOn(jpackageInstallers, jlinkTgz, jlinkZipArchive)
+    dependsOn(jpackageInstallers, jlinkZipArchive)
 }
 
 tasks.withType<JavaExec>().configureEach {
