@@ -9,6 +9,7 @@
 - La fonction ImageMath `dedistort` accepte désormais un paramètre `drizzle` (toute valeur entre 1 et 4, par ex. 1.5, 2, 3) qui produit une image super-résolue pour récupérer des détails sous d'excellentes conditions.
 - Correction d'images générées parfois absentes des résultats du traitement par lots et de la fenêtre de revue.
 - Le double-clic sur une image pour zoomer à 1:1 centre désormais la vue sur le point cliqué.
+- Ajout d'un paramètre avancé pour choisir le dossier où sont écrits les fichiers temporaires.
 
 ## Nouveautés de la version 5.1.3
 

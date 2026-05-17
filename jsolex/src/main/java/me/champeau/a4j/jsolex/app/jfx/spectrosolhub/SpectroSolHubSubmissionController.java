@@ -37,6 +37,7 @@ import com.google.gson.Gson;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
+import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -239,7 +240,7 @@ public class SpectroSolHubSubmissionController {
 
         BackgroundOperations.async(() -> {
             try {
-                var tempDir = Files.createTempDirectory("spectrosolhub-upload");
+                var tempDir = TemporaryFolder.newUniqueTempDir("spectrosolhub-upload");
                 postProcessTempDir = tempDir;
                 var images = step2Handler.getSelectedImages();
                 var entries = new ArrayList<PostProcessEntry>();
