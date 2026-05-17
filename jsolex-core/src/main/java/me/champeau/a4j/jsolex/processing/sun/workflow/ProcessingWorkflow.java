@@ -24,6 +24,7 @@ import me.champeau.a4j.jsolex.processing.expr.impl.Clahe;
 import me.champeau.a4j.jsolex.processing.expr.impl.Colorize;
 import me.champeau.a4j.jsolex.processing.expr.impl.Convolution;
 import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
+import me.champeau.a4j.jsolex.processing.expr.impl.DiskFill;
 import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
 import me.champeau.a4j.jsolex.processing.expr.impl.Rotate;
 import me.champeau.a4j.jsolex.processing.params.AutoStretchParams;
@@ -37,6 +38,7 @@ import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.AutohistogramStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.ClaheStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
+import me.champeau.a4j.jsolex.processing.stretching.MidtoneTransferFunctionAutostretchStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.NegativeImageStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.PercentileStretchStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
@@ -88,6 +90,9 @@ public class ProcessingWorkflow {
     private static final float COLORIZED_ARCSINH_STRETCH = 2f;
     private static final float COLORIZED_ARCSINH_MAX = 2f;
     private static final double COLORIZED_PERCENTILE_HIGH = 99.9d;
+    private static final float NEGATIVE_DISK_BOOST = 1.2f;
+    private static final float NEGATIVE_CONTRAST_EXPONENT = 3f;
+    private static final float NEGATIVE_PROMINENCE_STRETCH = 20f;
 
     private final ImageMath imageMath = ImageMath.newInstance();
     private final Header header;
@@ -242,7 +247,7 @@ public class ProcessingWorkflow {
         // the same float[][] would corrupt each other's outputs.
         var runnables = new ArrayList<Runnable>();
         if (isMainShift() && shouldProduce(GeneratedImageKind.NEGATIVE)) {
-            runnables.add(() -> produceNegativeImage(enhanced.copy()));
+            runnables.add(() -> produceNegativeImage(enhanced.copy(), blackPoint));
         }
         if (isMainShift() && shouldProduce(GeneratedImageKind.COLORIZED)) {
             runnables.add(() -> produceColorizedImage(blackPoint, stretched.copy(), processParams));
@@ -533,12 +538,67 @@ public class ProcessingWorkflow {
         imagesEmitter.newMonoImage(GeneratedImageKind.TECHNICAL_CARD, null, message("technical.card"), "card", message("technical.card.description"), decorated);
     }
 
-    private void produceNegativeImage(ImageWrapper32 geometryFixed) {
-        var negated = geometryFixed.copy();
-        new ClaheStrategy(128, 512, .8f).stretch(negated);
-        NegativeImageStrategy.DEFAULT.stretch(negated);
-        TransformationHistory.recordTransform(negated, "Negative");
-        imagesEmitter.newMonoImage(GeneratedImageKind.NEGATIVE, null, message("negative"), "negative", String.format(message("negative.description"), state.pixelShift()), negated);
+    private void produceNegativeImage(ImageWrapper32 enhanced, float blackPoint) {
+        var ellipse = enhanced.findMetadata(Ellipse.class).orElse(null);
+        if (ellipse == null) {
+            var negated = enhanced.copy();
+            new ClaheStrategy(128, 512, .8f).stretch(negated);
+            NegativeImageStrategy.DEFAULT.stretch(negated);
+            emitNegativeImage(negated);
+            return;
+        }
+        var width = enhanced.width();
+        var height = enhanced.height();
+        var binning = processParams.observationDetails().binning();
+        var kernelSize = (binning == null || binning == 1) ? 7 : 3;
+
+        // Inverted disk: brighten, invert, apply a power-law contrast curve then sharpen
+        var disk = enhanced.copy();
+        var diskData = disk.data();
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                diskData[y][x] = Math.min(Constants.MAX_PIXEL_VALUE, NEGATIVE_DISK_BOOST * diskData[y][x]);
+            }
+        }
+        NegativeImageStrategy.DEFAULT.stretch(disk);
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                diskData[y][x] = (float) Math.pow(diskData[y][x], NEGATIVE_CONTRAST_EXPONENT);
+            }
+        }
+        LinearStrechingStrategy.DEFAULT.stretch(disk);
+        var sharpened = imageMath.convolve(disk.asImage(), SharpenKernel.of(kernelSize)).data();
+
+        // Restrict the inversion to the solar disk, keeping an antialiased edge
+        var maskData = new float[height][width];
+        DiskFill.doFillWithGradient(ellipse, maskData, 1f, 0f);
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                sharpened[y][x] *= maskData[y][x];
+            }
+        }
+        var masked = new ImageWrapper32(width, height, sharpened, new HashMap<>(enhanced.metadata()));
+        LinearStrechingStrategy.DEFAULT.stretch(masked);
+        new MidtoneTransferFunctionAutostretchStrategy().stretch(masked);
+
+        // Prominences are kept positive and blended back outside the disk
+        var protus = enhanced.copy();
+        DiskFill.doFillWithGradient(ellipse, protus.data(), blackPoint);
+        new ArcsinhStretchingStrategy(0, NEGATIVE_PROMINENCE_STRETCH, NEGATIVE_PROMINENCE_STRETCH).stretch(protus);
+        var protusData = protus.data();
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                sharpened[y][x] = Math.min(Constants.MAX_PIXEL_VALUE, sharpened[y][x] + protusData[y][x]);
+            }
+        }
+        emitNegativeImage(masked);
+    }
+
+    private void emitNegativeImage(ImageWrapper32 negative) {
+        TransformationHistory.recordTransform(negative, "Negative");
+        var context = SolexVideoProcessor.createMetadata(processParams, serFile, null, header).build().toMap();
+        var decorated = (ImageWrapper32) new ImageDraw(context, broadcaster).drawObservationDetails(Map.of("img", negative));
+        imagesEmitter.newMonoImage(GeneratedImageKind.NEGATIVE, null, message("negative"), "negative", String.format(message("negative.description"), state.pixelShift()), decorated);
     }
 
     private void produceCoronagraph(float blackPoint, ImageWrapper32 geometryFixed) {
