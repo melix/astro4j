@@ -104,7 +104,7 @@ class Step2ImageOrientationHandler implements StepHandler {
     private WritableImage userDisplayImage;
     private Image gongDisplayImage;
     private SplitMenuButton autoAlignButton;
-    private boolean autoAlignSearchFlips = true;
+    private boolean autoAlignSearchFlips = false;
 
     private int rotation = 0;
     private boolean horizontalFlip = false;
