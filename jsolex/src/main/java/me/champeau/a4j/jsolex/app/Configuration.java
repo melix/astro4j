@@ -69,6 +69,7 @@ public class Configuration {
     private static final String LIVE_SESSION_TITLE = "live.session.title";
     private static final String LIVE_STARTED_DIALOG_HIDDEN = "live.started.dialog.hidden";
     private static final String DEFAULT_SPECTROSOLHUB_URL = "https://spectrosolhub.com";
+    private static final String SUNSCAN_HOST = "sunscan.host";
 
     /**
      * The default SOLAP FTP server URL for submissions.
@@ -339,6 +340,22 @@ public class Configuration {
      */
     public void setBass2000FtpUrl(String url) {
         prefs.put(BASS2000_FTP_URL, url);
+    }
+
+    /**
+     * Returns the last used SunScan device address.
+     * @return the SunScan device address
+     */
+    public String getSunscanHost() {
+        return prefs.get(SUNSCAN_HOST, "sunscan.local:8000");
+    }
+
+    /**
+     * Sets the SunScan device address.
+     * @param host the SunScan device address
+     */
+    public void setSunscanHost(String host) {
+        prefs.put(SUNSCAN_HOST, host);
     }
 
     /**

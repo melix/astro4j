@@ -102,6 +102,7 @@ import me.champeau.a4j.jsolex.app.jfx.ime.ImageMathTextArea;
 import me.champeau.a4j.jsolex.app.jfx.spectrosolhub.SpectroSolHubLoginPane;
 import me.champeau.a4j.jsolex.app.jfx.spectrosolhub.SpectroSolHubSubmissionController;
 import me.champeau.a4j.jsolex.app.jfx.stacking.StackingAndMosaicController;
+import me.champeau.a4j.jsolex.app.jfx.sunscan.SunscanImportController;
 import me.champeau.a4j.jsolex.app.listeners.BatchModeEventListener;
 import me.champeau.a4j.jsolex.app.listeners.BatchProcessingContext;
 import me.champeau.a4j.jsolex.app.listeners.DelegatingProcessingEventListener;
@@ -1423,6 +1424,28 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     }
 
     @FXML
+    private void openFromSunscan() {
+        var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "sunscan-import");
+        try {
+            var stage = newStage();
+            var node = (Parent) fxmlLoader.load();
+            var controller = (SunscanImportController) fxmlLoader.getController();
+            controller.setup(stage, config, files -> {
+                if (files.size() == 1) {
+                    doOpen(files.getFirst(), false, null, true);
+                } else if (!files.isEmpty()) {
+                    doOpenMany(files, true);
+                }
+            });
+            stage.setScene(newScene(node));
+            stage.setTitle(I18N.string(JSolEx.class, "sunscan-import", "frame.title"));
+            stage.show();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @FXML
     private void loadImages() {
         if (imagesViewerTab == null || !mainPane.getTabs().contains(imagesViewerTab)) {
             mainPane.getTabs().clear();
@@ -1961,6 +1984,10 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     }
 
     private void doOpen(File selectedFile, boolean rememberProcessParams, ProcessParams forcedParams) {
+        doOpen(selectedFile, rememberProcessParams, forcedParams, false);
+    }
+
+    private void doOpen(File selectedFile, boolean rememberProcessParams, ProcessParams forcedParams, boolean sunscanInstrument) {
         config.loadedSerFile(selectedFile.toPath());
         configureThreadExceptionHandler();
         Platform.runLater(this::refreshRecentItemsMenu);
@@ -1972,7 +1999,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             if (params != null) {
                 processParams = Optional.of(params.withObservationDetails(params.observationDetails().withDate(header.metadata().utcDateTime())));
             } else {
-                var controller = createProcessParams(selectedFile, createRootOperation(selectedFile.getName()), reader, false);
+                var controller = createProcessParams(selectedFile, createRootOperation(selectedFile.getName()), reader, false, sunscanInstrument);
                 processParams = controller.getProcessParams();
             }
         } catch (Exception e) {
@@ -2195,13 +2222,17 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     }
 
     private void doOpenMany(List<File> selectedFiles) {
+        doOpenMany(selectedFiles, false);
+    }
+
+    private void doOpenMany(List<File> selectedFiles, boolean sunscanInstrument) {
         configureThreadExceptionHandler();
         Optional<ProcessParams> processParams = Optional.empty();
         Optional<Boolean> autoTrim = Optional.empty();
         Header header = null;
         for (var selectedFile : selectedFiles) {
             try (var reader = SerFileReader.of(selectedFile)) {
-                var controller = createProcessParams(selectedFile, createRootOperation(selectedFile.getName()), reader, true);
+                var controller = createProcessParams(selectedFile, createRootOperation(selectedFile.getName()), reader, true, sunscanInstrument);
                 processParams = controller.getProcessParams();
                 autoTrim = Optional.of(controller.isAutoTrimSerFileSelected());
                 header = reader.header();
@@ -2403,7 +2434,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         return delegatingListener(new SingleModeProcessingEventListener(this, rootOperation, baseName, serFile, outputDirectory, params, LocalDateTime.now(), popupViewers));
     }
 
-    private ProcessParamsController createProcessParams(File serFile, ProgressOperation progressOperation, SerFileReader serFileReader, boolean batchMode) {
+    private ProcessParamsController createProcessParams(File serFile, ProgressOperation progressOperation, SerFileReader serFileReader, boolean batchMode, boolean sunscanInstrument) {
         var dialog = newStage();
         dialog.setTitle(I18N.string(getClass(), "process-params", "process.parameters"));
 
@@ -2418,6 +2449,10 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
                     }
                 },
                 serFile, serFileReader.header(), md, batchMode, getHostServices());
+
+        if (sunscanInstrument) {
+            controller.applySunscanInstrument();
+        }
 
         var scene = new Scene(controller.getRoot(), 1000, 700);
         scene.getStylesheets().add(
