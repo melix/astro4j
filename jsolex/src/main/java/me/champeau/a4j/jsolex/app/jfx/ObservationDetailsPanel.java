@@ -30,6 +30,7 @@ import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.params.ObservationDetails;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.Setup;
+import me.champeau.a4j.jsolex.processing.params.SetupsIO;
 import me.champeau.a4j.jsolex.processing.params.SpectroHeliograph;
 import me.champeau.a4j.jsolex.processing.params.SpectroHeliographsIO;
 import me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper;
@@ -39,6 +40,7 @@ import me.champeau.a4j.ser.Header;
 
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
+import java.util.Locale;
 import java.util.Optional;
 
 /**
@@ -368,6 +370,28 @@ public class ObservationDetailsPanel extends BaseParameterPanel {
      */
     public void updateInstrument(SpectroHeliograph selectedInstrument) {
         instrument.setValue(selectedInstrument);
+    }
+
+    /**
+     * Selects the SunScan spectroheliograph and applies the matching SunScan setup
+     * (camera and pixel size). Selecting the instrument also enables the spectrum
+     * vertical flip, since it is part of the SunScan instrument definition.
+     */
+    public void selectSunscanInstrument() {
+        var sunscan = instrument.getItems().stream()
+                .filter(shg -> shg.label().toLowerCase(Locale.US).contains("sunscan"))
+                .findFirst()
+                .orElse(null);
+        if (sunscan == null) {
+            sunscan = SpectroHeliograph.SUNSCAN;
+            instrument.getItems().add(sunscan);
+        }
+        instrument.setValue(sunscan);
+        SetupsIO.loadDefaults().stream()
+                .filter(s -> s.label().toLowerCase(Locale.US).contains("sunscan")
+                        || (s.telescope() != null && s.telescope().toLowerCase(Locale.US).contains("sunscan")))
+                .findFirst()
+                .ifPresent(this::updateFromSetup);
     }
 
     /**

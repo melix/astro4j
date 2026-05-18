@@ -579,6 +579,16 @@ public class ProcessParamsController {
     }
 
     /**
+     * Pre-selects the SunScan instrument and setup, used when importing scans
+     * acquired on a SunScan device.
+     */
+    public void applySunscanInstrument() {
+        if (observationPanel != null) {
+            observationPanel.selectSunscanInstrument();
+        }
+    }
+
+    /**
      * Opens the flat file selection dialog.
      */
     public void selectFlatFile() {

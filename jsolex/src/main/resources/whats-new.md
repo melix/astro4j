@@ -11,7 +11,7 @@
 - The `dedistort` ImageMath function gained a `drizzle` parameter (any value between 1 and 4, e.g. 1.5, 2, 3) that produces a super-resolved output to recover detail under excellent seeing.
 - Fixed some generated images being missing from batch results and the image review window.
 - Double-clicking an image to zoom in at 1:1 now centers the viewport on the clicked point.
-- Added an advanced parameter to choose the directory where temporary files are written.
+I do- Added an advanced parameter to choose the directory where temporary files are written.
 - Fixed the reconstruction preview occasionally not being contrast-adjusted during processing.
 - Added a logs activity indicator so background work is visible from any tab.
 
