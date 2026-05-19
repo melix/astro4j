@@ -71,8 +71,17 @@ public final class FileBackedImage implements ImageWrapper {
     private static final int WRITE_PERMITS = 4;
     private static final Semaphore WRITE_SEMAPHORE = new Semaphore(WRITE_PERMITS);
     private static final ReferenceQueue<ImageWrapper> REFERENCE_QUEUE = new ReferenceQueue<>();
+    private static final AtomicBoolean ASYNC_FLUSH_PENDING = new AtomicBoolean();
 
     private static volatile BooleanSupplier underPressure = () -> HeapPressure.current() > 0.5;
+
+    /**
+     * Tells whether the calling thread must never block on disk I/O (typically
+     * the UI thread). When it returns {@code true}, pressure-triggered flushes
+     * are offloaded to a virtual thread instead of blocking the caller. The
+     * default always returns {@code false} (headless and CLI use).
+     */
+    private static volatile BooleanSupplier mustNotBlock = () -> false;
 
     static {
         var flushing = new Thread(() -> {
@@ -193,7 +202,12 @@ public final class FileBackedImage implements ImageWrapper {
             // if memory is too close to full, flush some images to disk
             if (underPressure.getAsBoolean()) {
                 event.triggeredFlush = true;
-                flushImages();
+                if (mustNotBlock.getAsBoolean()) {
+                    // Never block the UI thread on disk I/O: offload the flush.
+                    flushImagesAsync();
+                } else {
+                    flushImages();
+                }
             }
             try {
                 var cached = WRAP_CACHE.get(wrapper);
@@ -257,6 +271,23 @@ public final class FileBackedImage implements ImageWrapper {
             LOGGER.debug("Flushed images");
         } finally {
             CACHE_LOCK.unlock();
+        }
+    }
+
+    /**
+     * Performs {@link #flushImages()} on a virtual thread so the caller is not
+     * blocked on disk I/O. Concurrent requests are coalesced: while a flush is
+     * already pending, further calls are no-ops.
+     */
+    private static void flushImagesAsync() {
+        if (ASYNC_FLUSH_PENDING.compareAndSet(false, true)) {
+            Thread.startVirtualThread(() -> {
+                try {
+                    flushImages();
+                } finally {
+                    ASYNC_FLUSH_PENDING.set(false);
+                }
+            });
         }
     }
 
@@ -500,6 +531,17 @@ public final class FileBackedImage implements ImageWrapper {
         status.fileSaved();
         unwrapped.source = null;
         unwrapped.clear();
+    }
+
+    /**
+     * Registers a predicate telling whether the calling thread must never block
+     * on disk I/O (typically the JavaFX application thread). When it returns
+     * {@code true}, a pressure-triggered flush in {@link #wrap(ImageWrapper)} is
+     * offloaded to a virtual thread instead of blocking the caller. Pass
+     * {@code null} to restore the default (never offload).
+     */
+    public static void setMustNotBlockSupplier(BooleanSupplier supplier) {
+        mustNotBlock = supplier != null ? supplier : () -> false;
     }
 
 

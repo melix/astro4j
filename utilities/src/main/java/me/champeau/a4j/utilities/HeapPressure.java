@@ -19,7 +19,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * JVM-wide heap pressure ratio cache. Returns
- * {@code (totalMemory - freeMemory) / totalMemory}, refreshed at most once
+ * {@code (totalMemory - freeMemory) / maxMemory}, refreshed at most once
  * every {@value #REFRESH_INTERVAL_NS} ns. Lock-free fast path: a single
  * atomic read.
  *
@@ -39,13 +39,13 @@ public final class HeapPressure {
     }
 
     /**
-     * Current heap pressure ratio: {@code (totalMemory - freeMemory) / totalMemory}.
-     * {@code 0} means the currently-committed heap is empty; {@code 1} means the
-     * currently-committed heap is full and the GC is about to either reclaim or
-     * commit more memory from the OS. Using committed (not max) as the denominator
-     * keeps the signal meaningful across a wide range of host RAM sizes — on a
-     * 128 GB box where {@code -Xmx} is set very high, {@code used/max} stays low
-     * even when the JVM has already grabbed tens of GB from the OS.
+     * Current heap pressure ratio: {@code (totalMemory - freeMemory) / maxMemory}.
+     * {@code 0} means the heap is empty; {@code 1} means used memory has reached
+     * the {@code -Xmx} ceiling. The denominator is the maximum heap, not the
+     * currently-committed heap: the JVM grows committed memory lazily toward the
+     * ceiling, so {@code used/committed} reports false pressure early in a run
+     * (committed still near its initial size) when there is in fact plenty of
+     * headroom left before {@code -Xmx}.
      */
     public static double current() {
         var snap = REF.get();
@@ -54,8 +54,8 @@ public final class HeapPressure {
             return snap.ratio();
         }
         var rt = Runtime.getRuntime();
-        long total = rt.totalMemory();
-        double ratio = total == 0 ? 0.0 : (double) (total - rt.freeMemory()) / total;
+        long max = rt.maxMemory();
+        double ratio = max == 0 ? 0.0 : (double) (rt.totalMemory() - rt.freeMemory()) / max;
         REF.lazySet(new Snapshot(ratio, now));
         return ratio;
     }

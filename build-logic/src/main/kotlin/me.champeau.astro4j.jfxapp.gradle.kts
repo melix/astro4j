@@ -15,6 +15,7 @@ val os = System.getProperty("os.name").lowercase(Locale.ENGLISH)
 val jvmMemorySettings = listOf(
     providers.systemProperty("memory.settings").getOrElse("-XX:MaxRAMPercentage=80"),
     "-XX:+UseZGC",
+    "-XX:+ExplicitGCInvokesConcurrent",
     "-XX:+HeapDumpOnOutOfMemoryError",
     "-XX:+UseCompactObjectHeaders",
     "-Dpolyglotimpl.DisableMultiReleaseCheck=true"

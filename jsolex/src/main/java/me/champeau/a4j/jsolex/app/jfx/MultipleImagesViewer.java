@@ -184,17 +184,10 @@ public class MultipleImagesViewer extends Pane {
     private ImageViewer newImageViewer() {
         try {
             lock.lock();
-
-            var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "imageview");
-            try {
-                var node = (Node) fxmlLoader.load();
-                var controller = (ImageViewer) fxmlLoader.getController();
-                controller.init(node);
-                imageViews.add(controller);
-                return controller;
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
+            var controller = new ImageViewer();
+            controller.init();
+            imageViews.add(controller);
+            return controller;
         } finally {
             lock.unlock();
         }

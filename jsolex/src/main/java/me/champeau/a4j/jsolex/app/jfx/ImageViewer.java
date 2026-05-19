@@ -26,7 +26,7 @@ import javafx.collections.FXCollections;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.event.EventTarget;
-import javafx.fxml.FXML;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Parent;
@@ -71,7 +71,6 @@ import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.ImageSaver;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
-import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.jsolex.processing.util.SolarParameters;
 import me.champeau.a4j.jsolex.processing.util.SolarParametersUtils;
@@ -114,16 +113,9 @@ public class ImageViewer implements WithRootNode {
     private StretchingMode stretchingMode = StretchingMode.LINEAR;
 
     private Label dimensions;
-    @FXML
     private VBox stretchingParams;
-
-    @FXML
     private ZoomableImageView imageView;
-
-    @FXML
     private StackPane imageContainer;
-
-    @FXML
     private ProgressIndicator loadingIndicator;
 
     private CheckBox correctAngleP;
@@ -141,18 +133,33 @@ public class ImageViewer implements WithRootNode {
     private PauseTransition stretchedImageDebounce;
 
     /**
-     * Creates a new instance. Required by FXML.
+     * Creates a new instance.
      */
     public ImageViewer() {
     }
 
     /**
-     * Initializes the image viewer with its root node.
-     *
-     * @param root the root node
+     * Builds the image viewer scene graph and initializes it. This replaces the
+     * former FXML-based construction to avoid the per-image cost of parsing the
+     * FXML and reapplying inline styles on the JavaFX application thread.
      */
-    public void init(Node root) {
-        this.root = root;
+    public void init() {
+        this.imageView = new ZoomableImageView();
+        this.loadingIndicator = new ProgressIndicator();
+        loadingIndicator.setMaxWidth(80);
+        loadingIndicator.setMaxHeight(80);
+        loadingIndicator.setVisible(false);
+        loadingIndicator.setMouseTransparent(true);
+        this.imageContainer = new StackPane(imageView, loadingIndicator);
+        this.stretchingParams = new VBox();
+        stretchingParams.setAlignment(Pos.CENTER_LEFT);
+        stretchingParams.setSpacing(5);
+        stretchingParams.setPadding(new Insets(10));
+        var pane = new BorderPane();
+        pane.setPadding(new Insets(5));
+        pane.setTop(stretchingParams);
+        pane.setCenter(imageContainer);
+        this.root = pane;
         this.stretchedImageDebounce = new PauseTransition(Duration.seconds(10));
         this.stretchedImageDebounce.setOnFinished(e -> {
             if (stretchedImage != null && !(stretchedImage instanceof FileBackedImage)) {
@@ -240,29 +247,23 @@ public class ImageViewer implements WithRootNode {
                 if (!popupViews.containsKey(title)) {
                     var openInNewWindow = new MenuItem(message("open.new.window"));
                     openInNewWindow.setOnAction(e -> {
-                        try {
-                            var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "imageview");
-                            var node = (Node) fxmlLoader.load();
-                            var controller = (ImageViewer) fxmlLoader.getController();
-                            controller.init(node);
-                            controller.setup(new ProcessingEventListener() {
-                            }, operation, title, baseName, kind, description, wrapped, imageName, processParams, popupViews, siblings);
-                            var stage = newStage();
-                            var scene = newScene((Parent) node);
-                            controller.stage = stage;
-                            controller.fitWidthProperty().bind(stage.widthProperty());
-                            controller.updateTitle();
-                            stage.setWidth(1024);
-                            stage.setHeight(768);
-                            stage.setScene(scene);
-                            stage.setOnCloseRequest(evt -> popupViews.remove(title));
-                            stage.show();
-                            popupViews.put(title, controller);
-                            controller.display();
-                            controller.saveButton.setVisible(false);
-                        } catch (IOException ex) {
-                            throw new ProcessingException(ex);
-                        }
+                        var controller = new ImageViewer();
+                        controller.init();
+                        controller.setup(new ProcessingEventListener() {
+                        }, operation, title, baseName, kind, description, wrapped, imageName, processParams, popupViews, siblings);
+                        var stage = newStage();
+                        var scene = newScene((Parent) controller.getRoot());
+                        controller.stage = stage;
+                        controller.fitWidthProperty().bind(stage.widthProperty());
+                        controller.updateTitle();
+                        stage.setWidth(1024);
+                        stage.setHeight(768);
+                        stage.setScene(scene);
+                        stage.setOnCloseRequest(evt -> popupViews.remove(title));
+                        stage.show();
+                        popupViews.put(title, controller);
+                        controller.display();
+                        controller.saveButton.setVisible(false);
                     });
                     Platform.runLater(() -> imageView.getCtxMenu().getItems().add(openInNewWindow));
                 }

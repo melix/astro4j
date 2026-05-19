@@ -141,6 +141,7 @@ import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.jsolex.processing.util.Bass2000ConfigService;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.DurationFormatter;
+import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.LiveSessionManager;
@@ -888,6 +889,9 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     }
 
     private void configureMemoryStatus() {
+        // The JavaFX application thread must never block on disk I/O when
+        // FileBackedImage flushes images to disk under memory pressure.
+        FileBackedImage.setMustNotBlockSupplier(Platform::isFxApplicationThread);
         var timeline = new Timeline();
         timeline.getKeyFrames().add(new KeyFrame(Duration.seconds(1), event -> {
             var usedMemory = (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) >> 20;
