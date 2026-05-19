@@ -243,35 +243,38 @@ public final class FileBackedImage implements ImageWrapper {
     }
 
     public static void flushImages() {
+        // CACHE_LOCK is held only to snapshot the cache, not during the disk
+        // I/O: concurrent wrap() calls are therefore not back-pressured.
+        List<FileBackedImage> fbiToFlush;
+        CACHE_LOCK.lock();
         try {
-            CACHE_LOCK.lock();
-            var fbiToFlush = WRAP_CACHE.values()
+            fbiToFlush = WRAP_CACHE.values()
                     .stream()
                     .filter(fbi -> fbi.unwrapped.get() != null)
                     .toList();
-            if (fbiToFlush.isEmpty()) {
-                return;
-            }
-            var event = new FileBackedImageFlushEvent();
-            event.begin();
-            event.imageCount = fbiToFlush.size();
-            LOGGER.debug("Flushing {} images to disk to free memory", fbiToFlush.size());
-            try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
-                for (var fbi : fbiToFlush) {
-                    executor.submit(() -> {
-                        if (!underPressure.getAsBoolean() || fbi.unwrapped.get() == null) {
-                            return;
-                        }
-                        fbi.writeToDisk(fbi.unwrapped.source, "BATCH");
-                    });
-                }
-            } finally {
-                event.commit();
-            }
-            LOGGER.debug("Flushed images");
         } finally {
             CACHE_LOCK.unlock();
         }
+        if (fbiToFlush.isEmpty()) {
+            return;
+        }
+        var event = new FileBackedImageFlushEvent();
+        event.begin();
+        event.imageCount = fbiToFlush.size();
+        LOGGER.debug("Flushing {} images to disk to free memory", fbiToFlush.size());
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            for (var fbi : fbiToFlush) {
+                executor.submit(() -> {
+                    if (!underPressure.getAsBoolean() || fbi.unwrapped.get() == null) {
+                        return;
+                    }
+                    fbi.writeToDisk(fbi.unwrapped.source, "BATCH");
+                });
+            }
+        } finally {
+            event.commit();
+        }
+        LOGGER.debug("Flushed images");
     }
 
     /**
