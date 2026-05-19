@@ -566,6 +566,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                             0,
                             4 * bufferWidth
                     );
+                    // Stretch only once the complete reconstruction image has been
+                    // written, otherwise it would normalize a partially-filled image.
+                    stretchReconstructionView(solarView);
                 } finally {
                     lock.release();
                 }
@@ -602,7 +605,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             }
             var solarViewOverlay = view.getSolarViewOverlay();
             var solarView = view.getSolarView();
-            stretchReconstructionView(solarView);
             BiConsumer<Double, Double> triggerAt = (imageX, frameNbObj) -> {
                 var gso = solarViewOverlay.getGraphicsContext2D();
                 var spectrumViewOverlay = view.getSpectrumViewOverlay();
@@ -756,10 +758,15 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private void stretchReconstructionView(ZoomableImageView solarView) {
         var image = (WritableImage) solarView.getImage();
         var pixelReader = image.getPixelReader();
+        // Use the image's own dimensions: the width/height fields are mutated
+        // during processing and may not match the size this WritableImage was
+        // created with, which would read past the end of its pixel buffer.
+        var imageWidth = (int) image.getWidth();
+        var imageHeight = (int) image.getHeight();
         BackgroundOperations.async(() -> {
             try {
-                var pixels = new int[width * height];
-                pixelReader.getPixels(0, 0, width, height, WritablePixelFormat.getIntArgbInstance(), pixels, 0, width);
+                var pixels = new int[imageWidth * imageHeight];
+                pixelReader.getPixels(0, 0, imageWidth, imageHeight, WritablePixelFormat.getIntArgbInstance(), pixels, 0, imageWidth);
 
                 // find max value
                 var max = 0;
@@ -777,7 +784,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     }
                 }
 
-                Platform.runLater(() -> image.getPixelWriter().setPixels(0, 0, width, height, WritablePixelFormat.getIntArgbInstance(), pixels, 0, width));
+                Platform.runLater(() -> image.getPixelWriter().setPixels(0, 0, imageWidth, imageHeight, WritablePixelFormat.getIntArgbInstance(), pixels, 0, imageWidth));
             } catch (IndexOutOfBoundsException e) {
             }
         });

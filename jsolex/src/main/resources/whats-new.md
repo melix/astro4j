@@ -10,6 +10,7 @@
 - Fixed some generated images being missing from batch results and the image review window.
 - Double-clicking an image to zoom in at 1:1 now centers the viewport on the clicked point.
 - Added an advanced parameter to choose the directory where temporary files are written.
+- Fixed the reconstruction preview occasionally not being contrast-adjusted during processing.
 
 ## What's New in Version 5.1.3
 
