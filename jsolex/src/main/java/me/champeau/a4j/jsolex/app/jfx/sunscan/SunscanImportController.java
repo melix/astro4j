@@ -30,6 +30,7 @@ import javafx.scene.control.cell.CheckBoxTableCell;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Stage;
 import me.champeau.a4j.jsolex.app.Configuration;
+import me.champeau.a4j.jsolex.app.jfx.FXUtils;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -247,7 +248,8 @@ public class SunscanImportController {
         var current = client;
         setBusy(true);
         progressBar.setVisible(true);
-        progressBar.setProgress(0);
+        progressBar.setProgress(ProgressBar.INDETERMINATE_PROGRESS);
+        statusLabel.setText(message("preparing"));
 
         var thread = new Thread(() -> {
             var downloaded = new ArrayList<File>();
@@ -257,13 +259,36 @@ public class SunscanImportController {
                     var fileName = localFileName(scan);
                     var target = destination.resolve(fileName);
                     var index = i;
-                    Platform.runLater(() -> statusLabel.setText(
-                            message("downloading").formatted(fileName, index + 1, selected.size())));
+                    Platform.runLater(() -> {
+                        statusLabel.setText(
+                                message("connecting.to.scan").formatted(fileName, index + 1, selected.size()));
+                        progressBar.setProgress(ProgressBar.INDETERMINATE_PROGRESS);
+                    });
+                    var startNanos = System.nanoTime();
+                    var lastReport = new long[]{0L};
+                    var lastReportNanos = new long[]{startNanos};
                     current.downloadScan(scan, target, (bytes, total) -> {
-                        if (total > 0) {
-                            var fraction = (index + (double) bytes / total) / selected.size();
-                            Platform.runLater(() -> progressBar.setProgress(fraction));
+                        var nowNanos = System.nanoTime();
+                        if (bytes - lastReport[0] < 256L * 1024 && nowNanos - lastReportNanos[0] < 200_000_000L && bytes != total) {
+                            return;
                         }
+                        var elapsedSec = Math.max(1e-3, (nowNanos - startNanos) / 1_000_000_000.0);
+                        var speed = (long) (bytes / elapsedSec);
+                        lastReport[0] = bytes;
+                        lastReportNanos[0] = nowNanos;
+                        Platform.runLater(() -> {
+                            if (total > 0) {
+                                progressBar.setProgress((index + (double) bytes / total) / selected.size());
+                                statusLabel.setText(message("downloading").formatted(
+                                        fileName, index + 1, selected.size(),
+                                        FXUtils.formatBytes(bytes), FXUtils.formatBytes(total), FXUtils.formatBytes(speed)));
+                            } else {
+                                progressBar.setProgress(ProgressBar.INDETERMINATE_PROGRESS);
+                                statusLabel.setText(message("downloading.unknown.size").formatted(
+                                        fileName, index + 1, selected.size(),
+                                        FXUtils.formatBytes(bytes), FXUtils.formatBytes(speed)));
+                            }
+                        });
                     });
                     downloaded.add(target.toFile());
                 }

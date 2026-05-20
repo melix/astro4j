@@ -24,6 +24,7 @@ import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import me.champeau.a4j.jsolex.app.AlertFactory;
+import me.champeau.a4j.jsolex.app.jfx.FXUtils;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.params.SpectroHeliograph;
@@ -182,8 +183,8 @@ class Step4SessionMetadataHandler implements StepHandler {
 
         var quota = authHandler.getQuotaResponse();
         if (quota != null) {
-            var storageUsed = formatBytes(quota.usedStorageBytes());
-            var storageTotal = formatBytes(quota.quotaStorageBytes());
+            var storageUsed = FXUtils.formatBytes(quota.usedStorageBytes());
+            var storageTotal = FXUtils.formatBytes(quota.quotaStorageBytes());
             quotaLabel.setText(MessageFormat.format(message("quota.usage"),
                     quota.usedImageCount(), quota.quotaImageCount(),
                     storageUsed, storageTotal));
@@ -209,17 +210,6 @@ class Step4SessionMetadataHandler implements StepHandler {
                 && instrument.label().toLowerCase(Locale.US).contains("sunscan");
     }
 
-    private static String formatBytes(long bytes) {
-        if (bytes < 1024) {
-            return bytes + " B";
-        } else if (bytes < 1024 * 1024) {
-            return String.format("%.1f KB", bytes / 1024.0);
-        } else if (bytes < 1024L * 1024 * 1024) {
-            return String.format("%.1f MB", bytes / (1024.0 * 1024));
-        } else {
-            return String.format("%.1f GB", bytes / (1024.0 * 1024 * 1024));
-        }
-    }
 
     private SpectralRay computeEffectiveSpectralRay() {
         var selectedImages = imageSelectionHandler.getSelectedImages();

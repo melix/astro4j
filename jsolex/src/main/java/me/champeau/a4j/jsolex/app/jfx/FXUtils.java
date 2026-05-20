@@ -69,4 +69,20 @@ public class FXUtils {
         return stage;
     }
 
+    /**
+     * Formats a byte count as a human-readable size (B / KB / MB / GB).
+     */
+    public static String formatBytes(long bytes) {
+        if (bytes < 1024) {
+            return bytes + " B";
+        }
+        if (bytes < 1024 * 1024) {
+            return "%.1f KB".formatted(bytes / 1024.0);
+        }
+        if (bytes < 1024L * 1024 * 1024) {
+            return "%.1f MB".formatted(bytes / (1024.0 * 1024));
+        }
+        return "%.1f GB".formatted(bytes / (1024.0 * 1024 * 1024));
+    }
+
 }
