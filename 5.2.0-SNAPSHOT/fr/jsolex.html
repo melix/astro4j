@@ -490,6 +490,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </ul>
 </li>
 <li><a href="#_mode_surveillance_de_répertoire">Mode surveillance de répertoire</a></li>
+<li><a href="#_importer_des_scans_depuis_un_sunscan">Importer des scans depuis un SunScan</a></li>
 <li><a href="#custom_images">Personnalisation des images générées</a></li>
 <li><a href="#imagemath">ImageMath : scripts de calcul d&#8217;images</a>
 <ul class="sectlevel2">
@@ -1281,6 +1282,26 @@ Vous pouvez combiner le fait d&#8217;être en mode surveillance avec le fait d&#
 </td>
 </tr>
 </table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_importer_des_scans_depuis_un_sunscan">Importer des scans depuis un SunScan</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Si vous possédez un spectrohéliographe SunScan, JSol&#8217;Ex peut récupérer directement les scans acquis par l&#8217;appareil, sans avoir à copier les fichiers manuellement.</p>
+</div>
+<div class="paragraph">
+<p>Connectez votre ordinateur au point d&#8217;accès Wi-Fi du SunScan, puis dans le menu "Fichier" choisissez "Importer depuis SunScan&#8230;&#8203;".</p>
+</div>
+<div class="paragraph">
+<p>JSol&#8217;Ex tente de localiser automatiquement l&#8217;appareil sur le réseau. Si la détection échoue, saisissez son adresse (par exemple <code>sunscan.local:8000</code>) dans le champ "Adresse de l&#8217;appareil" puis cliquez sur "Connexion".</p>
+</div>
+<div class="paragraph">
+<p>La fenêtre liste tous les scans disponibles sur l&#8217;appareil, avec leur date d&#8217;acquisition, leur raie spectrale et leur état de traitement. Cochez les scans à traiter, choisissez un dossier de téléchargement, puis cliquez sur "Importer et traiter". JSol&#8217;Ex télécharge les fichiers <code>scan.ser</code> sélectionnés (renommés <code>YYYY_MM_DD-HH_mm_ss-scan.ser</code> à partir de la date UTC de capture) et les ouvre : un scan unique ouvre la fenêtre de traitement habituelle, tandis que plusieurs scans sont traités en lot.</p>
+</div>
+<div class="paragraph">
+<p>Lorsque les scans sont importés de cette manière, l&#8217;instrument "Sunscan" et son paramétrage (caméra et taille des pixels) sont sélectionnés automatiquement dans les paramètres de traitement, ce qui active également le retournement vertical du spectre. Vous pouvez toujours modifier ces réglages avant de lancer le traitement.</p>
 </div>
 </div>
 </div>

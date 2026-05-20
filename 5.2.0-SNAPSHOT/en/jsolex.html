@@ -490,6 +490,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </ul>
 </li>
 <li><a href="#_watching_a_directory_for_changes">Watching a directory for changes</a></li>
+<li><a href="#_importing_scans_from_a_sunscan">Importing scans from a SunScan</a></li>
 <li><a href="#custom_images">Customization of generated images</a></li>
 <li><a href="#trimming-ser-files">Trimming SER files</a></li>
 <li><a href="#collage">Creating Image Collages</a>
@@ -1273,6 +1274,26 @@ You can combine the watch mode with opening an image in a new window (by right-c
 </td>
 </tr>
 </table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_importing_scans_from_a_sunscan">Importing scans from a SunScan</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>If you own a SunScan spectroheliograph, JSol&#8217;Ex can fetch the scans acquired by the device directly, without having to copy files manually.</p>
+</div>
+<div class="paragraph">
+<p>Connect your computer to the SunScan Wi-Fi access point, then in the "File" menu choose "Import from SunScan&#8230;&#8203;".</p>
+</div>
+<div class="paragraph">
+<p>JSol&#8217;Ex will try to locate the device automatically on the network. If detection fails, type its address (for example <code>sunscan.local:8000</code>) in the "Device address" field and click "Connect".</p>
+</div>
+<div class="paragraph">
+<p>The dialog lists every scan available on the device, with its acquisition date, spectral line and processing status. Tick the scans you want to process, choose a download folder, then click "Import and process". JSol&#8217;Ex downloads the selected <code>scan.ser</code> files (renamed <code>YYYY_MM_DD-HH_mm_ss-scan.ser</code> based on each scan&#8217;s UTC capture date) and opens them: a single scan opens the regular processing window, while several scans are processed as a batch.</p>
+</div>
+<div class="paragraph">
+<p>When scans are imported this way, the "Sunscan" instrument and its setup (camera and pixel size) are selected automatically in the processing parameters, which also enables the vertical flip of the spectrum. You can still change these settings before starting the processing.</p>
 </div>
 </div>
 </div>
