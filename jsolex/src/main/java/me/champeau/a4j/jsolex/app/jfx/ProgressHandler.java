@@ -155,6 +155,16 @@ public final class ProgressHandler {
     }
 
     /**
+     * Returns true if {@code operation} is the only tracked root that is not yet complete.
+     * Used to decide whether a completing root should be treated as the overall completion
+     * (and trigger a completion message) or just unregistered while other work continues.
+     */
+    public boolean isLastActiveRoot(ProgressOperation operation) {
+        return activeRoots.keySet().stream()
+                .noneMatch(r -> r != operation && r.progress() < 1.0);
+    }
+
+    /**
      * Hides the progress indicator by clearing all tracked operations and messages.
      */
     public void hide() {

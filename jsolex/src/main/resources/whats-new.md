@@ -13,6 +13,7 @@
 - Double-clicking an image to zoom in at 1:1 now centers the viewport on the clicked point.
 - Added an advanced parameter to choose the directory where temporary files are written.
 - Fixed the reconstruction preview occasionally not being contrast-adjusted during processing.
+- Added a logs activity indicator so background work is visible from any tab.
 
 ## What's New in Version 5.1.3
 

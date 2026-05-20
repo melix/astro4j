@@ -1325,6 +1325,21 @@
     -fx-effect: dropshadow(gaussian, white, 2, 1, 0, 0);
 }
 
+/* Latest log line shown in the bottom status bar */
+.latest-log-label {
+    -fx-font-size: 11px;
+    -fx-font-style: italic;
+    -fx-text-fill: #666666;
+}
+
+.latest-log-label.warn {
+    -fx-text-fill: #b07000;
+}
+
+.latest-log-label.error {
+    -fx-text-fill: #b00020;
+}
+
 /* GONG observatory picker overlay on top of the reference image */
 .gong-site-button {
     -fx-background-color: #1e1e1e;

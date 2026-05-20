@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiConsumer;
 
 class LogbackConfigurer {
 
@@ -61,6 +62,11 @@ class LogbackConfigurer {
     }
 
     static void configureLogger(StyleClassedTextArea console) {
+        configureLogger(console, (level, message) -> {
+        });
+    }
+
+    static void configureLogger(StyleClassedTextArea console, BiConsumer<Level, String> onEvent) {
         var numberFactory = LineNumberFactory.get(console, i -> "");
         console.setParagraphGraphicFactory(node -> {
             var line = numberFactory.apply(node);
@@ -92,6 +98,7 @@ class LogbackConfigurer {
                         console.foldText(start, end);
                     }
                     console.requestFollowCaret();
+                    onEvent.accept(level, eventObject.getFormattedMessage());
                 });
             }
         };

@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app;
 
+import ch.qos.logback.classic.Level;
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.PauseTransition;
@@ -189,6 +190,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
@@ -253,6 +255,8 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
 
     @FXML
     private Label progressLabel;
+    @FXML
+    private Label latestLogLabel;
 
     @FXML
     private Label progressBarLabel;
@@ -528,7 +532,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             bass2000Button.setVisible(true);
             stage.show();
             refreshRecentItemsMenu();
-            LogbackConfigurer.configureLogger(console);
+            setupLogsTabActivityIndicator();
             setupLogWindowContextMenu();
             setupImageMathEditorContextMenu();
             createFastModePane();
@@ -617,6 +621,58 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             statusBox.setAlignment(Pos.CENTER_LEFT);
             liveStatus.setGraphic(statusBox);
         });
+    }
+
+    private void setupLogsTabActivityIndicator() {
+        var unreadLevel = new AtomicReference<Level>();
+        Runnable clearTabIndicator = () -> {
+            unreadLevel.set(null);
+            logsTab.setGraphic(null);
+        };
+        var clearLatestLog = new PauseTransition(Duration.seconds(8));
+        clearLatestLog.setOnFinished(e -> latestLogLabel.setText(""));
+        rightTabs.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
+            if (newTab == logsTab) {
+                clearTabIndicator.run();
+                latestLogLabel.setText("");
+                clearLatestLog.stop();
+            }
+        });
+        LogbackConfigurer.configureLogger(console, (level, message) -> {
+            if (rightTabs.getSelectionModel().getSelectedItem() == logsTab) {
+                return;
+            }
+            latestLogLabel.getStyleClass().removeAll("warn", "error");
+            if (level.toInt() >= Level.ERROR_INT) {
+                latestLogLabel.getStyleClass().add("error");
+            } else if (level.toInt() >= Level.WARN_INT) {
+                latestLogLabel.getStyleClass().add("warn");
+            }
+            latestLogLabel.setText(squashWhitespace(message));
+            clearLatestLog.playFromStart();
+            var current = unreadLevel.get();
+            if (current == null || level.toInt() > current.toInt()) {
+                unreadLevel.set(level);
+                logsTab.setGraphic(new Circle(4, colorFor(level)));
+            }
+        });
+    }
+
+    private static String squashWhitespace(String message) {
+        if (message == null) {
+            return "";
+        }
+        return message.replaceAll("\\s+", " ").trim();
+    }
+
+    private static Color colorFor(Level level) {
+        if (level.toInt() >= Level.ERROR_INT) {
+            return Color.RED;
+        }
+        if (level.toInt() >= Level.WARN_INT) {
+            return Color.ORANGE;
+        }
+        return Color.DODGERBLUE;
     }
 
     private void createFastModePane() {
@@ -939,13 +995,14 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
 
     @Override
     public void updateProgress(ProgressOperation operation) {
-        // If a root operation completes with a message, show it as the completion message
         if (operation.parent() == null && operation.progress() >= 1.0) {
             var task = operation.task();
-            if (task != null && !task.isEmpty()) {
+            if (task != null && !task.isEmpty() && progressHandler.isLastActiveRoot(operation)) {
                 progressHandler.setCompletionMessage(task);
                 return;
             }
+            progressHandler.unregisterRoot(operation);
+            return;
         }
         progressHandler.ensureTracked(operation);
     }
@@ -1087,9 +1144,10 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             config.findLastOpenDirectory(Configuration.DirectoryKind.IMAGE_MATH).ifPresent(executor::setIncludesDir);
             BackgroundOperations.async(() -> {
                 var startTime = System.nanoTime();
-                // Create a fresh progress operation for this execution
                 var scriptOperation = createRootOperation(message("script.execution"));
-                executor.putInContext(ProgressOperation.class, scriptOperation);
+                // Umbrella child keeps the label visible when the executor emits no sub-operations.
+                var umbrella = scriptOperation.createChild(message("script.execution"));
+                executor.putInContext(ProgressOperation.class, umbrella);
                 executor.putInContext(AnimationFormat.class, config.getAnimationFormats());
                 var section = shouldRunBothSections ? ImageMathScriptExecutor.SectionKind.SINGLE : sectionKind;
                 var parameters = extractScriptParameters(text);
@@ -1131,6 +1189,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
                 }
                 // Mark script operation complete after all sections have finished
                 var formatted = DurationFormatter.formatNanos(System.nanoTime() - startTime);
+                umbrella.complete();
                 updateProgress(scriptOperation.complete(String.format(message("script.completed.in.format"), formatted)));
                 enableSpectroSolHubSubmission(null);
             });
