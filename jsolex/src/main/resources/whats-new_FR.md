@@ -2,6 +2,8 @@
 
 ## Nouveautés de la version 5.2.0
 
+- Refonte de l'écran de traitement par lots avec un tableau de bord de progression, des lignes compactes et un panneau latéral de détails.
+- Les fichiers d'un lot sont désormais traités dans l'ordre de soumission.
 - L'étirement automatique produit désormais une luminosité plus douce et plus naturelle, préservant les détails dans les régions actives sans écraser les protubérances ni le dégradé du limbe.
 - L'image inversée n'inverse désormais que le disque solaire, avec un contraste accentué sur ses détails, tout en conservant les protubérances dans leur orientation naturelle.
 - Les images colorisées bénéficient désormais d'une plage tonale plus équilibrée grâce à une chaîne d'étirement revue.

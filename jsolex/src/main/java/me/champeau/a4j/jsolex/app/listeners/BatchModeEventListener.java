@@ -89,6 +89,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
@@ -129,6 +130,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     private final ReentrantReadWriteLock dataLock;
     private final BatchImageCollector imageCollector;
     private final AtomicInteger liveUploadCount = new AtomicInteger(0);
+    private final AtomicBoolean batchScriptsRunning;
 
     /**
      * Creates a new batch mode event listener.
@@ -162,6 +164,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         this.sequenceNumber = sequenceNumber;
         this.dataLock = context.dataLock();
         this.sd = context.batchStartNanos();
+        this.batchScriptsRunning = context.batchScriptsRunning();
     }
     
     private SolarParameters computeAverageSolarParameters() {
@@ -464,6 +467,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             if (allScriptFiles.isEmpty() || result.discarded().size() == progressTracker.getTotalItems()) {
                 return;
             }
+            batchScriptsRunning.set(true);
             var imageEmitter = new NamingStrategyAwareImageEmitter(new RenamingImageEmitter(new DefaultImageEmitter(delegate, rootOperation, outputDirectory), name -> name, name -> name), createNamingStrategy(), sequenceNumber, computeSerFileBasename(item.file()));
             var ctxBuilder = ScriptExecutionContext.builder()
                 .imageEmitter(imageEmitter)
@@ -545,6 +549,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                 executeBatchScript(namingStrategy, scriptFile);
             }
         } finally {
+            batchScriptsRunning.set(false);
             batchFinished();
         }
     }

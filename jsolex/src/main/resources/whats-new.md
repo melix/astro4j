@@ -2,6 +2,8 @@
 
 ## What's New in Version 5.2.0
 
+- Redesigned the batch processing view with a progress dashboard, compact rows and a detail side panel.
+- Batch files are now processed in submission order.
 - Autostretch produces a smoother, more natural brightness, preserving detail in active regions without crushing prominences or the limb fade.
 - The inverted image now inverts only the solar disk with enhanced contrast on its features, while keeping the prominences in their natural orientation.
 - Colorized images now use a more even tonal range thanks to a revised stretching pipeline.
