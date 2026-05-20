@@ -20,6 +20,8 @@ import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
@@ -27,8 +29,11 @@ import javafx.scene.control.ProgressBar;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.cell.CheckBoxTableCell;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Stage;
+import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.jfx.FXUtils;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
@@ -45,6 +50,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 /**
@@ -104,8 +111,6 @@ public class SunscanImportController {
     @FXML
     private Button browseButton;
     @FXML
-    private ProgressBar progressBar;
-    @FXML
     private Button importButton;
 
     private Stage stage;
@@ -136,7 +141,6 @@ public class SunscanImportController {
         hostField.setText(configuration.getSunscanHost());
         configuration.findLastOpenDirectory(SUNSCAN_DIR_KEY)
                 .ifPresent(dir -> destinationField.setText(dir.toString()));
-        progressBar.setVisible(false);
 
         autoDetect();
     }
@@ -246,46 +250,85 @@ public class SunscanImportController {
         }
         var destination = Path.of(destinationText);
         var current = client;
-        setBusy(true);
-        progressBar.setVisible(true);
-        progressBar.setProgress(ProgressBar.INDETERMINATE_PROGRESS);
-        statusLabel.setText(message("preparing"));
+        configuration.updateLastOpenDirectory(destination, SUNSCAN_DIR_KEY);
+        stage.close();
+        showProgressDialog(current, selected, destination);
+    }
 
-        var thread = new Thread(() -> {
+    private void showProgressDialog(SunscanClient current, List<SunscanScan> selected, Path destination) {
+        var dialog = new Stage();
+        dialog.setTitle(message("progress.title"));
+        var fileLabel = new Label(message("preparing"));
+        fileLabel.setWrapText(true);
+        var bar = new ProgressBar(ProgressBar.INDETERMINATE_PROGRESS);
+        bar.setMaxWidth(Double.MAX_VALUE);
+        bar.setPrefHeight(20);
+        var detailsLabel = new Label("");
+        detailsLabel.setWrapText(true);
+        var cancelButton = new Button(message("cancel"));
+        cancelButton.getStyleClass().add("default-button");
+        var buttons = new HBox(8, cancelButton);
+        buttons.setAlignment(Pos.CENTER_RIGHT);
+        var content = new VBox(12, fileLabel, bar, detailsLabel, buttons);
+        content.setPadding(new Insets(16));
+        content.getStyleClass().add("params-dialog");
+        var scene = JSolEx.newScene(content);
+        dialog.setScene(scene);
+        dialog.setWidth(520);
+        dialog.setOnCloseRequest(evt -> {
+            evt.consume();
+            cancelButton.fire();
+        });
+
+        var cancelled = new AtomicBoolean(false);
+        var finished = new AtomicBoolean(false);
+        var workerRef = new AtomicReference<Thread>();
+
+        cancelButton.setOnAction(evt -> {
+            if (finished.get()) {
+                dialog.close();
+                return;
+            }
+            cancelled.set(true);
+            var w = workerRef.get();
+            if (w != null) {
+                w.interrupt();
+            }
+            dialog.close();
+        });
+
+        var worker = new Thread(() -> {
             var downloaded = new ArrayList<File>();
             try {
                 for (var i = 0; i < selected.size(); i++) {
+                    if (cancelled.get()) {
+                        return;
+                    }
                     var scan = selected.get(i);
                     var fileName = localFileName(scan);
                     var target = destination.resolve(fileName);
                     var index = i;
                     Platform.runLater(() -> {
-                        statusLabel.setText(
-                                message("connecting.to.scan").formatted(fileName, index + 1, selected.size()));
-                        progressBar.setProgress(ProgressBar.INDETERMINATE_PROGRESS);
+                        fileLabel.setText(message("connecting.to.scan").formatted(fileName, index + 1, selected.size()));
+                        bar.setProgress(ProgressBar.INDETERMINATE_PROGRESS);
+                        detailsLabel.setText("");
                     });
                     var startNanos = System.nanoTime();
-                    var lastReport = new long[]{0L};
-                    var lastReportNanos = new long[]{startNanos};
                     current.downloadScan(scan, target, (bytes, total) -> {
-                        var nowNanos = System.nanoTime();
-                        if (bytes - lastReport[0] < 256L * 1024 && nowNanos - lastReportNanos[0] < 200_000_000L && bytes != total) {
+                        if (cancelled.get()) {
+                            Thread.currentThread().interrupt();
                             return;
                         }
-                        var elapsedSec = Math.max(1e-3, (nowNanos - startNanos) / 1_000_000_000.0);
+                        var elapsedSec = Math.max(1e-3, (System.nanoTime() - startNanos) / 1_000_000_000.0);
                         var speed = (long) (bytes / elapsedSec);
-                        lastReport[0] = bytes;
-                        lastReportNanos[0] = nowNanos;
                         Platform.runLater(() -> {
                             if (total > 0) {
-                                progressBar.setProgress((index + (double) bytes / total) / selected.size());
-                                statusLabel.setText(message("downloading").formatted(
-                                        fileName, index + 1, selected.size(),
+                                bar.setProgress((index + (double) bytes / total) / selected.size());
+                                detailsLabel.setText(message("downloading").formatted(
                                         FXUtils.formatBytes(bytes), FXUtils.formatBytes(total), FXUtils.formatBytes(speed)));
                             } else {
-                                progressBar.setProgress(ProgressBar.INDETERMINATE_PROGRESS);
-                                statusLabel.setText(message("downloading.unknown.size").formatted(
-                                        fileName, index + 1, selected.size(),
+                                bar.setProgress(ProgressBar.INDETERMINATE_PROGRESS);
+                                detailsLabel.setText(message("downloading.unknown.size").formatted(
                                         FXUtils.formatBytes(bytes), FXUtils.formatBytes(speed)));
                             }
                         });
@@ -293,25 +336,30 @@ public class SunscanImportController {
                     downloaded.add(target.toFile());
                 }
                 Platform.runLater(() -> {
-                    setBusy(false);
-                    progressBar.setProgress(1);
-                    configuration.updateLastOpenDirectory(destination, SUNSCAN_DIR_KEY);
-                    stage.close();
+                    finished.set(true);
+                    bar.setProgress(1);
+                    dialog.close();
                     onImport.accept(downloaded);
                 });
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
+                Platform.runLater(dialog::close);
             } catch (IOException e) {
                 LOGGER.error("Unable to download SunScan scan", e);
                 Platform.runLater(() -> {
-                    setBusy(false);
-                    progressBar.setVisible(false);
-                    statusLabel.setText(message("download.failed").formatted(e.getMessage()));
+                    finished.set(true);
+                    bar.setProgress(0);
+                    fileLabel.setText(message("download.failed").formatted(e.getMessage()));
+                    detailsLabel.setText("");
+                    cancelButton.setText(message("close"));
                 });
             }
         });
-        thread.setDaemon(true);
-        thread.start();
+        worker.setDaemon(true);
+        workerRef.set(worker);
+
+        dialog.show();
+        worker.start();
     }
 
     @FXML
@@ -327,7 +375,7 @@ public class SunscanImportController {
         hostField.setDisable(busy);
     }
 
-    private static String localFileName(SunscanScan scan) {
+    static String localFileName(SunscanScan scan) {
         return UTC_FILENAME_FORMATTER.format(Instant.ofEpochSecond(scan.creationDate())) + "-scan.ser";
     }
 
