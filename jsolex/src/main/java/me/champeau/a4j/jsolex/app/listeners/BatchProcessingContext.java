@@ -49,6 +49,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * @param processParamsByIndex processing parameters grouped by index
  * @param dataLock lock for thread-safe data access
  * @param batchStartNanos the batch start time in nanoseconds (from System.nanoTime)
+ * @param batchScriptsRunning flag set while batch outputs scripts are executing
  */
 public record BatchProcessingContext(
     List<BatchItem> items,
@@ -67,6 +68,7 @@ public record BatchProcessingContext(
     Map<Integer, SolarParameters> solarParametersByIndex,
     Map<Integer, ProcessParams> processParamsByIndex,
     ReentrantReadWriteLock dataLock,
-    long batchStartNanos
+    long batchStartNanos,
+    AtomicBoolean batchScriptsRunning
 ) {
 }

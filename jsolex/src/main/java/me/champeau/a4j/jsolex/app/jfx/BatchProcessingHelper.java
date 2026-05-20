@@ -21,8 +21,10 @@ import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.scene.control.Button;
+import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
+import javafx.scene.layout.BorderPane;
 import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.listeners.BatchProcessingContext;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
@@ -109,10 +111,23 @@ public final class BatchProcessingHelper {
         LOGGER.info(message("batch.mode.info"));
 
         var batchItems = createBatchItems(selectedFiles);
+        var batchContext = createBatchContext(batchItems, selectedFiles.getFirst().getParentFile(), header);
         var table = BatchTableFactory.createBatchTable(batchItems, params);
+        var dashboard = BatchDashboard.create(batchItems, batchContext.batchScriptsRunning());
+        var drawer = new BatchDetailDrawer(params);
+        table.getSelectionModel().selectedItemProperty().addListener(
+                (obs, oldItem, newItem) -> drawer.setItem(newItem));
+
+        var splitPane = new SplitPane(table, drawer.getNode());
+        splitPane.setDividerPositions(0.72);
+        SplitPane.setResizableWithParent(drawer.getNode(), false);
+
+        var content = new BorderPane();
+        content.setTop(dashboard);
+        content.setCenter(splitPane);
 
         var tab = new Tab(message("batch.process"));
-        tab.setContent(table);
+        tab.setContent(content);
 
         var mainPane = context.getMainPane();
         var tabs = mainPane.getTabs();
@@ -123,8 +138,6 @@ public final class BatchProcessingHelper {
         var interruptButton = context.addInterruptButton();
         var interrupted = new AtomicBoolean();
         Platform.runLater(() -> context.setImageMathRunDisabled(true));
-
-        var batchContext = createBatchContext(batchItems, selectedFiles.getFirst().getParentFile(), header);
 
         var batchThread = runBatchProcessing(
                 selectedFiles,
@@ -191,7 +204,8 @@ public final class BatchProcessingHelper {
                 new HashMap<>(),
                 new HashMap<>(),
                 new ReentrantReadWriteLock(),
-                System.nanoTime()
+                System.nanoTime(),
+                new AtomicBoolean()
         );
     }
 
