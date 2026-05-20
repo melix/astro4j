@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.app.jfx.spectrosolhub;
 
 import javafx.geometry.Insets;
+import javafx.scene.Node;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
@@ -25,6 +26,7 @@ import javafx.scene.layout.VBox;
 import me.champeau.a4j.jsolex.app.AlertFactory;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
+import me.champeau.a4j.jsolex.processing.params.SpectroHeliograph;
 import me.champeau.a4j.jsolex.processing.util.EquipmentDatabaseUtils;
 import me.champeau.a4j.jsolex.processing.util.VersionUtil;
 import me.champeau.a4j.jsolex.processing.util.spectrosolhub.CreateSessionRequest;
@@ -33,6 +35,9 @@ import me.champeau.a4j.jsolex.processing.util.spectrosolhub.QuotaResponse;
 import java.text.MessageFormat;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Locale;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import static me.champeau.a4j.jsolex.app.jfx.spectrosolhub.SpectroSolHubSubmissionController.message;
@@ -42,6 +47,7 @@ class Step4SessionMetadataHandler implements StepHandler {
     private final SpectralRay detectedSpectralRay;
     private final Step2ImageSelectionHandler imageSelectionHandler;
     private final Step1AuthenticationHandler authHandler;
+    private final Consumer<Boolean> validityListener;
     private VBox content;
     private TextField titleField;
     private Label dateLabel;
@@ -53,11 +59,12 @@ class Step4SessionMetadataHandler implements StepHandler {
     private CheckBox publishCheckBox;
     private Label quotaLabel;
 
-    Step4SessionMetadataHandler(ProcessParams processParams, SpectralRay detectedSpectralRay, Step2ImageSelectionHandler imageSelectionHandler, Step1AuthenticationHandler authHandler) {
+    Step4SessionMetadataHandler(ProcessParams processParams, SpectralRay detectedSpectralRay, Step2ImageSelectionHandler imageSelectionHandler, Step1AuthenticationHandler authHandler, Consumer<Boolean> validityListener) {
         this.processParams = processParams;
         this.detectedSpectralRay = detectedSpectralRay;
         this.imageSelectionHandler = imageSelectionHandler;
         this.authHandler = authHandler;
+        this.validityListener = validityListener;
     }
 
     @Override
@@ -80,6 +87,7 @@ class Step4SessionMetadataHandler implements StepHandler {
         grid.add(new Label(message("session.name.label")), 0, row);
         titleField = new TextField();
         titleField.setPrefWidth(400);
+        titleField.textProperty().addListener((obs, oldVal, newVal) -> notifyValidity());
         grid.add(titleField, 1, row++);
 
         grid.add(new Label(message("session.date.label")), 0, row);
@@ -96,14 +104,26 @@ class Step4SessionMetadataHandler implements StepHandler {
 
         grid.add(new Label(message("telescope.label")), 0, row);
         telescopeField = new TextField();
+        telescopeField.textProperty().addListener((obs, oldVal, newVal) -> {
+            updateFieldValidationStyle(telescopeField, !newVal.trim().isEmpty());
+            notifyValidity();
+        });
         grid.add(telescopeField, 1, row++);
 
         grid.add(new Label(message("camera.label")), 0, row);
         cameraField = new TextField();
+        cameraField.textProperty().addListener((obs, oldVal, newVal) -> {
+            updateFieldValidationStyle(cameraField, !newVal.trim().isEmpty());
+            notifyValidity();
+        });
         grid.add(cameraField, 1, row++);
 
         grid.add(new Label(message("mount.label")), 0, row);
         mountField = new TextField();
+        mountField.textProperty().addListener((obs, oldVal, newVal) -> {
+            updateFieldValidationStyle(mountField, !newVal.trim().isEmpty());
+            notifyValidity();
+        });
         grid.add(mountField, 1, row++);
 
         grid.add(new Label(message("session.notes.label")), 0, row);
@@ -154,7 +174,11 @@ class Step4SessionMetadataHandler implements StepHandler {
         spectralLineLabel.setText(rayLabel);
         telescopeField.setText(obs.telescope() != null ? obs.telescope() : "");
         cameraField.setText(obs.camera() != null ? obs.camera() : "");
-        mountField.setText(obs.mount() != null ? obs.mount() : "");
+        var mount = obs.mount();
+        if ((mount == null || mount.isBlank()) && isSunscanInstrument(obs.instrument())) {
+            mount = "Sunscan";
+        }
+        mountField.setText(mount != null ? mount : "");
 
         var quota = authHandler.getQuotaResponse();
         if (quota != null) {
@@ -164,6 +188,25 @@ class Step4SessionMetadataHandler implements StepHandler {
                     quota.usedImageCount(), quota.quotaImageCount(),
                     storageUsed, storageTotal));
         }
+        notifyValidity();
+    }
+
+    private boolean isFormValid() {
+        return !titleField.getText().trim().isEmpty()
+                && !telescopeField.getText().trim().isEmpty()
+                && !cameraField.getText().trim().isEmpty()
+                && !mountField.getText().trim().isEmpty();
+    }
+
+    private void notifyValidity() {
+        if (validityListener != null) {
+            validityListener.accept(isFormValid());
+        }
+    }
+
+    private static boolean isSunscanInstrument(SpectroHeliograph instrument) {
+        return instrument != null && instrument.label() != null
+                && instrument.label().toLowerCase(Locale.US).contains("sunscan");
     }
 
     private static String formatBytes(long bytes) {
@@ -199,7 +242,51 @@ class Step4SessionMetadataHandler implements StepHandler {
             AlertFactory.error(message("session.title.required")).showAndWait();
             return false;
         }
+        var missing = new ArrayList<String>();
+        var telescopeValid = !telescopeField.getText().trim().isEmpty();
+        var cameraValid = !cameraField.getText().trim().isEmpty();
+        var mountValid = !mountField.getText().trim().isEmpty();
+        updateFieldValidationStyle(telescopeField, telescopeValid);
+        updateFieldValidationStyle(cameraField, cameraValid);
+        updateFieldValidationStyle(mountField, mountValid);
+        if (!telescopeValid) {
+            missing.add(message("telescope.label"));
+        }
+        if (!cameraValid) {
+            missing.add(message("camera.label"));
+        }
+        if (!mountValid) {
+            missing.add(message("mount.label"));
+        }
+        if (!missing.isEmpty()) {
+            AlertFactory.error(MessageFormat.format(message("session.equipment.required"), String.join(", ", missing))).showAndWait();
+            return false;
+        }
         return true;
+    }
+
+    private static void updateFieldValidationStyle(Node field, boolean isValid) {
+        var currentStyle = field.getStyle() != null ? field.getStyle() : "";
+        if (isValid) {
+            if (currentStyle.contains("-fx-border-color: red")) {
+                currentStyle = currentStyle.replaceAll("-fx-border-color: red;", "")
+                        .replaceAll("-fx-border-width: 2px;", "")
+                        .trim();
+                currentStyle = currentStyle.replaceAll("\\s+", " ").replaceAll(";+", ";");
+                if (currentStyle.endsWith(";")) {
+                    currentStyle = currentStyle.substring(0, currentStyle.length() - 1);
+                }
+                field.setStyle(currentStyle);
+            }
+        } else {
+            if (!currentStyle.contains("-fx-border-color: red")) {
+                if (!currentStyle.isEmpty() && !currentStyle.endsWith(";")) {
+                    currentStyle += "; ";
+                }
+                currentStyle += "-fx-border-color: red; -fx-border-width: 2px;";
+                field.setStyle(currentStyle);
+            }
+        }
     }
 
     private static String[] splitBrandModel(String text) {

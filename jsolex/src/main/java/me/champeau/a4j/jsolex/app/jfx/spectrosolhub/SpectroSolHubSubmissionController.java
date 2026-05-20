@@ -117,7 +117,11 @@ public class SpectroSolHubSubmissionController {
         );
         this.step2Handler = new Step2ImageSelectionHandler(availableImagesSupplier, detectedSpectralRay);
         this.step3Handler = new Step3OrientationHandler(processParams, availableImagesSupplier);
-        this.step4Handler = new Step4SessionMetadataHandler(processParams, detectedSpectralRay, this.step2Handler, this.step1Handler);
+        this.step4Handler = new Step4SessionMetadataHandler(processParams, detectedSpectralRay, this.step2Handler, this.step1Handler, valid -> {
+            if (currentStep == 4) {
+                nextButton.setDisable(!valid);
+            }
+        });
 
         Platform.runLater(this::initializeStyles);
         initializeWizard();
@@ -193,6 +197,7 @@ public class SpectroSolHubSubmissionController {
             var content = handler.createContent();
             contentPane.getChildren().clear();
             contentPane.getChildren().add(content);
+            nextButton.setDisable(false);
             if (handler == step1Handler) {
                 nextButton.setDisable(!step1Handler.isAuthenticated());
             }
