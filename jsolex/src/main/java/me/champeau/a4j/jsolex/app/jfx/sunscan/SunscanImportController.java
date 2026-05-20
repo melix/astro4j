@@ -39,6 +39,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -74,6 +75,8 @@ public class SunscanImportController {
 
     private final DateTimeFormatter dateFormatter =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault());
+    private static final DateTimeFormatter UTC_FILENAME_FORMATTER =
+            DateTimeFormatter.ofPattern("yyyy_MM_dd-HH_mm_ss").withZone(ZoneOffset.UTC);
 
     @FXML
     private javafx.scene.control.TextField hostField;
@@ -251,10 +254,11 @@ public class SunscanImportController {
             try {
                 for (var i = 0; i < selected.size(); i++) {
                     var scan = selected.get(i);
-                    var target = destination.resolve(scan.folderName()).resolve("scan.ser");
+                    var fileName = localFileName(scan);
+                    var target = destination.resolve(fileName);
                     var index = i;
                     Platform.runLater(() -> statusLabel.setText(
-                            message("downloading").formatted(scan.folderName(), index + 1, selected.size())));
+                            message("downloading").formatted(fileName, index + 1, selected.size())));
                     current.downloadScan(scan, target, (bytes, total) -> {
                         if (total > 0) {
                             var fraction = (index + (double) bytes / total) / selected.size();
@@ -296,6 +300,10 @@ public class SunscanImportController {
         importButton.setDisable(busy);
         browseButton.setDisable(busy);
         hostField.setDisable(busy);
+    }
+
+    private static String localFileName(SunscanScan scan) {
+        return UTC_FILENAME_FORMATTER.format(Instant.ofEpochSecond(scan.creationDate())) + "-scan.ser";
     }
 
     private static String message(String key) {
