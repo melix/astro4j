@@ -210,8 +210,8 @@ public final class BatchProcessingHelper {
             var unused = ReferenceIntensities.INSTANCE;
             try {
                 var parallelism = capParallelismForMemory(Configuration.getInstance().getBatchParallelism());
-                var reconstructionSemaphore = new Semaphore(parallelism);
-                var totalInFlightSemaphore = new Semaphore(parallelism + 1);
+                var reconstructionSemaphore = new Semaphore(parallelism, true);
+                var totalInFlightSemaphore = new Semaphore(parallelism + 1, true);
                 try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
                     for (int fileIdx = 0; fileIdx < selectedFiles.size(); fileIdx++) {
                         if (Thread.currentThread().isInterrupted() || interrupted.get()) {
@@ -223,26 +223,28 @@ public final class BatchProcessingHelper {
                         var singleOperation = progressOperation.createChild(selectedFile.getName());
                         context.updateProgress(singleOperation);
                         int finalFileIdx = fileIdx;
+                        try {
+                            totalInFlightSemaphore.acquire();
+                        } catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                            interrupted.set(true);
+                            break;
+                        }
+                        try {
+                            reconstructionSemaphore.acquire();
+                        } catch (InterruptedException ie) {
+                            totalInFlightSemaphore.release();
+                            Thread.currentThread().interrupt();
+                            interrupted.set(true);
+                            break;
+                        }
+                        var reconstructionReleased = new AtomicBoolean(false);
+                        Runnable releaseReconstructionOnce = () -> {
+                            if (reconstructionReleased.compareAndSet(false, true)) {
+                                reconstructionSemaphore.release();
+                            }
+                        };
                         executor.submit(() -> {
-                            try {
-                                totalInFlightSemaphore.acquire();
-                            } catch (InterruptedException ie) {
-                                Thread.currentThread().interrupt();
-                                return;
-                            }
-                            try {
-                                reconstructionSemaphore.acquire();
-                            } catch (InterruptedException ie) {
-                                totalInFlightSemaphore.release();
-                                Thread.currentThread().interrupt();
-                                return;
-                            }
-                            var reconstructionReleased = new AtomicBoolean(false);
-                            Runnable releaseReconstructionOnce = () -> {
-                                if (reconstructionReleased.compareAndSet(false, true)) {
-                                    reconstructionSemaphore.release();
-                                }
-                            };
                             try {
                                 processFile(
                                         context,
