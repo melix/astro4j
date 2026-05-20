@@ -38,11 +38,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -72,6 +75,7 @@ public final class FileBackedImage implements ImageWrapper {
     private static final Semaphore WRITE_SEMAPHORE = new Semaphore(WRITE_PERMITS);
     private static final ReferenceQueue<ImageWrapper> REFERENCE_QUEUE = new ReferenceQueue<>();
     private static final AtomicBoolean ASYNC_FLUSH_PENDING = new AtomicBoolean();
+    private static final AtomicReference<CompletableFuture<Void>> IN_FLIGHT_FLUSH = new AtomicReference<>();
 
     private static volatile BooleanSupplier underPressure = () -> HeapPressure.current() > 0.5;
 
@@ -198,8 +202,10 @@ public final class FileBackedImage implements ImageWrapper {
                 event.cached = true;
                 return fbi;
             }
-            CACHE_LOCK.lock();
-            // if memory is too close to full, flush some images to disk
+            // if memory is too close to full, flush some images to disk.
+            // Done outside CACHE_LOCK so a multi-second flush does not serialize
+            // concurrent wrap() callers; flushImages() takes the lock internally
+            // only long enough to snapshot the cache.
             if (underPressure.getAsBoolean()) {
                 event.triggeredFlush = true;
                 if (mustNotBlock.getAsBoolean()) {
@@ -209,6 +215,7 @@ public final class FileBackedImage implements ImageWrapper {
                     flushImages();
                 }
             }
+            CACHE_LOCK.lock();
             try {
                 var cached = WRAP_CACHE.get(wrapper);
                 if (cached != null) {
@@ -243,6 +250,38 @@ public final class FileBackedImage implements ImageWrapper {
     }
 
     public static void flushImages() {
+        // Coalesce concurrent flushes: while one is running, additional callers
+        // join the in-flight flush instead of starting their own redundant scan
+        // and wait. Most concurrent calls otherwise duplicate work (writeToDisk
+        // is idempotent), but every duplicate caller still blocks for the full
+        // disk-I/O duration.
+        while (true) {
+            var inFlight = IN_FLIGHT_FLUSH.get();
+            if (inFlight != null) {
+                try {
+                    inFlight.join();
+                } catch (CompletionException ignored) {
+                    // The in-flight flush failed; one ran, so we return anyway.
+                }
+                return;
+            }
+            var promise = new CompletableFuture<Void>();
+            if (IN_FLIGHT_FLUSH.compareAndSet(null, promise)) {
+                try {
+                    doFlush();
+                    promise.complete(null);
+                } catch (Throwable t) {
+                    promise.completeExceptionally(t);
+                    throw t;
+                } finally {
+                    IN_FLIGHT_FLUSH.set(null);
+                }
+                return;
+            }
+        }
+    }
+
+    private static void doFlush() {
         // CACHE_LOCK is held only to snapshot the cache, not during the disk
         // I/O: concurrent wrap() calls are therefore not back-pressured.
         List<FileBackedImage> fbiToFlush;
@@ -654,6 +693,15 @@ public final class FileBackedImage implements ImageWrapper {
             var source = this.source;
             this.source = null;
             image.flushToDisk(source, "SOFTREF");
+        }
+    }
+
+    public static void onShutdown() {
+        LOCK.lock();
+        try {
+            WRAP_CACHE.clear();
+        }  finally {
+            LOCK.unlock();
         }
     }
 }

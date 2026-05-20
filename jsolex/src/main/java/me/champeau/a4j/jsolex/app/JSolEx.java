@@ -560,6 +560,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             server.addStatusChangeListener(this::updateServerStatus);
             updateLiveStatus();
             maybeShowWelcomeMessage(rootScene);
+            Runtime.getRuntime().addShutdownHook(new Thread(FileBackedImage::onShutdown));
         } catch (IOException exception) {
             throw new ProcessingException(exception);
         }
