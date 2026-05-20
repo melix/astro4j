@@ -380,7 +380,7 @@ public class SunscanImportController {
     }
 
     private static String message(String key) {
-        return I18N.string(SunscanImportController.class, "sunscan-import", key);
+        return I18N.string(JSolEx.class, "sunscan-import", key);
     }
 
     /**
