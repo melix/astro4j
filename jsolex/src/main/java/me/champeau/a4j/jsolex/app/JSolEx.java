@@ -33,7 +33,6 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
@@ -322,12 +321,6 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     private MenuItem spectroSolHubMenuItem;
 
     @FXML
-    private MenuItem openFromSunscanMenuItem;
-
-    private static final int SUNSCAN_REQUIRED_CLICKS = 5;
-    private int sunscanClickCount = 0;
-
-    @FXML
     private Label spectralLinePrefix;
 
     @FXML
@@ -538,8 +531,6 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             referenceImageHelper = new ReferenceImageHelper(rootStage, referenceImageTab);
             referenceImageHelper.initialize();
             bass2000Button.setVisible(true);
-            var sunscanEnabled = isSunscanEnabled();
-            openFromSunscanMenuItem.setVisible(sunscanEnabled);
             stage.show();
             refreshRecentItemsMenu();
             setupLogsTabActivityIndicator();
@@ -1518,29 +1509,6 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         }
     }
 
-    private static boolean isSunscanEnabled() {
-        return Boolean.getBoolean("sunscan.enabled");
-    }
-
-    private void setupHiddenSunscanFeature(Label contentLabel, Alert alert) {
-        contentLabel.setOnMouseClicked(event -> {
-            if (openFromSunscanMenuItem.isVisible()) {
-                return;
-            }
-            sunscanClickCount++;
-            if (sunscanClickCount >= SUNSCAN_REQUIRED_CLICKS) {
-                openFromSunscanMenuItem.setVisible(true);
-                Platform.runLater(() -> {
-                    var notification = AlertFactory.info();
-                    notification.setTitle("Hidden Feature Unlocked!");
-                    notification.setHeaderText("SunScan import is now available");
-                    notification.setContentText("The \"Import from SunScan...\" entry has been added to the File menu. This feature is in beta testing only.");
-                    notification.showAndWait().ifPresent(bt -> alert.close());
-                });
-            }
-        });
-    }
-
     @FXML
     private void loadImages() {
         if (imagesViewerTab == null || !mainPane.getTabs().contains(imagesViewerTab)) {
@@ -2019,7 +1987,6 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
 
         var contentLabel = new Label(I18N.string(getClass(), "about", "about.message"));
         contentLabel.setWrapText(true);
-        setupHiddenSunscanFeature(contentLabel, alert);
         alert.getDialogPane().setContent(contentLabel);
 
         var licenses = new TextArea();

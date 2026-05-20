@@ -15,7 +15,7 @@
                     <MenuItem onAction="#open" text="%open.ser.file"/>
                     <MenuItem onAction="#openBatch" text="%open.batch"/>
                     <MenuItem onAction="#watchMode" text="%open.watch"/>
-                    <MenuItem fx:id="openFromSunscanMenuItem" onAction="#openFromSunscan" text="%open.sunscan" visible="false"/>
+                    <MenuItem onAction="#openFromSunscan" text="%open.sunscan"/>
                     <Menu fx:id="recentFilesMenu" text="%recent.files"/>
                     <SeparatorMenuItem/>
                     <MenuItem onAction="#showAdvancedParams" text="%advanced.params"/>

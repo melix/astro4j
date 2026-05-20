@@ -356,6 +356,18 @@ Lorsque vous avez terminé, cliquez sur le bouton "Interrompre la surveillance" 
 
 TIP: Vous pouvez combiner le fait d'être en mode surveillance avec le fait d'ouvrir une image dans une fenêtre externe (en faisant un clic droit sur l'image choisie). En effet, lors du traitement de la nouvelle vidéo, l'image dans la fenêtre sera automatiquement remplacée par la nouvelle version. Ceci peut par exemple être intéressant dans des présentations publiques, en ayant une fenêtre montrant simplement le résultat du traitement.
 
+== Importer des scans depuis un SunScan
+
+Si vous possédez un spectrohéliographe SunScan, JSol'Ex peut récupérer directement les scans acquis par l'appareil, sans avoir à copier les fichiers manuellement.
+
+Connectez votre ordinateur au point d'accès Wi-Fi du SunScan, puis dans le menu "Fichier" choisissez "Importer depuis SunScan...".
+
+JSol'Ex tente de localiser automatiquement l'appareil sur le réseau. Si la détection échoue, saisissez son adresse (par exemple `sunscan.local:8000`) dans le champ "Adresse de l'appareil" puis cliquez sur "Connexion".
+
+La fenêtre liste tous les scans disponibles sur l'appareil, avec leur date d'acquisition, leur raie spectrale et leur état de traitement. Cochez les scans à traiter, choisissez un dossier de téléchargement, puis cliquez sur "Importer et traiter". JSol'Ex télécharge les fichiers `scan.ser` sélectionnés (renommés `YYYY_MM_DD-HH_mm_ss-scan.ser` à partir de la date UTC de capture) et les ouvre : un scan unique ouvre la fenêtre de traitement habituelle, tandis que plusieurs scans sont traités en lot.
+
+Lorsque les scans sont importés de cette manière, l'instrument "Sunscan" et son paramétrage (caméra et taille des pixels) sont sélectionnés automatiquement dans les paramètres de traitement, ce qui active également le retournement vertical du spectre. Vous pouvez toujours modifier ces réglages avant de lancer le traitement.
+
 [[custom_images]]
 == Personnalisation des images générées
 
