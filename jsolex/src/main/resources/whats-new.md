@@ -9,6 +9,7 @@
 - Colorized images now use a more even tonal range thanks to a revised stretching pipeline.
 - Images in the sidebar can now be renamed via the right-click menu to disambiguate them in collages.
 - The `dedistort` ImageMath function gained a `drizzle` parameter (any value between 1 and 4, e.g. 1.5, 2, 3) that produces a super-resolved output to recover detail under excellent seeing.
+- Scans acquired on a SunScan device can be discovered and imported directly from the File menu.
 - Fixed some generated images being missing from batch results and the image review window.
 - Double-clicking an image to zoom in at 1:1 now centers the viewport on the clicked point.
 I do- Added an advanced parameter to choose the directory where temporary files are written.

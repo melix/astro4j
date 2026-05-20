@@ -357,6 +357,18 @@ Once you're happy with the result, click on the "Stop watching" button on the bo
 
 TIP: You can combine the watch mode with opening an image in a new window (by right-clicking on an image, you can open it in a new window). When a new SER file will be processed, the corresponding image will automatically replace the one in the external window. This can be useful in demonstrations, if you have for example a separate monitor where you would only show the result of processing.
 
+== Importing scans from a SunScan
+
+If you own a SunScan spectroheliograph, JSol'Ex can fetch the scans acquired by the device directly, without having to copy files manually.
+
+Connect your computer to the SunScan Wi-Fi access point, then in the "File" menu choose "Import from SunScan...".
+
+JSol'Ex will try to locate the device automatically on the network. If detection fails, type its address (for example `sunscan.local:8000`) in the "Device address" field and click "Connect".
+
+The dialog lists every scan available on the device, with its acquisition date, spectral line and processing status. Tick the scans you want to process, choose a download folder, then click "Import and process". JSol'Ex downloads the selected `scan.ser` files (renamed `YYYY_MM_DD-HH_mm_ss-scan.ser` based on each scan's UTC capture date) and opens them: a single scan opens the regular processing window, while several scans are processed as a batch.
+
+When scans are imported this way, the "Sunscan" instrument and its setup (camera and pixel size) are selected automatically in the processing parameters, which also enables the vertical flip of the spectrum. You can still change these settings before starting the processing.
+
 [[custom_images]]
 == Customization of generated images
 
