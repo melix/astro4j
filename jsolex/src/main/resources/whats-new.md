@@ -4,6 +4,7 @@
 
 - Fixed an error that could prevent the inverted image from being generated when the solar disk was small within the frame.
 - The inverted image no longer displays the observation details overlay.
+- SunScan import now skips scans already present in the download folder instead of downloading them again.
 
 ## What's New in Version 5.2.0
 
