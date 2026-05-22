@@ -165,6 +165,10 @@ public final class MidtoneTransferFunctionAutostretchStrategy implements Stretch
 
         // Calculate midtones parameter using MTF function
         var midtones = calculateMTF(m2, targetBg, 0.0, 1.0);
+        if (midtones <= 0.0) {
+            // m2 collapsed to the shadow clip: fall back to a neutral midtone
+            midtones = 0.5;
+        }
 
         // Convert back to pixel values
         return new MTFParams(

@@ -1,5 +1,10 @@
 # Welcome to JSol'Ex {{version}}!
 
+## What's New in Version 5.2.1
+
+- Fixed an error that could prevent the inverted image from being generated when the solar disk was small within the frame.
+- The inverted image no longer displays the observation details overlay.
+
 ## What's New in Version 5.2.0
 
 - Redesigned the batch processing view with a progress dashboard, compact rows and a detail side panel.
