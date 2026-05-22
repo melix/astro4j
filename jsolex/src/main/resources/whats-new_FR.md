@@ -5,6 +5,7 @@
 - Correction d'une erreur qui pouvait empêcher la génération de l'image inversée lorsque le disque solaire était petit dans l'image.
 - L'image inversée n'affiche plus les informations d'observation.
 - L'import SunScan ignore désormais les scans déjà présents dans le dossier de téléchargement au lieu de les télécharger à nouveau.
+- Réduction de l'utilisation mémoire lors de plusieurs traitements par lot successifs, qui pouvait auparavant provoquer des erreurs de mémoire insuffisante.
 
 ## Nouveautés de la version 5.2.0
 
