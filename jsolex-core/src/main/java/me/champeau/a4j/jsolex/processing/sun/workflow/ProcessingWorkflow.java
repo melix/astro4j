@@ -596,9 +596,7 @@ public class ProcessingWorkflow {
 
     private void emitNegativeImage(ImageWrapper32 negative) {
         TransformationHistory.recordTransform(negative, "Negative");
-        var context = SolexVideoProcessor.createMetadata(processParams, serFile, null, header).build().toMap();
-        var decorated = (ImageWrapper32) new ImageDraw(context, broadcaster).drawObservationDetails(Map.of("img", negative));
-        imagesEmitter.newMonoImage(GeneratedImageKind.NEGATIVE, null, message("negative"), "negative", String.format(message("negative.description"), state.pixelShift()), decorated);
+        imagesEmitter.newMonoImage(GeneratedImageKind.NEGATIVE, null, message("negative"), "negative", String.format(message("negative.description"), state.pixelShift()), negative);
     }
 
     private void produceCoronagraph(float blackPoint, ImageWrapper32 geometryFixed) {

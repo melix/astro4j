@@ -1,5 +1,10 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+## Nouveautés de la version 5.2.1
+
+- Correction d'une erreur qui pouvait empêcher la génération de l'image inversée lorsque le disque solaire était petit dans l'image.
+- L'image inversée n'affiche plus les informations d'observation.
+
 ## Nouveautés de la version 5.2.0
 
 - Refonte de l'écran de traitement par lots avec un tableau de bord de progression, des lignes compactes et un panneau latéral de détails.
