@@ -42,6 +42,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -308,6 +309,15 @@ public class SunscanImportController {
                     var fileName = localFileName(scan);
                     var target = destination.resolve(fileName);
                     var index = i;
+                    if (Files.isRegularFile(target)) {
+                        Platform.runLater(() -> {
+                            fileLabel.setText(message("already.downloaded").formatted(fileName, index + 1, selected.size()));
+                            bar.setProgress((double) (index + 1) / selected.size());
+                            detailsLabel.setText("");
+                        });
+                        downloaded.add(target.toFile());
+                        continue;
+                    }
                     Platform.runLater(() -> {
                         fileLabel.setText(message("connecting.to.scan").formatted(fileName, index + 1, selected.size()));
                         bar.setProgress(ProgressBar.INDETERMINATE_PROGRESS);

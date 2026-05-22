@@ -27,8 +27,10 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -194,18 +196,29 @@ public class SunscanClient {
         }
         var total = response.headers().firstValueAsLong("content-length").orElse(-1L);
         Files.createDirectories(destination.getParent());
-        try (InputStream in = response.body();
-             OutputStream out = Files.newOutputStream(destination)) {
-            var buffer = new byte[64 * 1024];
-            long downloaded = 0;
-            int read;
-            while ((read = in.read(buffer)) != -1) {
-                out.write(buffer, 0, read);
-                downloaded += read;
-                if (progress != null) {
-                    progress.onProgress(downloaded, total);
+        var partial = destination.resolveSibling(destination.getFileName() + ".part");
+        try {
+            try (InputStream in = response.body();
+                 OutputStream out = Files.newOutputStream(partial)) {
+                var buffer = new byte[64 * 1024];
+                long downloaded = 0;
+                int read;
+                while ((read = in.read(buffer)) != -1) {
+                    out.write(buffer, 0, read);
+                    downloaded += read;
+                    if (progress != null) {
+                        progress.onProgress(downloaded, total);
+                    }
                 }
             }
+            try {
+                Files.move(partial, destination, StandardCopyOption.ATOMIC_MOVE);
+            } catch (AtomicMoveNotSupportedException e) {
+                Files.move(partial, destination, StandardCopyOption.REPLACE_EXISTING);
+            }
+        } catch (IOException | RuntimeException e) {
+            Files.deleteIfExists(partial);
+            throw e;
         }
     }
 
