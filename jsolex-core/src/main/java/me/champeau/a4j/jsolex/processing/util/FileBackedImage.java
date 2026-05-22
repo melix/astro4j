@@ -697,10 +697,22 @@ public final class FileBackedImage implements ImageWrapper {
     }
 
     public static void onShutdown() {
+        clearCache();
+    }
+
+    /**
+     * Clears the wrap deduplication cache so a new processing session starts from
+     * a clean state. This only drops the weak {@code original -> FileBackedImage}
+     * mapping used to avoid wrapping the same image twice; it does not touch the
+     * reference counts or status of images that are still live, so backing files
+     * referenced by reachable instances remain valid and are deleted by the
+     * cleaner when those instances become unreachable.
+     */
+    public static void clearCache() {
         LOCK.lock();
         try {
             WRAP_CACHE.clear();
-        }  finally {
+        } finally {
             LOCK.unlock();
         }
     }

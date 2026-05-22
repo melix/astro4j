@@ -572,14 +572,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     }
 
     private void configureIsolatedScriptExecution() {
-        var standalone = createRootOperation("standalone");
-        var defaultParams = ProcessParams.loadDefaults();
-        prepareForScriptExecution(
-                createNewStandaloneExecutor(defaultParams, standalone, config.findLastOpenDirectory().orElseGet(() -> Path.of(System.getProperty("java.io.tmpdir"))).toFile()),
-                defaultParams,
-                standalone,
-                ImageMathScriptExecutor.SectionKind.SINGLE
-        );
+        installStandaloneScriptExecutor();
         var firstRun = new AtomicBoolean(true);
         var prevHandler = imageMathRun.getOnAction();
         imageMathRun.setOnAction(event -> {
@@ -588,6 +581,23 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             }
             prevHandler.handle(event);
         });
+    }
+
+    /**
+     * Installs a fresh standalone script executor and rebinds the image math run
+     * button to it. This drops any previously installed executor (in particular a
+     * batch mode listener which retains every batch image as script variables), so
+     * starting a new session does not keep the previous run's images reachable.
+     */
+    private void installStandaloneScriptExecutor() {
+        var standalone = createRootOperation("standalone");
+        var defaultParams = ProcessParams.loadDefaults();
+        prepareForScriptExecution(
+                createNewStandaloneExecutor(defaultParams, standalone, config.findLastOpenDirectory().orElseGet(() -> Path.of(System.getProperty("java.io.tmpdir"))).toFile()),
+                defaultParams,
+                standalone,
+                ImageMathScriptExecutor.SectionKind.SINGLE
+        );
         hideArrowButton(true);
     }
 
@@ -1140,7 +1150,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         imageMathRun.setOnAction(evt -> {
             var text = imageMathScript.getText();
             if (clearImagesCheckbox.isSelected()) {
-                Platform.runLater(this::newSession);
+                Platform.runLater(this::clearDisplayedImages);
             }
             config.findLastOpenDirectory(Configuration.DirectoryKind.IMAGE_MATH).ifPresent(executor::setIncludesDir);
             BackgroundOperations.async(() -> {
@@ -2105,6 +2115,16 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     }
 
     public void newSession() {
+        clearDisplayedImages();
+        FileBackedImage.clearCache();
+    }
+
+    /**
+     * Clears the images currently displayed in the UI without otherwise resetting
+     * the session. Used when re-running a script with the "clear images" option,
+     * where the active script executor (and its loaded images) must be preserved.
+     */
+    private void clearDisplayedImages() {
         mainPane.getTabs().clear();
         imagesViewerTab = new Tab(message("images"), multipleImagesViewer);
         mainPane.getTabs().add(imagesViewerTab);
@@ -2327,6 +2347,10 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     }
 
     private void startBatchProcess(Header header, ProgressOperation progressOperation, ProcessParams params, List<File> selectedFiles, boolean autoTrimSerFile) {
+        // Drop any executor left over from a previous batch (which retains all of its
+        // images as script variables) before starting a new one, so the previous run's
+        // images can be reclaimed instead of coexisting with this run's working set.
+        installStandaloneScriptExecutor();
         batchProcessingHelper.startBatchProcess(this, header, progressOperation, params, selectedFiles, autoTrimSerFile);
     }
 
