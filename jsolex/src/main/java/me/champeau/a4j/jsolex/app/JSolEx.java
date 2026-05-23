@@ -1343,16 +1343,19 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
 
     private void updateParametersMenuItem(List<ScriptParameter> parameters) {
         Platform.runLater(() -> {
-            if (imageMathRun != null && imageMathRun.getItems() != null) {
-                if (parameters.isEmpty()) {
-                    imageMathRun.getItems().clear();
-                    hideArrowButton(true);
-                } else if (imageMathRun.getItems().isEmpty()) {
+            if (imageMathRun == null || imageMathRun.getItems() == null) {
+                return;
+            }
+            if (parameters.isEmpty()) {
+                imageMathRun.getItems().clear();
+                hideArrowButton(true);
+            } else {
+                if (imageMathRun.getItems().isEmpty()) {
                     var paramsMenuItem = new MenuItem(I18N.string(JSolEx.class, "app", "imagemath.params"));
                     paramsMenuItem.setOnAction(evt -> showScriptParametersDialogAndRun());
                     imageMathRun.getItems().add(paramsMenuItem);
-                    hideArrowButton(false);
                 }
+                hideArrowButton(false);
             }
         });
     }

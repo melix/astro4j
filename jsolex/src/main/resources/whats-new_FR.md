@@ -3,6 +3,7 @@
 ## Nouveautés de la version 5.2.2
 
 - Les vitesses de redshift sont désormais calculées au subpixel et accompagnées d'une incertitude.
+- Correction du bouton d'exécution des scripts ImageMath qui perdait son menu de paramètres avancés au lancement d'un traitement par lots.
 
 ## Nouveautés de la version 5.2.1
 
