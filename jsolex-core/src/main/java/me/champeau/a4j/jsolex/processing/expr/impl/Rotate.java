@@ -170,7 +170,7 @@ public class Rotate extends AbstractFunctionImpl {
                         var y2p = (int) (sy + Math.round((x2 - cx) * sinAlpha + (y2 - cy) * cosAlpha));
                         var maxXP = (int) (sx + Math.round((maxX - cx) * cosAlpha - (maxY - cy) * sinAlpha));
                         var maxYP = (int) (sy + Math.round((maxX - cx) * sinAlpha + (maxY - cy) * cosAlpha));
-                        return new RedshiftArea(rs.id(), rs.pixelShift(), rs.relPixelShift(), rs.kmPerSec(), x1p, y1p, x2p, y2p, maxXP, maxYP);
+                        return new RedshiftArea(rs.id(), rs.pixelShift(), rs.relPixelShift(), rs.kmPerSec(), rs.kmPerSecError(), x1p, y1p, x2p, y2p, maxXP, maxYP);
                     })
                     .toList();
             metadata.put(Redshifts.class, new Redshifts(rotated));
@@ -227,13 +227,13 @@ public class Rotate extends AbstractFunctionImpl {
             var areas = rs.redshifts().stream().map(a -> {
                 if (hflip) {
                     return new RedshiftArea(
-                            a.id(), a.pixelShift(), a.relPixelShift(), a.kmPerSec(),
+                            a.id(), a.pixelShift(), a.relPixelShift(), a.kmPerSec(), a.kmPerSecError(),
                             width - a.x2(), a.y1(), width - a.x1(), a.y2(),
                             width - a.maxX(), a.maxY()
                     );
                 } else {
                     return new RedshiftArea(
-                            a.id(), a.pixelShift(), a.relPixelShift(), a.kmPerSec(),
+                            a.id(), a.pixelShift(), a.relPixelShift(), a.kmPerSec(), a.kmPerSecError(),
                             a.x1(), height - a.y2(), a.x2(), height - a.y1(),
                             a.maxX(), height - a.maxY()
                     );

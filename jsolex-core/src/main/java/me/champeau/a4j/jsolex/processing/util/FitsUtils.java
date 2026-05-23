@@ -371,13 +371,21 @@ public class FitsUtils {
                 } else if (REDSHIFTS_VALUE.equals(card.getValue())) {
                     var binaryTable = binaryTableHdu.getData();
                     int cpt = binaryTable.getNRows();
+                    int nCols = binaryTable.getNCols();
+                    // Legacy layouts:
+                    //   9 cols  -> pixelShift(int), relPixelShift(int), kmPerSec, x1..maxY
+                    //  10 cols  -> 9 cols + id (String) at column 9
+                    //  11 cols  -> 10 cols + kmPerSecError (double) at column 10
+                    // Columns 0 and 1 are read as doubles so they work whether the file
+                    // stored them as int (old) or double (new).
                     var values = new ArrayList<RedshiftArea>();
                     for (int i = 0; i < cpt; i++) {
                         var redshift = new RedshiftArea(
-                                binaryTable.getNCols() == 10 ? binaryTable.getString(i, 9) : null,
-                                binaryTable.getNumber(i, 0).intValue(),
-                                binaryTable.getNumber(i, 1).intValue(),
+                                nCols >= 10 ? binaryTable.getString(i, 9) : null,
+                                binaryTable.getNumber(i, 0).doubleValue(),
+                                binaryTable.getNumber(i, 1).doubleValue(),
                                 binaryTable.getNumber(i, 2).doubleValue(),
+                                nCols >= 11 ? binaryTable.getNumber(i, 10).doubleValue() : 0d,
                                 binaryTable.getNumber(i, 3).intValue(),
                                 binaryTable.getNumber(i, 4).intValue(),
                                 binaryTable.getNumber(i, 5).intValue(),
@@ -610,7 +618,8 @@ public class FitsUtils {
                     redshift.y2(),
                     redshift.maxX(),
                     redshift.maxY(),
-                    redshift.id()
+                    redshift.id(),
+                    redshift.kmPerSecError()
             }));
             writeBinaryTable(table, REDSHIFTS_VALUE, "Measured redshifts", fits);
         });

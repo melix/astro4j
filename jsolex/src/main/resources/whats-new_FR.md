@@ -1,5 +1,9 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+## Nouveautés de la version 5.2.2
+
+- Les vitesses de redshift sont désormais calculées au subpixel et accompagnées d'une incertitude.
+
 ## Nouveautés de la version 5.2.1
 
 - Correction d'une erreur qui pouvait empêcher la génération de l'image inversée lorsque le disque solaire était petit dans l'image.

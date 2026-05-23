@@ -94,8 +94,12 @@ public class MetadataSupport {
         sb.append(message("redshifts.measurements")).append("\n");
         redshifts.redshifts().forEach(rs -> {
             sb.append("  - ");
-            sb.append(String.format(Locale.US, "%.2f km/s", rs.kmPerSec()));
-            sb.append(" (pixel shift = ").append(rs.relPixelShift()).append(")");
+            if (rs.kmPerSecError() > 0) {
+                sb.append(String.format(Locale.US, "%.2f ± %.2f km/s", rs.kmPerSec(), rs.kmPerSecError()));
+            } else {
+                sb.append(String.format(Locale.US, "%.2f km/s", rs.kmPerSec()));
+            }
+            sb.append(String.format(Locale.US, " (pixel shift = %.2f)", rs.relPixelShift()));
             sb.append(" ").append(message("at.coord")).append(" ").append(rs.maxX()).append("x").append(rs.maxY());
             sb.append("\n");
         });

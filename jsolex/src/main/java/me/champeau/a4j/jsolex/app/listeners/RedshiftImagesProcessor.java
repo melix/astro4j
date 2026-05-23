@@ -205,7 +205,7 @@ public class RedshiftImagesProcessor {
      * @param annotationColor RGB color values for annotations
      */
     public void produceImages(RedshiftCreatorKind kind, int boxSize, int margin, boolean useFullRangePanels, boolean annotateAnimations, int[] annotationColor) {
-        var requiredShifts = createRange(margin, redshifts.stream().mapToInt(RedshiftArea::pixelShift).max().orElse(0));
+        var requiredShifts = createRange(margin, (int) Math.ceil(redshifts.stream().mapToDouble(RedshiftArea::pixelShift).max().orElse(0d)));
         var missingShifts = requiredShifts.stream().filter(d -> !shiftImages.containsKey(new PixelShift(d))).toList();
         if (!missingShifts.isEmpty()) {
             restartProcessForMissingShifts(new LinkedHashSet<>(missingShifts), operation);
@@ -560,7 +560,7 @@ public class RedshiftImagesProcessor {
         var anim = (FileOutputResult) animate.createAnimation(Map.of("images", frames, "delay", 25));
         var displayFile = anim.displayFile();
         var name = "redshift-" + redshift.id();
-        var title = String.format("Panel %s (%.2f km/s)", redshift.id(), redshift.kmPerSec());
+        var title = String.format(Locale.US, "Animation %s (%.2f km/s)", redshift.id(), redshift.kmPerSec());
 
         // Save non-display files manually without firing display events
         var baseName = namingStrategy.render(sequenceNumber, null,
@@ -618,7 +618,7 @@ public class RedshiftImagesProcessor {
                 Collections.reverse(snapshotsToDisplay);
             }
         }
-        var title = String.format("Panel %s (%.2f km/s)", redshift.id(), redshift.kmPerSec());
+        var title = String.format(Locale.US, "Panel %s (%.2f km/s)", redshift.id(), redshift.kmPerSec());
         var name = "redshift-" + redshift.id();
         var width = boxSize;
         var height = boxSize;
@@ -784,7 +784,7 @@ public class RedshiftImagesProcessor {
      * @return formatted disk space requirement
      */
     public String estimateRequiredDiskSpaceWithMargin(int margin) {
-        return estimateRequiredDiskSpace(createRange(margin, redshifts.stream().mapToInt(RedshiftArea::pixelShift).max().orElse(0)).size() / SAMPLING);
+        return estimateRequiredDiskSpace(createRange(margin, (int) Math.ceil(redshifts.stream().mapToDouble(RedshiftArea::pixelShift).max().orElse(0d))).size() / SAMPLING);
     }
 
     /**
@@ -794,7 +794,7 @@ public class RedshiftImagesProcessor {
      * @return estimated bytes required
      */
     public double estimateRequiredBytesForProcessingWithMargin(int margin) {
-        return estimateRequiredBytesForProcessing(createRange(margin, redshifts.stream().mapToInt(RedshiftArea::pixelShift).max().orElse(0)).size() / SAMPLING);
+        return estimateRequiredBytesForProcessing(createRange(margin, (int) Math.ceil(redshifts.stream().mapToDouble(RedshiftArea::pixelShift).max().orElse(0d))).size() / SAMPLING);
     }
 
     /**
