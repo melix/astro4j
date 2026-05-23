@@ -17,7 +17,7 @@ package me.champeau.a4j.jsolex.processing.sun.detection;
 
 import me.champeau.a4j.math.tuples.IntPair;
 
-record Redshift(int pixelShift, int relMaxShift, double kmPerSec, IntPair position) {
+record Redshift(double pixelShift, double relMaxShift, double kmPerSec, double kmPerSecError, IntPair position) {
     public double distanceTo(Redshift other) {
         return distanceTo(other.position());
     }
@@ -27,6 +27,6 @@ record Redshift(int pixelShift, int relMaxShift, double kmPerSec, IntPair positi
     }
 
     public RedshiftArea toArea() {
-        return new RedshiftArea(null, pixelShift, relMaxShift, kmPerSec, position.a(), position.b(), position.a(), position.b(), position.a(), position.b());
+        return new RedshiftArea(null, pixelShift, relMaxShift, kmPerSec, kmPerSecError, position.a(), position.b(), position.a(), position.b(), position.a(), position.b());
     }
 }

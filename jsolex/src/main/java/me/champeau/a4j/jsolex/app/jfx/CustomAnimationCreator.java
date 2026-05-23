@@ -137,6 +137,7 @@ public class CustomAnimationCreator {
     private int x;
     private int y;
     private RedshiftImagesProcessor redshiftProcessor;
+    private int dopplerId;
 
     private Stage stage;
 
@@ -169,6 +170,7 @@ public class CustomAnimationCreator {
         this.x = x;
         this.y = y;
         this.redshiftProcessor = redshiftProcessor;
+        this.dopplerId = id;
         width.setTextFormatter(createDimensionFormatter());
         height.setTextFormatter(createDimensionFormatter());
         width.setText(Integer.toString(w));
@@ -310,7 +312,10 @@ public class CustomAnimationCreator {
             BackgroundOperations.async(() -> redshiftProcessor.generateStandaloneAnimation(x, y, width(), height(), minPixelShift(), maxPixelShift(), title.getText(), "custom-anim", annotateAnim.isSelected(), Integer.parseInt(delay.getText()), asRGB(annotationColor.getValue())));
         }
         if (generatePanel.isSelected()) {
-            BackgroundOperations.async(() -> redshiftProcessor.generateStandalonePanel(x, y, width(), height(), minPixelShift(), maxPixelShift(), title.getText(), "custom-panel", asRGB(annotationColor.getValue())));
+            var panelTitle = title.getText().equals(String.format(message("custom.animation"), dopplerId))
+                    ? String.format(message("custom.panel"), dopplerId)
+                    : title.getText();
+            BackgroundOperations.async(() -> redshiftProcessor.generateStandalonePanel(x, y, width(), height(), minPixelShift(), maxPixelShift(), panelTitle, "custom-panel", asRGB(annotationColor.getValue())));
         }
     }
 

@@ -1,5 +1,9 @@
 # Welcome to JSol'Ex {{version}}!
 
+## What's New in Version 5.2.2
+
+- Redshift speeds are now computed with subpixel precision and reported with an uncertainty.
+
 ## What's New in Version 5.2.1
 
 - Fixed an error that could prevent the inverted image from being generated when the solar disk was small within the frame.

@@ -347,7 +347,10 @@ public class ProcessingWorkflow {
                         gr.setStroke(new BasicStroke(2));
                         gr.setColor(Color.RED);
                         gr.setFont(gr.getFont().deriveFont(24f));
-                        gr.drawString(String.format("%s (%.2f km/s)", redshift.id(), redshift.kmPerSec()), x2 + 8, y2);
+                        var label = redshift.kmPerSecError() > 0
+                                ? String.format(Locale.US, "%s (%.2f ± %.2f km/s)", redshift.id(), redshift.kmPerSec(), redshift.kmPerSecError())
+                                : String.format(Locale.US, "%s (%.2f km/s)", redshift.id(), redshift.kmPerSec());
+                        gr.drawString(label, x2 + 8, y2);
                         gr.drawRect(x1, y1, x2 - x1 + 1, y2 - y1 + 1);
                     }
                 });

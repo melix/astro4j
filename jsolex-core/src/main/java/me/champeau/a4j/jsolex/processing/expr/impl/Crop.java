@@ -237,6 +237,7 @@ public class Crop extends AbstractFunctionImpl {
                                     rs.pixelShift(),
                                     rs.relPixelShift(),
                                     rs.kmPerSec(),
+                                    rs.kmPerSecError(),
                                     (int) (rs.x1() - left),
                                     (int) (rs.y1() - top),
                                     (int) (rs.x2() - left),

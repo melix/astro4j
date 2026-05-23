@@ -113,7 +113,7 @@ public class PhenomenaDetector {
         this.detectionListener = detectionListener;
     }
 
-    public double speedOf(int shift) {
+    public double speedOf(double shift) {
         return speedOf(shift, dispersion, lambda0);
     }
 
@@ -454,7 +454,8 @@ public class PhenomenaDetector {
     }
 
     private void performRedshiftDetection(int frameId, int x, int width, int height, float[][] original, DoubleUnaryOperator polynomial, int wingShiftInPixels, List<Redshift> collector, double avgLineValue, double avgOfcolumnAverages, double[] columnsAverages) {
-        // The polynomial is used to find the original pixel position which is in the middle of the h-alpha line
+        // The polynomial is used to find the original pixel position which is in the middle of the h-alpha line.
+        // We keep the value as double to preserve subpixel precision of the line center.
         double yd = polynomial.applyAsDouble(x);
         int yi = (int) yd;
         if (yi - wingShiftInPixels < 0 || yi + wingShiftInPixels >= height) {
@@ -470,58 +471,57 @@ public class PhenomenaDetector {
             // reduce risks of detecting flares
             return;
         }
-        var colMax = 0d;
-        for (int y = 0; y < height; y++) {
-            var v = original[y][x];
-            if (v > colMax) {
-                colMax = v;
-            }
-        }
+        var threshold = avgLineValue + 2 * colStdDev;
 
-        // now we're going to compute the maximum redshift
-        int maxShift = 0;
-        int relMaxShift = 0;
+        // Search the red wing for the threshold crossing
+        double redShift = 0;
+        double redSlope = 0;
         int y = yi + wingShiftInPixels + 1;
         double prev = -1;
-        int minY = 0;
-        int maxY = 0;
+        int maxY = y;
         while (y < height) {
             var v = original[y][x];
-            var shift = y - yi;
-            var threshold = avgLineValue + 2 * colStdDev;
             if (v >= threshold || (prev > 0 && v > 1.2 * prev)) {
+                if (prev > 0 && v > prev) {
+                    // Linear interpolation: find y* such that intensity equals threshold
+                    var frac = (threshold - prev) / (v - prev);
+                    frac = Math.max(0d, Math.min(1d, frac));
+                    var yStar = (y - 1) + frac;
+                    redShift = yStar - yd;
+                    redSlope = v - prev;
+                } else {
+                    redShift = (y - 1) - yd;
+                }
                 break;
-            }
-            if (shift > maxShift) {
-                maxShift = shift;
-                relMaxShift = maxShift;
             }
             prev = v;
             y++;
             maxY = y;
         }
+
+        // Search the blue wing for the threshold crossing
+        double blueShift = 0;
+        double blueSlope = 0;
         y = yi - wingShiftInPixels - 1;
         prev = -1;
-        int maxShiftDown = 0;
-        int relMaxShiftDown = 0;
+        int minY = y;
         while (y >= 0) {
             var v = original[y][x];
-            var shift = yi - y;
-            var threshold = avgLineValue + 2 * colStdDev;
             if (v >= threshold || (prev > 0 && v > 1.2 * prev)) {
+                if (prev > 0 && v > prev) {
+                    var frac = (threshold - prev) / (v - prev);
+                    frac = Math.max(0d, Math.min(1d, frac));
+                    var yStar = (y + 1) - frac;
+                    blueShift = yd - yStar;
+                    blueSlope = v - prev;
+                } else {
+                    blueShift = yd - (y + 1);
+                }
                 break;
-            }
-            if (shift > maxShiftDown) {
-                maxShiftDown = shift;
-                relMaxShiftDown = -shift;
             }
             prev = v;
             y--;
             minY = y;
-        }
-        if (maxShiftDown > maxShift) {
-            maxShift = maxShiftDown;
-            relMaxShift = relMaxShiftDown;
         }
         if (maxY > height - 4) {
             return;
@@ -529,8 +529,23 @@ public class PhenomenaDetector {
         if (minY < 4) {
             return;
         }
+        double maxShift;
+        double relMaxShift;
+        double slope;
+        if (redShift >= blueShift) {
+            maxShift = redShift;
+            relMaxShift = redShift;
+            slope = redSlope;
+        } else {
+            maxShift = blueShift;
+            relMaxShift = -blueShift;
+            slope = blueSlope;
+        }
         if (maxShift >= 2 * wingShiftInPixels) {
-            var redshift = new Redshift(maxShift, relMaxShift, speedOf(maxShift), new IntPair(frameId, reconstructedWidth - x - 1));
+            // 1σ photometric uncertainty on the wing-crossing position, propagated to km/s
+            var sigmaY = slope > 0 ? colStdDev / slope : 1.0;
+            var kmPerSecError = speedOf(sigmaY);
+            var redshift = new Redshift(maxShift, relMaxShift, speedOf(maxShift), kmPerSecError, new IntPair(frameId, reconstructedWidth - x - 1));
             lock.lock();
             try {
                 // the coordinates in the final image are reversed (x <-> y) because of a 90° rotation
@@ -767,7 +782,7 @@ public class PhenomenaDetector {
         var anonynous = computeAreas()
                 .stream()
                 .sorted(
-                        Comparator.comparingInt(RedshiftArea::pixelShift).reversed().thenComparing(
+                        Comparator.comparingDouble(RedshiftArea::pixelShift).reversed().thenComparing(
                                 Comparator.comparingInt(RedshiftArea::area)
                         )
                 ).limit(limit)
@@ -784,7 +799,7 @@ public class PhenomenaDetector {
                 i = 0;
             }
             var id = j == 0 ? String.valueOf(letter) : letter + String.valueOf(j);
-            var areaWithId = new RedshiftArea(id, area.pixelShift(), area.relPixelShift(), area.kmPerSec(), area.x1(), area.y1(), area.x2(), area.y2(), area.maxX(), area.maxY());
+            var areaWithId = new RedshiftArea(id, area.pixelShift(), area.relPixelShift(), area.kmPerSec(), area.kmPerSecError(), area.x1(), area.y1(), area.x2(), area.y2(), area.maxX(), area.maxY());
             withId.add(areaWithId);
             i++;
             letter++;
@@ -819,7 +834,7 @@ public class PhenomenaDetector {
         var allRedshifts = redshiftsPerFrame.values()
                 .stream()
                 .flatMap(List::stream)
-                .sorted(Comparator.comparingInt(Redshift::pixelShift).reversed())
+                .sorted(Comparator.comparingDouble(Redshift::pixelShift).reversed())
                 .limit(4096)
                 .map(Redshift::toArea)
                 .toList();
@@ -867,7 +882,7 @@ public class PhenomenaDetector {
             maxX /= areas.size();
             maxY /= areas.size();
             var first = cluster.areas().getFirst();
-            var redshiftArea = new RedshiftArea(null, cluster.pixelShift(), first.relPixelShift(), first.kmPerSec(), x1, y1, x2, y2, maxX, maxY);
+            var redshiftArea = new RedshiftArea(null, cluster.pixelShift(), first.relPixelShift(), first.kmPerSec(), first.kmPerSecError(), x1, y1, x2, y2, maxX, maxY);
             result.add(redshiftArea);
         }
         return result;
@@ -937,7 +952,7 @@ public class PhenomenaDetector {
         return s1 / s2;
     }
 
-    private record Cluster(int x1, int y1, int x2, int y2, int pixelShift, List<RedshiftArea> areas) {
+    private record Cluster(int x1, int y1, int x2, int y2, double pixelShift, List<RedshiftArea> areas) {
 
         public Cluster(RedshiftArea redshiftArea) {
             this(redshiftArea.x1(), redshiftArea.y1(), redshiftArea.x2(), redshiftArea.y2(), redshiftArea.pixelShift(), List.of(redshiftArea));

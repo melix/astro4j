@@ -356,7 +356,7 @@ public class Scaling extends AbstractFunctionImpl {
         var redshifts = (Redshifts) metadata.get(Redshifts.class);
         if (redshifts != null) {
             metadata.put(Redshifts.class, new Redshifts(redshifts.redshifts().stream()
-                    .map(rs -> new RedshiftArea(rs.id(), rs.pixelShift(), rs.relPixelShift(), rs.kmPerSec(),
+                    .map(rs -> new RedshiftArea(rs.id(), rs.pixelShift(), rs.relPixelShift(), rs.kmPerSec(), rs.kmPerSecError(),
                             rs.x1() + offsetX, rs.y1() + offsetY, rs.x2() + offsetX, rs.y2() + offsetY,
                             rs.maxX() + offsetX, rs.maxY() + offsetY))
                     .toList()));
@@ -416,7 +416,7 @@ public class Scaling extends AbstractFunctionImpl {
             double sx = image.width() / width;
             double sy = image.height() / height;
             metadata.put(Redshifts.class, new Redshifts(redshifts.redshifts().stream()
-                    .map(rs -> new RedshiftArea(rs.id(), rs.pixelShift(), rs.relPixelShift(), rs.kmPerSec(), (int) (rs.x1() / sx), (int) (rs.y1() / sy), (int) (rs.x2() / sx), (int) (rs.y2() / sy), (int) (rs.maxX() / sx), (int) (rs.maxY() / sy)))
+                    .map(rs -> new RedshiftArea(rs.id(), rs.pixelShift(), rs.relPixelShift(), rs.kmPerSec(), rs.kmPerSecError(), (int) (rs.x1() / sx), (int) (rs.y1() / sy), (int) (rs.x2() / sx), (int) (rs.y2() / sy), (int) (rs.maxX() / sx), (int) (rs.maxY() / sy)))
                     .toList()));
         });
         image.findMetadata(ActiveRegions.class).ifPresent(activeRegions -> {

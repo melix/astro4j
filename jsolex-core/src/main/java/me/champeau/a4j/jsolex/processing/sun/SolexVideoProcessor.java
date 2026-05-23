@@ -1052,6 +1052,10 @@ public class SolexVideoProcessor implements Broadcaster {
             var reversed = redshifts.reversed();
             for (var redshift : reversed) {
                 var speed = redshift.kmPerSec();
+                var speedError = redshift.kmPerSecError();
+                var speedLabel = speedError > 0
+                        ? String.format(Locale.US, "%.2f ± %.2f km/s", speed, speedError)
+                        : String.format(Locale.US, "%.2f km/s", speed);
                 var buffer = converter.createBuffer(geometry);
                 var frameNb = redshift.maxX();
                 reader.seekFrame(frameNb);
@@ -1068,7 +1072,7 @@ public class SolexVideoProcessor implements Broadcaster {
                             rgb.g()[y + spacing + height][correctedX] = 0;
                             rgb.b()[y + spacing + height][correctedX] = 0;
                         }
-                        var y = ((int) Math.round(rgb.polynomial().applyAsDouble(correctedX))) + redshift.relPixelShift();
+                        var y = (int) Math.round(rgb.polynomial().applyAsDouble(correctedX) + redshift.relPixelShift());
                         if (y < 0 || x < 0 || y >= height || x >= width) {
                             continue;
                         }
@@ -1080,20 +1084,20 @@ public class SolexVideoProcessor implements Broadcaster {
                     ImageDraw.drawOnImageInPlace(copy, (g, img) -> {
                         g.setColor(Color.GREEN);
                         g.setFont(g.getFont().deriveFont(16f));
-                        g.drawString("Frame " + frameNb + " shift " + redshift.relPixelShift(), 16, img.height() - 16);
+                        g.drawString(String.format(Locale.US, "Frame %d shift %.2f", frameNb, redshift.relPixelShift()), 16, img.height() - 16);
                     });
                 });
                 var targetFile = outputDirectory.resolve(fileNamingStrategy.render(sequenceNumber, "redshift", Constants.TYPE_PROCESSED, "redshift", baseName + "_" + redshift.id(), image));
                 broadcast(new ImageGeneratedEvent(
                         new GeneratedImage(
                                 GeneratedImageKind.REDSHIFT,
-                                "Redshift %s (%.2f km/s)".formatted(redshift.id(), speed),
+                                String.format(Locale.US, "Redshift %s (%s)", redshift.id(), speedLabel),
                                 targetFile,
                                 FileBackedImage.wrap(image),
                                 message("individual.redshift.image.description")
                         )
                 ));
-                LOGGER.info(message("found.speed"), String.format("%.2f km/s", speed), redshift.x1(), redshift.y1(), redshift.x2(), redshift.y2(), redshift.relPixelShift());
+                LOGGER.info(message("found.speed"), speedLabel, redshift.x1(), redshift.y1(), redshift.x2(), redshift.y2(), redshift.relPixelShift());
             }
         }
     }
@@ -1328,7 +1332,7 @@ public class SolexVideoProcessor implements Broadcaster {
                                         y2 = Math.max(tempY1, tempY2);
                                         maxY = height - maxY - 1;
                                     }
-                                    return new RedshiftArea(area.id(), pixelShift, relPixelShift, kmPerSec, x1, y1, x2, y2, maxX, maxY);
+                                    return new RedshiftArea(area.id(), pixelShift, relPixelShift, kmPerSec, area.kmPerSecError(), x1, y1, x2, y2, maxX, maxY);
                                 }
                         ).toList();
                 redshifts = new Redshifts(rotatedRedshifts);
@@ -1437,6 +1441,7 @@ public class SolexVideoProcessor implements Broadcaster {
                                 area.pixelShift(),
                                 area.relPixelShift(),
                                 area.kmPerSec(),
+                                area.kmPerSecError(),
                                 nx1, ny1, nx2, ny2,
                                 nMaxX, nMaxY
                         );

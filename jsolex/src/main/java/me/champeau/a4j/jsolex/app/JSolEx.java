@@ -2162,7 +2162,10 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             var selectedShifts = new HashSet<>(redshifts);
             for (int i = 0; i < redshifts.size(); i++) {
                 var redshift = redshifts.get(i);
-                var checkBox = new CheckBox(String.format("%s (%.2f km/s)", redshift.id(), redshift.kmPerSec()));
+                var checkBoxLabel = redshift.kmPerSecError() > 0
+                    ? String.format(Locale.US, "%s (%.2f ± %.2f km/s)", redshift.id(), redshift.kmPerSec(), redshift.kmPerSecError())
+                    : String.format(Locale.US, "%s (%.2f km/s)", redshift.id(), redshift.kmPerSec());
+                var checkBox = new CheckBox(checkBoxLabel);
                 checkBox.setSelected(true);
                 checkBox.selectedProperty().addListener((observableValue, aBoolean, newValue) -> {
                     if (Boolean.TRUE.equals(newValue)) {
