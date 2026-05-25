@@ -27,7 +27,7 @@ import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.util.Map;
-import java.util.Set;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -70,12 +70,17 @@ public class OpenCLContext implements AutoCloseable {
     private final AtomicInteger totalErrors = new AtomicInteger(0);
     private volatile GPUError lastError;
 
-    // Cache for writeBuffer operations — one buffer per thread so that
-    // concurrent writes via runOp don't collide. Native memory is freed by
-    // {@link #close} via {@link #freeWriteCaches}.
-    private final ThreadLocal<FloatBuffer> writeCache = new ThreadLocal<>();
-    private final Set<FloatBuffer> writeCacheBuffers =
-            ConcurrentHashMap.newKeySet();
+    // Bounded pool of reusable scratch FloatBuffers for writeBuffer. Capped at
+    // WRITE_BUFFER_POOL_SIZE entries, each at most WRITE_BUFFER_MAX_CAPACITY floats,
+    // so the total native footprint is bounded regardless of the largest upload
+    // ever issued. Uploads larger than WRITE_BUFFER_MAX_CAPACITY bypass the pool
+    // entirely — the per-call malloc cost is negligible relative to the PCIe
+    // transfer those payloads will incur anyway.
+    private static final int WRITE_BUFFER_POOL_SIZE = 16;
+    private static final int WRITE_BUFFER_MIN_CAPACITY = 64 * 1024; // 64K floats = 256KB
+    private static final int WRITE_BUFFER_MAX_CAPACITY = 256 * 1024; // 256K floats = 1MB
+    private final ArrayBlockingQueue<FloatBuffer> writeBufferPool =
+            new ArrayBlockingQueue<>(WRITE_BUFFER_POOL_SIZE);
 
     /**
      * Records a GPU error with the given message and cause.
@@ -435,44 +440,43 @@ public class OpenCLContext implements AutoCloseable {
     }
 
     /**
-     * Gets or grows the calling thread's write cache to hold at least
-     * {@code minCapacity} floats. Each thread keeps its own buffer so
-     * concurrent {@link #writeBuffer} calls don't collide.
-     */
-    private FloatBuffer getOrGrowWriteCache(int minCapacity) {
-        var current = writeCache.get();
-        if (current == null || current.capacity() < minCapacity) {
-            if (current != null) {
-                writeCacheBuffers.remove(current);
-                MemoryUtil.memFree(current);
-            }
-            // Round up to power of 2 for efficient reuse
-            int newCapacity = Integer.highestOneBit(minCapacity - 1) << 1;
-            newCapacity = Math.max(newCapacity, 64 * 1024); // Min 64K floats (~256KB)
-            var fresh = MemoryUtil.memAllocFloat(newCapacity);
-            writeCache.set(fresh);
-            writeCacheBuffers.add(fresh);
-            return fresh;
-        }
-        return current;
-    }
-
-    /**
      * Writes float data to {@code buffer}. Blocking — returns once the write
      * is complete on the device.
      */
     public void writeBuffer(long buffer, float[] data) {
-        var floatBuffer = getOrGrowWriteCache(data.length);
-        floatBuffer.clear();
-        floatBuffer.put(data).flip();
-        // blocking=true ensures the write completes before returning
-        int err = clEnqueueWriteBuffer(commandQueue, buffer, true, 0, floatBuffer, null, null);
-        if (err != CL_SUCCESS) {
-            var ex = new OpenCLException("Failed to write buffer: " + err + " | " + getMemoryStats());
-            recordError("writeBuffer", ex);
-            throw ex;
+        var floatBuffer = acquireWriteBuffer(data.length);
+        try {
+            floatBuffer.clear();
+            floatBuffer.put(data).flip();
+            int err = clEnqueueWriteBuffer(commandQueue, buffer, true, 0, floatBuffer, null, null);
+            if (err != CL_SUCCESS) {
+                var ex = new OpenCLException("Failed to write buffer: " + err + " | " + getMemoryStats());
+                recordError("writeBuffer", ex);
+                throw ex;
+            }
+        } finally {
+            releaseWriteBuffer(floatBuffer);
         }
-        // Don't free - keep for reuse
+    }
+
+    private FloatBuffer acquireWriteBuffer(int minCapacity) {
+        if (minCapacity > WRITE_BUFFER_MAX_CAPACITY) {
+            return MemoryUtil.memAllocFloat(minCapacity);
+        }
+        FloatBuffer candidate;
+        while ((candidate = writeBufferPool.poll()) != null) {
+            if (candidate.capacity() >= minCapacity) {
+                return candidate;
+            }
+            MemoryUtil.memFree(candidate);
+        }
+        return MemoryUtil.memAllocFloat(Math.max(minCapacity, WRITE_BUFFER_MIN_CAPACITY));
+    }
+
+    private void releaseWriteBuffer(FloatBuffer buffer) {
+        if (buffer.capacity() > WRITE_BUFFER_MAX_CAPACITY || !writeBufferPool.offer(buffer)) {
+            MemoryUtil.memFree(buffer);
+        }
     }
 
     /**
@@ -644,11 +648,10 @@ public class OpenCLContext implements AutoCloseable {
 
     @Override
     public void close() {
-        for (var buf : writeCacheBuffers) {
-            MemoryUtil.memFree(buf);
+        FloatBuffer pooled;
+        while ((pooled = writeBufferPool.poll()) != null) {
+            MemoryUtil.memFree(pooled);
         }
-        writeCacheBuffers.clear();
-        writeCache.remove();
         kernelManager.close();
         clReleaseCommandQueue(commandQueue);
         clReleaseContext(context);

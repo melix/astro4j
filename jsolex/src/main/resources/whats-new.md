@@ -4,6 +4,7 @@
 
 - Redshift speeds are now computed with subpixel precision and reported with an uncertainty.
 - Fixed the ImageMath script run button losing its advanced parameters dropdown after starting a batch.
+- Fixed a native memory leak in GPU image uploads that could exhaust memory after several batch runs.
 
 ## What's New in Version 5.2.1
 
