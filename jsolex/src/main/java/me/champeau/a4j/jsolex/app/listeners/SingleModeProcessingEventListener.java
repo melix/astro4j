@@ -629,7 +629,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 gso.setFont(Font.font(gso.getFont().getFamily(), FontWeight.BOLD, 24));
                 gso.fillText(String.format(Locale.US, "Frame %.0f", frameNb), 10, 30);
                 if (polynomial != null) {
-                    var spectrumY = polynomial.applyAsDouble(imageX) * zoom - pixelShift;
+                    var spectrumY = (polynomial.applyAsDouble(imageX) + pixelShift) * zoom;
                     gsp.setFill(Color.RED);
                     var cw = Math.max(4, 4 * zoom);
                     gsp.fillRect(screenX - cw, spectrumY, 2 * cw, 1);
