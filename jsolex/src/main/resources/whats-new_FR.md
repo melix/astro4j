@@ -5,6 +5,7 @@
 - Les vitesses de redshift sont désormais calculées au subpixel et accompagnées d'une incertitude.
 - Correction du bouton d'exécution des scripts ImageMath qui perdait son menu de paramètres avancés au lancement d'un traitement par lots.
 - Correction d'une fuite mémoire native dans les transferts d'images vers le GPU qui pouvait épuiser la mémoire après plusieurs traitements par lots.
+- Correction de la vue de reconstruction qui affichait la croix du spectre du mauvais côté de la ligne de référence lors d'un clic sur l'image solaire.
 
 ## Nouveautés de la version 5.2.1
 
