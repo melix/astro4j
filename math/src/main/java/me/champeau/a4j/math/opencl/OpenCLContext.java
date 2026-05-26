@@ -64,6 +64,7 @@ public class OpenCLContext implements AutoCloseable {
     private final AtomicLong peakAllocatedBytes = new AtomicLong(0);
     private final AtomicInteger allocationCount = new AtomicInteger(0);
     private final AtomicInteger releaseCount = new AtomicInteger(0);
+    private final AtomicInteger finishCount = new AtomicInteger(0);
 
     // Error tracking for detecting persistent GPU issues
     private final AtomicInteger consecutiveErrors = new AtomicInteger(0);
@@ -104,6 +105,14 @@ public class OpenCLContext implements AutoCloseable {
      */
     public int getTotalErrors() {
         return totalErrors.get();
+    }
+
+    /**
+     * Returns the number of {@code clFinish} calls issued via this context.
+     * Used to verify drain-before-release ordering invariants.
+     */
+    public int getFinishCount() {
+        return finishCount.get();
     }
 
     /**
@@ -504,12 +513,7 @@ public class OpenCLContext implements AutoCloseable {
      */
     public void readBuffer(long buffer, float[] data) {
         // Ensure all pending kernel operations complete before reading
-        int finishErr = clFinish(commandQueue);
-        if (finishErr != CL_SUCCESS) {
-            var ex = new OpenCLException("clFinish failed in readBuffer with error: " + finishErr + " | " + getMemoryStats());
-            recordError("readBuffer.clFinish", ex);
-            LOGGER.error("{}", ex.getMessage());
-        }
+        requireFinishSuccess(clFinish(commandQueue), "readBuffer");
         readBufferNoSync(buffer, data);
     }
 
@@ -540,10 +544,7 @@ public class OpenCLContext implements AutoCloseable {
      * Reads int data from a buffer, finishing pending kernel work first.
      */
     public void readBufferInt(long buffer, int[] data) {
-        int finishErr = clFinish(commandQueue);
-        if (finishErr != CL_SUCCESS) {
-            recordError("readBufferInt.clFinish", new OpenCLException("clFinish failed: " + finishErr));
-        }
+        requireFinishSuccess(clFinish(commandQueue), "readBufferInt");
         var intBuffer = MemoryUtil.memAllocInt(data.length);
         try {
             int err = clEnqueueReadBuffer(commandQueue, buffer, true, 0, intBuffer, null, null);
@@ -599,11 +600,24 @@ public class OpenCLContext implements AutoCloseable {
      * Waits for all enqueued commands on this context's queue to complete.
      */
     public void finish() {
-        int err = clFinish(commandQueue);
+        requireFinishSuccess(clFinish(commandQueue), "finish");
+    }
+
+    /**
+     * Increments {@link #finishCount} and throws {@link OpenCLException} if
+     * {@code err} is anything other than {@code CL_SUCCESS}. Previously these
+     * call sites only logged the error and proceeded, which let the next
+     * buffer read return undefined data (the kernels that should have filled
+     * it may have aborted). Callers that need the GPU result must be told;
+     * silent failure here corrupts the pipeline downstream.
+     */
+    void requireFinishSuccess(int err, String operation) {
+        finishCount.incrementAndGet();
         if (err != CL_SUCCESS) {
-            var ex = new OpenCLException("clFinish failed with error: " + err + " | " + getMemoryStats());
-            recordError("finish", ex);
+            var ex = new OpenCLException("clFinish failed in " + operation + " with error: " + err + " | " + getMemoryStats());
+            recordError(operation + ".clFinish", ex);
             LOGGER.error("{}", ex.getMessage());
+            throw ex;
         }
     }
 

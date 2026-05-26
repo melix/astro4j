@@ -142,6 +142,10 @@ public final class GPUImageCache implements AutoCloseable {
      * Evicts all images from the cache, freeing GPU memory.
      */
     public void clear() {
+        if (cache.isEmpty()) {
+            return;
+        }
+        drainQueueBeforeRelease();
         for (var entry : cache.values()) {
             context.releaseBuffer(entry.buffer);
         }
@@ -165,10 +169,9 @@ public final class GPUImageCache implements AutoCloseable {
             return false;
         }
 
-        // Release old buffer
+        drainQueueBeforeRelease();
         context.releaseBuffer(entry.buffer);
 
-        // Update cache with new buffer
         cache.put(imageIndex, new CacheEntry(newBuffer, imageIndex));
         return true;
     }
@@ -201,6 +204,14 @@ public final class GPUImageCache implements AutoCloseable {
 
     @Override
     public void close() {
+        if (cache.isEmpty()) {
+            return;
+        }
+        try {
+            drainQueueBeforeRelease();
+        } catch (Exception e) {
+            LOGGER.error("Failed to drain command queue before closing cache", e);
+        }
         for (var entry : cache.values()) {
             try {
                 context.releaseBuffer(entry.buffer);
@@ -209,6 +220,19 @@ public final class GPUImageCache implements AutoCloseable {
             }
         }
         cache.clear();
+    }
+
+    /**
+     * Waits for any in-flight GPU work referencing the cache's buffers to
+     * complete before they are released. The OpenCL spec defers actual VRAM
+     * destruction of a {@code clReleaseMemObject}'d buffer until queued
+     * commands using it have finished; the host-side memory budget, however,
+     * returns the bytes immediately. Without draining first, a concurrent
+     * op can "acquire" those still-occupied bytes and trip
+     * {@code CL_MEM_OBJECT_ALLOCATION_FAILURE} at the next {@code clFinish}.
+     */
+    private void drainQueueBeforeRelease() {
+        context.finish();
     }
 
     @Override
@@ -234,7 +258,7 @@ public final class GPUImageCache implements AutoCloseable {
         @Override
         protected boolean removeEldestEntry(Map.Entry<Integer, CacheEntry> eldest) {
             if (size() > maxSize) {
-                // Release GPU buffer before eviction
+                drainQueueBeforeRelease();
                 context.releaseBuffer(eldest.getValue().buffer);
                 return true;
             }
