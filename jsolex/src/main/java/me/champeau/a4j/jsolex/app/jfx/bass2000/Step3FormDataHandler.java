@@ -15,6 +15,8 @@
  */
 package me.champeau.a4j.jsolex.app.jfx.bass2000;
 
+import javafx.application.Platform;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
@@ -35,12 +37,18 @@ import me.champeau.a4j.jsolex.processing.params.ObservationDetails;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.params.SpectroHeliograph;
+import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.math.tuples.DoublePair;
 
+import java.text.MessageFormat;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.atomic.AtomicInteger;
 
 class Step3FormDataHandler implements StepHandler {
     private final ProcessParamsSupplier processParamsSupplier;
@@ -73,6 +81,11 @@ class Step3FormDataHandler implements StepHandler {
     private TextField orderField;
     private TextField totalAngleField;
     private Label filenamePreviewLabel;
+    private Label remoteSubmissionLabel;
+    private RemoteSubmissionsTimelineView remoteSubmissionsTimeline;
+    private VBox remoteSubmissionBox;
+    private VBox remoteSubmissionTimelineContainer;
+    private final AtomicInteger remoteCheckSequence = new AtomicInteger();
 
     private final List<TextField> requiredFields = new ArrayList<>();
     private final List<CheckBox> requiredCheckboxes = new ArrayList<>();
@@ -138,11 +151,26 @@ class Step3FormDataHandler implements StepHandler {
         var instructionLabel = new Label(message("metadata.instruction"));
         instructionLabel.setStyle("-fx-font-size: 14px;");
 
+        remoteSubmissionLabel = new Label();
+        remoteSubmissionLabel.setWrapText(true);
+        remoteSubmissionsTimeline = new RemoteSubmissionsTimelineView();
+        var timelineCaption = new Label(message("remote.submission.timeline.caption"));
+        timelineCaption.setStyle("-fx-font-size: 10px; -fx-text-fill: #6c757d;");
+        remoteSubmissionTimelineContainer = new VBox(2, timelineCaption, remoteSubmissionsTimeline);
+        remoteSubmissionTimelineContainer.setAlignment(Pos.CENTER);
+        remoteSubmissionTimelineContainer.setVisible(false);
+        remoteSubmissionTimelineContainer.setManaged(false);
+        remoteSubmissionBox = new VBox(6, remoteSubmissionLabel, remoteSubmissionTimelineContainer);
+        remoteSubmissionBox.setVisible(false);
+        remoteSubmissionBox.setManaged(false);
+        remoteSubmissionBox.setStyle("-fx-padding: 10px; -fx-border-color: orange; -fx-border-width: 1px; -fx-background-color: #fff3cd;");
+        remoteSubmissionLabel.setStyle("-fx-text-fill: #8a6d3b; -fx-font-weight: bold;");
+
         var formGrid = createForm();
 
         var scrollPane = new ScrollPane();
         var formContent = new VBox(12);
-        formContent.getChildren().addAll(headerLabel, instructionLabel, formGrid);
+        formContent.getChildren().addAll(headerLabel, instructionLabel, remoteSubmissionBox, formGrid);
         formContent.setStyle("-fx-padding: 8;");
 
         scrollPane.setContent(formContent);
@@ -158,6 +186,7 @@ class Step3FormDataHandler implements StepHandler {
         populateFormFromProcessParams();
         formValidator.validateAllFieldsVisually();
         updateFilenamePreview();
+        triggerRemoteSubmissionCheck();
     }
 
     @Override
@@ -648,7 +677,10 @@ class Step3FormDataHandler implements StepHandler {
     }
 
     private void setupFilenamePreviewListeners() {
-        wavelengthField.valueProperty().addListener((obs, old, val) -> updateFilenamePreview());
+        wavelengthField.valueProperty().addListener((obs, old, val) -> {
+            updateFilenamePreview();
+            triggerRemoteSubmissionCheck();
+        });
         focalReducerCheckbox.selectedProperty().addListener((obs, old, val) -> updateFilenamePreview());
         mountNameField.textProperty().addListener((obs, old, val) -> updateFilenamePreview());
         telescopeNameField.textProperty().addListener((obs, old, val) -> updateFilenamePreview());
@@ -689,5 +721,98 @@ class Step3FormDataHandler implements StepHandler {
         } catch (Exception e) {
             filenamePreviewLabel.setText(message("filename.preview.incomplete"));
         }
+    }
+
+    private void triggerRemoteSubmissionCheck() {
+        if (remoteSubmissionLabel == null) {
+            return;
+        }
+        var selectedWavelength = wavelengthField.getValue();
+        var lineCode = selectedWavelength == null
+                ? null
+                : Bass2000SubmissionController.ACCEPTED_SPECTRAL_RAYS.get(selectedWavelength);
+        if (lineCode == null) {
+            hideRemoteSubmissionLabel();
+            return;
+        }
+        var processParams = processParamsSupplier.findProcessParams();
+        if (processParams == null) {
+            hideRemoteSubmissionLabel();
+            return;
+        }
+        var captureUtc = processParams.observationDetails().date()
+                .withZoneSameInstant(ZoneOffset.UTC)
+                .toLocalDateTime();
+        var observationDate = captureUtc.toLocalDate();
+        var seq = remoteCheckSequence.incrementAndGet();
+        showRemoteSubmissionMessage(message("remote.submission.checking"));
+        BackgroundOperations.async(() -> {
+            var submissions = Bass2000FtpListingService.listSubmissions(observationDate, lineCode);
+            Platform.runLater(() -> {
+                if (seq != remoteCheckSequence.get()) {
+                    return;
+                }
+                renderRemoteSubmissionResults(submissions, captureUtc);
+            });
+        });
+    }
+
+    private void renderRemoteSubmissionResults(List<Bass2000FtpListingService.RemoteSubmission> submissions,
+                                               LocalDateTime userCaptureUtc) {
+        if (submissions.isEmpty()) {
+            hideRemoteSubmissionLabel();
+            return;
+        }
+        var closest = submissions.stream()
+                .min(Comparator.comparing(s -> s.timeDeltaTo(userCaptureUtc)))
+                .orElseThrow();
+        var deltaText = formatDelta(closest.captureTime(), userCaptureUtc);
+        String text;
+        if (submissions.size() == 1) {
+            text = MessageFormat.format(message("remote.submission.warning.one"), deltaText, closest.filename());
+        } else {
+            text = MessageFormat.format(message("remote.submission.warning.many"), submissions.size(), deltaText, closest.filename());
+        }
+        showRemoteSubmissionMessage(text);
+        remoteSubmissionsTimeline.update(submissions, userCaptureUtc);
+        remoteSubmissionTimelineContainer.setVisible(true);
+        remoteSubmissionTimelineContainer.setManaged(true);
+    }
+
+    private String formatDelta(LocalDateTime remoteCapture, LocalDateTime userCapture) {
+        var duration = Duration.between(remoteCapture, userCapture);
+        var beforeUser = !duration.isNegative();
+        var absolute = duration.abs();
+        var humanReadable = formatDuration(absolute);
+        var key = beforeUser ? "remote.submission.delta.before" : "remote.submission.delta.after";
+        return MessageFormat.format(message(key), humanReadable);
+    }
+
+    private static String formatDuration(Duration duration) {
+        var totalMinutes = Math.max(1, duration.toMinutes());
+        var hours = totalMinutes / 60;
+        var minutes = totalMinutes % 60;
+        if (hours == 0) {
+            return totalMinutes + " min";
+        }
+        if (minutes == 0) {
+            return hours + " h";
+        }
+        return hours + " h " + minutes + " min";
+    }
+
+    private void showRemoteSubmissionMessage(String text) {
+        remoteSubmissionLabel.setText(text);
+        remoteSubmissionBox.setVisible(true);
+        remoteSubmissionBox.setManaged(true);
+        remoteSubmissionTimelineContainer.setVisible(false);
+        remoteSubmissionTimelineContainer.setManaged(false);
+    }
+
+    private void hideRemoteSubmissionLabel() {
+        remoteSubmissionBox.setVisible(false);
+        remoteSubmissionBox.setManaged(false);
+        remoteSubmissionTimelineContainer.setVisible(false);
+        remoteSubmissionTimelineContainer.setManaged(false);
     }
 }
