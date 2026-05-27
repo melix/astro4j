@@ -2,6 +2,7 @@
 
 ## What's New in Version 5.2.2
 
+- The BASS2000 submission wizard now lists pending submissions from other observers for the same date and wavelength, with a visual timeline showing when they were captured.
 - Redshift speeds are now computed with subpixel precision and reported with an uncertainty.
 - Fixed the ImageMath script run button losing its advanced parameters dropdown after starting a batch.
 - Fixed a native memory leak in GPU image uploads that could exhaust memory after several batch runs.
