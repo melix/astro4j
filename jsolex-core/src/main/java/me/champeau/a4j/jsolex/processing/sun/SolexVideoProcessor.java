@@ -1753,7 +1753,7 @@ public class SolexVideoProcessor implements Broadcaster {
         var result = analyzer.analyze(averageImage);
         if (processParams.extraParams().generateDebugImages()) {
             var emitter = createDefaultImageEmitter(imageNamingStrategy);
-            emitter.newColorImage(GeneratedImageKind.DEBUG, null, message("average"), "average", message("average.image.description"), width, height, MutableMap.of(), () -> {
+            emitter.newColorImage(GeneratedImageKind.DEBUG, null, message("average"), "average", message("average.image.description"), width, 2 * height + SpectralLineFrameImageCreator.SPACING, MutableMap.of(), () -> {
                 var rgb = new SpectralLineFrameImageCreator(analyzer, averageImage, width, height).generateDebugImage();
                 return new float[][][]{rgb.r(), rgb.g(), rgb.b()};
             });

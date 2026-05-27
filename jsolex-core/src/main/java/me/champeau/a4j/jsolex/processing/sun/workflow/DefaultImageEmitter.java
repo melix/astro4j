@@ -110,8 +110,16 @@ public class DefaultImageEmitter implements ImageEmitter {
     }
 
     private void track(Runnable task, Executor exec) {
+        var submissionSite = new Throwable("submission site");
         outstanding.incrementAndGet();
-        CompletableFuture.runAsync(task, exec)
+        CompletableFuture.runAsync(() -> {
+            try {
+                task.run();
+            } catch (Throwable t) {
+                t.addSuppressed(submissionSite);
+                throw t;
+            }
+        }, exec)
                 .whenComplete((r, t) -> {
                     if (t != null) {
                         firstFailure.compareAndSet(null, t);
