@@ -27,6 +27,15 @@ public record RGBImage(
     float[][] b,
     Map<Class<?>, Object> metadata
 ) implements ImageWrapper {
+    public RGBImage {
+        if (r.length != height || g.length != height || b.length != height) {
+            throw new IllegalArgumentException("Inconsistent image height");
+        }
+        if (height > 0 && (r[0].length != width || g[0].length != width || b[0].length != width)) {
+            throw new IllegalArgumentException("Inconsistent image width");
+        }
+    }
+
     @Override
     public RGBImage copy() {
         return new RGBImage(width, height, ImageWrapper.copyData(r), ImageWrapper.copyData(g), ImageWrapper.copyData(b), new LinkedHashMap<>(metadata));

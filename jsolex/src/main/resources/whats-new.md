@@ -7,6 +7,7 @@
 - Fixed the ImageMath script run button losing its advanced parameters dropdown after starting a batch.
 - Fixed a native memory leak in GPU image uploads that could exhaust memory after several batch runs.
 - Fixed the reconstruction view drawing the spectrum cross on the wrong side of the reference line when clicking on the solar image.
+- Fixed an error that could occur when saving certain debug images.
 
 ## What's New in Version 5.2.1
 

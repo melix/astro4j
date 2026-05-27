@@ -57,8 +57,8 @@ public class DistorsionDebugImageCreator {
         var panelHeight = 2 * height + 3 * separator;
         var panelWidth = 4 * width + 5 * separator;
         var scale = Math.min(0.5, 2160d / panelHeight);
-        var scaledWidth = (int) (panelWidth * scale);
-        var scaledHeight = (int) (panelHeight * scale);
+        var scaledWidth = (int) Math.round(panelWidth * scale);
+        var scaledHeight = (int) Math.round(panelHeight * scale);
         imageEmitter.newColorImage(GeneratedImageKind.DEBUG, null, "displacement", "displacementXY_" + index, null, scaledWidth, scaledHeight, new HashMap<>(stacked.metadata()), () -> {
             var heatmap = new float[3][panelHeight][panelWidth];
             float[][] diffImage = new float[height][width];
