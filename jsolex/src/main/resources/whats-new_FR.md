@@ -1,5 +1,9 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+## Nouveautés de la version 5.2.3
+
+- Les mesures de redshift sont plus fiables et leur incertitude est désormais bien plus réaliste.
+
 ## Nouveautés de la version 5.2.2
 
 - L'assistant de soumission BASS2000 liste désormais les soumissions en attente d'autres observateurs pour la même date et la même longueur d'onde, avec une frise visuelle indiquant leurs heures de capture.

@@ -1072,13 +1072,36 @@ public class SolexVideoProcessor implements Broadcaster {
                             rgb.g()[y + spacing + height][correctedX] = 0;
                             rgb.b()[y + spacing + height][correctedX] = 0;
                         }
-                        var y = (int) Math.round(rgb.polynomial().applyAsDouble(correctedX) + redshift.relPixelShift());
-                        if (y < 0 || x < 0 || y >= height || x >= width) {
-                            continue;
+                    }
+                    // Mark the wing-crossing tip with a translucent cross at the area center
+                    var centerX = width - ((redshift.y1() + redshift.y2()) / 2) - 1;
+                    if (centerX >= 0 && centerX < width) {
+                        var centerYCenter = (int) Math.round(rgb.polynomial().applyAsDouble(centerX));
+                        var centerYCross = centerYCenter + (int) Math.round(redshift.relPixelShift());
+                        if (centerYCross >= 0 && centerYCross < height) {
+                            int armLen = 8;
+                            float alpha = 0.55f;
+                            float invAlpha = 1f - alpha;
+                            float overlayR = MAX_PIXEL_VALUE * alpha;
+                            float overlayG = MAX_PIXEL_VALUE * alpha;
+                            int xLo = Math.max(0, centerX - armLen);
+                            int xHi = Math.min(width - 1, centerX + armLen);
+                            for (int xi = xLo; xi <= xHi; xi++) {
+                                if (xi == centerX) {
+                                    continue;
+                                }
+                                rgb.r()[centerYCross][xi] = rgb.r()[centerYCross][xi] * invAlpha + overlayR;
+                                rgb.g()[centerYCross][xi] = rgb.g()[centerYCross][xi] * invAlpha + overlayG;
+                                rgb.b()[centerYCross][xi] = rgb.b()[centerYCross][xi] * invAlpha;
+                            }
+                            int yLo2 = Math.max(0, centerYCross - armLen);
+                            int yHi2 = Math.min(height - 1, centerYCross + armLen);
+                            for (int yi = yLo2; yi <= yHi2; yi++) {
+                                rgb.r()[yi][centerX] = rgb.r()[yi][centerX] * invAlpha + overlayR;
+                                rgb.g()[yi][centerX] = rgb.g()[yi][centerX] * invAlpha + overlayG;
+                                rgb.b()[yi][centerX] = rgb.b()[yi][centerX] * invAlpha;
+                            }
                         }
-                        rgb.r()[y][correctedX] = MAX_PIXEL_VALUE;
-                        rgb.g()[y][correctedX] = 0;
-                        rgb.b()[y][correctedX] = 0;
                     }
                     var copy = new RGBImage(w, 2 * h + spacing, rgb.r(), rgb.g(), rgb.b(), Map.of());
                     ImageDraw.drawOnImageInPlace(copy, (g, img) -> {
