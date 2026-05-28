@@ -1084,7 +1084,6 @@ public class MetadataEditor {
             GeneratedImageKind.DOPPLER,
             GeneratedImageKind.DOPPLER_ROTATION_CORRECTED,
             GeneratedImageKind.DOPPLER_ECLIPSE,
-            GeneratedImageKind.TECHNICAL_CARD,
             GeneratedImageKind.REDSHIFT,
             GeneratedImageKind.ACTIVE_REGIONS,
             GeneratedImageKind.ELLERMAN_BOMBS
@@ -1141,7 +1140,6 @@ public class MetadataEditor {
             case DOPPLER -> I18N.string(JSolEx.class, "image-selection", "doppler.image");
             case DOPPLER_ROTATION_CORRECTED -> I18N.string(JSolEx.class, "image-selection", "doppler.rotation.corrected");
             case DOPPLER_ECLIPSE -> I18N.string(JSolEx.class, "image-selection", "doppler.eclipse");
-            case TECHNICAL_CARD -> I18N.string(JSolEx.class, "image-selection", "technical.card");
             case REDSHIFT -> I18N.string(JSolEx.class, "image-selection", "redshift");
             case ACTIVE_REGIONS -> I18N.string(JSolEx.class, "image-selection", "activeregions");
             case ELLERMAN_BOMBS -> I18N.string(JSolEx.class, "image-selection", "ellerman.bombs");

@@ -395,8 +395,7 @@ class Step3OrientationHandler implements StepHandler {
         if (processParams == null || processParams.observationDetails().date() == null) {
             return image;
         }
-        boolean pAlreadyCorrected = kind == GeneratedImageKind.TECHNICAL_CARD
-                || (processParams.geometryParams().isAutocorrectAngleP() && !kind.cannotPerformManualRotation());
+        boolean pAlreadyCorrected = processParams.geometryParams().isAutocorrectAngleP() && !kind.cannotPerformManualRotation();
         if (!pAlreadyCorrected) {
             var p = SolarParametersUtils.computeSolarParams(processParams.observationDetails().date().toLocalDateTime()).p();
             if (p != 0) {

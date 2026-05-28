@@ -87,7 +87,6 @@ public class ImageSelectionPanel extends BaseParameterPanel {
     private CheckBox geometryCorrected;
     private CheckBox geometryCorrectedStretched;
     private CheckBox reconstruction;
-    private CheckBox technicalCard;
 
     private CheckBox colorized;
     private CheckBox virtualEclipse;
@@ -147,7 +146,6 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         geometryCorrected = createCheckbox("geometry.corrected");
         geometryCorrectedStretched = createCheckbox("geometry.corrected.stretched");
         reconstruction = createCheckbox("reconstruction");
-        technicalCard = createCheckbox("technical.card");
 
         colorized = createCheckbox("colorized");
         virtualEclipse = createCheckbox("eclipse");
@@ -177,7 +175,6 @@ public class ImageSelectionPanel extends BaseParameterPanel {
                 geometryCorrected,
                 geometryCorrectedStretched,
                 continuum,
-                technicalCard,
                 redshift,
                 activeRegions,
                 ellermanBombs
@@ -256,10 +253,9 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         advancedGrid.add(dopplerRotationCorrected, 0, 5);
 
         advancedGrid.add(dopplerEclipse, 1, 0);
-        advancedGrid.add(technicalCard, 1, 1);
-        advancedGrid.add(redshift, 1, 2);
-        advancedGrid.add(activeRegions, 1, 3);
-        advancedGrid.add(ellermanBombs, 1, 4);
+        advancedGrid.add(redshift, 1, 1);
+        advancedGrid.add(activeRegions, 1, 2);
+        advancedGrid.add(ellermanBombs, 1, 3);
 
         advancedSection.getChildren().add(advancedGrid);
 
@@ -351,7 +347,6 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         addCustomModeListener(geometryCorrected);
         addCustomModeListener(geometryCorrectedStretched);
         addCustomModeListener(reconstruction);
-        addCustomModeListener(technicalCard);
         addCustomModeListener(colorized);
         addCustomModeListener(virtualEclipse);
         addCustomModeListener(negative);
@@ -447,7 +442,6 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         geometryCorrected.setSelected(selected);
         geometryCorrectedStretched.setSelected(selected);
         reconstruction.setSelected(selected);
-        technicalCard.setSelected(selected);
 
         colorized.setSelected(selected);
         virtualEclipse.setSelected(selected);
@@ -751,7 +745,6 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         geometryCorrected.setSelected(images.contains(GeneratedImageKind.GEOMETRY_CORRECTED));
         geometryCorrectedStretched.setSelected(images.contains(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED));
         reconstruction.setSelected(images.contains(GeneratedImageKind.RECONSTRUCTION));
-        technicalCard.setSelected(images.contains(GeneratedImageKind.TECHNICAL_CARD));
 
         colorized.setSelected(images.contains(GeneratedImageKind.COLORIZED));
         virtualEclipse.setSelected(images.contains(GeneratedImageKind.VIRTUAL_ECLIPSE));
@@ -796,9 +789,6 @@ public class ImageSelectionPanel extends BaseParameterPanel {
 
         if (raw.isSelected()) {
             images.add(GeneratedImageKind.RAW);
-        }
-        if (technicalCard.isSelected()) {
-            images.add(GeneratedImageKind.TECHNICAL_CARD);
         }
         if (geometryCorrected.isSelected()) {
             images.add(GeneratedImageKind.GEOMETRY_CORRECTED);
@@ -1033,7 +1023,6 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         if (geometryCorrected.isSelected()) images.add(GeneratedImageKind.GEOMETRY_CORRECTED);
         if (geometryCorrectedStretched.isSelected()) images.add(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED);
         if (reconstruction.isSelected()) images.add(GeneratedImageKind.RECONSTRUCTION);
-        if (technicalCard.isSelected()) images.add(GeneratedImageKind.TECHNICAL_CARD);
         if (colorized.isSelected()) images.add(GeneratedImageKind.COLORIZED);
         if (virtualEclipse.isSelected()) images.add(GeneratedImageKind.VIRTUAL_ECLIPSE);
         if (negative.isSelected()) images.add(GeneratedImageKind.NEGATIVE);
@@ -1269,7 +1258,6 @@ public class ImageSelectionPanel extends BaseParameterPanel {
                     case GEOMETRY_CORRECTED -> geometryCorrected.setSelected(true);
                     case GEOMETRY_CORRECTED_PROCESSED -> geometryCorrectedStretched.setSelected(true);
                     case RECONSTRUCTION -> reconstruction.setSelected(true);
-                    case TECHNICAL_CARD -> technicalCard.setSelected(true);
                     case COLORIZED -> colorized.setSelected(true);
                     case VIRTUAL_ECLIPSE -> virtualEclipse.setSelected(true);
                     case NEGATIVE -> negative.setSelected(true);

@@ -80,10 +80,15 @@ public record ImageMetadata(
         String physicalParameter,
         Integer waveUnit,
         Double pixelShift,
-        Boolean pAngleCorrected
+        Boolean pAngleCorrected,
+        Boolean annotated
 ) {
 
     public static ImageMetadata fromImage(ImageWrapper image, GeneratedImageKind kind) {
+        return fromImage(image, kind, false);
+    }
+
+    public static ImageMetadata fromImage(ImageWrapper image, GeneratedImageKind kind, boolean annotated) {
         var params = image.findMetadata(ProcessParams.class).orElse(null);
         if (params == null) {
             return null;
@@ -204,7 +209,8 @@ public record ImageMetadata(
                 "Intensity",
                 -10,
                 pixelShiftVal,
-                pCorrected
+                pCorrected,
+                annotated ? Boolean.TRUE : null
         );
     }
 }

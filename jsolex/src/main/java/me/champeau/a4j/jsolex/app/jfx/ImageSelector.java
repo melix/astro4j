@@ -89,8 +89,6 @@ public class ImageSelector {
     @FXML
     private CheckBox reconstruction;
     @FXML
-    private CheckBox technicalCard;
-    @FXML
     private CheckBox redshift;
     @FXML
     private TextField pixelShifts;
@@ -193,7 +191,6 @@ public class ImageSelector {
                 case DOPPLER_ROTATION_CORRECTED -> dopplerRotationCorrected.setSelected(true);
                 case CONTINUUM -> continuum.setSelected(true);
                 case RECONSTRUCTION -> reconstruction.setSelected(true);
-                case TECHNICAL_CARD -> technicalCard.setSelected(true);
                 case REDSHIFT -> redshift.setSelected(true);
                 case ACTIVE_REGIONS -> activeRegions.setSelected(true);
                 case ELLERMAN_BOMBS -> ellermanBombs.setSelected(true);
@@ -282,10 +279,6 @@ public class ImageSelector {
         Set<GeneratedImageKind> images = EnumSet.noneOf(GeneratedImageKind.class);
         if (raw.isSelected()) {
             images.add(GeneratedImageKind.RAW);
-            makeDefaultShiftNonInternal();
-        }
-        if (technicalCard.isSelected()) {
-            images.add(GeneratedImageKind.TECHNICAL_CARD);
             makeDefaultShiftNonInternal();
         }
         if (geometryCorrected.isSelected()) {
@@ -406,7 +399,6 @@ public class ImageSelector {
         dopplerEclipse.setSelected(selected);
         continuum.setSelected(selected);
         reconstruction.setSelected(selected);
-        technicalCard.setSelected(selected);
         debug.setSelected(selected);
         redshift.setSelected(selected);
         activeRegions.setSelected(selected);

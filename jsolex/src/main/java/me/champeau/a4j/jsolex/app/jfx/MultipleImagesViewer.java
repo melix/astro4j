@@ -84,8 +84,7 @@ public class MultipleImagesViewer extends Pane {
             GeneratedImageKind.RAW,
             GeneratedImageKind.MIXED,
             GeneratedImageKind.COLORIZED,
-            GeneratedImageKind.CONTINUUM,
-            GeneratedImageKind.TECHNICAL_CARD
+            GeneratedImageKind.CONTINUUM
     );
 
     private final Set<ImageViewer> imageViews = new HashSet<>();
@@ -259,8 +258,18 @@ public class MultipleImagesViewer extends Pane {
                     popupViews,
                     imageViews
             );
+            Runnable onClone = () -> {
+                var clonedImage = imageWrapper.copy();
+                var clonedTitle = title + " " + message("clone.suffix");
+                var clonedBaseName = baseName + "_copy";
+                addImage(listener, operation, clonedTitle, clonedBaseName, kind, description,
+                        clonedImage, file, params, popupViews, pixelShift, v -> v, onShow);
+            };
             var hyperlink = category.addImage(title, pixelShift, link -> {
                 categories().forEach(CategoryPane::clearSelection);
+                if (selectedView instanceof ImageViewer previous && previous != viewer) {
+                    previous.hideOverlayPanel();
+                }
                 Platform.runLater(() -> {
                     borderPane.setCenter(transformed.getRoot());
                     var hook = onShowHooks.get(transformed);
@@ -280,7 +289,7 @@ public class MultipleImagesViewer extends Pane {
                 } finally {
                     lock.unlock();
                 }
-            });
+            }, onClone);
 
             linkToViewer.put(hyperlink, viewer);
             if (selected == null) {
@@ -506,7 +515,7 @@ public class MultipleImagesViewer extends Pane {
      * @param kind the kind of generated image
      * @param spectroSolHubImageKind the SpectroSolHub-specific image kind for IMAGE_MATH outputs, or null
      */
-    public record ImageInfo(ImageWrapper image, String title, GeneratedImageKind kind, String spectroSolHubImageKind) {
+    public record ImageInfo(ImageWrapper image, String title, GeneratedImageKind kind, String spectroSolHubImageKind, boolean annotated) {
     }
 
     /**
@@ -519,7 +528,7 @@ public class MultipleImagesViewer extends Pane {
             return imageViews.stream()
                     .filter(viewer -> viewer.getStretchedImage() != null)
                     .map(viewer -> {
-                        var stretched = viewer.getStretchedImage();
+                        var stretched = viewer.getStretchedImageWithOverlays();
                         var spectroSolHubKind = stretched.findMetadata(SpectroSolHubImageKind.class)
                                 .map(SpectroSolHubImageKind::value)
                                 .orElse(null);
@@ -527,7 +536,8 @@ public class MultipleImagesViewer extends Pane {
                                 stretched.wrap(),
                                 getImageTitle(viewer),
                                 getImageKind(viewer),
-                                spectroSolHubKind
+                                spectroSolHubKind,
+                                viewer.hasActiveOverlays()
                         );
                     })
                     .toList();

@@ -335,6 +335,31 @@ image::image-display-fr.jpg[]
 It is possible to zoom into the images by using the mouse wheel.
 In addition, right-clicking the image will let you open it into your file explorer or in a separate window.
 
+You can also duplicate an image from the sidebar by right-clicking on its name and choosing "Duplicate", which is useful when you want to keep a clean original alongside an annotated version.
+
+=== Annotations
+
+Each image has its own set of annotations that you can turn on or off independently from the annotations panel, opened with the ⊕ button in the toolbar.
+The panel is a floating popover that you can drag around the screen while you work.
+
+The following annotations are available:
+
+- *Orientation grid*: heliographic meridians and parallels drawn on the solar disk, with the rotation axis and cardinal direction markers. The grid style (equatorial or solar coordinates) and the P-angle correction can be tweaked from the grid options menu.
+- *Prominence scale*: dashed concentric circles outside the solar limb with distance labels in kilometres. You can choose the number of circles and the spacing between them.
+- *Observation details*: a block of text usually placed in the top-left corner with the observer name, date, instrument, telescope, camera, etc. The content is fully editable through a template with placeholders (e.g. `%OBSERVER%`, `%DATETIME%`, `%TELESCOPE%`), so you can pick exactly which fields are shown, reorder them, or add your own text. Empty lines (where the value is missing) are skipped automatically.
+- *Solar parameters*: a block listing the P, B0 and L0 angles together with the Carrington rotation, placed in the top-right corner.
+- *Earth size reference*: a small Earth picture overlaid on the image as a size comparison. The marker is draggable: click and hold to move it where you want.
+- *Signature*: free text rendered in the bottom-left corner. You can pick the font (the dropdown previews each typeface in its own style) and the size.
+
+Each annotation has its own color, with the default being a neutral gray that preserves monochrome images.
+A global line thickness control at the bottom of the panel lets you make all drawn lines bolder or thinner.
+
+When editing the signature or the observation details template, the changes preview live on the image.
+Click "Apply" to keep them or "Close" to revert.
+
+You can save the current annotation settings (toggles, colors, line thickness, prominence scale options, observation details template, signature) as a preset with the "Save preset" button at the bottom of the panel, and reload them on any other image with "Load preset".
+The preset is stored on your computer and persists across JSol'Ex sessions.
+
 == Watching a directory for changes
 
 When trying to find the ideal focus, it can be useful to process video files quickly until we obtain a satisfying result.

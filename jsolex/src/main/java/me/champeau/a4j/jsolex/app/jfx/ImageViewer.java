@@ -126,6 +126,10 @@ public class ImageViewer implements WithRootNode {
     private int rotation;
     private boolean vflip;
     private boolean firstShow = true;
+    private ImageOverlayState overlays = ImageOverlayState.DEFAULT;
+    private GlobeStyle overlayGlobeStyle;
+    private OverlayPanel overlayPanel;
+    private EarthDragLayer earthLayer;
 
     private final ListProperty<ImageState> imageHistory = new SimpleListProperty<>(FXCollections.observableArrayList());
     private final IntegerProperty currentImage = new SimpleIntegerProperty(0);
@@ -370,10 +374,17 @@ public class ImageViewer implements WithRootNode {
     }
 
     private void saveImage() {
-        var unwrapped = this.image.unwrapToMemory();
-        var image = applyTransformations(unwrapped);
-        var strategy = determineStrategy();
-        var files = new ImageSaver(strategy, processParams, Configuration.getInstance().getImageFormats()).save(image, imageFile);
+        boolean hasOverlays = hasActiveOverlays();
+        ImageWrapper toSave;
+        StretchingStrategy strategy;
+        if (hasOverlays) {
+            toSave = applyOverlaysToStretchedImage();
+            strategy = CutoffStretchingStrategy.DEFAULT;
+        } else {
+            toSave = applyTransformations(this.image.unwrapToMemory());
+            strategy = determineStrategy();
+        }
+        var files = new ImageSaver(strategy, processParams, Configuration.getInstance().getImageFormats()).save(toSave, imageFile);
         files.stream()
                 .findFirst()
                 .ifPresent(file -> imageView.setImagePathForOpeningInExplorer(file.toPath()));
@@ -435,14 +446,19 @@ public class ImageViewer implements WithRootNode {
             var zoomMinus = createButton("-");
             zoomMinus.setOnAction(evt -> {
                 clearPendingAlignment();
-                imageView.setZoom(imageView.getZoom() * 0.8);
+                imageView.setZoomAroundCenter(imageView.getZoom() * 0.8);
             });
             var zoomPlus = createButton("+");
             zoomPlus.setOnAction(evt -> {
                 clearPendingAlignment();
-                imageView.setZoom(imageView.getZoom() * 1.2);
+                imageView.setZoomAroundCenter(imageView.getZoom() * 1.2);
             });
             var coordinatesLabel = new Label();
+            imageView.setOnZoomChanged(z -> {
+                if (earthLayer != null) {
+                    earthLayer.applyLayout();
+                }
+            });
             imageView.setCoordinatesListener((x, y) -> {
                 var extra = "";
                 var imageForPixelValue = stretchedImage != null ? stretchedImage : image;
@@ -547,8 +563,11 @@ public class ImageViewer implements WithRootNode {
                 view3dButton.setManaged(true);
                 return view3dButton;
             });
+            var overlayButton = createButton("⊕");
+            overlayButton.setStyle("-fx-padding: 2; -fx-font-size: 18");
+            overlayButton.setOnAction(evt -> toggleOverlayPanel(overlayButton));
             line1.getChildren().addAll(reset, saveButton, prevButton, nextButton);
-            line2.getChildren().addAll(correctAngleP, zoomLabel, zoomMinus, zoomPlus, fitButton, fitToCenter, oneToOneFit, leftRotate, rightRotate, verticalMirror, horizontalMirror, applyNextTime, measureButton, view3dButton, dimensions, coordinatesLabel);
+            line2.getChildren().addAll(correctAngleP, zoomLabel, zoomMinus, zoomPlus, fitButton, fitToCenter, oneToOneFit, leftRotate, rightRotate, verticalMirror, horizontalMirror, applyNextTime, overlayButton, measureButton, view3dButton, dimensions, coordinatesLabel);
             var titleLabel = new Label(title);
             titleLabel.setStyle("-fx-font-weight: bold");
             var alignButton = createButton("⌖");
@@ -571,6 +590,7 @@ public class ImageViewer implements WithRootNode {
                 applyNextTime.setTooltip(new Tooltip(message("apply.next.time")));
                 measureButton.setTooltip(new Tooltip(message("measure.button.tooltip")));
                 view3dButton.setTooltip(new Tooltip(message("view3d.button.tooltip")));
+                overlayButton.setTooltip(new Tooltip(message("overlay.tooltip")));
                 var titleBox = new HBox(alignButton, titleLabel, new Label("(" + imageFile.getName() + ")"));
                 titleBox.setSpacing(4);
                 titleBox.setAlignment(Pos.CENTER_LEFT);
@@ -716,6 +736,11 @@ public class ImageViewer implements WithRootNode {
     }
 
     private void stretchAndDisplay() {
+        invalidateStretchCache();
+        stretchAndDisplay(false);
+    }
+
+    private void redrawOverlays() {
         stretchAndDisplay(false);
     }
 
@@ -757,22 +782,134 @@ public class ImageViewer implements WithRootNode {
             onStretchedImageUpdate.accept(stretchedImage);
         }
         Platform.runLater(() -> stretchedImageDebounce.playFromStart());
-        var writable = WritableImageSupport.asWritable(stretchedImage);
+        var writable = renderForDisplay();
         Platform.runLater(() -> updateDisplay(writable, resetZoom));
     }
 
     private void computeStretchedImage() {
+        if (stretchedImage != null) {
+            return;
+        }
         var unwrapped = this.image.unwrapToMemory();
         var transformedImage = applyTransformations(unwrapped);
         if (stretchingMode == StretchingMode.NO_STRETCH) {
             stretchedImage = transformedImage;
+        } else if (transformedImage instanceof ImageWrapper32 mono) {
+            stretchedImage = stretch(mono);
+        } else if (transformedImage instanceof RGBImage rgb) {
+            stretchedImage = stretch(rgb);
         } else {
-            if (transformedImage instanceof ImageWrapper32 mono) {
-                stretchedImage = stretch(mono);
-            } else if (transformedImage instanceof RGBImage rgb) {
-                stretchedImage = stretch(rgb);
-            }
+            stretchedImage = transformedImage;
         }
+    }
+
+    private Image renderForDisplay() {
+        return OverlayRenderer.renderToFx(
+                stretchedImage,
+                overlays,
+                effectiveGlobeStyle(),
+                processParams,
+                kind,
+                baseImageIsPCorrected()
+        );
+    }
+
+    private void invalidateStretchCache() {
+        stretchedImage = null;
+    }
+
+    private GlobeStyle effectiveGlobeStyle() {
+        if (overlayGlobeStyle != null) {
+            return overlayGlobeStyle;
+        }
+        if (processParams != null && processParams.extraParams() != null && processParams.extraParams().globeStyle() != null) {
+            return processParams.extraParams().globeStyle();
+        }
+        return GlobeStyle.EQUATORIAL_COORDS;
+    }
+
+    private boolean baseImageIsPCorrected() {
+        return correctAngleP != null && correctAngleP.isSelected();
+    }
+
+    private void toggleOverlayPanel(Node anchor) {
+        if (overlayPanel == null) {
+            boolean hasEllipse = image != null && image.findMetadata(Ellipse.class).isPresent();
+            overlayPanel = new OverlayPanel(
+                    kind,
+                    hasEllipse,
+                    overlays,
+                    effectiveGlobeStyle(),
+                    newState -> {
+                        overlays = newState;
+                        if (overlays.drawEarth() && overlays.earthX() == null) {
+                            placeEarthDefault();
+                            if (overlayPanel != null) {
+                                overlayPanel.updateState(overlays);
+                            }
+                        }
+                        Platform.runLater(this::syncEarthLayer);
+                        BackgroundOperations.async(this::redrawOverlays);
+                    },
+                    style -> {
+                        overlayGlobeStyle = style;
+                        BackgroundOperations.async(this::redrawOverlays);
+                    },
+                    () -> {
+                        overlays = overlays.withEarthPosition(null, null);
+                        if (overlayPanel != null) {
+                            overlayPanel.updateState(overlays);
+                        }
+                        Platform.runLater(this::syncEarthLayer);
+                    }
+            );
+        }
+        overlayPanel.toggle(anchor);
+    }
+
+    public void hideOverlayPanel() {
+        if (overlayPanel != null) {
+            overlayPanel.hide();
+        }
+    }
+
+    private void placeEarthDefault() {
+        var ellipse = image != null ? image.findMetadata(Ellipse.class).orElse(null) : null;
+        if (ellipse == null) {
+            return;
+        }
+        var cx = ellipse.center().a();
+        var cy = ellipse.center().b();
+        var radius = (ellipse.semiAxis().a() + ellipse.semiAxis().b()) / 2d;
+        int defaultX = (int) (cx - radius * 0.85);
+        int defaultY = (int) (cy + radius * 0.65);
+        overlays = overlays.withEarthPosition(defaultX, defaultY);
+    }
+
+    private void syncEarthLayer() {
+        var pane = imageView.getImagePane();
+        if (overlays == null || !overlays.drawEarth() || overlays.earthX() == null || overlays.earthY() == null) {
+            if (earthLayer != null) {
+                pane.getChildren().remove(earthLayer);
+                earthLayer = null;
+            }
+            return;
+        }
+        var ellipse = image != null ? image.findMetadata(Ellipse.class).orElse(null) : null;
+        if (ellipse == null) {
+            return;
+        }
+        if (earthLayer == null) {
+            earthLayer = new EarthDragLayer(imageView, ellipse, (x, y) -> {
+                overlays = overlays.withEarthPosition(x, y);
+                if (overlayPanel != null) {
+                    overlayPanel.updateState(overlays);
+                }
+                saveButton.setDisable(false);
+            });
+            pane.getChildren().add(earthLayer);
+        }
+        earthLayer.place(overlays.earthX(), overlays.earthY());
     }
 
     private ImageWrapper applyTransformations(ImageWrapper image) {
@@ -805,6 +942,42 @@ public class ImageViewer implements WithRootNode {
         }
         var result = stretchedImage == null ? image : stretchedImage;
         return result == null ? null : result.unwrapToMemory();
+    }
+
+    public ImageWrapper getStretchedImageWithOverlays() {
+        var base = getStretchedImage();
+        if (base == null || !hasActiveOverlays()) {
+            return base;
+        }
+        return applyOverlaysToStretchedImage();
+    }
+
+    public boolean hasActiveOverlays() {
+        return overlays != null
+                && (overlays.drawGlobe()
+                || overlays.drawObservationDetails()
+                || overlays.drawSolarParameters()
+                || overlays.drawEarth()
+                || overlays.drawProminenceScale()
+                || overlays.drawSignature());
+    }
+
+    private ImageWrapper applyOverlaysToStretchedImage() {
+        if (stretchedImage == null) {
+            computeStretchedImage();
+        }
+        var baked = OverlayRenderer.apply(
+                stretchedImage.unwrapToMemory(),
+                overlays,
+                effectiveGlobeStyle(),
+                processParams,
+                kind,
+                baseImageIsPCorrected()
+        );
+        if (overlays.drawEarth() && earthLayer != null) {
+            baked = OverlayRenderer.bakeEarth(baked, earthLayer.getImageX(), earthLayer.getImageY(), processParams);
+        }
+        return baked;
     }
 
     /**

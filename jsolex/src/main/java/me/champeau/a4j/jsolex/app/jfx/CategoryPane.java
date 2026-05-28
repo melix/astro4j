@@ -61,7 +61,7 @@ public class CategoryPane extends VBox {
         getStyleClass().add("category-pane");
     }
 
-    Hyperlink addImage(String title, PixelShift pixelShift, Consumer<? super Hyperlink> onClick, Consumer<? super Hyperlink> onClose, Consumer<? super String> onRename) {
+    Hyperlink addImage(String title, PixelShift pixelShift, Consumer<? super Hyperlink> onClick, Consumer<? super Hyperlink> onClose, Consumer<? super String> onRename, Runnable onClone) {
         var box = new HBox();
         box.getProperties().put(PixelShift.class, pixelShift);
         box.setAlignment(Pos.CENTER_LEFT);
@@ -105,18 +105,27 @@ public class CategoryPane extends VBox {
         box.getChildren().add(spacer);
         var close = createCloseLink(box, link, onClose);
         box.getChildren().add(close);
-        if (onRename != null) {
-            installRename(box, link, shiftSuffix, onRename);
+        if (onRename != null || onClone != null) {
+            installContextMenu(box, link, shiftSuffix, onRename, onClone);
         }
         getChildren().add(insertPoint, box);
         Platform.runLater(() -> links.setAll(safeLinks));
         return link;
     }
 
-    private void installRename(HBox box, Hyperlink link, String shiftSuffix, Consumer<? super String> onRename) {
-        var renameItem = new MenuItem(message("rename.image"));
-        renameItem.setOnAction(e -> beginInlineEdit(box, link, shiftSuffix, onRename));
-        link.setContextMenu(new ContextMenu(renameItem));
+    private void installContextMenu(HBox box, Hyperlink link, String shiftSuffix, Consumer<? super String> onRename, Runnable onClone) {
+        var menu = new ContextMenu();
+        if (onRename != null) {
+            var renameItem = new MenuItem(message("rename.image"));
+            renameItem.setOnAction(e -> beginInlineEdit(box, link, shiftSuffix, onRename));
+            menu.getItems().add(renameItem);
+        }
+        if (onClone != null) {
+            var cloneItem = new MenuItem(message("clone.image"));
+            cloneItem.setOnAction(e -> onClone.run());
+            menu.getItems().add(cloneItem);
+        }
+        link.setContextMenu(menu);
     }
 
     private void beginInlineEdit(HBox box, Hyperlink link, String shiftSuffix, Consumer<? super String> onRename) {

@@ -408,7 +408,7 @@ public class SpectroSolHubSubmissionController {
                             ? imageInfo.spectroSolHubImageKind()
                             : imageInfo.kind().name();
                     var imageTitle = imageInfo.title();
-                    var metadata = ImageMetadata.fromImage(imageInfo.image(), imageInfo.kind());
+                    var metadata = ImageMetadata.fromImage(imageInfo.image(), imageInfo.kind(), imageInfo.annotated());
                     var metadataJson = metadata != null ? gson.toJson(metadata) : null;
 
                     client.uploadImage(sessionId, imageTitle, imageKind, metadataJson, jpegBytes, (partCompleted, totalParts) -> {
