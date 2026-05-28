@@ -68,6 +68,10 @@ public class PhenomenaDetector {
     private static final int ELLERMAN_LOCAL_RANGE = 8;
     private static final int ELLERMAN_MIN_WIDTH_FOR_DETECTION = 12 * ELLERMAN_LOCAL_RANGE;
     private static final int FLARE_DEDUP_DISTANCE = 16;
+    private static final int REDSHIFT_NEIGHBOR_HALF_WINDOW = 3;
+    private static final int REDSHIFT_MIN_VALID_NEIGHBORS = 3;
+    private static final double REDSHIFT_MAX_NEIGHBOR_MAD = 2.5;
+    private static final double REDSHIFT_MAX_RELATIVE_ERROR = 0.5;
 
     private final Map<Integer, List<Redshift>> redshiftsPerFrame = new ConcurrentHashMap<>();
     private final Queue<CandidateFlare> candidateFlares = new ConcurrentLinkedQueue<>();
@@ -212,7 +216,10 @@ public class PhenomenaDetector {
                 lock.unlock();
             }
             for (int x = left; x <= right; x++) {
-                analyzeColumn(frameId, x, width, height, original, polynomial, wingShiftInPixels, collector, finalAvgCenterLine, finalAvgOfColumnAverages, columnsAverages, columnsStddevs, models.avgModel(), models.stddevModel(), activeRegionsMask, columnStats, globalLineAvgForEllermanDetection, globalWingAvgForEllermanDetection, leftBorder, rightBorder);
+                analyzeColumn(frameId, x, width, height, polynomial, columnsAverages, columnsStddevs, models.avgModel(), models.stddevModel(), activeRegionsMask, columnStats, globalLineAvgForEllermanDetection, globalWingAvgForEllermanDetection, leftBorder, rightBorder);
+            }
+            if (detectRedshifts) {
+                emitRedshifts(frameId, leftBorder, rightBorder, width, height, original, polynomial, wingShiftInPixels, finalAvgCenterLine, finalAvgOfColumnAverages, columnsAverages, collector);
             }
             if (!collector.isEmpty()) {
                 redshiftsPerFrame.put(frameId, Collections.unmodifiableList(collector));
@@ -360,12 +367,7 @@ public class PhenomenaDetector {
                                int x,
                                int width,
                                int height,
-                               float[][] original,
                                DoubleUnaryOperator polynomial,
-                               int wingShiftInPixels,
-                               List<Redshift> collector,
-                               double avgLineValue,
-                               double avgOfcolumnAverages,
                                double[] columnsAverages,
                                double[] columnsStddevs,
                                DoubleUnaryOperator avgModel,
@@ -378,9 +380,6 @@ public class PhenomenaDetector {
                                int rightBorder) {
         if (detectActiveRegions) {
             detectActiveRegions(x, columnsAverages, columnsStddevs, avgModel, stddevModel, activeRegionMask);
-        }
-        if (detectRedshifts) {
-            performRedshiftDetection(frameId, x, width, height, original, polynomial, wingShiftInPixels, collector, avgLineValue, avgOfcolumnAverages, columnsAverages);
         }
         if (detectEllermanBombs && globalWingAvgForEllermanDetection > 0 && x > leftBorder + 16 && x < rightBorder - 16) {
             performEllermanBombDetection(frameId, x, width, leftBorder, rightBorder, polynomial, columnStats, globalLineAvgForEllermanDetection, globalWingAvgForEllermanDetection)
@@ -453,111 +452,260 @@ public class PhenomenaDetector {
         return Optional.empty();
     }
 
-    private void performRedshiftDetection(int frameId, int x, int width, int height, float[][] original, DoubleUnaryOperator polynomial, int wingShiftInPixels, List<Redshift> collector, double avgLineValue, double avgOfcolumnAverages, double[] columnsAverages) {
-        // The polynomial is used to find the original pixel position which is in the middle of the h-alpha line.
-        // We keep the value as double to preserve subpixel precision of the line center.
-        double yd = polynomial.applyAsDouble(x);
-        int yi = (int) yd;
-        if (yi - wingShiftInPixels < 0 || yi + wingShiftInPixels >= height) {
-            return;
-        }
-        var colStdDev = stddev(original, width, height, x, x + 1);
-        var columnAverage = columnsAverages[x];
-        if (columnAverage < 0.9 * avgOfcolumnAverages) {
-            return;
-        }
-        var middleValue = original[yi][x];
-        if (middleValue > 1.5 * avgLineValue) {
-            // reduce risks of detecting flares
-            return;
-        }
-        var threshold = avgLineValue + 2 * colStdDev;
-
-        // Search the red wing for the threshold crossing
-        double redShift = 0;
-        double redSlope = 0;
-        int y = yi + wingShiftInPixels + 1;
-        double prev = -1;
-        int maxY = y;
-        while (y < height) {
-            var v = original[y][x];
-            if (v >= threshold || (prev > 0 && v > 1.2 * prev)) {
-                if (prev > 0 && v > prev) {
-                    // Linear interpolation: find y* such that intensity equals threshold
-                    var frac = (threshold - prev) / (v - prev);
-                    frac = Math.max(0d, Math.min(1d, frac));
-                    var yStar = (y - 1) + frac;
-                    redShift = yStar - yd;
-                    redSlope = v - prev;
-                } else {
-                    redShift = (y - 1) - yd;
-                }
-                break;
+    private void emitRedshifts(int frameId,
+                               int left,
+                               int right,
+                               int width,
+                               int height,
+                               float[][] original,
+                               DoubleUnaryOperator polynomial,
+                               int wingShiftInPixels,
+                               double avgLineValue,
+                               double avgOfColumnAverages,
+                               double[] columnsAverages,
+                               List<Redshift> collector) {
+        var shifts = new double[width];
+        var sigmas = new double[width];
+        Arrays.fill(shifts, Double.NaN);
+        Arrays.fill(sigmas, Double.NaN);
+        for (int x = left; x <= right; x++) {
+            var raw = computeRawRedshift(x, width, height, original, polynomial, wingShiftInPixels,
+                    avgLineValue, avgOfColumnAverages, columnsAverages);
+            if (raw != null) {
+                shifts[x] = raw.signedShift();
+                sigmas[x] = raw.sigmaModeled();
             }
-            prev = v;
-            y++;
-            maxY = y;
         }
-
-        // Search the blue wing for the threshold crossing
-        double blueShift = 0;
-        double blueSlope = 0;
-        y = yi - wingShiftInPixels - 1;
-        prev = -1;
-        int minY = y;
-        while (y >= 0) {
-            var v = original[y][x];
-            if (v >= threshold || (prev > 0 && v > 1.2 * prev)) {
-                if (prev > 0 && v > prev) {
-                    var frac = (threshold - prev) / (v - prev);
-                    frac = Math.max(0d, Math.min(1d, frac));
-                    var yStar = (y + 1) - frac;
-                    blueShift = yd - yStar;
-                    blueSlope = v - prev;
-                } else {
-                    blueShift = yd - (y + 1);
-                }
-                break;
+        var minShift = (double) (2 * wingShiftInPixels);
+        var neighborBuf = new double[2 * REDSHIFT_NEIGHBOR_HALF_WINDOW + 1];
+        for (int x = left; x <= right; x++) {
+            var signedShift = shifts[x];
+            if (Double.isNaN(signedShift) || Math.abs(signedShift) < minShift) {
+                continue;
             }
-            prev = v;
-            y--;
-            minY = y;
-        }
-        if (maxY > height - 4) {
-            return;
-        }
-        if (minY < 4) {
-            return;
-        }
-        double maxShift;
-        double relMaxShift;
-        double slope;
-        if (redShift >= blueShift) {
-            maxShift = redShift;
-            relMaxShift = redShift;
-            slope = redSlope;
-        } else {
-            maxShift = blueShift;
-            relMaxShift = -blueShift;
-            slope = blueSlope;
-        }
-        if (maxShift >= 2 * wingShiftInPixels) {
-            // 1σ photometric uncertainty on the wing-crossing position, propagated to km/s
-            var sigmaY = slope > 0 ? colStdDev / slope : 1.0;
-            var kmPerSecError = speedOf(sigmaY);
-            var redshift = new Redshift(maxShift, relMaxShift, speedOf(maxShift), kmPerSecError, new IntPair(frameId, reconstructedWidth - x - 1));
+            int n = 0;
+            for (int k = -REDSHIFT_NEIGHBOR_HALF_WINDOW; k <= REDSHIFT_NEIGHBOR_HALF_WINDOW; k++) {
+                int nx = x + k;
+                if (nx < left || nx > right) {
+                    continue;
+                }
+                var s = shifts[nx];
+                if (!Double.isNaN(s)) {
+                    neighborBuf[n++] = s;
+                }
+            }
+            if (n < REDSHIFT_MIN_VALID_NEIGHBORS) {
+                continue;
+            }
+            var validNeighbors = Arrays.copyOf(neighborBuf, n);
+            var mad = computeMad(validNeighbors);
+            if (mad > REDSHIFT_MAX_NEIGHBOR_MAD) {
+                continue;
+            }
+            var sigmaEmpirical = mad * 1.4826;
+            var sigmaFinal = Math.max(sigmas[x], sigmaEmpirical);
+            var absShift = Math.abs(signedShift);
+            var kmPerSec = speedOf(absShift);
+            var kmPerSecError = speedOf(sigmaFinal);
+            if (kmPerSecError > REDSHIFT_MAX_RELATIVE_ERROR * kmPerSec) {
+                continue;
+            }
+            var redshift = new Redshift(absShift, signedShift, kmPerSec, kmPerSecError,
+                    new IntPair(frameId, reconstructedWidth - x - 1));
             lock.lock();
             try {
-                // the coordinates in the final image are reversed (x <-> y) because of a 90° rotation
-                // and flipped vertically
                 if (detectionListener != null) {
-                    detectionListener.onRedshift(new DoublePair(x, relMaxShift));
+                    detectionListener.onRedshift(new DoublePair(x, signedShift));
                 }
                 collector.add(redshift);
             } finally {
                 lock.unlock();
             }
         }
+    }
+
+    private RawRedshift computeRawRedshift(int x,
+                                           int width,
+                                           int height,
+                                           float[][] original,
+                                           DoubleUnaryOperator polynomial,
+                                           int wingShiftInPixels,
+                                           double avgLineValue,
+                                           double avgOfColumnAverages,
+                                           double[] columnsAverages) {
+        double yd = polynomial.applyAsDouble(x);
+        int yi = (int) yd;
+        if (yi - wingShiftInPixels < 0 || yi + wingShiftInPixels >= height) {
+            return null;
+        }
+        var columnAverage = columnsAverages[x];
+        if (columnAverage < 0.9 * avgOfColumnAverages) {
+            return null;
+        }
+        var middleValue = original[yi][x];
+        if (middleValue > 1.5 * avgLineValue) {
+            return null;
+        }
+        var colStdDev = stddev(original, width, height, x, x + 1);
+        var threshold = avgLineValue + 2 * colStdDev;
+        var red = searchWingCrossing(original, x, yi, yd, wingShiftInPixels, height, threshold, true);
+        var blue = searchWingCrossing(original, x, yi, yd, wingShiftInPixels, height, threshold, false);
+        if (red == null || blue == null) {
+            return null;
+        }
+        double signedShift;
+        double slope;
+        boolean recovered;
+        if (red.shift() >= blue.shift()) {
+            signedShift = red.shift();
+            slope = red.slope();
+            recovered = red.recovered();
+        } else {
+            signedShift = -blue.shift();
+            slope = blue.slope();
+            recovered = blue.recovered();
+        }
+        if (!recovered || slope <= 0) {
+            return null;
+        }
+        var sigmaPhot = estimateContinuumNoise(original, x, yi, wingShiftInPixels, height);
+        if (sigmaPhot <= 0) {
+            return null;
+        }
+        return new RawRedshift(signedShift, sigmaPhot / slope);
+    }
+
+    private static WingResult searchWingCrossing(float[][] original,
+                                                 int x,
+                                                 int yi,
+                                                 double yd,
+                                                 int wingShiftInPixels,
+                                                 int height,
+                                                 double threshold,
+                                                 boolean redward) {
+        int direction = redward ? 1 : -1;
+        int y = yi + direction * (wingShiftInPixels + 1);
+        double prev = -1;
+        while (redward ? y < height : y >= 0) {
+            var v = original[y][x];
+            if (v >= threshold || (prev > 0 && v > 1.2 * prev)) {
+                if (redward && y > height - 4) {
+                    return null;
+                }
+                if (!redward && y < 4) {
+                    return null;
+                }
+                double shift;
+                if (prev > 0 && v > prev) {
+                    var frac = (threshold - prev) / (v - prev);
+                    frac = Math.max(0d, Math.min(1d, frac));
+                    var yStar = redward ? (y - 1) + frac : (y + 1) - frac;
+                    shift = redward ? yStar - yd : yd - yStar;
+                } else {
+                    shift = redward ? (y - 1) - yd : yd - (y + 1);
+                }
+                int slopeStart = redward ? Math.max(0, y - 2) : Math.max(0, y - 1);
+                int slopeEnd = redward ? Math.min(height, y + 2) : Math.min(height, y + 3);
+                var slopeMagnitude = Math.abs(localSlope(original, x, slopeStart, slopeEnd));
+                var recovered = wingRecovers(original, x, y, height, threshold, redward);
+                return new WingResult(shift, slopeMagnitude, recovered);
+            }
+            prev = v;
+            y += direction;
+        }
+        return null;
+    }
+
+    private static boolean wingRecovers(float[][] original, int x, int yCross, int height, double threshold, boolean redward) {
+        int direction = redward ? 1 : -1;
+        int total = 0;
+        int aboveCount = 0;
+        for (int k = 1; k <= 3; k++) {
+            int y = yCross + direction * k;
+            if (y < 0 || y >= height) {
+                continue;
+            }
+            total++;
+            if (original[y][x] >= 0.9 * threshold) {
+                aboveCount++;
+            }
+        }
+        return total >= 2 && aboveCount >= total - 1;
+    }
+
+    private static double localSlope(float[][] original, int x, int yStart, int yEnd) {
+        int n = yEnd - yStart;
+        if (n < 2) {
+            return 0;
+        }
+        double sumY = 0;
+        double sumI = 0;
+        double sumY2 = 0;
+        double sumYI = 0;
+        for (int y = yStart; y < yEnd; y++) {
+            var v = original[y][x];
+            sumY += y;
+            sumI += v;
+            sumY2 += (double) y * y;
+            sumYI += y * v;
+        }
+        double denom = n * sumY2 - sumY * sumY;
+        if (denom == 0) {
+            return 0;
+        }
+        return (n * sumYI - sumY * sumI) / denom;
+    }
+
+    private static double estimateContinuumNoise(float[][] original, int x, int yi, int wingShiftInPixels, int height) {
+        int margin = 3 * wingShiftInPixels;
+        int loStart = Math.max(0, yi - 5 * wingShiftInPixels);
+        int loEnd = Math.max(0, yi - margin);
+        int hiStart = Math.min(height, yi + margin);
+        int hiEnd = Math.min(height, yi + 5 * wingShiftInPixels);
+        int count = Math.max(0, loEnd - loStart) + Math.max(0, hiEnd - hiStart);
+        if (count < 8) {
+            return -1;
+        }
+        double sum = 0;
+        for (int y = loStart; y < loEnd; y++) {
+            sum += original[y][x];
+        }
+        for (int y = hiStart; y < hiEnd; y++) {
+            sum += original[y][x];
+        }
+        double avg = sum / count;
+        double varSum = 0;
+        for (int y = loStart; y < loEnd; y++) {
+            var d = original[y][x] - avg;
+            varSum += d * d;
+        }
+        for (int y = hiStart; y < hiEnd; y++) {
+            var d = original[y][x] - avg;
+            varSum += d * d;
+        }
+        return Math.sqrt(varSum / (count - 1));
+    }
+
+    private static double computeMad(double[] values) {
+        int n = values.length;
+        if (n == 0) {
+            return 0;
+        }
+        var sorted = values.clone();
+        Arrays.sort(sorted);
+        double median = sorted[n / 2];
+        var deviations = new double[n];
+        for (int i = 0; i < n; i++) {
+            deviations[i] = Math.abs(values[i] - median);
+        }
+        Arrays.sort(deviations);
+        return deviations[n / 2];
+    }
+
+    private record WingResult(double shift, double slope, boolean recovered) {
+    }
+
+    private record RawRedshift(double signedShift, double sigmaModeled) {
     }
 
     public Flares getFlares() {

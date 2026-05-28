@@ -1,5 +1,9 @@
 # Welcome to JSol'Ex {{version}}!
 
+## What's New in Version 5.2.3
+
+- Redshift measurements are more reliable and their uncertainty is much more realistic.
+
 ## What's New in Version 5.2.2
 
 - The BASS2000 submission wizard now lists pending submissions from other observers for the same date and wavelength, with a visual timeline showing when they were captured.

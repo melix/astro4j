@@ -501,6 +501,37 @@ public class SpectralLineDebugger {
         graphicsContext.strokeLine(x, y - 5, x, y + 5);
     }
 
+    private static void drawRedshiftMarker(RGBImage rgb, int x, double signedShift, DoubleUnaryOperator poly) {
+        var r = rgb.r();
+        var g = rgb.g();
+        var b = rgb.b();
+        int h = r.length;
+        if (h == 0) {
+            return;
+        }
+        int w = r[0].length;
+        if (x < 0 || x >= w) {
+            return;
+        }
+        int yCenter = (int) Math.round(poly.applyAsDouble(x));
+        int yCross = yCenter + (int) Math.round(signedShift);
+        int yLo = Math.max(0, Math.min(yCenter, yCross));
+        int yHi = Math.min(h - 1, Math.max(yCenter, yCross));
+        for (int y = yLo; y <= yHi; y++) {
+            r[y][x] = 0;
+            g[y][x] = Constants.MAX_PIXEL_VALUE;
+            b[y][x] = Constants.MAX_PIXEL_VALUE;
+        }
+        int wy = Math.max(0, Math.min(h - 1, yCross));
+        int xLo = Math.max(0, x - 1);
+        int xHi = Math.min(w - 1, x + 1);
+        for (int xi = xLo; xi <= xHi; xi++) {
+            r[wy][xi] = Constants.MAX_PIXEL_VALUE;
+            g[wy][xi] = Constants.MAX_PIXEL_VALUE;
+            b[wy][xi] = 0;
+        }
+    }
+
 
     public void close() throws Exception {
         stopPlayback();
@@ -606,11 +637,7 @@ public class SpectralLineDebugger {
             detector.setDetectionListener(new PhenomenaListener() {
                 @Override
                 public void onRedshift(DoublePair rs) {
-                    var x = rs.a();
-                    var y = ((int) Math.round(detectedPoly.applyAsDouble(x))) + rs.b();
-                    rgb.r()[(int) y][(int) x] = 0;
-                    rgb.g()[(int) y][(int) x] = Constants.MAX_PIXEL_VALUE;
-                    rgb.b()[(int) y][(int) x] = Constants.MAX_PIXEL_VALUE;
+                    drawRedshiftMarker(rgb, (int) rs.a(), rs.b(), detectedPoly);
                 }
 
                 @Override
@@ -773,11 +800,7 @@ public class SpectralLineDebugger {
             detector.setDetectionListener(new PhenomenaListener() {
                 @Override
                 public void onRedshift(DoublePair rs) {
-                    var x = rs.a();
-                    var y = ((int) Math.round(polynomial.applyAsDouble(x))) + rs.b();
-                    rgb.r()[(int) y][(int) x] = 0;
-                    rgb.g()[(int) y][(int) x] = Constants.MAX_PIXEL_VALUE;
-                    rgb.b()[(int) y][(int) x] = Constants.MAX_PIXEL_VALUE;
+                    drawRedshiftMarker(rgb, (int) rs.a(), rs.b(), polynomial);
                 }
 
                 @Override
