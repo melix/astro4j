@@ -654,6 +654,9 @@ public class ZoomableImageView extends HBox {
         var heightZoom = height / image.getHeight();
 
         var newZoom = useMax ? Math.max(widthZoom, heightZoom) : Math.min(widthZoom, heightZoom);
+        if (!useMax && newZoom > 1.0) {
+            newZoom = 1.0;
+        }
 
         if (newZoom != zoom) {
             zoom = newZoom;
@@ -680,6 +683,9 @@ public class ZoomableImageView extends HBox {
 
         // Calculate zoom level to ensure the solar disk takes 80% of the window width or height, whichever is smaller
         var zoom = Math.min(width / diameter * 0.8, height / diameter * 0.8);
+        if (image.getWidth() <= width && image.getHeight() <= height) {
+            zoom = 1.0;
+        }
         setZoom(zoom);
 
         // Calculate the coordinates to center the sun in the viewport
