@@ -880,9 +880,16 @@ public class ImageViewer implements WithRootNode {
         }
         var cx = ellipse.center().a();
         var cy = ellipse.center().b();
-        var radius = (ellipse.semiAxis().a() + ellipse.semiAxis().b()) / 2d;
-        int defaultX = (int) (cx - radius * 0.85);
-        int defaultY = (int) (cy + radius * 0.65);
+        var semiAxis = ellipse.semiAxis();
+        var radius = (semiAxis.a() + semiAxis.b()) / 2d;
+        double sunDiameterPixels = semiAxis.a() + semiAxis.b();
+        double earthSizePixels = sunDiameterPixels * (12_742.0 / 1_391_400.0);
+        int imageWidth = image.width();
+        int imageHeight = image.height();
+        int maxX = Math.max(0, imageWidth - (int) Math.ceil(earthSizePixels));
+        int maxY = Math.max(0, imageHeight - (int) Math.ceil(earthSizePixels));
+        int defaultX = Math.max(0, Math.min(maxX, (int) (cx - radius * 0.85)));
+        int defaultY = Math.max(0, Math.min(maxY, (int) (cy + radius * 0.65)));
         overlays = overlays.withEarthPosition(defaultX, defaultY);
     }
 
