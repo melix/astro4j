@@ -99,7 +99,7 @@ public class Loader extends AbstractFunctionImpl {
         return toImageWrapper(image, metadata);
     }
 
-    static ImageWrapper toImageWrapper(BufferedImage image, Map<Class<?>, Object> metadata) {
+    public static ImageWrapper toImageWrapper(BufferedImage image, Map<Class<?>, Object> metadata) {
         var width = image.getWidth();
         var height = image.getHeight();
         var colorModel = image.getColorModel();

@@ -53,7 +53,7 @@ module me.champeau.a4j.jsolex {
     exports me.champeau.a4j.jsolex.app.jfx.ime to javafx.fxml, javafx.graphics;
     opens me.champeau.a4j.jsolex.app.jfx.stacking to javafx.fxml, javafx.graphics;
     opens me.champeau.a4j.jsolex.app to javafx.fxml;
-    opens me.champeau.a4j.jsolex.app.jfx to javafx.fxml;
+    opens me.champeau.a4j.jsolex.app.jfx to javafx.fxml, com.google.gson;
     opens me.champeau.a4j.jsolex.app.jfx.bass2000 to javafx.fxml;
     opens me.champeau.a4j.jsolex.app.jfx.spectrosolhub to javafx.fxml;
     opens me.champeau.a4j.jsolex.app.jfx.sunscan to javafx.fxml, com.google.gson;

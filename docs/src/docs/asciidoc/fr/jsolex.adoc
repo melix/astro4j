@@ -334,6 +334,31 @@ image::image-display-fr.jpg[]
 Vous pouvez zoomer dans les images en utilisant la molette de la souris.
 Un clic droit vous permettra d'ouvrir l'image générée dans votre explorateur de fichiers ou dans une nouvelle fenêtre.
 
+Vous pouvez aussi dupliquer une image depuis la barre latérale en faisant un clic droit sur son nom et en choisissant « Dupliquer », ce qui est utile lorsque vous voulez conserver une version originale à côté d'une version annotée.
+
+=== Annotations
+
+Chaque image a son propre jeu d'annotations que vous pouvez activer ou désactiver indépendamment depuis le panneau d'annotations, ouvert via le bouton ⊕ de la barre d'outils.
+Ce panneau est une fenêtre flottante que vous pouvez déplacer à votre guise pendant votre travail.
+
+Les annotations suivantes sont disponibles :
+
+- *Grille d'orientation* : méridiens et parallèles héliographiques tracés sur le disque solaire, avec l'axe de rotation et les marqueurs des directions cardinales. Le style (coordonnées équatoriales ou solaires) et la correction de l'angle P se règlent depuis le menu d'options de la grille.
+- *Échelle des protubérances* : cercles concentriques pointillés à l'extérieur du limbe, avec des étiquettes de distance en kilomètres. Vous pouvez choisir le nombre de cercles et l'espacement entre eux.
+- *Détails d'observation* : un bloc de texte généralement placé en haut à gauche avec le nom de l'observateur, la date, l'instrument, le télescope, la caméra, etc. Le contenu est entièrement modifiable via un modèle avec des variables (par exemple `%OBSERVER%`, `%DATETIME%`, `%TELESCOPE%`) : vous choisissez les champs affichés, vous les réorganisez, vous y ajoutez votre propre texte. Les lignes vides (lorsque la valeur est absente) sont automatiquement ignorées.
+- *Paramètres solaires* : un bloc listant les angles P, B0, L0 et la rotation de Carrington, placé en haut à droite.
+- *Référence de taille (Terre)* : une petite image de la Terre superposée à l'image pour servir de comparaison de taille. Le marqueur est déplaçable à la souris.
+- *Signature* : texte libre placé en bas à gauche de l'image. Vous pouvez choisir la police (la liste déroulante affiche chaque famille dans sa propre typographie) et la taille.
+
+Chaque annotation a sa propre couleur, gris neutre par défaut afin de préserver les images monochromes.
+Un réglage global d'épaisseur de trait en bas du panneau permet d'ajuster l'intensité de tous les traits dessinés.
+
+Lors de la modification de la signature ou du modèle des détails d'observation, les changements sont prévisualisés en direct sur l'image.
+Cliquez sur « Appliquer » pour les conserver ou « Fermer » pour les annuler.
+
+Vous pouvez enregistrer les réglages d'annotations actuels (activations, couleurs, épaisseur, options de l'échelle des protubérances, modèle des détails, signature) en tant que préréglage via le bouton « Enregistrer le préréglage » en bas du panneau, et les recharger sur n'importe quelle autre image avec « Charger le préréglage ».
+Le préréglage est stocké sur votre ordinateur et conservé entre les sessions de JSol'Ex.
+
 == Mode surveillance de répertoire
 
 Lors de la mise au point, il peut être utile de traiter "à la chaîne" de nouvelles vidéos jusqu'à avoir obtenu un résultat satisfaisant (image centrée, mise au point correcte, etc.).

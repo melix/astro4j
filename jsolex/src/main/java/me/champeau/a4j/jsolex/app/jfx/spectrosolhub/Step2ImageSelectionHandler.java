@@ -67,8 +67,7 @@ class Step2ImageSelectionHandler implements StepHandler {
             GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED,
             GeneratedImageKind.MIXED,
             GeneratedImageKind.DOPPLER,
-            GeneratedImageKind.VIRTUAL_ECLIPSE,
-            GeneratedImageKind.TECHNICAL_CARD
+            GeneratedImageKind.VIRTUAL_ECLIPSE
     );
 
     private static final Set<GeneratedImageKind> DEFAULT_PRESELECTED = EnumSet.of(

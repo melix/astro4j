@@ -3,6 +3,8 @@
 ## What's New in Version 5.2.3
 
 - Redshift measurements are more reliable and their uncertainty is much more realistic.
+- Replaced the standalone Technical Card image with interactive annotations toggled per image: orientation grid, observation details, solar parameters, prominence scale, drag-and-place Earth size reference and a free-text signature, all with customisable colors, line thickness and templates, savable as a preset.
+- Images can now be duplicated from the sidebar right-click menu so you can keep an unannotated original alongside an annotated copy.
 
 ## What's New in Version 5.2.2
 

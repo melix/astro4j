@@ -66,6 +66,7 @@ public class ZoomableImageView extends HBox {
 
     private double zoom = 0;
     private Path imagePath;
+    private Pane imagePane;
 
     // Fields for rectangle selection
     private double startX;
@@ -155,8 +156,8 @@ public class ZoomableImageView extends HBox {
         selectionLabel.setTextFill(Color.RED);
         disableSelection();
 
-        var pane = new Pane(imageView, selectionRectangle, selectionLabel);
-        scrollPane.setContent(pane);
+        this.imagePane = new Pane(imageView, selectionRectangle, selectionLabel);
+        scrollPane.setContent(imagePane);
         scrollPane.pannableProperty().bind(isSelectingRectangle.not());
         scrollPane.addEventFilter(ScrollEvent.ANY, event -> {
             if (isSelectingRectangle.get()) {
@@ -475,9 +476,7 @@ public class ZoomableImageView extends HBox {
         imageView.setFitWidth(image.getWidth() * zoom);
         imageView.setFitHeight(image.getHeight() * zoom);
         adjustScrollPane();
-        
-        // Notify subclasses of zoom change
-        onZoomChanged(zoom);
+        triggerOnZoomChanged();
     }
 
     private void adjustScrollPane() {
@@ -549,6 +548,35 @@ public class ZoomableImageView extends HBox {
         applyZoom();
     }
 
+    public void setZoomAroundCenter(double newZoom) {
+        var image = imageView.getImage();
+        if (image == null) {
+            setZoom(newZoom);
+            return;
+        }
+        scrollPane.layout();
+        var viewportBounds = scrollPane.getViewportBounds();
+        double viewportWidth = viewportBounds.getWidth();
+        double viewportHeight = viewportBounds.getHeight();
+        double contentWidth = image.getWidth() * zoom;
+        double contentHeight = image.getHeight() * zoom;
+        double hmax = Math.max(0, contentWidth - viewportWidth);
+        double vmax = Math.max(0, contentHeight - viewportHeight);
+        double centeringOffsetX = Math.max(0, (viewportWidth - contentWidth) / 2);
+        double centeringOffsetY = Math.max(0, (viewportHeight - contentHeight) / 2);
+        double centerXInContent = hmax > 0
+                ? scrollPane.getHvalue() * hmax + viewportWidth / 2.0
+                : viewportWidth / 2.0 - centeringOffsetX;
+        double centerYInContent = vmax > 0
+                ? scrollPane.getVvalue() * vmax + viewportHeight / 2.0
+                : viewportHeight / 2.0 - centeringOffsetY;
+        double imageCenterX = centerXInContent / zoom;
+        double imageCenterY = centerYInContent / zoom;
+        zoom = newZoom;
+        applyZoom();
+        centerViewportOn(imageCenterX, imageCenterY);
+    }
+
     public ScrollPane getScrollPane() {
         return scrollPane;
     }
@@ -593,6 +621,15 @@ public class ZoomableImageView extends HBox {
 
     public void setClickListener(BiConsumer<? super Integer, ? super Integer> listener) {
         this.onClickListener = listener;
+    }
+
+    /**
+     * Returns the pane that hosts the image view. Children added to it live in
+     * the same coordinate space as the displayed (zoomed) image — multiply
+     * image-space coordinates by {@link #getZoom()} to position a node.
+     */
+    public Pane getImagePane() {
+        return imagePane;
     }
 
     public void resetZoom() {

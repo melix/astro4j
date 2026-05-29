@@ -16,6 +16,8 @@
 package me.champeau.a4j.jsolex.app.listeners;
 
 import javafx.application.Platform;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -841,9 +843,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     }
                     if (adjustedParams == null) {
                         return false;
-                    }
-                    if (generatedImageKind == GeneratedImageKind.TECHNICAL_CARD) {
-                        return kind != ActionKind.CREATE_ANIM_OR_PANEL;
                     }
                     return true;
                 }
@@ -1745,8 +1744,22 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         return histogram;
     }
 
+    private static final ObservableList<String> HISTOGRAM_CATEGORIES;
+
+    static {
+        var list = new ArrayList<String>(BINS);
+        for (int i = 0; i < BINS; i++) {
+            list.add(String.valueOf(i));
+        }
+        HISTOGRAM_CATEGORIES = FXCollections.unmodifiableObservableList(
+                FXCollections.observableArrayList(list));
+    }
+
     private static BarChart<String, Number> createHistogramChart() {
-        var xAxis = new CategoryAxis();
+        // Pre-populating categories disables auto-range and avoids the
+        // O(N^2) CategoryAxis.checkAndRemoveDuplicates that fires on every
+        // per-bar add when the axis discovers new categories one by one.
+        var xAxis = new CategoryAxis(FXCollections.observableArrayList(HISTOGRAM_CATEGORIES));
         var yAxis = new NumberAxis();
         xAxis.setLabel(message("pixel.value"));
         yAxis.setLabel(message("pixel.count"));
@@ -1759,12 +1772,12 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
     private static void addSeries(BarChart<String, Number> chart, Histogram histogram, String color) {
         var series = new XYChart.Series<String, Number>();
+        var data = new ArrayList<XYChart.Data<String, Number>>(histogram.values().length);
         for (var i = 0; i < histogram.values().length; i++) {
-            var d = new XYChart.Data<String, Number>(String.valueOf(i), histogram.values()[i]);
-            series.getData().add(d);
+            data.add(new XYChart.Data<>(String.valueOf(i), histogram.values()[i]));
         }
-
-        // Add the series to the bar chart
+        // Bulk add fires a single change event instead of N events.
+        series.getData().setAll(data);
         chart.getData().add(series);
         for (var d : series.getData()) {
             d.getNode().setStyle("-fx-bar-fill: " + color + ";");

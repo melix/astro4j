@@ -37,7 +37,6 @@ public enum GeneratedImageKind {
     MIXED(DisplayCategory.COLORIZED, DirectoryKind.PROCESSED),
     DOPPLER(DisplayCategory.COLORIZED, DirectoryKind.PROCESSED),
     NEGATIVE(DisplayCategory.COLORIZED, DirectoryKind.PROCESSED),
-    TECHNICAL_CARD(DisplayCategory.MISC, DirectoryKind.PROCESSED),
     IMAGE_MATH(DisplayCategory.IMAGE_MATH, DirectoryKind.CUSTOM),
     COMPOSITION(DisplayCategory.PROCESSED, DirectoryKind.PROCESSED),
     COLLAGE(DisplayCategory.MISC, DirectoryKind.PROCESSED),
@@ -67,7 +66,6 @@ public enum GeneratedImageKind {
     public boolean cannotPerformManualRotation() {
         return this == GeneratedImageKind.IMAGE_MATH
                 || this == GeneratedImageKind.DEBUG
-                || this == GeneratedImageKind.TECHNICAL_CARD
                 || this == GeneratedImageKind.CROPPED
                 || this == GeneratedImageKind.COLLAGE
                 || this == GeneratedImageKind.REDSHIFT

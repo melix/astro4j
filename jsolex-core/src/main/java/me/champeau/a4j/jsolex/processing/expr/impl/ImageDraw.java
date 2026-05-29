@@ -39,10 +39,12 @@ import me.champeau.a4j.math.regression.Ellipse;
 import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.geom.AffineTransform;
+import java.awt.geom.Path2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
 import java.awt.image.DataBufferUShort;
 import java.io.IOException;
+import java.io.InputStream;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
@@ -63,8 +65,24 @@ public class ImageDraw extends AbstractFunctionImpl {
     private static final double SUN_DIAMETER_KM = 1_391_400;
     private static final double SUN_RADIUS_KM = SUN_DIAMETER_KM / 2;
     private static final double EARTH_DIAMETER_KM = 12_742;
-    private static final int PROMINENCE_SCALE_STEP_KM = 50000;
-    private static final int PROMS_CIRCLES = 5;
+    public static final int PROMINENCE_SCALE_STEP_KM = 50000;
+    public static final int PROMS_CIRCLES = 5;
+    public static final float DEFAULT_LINE_THICKNESS = 1.0f;
+    public static final String DEFAULT_SIGNATURE_FONT = "SansSerif";
+    public static final int DEFAULT_SIGNATURE_SIZE = 24;
+
+    public static final String DEFAULT_OBS_DETAILS_TEMPLATE = """
+            <b>%OBSERVER%
+            %DATETIME%
+            %INSTRUMENT% - %RAY%
+            %SHIFT_LINE%
+            %TELESCOPE%
+            %FOCAL_LEN_LINE%
+            %APERTURE_LINE%
+            %ERF_LINE%
+            %CAMERA%
+            %COORDINATES_LINE%
+            %VERSION_LINE%""";
 
     public ImageDraw(Map<Class<?>, Object> context, Broadcaster broadcaster) {
         super(context, broadcaster);
@@ -102,63 +120,62 @@ public class ImageDraw extends AbstractFunctionImpl {
         var y = getArgument(Number.class, arguments, "y").map(Number::intValue).orElse(50);
         var fontSize = getArgument(Number.class, arguments, "fs").map(Number::intValue).orElse(-1);
         if (arg instanceof ImageWrapper img) {
-            var processParams = findProcessParams(img);
-            if (processParams.isPresent()) {
-                return drawOnImage(img, (g, image) -> {
-                    if (fontSize == -1) {
-                        getEllipse(arguments, "ellipse").ifPresentOrElse(ellipse -> {
-                            var semiAxis = ellipse.semiAxis();
-                            var radius = (semiAxis.a() + semiAxis.b()) / 2;
-                            autoScaleFont(g, 1.2d, radius);
-                        }, () -> autoScaleFont(g, 1.2d, image.width() / 2d));
-                    } else {
-                        g.setFont(g.getFont().deriveFont((float) fontSize));
-                    }
-                    var sb = new StringBuilder("<b>");
-                    var params = processParams.get();
-                    var details = params.observationDetails();
-                    appendLine(details.observer(), sb);
-                    var date = details.date();
-                    sb.append(date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss 'UTC'"))).append("\n");
-                    var ray = params.spectrumParams().ray();
-                    appendLine(details.instrument().label() + " - " + ray, sb);
-                    img.findMetadata(PixelShift.class).ifPresent(ps -> {
-                        if (ps.pixelShift() != 0) {
-                            var pixels = ps.pixelShift();
-                            var dispersion = computeDispersion(params, ray.wavelength());
-                            var shift = dispersion.angstromsPerPixel() * pixels;
-                            appendLine(String.format(Locale.US, "Shift %.2f Å (%.2f px)", shift, pixels), sb);
-                        }
-                    });
-                    appendLine(details.telescope(), sb);
-                    if (details.focalLength() != null) {
-                        appendLine("Focal length " + details.focalLength() + "mm", sb);
-                    }
-                    if (details.aperture() != null) {
-                        var apertureLine = "Aperture " + details.aperture() + "mm";
-                        if (details.stop() != null) {
-                            apertureLine += " (stopped at " + details.stop() + "mm)";
-                        }
-                        appendLine(apertureLine, sb);
-                    } else if (details.stop() != null) {
-                        appendLine("Diaphragm " + details.stop() + "mm", sb);
-                    }
-                    if (!isNullOrEmpty(details.energyRejectionFilter())) {
-                        appendLine("ERF " + details.energyRejectionFilter(), sb);
-                    }
-                    appendLine(details.camera(), sb);
-                    if (details.showCoordinatesInDetails() && details.coordinates() != null) {
-                        var geoCoordinates = new GeoCoordinates(details.coordinates().a(), details.coordinates().b());
-                        appendLine(geoCoordinates.toString(), sb);
-                    }
-                    appendLine("JSol'Ex " + VersionUtil.getVersion(), sb);
-                    writeMultiline(g, sb, x, y);
-                });
-            } else {
-                throw new IllegalStateException("Cannot determine process parameters");
-            }
+            return drawObservationDetails(img, x, y, fontSize, null);
         }
         throw new IllegalArgumentException("Unexpected image type: " + arg);
+    }
+
+    public ImageWrapper drawObservationDetails(ImageWrapper img, int x, int y, int fontSize, String color) {
+        if (img instanceof FileBackedImage fileBacked) {
+            return drawObservationDetails(fileBacked.unwrapToMemory(), x, y, fontSize, color);
+        }
+        if (color != null && img instanceof ImageWrapper32 mono) {
+            var rgb = new RGBImage(mono.width(), mono.height(), mono.data(), mono.data(), mono.data(), new HashMap<>(mono.metadata()));
+            return drawObservationDetails(rgb, x, y, fontSize, color);
+        }
+        return drawOnImage(img, (g, image) -> drawObservationDetailsOn(g, image, x, y, fontSize, color));
+    }
+
+    public void drawObservationDetailsOn(Graphics2D g, ImageWrapper image, int x, int y, int fontSize, String color) {
+        drawObservationDetailsOn(g, image, x, y, fontSize, color, null);
+    }
+
+    public void drawObservationDetailsOn(Graphics2D g, ImageWrapper image, int x, int y, int fontSize, String color, String template) {
+        var processParams = findProcessParams(image);
+        if (processParams.isEmpty()) {
+            return;
+        }
+        var savedFont = g.getFont();
+        var savedColor = g.getColor();
+        try {
+            if (fontSize == -1) {
+                image.findMetadata(Ellipse.class).ifPresentOrElse(ellipse -> {
+                    var semiAxis = ellipse.semiAxis();
+                    var radius = (semiAxis.a() + semiAxis.b()) / 2;
+                    autoScaleFont(g, 1.2d, radius);
+                }, () -> autoScaleFont(g, 1.2d, image.width() / 2d));
+            } else {
+                g.setFont(g.getFont().deriveFont((float) fontSize));
+            }
+            configureColor(color, g);
+            var raw = (template == null || template.isBlank()) ? DEFAULT_OBS_DETAILS_TEMPLATE : template;
+            var sb = new StringBuilder();
+            for (var rawLine : raw.split("\n", -1)) {
+                if (rawLine.isBlank()) {
+                    sb.append(rawLine).append('\n');
+                    continue;
+                }
+                var substituted = performSubstitutions(rawLine, image);
+                var trimmed = substituted.startsWith("<b>") ? substituted.substring(3) : substituted;
+                if (!trimmed.trim().isBlank()) {
+                    sb.append(substituted).append('\n');
+                }
+            }
+            writeMultiline(g, sb, x, y);
+        } finally {
+            g.setFont(savedFont);
+            g.setColor(savedColor);
+        }
     }
 
     public Object drawText(Map<String, Object> arguments) {
@@ -315,6 +332,53 @@ public class ImageDraw extends AbstractFunctionImpl {
             var sourceInfo = image.findMetadata(SourceInfo.class);
             message = message.replace("%FILENAME%", sourceInfo.map(SourceInfo::serFileName).orElse(""));
         }
+        if (message.contains("%VERSION%")) {
+            message = message.replace("%VERSION%", VersionUtil.getVersion());
+        }
+        if (message.contains("%VERSION_LINE%")) {
+            message = message.replace("%VERSION_LINE%", "JSol'Ex " + VersionUtil.getVersion());
+        }
+        if (message.contains("%SHIFT_LINE%")) {
+            var ps = image.findMetadata(PixelShift.class);
+            String value = "";
+            if (ps.isPresent() && ps.get().pixelShift() != 0) {
+                var pixels = ps.get().pixelShift();
+                var dispersion = computeDispersion(params, params.spectrumParams().ray().wavelength());
+                var shift = dispersion.angstromsPerPixel() * pixels;
+                value = String.format(Locale.US, "Shift %.2f Å (%.2f px)", shift, pixels);
+            }
+            message = message.replace("%SHIFT_LINE%", value);
+        }
+        if (message.contains("%FOCAL_LEN_LINE%")) {
+            var focalLength = params.observationDetails().focalLength();
+            message = message.replace("%FOCAL_LEN_LINE%", focalLength != null ? "Focal length " + focalLength + "mm" : "");
+        }
+        if (message.contains("%APERTURE_LINE%")) {
+            var details = params.observationDetails();
+            String value = "";
+            if (details.aperture() != null) {
+                value = "Aperture " + details.aperture() + "mm";
+                if (details.stop() != null) {
+                    value += " (stopped at " + details.stop() + "mm)";
+                }
+            } else if (details.stop() != null) {
+                value = "Diaphragm " + details.stop() + "mm";
+            }
+            message = message.replace("%APERTURE_LINE%", value);
+        }
+        if (message.contains("%ERF_LINE%")) {
+            var erf = params.observationDetails().energyRejectionFilter();
+            message = message.replace("%ERF_LINE%", !isNullOrEmpty(erf) ? "ERF " + erf : "");
+        }
+        if (message.contains("%COORDINATES_LINE%")) {
+            var details = params.observationDetails();
+            String value = "";
+            if (details.showCoordinatesInDetails() && details.coordinates() != null) {
+                var geoCoordinates = new GeoCoordinates(details.coordinates().a(), details.coordinates().b());
+                value = geoCoordinates.toString();
+            }
+            message = message.replace("%COORDINATES_LINE%", value);
+        }
         return message;
     }
 
@@ -463,33 +527,79 @@ public class ImageDraw extends AbstractFunctionImpl {
         if (arg instanceof ImageWrapper img) {
             var x = getArgument(Number.class, arguments, "x").map(Number::intValue).orElse(-1);
             var y = getArgument(Number.class, arguments, "y").map(Number::intValue).orElse(50);
-            var processParams = findProcessParams(img);
-            if (processParams.isPresent()) {
-                return drawOnImage(img, (g, image) -> {
-                    getEllipse(arguments, "ellipse").ifPresent(ellipse -> {
-                        var semiAxis = ellipse.semiAxis();
-                        var radius = (semiAxis.a() + semiAxis.b()) / 2;
-                        autoScaleFont(g, 1.2d, radius);
-                    });
-                    findSolarParams(img).ifPresent(solarParams -> {
-                        var sb = new StringBuilder("<b>");
-                        appendLine("Solar parameters", sb);
-                        appendLine("P " + toDegrees(solarParams.p()), sb);
-                        appendLine("B0 " + toDegrees(solarParams.b0()), sb);
-                        appendLine("L0 " + toDegrees(solarParams.l0()), sb);
-                        appendLine("Carrington rot. " + solarParams.carringtonRotation(), sb);
-                        var fx = x;
-                        if (fx == -1) {
-                            fx = image.width() - 20 * g.getFontMetrics().charWidth('X');
-                        }
-                        writeMultiline(g, sb, fx, y);
-                    });
-                });
-            } else {
-                throw new IllegalStateException("Cannot determine process parameters");
-            }
+            return drawSolarParameters(img, x, y, null);
         }
         throw new IllegalArgumentException("Unexpected image type: " + arg);
+    }
+
+    public ImageWrapper drawSolarParameters(ImageWrapper img, int x, int y, String color) {
+        if (img instanceof FileBackedImage fileBacked) {
+            return drawSolarParameters(fileBacked.unwrapToMemory(), x, y, color);
+        }
+        if (color != null && img instanceof ImageWrapper32 mono) {
+            var rgb = new RGBImage(mono.width(), mono.height(), mono.data(), mono.data(), mono.data(), new HashMap<>(mono.metadata()));
+            return drawSolarParameters(rgb, x, y, color);
+        }
+        return drawOnImage(img, (g, image) -> drawSolarParametersOn(g, image, x, y, color));
+    }
+
+    /**
+     * Draws solar parameters on an existing Graphics2D. Saves/restores
+     * graphics state so this can be chained with other overlays.
+     */
+    public void drawSolarParametersOn(Graphics2D g, ImageWrapper image, int x, int y, String color) {
+        var savedFont = g.getFont();
+        var savedColor = g.getColor();
+        try {
+            image.findMetadata(Ellipse.class).ifPresent(ellipse -> {
+                var semiAxis = ellipse.semiAxis();
+                var radius = (semiAxis.a() + semiAxis.b()) / 2;
+                autoScaleFont(g, 1.2d, radius);
+            });
+            configureColor(color, g);
+            findSolarParams(image).ifPresent(solarParams -> {
+                var sb = new StringBuilder("<b>");
+                appendLine("Solar parameters", sb);
+                appendLine("P " + toDegrees(solarParams.p()), sb);
+                appendLine("B0 " + toDegrees(solarParams.b0()), sb);
+                appendLine("L0 " + toDegrees(solarParams.l0()), sb);
+                appendLine("Carrington rot. " + solarParams.carringtonRotation(), sb);
+                var fx = x;
+                if (fx == -1) {
+                    fx = image.width() - 20 * g.getFontMetrics().charWidth('X');
+                }
+                writeMultiline(g, sb, fx, y);
+            });
+        } finally {
+            g.setFont(savedFont);
+            g.setColor(savedColor);
+        }
+    }
+
+    public void drawSignatureOn(Graphics2D g, ImageWrapper image, String text, String fontFamily, int fontSize, String color) {
+        if (text == null || text.isBlank()) {
+            return;
+        }
+        var savedFont = g.getFont();
+        var savedColor = g.getColor();
+        try {
+            var family = fontFamily != null && !fontFamily.isBlank() ? fontFamily : DEFAULT_SIGNATURE_FONT;
+            int size = fontSize > 0 ? fontSize : DEFAULT_SIGNATURE_SIZE;
+            g.setFont(new Font(family, Font.PLAIN, size));
+            configureColor(color, g);
+            var metrics = g.getFontMetrics();
+            int marginX = (int) Math.max(40, image.width() * 0.03);
+            int marginY = (int) Math.max(40, image.height() * 0.03);
+            var lines = text.split("\n", -1);
+            int lineHeight = metrics.getHeight();
+            int yStart = image.height() - marginY - metrics.getDescent() - lineHeight * (lines.length - 1);
+            for (int i = 0; i < lines.length; i++) {
+                g.drawString(lines[i], marginX, yStart + i * lineHeight);
+            }
+        } finally {
+            g.setFont(savedFont);
+            g.setColor(savedColor);
+        }
     }
 
     private Optional<ProcessParams> findProcessParams(ImageWrapper img) {
@@ -567,19 +677,14 @@ public class ImageDraw extends AbstractFunctionImpl {
         return (int) max >> 8;
     }
 
-    /**
-     * Draws distance scale for prominences outside the solar limb
-     *
-     * @param g       the graphics context
-     * @param centerX the center X coordinate of the sun
-     * @param centerY the center Y coordinate of the sun
-     * @param radius  the radius of the sun in pixels
-     */
     private void drawProminenceDistanceScale(Graphics2D g,
                                              double centerX,
                                              double centerY,
                                              double radius,
-                                             double labelAngleOffset) {
+                                             double labelAngleOffset,
+                                             int circles,
+                                             int stepKm,
+                                             float lineThickness) {
         var originalFont = g.getFont();
         var originalColor = g.getColor();
         var originalStroke = g.getStroke();
@@ -588,7 +693,7 @@ public class ImageDraw extends AbstractFunctionImpl {
         g.setFont(originalFont);
         autoScaleFont(g, 0.8d, radius);
         g.setStroke(new BasicStroke(
-                1.0f,
+                lineThickness,
                 BasicStroke.CAP_BUTT,
                 BasicStroke.JOIN_BEVEL,
                 0,
@@ -598,8 +703,8 @@ public class ImageDraw extends AbstractFunctionImpl {
 
         var pixelsPerKm = radius / SUN_RADIUS_KM;
 
-        for (int i = 1; i <= PROMS_CIRCLES; i++) {
-            var distanceKm = i * PROMINENCE_SCALE_STEP_KM;
+        for (int i = 1; i <= circles; i++) {
+            var distanceKm = i * stepKm;
             var circleRadius = radius + (distanceKm * pixelsPerKm);
 
             var circleX = (int) (centerX - circleRadius);
@@ -642,71 +747,23 @@ public class ImageDraw extends AbstractFunctionImpl {
                                     boolean correctAngleP,
                                     GlobeStyle style,
                                     boolean drawProminenceScale) {
-        return drawOnImage(wrapper, (g, image) -> {
-            if (color != null) {
-                g.setColor(color);
-            }
-            var font = g.getFont();
-            g.setFont(font.deriveFont(AffineTransform.getRotateInstance(-angleP)));
+        return drawOnImage(wrapper, (g, image) -> drawGlobeOn(g, image, ellipse, angleP, b0, color,
+                maybeDrawSunspots, correctAngleP, style, drawProminenceScale));
+    }
 
-            double centerX = ellipse.center().a();
-            double centerY = ellipse.center().b();
-            if (correctAngleP) {
-                g.setTransform(AffineTransform.getRotateInstance(angleP, centerX, centerY));
-            }
-            double radius = (ellipse.semiAxis().a() + ellipse.semiAxis().b()) / 2d;
-            double resolution = 0.0002d;
-            var diameter = (int) Math.round(2 * radius);
-            autoScaleFont(g, 1.0d, radius);
-            g.drawOval((int) (centerX - radius), (int) (centerY - radius), diameter, diameter);
-            g.drawOval((int) (centerX - radius), (int) (centerY - radius), diameter - 1, diameter - 1);
-
-            int geodesisInc = 180 / DIVISIONS;
-            for (int i = -180; i <= 180; i += geodesisInc) {
-                var angle = toRadians(i);
-                for (double theta = -Math.PI; theta < Math.PI; theta += resolution) {
-                    var lines = List.of(ofSpherical(angle, theta, radius).rotateX(-b0).rotateZ(-angleP), ofSpherical(theta, angle, radius).rotateX(-b0).rotateZ(-angleP));
-                    for (int j = 0; j < lines.size(); j++) {
-                        Coordinates c = lines.get(j);
-                        if (c.z > 0) {
-                            var equator = i == 90 && j == 1;
-                            g.fillRoundRect((int) round(centerX + c.x), (int) round(centerY + c.y), equator ? 4 : 1, equator ? 4 : 1, 1, 1);
-                        }
-                    }
-                }
-            }
-            drawAngleLabels(angleP, geodesisInc, radius, g, centerX, centerY, style);
-            drawRotationAxis(angleP, radius, g, centerX, centerY);
-            if (style == GlobeStyle.SOLAR_COORDS) {
-                drawRotationAxis(0, radius, g, centerX, centerY);
-            } else if (style == GlobeStyle.EQUATORIAL_COORDS) {
-                g.setStroke(new BasicStroke(2));
-                g.drawLine((int) centerX, (int) (centerY - 1.1 * radius), (int) centerX, (int) (centerY - 1.02 * radius));
-                g.drawLine((int) centerX, (int) (centerY + 1.1 * radius), (int) centerX, (int) (centerY + 1.02 * radius));
-                g.drawLine((int) (centerX - 1.1 * radius), (int) centerY, (int) (centerX - 1.02 * radius), (int) centerY);
-                g.drawLine((int) (centerX + 1.1 * radius), (int) centerY, (int) (centerX + 1.02 * radius), (int) centerY);
-                g.setFont(g.getFont().deriveFont(AffineTransform.getRotateInstance(0)));
-                g.setFont(g.getFont().deriveFont(Font.BOLD));
-                var fs = g.getFont().getSize2D() / 2d;
-                g.drawString("N", (int) (centerX - fs), (int) (centerY - 1.12 * radius));
-                g.drawString("S", (int) (centerX - fs), (int) (centerY + fs + 1.12 * radius));
-                g.drawString("W", (int) (centerX + 1.12 * radius), (int) (centerY + fs));
-                g.drawString("E", (int) (centerX - 1.12 * radius), (int) (centerY + fs));
-            }
-            g.setFont(font);
-            var processParams = findProcessParams(image);
-            var detectedRegions = image.findMetadata(ActiveRegions.class).map(ActiveRegions::regionList).orElse(List.of());
-            if (maybeDrawSunspots && processParams.isPresent() && !detectedRegions.isEmpty()) {
-                // Draw each region with label
-                var date = processParams.get().observationDetails().date();
-                var regions = NOAARegions.findActiveRegions(date, broadcaster);
-                drawActiveRegionsLabels(detectedRegions, angleP, b0, g, radius, regions, centerX, centerY, correctAngleP);
-            }
-            // Draw the prominence distance scale if enabled
-            if (drawProminenceScale) {
-                drawProminenceDistanceScale(g, centerX, centerY, radius, Math.PI / 4);
-            }
-        });
+    public void drawGlobeOn(Graphics2D g,
+                            ImageWrapper image,
+                            Ellipse ellipse,
+                            double angleP,
+                            double b0,
+                            Color color,
+                            boolean maybeDrawSunspots,
+                            boolean correctAngleP,
+                            GlobeStyle style,
+                            boolean drawProminenceScale) {
+        plotGlobeGrid(g, ellipse, angleP, b0, color, correctAngleP);
+        drawGlobeAdornmentsOn(g, image, ellipse, angleP, b0, color,
+                maybeDrawSunspots, correctAngleP, style, drawProminenceScale);
     }
 
     private static void drawActiveRegionsLabels(
@@ -816,9 +873,236 @@ public class ImageDraw extends AbstractFunctionImpl {
         }
     }
 
-    public static ImageWrapper drawOnImage(ImageWrapper wrapper, BiConsumer<? super Graphics2D, ? super ImageWrapper> consumer) {
+    public static BufferedImage toBufferedImage(ImageWrapper wrapper) {
         if (wrapper.width() == 0 || wrapper.height() == 0) {
-            return wrapper;
+            return null;
+        }
+        if (wrapper instanceof FileBackedImage fileBacked) {
+            wrapper = fileBacked.unwrapToMemory();
+        }
+        if (wrapper instanceof ImageWrapper32 mono) {
+            var data = mono.data();
+            var image = new BufferedImage(mono.width(), mono.height(), BufferedImage.TYPE_USHORT_GRAY);
+            short[] converted = ((DataBufferUShort) image.getRaster().getDataBuffer()).getData();
+            var width = mono.width();
+            var height = mono.height();
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    converted[y * width + x] = (short) round(data[y][x]);
+                }
+            }
+            return image;
+        } else if (wrapper instanceof RGBImage rgb) {
+            return toBufferedImage(rgb.width(), rgb.height(), rgb.r(), rgb.g(), rgb.b());
+        }
+        return null;
+    }
+
+    public void plotGlobeGrid(Graphics2D g,
+                              Ellipse ellipse,
+                              double angleP,
+                              double b0,
+                              Color color,
+                              boolean correctAngleP) {
+        plotGlobeGrid(g, ellipse, angleP, b0, color, correctAngleP, DEFAULT_LINE_THICKNESS);
+    }
+
+    public void plotGlobeGrid(Graphics2D g,
+                              Ellipse ellipse,
+                              double angleP,
+                              double b0,
+                              Color color,
+                              boolean correctAngleP,
+                              float lineThickness) {
+        double centerX = ellipse.center().a();
+        double centerY = ellipse.center().b();
+        double radius = (ellipse.semiAxis().a() + ellipse.semiAxis().b()) / 2d;
+        double sinB0 = Math.sin(b0);
+        double cosB0 = Math.cos(b0);
+        double effectiveP = correctAngleP ? 0.0 : angleP;
+        double sinP = Math.sin(effectiveP);
+        double cosP = Math.cos(effectiveP);
+
+        var savedColor = g.getColor();
+        var savedStroke = g.getStroke();
+        var savedAA = g.getRenderingHint(RenderingHints.KEY_ANTIALIASING);
+        try {
+            if (color != null) {
+                g.setColor(color);
+            }
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+            var gridPath = new Path2D.Double();
+            var equatorPath = new Path2D.Double();
+            int geodesisInc = 180 / DIVISIONS;
+            double resolution = Math.PI / 180;
+
+            for (int i = -180; i <= 180; i += geodesisInc) {
+                double angle = toRadians(i);
+                double sinA = Math.sin(angle);
+                double cosA = Math.cos(angle);
+                accumulateProjectedCurve(gridPath, true, sinA, cosA,
+                        centerX, centerY, radius, sinB0, cosB0, sinP, cosP, resolution);
+                accumulateProjectedCurve(i == 90 ? equatorPath : gridPath, false, sinA, cosA,
+                        centerX, centerY, radius, sinB0, cosB0, sinP, cosP, resolution);
+            }
+            g.setStroke(new BasicStroke(lineThickness));
+            g.draw(gridPath);
+            g.setStroke(new BasicStroke(2.0f * lineThickness));
+            g.draw(equatorPath);
+        } finally {
+            g.setColor(savedColor);
+            g.setStroke(savedStroke);
+            if (savedAA != null) {
+                g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, savedAA);
+            }
+        }
+    }
+
+    private static void accumulateProjectedCurve(Path2D.Double path,
+                                                 boolean firstIsAscension,
+                                                 double sinFixed, double cosFixed,
+                                                 double centerX, double centerY, double radius,
+                                                 double sinB0, double cosB0,
+                                                 double sinP, double cosP,
+                                                 double resolution) {
+        boolean penDown = false;
+        for (double theta = -Math.PI; theta <= Math.PI + resolution * 0.5; theta += resolution) {
+            double sinT = Math.sin(theta);
+            double cosT = Math.cos(theta);
+            double x, y, z;
+            if (firstIsAscension) {
+                x = sinFixed * sinT * radius;
+                y = cosT * radius;
+                z = cosFixed * sinT * radius;
+            } else {
+                x = sinT * sinFixed * radius;
+                y = cosFixed * radius;
+                z = cosT * sinFixed * radius;
+            }
+            double y1 = y * cosB0 + z * sinB0;
+            double z1 = -y * sinB0 + z * cosB0;
+            double x2 = x * cosP + y1 * sinP;
+            double y2 = -x * sinP + y1 * cosP;
+            if (z1 > 0) {
+                double px = centerX + x2;
+                double py = centerY + y2;
+                if (penDown) {
+                    path.lineTo(px, py);
+                } else {
+                    path.moveTo(px, py);
+                    penDown = true;
+                }
+            } else {
+                penDown = false;
+            }
+        }
+    }
+
+    public void drawProminenceScaleOn(Graphics2D g, Ellipse ellipse, Color color, int circles, int stepKm, float lineThickness) {
+        var savedColor = g.getColor();
+        var savedFont = g.getFont();
+        var savedStroke = g.getStroke();
+        var savedTransform = g.getTransform();
+        try {
+            if (color != null) {
+                g.setColor(color);
+            }
+            double centerX = ellipse.center().a();
+            double centerY = ellipse.center().b();
+            double radius = (ellipse.semiAxis().a() + ellipse.semiAxis().b()) / 2d;
+            drawProminenceDistanceScale(g, centerX, centerY, radius, Math.PI / 4, circles, stepKm, lineThickness);
+        } finally {
+            g.setColor(savedColor);
+            g.setFont(savedFont);
+            g.setStroke(savedStroke);
+            g.setTransform(savedTransform);
+        }
+    }
+
+    public void drawGlobeAdornmentsOn(Graphics2D g, ImageWrapper image, Ellipse ellipse,
+                                      double angleP, double b0, Color color,
+                                      boolean maybeDrawSunspots, boolean correctAngleP,
+                                      GlobeStyle style, boolean drawProminenceScale) {
+        drawGlobeAdornmentsOn(g, image, ellipse, angleP, b0, color, maybeDrawSunspots, correctAngleP, style, drawProminenceScale, DEFAULT_LINE_THICKNESS);
+    }
+
+    public void drawGlobeAdornmentsOn(Graphics2D g, ImageWrapper image, Ellipse ellipse,
+                                      double angleP, double b0, Color color,
+                                      boolean maybeDrawSunspots, boolean correctAngleP,
+                                      GlobeStyle style, boolean drawProminenceScale,
+                                      float lineThickness) {
+        var savedColor = g.getColor();
+        var savedFont = g.getFont();
+        var savedStroke = g.getStroke();
+        var savedTransform = g.getTransform();
+        try {
+            if (color != null) {
+                g.setColor(color);
+            }
+            g.setStroke(new BasicStroke(lineThickness));
+            var font = g.getFont();
+            g.setFont(font.deriveFont(AffineTransform.getRotateInstance(-angleP)));
+            double centerX = ellipse.center().a();
+            double centerY = ellipse.center().b();
+            if (correctAngleP) {
+                g.setTransform(AffineTransform.getRotateInstance(angleP, centerX, centerY));
+            }
+            double radius = (ellipse.semiAxis().a() + ellipse.semiAxis().b()) / 2d;
+            var diameter = (int) Math.round(2 * radius);
+            autoScaleFont(g, 1.0d, radius);
+            g.drawOval((int) (centerX - radius), (int) (centerY - radius), diameter, diameter);
+            g.drawOval((int) (centerX - radius), (int) (centerY - radius), diameter - 1, diameter - 1);
+            int geodesisInc = 180 / DIVISIONS;
+            drawAngleLabels(angleP, geodesisInc, radius, g, centerX, centerY, style);
+            drawRotationAxis(angleP, radius, g, centerX, centerY);
+            if (style == GlobeStyle.SOLAR_COORDS) {
+                drawRotationAxis(0, radius, g, centerX, centerY);
+            } else if (style == GlobeStyle.EQUATORIAL_COORDS) {
+                g.setStroke(new BasicStroke(2.0f * lineThickness));
+                g.drawLine((int) centerX, (int) (centerY - 1.1 * radius), (int) centerX, (int) (centerY - 1.02 * radius));
+                g.drawLine((int) centerX, (int) (centerY + 1.1 * radius), (int) centerX, (int) (centerY + 1.02 * radius));
+                g.drawLine((int) (centerX - 1.1 * radius), (int) centerY, (int) (centerX - 1.02 * radius), (int) centerY);
+                g.drawLine((int) (centerX + 1.1 * radius), (int) centerY, (int) (centerX + 1.02 * radius), (int) centerY);
+                g.setFont(g.getFont().deriveFont(AffineTransform.getRotateInstance(0)));
+                g.setFont(g.getFont().deriveFont(Font.BOLD));
+                var fs = g.getFont().getSize2D() / 2d;
+                g.drawString("N", (int) (centerX - fs), (int) (centerY - 1.12 * radius));
+                g.drawString("S", (int) (centerX - fs), (int) (centerY + fs + 1.12 * radius));
+                g.drawString("W", (int) (centerX + 1.12 * radius), (int) (centerY + fs));
+                g.drawString("E", (int) (centerX - 1.12 * radius), (int) (centerY + fs));
+            }
+            g.setFont(font);
+            var processParams = findProcessParams(image);
+            var detectedRegions = image.findMetadata(ActiveRegions.class).map(ActiveRegions::regionList).orElse(List.of());
+            if (maybeDrawSunspots && processParams.isPresent() && !detectedRegions.isEmpty()) {
+                var date = processParams.get().observationDetails().date();
+                var regions = NOAARegions.findActiveRegions(date, broadcaster);
+                drawActiveRegionsLabels(detectedRegions, angleP, b0, g, radius, regions, centerX, centerY, correctAngleP);
+            }
+            if (drawProminenceScale) {
+                drawProminenceDistanceScale(g, centerX, centerY, radius, Math.PI / 4, PROMS_CIRCLES, PROMINENCE_SCALE_STEP_KM, lineThickness);
+            }
+        } finally {
+            g.setColor(savedColor);
+            g.setFont(savedFont);
+            g.setStroke(savedStroke);
+            g.setTransform(savedTransform);
+        }
+    }
+
+    public static ImageWrapper drawOnImage(ImageWrapper wrapper, BiConsumer<? super Graphics2D, ? super ImageWrapper> consumer) {
+        var bi = drawOnImageAsBuffered(wrapper, consumer);
+        if (bi == null) {
+            return wrapper.width() == 0 || wrapper.height() == 0 ? wrapper : null;
+        }
+        var memory = wrapper instanceof FileBackedImage fb ? fb.unwrapToMemory() : wrapper;
+        return Loader.toImageWrapper(bi, memory.metadata());
+    }
+
+    public static BufferedImage drawOnImageAsBuffered(ImageWrapper wrapper, BiConsumer<? super Graphics2D, ? super ImageWrapper> consumer) {
+        if (wrapper.width() == 0 || wrapper.height() == 0) {
+            return null;
         }
         BufferedImage image = null;
         if (wrapper instanceof FileBackedImage fileBacked) {
@@ -844,9 +1128,8 @@ public class ImageDraw extends AbstractFunctionImpl {
             g.setColor(new Color(greyValue, greyValue, greyValue));
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             consumer.accept(g, wrapper);
-            return Loader.toImageWrapper(image, wrapper.metadata());
         }
-        return null;
+        return image;
     }
 
     private static BufferedImage toBufferedImage(int width, int height, float[][] r, float[][] g, float[][] b) {
@@ -867,14 +1150,6 @@ public class ImageDraw extends AbstractFunctionImpl {
         return image;
     }
 
-    /**
-     * Renders {@code consumer}'s annotations into {@code rgb}'s float buffers
-     * in place, returning the same instance. Caller must own the float arrays
-     * and not need them in their original form afterwards. Used by emission
-     * paths that allocate fresh r/g/b inside a converter and would otherwise
-     * round-trip them through {@link Loader#toImageWrapper} just to pick up
-     * a few painted pixels.
-     */
     public static RGBImage drawOnImageInPlace(RGBImage rgb, BiConsumer<? super Graphics2D, ? super ImageWrapper> consumer) {
         if (rgb.width() == 0 || rgb.height() == 0) {
             return rgb;
@@ -1063,6 +1338,10 @@ public class ImageDraw extends AbstractFunctionImpl {
                 throw new RuntimeException(e);
             }
         }
+    }
+
+    public static InputStream earthImageStream() {
+        return ImageDraw.class.getResourceAsStream("earth_realistic.png");
     }
 
 }

@@ -23,16 +23,13 @@ import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
 import me.champeau.a4j.jsolex.processing.expr.impl.Clahe;
 import me.champeau.a4j.jsolex.processing.expr.impl.Colorize;
 import me.champeau.a4j.jsolex.processing.expr.impl.Convolution;
-import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
 import me.champeau.a4j.jsolex.processing.expr.impl.DiskFill;
 import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
-import me.champeau.a4j.jsolex.processing.expr.impl.Rotate;
 import me.champeau.a4j.jsolex.processing.params.AutoStretchParams;
 import me.champeau.a4j.jsolex.processing.params.ClaheParams;
 import me.champeau.a4j.jsolex.processing.params.ContrastEnhancement;
 import me.champeau.a4j.jsolex.processing.params.DeconvolutionMode;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
-import me.champeau.a4j.jsolex.processing.params.RotationKind;
 import me.champeau.a4j.jsolex.processing.params.SharpeningParams;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.AutohistogramStrategy;
@@ -43,7 +40,6 @@ import me.champeau.a4j.jsolex.processing.stretching.NegativeImageStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.PercentileStretchStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
-import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
 import me.champeau.a4j.jsolex.processing.sun.WorkflowState;
 import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegions;
 import me.champeau.a4j.jsolex.processing.sun.detection.Flare;
@@ -57,7 +53,6 @@ import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
-import me.champeau.a4j.jsolex.processing.util.SolarParameters;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.Deconvolution;
 import me.champeau.a4j.math.image.ImageMath;
@@ -235,7 +230,7 @@ public class ProcessingWorkflow {
         }
         var enhanced = (ImageWrapper32) g.enhanced().unwrapToMemory();
         broadcaster.broadcast(OutputImageDimensionsDeterminedEvent.of(message("geometry.corrected"), geometryFixed.width(), geometryFixed.height()));
-        boolean requiresStretched = shouldProduce(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED) || shouldProduce(GeneratedImageKind.COLORIZED) || shouldProduce(GeneratedImageKind.TECHNICAL_CARD);
+        boolean requiresStretched = shouldProduce(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED) || shouldProduce(GeneratedImageKind.COLORIZED);
         var stretched = requiresStretched ? produceStretchedImage(enhanced, processParams.claheParams(), processParams.autoStretchParams(), processParams.contrastEnhancement()) : null;
         if (stretched != null) {
             imagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED, null, message("processed"), processParams.contrastEnhancement().name().toLowerCase(Locale.US),
@@ -254,13 +249,6 @@ public class ProcessingWorkflow {
         }
         if (isMainShift()) {
             runnables.add(() -> produceCoronagraph(blackPoint, enhanced.copy()));
-        }
-        if (isMainShift() && shouldProduce(GeneratedImageKind.TECHNICAL_CARD)) {
-            if (stretched != null) {
-                runnables.add(() ->
-                        produceTechnicalCard(stretched.copy())
-                );
-            }
         }
         if (shouldProduce(GeneratedImageKind.ACTIVE_REGIONS)) {
             if (isMainShift()) {
@@ -516,29 +504,6 @@ public class ProcessingWorkflow {
             }
         }
         return stretched;
-    }
-
-    private void produceTechnicalCard(ImageWrapper32 clahe) {
-        var details = clahe.copy();
-        var context = SolexVideoProcessor.createMetadata(processParams, serFile, null, header).build().toMap();
-        var crop = new Crop(context, broadcaster);
-        var rotate = new Rotate(context, broadcaster);
-        var draw = new ImageDraw(context, broadcaster);
-        var cropped = crop.autocrop2(Map.of("img", details, "factor", 1.2d));
-        if (processParams.geometryParams().isAutocorrectAngleP()) {
-            var solarParameters = clahe.findMetadata(SolarParameters.class).orElse(null);
-            if (solarParameters != null) {
-                cropped = rotate.rotateRadians(Map.of("img", cropped, "angle", solarParameters.p()));
-            }
-        }
-        Object withGlobe = draw.drawGlobe(Map.of("img", cropped, "correctAngleP", processParams.geometryParams().isAutocorrectAngleP() ? 1 : 0));
-        var decorated = (ImageWrapper32) draw.drawSolarParameters(Map.of(
-                "img", draw.drawObservationDetails(Map.of(
-                        "img", withGlobe
-                ))
-        ));
-        decorated.metadata().put(RotationKind.class, RotationKind.NONE);
-        imagesEmitter.newMonoImage(GeneratedImageKind.TECHNICAL_CARD, null, message("technical.card"), "card", message("technical.card.description"), decorated);
     }
 
     private void produceNegativeImage(ImageWrapper32 enhanced, float blackPoint) {
