@@ -850,7 +850,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 @Override
                 public void onSelectRegion(ActionKind kind, int x, int y, int width, int height) {
                     BackgroundOperations.async(() -> {
-                        var stretchedImage = addedImageViewer.getStretchedImage();
+                        var stretchedImage = kind == ActionKind.CROP
+                                ? addedImageViewer.getStretchedImageWithOverlays()
+                                : addedImageViewer.getStretchedImage();
                         stretchedImage.findMetadata(ReferenceCoords.class).ifPresentOrElse(coord -> {
                             var cx = x + width / 2d;
                             var cy = y + height / 2d;

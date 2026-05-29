@@ -140,6 +140,30 @@ public class ImageDraw extends AbstractFunctionImpl {
         drawObservationDetailsOn(g, image, x, y, fontSize, color, null);
     }
 
+    public String computeObservationDetailsContent(ImageWrapper image, String template) {
+        var processParams = findProcessParams(image);
+        if (processParams.isEmpty()) {
+            return "";
+        }
+        var raw = (template == null || template.isBlank()) ? DEFAULT_OBS_DETAILS_TEMPLATE : template;
+        var sb = new StringBuilder();
+        for (var rawLine : raw.split("\n", -1)) {
+            if (rawLine.isBlank()) {
+                sb.append(rawLine).append('\n');
+                continue;
+            }
+            var substituted = performSubstitutions(rawLine, image);
+            var trimmed = substituted.startsWith("<b>") ? substituted.substring(3) : substituted;
+            if (!trimmed.trim().isBlank()) {
+                sb.append(substituted).append('\n');
+            }
+        }
+        if (sb.length() > 0 && sb.charAt(sb.length() - 1) == '\n') {
+            sb.setLength(sb.length() - 1);
+        }
+        return sb.toString();
+    }
+
     public void drawObservationDetailsOn(Graphics2D g, ImageWrapper image, int x, int y, int fontSize, String color, String template) {
         var processParams = findProcessParams(image);
         if (processParams.isEmpty()) {
@@ -158,18 +182,9 @@ public class ImageDraw extends AbstractFunctionImpl {
                 g.setFont(g.getFont().deriveFont((float) fontSize));
             }
             configureColor(color, g);
-            var raw = (template == null || template.isBlank()) ? DEFAULT_OBS_DETAILS_TEMPLATE : template;
-            var sb = new StringBuilder();
-            for (var rawLine : raw.split("\n", -1)) {
-                if (rawLine.isBlank()) {
-                    sb.append(rawLine).append('\n');
-                    continue;
-                }
-                var substituted = performSubstitutions(rawLine, image);
-                var trimmed = substituted.startsWith("<b>") ? substituted.substring(3) : substituted;
-                if (!trimmed.trim().isBlank()) {
-                    sb.append(substituted).append('\n');
-                }
+            var sb = new StringBuilder(computeObservationDetailsContent(image, template));
+            if (sb.length() > 0) {
+                sb.append('\n');
             }
             writeMultiline(g, sb, x, y);
         } finally {
@@ -547,6 +562,21 @@ public class ImageDraw extends AbstractFunctionImpl {
      * Draws solar parameters on an existing Graphics2D. Saves/restores
      * graphics state so this can be chained with other overlays.
      */
+    public String computeSolarParametersContent(ImageWrapper image) {
+        var solarParamsOpt = findSolarParams(image);
+        if (solarParamsOpt.isEmpty()) {
+            return "";
+        }
+        var solarParams = solarParamsOpt.get();
+        var sb = new StringBuilder("<b>");
+        sb.append("Solar parameters").append('\n');
+        sb.append("P ").append(toDegrees(solarParams.p())).append('\n');
+        sb.append("B0 ").append(toDegrees(solarParams.b0())).append('\n');
+        sb.append("L0 ").append(toDegrees(solarParams.l0())).append('\n');
+        sb.append("Carrington rot. ").append(solarParams.carringtonRotation());
+        return sb.toString();
+    }
+
     public void drawSolarParametersOn(Graphics2D g, ImageWrapper image, int x, int y, String color) {
         var savedFont = g.getFont();
         var savedColor = g.getColor();
@@ -577,6 +607,10 @@ public class ImageDraw extends AbstractFunctionImpl {
     }
 
     public void drawSignatureOn(Graphics2D g, ImageWrapper image, String text, String fontFamily, int fontSize, String color) {
+        drawSignatureOn(g, image, text, fontFamily, fontSize, color, -1, -1);
+    }
+
+    public void drawSignatureOn(Graphics2D g, ImageWrapper image, String text, String fontFamily, int fontSize, String color, int anchorX, int anchorY) {
         if (text == null || text.isBlank()) {
             return;
         }
@@ -588,13 +622,21 @@ public class ImageDraw extends AbstractFunctionImpl {
             g.setFont(new Font(family, Font.PLAIN, size));
             configureColor(color, g);
             var metrics = g.getFontMetrics();
-            int marginX = (int) Math.max(40, image.width() * 0.03);
-            int marginY = (int) Math.max(40, image.height() * 0.03);
             var lines = text.split("\n", -1);
             int lineHeight = metrics.getHeight();
-            int yStart = image.height() - marginY - metrics.getDescent() - lineHeight * (lines.length - 1);
+            int x;
+            int yStart;
+            if (anchorX >= 0 && anchorY >= 0) {
+                x = anchorX;
+                yStart = anchorY + metrics.getAscent();
+            } else {
+                int marginX = (int) Math.max(40, image.width() * 0.03);
+                int marginY = (int) Math.max(40, image.height() * 0.03);
+                x = marginX;
+                yStart = image.height() - marginY - metrics.getDescent() - lineHeight * (lines.length - 1);
+            }
             for (int i = 0; i < lines.length; i++) {
-                g.drawString(lines[i], marginX, yStart + i * lineHeight);
+                g.drawString(lines[i], x, yStart + i * lineHeight);
             }
         } finally {
             g.setFont(savedFont);

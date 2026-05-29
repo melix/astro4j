@@ -81,6 +81,9 @@ final class OverlayPanel {
     private final Consumer<ImageOverlayState> onChange;
     private final Consumer<GlobeStyle> onGlobeStyleChange;
     private final Runnable onResetEarth;
+    private final Runnable onResetSignature;
+    private final Runnable onResetObsDetails;
+    private final Runnable onResetSolarParams;
     private final Popup popup;
     private final VBox root;
     private ImageOverlayState state;
@@ -106,7 +109,6 @@ final class OverlayPanel {
     private ToggleButton signatureBtn;
     private Shape signatureSwatch;
     private Button signatureOptionsBtn;
-    private Spinner<Double> thicknessSpinner;
 
     OverlayPanel(GeneratedImageKind kind,
                  boolean hasEllipse,
@@ -114,12 +116,18 @@ final class OverlayPanel {
                  GlobeStyle initialGlobeStyle,
                  Consumer<ImageOverlayState> onChange,
                  Consumer<GlobeStyle> onGlobeStyleChange,
-                 Runnable onResetEarth) {
+                 Runnable onResetEarth,
+                 Runnable onResetSignature,
+                 Runnable onResetObsDetails,
+                 Runnable onResetSolarParams) {
         this.state = initial;
         this.globeStyle = initialGlobeStyle;
         this.onChange = onChange;
         this.onGlobeStyleChange = onGlobeStyleChange;
         this.onResetEarth = onResetEarth;
+        this.onResetSignature = onResetSignature;
+        this.onResetObsDetails = onResetObsDetails;
+        this.onResetSolarParams = onResetSolarParams;
         this.popup = new Popup();
         this.popup.setAutoHide(false);
         this.popup.setHideOnEscape(true);
@@ -187,11 +195,20 @@ final class OverlayPanel {
                 }
             });
         });
+        var doneBtn = new Button(message("overlay.done"));
+        var doneIcon = safeIcon("fltfal-checkmark-24");
+        if (doneIcon != null) {
+            doneBtn.setGraphic(doneIcon);
+        }
+        doneBtn.getStyleClass().add("overlay-popover-footer-button");
+        doneBtn.setFocusTraversable(false);
+        doneBtn.setTooltip(new Tooltip(message("overlay.done.tooltip")));
+        doneBtn.setOnAction(e -> popup.hide());
         var spacerL = new Region();
         HBox.setHgrow(spacerL, Priority.ALWAYS);
         var spacerR = new Region();
         HBox.setHgrow(spacerR, Priority.ALWAYS);
-        var footer = new HBox(8, spacerL, saveBtn, loadMenu, spacerR);
+        var footer = new HBox(8, spacerL, saveBtn, loadMenu, doneBtn, spacerR);
         footer.getStyleClass().add("overlay-popover-footer");
         footer.setAlignment(Pos.CENTER);
         return footer;
@@ -366,31 +383,11 @@ final class OverlayPanel {
 
     private VBox buildBody(GeneratedImageKind kind, boolean hasEllipse) {
         var grid = buildChipsGrid(kind, hasEllipse);
-        var thicknessRow = buildThicknessRow();
-        var container = new VBox(8, grid, thicknessRow);
+        var container = new VBox(8, grid);
         container.getStyleClass().add("overlay-popover-body");
         return container;
     }
 
-    private HBox buildThicknessRow() {
-        var label = new Label(message("overlay.line.thickness"));
-        label.setMinWidth(Region.USE_PREF_SIZE);
-        thicknessSpinner = new Spinner<>(0.5, 5.0, initialThickness(), 0.5);
-        thicknessSpinner.setEditable(true);
-        thicknessSpinner.setPrefWidth(90);
-        thicknessSpinner.valueProperty().addListener((o, ov, nv) -> {
-            if (ignoreChanges || nv == null) {
-                return;
-            }
-            float v = nv.floatValue();
-            mutate(s -> s.withLineThickness(v == ImageDraw.DEFAULT_LINE_THICKNESS ? null : v));
-        });
-        var spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-        var row = new HBox(8, label, spacer, thicknessSpinner);
-        row.setAlignment(Pos.CENTER_LEFT);
-        return row;
-    }
 
     private double initialThickness() {
         return state.lineThickness() != null ? state.lineThickness() : ImageDraw.DEFAULT_LINE_THICKNESS;
@@ -409,7 +406,10 @@ final class OverlayPanel {
         var c2 = new ColumnConstraints();
         c2.setHalignment(HPos.CENTER);
         c2.setMinWidth(28);
-        grid.getColumnConstraints().addAll(c0, c1, c2);
+        var c3 = new ColumnConstraints();
+        c3.setHalignment(HPos.CENTER);
+        c3.setMinWidth(28);
+        grid.getColumnConstraints().addAll(c0, c1, c2, c3);
 
         int row = 0;
         if (hasEllipse) {
@@ -421,7 +421,7 @@ final class OverlayPanel {
             gridOptionsBtn.getStyleClass().add("overlay-popover-mini");
             gridOptionsBtn.setFocusTraversable(false);
             gridOptionsBtn.setOnAction(e -> showGridOptions(kind));
-            addRow(grid, row++, gridBtn, gridSwatch, gridOptionsBtn);
+            addRow(grid, row++, gridBtn, gridSwatch, null, gridOptionsBtn);
 
             promBtn = makeChip(ICON_SCALE, "overlay.prom.scale",
                     ImageOverlayState::drawProminenceScale, ImageOverlayState::withDrawProminenceScale);
@@ -431,7 +431,7 @@ final class OverlayPanel {
             promOptionsBtn.getStyleClass().add("overlay-popover-mini");
             promOptionsBtn.setFocusTraversable(false);
             promOptionsBtn.setOnAction(e -> showPromOptions());
-            addRow(grid, row++, promBtn, promSwatch, promOptionsBtn);
+            addRow(grid, row++, promBtn, promSwatch, null, promOptionsBtn);
         }
         obsBtn = makeChip(ICON_DETAILS, "overlay.obs.details",
                 ImageOverlayState::drawObservationDetails, ImageOverlayState::withDrawObservationDetails);
@@ -441,13 +441,33 @@ final class OverlayPanel {
         obsOptionsBtn.getStyleClass().add("overlay-popover-mini");
         obsOptionsBtn.setFocusTraversable(false);
         obsOptionsBtn.setOnAction(e -> showObsTemplate());
-        addRow(grid, row++, obsBtn, obsSwatch, obsOptionsBtn);
+        var obsResetBtn = new Button("⟲");
+        obsResetBtn.getStyleClass().add("overlay-popover-mini");
+        obsResetBtn.setFocusTraversable(false);
+        obsResetBtn.setTooltip(new Tooltip(message("overlay.reset.position")));
+        obsResetBtn.setOnAction(e -> {
+            if (onResetObsDetails != null) {
+                onResetObsDetails.run();
+            }
+        });
+        obsResetBtn.disableProperty().bind(obsBtn.selectedProperty().not());
+        addRow(grid, row++, obsBtn, obsSwatch, obsResetBtn, obsOptionsBtn);
 
         solarBtn = makeChip(ICON_SOLAR, "overlay.solar.params",
                 ImageOverlayState::drawSolarParameters, ImageOverlayState::withDrawSolarParameters);
         solarSwatch = makeSwatch(state.solarParamsColor(),
                 hex -> mutate(s -> s.withSolarParamsColor(hex)));
-        addRow(grid, row++, solarBtn, solarSwatch, null);
+        var solarResetBtn = new Button("⟲");
+        solarResetBtn.getStyleClass().add("overlay-popover-mini");
+        solarResetBtn.setFocusTraversable(false);
+        solarResetBtn.setTooltip(new Tooltip(message("overlay.reset.position")));
+        solarResetBtn.setOnAction(e -> {
+            if (onResetSolarParams != null) {
+                onResetSolarParams.run();
+            }
+        });
+        solarResetBtn.disableProperty().bind(solarBtn.selectedProperty().not());
+        addRow(grid, row++, solarBtn, solarSwatch, solarResetBtn, null);
 
         if (hasEllipse) {
             earthBtn = makeChip(ICON_EARTH, "overlay.earth",
@@ -462,7 +482,7 @@ final class OverlayPanel {
                 }
             });
             earthResetBtn.disableProperty().bind(earthBtn.selectedProperty().not());
-            addRow(grid, row++, earthBtn, null, earthResetBtn);
+            addRow(grid, row++, earthBtn, null, earthResetBtn, null);
         }
         signatureBtn = makeChip(ICON_SIGNATURE, "overlay.signature",
                 ImageOverlayState::drawSignature, ImageOverlayState::withDrawSignature);
@@ -472,11 +492,21 @@ final class OverlayPanel {
         signatureOptionsBtn.getStyleClass().add("overlay-popover-mini");
         signatureOptionsBtn.setFocusTraversable(false);
         signatureOptionsBtn.setOnAction(e -> showSignatureOptions());
-        addRow(grid, row, signatureBtn, signatureSwatch, signatureOptionsBtn);
+        var signatureResetBtn = new Button("⟲");
+        signatureResetBtn.getStyleClass().add("overlay-popover-mini");
+        signatureResetBtn.setFocusTraversable(false);
+        signatureResetBtn.setTooltip(new Tooltip(message("overlay.reset.position")));
+        signatureResetBtn.setOnAction(e -> {
+            if (onResetSignature != null) {
+                onResetSignature.run();
+            }
+        });
+        signatureResetBtn.disableProperty().bind(signatureBtn.selectedProperty().not());
+        addRow(grid, row, signatureBtn, signatureSwatch, signatureResetBtn, signatureOptionsBtn);
         return grid;
     }
 
-    private static void addRow(GridPane grid, int row, Node chip, Node swatch, Node action) {
+    private static void addRow(GridPane grid, int row, Node chip, Node swatch, Node reset, Node options) {
         grid.add(chip, 0, row);
         GridPane.setHgrow(chip, Priority.ALWAYS);
         if (chip instanceof Region r) {
@@ -485,8 +515,11 @@ final class OverlayPanel {
         if (swatch != null) {
             grid.add(swatch, 1, row);
         }
-        if (action != null) {
-            grid.add(action, 2, row);
+        if (options != null) {
+            grid.add(options, 2, row);
+        }
+        if (reset != null) {
+            grid.add(reset, 3, row);
         }
     }
 
@@ -749,6 +782,7 @@ final class OverlayPanel {
         grid.add(circlesSpinner, 1, 0);
         grid.add(stepLabel, 0, 1);
         grid.add(stepSpinner, 1, 1);
+        addPromThicknessSpinner(grid, 2);
         var content = new VBox(grid);
         content.getStyleClass().add("overlay-subpopup");
         var sub = new Popup();
@@ -759,6 +793,23 @@ final class OverlayPanel {
         if (bounds != null) {
             sub.show(promOptionsBtn, bounds.getMinX(), bounds.getMaxY() + 4);
         }
+    }
+
+    private void addPromThicknessSpinner(GridPane grid, int row) {
+        var label = new Label(message("overlay.line.thickness") + ":");
+        double initial = state.promScaleLineThickness() != null ? state.promScaleLineThickness() : ImageDraw.DEFAULT_LINE_THICKNESS;
+        var spinner = new Spinner<Double>(0.5, 5.0, initial, 0.5);
+        spinner.setEditable(true);
+        spinner.setPrefWidth(80);
+        spinner.valueProperty().addListener((o, ov, nv) -> {
+            if (ignoreChanges || nv == null) {
+                return;
+            }
+            float v = nv.floatValue();
+            mutate(s -> s.withPromScaleLineThickness(v == ImageDraw.DEFAULT_LINE_THICKNESS ? null : v));
+        });
+        grid.add(label, 0, row);
+        grid.add(spinner, 1, row);
     }
 
     private void showGridOptions(GeneratedImageKind kind) {
@@ -795,6 +846,20 @@ final class OverlayPanel {
             pCorrected.selectedProperty().addListener((o, ov, nv) -> mutate(s -> s.withPCorrected(nv)));
             content.getChildren().add(pCorrected);
         }
+        var thicknessLabel = new Label(message("overlay.line.thickness") + ":");
+        var thicknessLocal = new Spinner<Double>(0.5, 5.0, initialThickness(), 0.5);
+        thicknessLocal.setEditable(true);
+        thicknessLocal.setPrefWidth(80);
+        thicknessLocal.valueProperty().addListener((o, ov, nv) -> {
+            if (ignoreChanges || nv == null) {
+                return;
+            }
+            float v = nv.floatValue();
+            mutate(s -> s.withLineThickness(v == ImageDraw.DEFAULT_LINE_THICKNESS ? null : v));
+        });
+        var thicknessRow = new HBox(6, thicknessLabel, thicknessLocal);
+        thicknessRow.setAlignment(Pos.CENTER_LEFT);
+        content.getChildren().add(thicknessRow);
         var sub = new Popup();
         sub.setAutoHide(true);
         sub.setHideOnEscape(true);
@@ -825,10 +890,6 @@ final class OverlayPanel {
         if (signatureBtn != null) {
             signatureBtn.setSelected(s.drawSignature());
             signatureSwatch.setFill(s.signatureColor() == null ? defaultSwatchFill() : parseHex(s.signatureColor()));
-        }
-        if (thicknessSpinner != null) {
-            double v = s.lineThickness() != null ? s.lineThickness() : ImageDraw.DEFAULT_LINE_THICKNESS;
-            thicknessSpinner.getValueFactory().setValue(v);
         }
         ignoreChanges = false;
     }
@@ -865,6 +926,15 @@ final class OverlayPanel {
         if (popup.isShowing()) {
             popup.hide();
         }
+    }
+
+    boolean isShowing() {
+        return popup.isShowing();
+    }
+
+    void setOnShownStateChanged(Consumer<Boolean> listener) {
+        popup.setOnShown(e -> listener.accept(true));
+        popup.setOnHidden(e -> listener.accept(false));
     }
 
     void toggle(Node anchor) {

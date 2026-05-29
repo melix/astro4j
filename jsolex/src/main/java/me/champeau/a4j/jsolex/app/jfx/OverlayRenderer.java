@@ -86,30 +86,20 @@ final class OverlayRenderer {
             var solarParams = prepared.findMetadata(SolarParameters.class).orElse(null);
             var effectiveStyle = globeStyle != null ? globeStyle : GlobeStyle.EQUATORIAL_COORDS;
 
-            float lineThickness = state.lineThickness() != null ? state.lineThickness() : ImageDraw.DEFAULT_LINE_THICKNESS;
+            float gridThickness = state.lineThickness() != null ? state.lineThickness() : ImageDraw.DEFAULT_LINE_THICKNESS;
+            float promThickness = state.promScaleLineThickness() != null ? state.promScaleLineThickness() : ImageDraw.DEFAULT_LINE_THICKNESS;
             if (state.drawGlobe() && ellipse != null && solarParams != null) {
                 boolean correctP = effectivePCorrected(state, kind, baseImageIsPCorrected);
                 var gridColor = parseColor(state.gridColor());
-                draw.plotGlobeGrid(g, ellipse, solarParams.p(), solarParams.b0(), gridColor, correctP, lineThickness);
+                draw.plotGlobeGrid(g, ellipse, solarParams.p(), solarParams.b0(), gridColor, correctP, gridThickness);
                 draw.drawGlobeAdornmentsOn(g, prepared, ellipse, solarParams.p(), solarParams.b0(),
-                        gridColor, false, correctP, effectiveStyle, false, lineThickness);
+                        gridColor, false, correctP, effectiveStyle, false, gridThickness);
             }
             if (state.drawProminenceScale() && ellipse != null) {
                 var promColor = parseColor(state.promScaleColor());
                 int circles = state.promCircles() != null ? state.promCircles() : ImageDraw.PROMS_CIRCLES;
                 int stepKm = state.promStepKm() != null ? state.promStepKm() : ImageDraw.PROMINENCE_SCALE_STEP_KM;
-                draw.drawProminenceScaleOn(g, ellipse, promColor, circles, stepKm, lineThickness);
-            }
-            if (state.drawObservationDetails() && processParams != null) {
-                draw.drawObservationDetailsOn(g, prepared, 50, 50, -1, state.obsDetailsColor(), state.obsDetailsTemplate());
-            }
-            if (state.drawSolarParameters() && solarParams != null) {
-                draw.drawSolarParametersOn(g, prepared, -1, 50, state.solarParamsColor());
-            }
-            if (state.drawSignature() && state.signatureText() != null) {
-                var family = state.signatureFontFamily() != null ? state.signatureFontFamily() : ImageDraw.DEFAULT_SIGNATURE_FONT;
-                int size = state.signatureFontSize() != null ? state.signatureFontSize() : ImageDraw.DEFAULT_SIGNATURE_SIZE;
-                draw.drawSignatureOn(g, prepared, state.signatureText(), family, size, state.signatureColor());
+                draw.drawProminenceScaleOn(g, ellipse, promColor, circles, stepKm, promThickness);
             }
         } finally {
             g.dispose();
@@ -119,10 +109,7 @@ final class OverlayRenderer {
 
     private static boolean hasAnyOverlay(ImageOverlayState state) {
         return state.drawGlobe()
-                || state.drawObservationDetails()
-                || state.drawSolarParameters()
-                || state.drawProminenceScale()
-                || state.drawSignature();
+                || state.drawProminenceScale();
     }
 
     private static boolean anyColorSet(ImageOverlayState state) {
@@ -152,6 +139,54 @@ final class OverlayRenderer {
         ctx.put(ProcessParams.class, processParams);
         var draw = new ImageDraw(ctx, Broadcaster.NO_OP);
         return (ImageWrapper) draw.drawEarth(Map.of("img", source.unwrapToMemory(), "x", x, "y", y));
+    }
+
+    static ImageWrapper bakeSignature(ImageWrapper source, ImageOverlayState state, int x, int y, ProcessParams processParams) {
+        if (source == null || state == null || !state.drawSignature() || state.signatureText() == null) {
+            return source;
+        }
+        var prepared = prepareForColorAt(source, state.signatureColor());
+        var family = state.signatureFontFamily() != null ? state.signatureFontFamily() : ImageDraw.DEFAULT_SIGNATURE_FONT;
+        int size = state.signatureFontSize() != null ? state.signatureFontSize() : ImageDraw.DEFAULT_SIGNATURE_SIZE;
+        var draw = newDraw(processParams);
+        var bi = ImageDraw.drawOnImageAsBuffered(prepared,
+                (g, image) -> draw.drawSignatureOn(g, image, state.signatureText(), family, size, state.signatureColor(), x, y));
+        return Loader.toImageWrapper(bi, prepared.metadata());
+    }
+
+    static ImageWrapper bakeObsDetails(ImageWrapper source, ImageOverlayState state, int x, int y, ProcessParams processParams) {
+        if (source == null || state == null || !state.drawObservationDetails()) {
+            return source;
+        }
+        var prepared = prepareForColorAt(source, state.obsDetailsColor());
+        var draw = newDraw(processParams);
+        var bi = ImageDraw.drawOnImageAsBuffered(prepared,
+                (g, image) -> draw.drawObservationDetailsOn(g, image, x, y, -1, state.obsDetailsColor(), state.obsDetailsTemplate()));
+        return Loader.toImageWrapper(bi, prepared.metadata());
+    }
+
+    static ImageWrapper bakeSolarParameters(ImageWrapper source, ImageOverlayState state, int x, int y, ProcessParams processParams) {
+        if (source == null || state == null || !state.drawSolarParameters()) {
+            return source;
+        }
+        var prepared = prepareForColorAt(source, state.solarParamsColor());
+        var draw = newDraw(processParams);
+        var bi = ImageDraw.drawOnImageAsBuffered(prepared,
+                (g, image) -> draw.drawSolarParametersOn(g, image, x, y, state.solarParamsColor()));
+        return Loader.toImageWrapper(bi, prepared.metadata());
+    }
+
+    private static ImageDraw newDraw(ProcessParams processParams) {
+        var ctx = new HashMap<Class<?>, Object>();
+        ctx.put(ProcessParams.class, processParams);
+        return new ImageDraw(ctx, Broadcaster.NO_OP);
+    }
+
+    private static ImageWrapper prepareForColorAt(ImageWrapper source, String color) {
+        if (color != null && source.unwrapToMemory() instanceof ImageWrapper32 mono) {
+            return RGBImage.toRGB(mono);
+        }
+        return source.unwrapToMemory();
     }
 
     private static Color parseColor(String hex) {

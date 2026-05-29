@@ -130,6 +130,9 @@ public class ImageViewer implements WithRootNode {
     private GlobeStyle overlayGlobeStyle;
     private OverlayPanel overlayPanel;
     private EarthDragLayer earthLayer;
+    private DraggableTextOverlayLayer signatureLayer;
+    private DraggableTextOverlayLayer obsDetailsLayer;
+    private DraggableTextOverlayLayer solarParamsLayer;
 
     private final ListProperty<ImageState> imageHistory = new SimpleListProperty<>(FXCollections.observableArrayList());
     private final IntegerProperty currentImage = new SimpleIntegerProperty(0);
@@ -457,6 +460,15 @@ public class ImageViewer implements WithRootNode {
             imageView.setOnZoomChanged(z -> {
                 if (earthLayer != null) {
                     earthLayer.applyLayout();
+                }
+                if (signatureLayer != null) {
+                    signatureLayer.applyLayout();
+                }
+                if (obsDetailsLayer != null) {
+                    obsDetailsLayer.applyLayout();
+                }
+                if (solarParamsLayer != null) {
+                    solarParamsLayer.applyLayout();
                 }
             });
             imageView.setCoordinatesListener((x, y) -> {
@@ -848,7 +860,12 @@ public class ImageViewer implements WithRootNode {
                                 overlayPanel.updateState(overlays);
                             }
                         }
-                        Platform.runLater(this::syncEarthLayer);
+                        Platform.runLater(() -> {
+                            syncEarthLayer();
+                            syncSignatureLayer();
+                            syncObsDetailsLayer();
+                            syncSolarParamsLayer();
+                        });
                         BackgroundOperations.async(this::redrawOverlays);
                     },
                     style -> {
@@ -861,10 +878,49 @@ public class ImageViewer implements WithRootNode {
                             overlayPanel.updateState(overlays);
                         }
                         Platform.runLater(this::syncEarthLayer);
+                    },
+                    () -> {
+                        overlays = overlays.withSignaturePosition(null, null);
+                        if (overlayPanel != null) {
+                            overlayPanel.updateState(overlays);
+                        }
+                        Platform.runLater(this::syncSignatureLayer);
+                    },
+                    () -> {
+                        overlays = overlays.withObsDetailsPosition(null, null);
+                        if (overlayPanel != null) {
+                            overlayPanel.updateState(overlays);
+                        }
+                        Platform.runLater(this::syncObsDetailsLayer);
+                    },
+                    () -> {
+                        overlays = overlays.withSolarParamsPosition(null, null);
+                        if (overlayPanel != null) {
+                            overlayPanel.updateState(overlays);
+                        }
+                        Platform.runLater(this::syncSolarParamsLayer);
                     }
             );
+            overlayPanel.setOnShownStateChanged(shown -> setLayersInteractive(shown));
         }
         overlayPanel.toggle(anchor);
+    }
+
+    private boolean isOverlayPanelShown() {
+        return overlayPanel != null && overlayPanel.isShowing();
+    }
+
+    private void setLayersInteractive(boolean interactive) {
+        if (earthLayer != null) {
+            earthLayer.setMouseTransparent(!interactive);
+            earthLayer.setCursor(interactive ? javafx.scene.Cursor.MOVE : javafx.scene.Cursor.DEFAULT);
+        }
+        for (var layer : new DraggableTextOverlayLayer[]{signatureLayer, obsDetailsLayer, solarParamsLayer}) {
+            if (layer != null) {
+                layer.setMouseTransparent(!interactive);
+                layer.setCursor(interactive ? javafx.scene.Cursor.MOVE : javafx.scene.Cursor.DEFAULT);
+            }
+        }
     }
 
     public void hideOverlayPanel() {
@@ -917,6 +973,141 @@ public class ImageViewer implements WithRootNode {
             pane.getChildren().add(earthLayer);
         }
         earthLayer.place(overlays.earthX(), overlays.earthY());
+        setLayersInteractive(isOverlayPanelShown());
+    }
+
+    private void syncObsDetailsLayer() {
+        var pane = imageView.getImagePane();
+        if (overlays == null || !overlays.drawObservationDetails() || processParams == null) {
+            if (obsDetailsLayer != null) {
+                pane.getChildren().remove(obsDetailsLayer);
+                obsDetailsLayer = null;
+            }
+            return;
+        }
+        if (obsDetailsLayer == null) {
+            obsDetailsLayer = new DraggableTextOverlayLayer(imageView, (x, y) -> {
+                overlays = overlays.withObsDetailsPosition(x, y);
+                if (overlayPanel != null) {
+                    overlayPanel.updateState(overlays);
+                }
+                saveButton.setDisable(false);
+            });
+            pane.getChildren().add(obsDetailsLayer);
+        }
+        var draw = new ImageDraw(Map.of(ProcessParams.class, processParams), Broadcaster.NO_OP);
+        var content = draw.computeObservationDetailsContent(stretchedImage != null ? stretchedImage : image, overlays.obsDetailsTemplate());
+        obsDetailsLayer.update(content, null, autoFontSize(), overlays.obsDetailsColor());
+        if (overlays.obsDetailsX() == null || overlays.obsDetailsY() == null) {
+            placeObsDetailsDefault();
+        }
+        obsDetailsLayer.place(overlays.obsDetailsX(), overlays.obsDetailsY());
+        setLayersInteractive(isOverlayPanelShown());
+    }
+
+    private void syncSolarParamsLayer() {
+        var pane = imageView.getImagePane();
+        if (overlays == null || !overlays.drawSolarParameters() || image == null) {
+            if (solarParamsLayer != null) {
+                pane.getChildren().remove(solarParamsLayer);
+                solarParamsLayer = null;
+            }
+            return;
+        }
+        if (solarParamsLayer == null) {
+            solarParamsLayer = new DraggableTextOverlayLayer(imageView, (x, y) -> {
+                overlays = overlays.withSolarParamsPosition(x, y);
+                if (overlayPanel != null) {
+                    overlayPanel.updateState(overlays);
+                }
+                saveButton.setDisable(false);
+            });
+            pane.getChildren().add(solarParamsLayer);
+        }
+        var draw = new ImageDraw(Map.of(ProcessParams.class, processParams), Broadcaster.NO_OP);
+        var content = draw.computeSolarParametersContent(stretchedImage != null ? stretchedImage : image);
+        solarParamsLayer.update(content, null, autoFontSize(), overlays.solarParamsColor());
+        if (overlays.solarParamsX() == null || overlays.solarParamsY() == null) {
+            placeSolarParamsDefault();
+        }
+        solarParamsLayer.place(overlays.solarParamsX(), overlays.solarParamsY());
+        setLayersInteractive(isOverlayPanelShown());
+    }
+
+    private int autoFontSize() {
+        var ellipse = image != null ? image.findMetadata(Ellipse.class).orElse(null) : null;
+        double radius = ellipse != null
+                ? (ellipse.semiAxis().a() + ellipse.semiAxis().b()) / 2d
+                : (image != null ? image.width() / 2d : 800);
+        return (int) Math.max(12, Math.round(radius * 1.2 / 48));
+    }
+
+    private void placeObsDetailsDefault() {
+        if (image == null) {
+            return;
+        }
+        int margin = (int) Math.max(40, image.width() * 0.03);
+        overlays = overlays.withObsDetailsPosition(margin, margin);
+    }
+
+    private void placeSolarParamsDefault() {
+        if (image == null) {
+            return;
+        }
+        int margin = (int) Math.max(40, image.width() * 0.03);
+        int fontSize = autoFontSize();
+        int longestLine = 22;
+        int estimatedWidth = (int) Math.round(longestLine * fontSize * 0.6);
+        int defaultX = Math.max(margin, image.width() - margin - estimatedWidth);
+        overlays = overlays.withSolarParamsPosition(defaultX, margin);
+    }
+
+    private void syncSignatureLayer() {
+        var pane = imageView.getImagePane();
+        if (overlays == null || !overlays.drawSignature() || overlays.signatureText() == null) {
+            if (signatureLayer != null) {
+                pane.getChildren().remove(signatureLayer);
+                signatureLayer = null;
+            }
+            return;
+        }
+        if (signatureLayer == null) {
+            signatureLayer = new DraggableTextOverlayLayer(imageView, (x, y) -> {
+                overlays = overlays.withSignaturePosition(x, y);
+                if (overlayPanel != null) {
+                    overlayPanel.updateState(overlays);
+                }
+                saveButton.setDisable(false);
+            });
+            pane.getChildren().add(signatureLayer);
+        }
+        signatureLayer.update(overlays.signatureText(), overlays.signatureFontFamily(), overlays.signatureFontSize(), overlays.signatureColor());
+        if (overlays.signatureX() == null || overlays.signatureY() == null) {
+            placeSignatureDefault();
+        }
+        var sx = overlays.signatureX() != null ? overlays.signatureX() : 0;
+        var sy = overlays.signatureY() != null ? overlays.signatureY() : 0;
+        signatureLayer.place(sx, sy);
+        setLayersInteractive(isOverlayPanelShown());
+    }
+
+    private void placeSignatureDefault() {
+        if (image == null) {
+            return;
+        }
+        int imageWidth = image.width();
+        int imageHeight = image.height();
+        int marginX = (int) Math.max(40, imageWidth * 0.03);
+        int marginY = (int) Math.max(40, imageHeight * 0.03);
+        int fontSize = overlays.signatureFontSize() != null ? overlays.signatureFontSize() : ImageDraw.DEFAULT_SIGNATURE_SIZE;
+        var lines = overlays.signatureText() != null ? overlays.signatureText().split("\n", -1) : new String[]{""};
+        int approxHeight = (int) Math.round(fontSize * 1.25 * lines.length);
+        int defaultX = marginX;
+        int defaultY = imageHeight - marginY - approxHeight;
+        if (defaultY < 0) {
+            defaultY = 0;
+        }
+        overlays = overlays.withSignaturePosition(defaultX, defaultY);
     }
 
     private ImageWrapper applyTransformations(ImageWrapper image) {
@@ -983,6 +1174,15 @@ public class ImageViewer implements WithRootNode {
         );
         if (overlays.drawEarth() && earthLayer != null) {
             baked = OverlayRenderer.bakeEarth(baked, earthLayer.getImageX(), earthLayer.getImageY(), processParams);
+        }
+        if (overlays.drawSignature() && signatureLayer != null) {
+            baked = OverlayRenderer.bakeSignature(baked, overlays, signatureLayer.getImageX(), signatureLayer.getImageY(), processParams);
+        }
+        if (overlays.drawObservationDetails() && obsDetailsLayer != null) {
+            baked = OverlayRenderer.bakeObsDetails(baked, overlays, obsDetailsLayer.getImageX(), obsDetailsLayer.getImageY(), processParams);
+        }
+        if (overlays.drawSolarParameters() && solarParamsLayer != null) {
+            baked = OverlayRenderer.bakeSolarParameters(baked, overlays, solarParamsLayer.getImageX(), solarParamsLayer.getImageY(), processParams);
         }
         return baked;
     }
