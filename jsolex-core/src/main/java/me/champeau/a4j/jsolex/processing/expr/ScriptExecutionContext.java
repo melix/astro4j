@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.expr;
 
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.jsolex.processing.sun.workflow.AverageImage;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShiftRange;
@@ -177,6 +178,13 @@ public final class ScriptExecutionContext {
         public Builder spectralLinePolynomial(SpectralLinePolynomial spectralLinePolynomial) {
             if (spectralLinePolynomial != null) {
                 entries.put(SpectralLinePolynomial.class, spectralLinePolynomial);
+            }
+            return this;
+        }
+
+        public Builder averageImage(AverageImage averageImage) {
+            if (averageImage != null) {
+                entries.put(AverageImage.class, averageImage);
             }
             return this;
         }
