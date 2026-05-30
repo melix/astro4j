@@ -168,7 +168,6 @@ public class DefaultImageEmitter implements ImageEmitter {
 
     @Override
     public void newMonoImage(GeneratedImageKind kind, String category, String title, String name, String description, ImageWrapper32 image) {
-        prepareOutput(name);
         var snapshot = snapshot(image, kind, title, name);
         // Bypass the bounded queue (mono writes are cheap) but still track
         // outstanding so await() is a true barrier for these writes too.
@@ -184,7 +183,6 @@ public class DefaultImageEmitter implements ImageEmitter {
 
     @Override
     public void newColorImage(GeneratedImageKind kind, String category, String title, String name, String description, ImageWrapper32 image, Function<ImageWrapper32, float[][][]> rgbSupplier) {
-        prepareOutput(name);
         var snapshot = snapshot(image, kind, title, name);
         submit(() -> new WriteColorizedImageTask(broadcaster,
                 operation,
@@ -209,7 +207,6 @@ public class DefaultImageEmitter implements ImageEmitter {
 
     @Override
     public void newColorImage(GeneratedImageKind kind, String category, String title, String name, String description, int width, int height, Map<Class<?>, Object> metadata, Supplier<float[][][]> rgbSupplier) {
-        prepareOutput(name);
         // The supplier here builds the source image lazily; capture by reference.
         var capturedMetadata = new HashMap<>(metadata);
         capturedMetadata.put(GeneratedImageMetadata.class, new GeneratedImageMetadata(kind, title, name));
