@@ -7,6 +7,8 @@
 - Redshift measurements are more reliable and their uncertainty is much more realistic.
 - Added a new `average_image` ImageMath function which returns the average image, optionally distortion-corrected.
 - Fixed a bug which caused log files to be empty in batch mode
+- Fixed a crash when generating redshift animations and panels
+- Added progress reporting while generating redshift animations and panels
 
 ## What's New in Version 5.2.2
 

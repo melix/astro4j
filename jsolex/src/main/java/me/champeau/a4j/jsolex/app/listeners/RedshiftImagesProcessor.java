@@ -205,12 +205,13 @@ public class RedshiftImagesProcessor {
      * @param annotationColor RGB color values for annotations
      */
     public void produceImages(RedshiftCreatorKind kind, int boxSize, int margin, boolean useFullRangePanels, boolean annotateAnimations, int[] annotationColor) {
+        var rootOperation = ProgressOperation.root("", op -> {});
         var requiredShifts = createRange(margin, (int) Math.ceil(redshifts.stream().mapToDouble(RedshiftArea::pixelShift).max().orElse(0d)));
         var missingShifts = requiredShifts.stream().filter(d -> !shiftImages.containsKey(new PixelShift(d))).toList();
         if (!missingShifts.isEmpty()) {
-            restartProcessForMissingShifts(new LinkedHashSet<>(missingShifts), operation);
+            restartProcessForMissingShifts(new LinkedHashSet<>(missingShifts), rootOperation);
         }
-        var progressOperation = operation.createChild("Producing redshift animations and panels");
+        var progressOperation = rootOperation.createChild(message("producing.redshift.images"));
         broadcaster.broadcast(progressOperation);
         double progress = 0;
         var computedShifts = new TreeSet<>(shiftImages.keySet());
@@ -225,7 +226,10 @@ public class RedshiftImagesProcessor {
                            .orElse(0d) + margin;
         var min = Math.max(-maxShift, computedShifts.first().pixelShift());
         var max = Math.min(maxShift, computedShifts.last().pixelShift());
-        var range = createMinMaxRange(min, max, .25).stream().sorted().toList();
+        var range = computedShifts.stream()
+            .map(PixelShift::pixelShift)
+            .filter(s -> s >= min && s <= max)
+            .toList();
         var contrast = new AdjustContrast(Map.of(), broadcaster);
         var initialImages = range.stream().map(s -> shiftImages.get(new PixelShift(s))).toList();
         var constrastAdjusted = contrast.autoContrast(Map.of("img", initialImages, "gamma", params.autoStretchParams().gamma()));
@@ -235,9 +239,12 @@ public class RedshiftImagesProcessor {
                 shiftToContrastAdjusted.put(range.get(i), (ImageWrapper) list.get(i));
             }
             for (var redshift : adjustedRedshifts) {
-                broadcaster.broadcast(progressOperation.update(progress / redshifts.size(), "Producing images for redshift " + redshift));
-                produceImagesForRedshift(redshift, kind, boxSize, useFullRangePanels, annotateAnimations, shiftToContrastAdjusted, annotationColor);
+                var redshiftOperation = progressOperation.createChild(String.format(message("producing.images.for.redshift"), redshift.id()));
+                broadcaster.broadcast(redshiftOperation);
+                produceImagesForRedshift(redshift, kind, boxSize, useFullRangePanels, annotateAnimations, shiftToContrastAdjusted, annotationColor, redshiftOperation);
                 progress++;
+                broadcaster.broadcast(progressOperation.update(progress / adjustedRedshifts.size()));
+                broadcaster.broadcast(redshiftOperation.complete());
             }
         }
         broadcaster.broadcast(progressOperation.complete());
@@ -289,6 +296,7 @@ public class RedshiftImagesProcessor {
      * @param annotateAnimations whether to annotate animation frames
      * @param shiftToContrastAdjusted map of pixel shifts to contrast-adjusted images
      * @param annotationColor RGB color for annotations
+     * @param parentOperation the parent progress operation for tracking
      */
     private void produceImagesForRedshift(RedshiftArea redshift,
                                           RedshiftCreatorKind kind,
@@ -296,7 +304,8 @@ public class RedshiftImagesProcessor {
                                           boolean useFullRangePanels,
                                           boolean annotateAnimations,
                                           Map<Double, ImageWrapper> shiftToContrastAdjusted,
-                                          int[] annotationColor) {
+                                          int[] annotationColor,
+                                          ProgressOperation parentOperation) {
         var centerX = redshift.maxX();
         var centerY = redshift.maxY();
         // grow x1/x2/y1/y2 so that the area is centered and fits the box size
@@ -310,7 +319,7 @@ public class RedshiftImagesProcessor {
         var cropped = crop.crop(Map.of("img", constrastAdjusted, "left", x1, "top", y1, "width", boxSize, "height", boxSize));
         if (kind == RedshiftCreatorKind.ANIMATION || kind == RedshiftCreatorKind.ALL) {
             var annotationColorHex = toHex(annotationColor);
-            generateAnim(redshift, animate, cropped, annotateAnimations, boxSize, boxSize, new Scaling(Map.of(), broadcaster, crop), annotationColorHex);
+            generateAnim(redshift, animate, cropped, annotateAnimations, boxSize, boxSize, new Scaling(Map.of(), broadcaster, crop), annotationColorHex, parentOperation);
         }
         if (kind == RedshiftCreatorKind.PANEL || kind == RedshiftCreatorKind.ALL) {
             generatePanel(redshift, (List<ImageWrapper>) cropped, boxSize, crop, useFullRangePanels, annotationColor);
@@ -554,9 +563,10 @@ public class RedshiftImagesProcessor {
      * @param height frame height
      * @param scaling scaling operation
      * @param annotationColorHex hexadecimal annotation color
+     * @param parentOperation the parent progress operation for tracking
      */
-    private void generateAnim(RedshiftArea redshift, Animate animate, Object cropped, boolean annotateAnimations, int width, int height, Scaling scaling, String annotationColorHex) {
-        var frames = createFrames(operation, width, height, annotateAnimations, cropped, scaling, annotationColorHex);
+    private void generateAnim(RedshiftArea redshift, Animate animate, Object cropped, boolean annotateAnimations, int width, int height, Scaling scaling, String annotationColorHex, ProgressOperation parentOperation) {
+        var frames = createFrames(parentOperation, width, height, annotateAnimations, cropped, scaling, annotationColorHex);
         var anim = (FileOutputResult) animate.createAnimation(Map.of("images", frames, "delay", 25));
         var displayFile = anim.displayFile();
         var name = "redshift-" + redshift.id();

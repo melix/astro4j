@@ -7,6 +7,8 @@
 - Les mesures de redshift sont plus fiables et leur incertitude est désormais bien plus réaliste.
 - Ajout d'une nouvelle fonction ImageMath `average_image` qui renvoie l'image moyenne, éventuellement corrigée de la distorsion.
 - Correction des fichiers log qui étaient vides en mode batch
+- Correction d'un plantage lors de la génération des animations et panneaux de redshift
+- Ajout d'un suivi de progression lors de la génération des animations et panneaux de redshift
 
 ## Nouveautés de la version 5.2.2
 
