@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
-import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.geometry.Bounds;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -114,7 +114,7 @@ public class ReconstructionView extends BorderPane implements WithRootNode {
         spectrumViewStack.setOnContextMenuRequested(event -> {
             var menu = new ContextMenu();
             var save = new MenuItem(message("save.image"));
-            save.setOnAction(e -> Platform.runLater(() -> {
+            save.setOnAction(e -> FxUtils.runLater(() -> {
                 var fileChooser = new FileChooser();
                 fileChooser.setTitle(message("save.image"));
                 fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PNG", "*.png"));

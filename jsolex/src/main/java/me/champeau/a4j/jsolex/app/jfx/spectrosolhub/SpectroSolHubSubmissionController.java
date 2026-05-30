@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx.spectrosolhub;
 
-import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -106,7 +106,7 @@ public class SpectroSolHubSubmissionController {
         this.stage = stage;
 
         this.step1Handler = new Step1AuthenticationHandler(authenticated ->
-                Platform.runLater(() -> {
+                FxUtils.runLater(() -> {
                     if (currentStep == 1) {
                         nextButton.setDisable(!authenticated);
                         if (authenticated) {
@@ -123,7 +123,7 @@ public class SpectroSolHubSubmissionController {
             }
         });
 
-        Platform.runLater(this::initializeStyles);
+        FxUtils.runLater(this::initializeStyles);
         initializeWizard();
     }
 
@@ -241,7 +241,7 @@ public class SpectroSolHubSubmissionController {
         nextButton.setDisable(true);
         previousButton.setDisable(true);
         nextButton.setText(message("postprocess.generating"));
-        Platform.runLater(() -> wizardProgress.setProgress(-1));
+        FxUtils.runLater(() -> wizardProgress.setProgress(-1));
 
         BackgroundOperations.async(() -> {
             try {
@@ -262,11 +262,11 @@ public class SpectroSolHubSubmissionController {
                     entries.add(new PostProcessEntry(filename, imageInfo, buffered.getWidth(), buffered.getHeight()));
                 }
 
-                Platform.runLater(() -> showPostProcessingView(tempDir, entries));
+                FxUtils.runLater(() -> showPostProcessingView(tempDir, entries));
 
             } catch (IOException ex) {
                 LOGGER.error("Failed to generate post-processing files", ex);
-                Platform.runLater(() -> {
+                FxUtils.runLater(() -> {
                     wizardProgress.setProgress(0);
                     nextButton.setText(message("button.submit"));
                     nextButton.setDisable(false);
@@ -384,7 +384,7 @@ public class SpectroSolHubSubmissionController {
                 var token = config.getSpectroSolHubToken().orElseThrow();
                 var client = new SpectroSolHubClient(url, token);
 
-                Platform.runLater(() -> wizardProgress.setProgress(-1));
+                FxUtils.runLater(() -> wizardProgress.setProgress(-1));
 
                 var sessionRequest = step4Handler.buildSessionRequest();
                 var session = client.createSession(sessionRequest);
@@ -397,7 +397,7 @@ public class SpectroSolHubSubmissionController {
                     var imageData = imageDataList.get(i);
                     int idx = i;
 
-                    Platform.runLater(() -> {
+                    FxUtils.runLater(() -> {
                         nextButton.setText(MessageFormat.format(message("upload.progress"), idx + 1, total));
                         wizardProgress.setProgress((double) idx / total);
                     });
@@ -414,19 +414,19 @@ public class SpectroSolHubSubmissionController {
                     client.uploadImage(sessionId, imageTitle, imageKind, metadataJson, jpegBytes, (partCompleted, totalParts) -> {
                         double partProgress = (double) partCompleted / totalParts;
                         double overall = ((double) idx + partProgress) / total;
-                        Platform.runLater(() -> wizardProgress.setProgress(overall));
+                        FxUtils.runLater(() -> wizardProgress.setProgress(overall));
                     });
                 }
 
                 var sessionUrl = url + "/observation/" + sessionId;
 
                 if (step4Handler.shouldPublish()) {
-                    Platform.runLater(() -> nextButton.setText(message("upload.publishing")));
+                    FxUtils.runLater(() -> nextButton.setText(message("upload.publishing")));
                     try {
                         client.publishSession(sessionId);
                     } catch (SpectroSolHubException pubEx) {
                         LOGGER.warn("Publishing failed", pubEx);
-                        Platform.runLater(() -> {
+                        FxUtils.runLater(() -> {
                             wizardProgress.setProgress(1.0);
                             stage.close();
                             AlertFactory.warning(message("upload.publish.failed")).showAndWait();
@@ -437,7 +437,7 @@ public class SpectroSolHubSubmissionController {
                 }
 
                 cleanupTempDir();
-                Platform.runLater(() -> {
+                FxUtils.runLater(() -> {
                     wizardProgress.setProgress(1.0);
                     stage.close();
                 });
@@ -446,7 +446,7 @@ public class SpectroSolHubSubmissionController {
             } catch (SpectroSolHubException | IOException ex) {
                 LOGGER.error("Upload failed", ex);
                 cleanupTempDir();
-                Platform.runLater(() -> {
+                FxUtils.runLater(() -> {
                     wizardProgress.setProgress(0);
                     nextButton.setText(message("button.submit"));
                     nextButton.setDisable(false);

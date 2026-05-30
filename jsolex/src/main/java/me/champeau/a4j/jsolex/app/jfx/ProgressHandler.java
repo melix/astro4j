@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
-import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 
 import java.util.ArrayList;
@@ -202,7 +202,7 @@ public final class ProgressHandler {
 
             if (dirty.get() && pendingUpdate.compareAndSet(false, true)) {
                 var snapshot = computeSnapshot();
-                Platform.runLater(() -> {
+                FxUtils.runLater(() -> {
                     uiUpdater.accept(snapshot);
                     dirty.set(false);
                     pendingUpdate.set(false);

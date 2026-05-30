@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.app.jfx;
 import javafx.animation.AnimationTimer;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Point3D;
@@ -1095,8 +1096,8 @@ public class SpectralEvolution4DViewer extends AbstractSpectral3DViewer {
             sliceModeCombo.setDisable(false);
             slicePositionField.setDisable(false);
             invalidateMesh();
-            // Use Platform.runLater to ensure any pending animation frame has completed
-            Platform.runLater(this::buildSurface);
+            // Defer to the FX thread to ensure any pending animation frame has completed
+            FxUtils.runLater(this::buildSurface);
         } else {
             sliceSlider.setDisable(true);
             sliceModeCombo.setDisable(true);

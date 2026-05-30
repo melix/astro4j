@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.app.listeners;
 
 import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -488,7 +489,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             // The rgb buffer is already up to date; the next periodic flush (or the
             // final flush in onReconstructionDone) will pick up everything.
             if (pendingViewCreation.add(pixelShift)) {
-                Platform.runLater(() -> {
+                FxUtils.runLater(() -> {
                     try {
                         imageViews.put(pixelShift, createImageViewOnFx(pixelShift, rgb, lineWidth, bufferHeight, spectrumWidth, spectrumHeight));
                     } finally {
@@ -513,7 +514,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 if (lock.tryAcquire()) {
                     Thread.startVirtualThread(() -> {
                         var spectrumBuffer = SpectrumImageConverter.convertSpectrumImage(spectrum);
-                        Platform.runLater(() -> {
+                        FxUtils.runLater(() -> {
                             try {
                                 spectrumImage.getPixelWriter().setPixels(
                                         0, 0,
@@ -550,7 +551,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 Thread.currentThread().interrupt();
                 return;
             }
-            Platform.runLater(() -> {
+            FxUtils.runLater(() -> {
                 try {
                     var solarView = reconstructionView.getSolarView();
                     var solarImage = (WritableImage) solarView.getImage();
@@ -593,14 +594,14 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         // Iterate the rgb buffers (populated synchronously) rather than imageViews, then
         // defer to the FX thread so any pending view-creation tasks have completed first.
         var pixelShifts = List.copyOf(solarImageBuffers.keySet());
-        Platform.runLater(() -> pixelShifts.forEach(pixelShift -> {
+        FxUtils.runLater(() -> pixelShifts.forEach(pixelShift -> {
             var view = imageViews.get(pixelShift);
             if (view != null) {
                 forceFinalUIUpdate(view);
             }
         }));
 
-        Platform.runLater(() -> pixelShifts.forEach(pixelShift -> {
+        FxUtils.runLater(() -> pixelShifts.forEach(pixelShift -> {
             var view = imageViews.get(pixelShift);
             if (view == null) {
                 return;
@@ -646,7 +647,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     var spectrum = new Image(geometry.width(), geometry.height(), buffer);
                     var imageBytes = SpectrumImageConverter.convertSpectrumImage(spectrum);
                     view.setSpectrumImage(spectrum);
-                    Platform.runLater(() -> {
+                    FxUtils.runLater(() -> {
                         var pixelWriter = ((WritableImage) view.getSpectrumView().getImage()).getPixelWriter();
                         pixelWriter.setPixels(0, 0, geometry.width(), geometry.height(), pixelformat, imageBytes, 0, 4 * geometry.width());
                     });
@@ -654,7 +655,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                         currentColumn = xIndex;
                         currentSpectrumFrameData = spectrum.data();
                         if (profileViewFactory != null) {
-                            Platform.runLater(() -> profileTab.setContent(profileViewFactory.get()));
+                            FxUtils.runLater(() -> profileTab.setContent(profileViewFactory.get()));
                         }
                     }
                 } catch (Exception ex) {
@@ -667,7 +668,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     var clickedSlit = xIndex;
                     double clickedPixelShift = pixelShift;
                     LOGGER.info("Calling setPositionFromClick({}, {}, {})", clickedFrame, clickedSlit, clickedPixelShift);
-                    Platform.runLater(() -> {
+                    FxUtils.runLater(() -> {
                         spectral4DViewer.setPositionFromClick(clickedFrame, clickedSlit, clickedPixelShift);
                         spectral4DViewer.bringToFront();
                     });
@@ -714,7 +715,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         grid.add(yField, 1, 1);
 
         dialog.getDialogPane().setContent(grid);
-        dialog.setOnShown(ev -> Platform.runLater(xField::requestFocus));
+        dialog.setOnShown(ev -> FxUtils.runLater(xField::requestFocus));
 
         dialog.setResultConverter(bt -> bt == okType ? new int[]{0} : null);
 
@@ -726,7 +727,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             var x = Integer.parseInt(xField.getText().trim());
             var y = Integer.parseInt(yField.getText().trim());
             scrollToCenter(solarView, x, y);
-            Platform.runLater(() -> triggerAt.accept((double) x, (double) y));
+            FxUtils.runLater(() -> triggerAt.accept((double) x, (double) y));
         } catch (NumberFormatException ex) {
             var alert = new Alert(Alert.AlertType.WARNING, message("recon.goto.invalid"));
             alert.initOwner(solarView.getScene().getWindow());
@@ -786,7 +787,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     }
                 }
 
-                Platform.runLater(() -> image.getPixelWriter().setPixels(0, 0, imageWidth, imageHeight, WritablePixelFormat.getIntArgbInstance(), pixels, 0, imageWidth));
+                FxUtils.runLater(() -> image.getPixelWriter().setPixels(0, 0, imageWidth, imageHeight, WritablePixelFormat.getIntArgbInstance(), pixels, 0, imageWidth));
             } catch (IndexOutOfBoundsException e) {
             }
         });
@@ -800,7 +801,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         var generatedImageKind = payload.kind();
         var imageWrapper = payload.image();
         var pixelShift = imageWrapper.findMetadata(PixelShift.class);
-        Platform.runLater(() -> {
+        FxUtils.runLater(() -> {
             var addedImageViewer = owner.getImagesViewer().addImage(this,
                     rootOperation,
                     title,
@@ -816,7 +817,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     viewer -> viewer.setOnStretchedImageUpdate(stretchedImage -> {
                         BackgroundOperations.async(() -> {
                             var histogram = showHistogram(stretchedImage);
-                            Platform.runLater(() -> {
+                            FxUtils.runLater(() -> {
                                 statsTab.setContent(histogram);
                                 showMetadata(stretchedImage.metadata());
                             });
@@ -894,7 +895,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                             computeSerFileBasename(serFile),
                             mainEllipse
                     );
-                    Platform.runLater(() -> {
+                    FxUtils.runLater(() -> {
                         var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "custom-anim-panel");
                         Parent node;
                         try {
@@ -1133,10 +1134,10 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     refCoords, range, polynomial, start, end, height,
                     lambda0, dispersion, centerX, centerY, radius, b0, angleP, eastLonSign, latSign,
                     config,
-                    progress -> Platform.runLater(() -> progressBar.setProgress(progress))
+                    progress -> FxUtils.runLater(() -> progressBar.setProgress(progress))
             );
 
-            Platform.runLater(() -> {
+            FxUtils.runLater(() -> {
                 progressStage.close();
                 if (!velocityData.isEmpty()) {
                     showRotationProfileChart(velocityData, params);
@@ -1385,7 +1386,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         stage.setTitle(message("doppler.rotation.profile"));
         var scene = JSolEx.newScene(layout, 1400, 580);
         stage.setScene(scene);
-        stage.setOnShown(e -> Platform.runLater(() -> {
+        stage.setOnShown(e -> FxUtils.runLater(() -> {
             addErrorBarsToChart(velocityChart, velocityData, false);
             addErrorBarsToChart(angularChart, velocityData, true);
         }));
@@ -1577,7 +1578,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         lineChart.getData().add(fitSeries);
 
         lineChart.setStyle("CHART_COLOR_1: #3498db; CHART_COLOR_2: #e74c3c; CHART_COLOR_3: #2ecc71;");
-        Platform.runLater(() -> {
+        FxUtils.runLater(() -> {
             if (theoreticalSeries.getNode() != null) {
                 theoreticalSeries.getNode().setStyle("-fx-stroke-dash-array: 6 3;");
             }
@@ -1794,9 +1795,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         var displayTitle = payload.displayTitle() != null ? payload.displayTitle() : payload.title();
         var description = payload.description();
         if (fileName.endsWith(".mp4")) {
-            Platform.runLater(() -> owner.getImagesViewer().addVideo(payload.kind(), displayTitle, filePath, description));
+            FxUtils.runLater(() -> owner.getImagesViewer().addVideo(payload.kind(), displayTitle, filePath, description));
         } else if (fileName.endsWith(".gif")) {
-            Platform.runLater(() -> owner.getImagesViewer().addAnimatedGif(payload.kind(), displayTitle, filePath, description));
+            FxUtils.runLater(() -> owner.getImagesViewer().addAnimatedGif(payload.kind(), displayTitle, filePath, description));
         }
     }
 
@@ -1809,7 +1810,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             // so let's not overwhelm the user
             return;
         }
-        Platform.runLater(() -> {
+        FxUtils.runLater(() -> {
             var alert = new Alert(Alert.AlertType.valueOf(e.type().name()));
             alert.setResizable(true);
             alert.getDialogPane().setPrefSize(480, 320);
@@ -1840,7 +1841,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             detectedSpectralRay = spectralRay;
             owner.updateSpectralLineIndicator(spectralRay, false);
         }
-        Platform.runLater(() -> {
+        FxUtils.runLater(() -> {
             var logsTab = owner.getLogsTab();
             var tabPane = logsTab.getTabPane();
             if (tabPane != null) {
@@ -1867,7 +1868,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         imageEmitter = payload.customImageEmitter();
         scriptExecutionContext = prepareExecutionContext(payload);
         shiftImages.putAll(payload.shiftImages());
-        Platform.runLater(() -> {
+        FxUtils.runLater(() -> {
             updateSpectral3DButtonsState();
             measureVelocityButton.setDisable(false);
             customMeasurementButton.setDisable(false);
@@ -1922,7 +1923,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         LOGGER.info(message("processing.done"));
         LOGGER.info(finishedString);
         broadcast(rootOperation.update(1, finishedString));
-        Platform.runLater(() -> {
+        FxUtils.runLater(() -> {
             var tabPane = profileTab.getTabPane();
             if (tabPane != null) {
                 tabPane.getSelectionModel().select(profileTab);
@@ -1992,7 +1993,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         }, outputsMetadata, language);
         var invalidExpressions = result.invalidExpressions();
         if (!invalidExpressions.isEmpty()) {
-            Platform.runLater(() -> ScriptErrorDialog.showErrors(invalidExpressions));
+            FxUtils.runLater(() -> ScriptErrorDialog.showErrors(invalidExpressions));
         }
         return result;
     }
@@ -2019,7 +2020,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         }, outputsMetadata, language);
         var invalidExpressions = result.invalidExpressions();
         if (!invalidExpressions.isEmpty()) {
-            Platform.runLater(() -> ScriptErrorDialog.showErrors(invalidExpressions));
+            FxUtils.runLater(() -> ScriptErrorDialog.showErrors(invalidExpressions));
         }
         return result;
     }
@@ -2176,7 +2177,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     public void onAverageImageComputed(AverageImageComputedEvent e) {
         var payload = e.getPayload();
         cachedAverageImagePayload = payload;
-        Platform.runLater(this::updateSpectral3DButtonsState);
+        FxUtils.runLater(this::updateSpectral3DButtonsState);
         adjustedParams = payload.adjustedParams();
         polynomial = payload.polynomial();
         averageImage = payload.image().data();
@@ -2421,7 +2422,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             profileTab.setContent(profileViewFactory.get());
             analysisTab.setContent(buildAnalysisTabContent(payload));
         } else {
-            Platform.runLater(() -> {
+            FxUtils.runLater(() -> {
                 profileTab.setContent(profileViewFactory.get());
                 analysisTab.setContent(buildAnalysisTabContent(payload));
             });
@@ -2432,7 +2433,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     @Override
     public void onTrimmingParametersDetermined(TrimmingParametersDeterminedEvent e) {
         cachedTrimmingParameters = e.getPayload();
-        Platform.runLater(this::updateSpectral3DButtonsState);
+        FxUtils.runLater(this::updateSpectral3DButtonsState);
         owner.setTrimmingParameters(cachedTrimmingParameters);
     }
 
@@ -2702,7 +2703,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
         // Apply styling after chart is rendered
         final var finalHalfMaxSeries = halfMaxSeries;
-        Platform.runLater(() -> {
+        FxUtils.runLater(() -> {
             // Style continuum line - green dashed
             if (continuumSeries.getNode() != null) {
                 continuumSeries.getNode().setStyle("-fx-stroke: #27ae60; -fx-stroke-width: 2px; -fx-stroke-dash-array: 8 4;");
@@ -2913,7 +2914,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         var menu = ChartExportHelper.createChartContextMenu(name, nodeSupplier, csvWriter, outputDirectory, baseName, this::createNamingStrategy);
 
         var openInNewWindow = new MenuItem(message("open.in.new.window"));
-        openInNewWindow.setOnAction(evt -> Platform.runLater(() -> {
+        openInNewWindow.setOnAction(evt -> FxUtils.runLater(() -> {
             var newWindow = new Stage();
             newWindow.setTitle(message(message("profile")));
 
@@ -2946,7 +2947,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 newWindow.setScene(scene);
                 newWindow.show();
 
-                Platform.runLater(() -> ChartExportHelper.addLegendToggleHandlers(newChart));
+                FxUtils.runLater(() -> ChartExportHelper.addLegendToggleHandlers(newChart));
             }
         }));
 
@@ -3075,7 +3076,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             return;
         }
         var language = LocaleUtils.getConfiguredLocale().getLanguage();
-        Platform.runLater(() -> {
+        FxUtils.runLater(() -> {
             var tabPane = owner.getTabs();
             var imagesViewerTab = owner.getImagesViewerTab();
             tabPane.getTabs().add(imagesViewerTab);

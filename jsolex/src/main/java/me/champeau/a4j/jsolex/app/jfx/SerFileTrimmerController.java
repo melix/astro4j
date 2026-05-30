@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
-import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.fxml.FXML;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -104,7 +104,7 @@ public class SerFileTrimmerController {
             var controller = (SerFileTrimmerController) fxmlLoader.getController();
             controller.setup(stage, payload, progressConsumer, onStart, onFinish);
             Scene scene = new Scene(node);
-            Platform.runLater(() -> {
+            FxUtils.runLater(() -> {
                 stage.setTitle(I18N.string(JSolEx.class, "ser-trimmer", "frame.title"));
                 stage.setScene(scene);
                 stage.show();
@@ -295,14 +295,14 @@ public class SerFileTrimmerController {
                     Integer.parseInt(maxX.getText()),
                     trimmingParameters.polynomial(),
                     trimmingParameters.verticalFlip(),
-                    progress -> Platform.runLater(() -> progressConsumer.accept(
+                    progress -> FxUtils.runLater(() -> progressConsumer.accept(
                         progress,
                         I18N.string(JSolEx.class, "ser-trimmer", "trimming")
                     ))
                 );
                 maybeCopyMetadata(trimmingParameters.serFile());
             } finally {
-                Platform.runLater(() -> {
+                FxUtils.runLater(() -> {
                         if (outputFile.exists()) {
                             onFinish.accept(outputFile);
                         } else {

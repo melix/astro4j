@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx.sunscan;
 
-import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
@@ -150,7 +150,7 @@ public class SunscanImportController {
         statusLabel.setText(message("detecting"));
         var thread = new Thread(() -> {
             var detected = SunscanClient.autoDetect();
-            Platform.runLater(() -> {
+            FxUtils.runLater(() -> {
                 if (client != null) {
                     return;
                 }
@@ -188,7 +188,7 @@ public class SunscanImportController {
         var thread = new Thread(() -> {
             try {
                 var scans = current.listAllScans();
-                Platform.runLater(() -> {
+                FxUtils.runLater(() -> {
                     setBusy(false);
                     configuration.setSunscanHost(current.baseUrl());
                     var rows = new ArrayList<ScanRow>();
@@ -205,7 +205,7 @@ public class SunscanImportController {
                 Thread.currentThread().interrupt();
             } catch (IOException e) {
                 LOGGER.warn("Unable to list SunScan scans", e);
-                Platform.runLater(() -> {
+                FxUtils.runLater(() -> {
                     setBusy(false);
                     statusLabel.setText(message("connection.failed").formatted(current.baseUrl()));
                 });
@@ -310,7 +310,7 @@ public class SunscanImportController {
                     var target = destination.resolve(fileName);
                     var index = i;
                     if (Files.isRegularFile(target)) {
-                        Platform.runLater(() -> {
+                        FxUtils.runLater(() -> {
                             fileLabel.setText(message("already.downloaded").formatted(fileName, index + 1, selected.size()));
                             bar.setProgress((double) (index + 1) / selected.size());
                             detailsLabel.setText("");
@@ -318,7 +318,7 @@ public class SunscanImportController {
                         downloaded.add(target.toFile());
                         continue;
                     }
-                    Platform.runLater(() -> {
+                    FxUtils.runLater(() -> {
                         fileLabel.setText(message("connecting.to.scan").formatted(fileName, index + 1, selected.size()));
                         bar.setProgress(ProgressBar.INDETERMINATE_PROGRESS);
                         detailsLabel.setText("");
@@ -331,7 +331,7 @@ public class SunscanImportController {
                         }
                         var elapsedSec = Math.max(1e-3, (System.nanoTime() - startNanos) / 1_000_000_000.0);
                         var speed = (long) (bytes / elapsedSec);
-                        Platform.runLater(() -> {
+                        FxUtils.runLater(() -> {
                             if (total > 0) {
                                 bar.setProgress((index + (double) bytes / total) / selected.size());
                                 detailsLabel.setText(message("downloading").formatted(
@@ -345,7 +345,7 @@ public class SunscanImportController {
                     });
                     downloaded.add(target.toFile());
                 }
-                Platform.runLater(() -> {
+                FxUtils.runLater(() -> {
                     finished.set(true);
                     bar.setProgress(1);
                     dialog.close();
@@ -353,10 +353,10 @@ public class SunscanImportController {
                 });
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                Platform.runLater(dialog::close);
+                FxUtils.runLater(dialog::close);
             } catch (IOException e) {
                 LOGGER.error("Unable to download SunScan scan", e);
-                Platform.runLater(() -> {
+                FxUtils.runLater(() -> {
                     finished.set(true);
                     bar.setProgress(0);
                     fileLabel.setText(message("download.failed").formatted(e.getMessage()));

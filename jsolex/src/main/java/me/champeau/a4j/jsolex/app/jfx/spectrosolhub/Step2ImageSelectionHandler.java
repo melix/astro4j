@@ -41,7 +41,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.HeliumLineProcessor.HeliumImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.util.ThumbnailGenerator;
-import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 
 import java.util.ArrayList;
@@ -366,7 +366,7 @@ class Step2ImageSelectionHandler implements StepHandler {
                 }
                 filtered.add(imageInfo);
             }
-            Platform.runLater(() -> populateGallery(filtered));
+            FxUtils.runLater(() -> populateGallery(filtered));
         });
     }
 

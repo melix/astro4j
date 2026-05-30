@@ -20,6 +20,7 @@ import javafx.animation.KeyFrame;
 import javafx.animation.PauseTransition;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.input.MouseEvent;
@@ -212,7 +213,7 @@ public class CustomTooltip {
         if (Platform.isFxApplicationThread()) {
             showOnFxThread();
         } else {
-            Platform.runLater(this::showOnFxThread);
+            FxUtils.runLater(this::showOnFxThread);
         }
     }
 
@@ -282,7 +283,7 @@ public class CustomTooltip {
         if (Platform.isFxApplicationThread()) {
             hideOnFxThread();
         } else {
-            Platform.runLater(this::hideOnFxThread);
+            FxUtils.runLater(this::hideOnFxThread);
         }
     }
     

@@ -23,6 +23,7 @@ import javafx.animation.Timeline;
 import javafx.application.Application;
 import javafx.application.HostServices;
 import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.collections.FXCollections;
@@ -139,6 +140,7 @@ import me.champeau.a4j.jsolex.processing.sun.TrimmingParameters;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.AnimationFormat;
+import me.champeau.a4j.jsolex.processing.util.ProcessingLogContext;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.jsolex.processing.util.Bass2000ConfigService;
 import me.champeau.a4j.jsolex.processing.util.Constants;
@@ -558,7 +560,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             OpenGLAvailability.checkAsync().thenAccept(available -> {
                 LOGGER.info(message("opengl.support"), available ? message("opengl.available") : message("opengl.unavailable"));
                 if (OpenGLAvailability.isPreviousCrashDetected()) {
-                    Platform.runLater(this::showOpenGLCrashRecoveryDialog);
+                    FxUtils.runLater(this::showOpenGLCrashRecoveryDialog);
                 }
             });
             updateServerStatus(false);
@@ -577,7 +579,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         var prevHandler = imageMathRun.getOnAction();
         imageMathRun.setOnAction(event -> {
             if (firstRun.compareAndSet(true, false)) {
-                Platform.runLater(this::newSession);
+                FxUtils.runLater(this::newSession);
             }
             prevHandler.handle(event);
         });
@@ -612,7 +614,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     }
 
     private void updateServerStatus(boolean started) {
-        Platform.runLater(() -> {
+        FxUtils.runLater(() -> {
             var serverText = new Text(message("server") + "");
             var statusCircle = new Circle(6, started ? Color.GREEN : Color.RED);
             var statusBox = new HBox(serverText, statusCircle);
@@ -623,7 +625,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     }
 
     private void updateLiveStatus() {
-        Platform.runLater(() -> {
+        FxUtils.runLater(() -> {
             var active = liveSessionManager != null && liveSessionManager.isActive();
             var liveText = new Text(message("live") + "");
             var statusCircle = new Circle(6, active ? Color.GREEN : Color.RED);
@@ -788,7 +790,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             }
         }));
         pixelShiftMargin.setText("2");
-        Platform.runLater(() -> redshiftCreatorKind.getSelectionModel().select(RedshiftImagesProcessor.RedshiftCreatorKind.ANIMATION));
+        FxUtils.runLater(() -> redshiftCreatorKind.getSelectionModel().select(RedshiftImagesProcessor.RedshiftCreatorKind.ANIMATION));
     }
 
     private void maybeShowWelcomeMessage(Scene current) throws IOException {
@@ -832,7 +834,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
                         var currentSize = Files.size(child);
                         if (currentSize == oldSize) {
                             newFiles.remove(child);
-                            Platform.runLater(() -> {
+                            FxUtils.runLater(() -> {
                                 LOGGER.info(message("no.change.on.file"), child.getFileName());
                                 doOpen(child.toFile(), true, null);
                             });
@@ -897,7 +899,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         alert.showAndWait().ifPresent(button -> {
             if (button == retry) {
                 OpenGLAvailability.retryCheck().thenAccept(available ->
-                        Platform.runLater(() -> {
+                        FxUtils.runLater(() -> {
                             if (available) {
                                 AlertFactory.info(message("opengl.crash.retry.success")).showAndWait();
                             } else {
@@ -915,7 +917,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         var currentVersion = toVersionLong(VersionUtil.getVersion());
         var latestRelease = toVersionLong(release.version());
         if (latestRelease > currentVersion) {
-            Platform.runLater(() -> {
+            FxUtils.runLater(() -> {
                 var alert = AlertFactory.info();
                 alert.setTitle(message("new.release.available"));
                 alert.setHeaderText("JSol'Ex " + release.version() + " " + message("has.been.released"));
@@ -1021,7 +1023,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     @Override
     public void updateSpectralLineIndicator(SpectralRay ray, boolean autoDetected) {
         detectedSpectralRay = ray;
-        Platform.runLater(() -> {
+        FxUtils.runLater(() -> {
             if (autoDetected) {
                 spectralLinePrefix.setText(message("spectral.line.detected"));
                 spectralLinePrefix.setVisible(true);
@@ -1040,7 +1042,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
 
     @Override
     public void hideSpectralLineIndicator() {
-        Platform.runLater(() -> {
+        FxUtils.runLater(() -> {
             spectralLinePrefix.setVisible(false);
             spectralLinePrefix.setManaged(false);
             spectralLineIndicator.setVisible(false);
@@ -1050,7 +1052,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
 
     @Override
     public void updateGeometryIndicators(double tiltDegrees, double xyRatio) {
-        Platform.runLater(() -> {
+        FxUtils.runLater(() -> {
             var absTilt = Math.abs(tiltDegrees);
             String tiltColor;
             if (absTilt <= 1.0) {
@@ -1082,7 +1084,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
 
     @Override
     public void hideGeometryIndicators() {
-        Platform.runLater(() -> {
+        FxUtils.runLater(() -> {
             tiltIndicator.setVisible(false);
             tiltIndicator.setManaged(false);
             xyRatioIndicator.setVisible(false);
@@ -1095,7 +1097,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         if (detectedSpectralRay != null) {
             this.detectedSpectralRay = detectedSpectralRay;
         }
-        Platform.runLater(() -> {
+        FxUtils.runLater(() -> {
             spectroSolHubButton.setDisable(false);
             spectroSolHubMenuItem.setDisable(false);
         });
@@ -1150,7 +1152,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         imageMathRun.setOnAction(evt -> {
             var text = imageMathScript.getText();
             if (clearImagesCheckbox.isSelected()) {
-                Platform.runLater(this::clearDisplayedImages);
+                FxUtils.runLater(this::clearDisplayedImages);
             }
             config.findLastOpenDirectory(Configuration.DirectoryKind.IMAGE_MATH).ifPresent(executor::setIncludesDir);
             BackgroundOperations.async(() -> {
@@ -1267,7 +1269,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             config.rememberDirectoryFor(file.toPath(), Configuration.DirectoryKind.IMAGE_MATH);
             var script = String.join(System.lineSeparator(), FilesUtils.readAllLines(file.toPath()));
             var language = ImageMathEditor.ScriptLanguage.fromExtension(file.getName());
-            Platform.runLater(() -> {
+            FxUtils.runLater(() -> {
                 imageMathScript.setIncludesDir(file.getParentFile().toPath());
                 scriptLanguageChoice.setValue(language);
                 scriptLanguageChoice.setDisable(true);
@@ -1342,7 +1344,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     }
 
     private void updateParametersMenuItem(List<ScriptParameter> parameters) {
-        Platform.runLater(() -> {
+        FxUtils.runLater(() -> {
             if (imageMathRun == null || imageMathRun.getItems() == null) {
                 return;
             }
@@ -1466,7 +1468,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
                     reusedProcessParamsBinding.invalidate();
                     watchService.close();
                     if (interruptWatchButton != null) {
-                        Platform.runLater(() -> workButtons.getChildren().remove(interruptWatchButton));
+                        FxUtils.runLater(() -> workButtons.getChildren().remove(interruptWatchButton));
                         interruptWatchButton = null;
                     }
                 }
@@ -1485,7 +1487,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
                     } catch (IOException ex) {
                         // ignore
                     }
-                    Platform.runLater(() -> {
+                    FxUtils.runLater(() -> {
                         workButtons.getChildren().remove(interruptWatchButton);
                         workButtons.getChildren().remove(interruptClearParamsButton);
                     });
@@ -1493,7 +1495,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
                 });
                 interruptClearParamsButton = addInterruptClearParamsButton();
 
-                Platform.runLater(() -> workButtons.getChildren().add(interruptWatchButton));
+                FxUtils.runLater(() -> workButtons.getChildren().add(interruptWatchButton));
             } catch (IOException e) {
                 LOGGER.error(message("error.cannot.create.watch.service"), e);
             }
@@ -1546,7 +1548,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             reusedProcessParamsBinding.invalidate();
         });
         interruptClearParamsButton.disableProperty().bind(reusedProcessParamsBinding);
-        Platform.runLater(() -> workButtons.getChildren().add(interruptClearParamsButton));
+        FxUtils.runLater(() -> workButtons.getChildren().add(interruptClearParamsButton));
         return interruptClearParamsButton;
     }
 
@@ -1604,7 +1606,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         ImageMathEditor.create(stage, params.combinedImageMathParams(), getHostServices(), true, true, e -> {
         }, e -> {
             stage.close();
-            Platform.runLater(this::newSession);
+            FxUtils.runLater(this::newSession);
             e.getConfiguration().ifPresent(scripts -> BackgroundOperations.async(() -> executeStandaloneScripts(params.withRequestedImages(params.requestedImages().withMathImages(scripts)), createRootOperation(""))));
         });
     }
@@ -1818,7 +1820,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
                 var viewUrl = manager.start(config.getLiveSessionTitle());
                 liveSessionManager = manager;
                 livePushListener = new LivePushEventListener(manager);
-                Platform.runLater(() -> {
+                FxUtils.runLater(() -> {
                     liveStatus.setDisable(false);
                     updateLiveStatus();
                     if (!config.isLiveStartedDialogHidden()) {
@@ -1842,7 +1844,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
                 LOGGER.error("Failed to start live session (status {})", e.statusCode(), e);
                 if (e.statusCode() == 401) {
                     config.clearSpectroSolHubToken();
-                    Platform.runLater(() -> {
+                    FxUtils.runLater(() -> {
                         liveStatus.setDisable(false);
                         var loginResult = SpectroSolHubLoginPane.showLoginDialog(rootStage);
                         if (loginResult.isPresent()) {
@@ -1850,7 +1852,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
                         }
                     });
                 } else {
-                    Platform.runLater(() -> {
+                    FxUtils.runLater(() -> {
                         liveStatus.setDisable(false);
                         updateLiveStatus();
                     });
@@ -2067,7 +2069,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     private void doOpen(File selectedFile, boolean rememberProcessParams, ProcessParams forcedParams, boolean sunscanInstrument) {
         config.loadedSerFile(selectedFile.toPath());
         configureThreadExceptionHandler();
-        Platform.runLater(this::refreshRecentItemsMenu);
+        FxUtils.runLater(this::refreshRecentItemsMenu);
         Optional<ProcessParams> processParams;
         Header header;
         try (var reader = SerFileReader.of(selectedFile)) {
@@ -2099,15 +2101,15 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         console.clear();
         var interruptButton = addInterruptButton();
         var rootOperation = createRootOperation(selectedFile.getName());
-        Platform.runLater(() -> imageMathRun.setDisable(true));
+        FxUtils.runLater(() -> imageMathRun.setDisable(true));
         var processingThread =
                 new Thread(() -> processSingleFile(params, rootOperation, selectedFile, false, 0, selectedFile, firstHeader, () -> {
-                }, () -> Platform.runLater(() -> {
+                }, () -> FxUtils.runLater(() -> {
                     workButtons.getChildren().remove(interruptButton);
                     imageMathRun.setDisable(false);
                 })));
         interruptButton.setOnAction(e -> {
-            Platform.runLater(() -> {
+            FxUtils.runLater(() -> {
                 hideProgress();
                 workButtons.getChildren().remove(interruptButton);
                 imageMathRun.setDisable(false);
@@ -2149,7 +2151,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
                 .orElse(0);
         var power = highestPowerOfTwoGreaterOrEqualTo(processor.getSunRadius().map(r -> r / 10d).orElse(maxSize));
         int boxSize = (int) Math.pow(2, power);
-        Platform.runLater(() -> {
+        FxUtils.runLater(() -> {
             redshiftTab.setDisable(redshifts.isEmpty());
             if (lastExecutionProcessParams != null) {
                 var bass2000Disabled = !lastExecutionProcessParams.observationDetails().instrument().isSupportedByBass2000();
@@ -2210,7 +2212,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
                 }
                 if (kind != null && size != null) {
                     BackgroundOperations.async(() -> {
-                        Platform.runLater(() -> rightTabs.getSelectionModel().select(logsTab));
+                        FxUtils.runLater(() -> rightTabs.getSelectionModel().select(logsTab));
                         processor.withRedshifts(selectedShifts.stream().toList()).produceImages(kind, size, margin, useFullRangePanels, annotate, new int[]{255, 255, 0});
                     });
                 }
@@ -2364,13 +2366,13 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     public Button addInterruptButton() {
         var interruptButton = new Button(message("interrupt"));
         interruptButton.getStyleClass().add("default-button");
-        Platform.runLater(() -> workButtons.getChildren().add(interruptButton));
+        FxUtils.runLater(() -> workButtons.getChildren().add(interruptButton));
         return interruptButton;
     }
 
     @Override
     public void removeInterruptButton(Button button) {
-        Platform.runLater(() -> workButtons.getChildren().remove(button));
+        FxUtils.runLater(() -> workButtons.getChildren().remove(button));
     }
 
     @Override
@@ -2380,7 +2382,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
 
     @Override
     public void setImageMathRunDisabled(boolean disabled) {
-        Platform.runLater(() -> imageMathRun.setDisable(disabled));
+        FxUtils.runLater(() -> imageMathRun.setDisable(disabled));
     }
 
     @Override
@@ -2416,7 +2418,6 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
                                    Runnable onComplete) {
         Thread.currentThread().setUncaughtExceptionHandler((t, e) -> LoggingSupport.logError(e));
         lastExecutionProcessParams = params;
-        LogbackConfigurer.recordThreadOwner(Thread.currentThread().getName(), sequenceNumber);
         var processingDate = context instanceof BatchProcessingContext batch ? batch.processingDate() : LocalDateTime.now();
         var namingStrategy = new FileNamingStrategy(params.extraParams().fileNamePattern(), params.extraParams().datetimeFormat(), params.extraParams().dateFormat(), processingDate, header);
         var outputDirectory = selectedFile.getParentFile();
@@ -2431,26 +2432,29 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             ctx.items().get(sequenceNumber).generatedFiles().add(logFile);
         }
         var appender = LogbackConfigurer.createContextualFileAppender(sequenceNumber, logFile);
-        LoggingSupport.LOGGER.info(message("output.dir.set"), outputDirectory);
-        var processorContext = new HashMap<Class<?>, Object>();
-        processorContext.put(AnimationFormat.class, config.getAnimationFormats());
-        var processor = new SolexVideoProcessor(selectedFile, outputDirectory.toPath(), sequenceNumber, params, processingDate, batchMode, batchMode ? config.getBatchParallelism() : 1, config.getMemoryRestrictionMultiplier(), operation, processorContext);
-        processor.setOnReconstructionComplete(onReconstructionComplete);
-        var listener = createListener(operation, baseName, params, batchMode, sequenceNumber, context);
-        processor.addEventListener(listener);
         try {
-            LOGGER.info(message("info.file"), selectedFile.getName());
-            processor.process();
-        } catch (Throwable ex) {
-            LoggingSupport.logError(ex);
-            // In batch mode, notify listener about processing failure
-            if (batchMode && listener instanceof BatchModeEventListener batchListener) {
-                batchListener.onProcessingFailed();
-            }
+            ProcessingLogContext.runWith(sequenceNumber, () -> {
+                LoggingSupport.LOGGER.info(message("output.dir.set"), outputDirectory);
+                var processorContext = new HashMap<Class<?>, Object>();
+                processorContext.put(AnimationFormat.class, config.getAnimationFormats());
+                var processor = new SolexVideoProcessor(selectedFile, outputDirectory.toPath(), sequenceNumber, params, processingDate, batchMode, batchMode ? config.getBatchParallelism() : 1, config.getMemoryRestrictionMultiplier(), operation, processorContext);
+                processor.setOnReconstructionComplete(onReconstructionComplete);
+                var listener = createListener(operation, baseName, params, batchMode, sequenceNumber, context);
+                processor.addEventListener(listener);
+                try {
+                    LOGGER.info(message("info.file"), selectedFile.getName());
+                    processor.process();
+                } catch (Throwable ex) {
+                    LoggingSupport.logError(ex);
+                    // In batch mode, notify listener about processing failure
+                    if (batchMode && listener instanceof BatchModeEventListener batchListener) {
+                        batchListener.onProcessingFailed();
+                    }
+                }
+            });
         } finally {
             onComplete.run();
             appender.stop();
-            LogbackConfigurer.clearOwners();
         }
         closeAllButton.setDisable(false);
         if (!batchMode) {
@@ -2485,7 +2489,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
      */
     @FXML
     public void trimSerFile() {
-        Platform.runLater(() -> {
+        FxUtils.runLater(() -> {
             var stage = newStage();
             SerFileTrimmerController.create(stage,
                     trimmingParameters,

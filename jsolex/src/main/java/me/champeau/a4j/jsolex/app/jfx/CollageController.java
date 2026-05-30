@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
-import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
@@ -216,7 +216,7 @@ public class CollageController {
             try {
                 var thumbnail = ThumbnailGenerator.generateThumbnail(source, width, height);
                 var writable = WritableImageSupport.asWritable(thumbnail);
-                Platform.runLater(() -> target.setImage(writable));
+                FxUtils.runLater(() -> target.setImage(writable));
             } catch (Exception e) {
                 LOGGER.error("Failed to generate thumbnail for {}", label, e);
             }
@@ -274,7 +274,7 @@ public class CollageController {
     }
 
     private void setupPreviewGrid() {
-        Platform.runLater(() -> {
+        FxUtils.runLater(() -> {
             var newRows = rowsSpinner.getValue();
             var newColumns = columnsSpinner.getValue();
 
@@ -685,7 +685,7 @@ public class CollageController {
                             COLLAGE_COUNTER.incrementAndGet();
                         }
 
-                        Platform.runLater(() -> {
+                        FxUtils.runLater(() -> {
                             try {
                                 if (multipleImagesViewer != null) {
                                     addCollageToViewer(collageImage, filename);
@@ -698,7 +698,7 @@ public class CollageController {
                         });
                     } catch (Exception e) {
                         LOGGER.error(message("error.creating.collage"), e);
-                        Platform.runLater(() -> {
+                        FxUtils.runLater(() -> {
                             createCollageButton.setDisable(false);
                         });
                     }

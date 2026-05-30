@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
-import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
@@ -108,7 +108,7 @@ public class SphericalTomography3DViewer extends BorderPane {
                     shadersSupported = glImageView.areShadersSupported();
                     // If shaders not supported, fall back to shells renderer and hide the selector
                     if (!shadersSupported) {
-                        Platform.runLater(() -> {
+                        FxUtils.runLater(() -> {
                             renderModeCombo.setValue(RenderMode.SHELLS);
                             renderModeLabel.setVisible(false);
                             renderModeLabel.setManaged(false);
@@ -588,7 +588,7 @@ public class SphericalTomography3DViewer extends BorderPane {
      * @param processParams the process parameters for annotation (may be null)
      */
     public static void show(SphericalTomographyData data, String title, ProcessParams processParams) {
-        Platform.runLater(() -> {
+        FxUtils.runLater(() -> {
             var viewer = new SphericalTomography3DViewer(data, processParams);
             var stage = FXUtils.newStage();
             stage.setTitle(title);

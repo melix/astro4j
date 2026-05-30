@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
-import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
@@ -1180,7 +1180,7 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
         new Thread(() -> {
             List<File> outputFiles = null;
             try {
-                Consumer<Double> progressCallback = progress -> Platform.runLater(() -> {
+                Consumer<Double> progressCallback = progress -> FxUtils.runLater(() -> {
                     progressBar.setProgress(progress);
                     progressLabel.setText((int) (progress * 100) + "%");
                 });
@@ -1204,7 +1204,7 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
                 }
             } catch (IOException e) {
                 if (!cancelled.get()) {
-                    Platform.runLater(() -> {
+                    FxUtils.runLater(() -> {
                         var alert = new Alert(Alert.AlertType.ERROR);
                         alert.setTitle("Export Error");
                         alert.setContentText(e.getMessage());
@@ -1213,7 +1213,7 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
                 }
             } finally {
                 var finalOutputFiles = outputFiles;
-                Platform.runLater(() -> {
+                FxUtils.runLater(() -> {
                     progressStage.close();
                     afterExport();
                     if (!cancelled.get() && finalOutputFiles != null && !finalOutputFiles.isEmpty()) {
@@ -1231,10 +1231,10 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
         var result = new AtomicReference<BufferedImage>();
         var latch = new CountDownLatch(1);
 
-        Platform.runLater(() -> {
+        FxUtils.runLater(() -> {
             setVideoFrameIndex(frameIndex);
 
-            Platform.runLater(() -> {
+            FxUtils.runLater(() -> {
                 var nodeToSnapshot = exportGraphOnly ? graphPane : this;
                 var snapshot = nodeToSnapshot.snapshot(null, null);
                 var bufferedImage = new BufferedImage(

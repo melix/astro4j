@@ -17,7 +17,7 @@ package me.champeau.a4j.jsolex.app.jfx.ime;
 
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
-import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.beans.value.ObservableValue;
 import javafx.concurrent.Task;
 import javafx.scene.control.ContextMenu;
@@ -170,7 +170,7 @@ public class ImageMathTextArea extends BorderPane {
                 .subscribe(this::applyHighlighting);
 
         codeArea.textProperty().addListener((obs, oldText, newText) -> {
-            Platform.runLater(() -> {
+            FxUtils.runLater(() -> {
                 foldedRegions.removeIf(region -> region.endParagraph >= codeArea.getParagraphs().size());
                 codeArea.setParagraphGraphicFactory(this::createParagraphGraphic);
             });
@@ -244,7 +244,7 @@ public class ImageMathTextArea extends BorderPane {
         }
         pythonHighlighter.setOnContextReady(v -> {
             pythonHighlighterInitialized = true;
-            javafx.application.Platform.runLater(this::requestHighlighting);
+            FxUtils.runLater(this::requestHighlighting);
         });
         pythonHighlighter.warmUp();
     }
@@ -271,7 +271,7 @@ public class ImageMathTextArea extends BorderPane {
      * @param text the text to set
      */
     public void setText(String text) {
-        Platform.runLater(() -> {
+        FxUtils.runLater(() -> {
             foldedRegions.clear();
             codeArea.replaceText(text);
             codeArea.moveTo(0);
@@ -818,7 +818,7 @@ public class ImageMathTextArea extends BorderPane {
 
         codeArea.textProperty().addListener((obs, oldText, newText) -> {
             if (completionPopup.isShowing()) {
-                Platform.runLater(this::updateCompletionFilter);
+                FxUtils.runLater(this::updateCompletionFilter);
             }
         });
         
@@ -1304,7 +1304,7 @@ public class ImageMathTextArea extends BorderPane {
             codeArea.setParagraphStyle(i, List.of("folded-hidden"));
         }
 
-        Platform.runLater(() -> {
+        FxUtils.runLater(() -> {
             codeArea.setParagraphGraphicFactory(this::createParagraphGraphic);
             requestHighlighting();
         });
@@ -1327,7 +1327,7 @@ public class ImageMathTextArea extends BorderPane {
                 codeArea.setParagraphStyle(i, List.of());
             }
 
-            Platform.runLater(() -> {
+            FxUtils.runLater(() -> {
                 codeArea.setParagraphGraphicFactory(this::createParagraphGraphic);
                 requestHighlighting();
             });
@@ -1335,7 +1335,7 @@ public class ImageMathTextArea extends BorderPane {
     }
 
     private void autoFoldMetaBlocksIfPresent() {
-        Platform.runLater(() -> {
+        FxUtils.runLater(() -> {
             var paragraphCount = codeArea.getParagraphs().size();
             for (var paragraphIndex = 0; paragraphIndex < paragraphCount; paragraphIndex++) {
                 var foldRegion = findFoldRegionStartingAt(paragraphIndex);

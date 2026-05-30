@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
-import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -143,7 +143,7 @@ public final class ReferenceImageHelper {
 
             BackgroundOperations.async(() -> {
                 var optionalURL = GONG.fetchGongImage(zonedDateTime);
-                Platform.runLater(() -> {
+                FxUtils.runLater(() -> {
                     messageLabel.setManaged(false);
                     messageLabel.setText("");
                     optionalURL.ifPresentOrElse(
@@ -168,7 +168,7 @@ public final class ReferenceImageHelper {
         scrollPane.setFitToWidth(true);
         scrollPane.setFitToHeight(true);
 
-        Platform.runLater(() -> referenceImageTab.setContent(scrollPane));
+        FxUtils.runLater(() -> referenceImageTab.setContent(scrollPane));
     }
 
     private TextField createTimeField(int defaultValue, int min, int max) {

@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
-import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -322,7 +322,7 @@ public class ScriptRepositoriesController {
                     repositoryManager.refreshRepository(repository);
                     var updated = repository.withLastCheck(Instant.now());
                     final int index = i;
-                    Platform.runLater(() -> {
+                    FxUtils.runLater(() -> {
                         repositories.set(index, updated);
                         saveRepositories();
                         repositoriesTable.refresh();
@@ -330,13 +330,13 @@ public class ScriptRepositoriesController {
                 } catch (Exception e) {
                     LOGGER.error("Failed to refresh repository {}", repository.name(), e);
                     final int index = i;
-                    Platform.runLater(() -> {
+                    FxUtils.runLater(() -> {
                         var alert = AlertFactory.error(I18N.string(JSolEx.class, "script-repositories", "repository.refresh.error") + " (" + repositories.get(index).name() + "): " + extractMessage(e));
                         alert.showAndWait();
                     });
                 }
             }
-            Platform.runLater(() -> {
+            FxUtils.runLater(() -> {
                 refreshButton.setDisable(false);
                 refreshButton.setText(I18N.string(JSolEx.class, "script-repositories", "repository.refresh"));
             });
@@ -348,7 +348,7 @@ public class ScriptRepositoriesController {
             try {
                 repositoryManager.refreshRepository(repository);
                 var updated = repository.withLastCheck(Instant.now());
-                Platform.runLater(() -> {
+                FxUtils.runLater(() -> {
                     repositories.set(index, updated);
                     saveRepositories();
                     repositoriesTable.refresh();
@@ -359,7 +359,7 @@ public class ScriptRepositoriesController {
                 });
             } catch (Exception e) {
                 LOGGER.error("Failed to refresh repository {}", repository.name(), e);
-                Platform.runLater(() -> {
+                FxUtils.runLater(() -> {
                     if (refreshButton != null) {
                         refreshButton.setDisable(false);
                         refreshButton.setText(I18N.string(JSolEx.class, "script-repositories", "repository.refresh"));

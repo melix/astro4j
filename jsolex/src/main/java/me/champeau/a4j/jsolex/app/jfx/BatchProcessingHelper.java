@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
-import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -137,7 +137,7 @@ public final class BatchProcessingHelper {
 
         var interruptButton = context.addInterruptButton();
         var interrupted = new AtomicBoolean();
-        Platform.runLater(() -> context.setImageMathRunDisabled(true));
+        FxUtils.runLater(() -> context.setImageMathRunDisabled(true));
 
         var batchThread = runBatchProcessing(
                 selectedFiles,
@@ -148,7 +148,7 @@ public final class BatchProcessingHelper {
                 context,
                 interrupted,
                 autoTrimSerFile,
-                () -> Platform.runLater(() -> {
+                () -> FxUtils.runLater(() -> {
                     context.removeInterruptButton(interruptButton);
                     context.setImageMathRunDisabled(false);
                 })
@@ -160,7 +160,7 @@ public final class BatchProcessingHelper {
             BackgroundOperations.interrupt();
             batchThread.interrupt();
             context.hideProgress();
-            Platform.runLater(() -> context.setImageMathRunDisabled(false));
+            FxUtils.runLater(() -> context.setImageMathRunDisabled(false));
         });
     }
 

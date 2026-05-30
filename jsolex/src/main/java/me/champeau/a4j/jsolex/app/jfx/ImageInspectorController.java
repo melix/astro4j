@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
-import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.fxml.FXML;
@@ -340,7 +340,7 @@ public class ImageInspectorController {
                 }
                 if (sharpness != null) {
                     var finalSharpness = sharpness;
-                    Platform.runLater(() -> {
+                    FxUtils.runLater(() -> {
                         var sel = selections.get(index);
                         if (sel != null) {
                             sel.sharpness = finalSharpness;
@@ -348,7 +348,7 @@ public class ImageInspectorController {
                     });
                 }
             }
-            Platform.runLater(this::autoSelectBestBySharpness);
+            FxUtils.runLater(this::autoSelectBestBySharpness);
         });
     }
 
@@ -613,7 +613,7 @@ public class ImageInspectorController {
             } else {
                 image = WritableImageSupport.asWritable(Loader.loadImage(path.toFile()));
             }
-            Platform.runLater(() -> {
+            FxUtils.runLater(() -> {
                 imageCache.put(item, image);
                 if (displayed.get() == item) {
                     view.setImage(image);

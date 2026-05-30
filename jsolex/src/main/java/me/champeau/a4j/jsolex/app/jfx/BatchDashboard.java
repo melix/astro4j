@@ -18,7 +18,7 @@ package me.champeau.a4j.jsolex.app.jfx;
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
-import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.beans.value.ChangeListener;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -95,7 +95,7 @@ public final class BatchDashboard {
                 progressBar, progressOverlay, summaryLabel,
                 doneChip.text(), runningChip.text(), queuedChip.text(), errorChip.text());
 
-        ChangeListener<Object> listener = (obs, oldV, newV) -> Platform.runLater(refresh);
+        ChangeListener<Object> listener = (obs, oldV, newV) -> FxUtils.runLater(refresh);
         for (var item : items) {
             item.status().addListener(listener);
         }

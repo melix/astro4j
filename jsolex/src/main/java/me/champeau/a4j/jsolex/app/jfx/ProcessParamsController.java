@@ -16,7 +16,7 @@
 package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.application.HostServices;
-import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.Alert;
@@ -495,7 +495,7 @@ public class ProcessParamsController {
         stage.initOwner(root.getScene().getWindow());
         SpectroHeliographEditor.openEditor(stage, editor -> {
             var selectedInstrument = editor.getSelected();
-            selectedInstrument.ifPresent(spectroHeliograph -> Platform.runLater(() -> {
+            selectedInstrument.ifPresent(spectroHeliograph -> FxUtils.runLater(() -> {
                 if (observationPanel != null) {
                     observationPanel.updateInstrument(spectroHeliograph);
                 }
@@ -517,7 +517,7 @@ public class ProcessParamsController {
         SetupEditor.openEditor(editorStage, editor -> {
             var selectedSetup = editor.getSelected();
             if (selectedSetup.isPresent() && observationPanel != null) {
-                Platform.runLater(() -> observationPanel.updateFromSetup(selectedSetup.get()));
+                FxUtils.runLater(() -> observationPanel.updateFromSetup(selectedSetup.get()));
             }
             editorStage.close();
         });
@@ -533,7 +533,7 @@ public class ProcessParamsController {
         SpectralRayEditor.openEditor(stage, editor -> {
             var selectedRay = editor.getSelectedItem();
             if (selectedRay.isPresent() && processingPanel != null) {
-                Platform.runLater(() -> processingPanel.updateWavelength(selectedRay.get()));
+                FxUtils.runLater(() -> processingPanel.updateWavelength(selectedRay.get()));
             }
             stage.close();
         });
@@ -550,7 +550,7 @@ public class ProcessParamsController {
         NamingPatternEditor.openEditor(stage, header, editor -> {
             var selectedPattern = editor.getSelectedPattern();
             if (selectedPattern.isPresent() && outputPanel != null) {
-                Platform.runLater(() -> outputPanel.updateNamingPattern(selectedPattern.get()));
+                FxUtils.runLater(() -> outputPanel.updateNamingPattern(selectedPattern.get()));
             }
             stage.close();
         });

@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
-import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
@@ -308,7 +308,7 @@ public class SingleImage3DViewer extends BorderPane {
      * @param sourceDirectory the directory where the source image is located (may be null)
      */
     public static void show(ImageWrapper image, String title, ProcessParams processParams, File sourceDirectory) {
-        Platform.runLater(() -> {
+        FxUtils.runLater(() -> {
             var viewer = new SingleImage3DViewer(image, processParams, sourceDirectory);
             var stage = FXUtils.newStage();
             stage.setTitle(title);

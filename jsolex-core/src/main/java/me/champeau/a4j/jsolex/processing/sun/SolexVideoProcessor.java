@@ -92,6 +92,7 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.LocaleUtils;
 import me.champeau.a4j.jsolex.processing.util.MemoryAwareStreams;
+import me.champeau.a4j.jsolex.processing.util.ProcessingLogContext;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
@@ -533,14 +534,14 @@ public class SolexVideoProcessor implements Broadcaster {
             var progress = new AtomicInteger();
             try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
                 var futures = runnables.stream()
-                        .map(task -> CompletableFuture.runAsync(() -> {
+                        .map(task -> ProcessingLogContext.runAsync(executor, () -> {
                             broadcast(generationOperation.update(((double) progress.get()) / runnables.size()));
                             try {
                                 task.run();
                             } finally {
                                 broadcast(generationOperation.update(((double) progress.incrementAndGet()) / runnables.size()));
                             }
-                        }, executor))
+                        }))
                         .toList();
                 futures.forEach(CompletableFuture::join);
             }
@@ -723,19 +724,23 @@ public class SolexVideoProcessor implements Broadcaster {
         // image generation) is independent: it reads from imageList but writes
         // only to its own state. Run them concurrently when heap permits — this
         // is the dominant single-file throughput win.
+        var fileId = ProcessingLogContext.currentFileId();
         MemoryAwareStreams.maybeParallel(IntStream.range(0, imageList.size()))
                 .mapToObj(i -> new Object() {
                     private final WorkflowState state = imageList.get(i);
                     private final int step = i;
                 })
                 .forEach(o -> {
-                    broadcast(generationOperation.update(((double) progress.get()) / imageList.size()));
-                    var state = o.state;
-                    var step = o.step;
-                    var ief = new ProcessAwareImageEmitterFactory(state, imageNamingStrategy, baseName);
-                    var workflow = new ProcessingWorkflow(generationOperation, this, outputDirectory, imageList, step, processParams, fps, ief, serFile.toPath(), header, batchMode);
-                    workflow.start();
-                    broadcast(generationOperation.update(((double) progress.incrementAndGet()) / imageList.size()));
+                    Runnable body = () -> {
+                        broadcast(generationOperation.update(((double) progress.get()) / imageList.size()));
+                        var state = o.state;
+                        var step = o.step;
+                        var ief = new ProcessAwareImageEmitterFactory(state, imageNamingStrategy, baseName);
+                        var workflow = new ProcessingWorkflow(generationOperation, this, outputDirectory, imageList, step, processParams, fps, ief, serFile.toPath(), header, batchMode);
+                        workflow.start();
+                        broadcast(generationOperation.update(((double) progress.incrementAndGet()) / imageList.size()));
+                    };
+                    fileId.ifPresentOrElse(id -> ProcessingLogContext.runWith(id, body), body);
                 });
         broadcast(generationOperation.complete());
     }
@@ -1165,7 +1170,7 @@ public class SolexVideoProcessor implements Broadcaster {
             // Create a shared SerFileReader for scripts that need SER file access
             try (var scriptsReader = SerFileReader.of(serFile, processParams.videoParams().trustSerFileBitDepth());
                  var scriptExecutor = Executors.newVirtualThreadPerTaskExecutor()) {
-                var scriptFutures = mathImages.scriptFiles().stream().map(scriptFile -> CompletableFuture.runAsync(() -> {
+                var scriptFutures = mathImages.scriptFiles().stream().map(scriptFile -> ProcessingLogContext.runAsync(scriptExecutor, () -> {
                     broadcast(scriptsOperation.update(0, message("running.scripts") + " : " + scriptFile.getName()));
                     var context = createMetadata(processParams, serFile.toPath(), pixelShiftRange, header)
                             .imageEmitter(emitter)
@@ -1233,7 +1238,7 @@ public class SolexVideoProcessor implements Broadcaster {
                     } finally {
                         broadcast(scriptsOperation.update(1.0, "Running script " + scriptFile.getName()));
                     }
-                }, scriptExecutor)).toList();
+                })).toList();
                 scriptFutures.forEach(CompletableFuture::join);
             } catch (Exception e) {
                 throw new ProcessingException(e);
@@ -1602,7 +1607,7 @@ public class SolexVideoProcessor implements Broadcaster {
                     int lane = k;
                     int frameId = batchStart + k;
                     int y = frameId - start;
-                    futures[k] = CompletableFuture.runAsync(() -> {
+                    futures[k] = ProcessingLogContext.runAsync(CONVERSION_POOL, () -> {
                         var original = buffers[lane];
                         converter.convert(frameId, frameDataBatch[lane], geometry, original);
                         if (flat != null) {
@@ -1628,7 +1633,7 @@ public class SolexVideoProcessor implements Broadcaster {
                             }
                         }
                         broadcast(reconstructionOperation.update((double) completedFrames.incrementAndGet() / totalLines));
-                    }, CONVERSION_POOL);
+                    });
                 }
                 CompletableFuture.allOf(futures).join();
             }

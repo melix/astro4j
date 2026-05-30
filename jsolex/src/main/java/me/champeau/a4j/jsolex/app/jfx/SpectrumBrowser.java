@@ -19,7 +19,7 @@ import javafx.animation.Interpolator;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
-import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -208,7 +208,7 @@ public class SpectrumBrowser extends BorderPane {
         });
         setTop(createTopBar());
         setBottom(createBottomBar());
-        Platform.runLater(this::adjustZoomToOpticsAndDraw);
+        FxUtils.runLater(this::adjustZoomToOpticsAndDraw);
     }
 
     private Node createTopBar() {
@@ -366,7 +366,7 @@ public class SpectrumBrowser extends BorderPane {
 
 
     private void showIdentificationFailure() {
-        Platform.runLater(() -> {
+        FxUtils.runLater(() -> {
             imageView.setImage(null);
             var alert = AlertFactory.error(I18N.string(JSolEx.class, "spectrum-browser", "identification.failed"));
             alert.showAndWait();
@@ -383,7 +383,7 @@ public class SpectrumBrowser extends BorderPane {
                 .or(() -> CaptureSoftwareMetadataHelper.readFireCaptureMetadata(file))
                 .ifPresent(md -> {
                     var observationDetails = ProcessParamsIO.loadDefaults().observationDetails();
-                    Platform.runLater(() -> pixelSize.set(observationDetails.pixelSize() * md.binning()));
+                    FxUtils.runLater(() -> pixelSize.set(observationDetails.pixelSize() * md.binning()));
                 });
             // in order to improve distorsion correction, and because identification is likely to use an image which is full height
             // we are going to perform a polynomial detection based on a limited area
@@ -465,7 +465,7 @@ public class SpectrumBrowser extends BorderPane {
                         }
                         visibleRangeAngstroms.set(disp.angstromsPerPixel() * height);
                         imageRangeAngstroms.set(visibleRangeAngstroms.get());
-                        Platform.runLater(() -> {
+                        FxUtils.runLater(() -> {
                             var writableImage = new WritableImage(range, height);
                             for (int y = 0; y < height; y++) {
                                 for (int x = finalMinX; x < finalMaxX; x++) {

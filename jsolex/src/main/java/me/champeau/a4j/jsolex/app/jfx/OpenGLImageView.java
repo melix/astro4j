@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.PixelBuffer;
 import javafx.scene.image.PixelFormat;
@@ -180,7 +181,7 @@ public class OpenGLImageView extends ImageView {
 
     private void notifyError(Throwable error) {
         if (errorCallback != null) {
-            Platform.runLater(() -> errorCallback.accept(error));
+            FxUtils.runLater(() -> errorCallback.accept(error));
         }
     }
 
@@ -377,7 +378,7 @@ public class OpenGLImageView extends ImageView {
         pixelBuffer = new PixelBuffer<>(width, height, imageBuffer, PixelFormat.getIntArgbPreInstance());
         writableImage = new WritableImage(pixelBuffer);
 
-        Platform.runLater(() -> {
+        FxUtils.runLater(() -> {
             if (!disposed) {
                 setImage(writableImage);
             }
@@ -467,7 +468,7 @@ public class OpenGLImageView extends ImageView {
         }
 
         // Update JavaFX image on FX thread
-        Platform.runLater(() -> {
+        FxUtils.runLater(() -> {
             if (!disposed) {
                 pixelBuffer.updateBuffer(pb -> null);
             }
@@ -518,7 +519,7 @@ public class OpenGLImageView extends ImageView {
         // If an error already occurred, notify immediately
         var error = initializationError.get();
         if (error != null) {
-            Platform.runLater(() -> callback.accept(error));
+            FxUtils.runLater(() -> callback.accept(error));
         }
     }
 

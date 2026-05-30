@@ -75,10 +75,10 @@ public final class BackgroundOperations {
      * @param action the task to execute
      */
     public static void async(Runnable action) {
-        TASKS.add(ASYNC.submit(wrap(action)));
+        TASKS.add(ProcessingLogContext.submit(ASYNC, errorHandling(action)));
     }
 
-    private static Runnable wrap(Runnable action) {
+    private static Runnable errorHandling(Runnable action) {
         return () -> {
             try {
                 action.run();
@@ -96,7 +96,7 @@ public final class BackgroundOperations {
      * @param action the IO task to execute
      */
     public static void asyncIo(Runnable action) {
-        TASKS.add(IO_ASYNC.submit(wrap(action)));
+        TASKS.add(ProcessingLogContext.submit(IO_ASYNC, errorHandling(action)));
     }
 
     /**

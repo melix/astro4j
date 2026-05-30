@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.listeners;
 
-import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import me.champeau.a4j.jsolex.app.jfx.ScriptErrorDialog;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
 import me.champeau.a4j.jsolex.processing.params.OutputMetadata;
@@ -42,7 +42,7 @@ final class ScriptExecutionHelper {
     static void processScriptErrors(ImageMathScriptResult result) {
         var invalidExpressions = result.invalidExpressions();
         if (!invalidExpressions.isEmpty()) {
-            Platform.runLater(() -> ScriptErrorDialog.showErrors(invalidExpressions));
+            FxUtils.runLater(() -> ScriptErrorDialog.showErrors(invalidExpressions));
         }
     }
 

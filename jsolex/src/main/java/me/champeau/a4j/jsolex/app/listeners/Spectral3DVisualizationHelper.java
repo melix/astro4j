@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.listeners;
 
-import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Parent;
@@ -151,7 +151,7 @@ final class Spectral3DVisualizationHelper {
                     150,
                     100
             );
-            Platform.runLater(() -> SpectralLineSurface3DViewer.show(
+            FxUtils.runLater(() -> SpectralLineSurface3DViewer.show(
                     surfaceData,
                     I18N.string(JSolEx.class, "spectral-surface-3d", "frame.title")
             ));
@@ -213,7 +213,7 @@ final class Spectral3DVisualizationHelper {
                         trimParams.verticalFlip(),
                         null
                 );
-                Platform.runLater(() -> {
+                FxUtils.runLater(() -> {
                     loadingStage.close();
                     var viewer = SpectralEvolution4DViewer.show(
                             evolutionData,
@@ -224,7 +224,7 @@ final class Spectral3DVisualizationHelper {
                 });
             } catch (Exception e) {
                 LOGGER.error("Failed to extract spectral evolution", e);
-                Platform.runLater(loadingStage::close);
+                FxUtils.runLater(loadingStage::close);
             }
         });
     }
@@ -254,7 +254,7 @@ final class Spectral3DVisualizationHelper {
         var redshiftProcessor = dataProvider.createRedshiftProcessor();
         var pixelShiftRange = dataProvider.getPixelShiftRange();
 
-        Platform.runLater(() -> {
+        FxUtils.runLater(() -> {
             var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "spherical-tomography-params");
             Parent node;
             try {
@@ -283,7 +283,7 @@ final class Spectral3DVisualizationHelper {
                                           Wavelen lambda0) {
         var loadingStageRef = new AtomicReference<Stage>();
         var latch = new CountDownLatch(1);
-        Platform.runLater(() -> {
+        FxUtils.runLater(() -> {
             var loadingStage = createLoadingStage(I18N.string(JSolEx.class, "spherical-tomography", "frame.title"));
             loadingStageRef.set(loadingStage);
             loadingStage.show();
@@ -384,7 +384,7 @@ final class Spectral3DVisualizationHelper {
                         adjustedParams.autoStretchParams()
                 );
 
-                Platform.runLater(() -> {
+                FxUtils.runLater(() -> {
                     loadingStage.close();
                     SphericalTomography3DViewer.show(
                             tomographyData,
@@ -394,7 +394,7 @@ final class Spectral3DVisualizationHelper {
                 });
             } catch (Exception e) {
                 LOGGER.error("Failed to generate spherical tomography", e);
-                Platform.runLater(loadingStage::close);
+                FxUtils.runLater(loadingStage::close);
             }
         });
     }

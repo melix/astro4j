@@ -17,7 +17,7 @@ package me.champeau.a4j.jsolex.app.jfx.bass2000;
 
 import javafx.animation.Animation;
 import javafx.animation.RotateTransition;
-import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.beans.value.ChangeListener;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckMenuItem;
@@ -386,21 +386,21 @@ class Step2ImageOrientationHandler implements StepHandler {
             try {
                 var observationDate = transformationListener.findProcessParams().observationDetails().date();
 
-                Platform.runLater(() -> {
+                FxUtils.runLater(() -> {
                     if (gongImageView != null) {
                         showLoadingIndicator();
                     }
                 });
 
                 var candidates = GONG.listGongCandidates(observationDate);
-                Platform.runLater(() -> populateGongSiteMenu(candidates, observationDate));
+                FxUtils.runLater(() -> populateGongSiteMenu(candidates, observationDate));
                 if (candidates.isEmpty()) {
-                    Platform.runLater(this::loadFallbackGongImage);
+                    FxUtils.runLater(this::loadFallbackGongImage);
                     return;
                 }
                 loadGongCandidate(candidates.getFirst());
             } catch (Exception e) {
-                Platform.runLater(this::loadFallbackGongImage);
+                FxUtils.runLater(this::loadFallbackGongImage);
             }
         });
     }
@@ -454,12 +454,12 @@ class Step2ImageOrientationHandler implements StepHandler {
         try {
             var url = GONG.fetchCandidateImage(candidate);
             if (url.isEmpty()) {
-                Platform.runLater(this::loadFallbackGongImage);
+                FxUtils.runLater(this::loadFallbackGongImage);
                 return;
             }
             try (var inputStream = url.get().openStream()) {
                 var image = new Image(inputStream);
-                Platform.runLater(() -> {
+                FxUtils.runLater(() -> {
                     if (gongImageView != null && !image.isError()) {
                         gongReferenceImage = image;
                         restoreGongImageView();
@@ -482,7 +482,7 @@ class Step2ImageOrientationHandler implements StepHandler {
                 });
             }
         } catch (Exception e) {
-            Platform.runLater(this::loadFallbackGongImage);
+            FxUtils.runLater(this::loadFallbackGongImage);
         }
     }
 
@@ -560,7 +560,7 @@ class Step2ImageOrientationHandler implements StepHandler {
                         displayImage = RGBImage.toRGB(mono);
                     }
                     var writableImage = WritableImageSupport.asWritable(displayImage);
-                    Platform.runLater(() -> {
+                    FxUtils.runLater(() -> {
                         userImageView.setImage(writableImage);
                         userDisplayImage = writableImage;
                         userImageView.resetZoom();
@@ -573,7 +573,7 @@ class Step2ImageOrientationHandler implements StepHandler {
                         }
                     });
                 } catch (Exception e) {
-                    Platform.runLater(() -> {
+                    FxUtils.runLater(() -> {
                         var alert = AlertFactory.error(message("error.image.display.title"));
                         alert.setTitle(message("error.image.display.title"));
                         alert.setHeaderText(message("error.image.display.header"));
@@ -776,7 +776,7 @@ class Step2ImageOrientationHandler implements StepHandler {
                 final boolean fHFlip = bestHFlip;
                 final boolean fVFlip = bestVFlip;
                 final double fAngle = bestAngle;
-                Platform.runLater(() -> {
+                FxUtils.runLater(() -> {
                     button.setDisable(false);
                     button.setText(message("orientation.button.auto.align"));
                     horizontalFlip = fHFlip;
@@ -795,7 +795,7 @@ class Step2ImageOrientationHandler implements StepHandler {
                 });
             } catch (Exception e) {
                 LOGGER.error("Auto-alignment failed", e);
-                Platform.runLater(() -> restoreAutoAlignButton(button, null));
+                FxUtils.runLater(() -> restoreAutoAlignButton(button, null));
             }
         });
     }

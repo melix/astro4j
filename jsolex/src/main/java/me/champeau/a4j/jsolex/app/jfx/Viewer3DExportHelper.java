@@ -16,7 +16,7 @@
 package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.animation.AnimationTimer;
-import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -491,7 +491,7 @@ public final class Viewer3DExportHelper {
             var exportContextRef = new AtomicReference<ExportContext>();
             var initLatch = new CountDownLatch(1);
 
-            Platform.runLater(() -> {
+            FxUtils.runLater(() -> {
                 var context = exportGlViewFactory.apply(selectedSize);
                 exportContextRef.set(context);
                 initLatch.countDown();
@@ -506,7 +506,7 @@ public final class Viewer3DExportHelper {
 
             var exportContext = exportContextRef.get();
             if (exportContext == null || !exportContext.glView().waitForInitialization(10000)) {
-                Platform.runLater(() -> {
+                FxUtils.runLater(() -> {
                     progressStage.close();
                     var alert = new Alert(Alert.AlertType.ERROR);
                     alert.setTitle("Export Error");
@@ -519,7 +519,7 @@ public final class Viewer3DExportHelper {
 
             List<File> outputFiles = null;
             try {
-                Consumer<Double> progressCallback = progress -> Platform.runLater(() -> {
+                Consumer<Double> progressCallback = progress -> FxUtils.runLater(() -> {
                     progressBar.setProgress(progress);
                     progressLabel.setText((int) (progress * 100) + "%");
                 });
@@ -553,7 +553,7 @@ public final class Viewer3DExportHelper {
                 }
             } catch (IOException e) {
                 if (!cancelled.get()) {
-                    Platform.runLater(() -> {
+                    FxUtils.runLater(() -> {
                         var alert = new Alert(Alert.AlertType.ERROR);
                         alert.setTitle("Export Error");
                         alert.setContentText(e.getMessage());
@@ -565,7 +565,7 @@ public final class Viewer3DExportHelper {
                     exportContext.glView().dispose();
                 }
                 var finalOutputFiles = outputFiles;
-                Platform.runLater(() -> {
+                FxUtils.runLater(() -> {
                     progressStage.close();
                     if (!cancelled.get() && finalOutputFiles != null && !finalOutputFiles.isEmpty()) {
                         ExplorerSupport.openInExplorer(finalOutputFiles.getFirst().toPath());

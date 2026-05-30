@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.listeners;
 
-import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.scene.control.ButtonType;
 import me.champeau.a4j.jsolex.app.AlertFactory;
 import me.champeau.a4j.jsolex.app.Configuration;
@@ -276,7 +276,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             e.resultFuture().completeExceptionally(ie);
             return;
         }
-        Platform.runLater(() -> {
+        FxUtils.runLater(() -> {
             owner.showEllipseFittingDialog(
                 e.image(),
                 e.initialEllipse(),
@@ -360,7 +360,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             } finally {
                 dataLock.readLock().unlock();
             }
-            Platform.runLater(() -> ImageInspectorController.create(processParams, imagesByIndexCopy, filesByIndexCopy, serFilesByIndexCopy, outputDirectory, controller -> {
+            FxUtils.runLater(() -> ImageInspectorController.create(processParams, imagesByIndexCopy, filesByIndexCopy, serFilesByIndexCopy, outputDirectory, controller -> {
                 var deletedFiles = controller.getDeletedFiles();
                 var movedFiles = controller.getMovedFiles();
                 adjustDeletedAndMovedFilesList(deletedFiles, movedFiles);
@@ -398,7 +398,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         if (shouldExecute && progressTracker.tryMarkBatchFinished()) {
             boolean hasErrors = progressTracker.hasErrors();
             if (success > 0 && hasErrors && hasBatchScriptExpressions()) {
-                Platform.runLater(() -> {
+                FxUtils.runLater(() -> {
                     var alert = AlertFactory.warning(message("incomplete.batch.message"));
                     alert.setTitle(message("incomplete.batch"));
                     alert.getButtonTypes().clear();
@@ -412,7 +412,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                     });
                 });
             } else if (hasErrors) {
-                Platform.runLater(() -> {
+                FxUtils.runLater(() -> {
                     var alert = AlertFactory.warning(message("incomplete.batch.error"));
                     alert.setTitle(message("incomplete.batch"));
                     alert.showAndWait();
@@ -577,7 +577,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             return;
         }
         var language = LocaleUtils.getConfiguredLocale().getLanguage();
-        Platform.runLater(() -> {
+        FxUtils.runLater(() -> {
                 var tabPane = owner.getTabs();
                 var imagesViewerTab = owner.getImagesViewerTab();
                 tabPane.getTabs().add(imagesViewerTab);
