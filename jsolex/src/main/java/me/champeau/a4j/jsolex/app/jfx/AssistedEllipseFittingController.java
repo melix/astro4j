@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
-import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.fxml.FXML;
 import javafx.scene.Parent;
 import javafx.scene.control.Button;
@@ -118,7 +118,7 @@ public class AssistedEllipseFittingController {
         this.initialEllipse = initialEllipse;
         this.currentEllipse = initialEllipse;
 
-        Platform.runLater(() -> {
+        FxUtils.runLater(() -> {
             var fxImage = WritableImageSupport.asWritable(image);
             imageView.setImage(fxImage);
             
@@ -279,7 +279,7 @@ public class AssistedEllipseFittingController {
     public static CompletableFuture<Ellipse> showDialog(Stage parent, ImageWrapper32 image, Ellipse initialEllipse, String fileName, int currentFile, int totalFiles) {
         var future = new CompletableFuture<Ellipse>();
         
-        Platform.runLater(() -> {
+        FxUtils.runLater(() -> {
             try {
                 var loader = I18N.fxmlLoader(JSolEx.class, "assisted-ellipse-fitting");
                 var root = (Parent) loader.load();

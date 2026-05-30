@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.sun;
 
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.util.ParallelExecutor;
+import me.champeau.a4j.jsolex.processing.util.ProcessingLogContext;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.ser.ImageGeometry;
@@ -112,7 +113,7 @@ public class AverageImageCreator {
                 for (int k = 0; k < batchSize; k++) {
                     int lane = k;
                     int frameId = batchStart + k;
-                    ioExecutor.submit(() -> {
+                    ProcessingLogContext.submit(ioExecutor, () -> {
                         try {
                             var buffer = buffers[lane];
                             imageConverter.convert(frameId, frameDataBatch[lane], geometry, buffer);
@@ -206,7 +207,7 @@ public class AverageImageCreator {
                 for (int k = 0; k < batchSize; k++) {
                     int lane = k;
                     int frameId = frameIdBatch[k];
-                    executor.submit(() -> {
+                    ProcessingLogContext.submit(executor, () -> {
                         try {
                             var img = buffers[lane];
                             imageConverter.convert(frameId, frameDataBatch[lane], geometry, img);

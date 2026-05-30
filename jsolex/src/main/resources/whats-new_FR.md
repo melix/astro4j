@@ -1,10 +1,11 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
-## Nouveautés de la version 5.2.3
+## Nouveautés de la version 5.3.0
 
-- Les mesures de redshift sont plus fiables et leur incertitude est désormais bien plus réaliste.
 - La fiche technique générée séparément est remplacée par des annotations interactives activables image par image : grille d'orientation, détails d'observation, paramètres solaires, échelle des protubérances, référence de taille Terre déplaçable à la souris et signature libre, avec couleurs, épaisseur de trait et modèles personnalisables, le tout enregistrable en tant que préréglage.
 - Les images peuvent désormais être dupliquées via le menu contextuel de la barre latérale, pour conserver une version originale à côté d'une version annotée.
+- Les mesures de redshift sont plus fiables et leur incertitude est désormais bien plus réaliste.
+- Correction des fichiers log qui étaient vides en mode batch
 
 ## Nouveautés de la version 5.2.2
 

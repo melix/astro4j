@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx.bass2000;
 
-import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.layout.VBox;
@@ -131,7 +131,7 @@ class Step1AgreementHandler implements StepHandler {
                 var wavelengthAngstroms = spectralRay.wavelength().angstroms();
                 var observationDate = processParams.observationDetails().date().toLocalDate();
                 var duplicate = Bass2000UploadHistoryService.getInstance().checkForDuplicateUpload(observationDate, wavelengthAngstroms);
-                Platform.runLater(() -> updateDuplicateWarning(duplicate.orElse(null)));
+                FxUtils.runLater(() -> updateDuplicateWarning(duplicate.orElse(null)));
             }
         });
     }

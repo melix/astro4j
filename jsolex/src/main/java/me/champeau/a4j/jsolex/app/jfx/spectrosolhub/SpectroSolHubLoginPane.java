@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx.spectrosolhub;
 
-import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
@@ -197,9 +197,9 @@ public class SpectroSolHubLoginPane extends VBox {
                 } catch (SpectroSolHubException ignored) {
                 }
 
-                Platform.runLater(this::showConnected);
+                FxUtils.runLater(this::showConnected);
             } catch (SpectroSolHubException ex) {
-                Platform.runLater(() -> {
+                FxUtils.runLater(() -> {
                     if (ex.isTotpRequired()) {
                         showTotpField();
                         statusLabel.setText(message("auth.totp.required"));
@@ -283,14 +283,14 @@ public class SpectroSolHubLoginPane extends VBox {
                     var url = config.getSpectroSolHubUrl();
                     var client = new SpectroSolHubClient(url, tokenOpt.get());
                     quotaResponse = client.fetchQuota();
-                    Platform.runLater(() -> {
+                    FxUtils.runLater(() -> {
                         connectedLabel.setText(message("auth.connected"));
                         connectedLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: green;");
                         showConnected();
                     });
                 } catch (SpectroSolHubException ex) {
                     LOGGER.warn("Stored token is invalid", ex);
-                    Platform.runLater(() -> {
+                    FxUtils.runLater(() -> {
                         config.clearSpectroSolHubToken();
                         connectedLabel.setText(message("auth.connected"));
                         connectedLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: green;");

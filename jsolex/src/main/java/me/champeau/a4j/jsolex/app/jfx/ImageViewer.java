@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ListProperty;
@@ -221,7 +222,7 @@ public class ImageViewer implements WithRootNode {
         }
         if (description != null && !description.isBlank()) {
             var helpOverlay = new ImageHelpOverlay(title, description, kind);
-            Platform.runLater(() -> {
+            FxUtils.runLater(() -> {
                 // Allow BorderPane to shrink with SplitPane
                 if (root instanceof BorderPane bp) {
                     bp.setMinSize(0, 0);
@@ -272,7 +273,7 @@ public class ImageViewer implements WithRootNode {
                         controller.display();
                         controller.saveButton.setVisible(false);
                     });
-                    Platform.runLater(() -> imageView.getCtxMenu().getItems().add(openInNewWindow));
+                    FxUtils.runLater(() -> imageView.getCtxMenu().getItems().add(openInNewWindow));
                 }
             });
             maybeAddMeasurementTool(() -> {
@@ -303,7 +304,7 @@ public class ImageViewer implements WithRootNode {
                         imageSaver.save(prepared, preparedFile);
                         imageSaver.save(withGlobe, globeFile);
                         var distanceMeasurementPane = new DistanceMeasurementPane(new Image(preparedFile.toURI().toString()), new Image(globeFile.toURI().toString()), transformedEllipse, solarParameters);
-                        Platform.runLater(() -> {
+                        FxUtils.runLater(() -> {
                             var stage = new Stage();
                             stage.setTitle(I18N.string(JSolEx.class, "measures", "measure.distance"));
                             var scene = new Scene(distanceMeasurementPane, 1024, 768);
@@ -391,7 +392,7 @@ public class ImageViewer implements WithRootNode {
         files.stream()
                 .findFirst()
                 .ifPresent(file -> imageView.setImagePathForOpeningInExplorer(file.toPath()));
-        Platform.runLater(() -> {
+        FxUtils.runLater(() -> {
             saveButton.setDisable(true);
             imageView.fileSaved();
         });
@@ -593,7 +594,7 @@ public class ImageViewer implements WithRootNode {
                 }
             });
 
-            Platform.runLater(() -> {
+            FxUtils.runLater(() -> {
                 alignButton.setTooltip(new Tooltip(message("align.images")));
                 leftRotate.setTooltip(new Tooltip(message("rotate.left")));
                 rightRotate.setTooltip(new Tooltip(message("rotate.right")));
@@ -716,7 +717,7 @@ public class ImageViewer implements WithRootNode {
                 try {
                     stretchAndDisplay(true);
                 } finally {
-                    Platform.runLater(this::hideLoadingIndicator);
+                    FxUtils.runLater(this::hideLoadingIndicator);
                 }
             });
             firstShow = false;
@@ -736,7 +737,7 @@ public class ImageViewer implements WithRootNode {
             if (Platform.isFxApplicationThread()) {
                 loadingIndicator.setVisible(true);
             } else {
-                Platform.runLater(() -> loadingIndicator.setVisible(true));
+                FxUtils.runLater(() -> loadingIndicator.setVisible(true));
             }
         }
     }
@@ -793,9 +794,9 @@ public class ImageViewer implements WithRootNode {
         if (onStretchedImageUpdate != null) {
             onStretchedImageUpdate.accept(stretchedImage);
         }
-        Platform.runLater(() -> stretchedImageDebounce.playFromStart());
+        FxUtils.runLater(() -> stretchedImageDebounce.playFromStart());
         var writable = renderForDisplay();
-        Platform.runLater(() -> updateDisplay(writable, resetZoom));
+        FxUtils.runLater(() -> updateDisplay(writable, resetZoom));
     }
 
     private void computeStretchedImage() {
@@ -860,7 +861,7 @@ public class ImageViewer implements WithRootNode {
                                 overlayPanel.updateState(overlays);
                             }
                         }
-                        Platform.runLater(() -> {
+                        FxUtils.runLater(() -> {
                             syncEarthLayer();
                             syncSignatureLayer();
                             syncObsDetailsLayer();
@@ -877,28 +878,28 @@ public class ImageViewer implements WithRootNode {
                         if (overlayPanel != null) {
                             overlayPanel.updateState(overlays);
                         }
-                        Platform.runLater(this::syncEarthLayer);
+                        FxUtils.runLater(this::syncEarthLayer);
                     },
                     () -> {
                         overlays = overlays.withSignaturePosition(null, null);
                         if (overlayPanel != null) {
                             overlayPanel.updateState(overlays);
                         }
-                        Platform.runLater(this::syncSignatureLayer);
+                        FxUtils.runLater(this::syncSignatureLayer);
                     },
                     () -> {
                         overlays = overlays.withObsDetailsPosition(null, null);
                         if (overlayPanel != null) {
                             overlayPanel.updateState(overlays);
                         }
-                        Platform.runLater(this::syncObsDetailsLayer);
+                        FxUtils.runLater(this::syncObsDetailsLayer);
                     },
                     () -> {
                         overlays = overlays.withSolarParamsPosition(null, null);
                         if (overlayPanel != null) {
                             overlayPanel.updateState(overlays);
                         }
-                        Platform.runLater(this::syncSolarParamsLayer);
+                        FxUtils.runLater(this::syncSolarParamsLayer);
                     }
             );
             overlayPanel.setOnShownStateChanged(shown -> setLayersInteractive(shown));
@@ -1227,7 +1228,7 @@ public class ImageViewer implements WithRootNode {
         this.processParams = currentState.processParams;
         this.image = currentState.image;
         this.imageFile = currentState.imageFile;
-        Platform.runLater(() -> {
+        FxUtils.runLater(() -> {
             updateTitle();
             imageView.setImage(new Image(imageFile.toURI().toString()));
             imageView.setSolarDisk(image.findMetadata(Ellipse.class).orElse(null));

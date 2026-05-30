@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
-import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import me.champeau.a4j.jsolex.app.Configuration;
@@ -152,7 +152,7 @@ public class StandaloneImagesLoader {
             var fileWithBaseName = new File(file.getParentFile(), baseName);
 
             ImageWrapper finalImage = imageWrapper;
-            Platform.runLater(() -> multipleImagesViewer.addImage(
+            FxUtils.runLater(() -> multipleImagesViewer.addImage(
                 listener,
                 parentOperation,
                 baseName,
@@ -227,7 +227,7 @@ public class StandaloneImagesLoader {
         var resultRef = new AtomicReference<>(initialEllipse);
         var latch = new CountDownLatch(1);
 
-        Platform.runLater(() -> {
+        FxUtils.runLater(() -> {
             var future = AssistedEllipseFittingController.showDialog(
                 stage, image, initialEllipse, fileName, currentFileIndex, totalFiles);
             future.whenComplete((ellipse, throwable) -> {

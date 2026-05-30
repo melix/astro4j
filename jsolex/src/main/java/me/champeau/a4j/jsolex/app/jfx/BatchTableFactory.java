@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.NumberBinding;
 import javafx.beans.property.SimpleStringProperty;
@@ -327,7 +328,7 @@ public final class BatchTableFactory {
                     if (Platform.isFxApplicationThread()) {
                         updateRowStyle();
                     } else {
-                        Platform.runLater(this::updateRowStyle);
+                        FxUtils.runLater(this::updateRowStyle);
                     }
                 };
                 private SimpleStringProperty boundStatus;

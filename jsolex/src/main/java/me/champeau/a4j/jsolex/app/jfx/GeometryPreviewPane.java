@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
-import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.layout.BorderPane;
@@ -80,7 +80,7 @@ public class GeometryPreviewPane extends BorderPane {
     public void setOriginalImage(ImageWrapper32 image) {
         this.originalImage = image;
         if (image != null) {
-            Platform.runLater(() -> {
+            FxUtils.runLater(() -> {
                 statusLabel.setText(I18N.string(JSolEx.class, "assisted-ellipse-fitting", "select.ellipse.to.preview"));
                 previewView.setImage(null);
             });
@@ -105,7 +105,7 @@ public class GeometryPreviewPane extends BorderPane {
         }
         
         if (currentEllipse == null) {
-            Platform.runLater(() -> {
+            FxUtils.runLater(() -> {
                 previewView.setImage(null);
                 progressIndicator.setVisible(false);
                 statusLabel.setText("Insufficient points for ellipse fitting");
@@ -117,7 +117,7 @@ public class GeometryPreviewPane extends BorderPane {
             currentPreview.cancel(true);
         }
 
-        Platform.runLater(() -> {
+        FxUtils.runLater(() -> {
             progressIndicator.setVisible(true);
             statusLabel.setText(I18N.string(JSolEx.class, "assisted-ellipse-fitting", "generating.preview"));
         });
@@ -126,7 +126,7 @@ public class GeometryPreviewPane extends BorderPane {
             try {
                 var correctedImage = applyGeometryCorrection(originalImage, currentEllipse);
 
-                Platform.runLater(() -> {
+                FxUtils.runLater(() -> {
                     var fxImage = WritableImageSupport.asWritable(correctedImage);
                     previewView.setImage(fxImage);
                     progressIndicator.setVisible(false);
@@ -134,7 +134,7 @@ public class GeometryPreviewPane extends BorderPane {
                 });
 
             } catch (Exception e) {
-                Platform.runLater(() -> progressIndicator.setVisible(false));
+                FxUtils.runLater(() -> progressIndicator.setVisible(false));
             }
         });
     }

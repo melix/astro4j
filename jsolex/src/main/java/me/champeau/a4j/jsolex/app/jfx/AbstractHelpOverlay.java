@@ -19,7 +19,7 @@ import javafx.animation.Interpolator;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
-import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -660,7 +660,7 @@ public abstract class AbstractHelpOverlay extends StackPane {
             new Thread(() -> {
                 try {
                     writeGif(frames, outputFile, delayMs);
-                    Platform.runLater(() -> {
+                    FxUtils.runLater(() -> {
                         progressLabel.setText("Export complete!");
                         var removeDelay = new Timeline(new KeyFrame(Duration.seconds(2), evt ->
                             progressParent.getChildren().remove(progressLabel)
@@ -669,7 +669,7 @@ public abstract class AbstractHelpOverlay extends StackPane {
                     });
                 } catch (IOException ex) {
                     ex.printStackTrace();
-                    Platform.runLater(() -> {
+                    FxUtils.runLater(() -> {
                         progressLabel.setText("Export failed!");
                         var removeDelay = new Timeline(new KeyFrame(Duration.seconds(3), evt ->
                             progressParent.getChildren().remove(progressLabel)

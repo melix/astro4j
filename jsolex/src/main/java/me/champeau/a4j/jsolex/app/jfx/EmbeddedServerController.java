@@ -16,7 +16,7 @@
 package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.application.HostServices;
-import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
@@ -91,7 +91,7 @@ public class EmbeddedServerController {
             serverPort.setText(String.valueOf(configuration.getAutoStartServerPort()));
         }
         startOnLaunch.setSelected(configuration.isAutoStartServer());
-        listener = started -> Platform.runLater(() ->{
+        listener = started -> FxUtils.runLater(() ->{
             startStopButton.setDisable(false);
             updateStartStopLabel();
         });

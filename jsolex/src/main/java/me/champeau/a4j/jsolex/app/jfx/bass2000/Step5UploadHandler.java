@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx.bass2000;
 
-import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Hyperlink;
@@ -266,7 +266,7 @@ class Step5UploadHandler implements StepHandler {
                     displayImage = RGBImage.toRGB(mono);
                 }
                 var writableImage = WritableImageSupport.asWritable(displayImage);
-                Platform.runLater(() -> imageView.setImage(writableImage));
+                FxUtils.runLater(() -> imageView.setImage(writableImage));
             } catch (Exception e) {
                 LOGGER.error(JSolEx.message("error.failed.create.preview"), e);
             }
@@ -292,7 +292,7 @@ class Step5UploadHandler implements StepHandler {
                     uploadDataProvider.getObservationDate(),
                     selectedWavelength.wavelength().angstroms()
                 );
-                Platform.runLater(() -> updateStep5DuplicateWarning(duplicate.orElse(null)));
+                FxUtils.runLater(() -> updateStep5DuplicateWarning(duplicate.orElse(null)));
             }
         });
     }
@@ -317,7 +317,7 @@ class Step5UploadHandler implements StepHandler {
         var uploadWingImage = wingImageUploadCheckbox != null && wingImageUploadCheckbox.isSelected();
 
         if (!uploadLineCenter && !uploadWingImage) {
-            Platform.runLater(() -> {
+            FxUtils.runLater(() -> {
                 var alert = AlertFactory.error("Please select at least one image to upload.");
                 alert.setTitle("No Images Selected");
                 alert.setHeaderText("Upload Error");
@@ -334,7 +334,7 @@ class Step5UploadHandler implements StepHandler {
         }
 
         if (uploadLineCenter && step4Handler.getSavedFilePath() == null) {
-            Platform.runLater(() -> {
+            FxUtils.runLater(() -> {
                 var alert = AlertFactory.error(message("upload.error.no.file.message"));
                 alert.setTitle(message("upload.error.no.file.title"));
                 alert.setHeaderText(message("upload.error.no.file.header"));
@@ -344,7 +344,7 @@ class Step5UploadHandler implements StepHandler {
         }
 
         if (uploadWingImage && step4Handler.getSavedOffBandFilePath() == null) {
-            Platform.runLater(() -> {
+            FxUtils.runLater(() -> {
                 var alert = AlertFactory.error("Wing image file not available for upload.");
                 alert.setTitle("File Not Available");
                 alert.setHeaderText("Upload Error");
@@ -362,25 +362,25 @@ class Step5UploadHandler implements StepHandler {
                 var bytesUploaded = 0L;
 
                 if (uploadLineCenter && step4Handler.getSavedFilePath() != null) {
-                    Platform.runLater(() -> {
+                    FxUtils.runLater(() -> {
                         updateUploadStatus(message("upload.uploading") + " (line center)");
                     });
 
                     FTPUploader.uploadFileToFTP(step4Handler.getSavedFilePath(), totalBytes, bytesUploaded,
-                        progress -> Platform.runLater(() -> updateUploadProgress(progress)));
+                        progress -> FxUtils.runLater(() -> updateUploadProgress(progress)));
                     bytesUploaded += step4Handler.getSavedFilePath().length();
                 }
 
                 if (uploadWingImage && step4Handler.getSavedOffBandFilePath() != null) {
-                    Platform.runLater(() -> {
+                    FxUtils.runLater(() -> {
                         updateUploadStatus(message("upload.uploading") + " (wing image)");
                     });
 
                     FTPUploader.uploadFileToFTP(step4Handler.getSavedOffBandFilePath(), totalBytes, bytesUploaded,
-                        progress -> Platform.runLater(() -> updateUploadProgress(progress)));
+                        progress -> FxUtils.runLater(() -> updateUploadProgress(progress)));
                 }
 
-                Platform.runLater(() -> {
+                FxUtils.runLater(() -> {
                     updateUploadStatus(message("upload.success"));
                     hideUploadProgress();
                     uploadDataProvider.recordSuccessfulUploads();
@@ -395,7 +395,7 @@ class Step5UploadHandler implements StepHandler {
                 });
             } catch (Exception e) {
                 LOGGER.error(JSolEx.message("error.failed.upload.bass2000"), e);
-                Platform.runLater(() -> {
+                FxUtils.runLater(() -> {
                     updateUploadStatus(message("upload.failed"));
                     hideUploadProgress();
                     var alert = AlertFactory.error(MessageFormat.format(

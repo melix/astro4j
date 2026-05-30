@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
-import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.beans.binding.Bindings;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -221,7 +221,7 @@ public class DistanceMeasurementPane extends BorderPane {
             double finalImageY = imageY;
             applyZoom();
             updateCurrentMeasurementPaths();
-            Platform.runLater(() -> {
+            FxUtils.runLater(() -> {
                 double newContentWidth = image.getWidth() * finalZoom;
                 double newContentHeight = image.getHeight() * finalZoom;
                 double newMouseXInContent = finalImageX * finalZoom;

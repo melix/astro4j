@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx.bass2000;
 
-import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
@@ -748,7 +748,7 @@ class Step3FormDataHandler implements StepHandler {
         showRemoteSubmissionMessage(message("remote.submission.checking"));
         BackgroundOperations.async(() -> {
             var submissions = Bass2000FtpListingService.listSubmissions(observationDate, lineCode);
-            Platform.runLater(() -> {
+            FxUtils.runLater(() -> {
                 if (seq != remoteCheckSequence.get()) {
                     return;
                 }

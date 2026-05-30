@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
-import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Pos;
@@ -109,7 +109,7 @@ public class CategoryPane extends VBox {
             installContextMenu(box, link, shiftSuffix, onRename, onClone);
         }
         getChildren().add(insertPoint, box);
-        Platform.runLater(() -> links.setAll(safeLinks));
+        FxUtils.runLater(() -> links.setAll(safeLinks));
         return link;
     }
 

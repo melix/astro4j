@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx.bass2000;
 
-import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -314,7 +314,7 @@ public class Bass2000SubmissionController {
             }
         });
 
-        Platform.runLater(this::initializeStyles);
+        FxUtils.runLater(this::initializeStyles);
         
         initializeWizard();
         loadUserImage();
@@ -410,7 +410,7 @@ public class Bass2000SubmissionController {
                                         new Bass2000Compatibility(wingRay.wavelength().angstroms()));
                             }
 
-                            Platform.runLater(() -> {
+                            FxUtils.runLater(() -> {
                                 // Reset progress and button state
                                 var progress = (double) (currentStep + 1) / TOTAL_STEPS;
                                 wizardProgress.setProgress(progress);
@@ -431,7 +431,7 @@ public class Bass2000SubmissionController {
                                 updateButtons();
                             });
                         } catch (Exception e) {
-                            Platform.runLater(() -> {
+                            FxUtils.runLater(() -> {
                                 // Reset progress and button state
                                 var progress = (double) currentStep / TOTAL_STEPS;
                                 wizardProgress.setProgress(progress);
@@ -518,7 +518,7 @@ public class Bass2000SubmissionController {
         contentPane.getChildren().add(step3Content);
 
         step3Handler.load();
-        Platform.runLater(this::updateNextButtonState);
+        FxUtils.runLater(this::updateNextButtonState);
     }
 
     private void loadStep4() {
@@ -568,7 +568,7 @@ public class Bass2000SubmissionController {
                     step4Handler.setSavedOffBandFilePath(offBandFile);
                 }
 
-                Platform.runLater(() -> {
+                FxUtils.runLater(() -> {
                     if (currentStep == 5) {
                         loadStep5();
                     }
@@ -576,7 +576,7 @@ public class Bass2000SubmissionController {
                 });
             } catch (Exception e) {
                 LOGGER.error(JSolEx.message("error.failed.save.bass2000"), e);
-                Platform.runLater(() -> {
+                FxUtils.runLater(() -> {
                     var alert = AlertFactory.error("Could not save BASS2000 file: " + e.getMessage());
                     alert.setTitle("Save Error");
                     alert.setHeaderText("File Save Failed");
@@ -641,7 +641,7 @@ public class Bass2000SubmissionController {
     }
 
     private void loadUserImage() {
-        Platform.runLater(() -> {
+        FxUtils.runLater(() -> {
             nextButton.setDisable(true);
             previousButton.setDisable(true);
         });
@@ -653,14 +653,14 @@ public class Bass2000SubmissionController {
                     this.originalImage = lineCenterImage;
                     this.generatedBass2000Image = lineCenterImage.copy();
 
-                    Platform.runLater(() -> {
+                    FxUtils.runLater(() -> {
                         updateNextButtonState();
                         updateButtons();
 
                         injectImageIntoStep1Handler();
                     });
                 } else {
-                    Platform.runLater(() -> {
+                    FxUtils.runLater(() -> {
                         var alert = AlertFactory.error(message("error.image.generation.title"));
                         alert.setTitle(message("error.image.generation.title"));
                         alert.setHeaderText(message("error.image.generation.header"));
@@ -671,7 +671,7 @@ public class Bass2000SubmissionController {
                     });
                 }
             } catch (Exception e) {
-                Platform.runLater(() -> {
+                FxUtils.runLater(() -> {
                     var alert = AlertFactory.error(message("error.image.generation.title"));
                     alert.setTitle(message("error.image.generation.title"));
                     alert.setHeaderText(message("error.image.generation.header"));
@@ -714,7 +714,7 @@ public class Bass2000SubmissionController {
                 var bass2000Images = new Bass2000Images(lineCenterImage, generatedOffBandImage);
                 var validationResult = bass2000Images.validate();
 
-                Platform.runLater(() -> {
+                FxUtils.runLater(() -> {
                     updateValidationUI(validationResult);
 
                     if (currentStep == 2) {
@@ -722,7 +722,7 @@ public class Bass2000SubmissionController {
                     }
                 });
             } catch (Exception e) {
-                Platform.runLater(() -> {
+                FxUtils.runLater(() -> {
                     var warningLabel = contentPane.lookup("#validationWarning");
                     if (warningLabel != null) {
                         warningLabel.setVisible(true);

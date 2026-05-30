@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
-import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -87,7 +87,7 @@ public class BrowseSpectroSolHubController {
         new Thread(() -> {
             try {
                 var details = api.fetchAllRepositoryDetails();
-                Platform.runLater(() -> {
+                FxUtils.runLater(() -> {
                     progressIndicator.setVisible(false);
                     if (details.isEmpty()) {
                         statusLabel.setText(I18N.string(JSolEx.class, "browse-spectrosolhub", "no.repositories"));
@@ -102,7 +102,7 @@ public class BrowseSpectroSolHubController {
                 });
             } catch (Exception e) {
                 LOGGER.error("Failed to fetch SpectroSolHub repositories", e);
-                Platform.runLater(() -> {
+                FxUtils.runLater(() -> {
                     progressIndicator.setVisible(false);
                     statusLabel.setText(I18N.string(JSolEx.class, "browse-spectrosolhub", "fetch.error") + ": " + extractMessage(e));
                 });

@@ -18,7 +18,6 @@ package me.champeau.a4j.jsolex.app.jfx;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.ListChangeListener;
-import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -36,6 +35,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 
@@ -66,10 +66,6 @@ public final class BatchDetailDrawer {
     private final Label redshiftLabel;
     private final Label ellermanBombsLabel;
     private final Label flaresLabel;
-    private final HBox activeRegionsRow;
-    private final HBox redshiftRow;
-    private final HBox ellermanBombsRow;
-    private final HBox flaresRow;
     private final Label outputsHeader;
     private final FlowPane outputsList;
     private final Button openFolderButton;
@@ -109,10 +105,10 @@ public final class BatchDetailDrawer {
         ellermanBombsLabel = new Label("—");
         flaresLabel = new Label("—");
 
-        activeRegionsRow = metricRow(message("detected.active.regions"), activeRegionsLabel);
-        redshiftRow = metricRow(message("max.redshift.km.per.sec"), redshiftLabel);
-        ellermanBombsRow = metricRow(message("ellerman.bombs"), ellermanBombsLabel);
-        flaresRow = metricRow(message("flares"), flaresLabel);
+        var activeRegionsRow = metricRow(message("detected.active.regions"), activeRegionsLabel);
+        var redshiftRow = metricRow(message("max.redshift.km.per.sec"), redshiftLabel);
+        var ellermanBombsRow = metricRow(message("ellerman.bombs"), ellermanBombsLabel);
+        var flaresRow = metricRow(message("flares"), flaresLabel);
 
         var metricsBox = new VBox(4);
         if (params.requestedImages().isEnabled(GeneratedImageKind.ACTIVE_REGIONS)) {
@@ -187,7 +183,7 @@ public final class BatchDetailDrawer {
 
         outputsListener = change -> {
             var added = new ArrayList<File>();
-            boolean hasRemoval = false;
+            var hasRemoval = false;
             while (change.next()) {
                 if (change.wasAdded()) {
                     added.addAll(change.getAddedSubList());
@@ -211,7 +207,7 @@ public final class BatchDetailDrawer {
         if (Platform.isFxApplicationThread()) {
             r.run();
         } else {
-            Platform.runLater(r);
+            FxUtils.runLater(r);
         }
     }
 
@@ -271,7 +267,7 @@ public final class BatchDetailDrawer {
         statusLabel.setText(status);
         stateIcon.setText(BatchTableFactory.iconFor(state));
         stateIcon.setStyle(BatchTableFactory.iconStyleFor(state));
-        double progress = boundItem.reconstructionProgress().get();
+        var progress = boundItem.reconstructionProgress().get();
         progressBar.setProgress(progress);
         progressLabel.setText(Math.round(progress * 100) + "%");
         activeRegionsLabel.setText(Integer.toString(boundItem.detectedActiveRegions().get()));
@@ -288,7 +284,7 @@ public final class BatchDetailDrawer {
             openFolderButton.setDisable(true);
             return;
         }
-        ObservableList<File> files = boundItem.generatedFiles();
+        var files = boundItem.generatedFiles();
         List<File> snapshot;
         synchronized (files) {
             snapshot = new ArrayList<>(files);
@@ -377,7 +373,7 @@ public final class BatchDetailDrawer {
     }
 
     private static String extensionOf(String name) {
-        int dot = name.lastIndexOf('.');
+        var dot = name.lastIndexOf('.');
         return dot < 0 ? "" : name.substring(dot + 1);
     }
 

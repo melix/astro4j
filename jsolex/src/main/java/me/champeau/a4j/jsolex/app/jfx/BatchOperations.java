@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
-import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 
 import java.util.ArrayList;
@@ -70,7 +70,7 @@ public final class BatchOperations {
     public static <T> T blockingUntilResultAvailable(Supplier<T> supplier) {
         var ref = new AtomicReference<T>();
         var latch = new CountDownLatch(1);
-        Platform.runLater(() -> {
+        FxUtils.runLater(() -> {
             try {
                 ref.set(supplier.get());
             } finally {
@@ -102,7 +102,7 @@ public final class BatchOperations {
                 } finally {
                     LOCK.unlock();
                 }
-                Platform.runLater(() -> {
+                FxUtils.runLater(() -> {
                     for (Runnable action : actions) {
                         action.run();
                     }

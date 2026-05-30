@@ -24,31 +24,21 @@ import ch.qos.logback.core.Appender;
 import ch.qos.logback.core.AppenderBase;
 import ch.qos.logback.core.FileAppender;
 import ch.qos.logback.core.layout.EchoLayout;
-import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
+import me.champeau.a4j.jsolex.processing.util.ProcessingLogContext;
 import org.fxmisc.richtext.LineNumberFactory;
 import org.fxmisc.richtext.StyleClassedTextArea;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 
 class LogbackConfigurer {
 
-    private static final Map<String, Integer> THREAD_NAME_TO_PID = new ConcurrentHashMap<>();
     public static final String LOGGER_PATTERN = "%d{HH:mm:ss.SSS} [%level] %msg%n";
 
     private LogbackConfigurer() {
 
-    }
-
-    public static void recordThreadOwner(String name, int id) {
-        THREAD_NAME_TO_PID.put(name, id);
-    }
-
-    public static void clearOwners() {
-        THREAD_NAME_TO_PID.clear();
     }
 
     public static void configureLevel(Class<?> clazz, Level level) {
@@ -82,7 +72,7 @@ class LogbackConfigurer {
         AppenderBase<ILoggingEvent> appender = new AppenderBase<>() {
             @Override
             protected void append(ILoggingEvent eventObject) {
-                Platform.runLater(() -> {
+                FxUtils.runLater(() -> {
                     var level = eventObject.getLevel();
                     var sb = new StringBuilder(eventObject.getFormattedMessage());
                     sb.append(System.lineSeparator());
@@ -155,8 +145,8 @@ class LogbackConfigurer {
 
         @Override
         public void doAppend(ILoggingEvent eventObject) {
-            var tid = THREAD_NAME_TO_PID.get(eventObject.getThreadName());
-            if (tid != null && id == tid) {
+            var current = ProcessingLogContext.currentFileId();
+            if (current.isPresent() && current.getAsInt() == id) {
                 super.doAppend(eventObject);
             }
         }

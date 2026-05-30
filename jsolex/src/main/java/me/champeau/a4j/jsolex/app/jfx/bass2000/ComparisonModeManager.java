@@ -18,7 +18,7 @@ package me.champeau.a4j.jsolex.app.jfx.bass2000;
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
-import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
@@ -474,7 +474,7 @@ public class ComparisonModeManager {
         });
 
         fullscreenStage.show();
-        Platform.runLater(() -> {
+        FxUtils.runLater(() -> {
             root.requestFocus();
             fullscreenStage.toFront();
         });

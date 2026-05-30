@@ -23,6 +23,7 @@ import me.champeau.a4j.jsolex.processing.sun.tasks.WriteColorizedImageTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.WriteMonoImageTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.WriteRGBImageTask;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
+import me.champeau.a4j.jsolex.processing.util.ProcessingLogContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
@@ -36,7 +37,6 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -112,14 +112,14 @@ public class DefaultImageEmitter implements ImageEmitter {
     private void track(Runnable task, Executor exec) {
         var submissionSite = new Throwable("submission site");
         outstanding.incrementAndGet();
-        CompletableFuture.runAsync(() -> {
+        ProcessingLogContext.runAsync(exec, () -> {
             try {
                 task.run();
             } catch (Throwable t) {
                 t.addSuppressed(submissionSite);
                 throw t;
             }
-        }, exec)
+        })
                 .whenComplete((r, t) -> {
                     if (t != null) {
                         firstFailure.compareAndSet(null, t);

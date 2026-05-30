@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx.spectrosolhub;
 
-import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.beans.value.ChangeListener;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -235,7 +235,7 @@ class Step3OrientationHandler implements StepHandler {
                     image = RGBImage.toRGB(mono);
                 }
                 var writableImage = WritableImageSupport.asWritable(image);
-                Platform.runLater(() -> {
+                FxUtils.runLater(() -> {
                     userImageView.setImage(writableImage);
                     userImageView.resetZoom();
                     if (gongReferenceImage != null) {
@@ -262,15 +262,15 @@ class Step3OrientationHandler implements StepHandler {
         BackgroundOperations.async(() -> {
             try {
                 var candidates = GONG.listGongCandidates(observationDate);
-                Platform.runLater(() -> populateGongSiteMenu(candidates, observationDate));
+                FxUtils.runLater(() -> populateGongSiteMenu(candidates, observationDate));
                 if (candidates.isEmpty()) {
-                    Platform.runLater(this::showGongUnavailableLabel);
+                    FxUtils.runLater(this::showGongUnavailableLabel);
                     return;
                 }
                 loadGongCandidate(candidates.getFirst());
             } catch (Exception e) {
                 LOGGER.error("Failed to load GONG reference image", e);
-                Platform.runLater(this::showGongUnavailableLabel);
+                FxUtils.runLater(this::showGongUnavailableLabel);
             }
         });
     }
@@ -343,12 +343,12 @@ class Step3OrientationHandler implements StepHandler {
         try {
             var url = GONG.fetchCandidateImage(candidate);
             if (url.isEmpty()) {
-                Platform.runLater(this::showGongUnavailableLabel);
+                FxUtils.runLater(this::showGongUnavailableLabel);
                 return;
             }
             try (var inputStream = url.get().openStream()) {
                 var image = new Image(inputStream);
-                Platform.runLater(() -> {
+                FxUtils.runLater(() -> {
                     if (!image.isError()) {
                         gongReferenceImage = image;
                         restoreGongImageView();
@@ -368,7 +368,7 @@ class Step3OrientationHandler implements StepHandler {
             }
         } catch (Exception e) {
             LOGGER.error("Failed to load GONG candidate image", e);
-            Platform.runLater(this::showGongUnavailableLabel);
+            FxUtils.runLater(this::showGongUnavailableLabel);
         }
     }
 

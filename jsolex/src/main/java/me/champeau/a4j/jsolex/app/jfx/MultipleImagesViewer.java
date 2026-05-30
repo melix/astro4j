@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
-import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.beans.binding.Bindings;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -162,7 +162,7 @@ public class MultipleImagesViewer extends Pane {
     public void clear() {
         try {
             lock.lock();
-            Platform.runLater(() -> {
+            FxUtils.runLater(() -> {
                 safeCategories.clear();
                 categories.clear();
                 borderPane.setCenter(null);
@@ -270,7 +270,7 @@ public class MultipleImagesViewer extends Pane {
                 if (selectedView instanceof ImageViewer previous && previous != viewer) {
                     previous.hideOverlayPanel();
                 }
-                Platform.runLater(() -> {
+                FxUtils.runLater(() -> {
                     borderPane.setCenter(transformed.getRoot());
                     var hook = onShowHooks.get(transformed);
                     if (hook != null) {
@@ -362,7 +362,7 @@ public class MultipleImagesViewer extends Pane {
             viewer.fitHeightProperty().bind(heightProperty().subtract(buttonBox.heightProperty()));
             var hyperlink = category.addVideo(title, link -> {
                 categories().forEach(CategoryPane::clearSelection);
-                Platform.runLater(() -> borderPane.setCenter(contentBox));
+                FxUtils.runLater(() -> borderPane.setCenter(contentBox));
                 selected = link;
                 selectedView = contentBox;
             }, this::onClose);
@@ -412,7 +412,7 @@ public class MultipleImagesViewer extends Pane {
 
             var hyperlink = category.addVideo(title, link -> {
                 categories().forEach(CategoryPane::clearSelection);
-                Platform.runLater(() -> borderPane.setCenter(contentBox));
+                FxUtils.runLater(() -> borderPane.setCenter(contentBox));
                 selected = link;
                 selectedView = contentBox;
             }, this::onClose);
@@ -500,7 +500,7 @@ public class MultipleImagesViewer extends Pane {
         categoryPane.getProperties().put(DisplayCategory.class, category);
         safeCategories.add(categoryPane);
         safeCategories.sort(Comparator.comparingInt(t -> categoryOf(t).ordinal()));
-        Platform.runLater(() -> categories.setAll(safeCategories));
+        FxUtils.runLater(() -> categories.setAll(safeCategories));
         return categoryPane;
     }
 

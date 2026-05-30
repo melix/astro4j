@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
-import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.fxml.FXML;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -144,7 +144,7 @@ public class FlatSelectionController {
     }
 
     private void createMasterFlat(Path path) {
-        Platform.runLater(() -> {
+        FxUtils.runLater(() -> {
             helpMessage.setDisable(true);
             selectFlatButton.setDisable(true);
             cancelButton.setDisable(true);
@@ -156,7 +156,7 @@ public class FlatSelectionController {
             var sourceFileName = path.toFile().getName();
             var masterFlatFile = path.resolveSibling(sourceFileName.substring(0, sourceFileName.lastIndexOf('.')) + "_MasterFlat.fits");
             FitsUtils.writeFitsFile(flat, masterFlatFile.toFile(), params);
-            Platform.runLater(() -> stage.close());
+            FxUtils.runLater(() -> stage.close());
             onClose.accept(Optional.of(masterFlatFile));
         });
     }

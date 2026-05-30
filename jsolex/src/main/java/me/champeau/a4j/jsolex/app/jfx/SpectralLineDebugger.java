@@ -18,7 +18,7 @@ package me.champeau.a4j.jsolex.app.jfx;
 import javafx.animation.KeyFrame;
 import javafx.animation.PauseTransition;
 import javafx.animation.Timeline;
-import javafx.application.Platform;
+import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.beans.value.ChangeListener;
 import javafx.fxml.FXML;
 import javafx.scene.Parent;
@@ -246,7 +246,7 @@ public class SpectralLineDebugger {
                     double finalImageX = imageX;
                     double finalImageY = imageY;
                     fireZoomChanged(scene);
-                    Platform.runLater(() -> {
+                    FxUtils.runLater(() -> {
                         double newScale = canvas.getWidth() / image.getWidth();
                         double newContentWidth = canvas.getWidth();
                         double newContentHeight = canvas.getHeight();
@@ -368,7 +368,7 @@ public class SpectralLineDebugger {
         var converter = createImageConverter(colorMode);
         this.converter = converter;
         this.scene = scene;
-        Platform.runLater(() -> progressBox.setVisible(true));
+        FxUtils.runLater(() -> progressBox.setVisible(true));
         var detector = new AverageImageCreator(converter,
                 operation,
                 event -> {
@@ -383,7 +383,7 @@ public class SpectralLineDebugger {
             var tmpPath = TemporaryFolder.newTempFile("debug_", ".png");
             File imageFile = tmpPath.toFile();
             resetPolynomial.setDisable(true);
-            Platform.runLater(() -> {
+            FxUtils.runLater(() -> {
                 status.setDisable(false);
                 progressBox.setVisible(false);
                 var header = reader.header();
@@ -653,7 +653,7 @@ public class SpectralLineDebugger {
         int w = rgb.width();
         int h = rgb.height();
         int[] argb = rgbToArgb(rgb);
-        Platform.runLater(() -> {
+        FxUtils.runLater(() -> {
             if (!isPlaying) {
                 return;
             }
