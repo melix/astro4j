@@ -117,6 +117,7 @@ import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
 import me.champeau.a4j.jsolex.processing.sun.TrimmingParameters;
+import me.champeau.a4j.jsolex.processing.sun.workflow.AverageImage;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
@@ -1940,6 +1941,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 .progressOperation(rootOperation)
                 .serFileReader(payload.serFileReader())
                 .spectralLinePolynomial(payload.polynomialCoefficients() != null ? new SpectralLinePolynomial(payload.polynomialCoefficients()) : null)
+                .averageImage(payload.averageImage() != null ? new AverageImage(payload.averageImage()[0].length, payload.averageImage().length, payload.averageImage()) : null)
                 .build();
     }
 

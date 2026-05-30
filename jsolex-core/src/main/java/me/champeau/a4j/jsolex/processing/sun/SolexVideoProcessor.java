@@ -65,6 +65,7 @@ import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.sun.tasks.EllipseFittingTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.GeometryCorrector;
+import me.champeau.a4j.jsolex.processing.sun.workflow.AverageImage;
 import me.champeau.a4j.jsolex.processing.sun.workflow.DefaultImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.DiscardNonRequiredImages;
 import me.champeau.a4j.jsolex.processing.sun.workflow.DopplerSupport;
@@ -1179,6 +1180,7 @@ public class SolexVideoProcessor implements Broadcaster {
                             .ellipse(circle)
                             .imageStats(finalImageStats)
                             .spectralLinePolynomial(polynomialCoefficients != null ? new SpectralLinePolynomial(polynomialCoefficients) : null)
+                            .averageImage(averageImage != null ? new AverageImage(averageImage[0].length, averageImage.length, averageImage) : null)
                             .build()
                             .mergeAll(additionalContext);
                     var scriptRunner = new DefaultImageScriptExecutor(shift -> {

@@ -67,6 +67,8 @@ import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
 import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
+import me.champeau.a4j.jsolex.processing.sun.DistortionCorrection;
+import me.champeau.a4j.jsolex.processing.sun.workflow.AverageImage;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShiftRange;
@@ -82,6 +84,7 @@ import me.champeau.a4j.jsolex.processing.util.ImageSaver;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MetadataMerger;
+import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
 import me.champeau.a4j.jsolex.processing.util.Wavelen;
 import me.champeau.a4j.math.image.ImageMath;
@@ -319,6 +322,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case AUTO_CONTRAST -> adjustContrast.autoContrast(arguments);
             case AUTOCROP -> crop.autocrop(arguments);
             case AUTOCROP2 -> crop.autocrop2(arguments);
+            case AVERAGE_IMAGE -> createAverageImage(arguments);
             case AVG -> simpleFunctionCall.applyFunction("avg", arguments, DoubleStream::average);
             case AVG2 -> simpleFunctionCall.applyFunction("avg2", arguments, stream -> {
                 var sigma = ((Number) arguments.get("sigma")).doubleValue();
@@ -528,6 +532,39 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
 
         }
         return (ImageWrapper32) functionCall(BuiltinFunction.MEDIAN, Map.of("list", samples));
+    }
+
+    /**
+     * Returns the average image computed from the SER file frames, optionally
+     * corrected for distortion using the spectral line polynomial.
+     *
+     * @param arguments function arguments, with an optional {@code corrected} flag
+     * @return the average image
+     */
+    public ImageWrapper32 createAverageImage(Map<String, Object> arguments) {
+        BuiltinFunction.AVERAGE_IMAGE.validateArgs(arguments);
+        var average = (AverageImage) context.get(AverageImage.class);
+        if (average == null) {
+            throw new IllegalStateException("The average image is not available in this context");
+        }
+        var width = average.width();
+        var height = average.height();
+        var correctedArg = arguments.get("corrected");
+        boolean corrected = correctedArg != null && asScalar(correctedArg).doubleValue() != 0;
+        float[][] data;
+        if (corrected) {
+            var polynomial = (SpectralLinePolynomial) context.get(SpectralLinePolynomial.class);
+            if (polynomial == null) {
+                throw new IllegalStateException("Cannot compute the corrected average image because the spectral line polynomial is not available");
+            }
+            data = new DistortionCorrection(average.data(), width, height).polynomialCorrection(polynomial::applyAsDouble);
+        } else {
+            data = new float[height][];
+            for (int y = 0; y < height; y++) {
+                data[y] = average.data()[y].clone();
+            }
+        }
+        return new ImageWrapper32(width, height, data, MutableMap.of());
     }
 
     /**

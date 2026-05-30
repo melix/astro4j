@@ -1,0 +1,15 @@
+name: AVERAGE_IMAGE
+category: ANALYSIS
+description:
+  fr: "Renvoie l'image moyenne calculée à partir des trames du fichier SER. Si le paramètre corrected vaut 1, l'image est corrigée de la distorsion (courbe polynomiale redressée)."
+  en: "Returns the average image computed from the SER file frames. If the corrected parameter is set to 1, the image is corrected for distortion (polynomial curve straightened)."
+arguments:
+  - name: corrected
+    optional: true
+    default: 0
+    description:
+      fr: "Si égal à 1, applique la correction de distorsion polynomiale."
+      en: "If set to 1, applies the polynomial distortion correction."
+examples:
+  - "average_image()"
+  - "average_image(corrected: 1)"
