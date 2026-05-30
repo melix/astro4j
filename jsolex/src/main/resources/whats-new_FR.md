@@ -9,6 +9,7 @@
 - Correction des fichiers log qui étaient vides en mode batch
 - Correction d'un plantage lors de la génération des animations et panneaux de redshift
 - Ajout d'un suivi de progression lors de la génération des animations et panneaux de redshift
+- Correction du marqueur de raie spectrale dans la vue de reconstruction qui était mal positionné
 
 ## Nouveautés de la version 5.2.2
 

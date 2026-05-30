@@ -609,7 +609,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             }
             var solarViewOverlay = view.getSolarViewOverlay();
             var solarView = view.getSolarView();
-            BiConsumer<Double, Double> triggerAt = (imageX, frameNbObj) -> {
+            var lastMarkerPosition = new double[]{Double.NaN, Double.NaN};
+            BiConsumer<Double, Double> drawMarkers = (imageX, frameNbObj) -> {
                 var gso = solarViewOverlay.getGraphicsContext2D();
                 var spectrumViewOverlay = view.getSpectrumViewOverlay();
                 var gsp = spectrumViewOverlay.getGraphicsContext2D();
@@ -639,6 +640,24 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     gsp.fillRect(screenX - cw, spectrumY, 2 * cw, 1);
                     gsp.fillRect(screenX, spectrumY - cw, 1, 2 * cw);
                 }
+            };
+            Runnable redrawMarkers = () -> {
+                if (!Double.isNaN(lastMarkerPosition[0])) {
+                    drawMarkers.accept(lastMarkerPosition[0], lastMarkerPosition[1]);
+                }
+            };
+            solarView.getImageView().layoutBoundsProperty().addListener((obs, old, bounds) -> redrawMarkers.run());
+            solarView.getScrollPane().hvalueProperty().addListener((obs, old, value) -> redrawMarkers.run());
+            solarView.getScrollPane().vvalueProperty().addListener((obs, old, value) -> redrawMarkers.run());
+            BiConsumer<Double, Double> triggerAt = (imageX, frameNbObj) -> {
+                lastMarkerPosition[0] = imageX;
+                lastMarkerPosition[1] = frameNbObj;
+                drawMarkers.accept(imageX, frameNbObj);
+                double frameNb = frameNbObj;
+                if (frameNb < 0 || frameNb >= frameCount) {
+                    return;
+                }
+                var xIndex = (int) Math.round(imageX);
                 try (var reader = serFileReader.reopen()) {
                     reader.seekFrame((int) frameNb);
                     var currentFrame = reader.currentFrame().data();

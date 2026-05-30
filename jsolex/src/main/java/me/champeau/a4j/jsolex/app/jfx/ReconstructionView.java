@@ -96,7 +96,7 @@ public class ReconstructionView extends BorderPane implements WithRootNode {
         solarViewOverlay.widthProperty().bind(solarView.layoutBoundsProperty().map(Bounds::getWidth));
         solarViewOverlay.heightProperty().bind(solarView.layoutBoundsProperty().map(Bounds::getHeight));
         solarViewStack.setAlignment(Pos.BASELINE_LEFT);
-        spectrumViewStack.setAlignment(Pos.BASELINE_LEFT);
+        spectrumViewStack.setAlignment(Pos.TOP_LEFT);
         solarViewStack.setMinSize(0, 0);
         solarView.setMinSize(0, 0);
         setTop(spectrumViewStack);

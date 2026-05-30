@@ -9,6 +9,7 @@
 - Fixed a bug which caused log files to be empty in batch mode
 - Fixed a crash when generating redshift animations and panels
 - Added progress reporting while generating redshift animations and panels
+- Fixed the spectrum line marker in the reconstruction view being misplaced
 
 ## What's New in Version 5.2.2
 
