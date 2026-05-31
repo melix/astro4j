@@ -2267,6 +2267,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             for (var dataPoint : normalizedDataPoints.dataPoints()) {
                 addDataPointToSeries(dataPoint, series);
             }
+            // Shared normalization basis so frame and clicked-line profiles, which are on the
+            // same intensity scale as the average image, read below 100 at darker locations.
+            var sharedMaxIntensity = normalizedDataPoints.maxIntensity();
 
             // Compute line statistics from the normalized data, using reference for continuum if available
             // Pass the real line center (selected wavelength) for accurate reporting
@@ -2329,7 +2332,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     }
                 }
 
-                normalizedFrameDataPoints = SpectralProfileHelper.normalizeDatapoints(frameDataPoints, null);
+                normalizedFrameDataPoints = SpectralProfileHelper.normalizeDatapoints(frameDataPoints, sharedMaxIntensity);
                 for (var dataPoint : normalizedFrameDataPoints.dataPoints()) {
                     addDataPointToSeries(dataPoint, frameSeries);
                 }
@@ -2347,8 +2350,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 lineSeries.setName(lineLabel);
                 lineChart.getData().add(lineSeries);
 
-                // Normalize line data independently
-                normalizedLineDataPoints = SpectralProfileHelper.normalizeDatapoints(lineDataPoints, null);
+                normalizedLineDataPoints = SpectralProfileHelper.normalizeDatapoints(lineDataPoints, sharedMaxIntensity);
                 for (var dataPoint : normalizedLineDataPoints.dataPoints()) {
                     addDataPointToSeries(dataPoint, lineSeries);
                 }

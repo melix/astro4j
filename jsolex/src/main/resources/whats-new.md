@@ -10,6 +10,7 @@
 - Fixed a crash when generating redshift animations and panels
 - Added progress reporting while generating redshift animations and panels
 - Fixed the spectrum line marker in the reconstruction view being misplaced
+- The spectrum profile now scales the frame and clicked-line intensities against the average image
 
 ## What's New in Version 5.2.2
 

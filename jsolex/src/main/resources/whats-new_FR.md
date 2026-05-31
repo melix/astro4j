@@ -10,6 +10,7 @@
 - Correction d'un plantage lors de la génération des animations et panneaux de redshift
 - Ajout d'un suivi de progression lors de la génération des animations et panneaux de redshift
 - Correction du marqueur de raie spectrale dans la vue de reconstruction qui était mal positionné
+- Le profil spectral normalise désormais les intensités de la trame et de la ligne cliquée par rapport à l'image moyenne
 
 ## Nouveautés de la version 5.2.2
 
