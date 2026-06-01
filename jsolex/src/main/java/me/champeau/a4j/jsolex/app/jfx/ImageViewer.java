@@ -164,13 +164,16 @@ public class ImageViewer implements WithRootNode {
         loadingIndicator.setMouseTransparent(true);
         this.imageContainer = new StackPane(imageView, loadingIndicator);
         this.stretchingParams = new VBox();
+        stretchingParams.getStyleClass().add("image-viewer-toolbar");
         stretchingParams.setAlignment(Pos.CENTER_LEFT);
         stretchingParams.setSpacing(5);
         stretchingParams.setPadding(new Insets(10));
         var pane = new BorderPane();
-        pane.setPadding(new Insets(5));
+        pane.getStyleClass().add("image-viewer-root");
+        pane.setPadding(new Insets(8));
         pane.setTop(stretchingParams);
         pane.setCenter(imageContainer);
+        BorderPane.setMargin(stretchingParams, new Insets(0, 0, 8, 0));
         this.root = pane;
         this.stretchedImageDebounce = new PauseTransition(Duration.seconds(10));
         this.stretchedImageDebounce.setOnFinished(e -> {

@@ -116,7 +116,9 @@ public class MultipleImagesViewer extends Pane {
         borderPane.prefHeightProperty().bind(heightProperty());
 
         var sideBar = new VBox();
+        sideBar.getStyleClass().add("image-list-sidebar");
         var categoriesContainer = new VBox();
+        categoriesContainer.getStyleClass().add("image-list-categories");
         categories = categoriesContainer.getChildren();
 
         var actionsSection = createActionsSection();
@@ -124,6 +126,7 @@ public class MultipleImagesViewer extends Pane {
         sideBar.getChildren().addAll(categoriesContainer, actionsSection);
 
         var scrollPane = new ScrollPane(sideBar);
+        scrollPane.getStyleClass().add("image-list-scroll");
         scrollPane.setFitToWidth(true);
         scrollPane.visibleProperty().bind(Bindings.size(categories).greaterThan(0));
         sideScrollPane = scrollPane;
@@ -155,6 +158,7 @@ public class MultipleImagesViewer extends Pane {
         actionsSection.getChildren().add(titleLabel);
 
         var collageBox = new HBox();
+        collageBox.getStyleClass().add("category-row");
         collageBox.setAlignment(Pos.CENTER_LEFT);
 
         var collageLink = new Hyperlink(message("create.collage"));

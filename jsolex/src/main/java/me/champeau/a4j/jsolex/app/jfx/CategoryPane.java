@@ -63,6 +63,7 @@ public class CategoryPane extends VBox {
 
     Hyperlink addImage(String title, PixelShift pixelShift, Consumer<? super Hyperlink> onClick, Consumer<? super Hyperlink> onClose, Consumer<? super String> onRename, Runnable onClone) {
         var box = new HBox();
+        box.getStyleClass().add("category-row");
         box.getProperties().put(PixelShift.class, pixelShift);
         box.setAlignment(Pos.CENTER_LEFT);
         var link = new Hyperlink(title);
@@ -210,6 +211,7 @@ public class CategoryPane extends VBox {
         link.getStyleClass().add("category-link");
         links.add(link);
         var box = new HBox();
+        box.getStyleClass().add("category-row");
         box.setAlignment(Pos.CENTER_LEFT);
         var spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -221,14 +223,18 @@ public class CategoryPane extends VBox {
 
     private void select(Hyperlink link) {
         clearSelection();
-        link.getStyleClass().add("category-link-selected");
+        if (link.getParent() instanceof HBox row) {
+            row.getStyleClass().add("category-row-selected");
+        }
         selected = link;
     }
 
     /** Clears the current selection. */
     public void clearSelection() {
         if (selected != null) {
-            selected.getStyleClass().remove("category-link-selected");
+            if (selected.getParent() instanceof HBox row) {
+                row.getStyleClass().remove("category-row-selected");
+            }
             selected = null;
         }
     }
