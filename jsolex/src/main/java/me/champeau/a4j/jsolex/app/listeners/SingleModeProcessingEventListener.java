@@ -37,9 +37,7 @@ import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ProgressBar;
-import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Tab;
-import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.PixelFormat;
@@ -135,7 +133,6 @@ import me.champeau.a4j.jsolex.processing.util.Histogram;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.LocaleUtils;
-import me.champeau.a4j.jsolex.processing.util.MetadataSupport;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.jsolex.processing.util.SolarParameters;
@@ -178,7 +175,6 @@ import java.util.function.Consumer;
 import java.util.function.DoubleConsumer;
 import java.util.function.DoubleUnaryOperator;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
@@ -243,7 +239,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private final AtomicInteger concurrentNotifications = new AtomicInteger();
     private final Tab profileTab;
     private final Tab statsTab;
-    private final Tab metadataTab;
     private final Tab analysisTab;
     private final WeakHashMap<ImageWrapper, List<CachedHistogram>> cachedHistograms = new WeakHashMap<>();
     private final LocalDateTime processingDate;
@@ -260,10 +255,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private final Map<String, Object> pendingVariables = new HashMap<>();
     private long sd;
     private final Map<PixelShift, ImageWrapper> shiftImages;
-    private int width;
-    private int height;
     private Ellipse mainEllipse;
-    private SpectralRay detectedSpectralRay;
     private ProgressOperation reconstructionProgress;
 
     private final AtomicInteger cropCount = new AtomicInteger();
@@ -317,15 +309,12 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         this.statsTab = owner.getStatsTab();
         this.profileTab = owner.getProfileTab();
         this.analysisTab = owner.getAnalysisTab();
-        this.metadataTab = owner.getMetadataTab();
         this.popupViews = popupViews;
         this.shiftImages = new HashMap<>();
         this.processingDate = processingDate;
         this.spectral3DHelper = new Spectral3DVisualizationHelper(this);
         imageViews = new ConcurrentHashMap<>();
         sd = 0;
-        width = 0;
-        height = 0;
     }
 
     // DataProvider interface implementation
@@ -418,8 +407,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     @Override
     public void onOutputImageDimensionsDetermined(OutputImageDimensionsDeterminedEvent event) {
         LOGGER.info(message("dimensions.determined"), event.getLabel(), event.getWidth(), event.getHeight());
-        width = event.getWidth();
-        height = event.getHeight();
+        event.getWidth();
+        event.getHeight();
     }
 
     private ReconstructionView createImageViewOnFx(double pixelShift, byte[] buffer, int bufferWidth, int bufferHeight,
@@ -675,7 +664,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                         currentColumn = xIndex;
                         currentSpectrumFrameData = spectrum.data();
                         if (profileViewFactory != null) {
-                            FxUtils.runLater(() -> profileTab.setContent(profileViewFactory.get()));
+                            FxUtils.runLater(() -> enableTab(profileTab, profileViewFactory.get()));
                         }
                     }
                 } catch (Exception ex) {
@@ -837,10 +826,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     viewer -> viewer.setOnStretchedImageUpdate(stretchedImage -> {
                         BackgroundOperations.async(() -> {
                             var histogram = showHistogram(stretchedImage);
-                            FxUtils.runLater(() -> {
-                                statsTab.setContent(histogram);
-                                showMetadata(stretchedImage.metadata());
-                            });
+                            FxUtils.runLater(() -> enableTab(statsTab, histogram));
                         });
                     }));
             var pixelShiftRange = imageWrapper.findMetadata(PixelShiftRange.class).orElse(new PixelShiftRange(-15, 15, .25));
@@ -1381,7 +1367,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 var madEq = point[2];
                 var cosLat = Math.cos(Math.toRadians(latDeg));
                 var theoreticalVEq = snodgrassVelocity(latDeg);
-                var fitVEq = fittedCoeffs.tangentialVelocity(latDeg) / cosLat; // Convert back to equatorial
+                fittedCoeffs.tangentialVelocity(latDeg); // Convert back to equatorial
                 writer.printf(Locale.US, "%.2f;%.4f;%.4f;%.4f;%.4f;%.4f;%.4f;%.4f;%.4f%n",
                         latDeg, vEq * cosLat, madEq * cosLat, theoreticalVEq * cosLat, fittedCoeffs.tangentialVelocity(latDeg),
                         velocityToAngularVelocity(vEq), velocityToAngularVelocity(madEq),
@@ -1707,7 +1693,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         var cosB0 = Math.cos(-b0);
         var sinB0 = Math.sin(-b0);
         var y1 = y * cosB0 - z * sinB0;
-        var z1 = y * sinB0 + z * cosB0;
 
         // Rotate around Z axis by -angleP
         var cosP = Math.cos(-angleP);
@@ -1716,25 +1701,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         var y2 = x * sinP + y1 * cosP;
 
         return new double[]{x2, y2};
-    }
-
-    private void showMetadata(Map<Class<?>, Object> metadata) {
-        var metadataPane = new VBox();
-        metadataPane.setSpacing(10);
-        var metadataContent = new ScrollPane(metadataPane);
-        metadataContent.setFitToWidth(true);
-        metadataContent.setFitToHeight(true);
-        metadataTab.setContent(metadataContent);
-        var view = new TextArea();
-        view.setEditable(false);
-        view.setWrapText(true);
-        view.setText(metadata.entrySet().stream()
-                .sorted(Map.Entry.comparingByKey(new MetadataComparator()))
-                .map(e -> MetadataSupport.render(e.getKey(), e.getValue()))
-                .filter(Optional::isPresent)
-                .map(Optional::get)
-                .collect(Collectors.joining("\n")));
-        metadataContent.setContent(view);
     }
 
     private BarChart<String, Number> showHistogram(ImageWrapper imageWrapper) {
@@ -1765,6 +1731,11 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         var histogram = createHistogramChart();
         registerSaveChartAction(new GraphData.HistogramData(histogram, () -> showHistogram(imageWrapper)));
         return histogram;
+    }
+
+    private static void enableTab(Tab tab, Node content) {
+        tab.setContent(content);
+        tab.setDisable(false);
     }
 
     private static final ObservableList<String> HISTOGRAM_CATEGORIES;
@@ -1858,16 +1829,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         scriptValuesByLabel.clear();
         var spectralRay = params.spectrumParams().ray();
         if (spectralRay != null && !SpectralRay.AUTO.equals(spectralRay)) {
-            detectedSpectralRay = spectralRay;
             owner.updateSpectralLineIndicator(spectralRay, false);
         }
-        FxUtils.runLater(() -> {
-            var logsTab = owner.getLogsTab();
-            var tabPane = logsTab.getTabPane();
-            if (tabPane != null) {
-                tabPane.getSelectionModel().select(logsTab);
-            }
-        });
+        FxUtils.runLater(owner::revealConsole);
     }
 
     @Override
@@ -1943,12 +1907,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         LOGGER.info(message("processing.done"));
         LOGGER.info(finishedString);
         broadcast(rootOperation.update(1, finishedString));
-        FxUtils.runLater(() -> {
-            var tabPane = profileTab.getTabPane();
-            if (tabPane != null) {
-                tabPane.getSelectionModel().select(profileTab);
-            }
-        });
+        FxUtils.runLater(owner::revealProfilePanel);
     }
 
     private ScriptExecutionContext prepareExecutionContext(ProcessingDoneEvent.Outcome payload) {
@@ -2211,7 +2170,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             var lineChart = new LineChart<>(xAxis, yAxis);
             var series = new XYChart.Series<String, Number>();
             var image = payload.image();
-            var width = image.width();
             var height = image.height();
             var start = payload.leftBorder();
             var end = payload.rightBorder();
@@ -2442,12 +2400,12 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             return mainPane;
         };
         if (Platform.isFxApplicationThread()) {
-            profileTab.setContent(profileViewFactory.get());
-            analysisTab.setContent(buildAnalysisTabContent(payload));
+            enableTab(profileTab, profileViewFactory.get());
+            enableTab(analysisTab, buildAnalysisTabContent(payload));
         } else {
             FxUtils.runLater(() -> {
-                profileTab.setContent(profileViewFactory.get());
-                analysisTab.setContent(buildAnalysisTabContent(payload));
+                enableTab(profileTab, profileViewFactory.get());
+                enableTab(analysisTab, buildAnalysisTabContent(payload));
             });
         }
 
@@ -3102,7 +3060,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         FxUtils.runLater(() -> {
             var tabPane = owner.getTabs();
             var imagesViewerTab = owner.getImagesViewerTab();
-            tabPane.getTabs().add(imagesViewerTab);
+            if (!tabPane.getTabs().contains(imagesViewerTab)) {
+                tabPane.getTabs().add(imagesViewerTab);
+            }
             tabPane.getSelectionModel().select(imagesViewerTab);
         });
         result.imagesByLabel().entrySet().stream().parallel().forEach(entry -> {

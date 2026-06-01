@@ -38,6 +38,7 @@ import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ProgressIndicator;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Slider;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
@@ -50,6 +51,7 @@ import javafx.stage.Stage;
 import javafx.util.Duration;
 import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.JSolEx;
+import me.champeau.a4j.jsolex.app.listeners.MetadataComparator;
 import me.champeau.a4j.jsolex.processing.event.GenericMessage;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
@@ -72,6 +74,7 @@ import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.ImageSaver;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.MetadataSupport;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.jsolex.processing.util.SolarParameters;
 import me.champeau.a4j.jsolex.processing.util.SolarParametersUtils;
@@ -85,6 +88,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -275,6 +279,9 @@ public class ImageViewer implements WithRootNode {
                     });
                     FxUtils.runLater(() -> imageView.getCtxMenu().getItems().add(openInNewWindow));
                 }
+                var showMetadata = new MenuItem(message("show.metadata"));
+                showMetadata.setOnAction(e -> showMetadataDialog());
+                FxUtils.runLater(() -> imageView.getCtxMenu().getItems().add(showMetadata));
             });
             maybeAddMeasurementTool(() -> {
                 var measureDistance = new MenuItem(I18N.string(JSolEx.class, "measures", "measure.distance"));
@@ -282,6 +289,57 @@ public class ImageViewer implements WithRootNode {
                 return measureDistance;
             });
         }
+    }
+
+    private void showMetadataDialog() {
+        var stretched = getStretchedImage();
+        if (stretched == null) {
+            return;
+        }
+        var sections = new VBox();
+        sections.getStyleClass().add("metadata-list");
+        stretched.metadata().entrySet().stream()
+                .sorted(Map.Entry.comparingByKey(new MetadataComparator()))
+                .map(e -> MetadataSupport.render(e.getKey(), e.getValue()))
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .forEach(block -> sections.getChildren().add(renderMetadataBlock(block)));
+
+        var scroll = new ScrollPane(sections);
+        scroll.setFitToWidth(true);
+        scroll.getStyleClass().add("metadata-scroll");
+
+        var header = new Label(title);
+        header.getStyleClass().add("metadata-header");
+        var root = new BorderPane(scroll);
+        root.setTop(header);
+        root.getStyleClass().add("metadata-dialog");
+
+        var stage = newStage();
+        stage.setTitle(message("show.metadata"));
+        stage.setScene(newScene(root));
+        stage.setWidth(540);
+        stage.setHeight(620);
+        if (getRoot().getScene() != null) {
+            stage.initOwner(getRoot().getScene().getWindow());
+        }
+        stage.show();
+    }
+
+    private VBox renderMetadataBlock(String block) {
+        var group = new VBox();
+        group.getStyleClass().add("metadata-group");
+        for (var rawLine : block.split("\n")) {
+            if (rawLine.isBlank()) {
+                continue;
+            }
+            var trimmed = rawLine.strip();
+            var label = new Label(trimmed.startsWith("- ") ? trimmed.substring(2) : trimmed);
+            label.setWrapText(true);
+            label.getStyleClass().add(rawLine.startsWith(" ") || trimmed.startsWith("- ") ? "metadata-item" : "metadata-section");
+            group.getChildren().add(label);
+        }
+        return group;
     }
 
     private void maybeAddMeasurementTool(Supplier<EventTarget> target) {

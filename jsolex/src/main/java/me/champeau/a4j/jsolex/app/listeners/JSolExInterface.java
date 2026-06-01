@@ -50,10 +50,14 @@ public interface JSolExInterface {
     Stage getMainStage();
 
     /**
-     * Returns the logs tab.
-     * @return the logs tab
+     * Reveals the logs console panel.
      */
-    Tab getLogsTab();
+    void revealConsole();
+
+    /**
+     * Reveals the graphs/profile inspector panel.
+     */
+    void revealProfilePanel();
 
     /**
      * Returns the statistics tab.
@@ -78,12 +82,6 @@ public interface JSolExInterface {
      * @return the root stack pane
      */
     StackPane getRootStackPane();
-
-    /**
-     * Returns the metadata tab.
-     * @return the metadata tab
-     */
-    Tab getMetadataTab();
 
     /**
      * Returns the redshift tab.

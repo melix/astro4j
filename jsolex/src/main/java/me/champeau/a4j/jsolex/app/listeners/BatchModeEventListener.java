@@ -580,7 +580,9 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         FxUtils.runLater(() -> {
                 var tabPane = owner.getTabs();
                 var imagesViewerTab = owner.getImagesViewerTab();
-                tabPane.getTabs().add(imagesViewerTab);
+                if (!tabPane.getTabs().contains(imagesViewerTab)) {
+                    tabPane.getTabs().add(imagesViewerTab);
+                }
                 tabPane.getSelectionModel().select(imagesViewerTab);
         });
         result.imagesByLabel().entrySet().stream().parallel().forEach(entry -> {

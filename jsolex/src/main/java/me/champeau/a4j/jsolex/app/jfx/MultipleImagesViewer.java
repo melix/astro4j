@@ -91,6 +91,7 @@ public class MultipleImagesViewer extends Pane {
     private final List<CategoryPane> safeCategories = new ArrayList<>();
     private final ObservableList<Node> categories;
     private final BorderPane borderPane;
+    private ScrollPane sideScrollPane;
     private final ReentrantLock lock = new ReentrantLock();
     private final Map<Object, Runnable> onShowHooks = new HashMap<>();
     private final Map<ImageViewer, String> viewerTitles = new HashMap<>();
@@ -103,6 +104,7 @@ public class MultipleImagesViewer extends Pane {
     private JSolExInterface owner;
     private ProcessParams processParams;
     private Path outputDirectory;
+    private Runnable onImageSelected;
 
     /**
      * Creates a new instance.
@@ -124,8 +126,17 @@ public class MultipleImagesViewer extends Pane {
         var scrollPane = new ScrollPane(sideBar);
         scrollPane.setFitToWidth(true);
         scrollPane.visibleProperty().bind(Bindings.size(categories).greaterThan(0));
+        sideScrollPane = scrollPane;
         borderPane.setLeft(scrollPane);
         getChildren().add(borderPane);
+    }
+
+    /**
+     * Returns the width of the image-list sidebar, or 0 if it is not visible.
+     * @return the sidebar width in pixels
+     */
+    public double computeImageListWidth() {
+        return sideScrollPane != null && sideScrollPane.isVisible() ? sideScrollPane.getWidth() : 0;
     }
 
     private VBox createActionsSection() {
@@ -266,6 +277,9 @@ public class MultipleImagesViewer extends Pane {
                         clonedImage, file, params, popupViews, pixelShift, v -> v, onShow);
             };
             var hyperlink = category.addImage(title, pixelShift, link -> {
+                if (onImageSelected != null) {
+                    onImageSelected.run();
+                }
                 categories().forEach(CategoryPane::clearSelection);
                 if (selectedView instanceof ImageViewer previous && previous != viewer) {
                     previous.hideOverlayPanel();
@@ -564,6 +578,14 @@ public class MultipleImagesViewer extends Pane {
         this.owner = owner;
         this.processParams = processParams;
         this.outputDirectory = outputDirectory;
+    }
+
+    /**
+     * Registers a callback invoked whenever the user selects an image link.
+     * @param onImageSelected the callback to run on image selection
+     */
+    public void setOnImageSelected(Runnable onImageSelected) {
+        this.onImageSelected = onImageSelected;
     }
 
     private void createCollage() {
