@@ -12,6 +12,7 @@
 - Reorganised the right-hand panel with a labelled panel selector and a dedicated image publishing panel.
 - Fixed the spectrum line marker in the reconstruction view being misplaced
 - The spectrum profile now scales the frame and clicked-line intensities against the average image
+- The spectral profile tab can now display absolute intensities (ADU) instead of values normalized to 100
 
 ## What's New in Version 5.2.2
 

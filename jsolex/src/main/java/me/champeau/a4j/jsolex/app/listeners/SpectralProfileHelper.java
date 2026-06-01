@@ -57,7 +57,22 @@ final class SpectralProfileHelper {
      * @return the normalized data points with the max intensity used
      */
     static NormalizedDataPoints normalizeDatapoints(List<SpectrumAnalyzer.DataPoint> dataPoints, Double maxIntensity) {
+        return normalizeDatapoints(dataPoints, maxIntensity, false);
+    }
+
+    /**
+     * Normalizes data points to a percentage scale (0-100), or keeps absolute intensities (ADU).
+     *
+     * @param dataPoints the data points to normalize
+     * @param maxIntensity optional maximum intensity for normalization (null to use max from data)
+     * @param absolute when {@code true}, the intensities are left untouched (absolute ADU values)
+     * @return the normalized data points with the max intensity used
+     */
+    static NormalizedDataPoints normalizeDatapoints(List<SpectrumAnalyzer.DataPoint> dataPoints, Double maxIntensity, boolean absolute) {
         var maxSeriesIntensity = dataPoints.stream().mapToDouble(SpectrumAnalyzer.DataPoint::intensity).max().orElse(0);
+        if (absolute) {
+            return new NormalizedDataPoints(dataPoints, maxSeriesIntensity);
+        }
         var maxRef = maxIntensity != null ? maxIntensity : maxSeriesIntensity;
         return new NormalizedDataPoints(dataPoints.stream()
                 .map(dataPoint -> new SpectrumAnalyzer.DataPoint(dataPoint.wavelen(), dataPoint.pixelShift(), 100 * dataPoint.intensity() / maxRef))
