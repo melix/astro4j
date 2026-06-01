@@ -17,52 +17,68 @@ package me.champeau.a4j.jsolex.app.jfx;
 
 import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.embed.swing.SwingFXUtils;
+import javafx.geometry.HPos;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
 import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
+import javafx.scene.layout.ColumnConstraints;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import javafx.util.StringConverter;
 import javafx.util.converter.IntegerStringConverter;
-import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.jsolex.processing.util.GONG;
+import me.champeau.a4j.jsolex.processing.util.GONG.GongCandidate;
+import me.champeau.a4j.jsolex.processing.util.GONG.GongResolution;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.imageio.ImageIO;
 import java.io.File;
 import java.io.IOException;
+import java.text.MessageFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.IMAGE_FILES_EXTENSIONS;
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
 
 /**
  * Helper class for managing reference image downloading and display.
- * Provides UI components for downloading GONG H-alpha images.
+ * Provides UI components for downloading GONG H-alpha images, letting the user
+ * pick the observatory and the image size.
  */
 public final class ReferenceImageHelper {
     private static final Logger LOGGER = LoggerFactory.getLogger(ReferenceImageHelper.class);
+    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm 'UTC'");
 
     private final Stage rootStage;
     private final Tab referenceImageTab;
+
+    private List<GongCandidate> gongCandidates = List.of();
 
     /**
      * Creates a new reference image helper.
@@ -88,96 +104,210 @@ public final class ReferenceImageHelper {
      * @param serFileDate the date from the SER file, or null for current date
      */
     public void createReferenceImageInterface(ZonedDateTime serFileDate) {
-        var vbox = new VBox();
-        vbox.setAlignment(Pos.CENTER);
-        vbox.setSpacing(10);
-        vbox.setPadding(new Insets(10));
+        gongCandidates = List.of();
+
+        var root = new VBox(12);
+        root.setPadding(new Insets(12));
+        root.setFillWidth(true);
 
         var titleLabel = new Label(message("reference.image.selector"));
+        titleLabel.setMaxWidth(Double.MAX_VALUE);
+        titleLabel.setAlignment(Pos.CENTER);
         titleLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
 
-        var datePickerBox = new HBox();
-        datePickerBox.setAlignment(Pos.CENTER);
-        datePickerBox.setSpacing(10);
-
-        var dateLabel = new Label(message("select.date"));
-        dateLabel.setMinWidth(Region.USE_PREF_SIZE);
         var defaultDate = serFileDate != null ? serFileDate.toLocalDate() : LocalDate.now();
         var datePicker = new DatePicker(defaultDate);
-        datePicker.setPrefWidth(120);
-        datePicker.setMaxWidth(120);
+        datePicker.setMaxWidth(Double.MAX_VALUE);
 
-        var timeLabel = new Label(message("select.time"));
-        timeLabel.setMinWidth(Region.USE_PREF_SIZE);
         var defaultTime = serFileDate != null ? serFileDate.toLocalTime() : LocalTime.now(ZoneId.of("UTC"));
         var hourField = createTimeField(defaultTime.getHour(), 0, 23);
         hourField.setText(String.format("%02d", defaultTime.getHour()));
-
         var minuteField = createTimeField(defaultTime.getMinute(), 0, 59);
         minuteField.setText(String.format("%02d", defaultTime.getMinute()));
+        var timeBox = new HBox(5, hourField, new Label(":"), minuteField);
+        timeBox.setAlignment(Pos.CENTER_LEFT);
 
-        var colonLabel = new Label(":");
-        var timeBox = new HBox(5);
-        timeBox.setAlignment(Pos.CENTER);
-        timeBox.getChildren().addAll(hourField, colonLabel, minuteField);
+        var sizeSelector = createSizeSelector();
+        sizeSelector.setMaxWidth(Double.MAX_VALUE);
 
-        datePickerBox.getChildren().addAll(dateLabel, datePicker, timeLabel, timeBox);
+        var form = new GridPane();
+        form.setHgap(8);
+        form.setVgap(8);
+        var labels = new ColumnConstraints();
+        labels.setHalignment(HPos.LEFT);
+        labels.setMinWidth(Region.USE_PREF_SIZE);
+        var fields = new ColumnConstraints();
+        fields.setHgrow(Priority.ALWAYS);
+        fields.setFillWidth(true);
+        form.getColumnConstraints().addAll(labels, fields);
+        form.addRow(0, new Label(message("select.date")), datePicker);
+        form.addRow(1, new Label(message("select.time")), timeBox);
+        form.addRow(2, new Label(message("gong.size")), sizeSelector);
 
         var downloadButton = new Button(message("download.gong.image"));
         downloadButton.getStyleClass().add("primary-button");
-        var messageLabel = new Label();
-        var imageView = new ImageView();
-        imageView.setPreserveRatio(true);
-        imageView.setFitWidth(400);
-        imageView.setFitHeight(400);
+        downloadButton.setMaxWidth(Double.MAX_VALUE);
+        var siteMenuButton = new MenuButton(message("gong.pick.site"));
+        siteMenuButton.setMaxWidth(Double.MAX_VALUE);
+        siteMenuButton.setDisable(true);
+
+        var imageView = new ZoomableImageView();
+        imageView.setMinSize(200, 200);
+        var statusLabel = new Label(message("gong.image.placeholder"));
+        statusLabel.setWrapText(true);
+        statusLabel.setStyle("-fx-text-fill: gray; -fx-font-size: 13px;");
+        statusLabel.setMaxWidth(Double.MAX_VALUE);
+        statusLabel.setAlignment(Pos.CENTER);
+        var imageArea = new StackPane(imageView, statusLabel);
+        imageArea.setStyle("-fx-border-color: gray; -fx-border-width: 1; -fx-background-color: -fx-control-inner-background;");
+        VBox.setVgrow(imageArea, Priority.ALWAYS);
+        setupImageContextMenu(imageView);
 
         downloadButton.setOnAction(e -> {
-            downloadButton.setText(message("downloading.gong.image"));
-            downloadButton.setDisable(true);
-
             var selectedDate = datePicker.getValue();
             var hour = Integer.parseInt(hourField.getText());
             var minute = Integer.parseInt(minuteField.getText());
             var localDateTime = LocalDateTime.of(selectedDate, LocalTime.of(hour, minute));
             var zonedDateTime = ZonedDateTime.of(localDateTime, ZoneId.of("UTC"));
-
-            BackgroundOperations.async(() -> {
-                var optionalURL = GONG.fetchGongImage(zonedDateTime);
-                FxUtils.runLater(() -> {
-                    messageLabel.setManaged(false);
-                    messageLabel.setText("");
-                    optionalURL.ifPresentOrElse(
-                            url -> {
-                                imageView.setImage(new Image(url.toExternalForm()));
-                                setupImageContextMenu(imageView);
-                            },
-                            () -> {
-                                messageLabel.setManaged(true);
-                                messageLabel.setText(message("no.image.available"));
-                                imageView.setImage(null);
-                            });
-                    downloadButton.setText(message("download.gong.image"));
-                    downloadButton.setDisable(false);
-                });
-            });
+            loadCandidates(zonedDateTime, sizeSelector.getValue(), downloadButton, siteMenuButton, imageView, statusLabel);
         });
 
-        vbox.getChildren().addAll(titleLabel, datePickerBox, downloadButton, messageLabel, imageView);
+        root.getChildren().addAll(titleLabel, form, downloadButton, siteMenuButton, imageArea);
 
-        var scrollPane = new ScrollPane(vbox);
+        var scrollPane = new ScrollPane(root);
         scrollPane.setFitToWidth(true);
         scrollPane.setFitToHeight(true);
 
         FxUtils.runLater(() -> referenceImageTab.setContent(scrollPane));
     }
 
+    private void loadCandidates(ZonedDateTime requestedDate,
+                                GongResolution resolution,
+                                Button downloadButton,
+                                MenuButton siteMenuButton,
+                                ZoomableImageView imageView,
+                                Label statusLabel) {
+        downloadButton.setText(message("downloading.gong.image"));
+        downloadButton.setDisable(true);
+        siteMenuButton.setDisable(true);
+
+        BackgroundOperations.async(() -> {
+            var candidates = GONG.oneCandidatePerSite(GONG.listGongCandidates(requestedDate, resolution));
+            FxUtils.runLater(() -> {
+                gongCandidates = candidates;
+                populateSiteMenu(candidates, requestedDate, siteMenuButton, downloadButton, imageView, statusLabel);
+                if (candidates.isEmpty()) {
+                    showStatus(imageView, statusLabel, message("no.image.available"));
+                    downloadButton.setText(message("download.gong.image"));
+                    downloadButton.setDisable(false);
+                } else {
+                    loadCandidate(candidates.getFirst(), downloadButton, siteMenuButton, imageView, statusLabel);
+                }
+            });
+        });
+    }
+
+    private void populateSiteMenu(List<GongCandidate> candidates,
+                                  ZonedDateTime requestedDate,
+                                  MenuButton siteMenuButton,
+                                  Button downloadButton,
+                                  ZoomableImageView imageView,
+                                  Label statusLabel) {
+        siteMenuButton.getItems().clear();
+        if (candidates.isEmpty()) {
+            siteMenuButton.setText(message("gong.pick.site"));
+            siteMenuButton.setDisable(true);
+            return;
+        }
+        var utcRequested = requestedDate.withZoneSameInstant(ZoneId.of("UTC"));
+        for (var candidate : candidates) {
+            var offsetMinutes = ChronoUnit.MINUTES.between(utcRequested, candidate.timestamp());
+            var label = MessageFormat.format(message("gong.candidate"),
+                candidate.siteDisplayName(),
+                candidate.timestamp().format(TIME_FORMATTER),
+                formatOffset(offsetMinutes));
+            var item = new MenuItem(label);
+            item.setOnAction(e -> loadCandidate(candidate, downloadButton, siteMenuButton, imageView, statusLabel));
+            siteMenuButton.getItems().add(item);
+        }
+        siteMenuButton.setDisable(false);
+    }
+
+    private void loadCandidate(GongCandidate candidate,
+                               Button downloadButton,
+                               MenuButton siteMenuButton,
+                               ZoomableImageView imageView,
+                               Label statusLabel) {
+        downloadButton.setText(message("downloading.gong.image"));
+        downloadButton.setDisable(true);
+        siteMenuButton.setDisable(true);
+
+        BackgroundOperations.async(() -> {
+            var optionalURL = GONG.fetchCandidateImage(candidate);
+            FxUtils.runLater(() -> {
+                optionalURL.ifPresentOrElse(
+                    url -> {
+                        statusLabel.setVisible(false);
+                        imageView.setVisible(true);
+                        imageView.setImage(new Image(url.toExternalForm()));
+                        imageView.resetZoom();
+                        siteMenuButton.setText(candidate.siteDisplayName());
+                    },
+                    () -> showStatus(imageView, statusLabel, message("no.image.available")));
+                downloadButton.setText(message("download.gong.image"));
+                downloadButton.setDisable(false);
+                siteMenuButton.setDisable(gongCandidates.size() <= 1);
+            });
+        });
+    }
+
+    private static void showStatus(ZoomableImageView imageView, Label statusLabel, String text) {
+        imageView.setImage(null);
+        imageView.setVisible(false);
+        statusLabel.setText(text);
+        statusLabel.setVisible(true);
+    }
+
+    private static ComboBox<GongResolution> createSizeSelector() {
+        var selector = new ComboBox<GongResolution>();
+        selector.getItems().addAll(GongResolution.LOW, GongResolution.FULL);
+        selector.setValue(GongResolution.FULL);
+        selector.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(GongResolution resolution) {
+                if (resolution == null) {
+                    return "";
+                }
+                return switch (resolution) {
+                    case LOW -> message("gong.size.low");
+                    case FULL -> message("gong.size.full");
+                };
+            }
+
+            @Override
+            public GongResolution fromString(String string) {
+                return GongResolution.FULL;
+            }
+        });
+        return selector;
+    }
+
+    private static String formatOffset(long minutes) {
+        if (minutes == 0) {
+            return message("gong.offset.same");
+        }
+        if (minutes > 0) {
+            return MessageFormat.format(message("gong.offset.after"), minutes);
+        }
+        return MessageFormat.format(message("gong.offset.before"), -minutes);
+    }
+
     private TextField createTimeField(int defaultValue, int min, int max) {
         var field = new TextField();
         field.setPrefColumnCount(2);
-        field.setPrefWidth(30);
-        field.setMaxWidth(30);
-        field.setMinWidth(30);
-        field.setStyle("-fx-pref-width: 30px; -fx-max-width: 30px; -fx-min-width: 30px;");
+        field.setPrefWidth(40);
+        field.setMaxWidth(40);
+        field.setMinWidth(40);
         field.setTextFormatter(new TextFormatter<>(new IntegerStringConverter() {
             @Override
             public Integer fromString(String value) {
@@ -196,15 +326,22 @@ public final class ReferenceImageHelper {
         return field;
     }
 
-    private void setupImageContextMenu(ImageView imageView) {
+    private void setupImageContextMenu(ZoomableImageView imageView) {
         var contextMenu = new ContextMenu();
         var save = new MenuItem(message("save.gong.image"));
         save.setOnAction(ev -> saveGongImage(imageView.getImage()));
         contextMenu.getItems().add(save);
-        imageView.setOnContextMenuRequested(ev -> contextMenu.show(imageView, ev.getScreenX(), ev.getScreenY()));
+        imageView.getImageView().setOnContextMenuRequested(ev -> {
+            if (imageView.getImage() != null) {
+                contextMenu.show(imageView, ev.getScreenX(), ev.getScreenY());
+            }
+        });
     }
 
     private void saveGongImage(Image image) {
+        if (image == null) {
+            return;
+        }
         var fileChooser = new FileChooser();
         fileChooser.getExtensionFilters().add(IMAGE_FILES_EXTENSIONS);
         var file = fileChooser.showSaveDialog(rootStage);
