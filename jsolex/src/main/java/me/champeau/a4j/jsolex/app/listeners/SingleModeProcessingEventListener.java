@@ -21,6 +21,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.geometry.VPos;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -32,6 +33,7 @@ import javafx.scene.chart.XYChart;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
@@ -45,6 +47,9 @@ import javafx.scene.image.WritableImage;
 import javafx.scene.image.WritablePixelFormat;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TitledPane;
+import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -54,6 +59,8 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Line;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
+import javafx.scene.text.Text;
+import javafx.scene.text.TextFlow;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Duration;
@@ -190,6 +197,9 @@ import static me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelpe
 public class SingleModeProcessingEventListener implements ProcessingEventListener, ImageMathScriptExecutor, Broadcaster, Spectral3DVisualizationHelper.DataProvider {
     private static final Logger LOGGER = LoggerFactory.getLogger(SingleModeProcessingEventListener.class);
     private static final String[] RGB_COLORS = {"red", "green", "blue"};
+    private static final String[] CHART_SERIES_PALETTE = {
+            "#f3622d", "#fba71b", "#57b757", "#41a9c9", "#4258c9", "#9a42c8", "#c84164", "#888888"
+    };
     private static final int BINS = 256;
     private static final double SPEED_OF_LIGHT_KM_S = 299792.458;
     private static final double SOLAR_RADIUS_KM = 696000.0;
@@ -268,6 +278,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
     private Supplier<Parent> profileViewFactory;
     private SpectralLineAnalysis.LineStatistics currentLineStatistics;
+    private boolean absoluteSpectralValues;
+    private boolean profileLegendExpanded = true;
     private Integer currentColumn;
     private float[][] currentSpectrumFrameData;
     private AverageImageComputedEvent.AverageImage cachedAverageImagePayload;
@@ -2166,7 +2178,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             var xAxis = new CategoryAxis();
             var yAxis = new NumberAxis();
             xAxis.setLabel(message("wavelength"));
-            yAxis.setLabel(message("intensity"));
+            yAxis.setLabel(absoluteSpectralValues ? message("intensity.adu") : message("intensity"));
             var lineChart = new LineChart<>(xAxis, yAxis);
             var series = new XYChart.Series<String, Number>();
             var image = payload.image();
@@ -2214,14 +2226,14 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 var referenceSeries = new XYChart.Series<String, Number>();
                 referenceSeries.setName(message("reference.intensity"));
                 lineChart.getData().add(referenceSeries);
-                referenceDataPoints = SpectralProfileHelper.normalizeDatapoints(SpectrumAnalyzer.findReferenceDatapoints(dataPoints), null).dataPoints();
+                referenceDataPoints = SpectralProfileHelper.normalizeDatapoints(SpectrumAnalyzer.findReferenceDatapoints(dataPoints), null, absoluteSpectralValues).dataPoints();
                 for (var dataPoint : referenceDataPoints) {
                     addDataPointToSeries(dataPoint, referenceSeries);
                 }
             } else {
                 referenceDataPoints = null;
             }
-            var normalizedDataPoints = SpectralProfileHelper.normalizeDatapoints(dataPoints, null);
+            var normalizedDataPoints = SpectralProfileHelper.normalizeDatapoints(dataPoints, null, absoluteSpectralValues);
             for (var dataPoint : normalizedDataPoints.dataPoints()) {
                 addDataPointToSeries(dataPoint, series);
             }
@@ -2290,7 +2302,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     }
                 }
 
-                normalizedFrameDataPoints = SpectralProfileHelper.normalizeDatapoints(frameDataPoints, sharedMaxIntensity);
+                normalizedFrameDataPoints = SpectralProfileHelper.normalizeDatapoints(frameDataPoints, sharedMaxIntensity, absoluteSpectralValues);
                 for (var dataPoint : normalizedFrameDataPoints.dataPoints()) {
                     addDataPointToSeries(dataPoint, frameSeries);
                 }
@@ -2308,7 +2320,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 lineSeries.setName(lineLabel);
                 lineChart.getData().add(lineSeries);
 
-                normalizedLineDataPoints = SpectralProfileHelper.normalizeDatapoints(lineDataPoints, sharedMaxIntensity);
+                normalizedLineDataPoints = SpectralProfileHelper.normalizeDatapoints(lineDataPoints, sharedMaxIntensity, absoluteSpectralValues);
                 for (var dataPoint : normalizedLineDataPoints.dataPoints()) {
                     addDataPointToSeries(dataPoint, lineSeries);
                 }
@@ -2387,15 +2399,33 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             var rightButtons = new HBox(10, show3DButton, showEvolutionButton, showTomographyButton);
             rightButtons.setAlignment(Pos.CENTER_RIGHT);
 
+            var absoluteValuesToggle = new CheckBox(message("spectral.absolute.values"));
+            absoluteValuesToggle.setSelected(absoluteSpectralValues);
+            absoluteValuesToggle.selectedProperty().addListener((obs, old, selected) -> {
+                absoluteSpectralValues = selected;
+                FxUtils.runLater(() -> enableTab(profileTab, profileViewFactory.get()));
+            });
+
             var topBar = new BorderPane();
             topBar.setPadding(new Insets(5, 10, 5, 10));
+            topBar.setLeft(absoluteValuesToggle);
+            BorderPane.setAlignment(absoluteValuesToggle, Pos.CENTER_LEFT);
             topBar.setRight(rightButtons);
 
-            // Create the main layout with chart and statistics
+            // Create the main layout with chart, legend explanation and statistics
+            var hasFwhm = currentLineStatistics != null && currentLineStatistics.hasFWHMData();
+            var legendExplanation = buildProfileLegendExplanation(canDrawReference, normalizedFrameDataPoints != null, hasFwhm);
+            var bottomBox = new VBox(statisticsPanel, legendExplanation);
+            var bottomScroll = new ScrollPane(bottomBox);
+            bottomScroll.setFitToWidth(true);
+            bottomScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+            bottomScroll.setMaxHeight(240);
+            bottomScroll.getStyleClass().add("profile-bottom-scroll");
+
             var mainPane = new BorderPane();
             mainPane.setTop(topBar);
             mainPane.setCenter(lineChart);
-            mainPane.setBottom(statisticsPanel);
+            mainPane.setBottom(bottomScroll);
 
             return mainPane;
         };
@@ -2605,6 +2635,61 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         return statsBox;
     }
 
+    private TitledPane buildProfileLegendExplanation(boolean hasReference, boolean hasFrameAndLine, boolean hasFwhm) {
+        var grid = new GridPane();
+        grid.getStyleClass().add("profile-legend");
+        grid.setHgap(10);
+        grid.setVgap(7);
+        grid.setPadding(new Insets(10, 14, 10, 14));
+        var swatchColumn = new ColumnConstraints();
+        var textColumn = new ColumnConstraints();
+        textColumn.setHgrow(Priority.ALWAYS);
+        grid.getColumnConstraints().addAll(swatchColumn, textColumn);
+
+        var row = 0;
+        var paletteIndex = 0;
+        addLegendRow(grid, row++, CHART_SERIES_PALETTE[paletteIndex++ % 8], message("intensity"), message("profile.legend.intensity"));
+        if (hasReference) {
+            addLegendRow(grid, row++, CHART_SERIES_PALETTE[paletteIndex++ % 8], message("reference.intensity"), message("profile.legend.reference"));
+        }
+        addLegendRow(grid, row++, "#27ae60", message("line.continuum"), message("profile.legend.continuum"));
+        paletteIndex++;
+        addLegendRow(grid, row++, "#3498db", message("line.center"), message("profile.legend.center"));
+        paletteIndex++;
+        if (hasFwhm) {
+            addLegendRow(grid, row++, "#9b59b6", "FWHM", message("profile.legend.fwhm"));
+            paletteIndex++;
+        }
+        if (hasFrameAndLine) {
+            addLegendRow(grid, row++, CHART_SERIES_PALETTE[paletteIndex++ % 8], message("frame.intensity"), message("profile.legend.frame"));
+            addLegendRow(grid, row++, CHART_SERIES_PALETTE[paletteIndex++ % 8], message("line.intensity"), message("profile.legend.line"));
+        }
+        var titledPane = new TitledPane(message("profile.legend.title"), grid);
+        titledPane.getStyleClass().add("profile-legend-pane");
+        titledPane.setExpanded(profileLegendExpanded);
+        titledPane.expandedProperty().addListener((obs, was, expanded) -> profileLegendExpanded = expanded);
+        return titledPane;
+    }
+
+    private void addLegendRow(GridPane grid, int row, String color, String name, String description) {
+        var swatch = new Region();
+        swatch.setMinSize(14, 14);
+        swatch.setPrefSize(14, 14);
+        swatch.setMaxSize(14, 14);
+        swatch.setStyle("-fx-background-color: " + color + "; -fx-background-radius: 3;");
+        GridPane.setValignment(swatch, VPos.TOP);
+        GridPane.setMargin(swatch, new Insets(2, 0, 0, 0));
+
+        var nameText = new Text(name + " — ");
+        nameText.getStyleClass().add("profile-legend-name");
+        var descriptionText = new Text(description);
+        descriptionText.getStyleClass().add("profile-legend-description");
+        var textFlow = new TextFlow(nameText, descriptionText);
+
+        grid.add(swatch, 0, row);
+        grid.add(textFlow, 1, row);
+    }
+
     private static HBox createModeBar(Node modeSelector) {
         var bar = new HBox(modeSelector);
         bar.setPadding(new Insets(5, 10, 5, 10));
@@ -2768,7 +2853,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         var xAxis = new CategoryAxis();
         var yAxis = new NumberAxis();
         xAxis.setLabel(message("wavelength"));
-        yAxis.setLabel(message("intensity"));
+        yAxis.setLabel(absoluteSpectralValues ? message("intensity.adu") : message("intensity"));
         var chart = new LineChart<>(xAxis, yAxis);
 
         // Main intensity series

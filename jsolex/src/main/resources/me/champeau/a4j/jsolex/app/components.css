@@ -1595,6 +1595,55 @@
     -fx-text-fill: #b00020;
 }
 
+/* Scrollable container holding the profile legend and statistics */
+.profile-bottom-scroll,
+.profile-bottom-scroll > .viewport {
+    -fx-background-color: transparent;
+}
+
+.profile-bottom-scroll {
+    -fx-padding: 0;
+    -fx-background-insets: 0;
+}
+
+/* Spectral profile chart legend explanation (collapsible, below the graph) */
+.profile-legend-pane {
+    -fx-background-color: transparent;
+}
+
+.profile-legend-pane > .title {
+    -fx-background-color: #f8f9fa;
+    -fx-border-color: #cccccc;
+    -fx-border-width: 1 0 0 0;
+    -fx-padding: 4 10 4 10;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #212529;
+}
+
+.profile-legend-pane > .title:hover {
+    -fx-background-color: #eef1f4;
+}
+
+.profile-legend-pane > *.content {
+    -fx-background-color: #f8f9fa;
+    -fx-border-width: 0;
+    -fx-padding: 0;
+}
+
+.profile-legend {
+    -fx-background-color: #f8f9fa;
+}
+
+.profile-legend-name {
+    -fx-font-weight: bold;
+    -fx-fill: #212529;
+}
+
+.profile-legend-description {
+    -fx-fill: #495057;
+}
+
 /* Per-image metadata dialog (right-click on the image) */
 .metadata-dialog {
     -fx-background-color: #ffffff;
