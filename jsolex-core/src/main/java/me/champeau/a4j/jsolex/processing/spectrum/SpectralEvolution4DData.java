@@ -29,6 +29,7 @@ import java.util.Locale;
  * @param wavelengthOffsets array of wavelength offsets from line center in Angstroms
  * @param frameIndices array of frame numbers
  * @param slitPositions array of pixel positions along the slit
+ * @param averageSpectralProfile the mean intensity at each wavelength offset, averaged over the cells that had valid (in-frame) samples
  * @param minIntensity minimum intensity value in the data
  * @param maxIntensity maximum intensity value in the data
  * @param centerWavelength the reference wavelength (line center)
@@ -39,6 +40,7 @@ public record SpectralEvolution4DData(
         double[] wavelengthOffsets,
         int[] frameIndices,
         int[] slitPositions,
+        double[] averageSpectralProfile,
         double minIntensity,
         double maxIntensity,
         Wavelen centerWavelength,
@@ -259,21 +261,7 @@ public record SpectralEvolution4DData(
     }
 
     public double[] getAverageSpectralProfile() {
-        var profile = new double[wavelengthOffsets.length];
-        var slitCount = slitPositions.length;
-        var frameCount = frameIndices.length;
-        double total = slitCount * frameCount;
-
-        for (var wi = 0; wi < wavelengthOffsets.length; wi++) {
-            double sum = 0;
-            for (var si = 0; si < slitCount; si++) {
-                for (var fi = 0; fi < frameCount; fi++) {
-                    sum += intensities[si][fi][wi];
-                }
-            }
-            profile[wi] = sum / total;
-        }
-        return profile;
+        return averageSpectralProfile;
     }
 
     public double getWavelengthFractionForPixelShift(double pixelShift) {

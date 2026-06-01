@@ -42,8 +42,8 @@ public final class SpectralProfileEvolutionExtractor {
      * @param polynomial the polynomial describing spectral line curvature
      * @param slitLeftBorder left edge of slit sampling region (can include prominences)
      * @param slitRightBorder right edge of slit sampling region (can include prominences)
-     * @param polyLeftBorder left edge where polynomial is valid (for wavelength range calculation)
-     * @param polyRightBorder right edge where polynomial is valid (for wavelength range calculation)
+     * @param polyLeftBorder left edge of the reliable polynomial region (used to size the wavelength range)
+     * @param polyRightBorder right edge of the reliable polynomial region (used to size the wavelength range)
      * @param firstFrame first frame to process
      * @param lastFrame last frame to process (inclusive)
      * @param lambda0 the reference wavelength (line center)
@@ -91,6 +91,9 @@ public final class SpectralProfileEvolutionExtractor {
             slitPositions[i] = (binStart + binEnd) / 2;
         }
 
+        // Size the wavelength range so that every column in the reliable polynomial region stays
+        // within the frame at every sampled shift. Using the nearest-edge distance per side keeps the
+        // range asymmetric (matching the real profile) while guaranteeing no slice is left without data.
         var minPolyY = Double.MAX_VALUE;
         var maxPolyY = -Double.MAX_VALUE;
         for (var x = polyLeftBorder; x < polyRightBorder; x++) {
@@ -98,16 +101,21 @@ public final class SpectralProfileEvolutionExtractor {
             minPolyY = Math.min(minPolyY, y);
             maxPolyY = Math.max(maxPolyY, y);
         }
-        var minDistanceToEdge = Math.min(minPolyY, height - maxPolyY);
         double margin = 5;
-        var availablePixels = Math.max(1, minDistanceToEdge - margin);
-        var wavelengthRangeAngstroms = 2.0 * availablePixels * dispersion.angstromsPerPixel();
-        var halfRange = wavelengthRangeAngstroms / 2.0;
+        var minPixelShift = margin - minPolyY;
+        var maxPixelShift = (height - 1 - margin) - maxPolyY;
+        if (maxPixelShift <= minPixelShift) {
+            minPixelShift = 0;
+            maxPixelShift = 0;
+        }
+        var minOffset = minPixelShift * dispersion.angstromsPerPixel();
+        var maxOffset = maxPixelShift * dispersion.angstromsPerPixel();
+        var offsetRange = maxOffset - minOffset;
 
         var wavelengthOffsets = new double[wavelengthResolution];
         for (var i = 0; i < wavelengthResolution; i++) {
             var fraction = (double) i / (wavelengthResolution - 1);
-            wavelengthOffsets[i] = -halfRange + fraction * wavelengthRangeAngstroms;
+            wavelengthOffsets[i] = minOffset + fraction * offsetRange;
         }
 
         var frameIndices = new int[actualFrameRes];
@@ -119,18 +127,21 @@ public final class SpectralProfileEvolutionExtractor {
         var minIntensity = Double.MAX_VALUE;
         var maxIntensity = -Double.MAX_VALUE;
 
+        var profileSum = new double[wavelengthResolution];
+        var profileCount = new long[wavelengthResolution];
+
         // Process each output frame bin
         for (var fi = 0; fi < actualFrameRes; fi++) {
             var frameBinStart = firstFrame + (int) (fi * frameBinSize);
             var frameBinEnd = firstFrame + (int) ((fi + 1) * frameBinSize);
             frameBinEnd = Math.min(frameBinEnd, lastFrame + 1);
-            var framesInBin = frameBinEnd - frameBinStart;
 
             // Store center frame index for reference
             frameIndices[fi] = (frameBinStart + frameBinEnd) / 2;
 
-            // Accumulate intensities from all frames in this bin
-            var binAccum = new float[actualSlitRes][wavelengthResolution];
+            // Accumulate intensities from all frames in this bin, counting only in-frame samples
+            var binAccum = new double[actualSlitRes][wavelengthResolution];
+            var binCount = new int[actualSlitRes][wavelengthResolution];
 
             for (var frameId = frameBinStart; frameId < frameBinEnd; frameId++) {
                 reader.seekFrame(frameId);
@@ -141,27 +152,40 @@ public final class SpectralProfileEvolutionExtractor {
                     var slitBinStart = slitLeftBorder + (int) (si * slitBinSize);
                     var slitBinEnd = slitLeftBorder + (int) ((si + 1) * slitBinSize);
                     slitBinEnd = Math.min(slitBinEnd, slitRightBorder);
-                    var slitsInBin = slitBinEnd - slitBinStart;
 
                     for (var wi = 0; wi < wavelengthResolution; wi++) {
                         var pixelShift = wavelengthOffsets[wi] / dispersion.angstromsPerPixel();
 
-                        float slitSum = 0;
+                        double slitSum = 0;
+                        var slitCount = 0;
                         for (var x = slitBinStart; x < slitBinEnd; x++) {
                             var lineCenter = polynomial.applyAsDouble(x);
                             var exactY = lineCenter + pixelShift;
-                            slitSum += interpolateIntensity(frameBuffer, x, exactY, height);
+                            var value = interpolateIntensity(frameBuffer, x, exactY, height);
+                            if (!Float.isNaN(value)) {
+                                slitSum += value;
+                                slitCount++;
+                            }
                         }
-                        binAccum[si][wi] += slitSum / slitsInBin;
+                        if (slitCount > 0) {
+                            binAccum[si][wi] += slitSum / slitCount;
+                            binCount[si][wi]++;
+                        }
                     }
                 }
             }
 
-            // Store averaged values
+            // Store averaged values, flagging cells with no in-frame sample for later backfill
             for (var si = 0; si < actualSlitRes; si++) {
                 for (var wi = 0; wi < wavelengthResolution; wi++) {
-                    var avgIntensity = binAccum[si][wi] / framesInBin;
+                    if (binCount[si][wi] == 0) {
+                        intensities[si][fi][wi] = Float.NaN;
+                        continue;
+                    }
+                    var avgIntensity = (float) (binAccum[si][wi] / binCount[si][wi]);
                     intensities[si][fi][wi] = avgIntensity;
+                    profileSum[wi] += avgIntensity;
+                    profileCount[wi]++;
 
                     if (avgIntensity < minIntensity) {
                         minIntensity = avgIntensity;
@@ -177,11 +201,36 @@ public final class SpectralProfileEvolutionExtractor {
             }
         }
 
+        if (minIntensity == Double.MAX_VALUE) {
+            minIntensity = 0;
+            maxIntensity = 0;
+        }
+
+        // Backfill empty cells with the floor value so the surface never produces out-of-range
+        // normalized intensities (off-disk columns can fall off the frame at the wing extremes).
+        var floor = (float) minIntensity;
+        for (var si = 0; si < actualSlitRes; si++) {
+            for (var fi = 0; fi < actualFrameRes; fi++) {
+                var row = intensities[si][fi];
+                for (var wi = 0; wi < wavelengthResolution; wi++) {
+                    if (Float.isNaN(row[wi])) {
+                        row[wi] = floor;
+                    }
+                }
+            }
+        }
+
+        var averageSpectralProfile = new double[wavelengthResolution];
+        for (var wi = 0; wi < wavelengthResolution; wi++) {
+            averageSpectralProfile[wi] = profileCount[wi] > 0 ? profileSum[wi] / profileCount[wi] : minIntensity;
+        }
+
         return new SpectralEvolution4DData(
                 intensities,
                 wavelengthOffsets,
                 frameIndices,
                 slitPositions,
+                averageSpectralProfile,
                 minIntensity,
                 maxIntensity,
                 lambda0,
@@ -191,7 +240,7 @@ public final class SpectralProfileEvolutionExtractor {
 
     private static float interpolateIntensity(float[][] data, int x, double exactY, int height) {
         if (exactY < 0 || exactY >= height - 1) {
-            return 0;
+            return Float.NaN;
         }
         var lowerY = (int) Math.floor(exactY);
         var upperY = (int) Math.ceil(exactY);
