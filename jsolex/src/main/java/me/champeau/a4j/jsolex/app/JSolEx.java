@@ -150,6 +150,7 @@ import me.champeau.a4j.jsolex.processing.sun.TrimmingParameters;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.AnimationFormat;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.jsolex.processing.util.Bass2000ConfigService;
 import me.champeau.a4j.jsolex.processing.util.Constants;
@@ -453,6 +454,11 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         return multipleImagesViewer;
     }
 
+    private ImageWrapper findActiveImage() {
+        var viewer = multipleImagesViewer.getSelectedViewer();
+        return viewer == null ? null : viewer.getStretchedImage();
+    }
+
     @Override
     public void revealConsole() {
         rightTabs.getSelectionModel().select(logsTab);
@@ -646,7 +652,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             addIcons(stage);
             hideTabHeaderWhenSingleTab(mainPane);
             configureRedshiftControls();
-            referenceImageHelper = new ReferenceImageHelper(rootStage, referenceImageTab);
+            referenceImageHelper = new ReferenceImageHelper(rootStage, referenceImageTab, this::findActiveImage);
             referenceImageHelper.initialize();
             bass2000Button.setVisible(true);
             stage.show();

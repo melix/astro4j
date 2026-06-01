@@ -19,6 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URI;
@@ -168,6 +169,12 @@ public class GONG {
                 }
                 candidates.sort(Comparator.comparingLong(c -> Math.abs(c.timestamp.toEpochSecond() - utcDate.toEpochSecond())));
                 return candidates;
+            } catch (FileNotFoundException e) {
+                // The day/resolution directory does not exist yet: GONG has no
+                // images for that date. This is an expected condition (e.g. for
+                // the current day before any image has been posted).
+                LOGGER.debug("No GONG images available for {} ({})", yearmoday, resolution.dir());
+                return List.of();
             } catch (URISyntaxException | IOException e) {
                 LOGGER.warn("Failed to list GONG images for {}", yearmoday, e);
                 return List.of();

@@ -14,6 +14,7 @@
 - Le profil spectral normalise désormais les intensités de la trame et de la ligne cliquée par rapport à l'image moyenne
 - L'onglet du profil spectral peut désormais afficher les intensités absolues (ADU) au lieu des valeurs normalisées à 100
 - L'onglet d'image de référence GONG permet désormais de choisir l'observatoire et la taille de l'image, jusqu'à la pleine résolution
+- L'onglet d'image de référence GONG peut détecter d'éventuels miroirs de votre image active par rapport à la référence GONG
 
 ## Nouveautés de la version 5.2.2
 

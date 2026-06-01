@@ -43,10 +43,13 @@ import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
 import javafx.util.converter.IntegerStringConverter;
+import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.jsolex.processing.util.GONG;
 import me.champeau.a4j.jsolex.processing.util.GONG.GongCandidate;
 import me.champeau.a4j.jsolex.processing.util.GONG.GongResolution;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
+import me.champeau.a4j.jsolex.processing.util.SolarParametersUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,7 +57,6 @@ import javax.imageio.ImageIO;
 import java.io.File;
 import java.io.IOException;
 import java.text.MessageFormat;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
@@ -62,6 +64,7 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.function.Supplier;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.IMAGE_FILES_EXTENSIONS;
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
@@ -77,18 +80,23 @@ public final class ReferenceImageHelper {
 
     private final Stage rootStage;
     private final Tab referenceImageTab;
+    private final Supplier<ImageWrapper> activeImageSupplier;
 
     private List<GongCandidate> gongCandidates = List.of();
+    private Button detectFlipsButton;
+    private Label flipResultLabel;
 
     /**
      * Creates a new reference image helper.
      *
-     * @param rootStage         the root application stage
-     * @param referenceImageTab the tab for displaying reference images
+     * @param rootStage           the root application stage
+     * @param referenceImageTab   the tab for displaying reference images
+     * @param activeImageSupplier supplies the currently active image in the main viewer, or {@code null} if none
      */
-    public ReferenceImageHelper(Stage rootStage, Tab referenceImageTab) {
+    public ReferenceImageHelper(Stage rootStage, Tab referenceImageTab, Supplier<ImageWrapper> activeImageSupplier) {
         this.rootStage = rootStage;
         this.referenceImageTab = referenceImageTab;
+        this.activeImageSupplier = activeImageSupplier;
     }
 
     /**
@@ -115,11 +123,16 @@ public final class ReferenceImageHelper {
         titleLabel.setAlignment(Pos.CENTER);
         titleLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
 
-        var defaultDate = serFileDate != null ? serFileDate.toLocalDate() : LocalDate.now();
+        // GONG organizes images by UTC date and the requested date/time is
+        // interpreted as UTC, so the defaults must be derived in UTC too.
+        var reference = serFileDate != null
+            ? serFileDate.withZoneSameInstant(ZoneId.of("UTC"))
+            : ZonedDateTime.now(ZoneId.of("UTC"));
+        var defaultDate = reference.toLocalDate();
         var datePicker = new DatePicker(defaultDate);
         datePicker.setMaxWidth(Double.MAX_VALUE);
 
-        var defaultTime = serFileDate != null ? serFileDate.toLocalTime() : LocalTime.now(ZoneId.of("UTC"));
+        var defaultTime = reference.toLocalTime();
         var hourField = createTimeField(defaultTime.getHour(), 0, 23);
         hourField.setText(String.format("%02d", defaultTime.getHour()));
         var minuteField = createTimeField(defaultTime.getMinute(), 0, 59);
@@ -153,6 +166,20 @@ public final class ReferenceImageHelper {
 
         var imageView = new ZoomableImageView();
         imageView.setMinSize(200, 200);
+
+        detectFlipsButton = new Button(message("gong.detect.flips"));
+        detectFlipsButton.getStyleClass().add("default-button");
+        detectFlipsButton.setMaxWidth(Double.MAX_VALUE);
+        detectFlipsButton.setVisible(false);
+        detectFlipsButton.setManaged(false);
+        detectFlipsButton.setOnAction(e -> detectFlips(imageView));
+
+        flipResultLabel = new Label();
+        flipResultLabel.setWrapText(true);
+        flipResultLabel.setMaxWidth(Double.MAX_VALUE);
+        flipResultLabel.setVisible(false);
+        flipResultLabel.setManaged(false);
+
         var statusLabel = new Label(message("gong.image.placeholder"));
         statusLabel.setWrapText(true);
         statusLabel.setStyle("-fx-text-fill: gray; -fx-font-size: 13px;");
@@ -172,7 +199,7 @@ public final class ReferenceImageHelper {
             loadCandidates(zonedDateTime, sizeSelector.getValue(), downloadButton, siteMenuButton, imageView, statusLabel);
         });
 
-        root.getChildren().addAll(titleLabel, form, downloadButton, siteMenuButton, imageArea);
+        root.getChildren().addAll(titleLabel, form, downloadButton, siteMenuButton, detectFlipsButton, flipResultLabel, imageArea);
 
         var scrollPane = new ScrollPane(root);
         scrollPane.setFitToWidth(true);
@@ -252,6 +279,7 @@ public final class ReferenceImageHelper {
                         imageView.setImage(new Image(url.toExternalForm()));
                         imageView.resetZoom();
                         siteMenuButton.setText(candidate.siteDisplayName());
+                        updateFlipControls(imageView);
                     },
                     () -> showStatus(imageView, statusLabel, message("no.image.available")));
                 downloadButton.setText(message("download.gong.image"));
@@ -261,11 +289,69 @@ public final class ReferenceImageHelper {
         });
     }
 
-    private static void showStatus(ZoomableImageView imageView, Label statusLabel, String text) {
+    private void showStatus(ZoomableImageView imageView, Label statusLabel, String text) {
         imageView.setImage(null);
         imageView.setVisible(false);
         statusLabel.setText(text);
         statusLabel.setVisible(true);
+        updateFlipControls(imageView);
+    }
+
+    private void updateFlipControls(ZoomableImageView imageView) {
+        var show = imageView.getImage() != null && activeImageSupplier != null && activeImageSupplier.get() != null;
+        detectFlipsButton.setVisible(show);
+        detectFlipsButton.setManaged(show);
+        flipResultLabel.setVisible(false);
+        flipResultLabel.setManaged(false);
+        flipResultLabel.setText("");
+    }
+
+    private void detectFlips(ZoomableImageView imageView) {
+        var gong = imageView.getImage();
+        var active = activeImageSupplier == null ? null : activeImageSupplier.get();
+        if (gong == null || active == null) {
+            updateFlipControls(imageView);
+            return;
+        }
+        detectFlipsButton.setDisable(true);
+        detectFlipsButton.setText(message("gong.detect.flips.computing"));
+        flipResultLabel.setVisible(false);
+        flipResultLabel.setManaged(false);
+
+        BackgroundOperations.async(() -> {
+            try {
+                var pAngle = active.findMetadata(ProcessParams.class)
+                    .map(p -> SolarParametersUtils.computeSolarParams(p.observationDetails().date().toLocalDateTime()).p())
+                    .orElse(0.0);
+                var detection = GongOrientationAnalyzer.detect(active, pAngle, gong, true);
+                FxUtils.runLater(() -> {
+                    detectFlipsButton.setDisable(false);
+                    detectFlipsButton.setText(message("gong.detect.flips"));
+                    flipResultLabel.setText(describeFlips(detection));
+                    flipResultLabel.setManaged(true);
+                    flipResultLabel.setVisible(true);
+                });
+            } catch (Exception ex) {
+                LOGGER.error("GONG flip detection failed", ex);
+                FxUtils.runLater(() -> {
+                    detectFlipsButton.setDisable(false);
+                    detectFlipsButton.setText(message("gong.detect.flips"));
+                });
+            }
+        });
+    }
+
+    private static String describeFlips(GongOrientationAnalyzer.FlipDetection detection) {
+        if (!detection.hasFlip()) {
+            return message("gong.detect.flips.none");
+        }
+        if (detection.horizontalFlip() && detection.verticalFlip()) {
+            return message("gong.detect.flips.both");
+        }
+        if (detection.horizontalFlip()) {
+            return message("gong.detect.flips.horizontal");
+        }
+        return message("gong.detect.flips.vertical");
     }
 
     private static ComboBox<GongResolution> createSizeSelector() {
