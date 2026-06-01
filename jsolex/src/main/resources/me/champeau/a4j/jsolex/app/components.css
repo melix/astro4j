@@ -1534,3 +1534,213 @@
 .gong-site-button:hover {
     -fx-background-color: #333333;
 }
+
+/* SER actions row, sitting just above the panel selector in the right panel */
+.ser-actions-bar {
+    -fx-background-color: #f8f9fa;
+    -fx-border-color: #e9ecef;
+    -fx-border-width: 0 0 1 0;
+}
+
+/* Right-panel inspector: a labelled panel selector (ComboBox) over a
+   header-hidden TabPane that switches the content. */
+.panel-selector-bar {
+    -fx-background-color: linear-gradient(to bottom, #ffffff, #eef1f4);
+    -fx-border-color: #dee2e6;
+    -fx-border-width: 0 0 1 0;
+}
+
+/* Image publishing panel: a card per sharing destination */
+.publishing-scroll {
+    -fx-background-color: #ffffff;
+    -fx-background-insets: 0;
+}
+
+.publishing-scroll > .viewport {
+    -fx-background-color: #ffffff;
+}
+
+.publishing-pane {
+    -fx-padding: 16;
+}
+
+.publishing-card {
+    -fx-background-color: #f8f9fa;
+    -fx-background-radius: 8;
+    -fx-border-color: #e9ecef;
+    -fx-border-radius: 8;
+    -fx-border-width: 1;
+    -fx-padding: 14 16 16 16;
+}
+
+.publishing-card-title {
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #212529;
+}
+
+.publishing-card-description {
+    -fx-font-size: 13px;
+    -fx-text-fill: #495057;
+}
+
+/* A publishing destination that is not available for the current image */
+.publishing-card-disabled {
+    -fx-opacity: 0.55;
+}
+
+.publishing-card-unavailable {
+    -fx-font-size: 12px;
+    -fx-font-style: italic;
+    -fx-text-fill: #b00020;
+}
+
+/* Per-image metadata dialog (right-click on the image) */
+.metadata-dialog {
+    -fx-background-color: #ffffff;
+}
+
+.metadata-header {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #212529;
+    -fx-padding: 14 18 12 18;
+    -fx-background-color: linear-gradient(to bottom, #ffffff, #eef1f4);
+    -fx-border-color: #dee2e6;
+    -fx-border-width: 0 0 1 0;
+    -fx-max-width: Infinity;
+}
+
+.metadata-scroll {
+    -fx-background-color: #ffffff;
+    -fx-background-insets: 0;
+}
+
+.metadata-scroll > .viewport {
+    -fx-background-color: #ffffff;
+}
+
+.metadata-list {
+    -fx-padding: 8 18 18 18;
+    -fx-spacing: 14;
+}
+
+.metadata-group {
+    -fx-spacing: 3;
+    -fx-padding: 10 14 10 14;
+    -fx-background-color: #f8f9fa;
+    -fx-background-radius: 8;
+    -fx-border-color: #e9ecef;
+    -fx-border-radius: 8;
+    -fx-border-width: 1;
+}
+
+.metadata-section {
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #0d6efd;
+    -fx-padding: 0 0 2 0;
+}
+
+.metadata-item {
+    -fx-font-size: 13px;
+    -fx-text-fill: #343a40;
+    -fx-padding: 0 0 0 12;
+}
+
+/* Small clickable chevron handle floating over the SplitPane divider,
+   used to expand/collapse the right panel. */
+.panel-expand-anchor {
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #6c757d;
+    -fx-padding: 6 3 6 3;
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 6;
+    -fx-border-color: #ced4da;
+    -fx-border-radius: 6;
+    -fx-border-width: 1;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.18), 4, 0, 0, 1);
+}
+
+.panel-expand-anchor:hover {
+    -fx-text-fill: #ffffff;
+    -fx-background-color: #007bff;
+    -fx-border-color: #007bff;
+}
+
+/* The selector itself: a filled accent pill instead of the default
+   grey gradient ComboBox button. */
+.panel-selector {
+    -fx-background-color: linear-gradient(to bottom, #1f8fff, #007bff);
+    -fx-background-radius: 8;
+    -fx-padding: 1 2 1 2;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(0,123,255,0.35), 4, 0, 0, 1);
+}
+
+.panel-selector:hover {
+    -fx-background-color: linear-gradient(to bottom, #0d82f5, #0069d9);
+}
+
+.panel-selector:focused,
+.panel-selector:showing {
+    -fx-background-color: linear-gradient(to bottom, #0d82f5, #0056b3);
+    -fx-effect: dropshadow(gaussian, rgba(0,123,255,0.5), 6, 0, 0, 0);
+}
+
+.panel-selector > .list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: white;
+    -fx-font-size: 13px;
+    -fx-font-weight: 600;
+    -fx-padding: 5 8 5 8;
+}
+
+.panel-selector .panel-selector-button-label {
+    -fx-text-fill: white;
+    -fx-font-size: 13px;
+    -fx-font-weight: 600;
+}
+
+.panel-selector .arrow-button {
+    -fx-background-color: transparent;
+    -fx-padding: 4 8 4 6;
+}
+
+.panel-selector .arrow-button .arrow {
+    -fx-background-color: white;
+    -fx-shape: "M 0 0 L 4 4 L 8 0 Z";
+    -fx-padding: 3;
+}
+
+/* Dropdown popup list of the panel selector. */
+.panel-selector-list {
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 8;
+    -fx-border-color: #dee2e6;
+    -fx-border-radius: 8;
+    -fx-border-width: 1;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.18), 12, 0.1, 0, 4);
+    -fx-padding: 4;
+}
+
+.panel-selector-list .list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: #212529;
+    -fx-font-size: 13px;
+    -fx-padding: 7 12 7 12;
+    -fx-background-radius: 6;
+}
+
+.panel-selector-list .list-cell:disabled {
+    -fx-opacity: 1.0;
+}
+
+/* Row highlight (hover/selected) text and background are bound in code
+   (JSolEx#setupPanelSelector) because the ComboBox popup is a separate
+   window that this stylesheet does not reach. */
+.panel-selector-list .panel-selector-item-label {
+    -fx-font-size: 13px;
+}

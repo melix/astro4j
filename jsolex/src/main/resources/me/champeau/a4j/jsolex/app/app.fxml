@@ -9,71 +9,74 @@
 <StackPane xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:id="rootStackPane">
 <BorderPane>
     <top>
-        <HBox alignment="CENTER_LEFT" styleClass="menu-bar">
-            <MenuBar HBox.hgrow="NEVER">
-                <Menu text="%file">
-                    <MenuItem onAction="#open" text="%open.ser.file"/>
-                    <MenuItem onAction="#openBatch" text="%open.batch"/>
-                    <MenuItem onAction="#watchMode" text="%open.watch"/>
-                    <MenuItem onAction="#openFromSunscan" text="%open.sunscan"/>
-                    <Menu fx:id="recentFilesMenu" text="%recent.files"/>
-                    <SeparatorMenuItem/>
-                    <MenuItem onAction="#showAdvancedParams" text="%advanced.params"/>
-                    <SeparatorMenuItem/>
-                    <MenuItem onAction="#exit" text="%exit"/>
-                </Menu>
-                <Menu text="%tools">
-                    <MenuItem onAction="#showFrameDebugger" text="%video.analyzer"/>
-                    <MenuItem onAction="#showExposureCalculator" text="%exposure.calculator"/>
-                    <MenuItem onAction="#showMosaicParams" text="%mosaic.stacking"/>
-                    <MenuItem onAction="#showSpectrumBrowser" text="%spectrum.browser"/>
-                    <SeparatorMenuItem/>
-                    <MenuItem onAction="#showFileNamePatternEditor" text="%filename.pattern.editor"/>
-                    <MenuItem onAction="#showSpectralRayEditor" text="%spectralray.editor"/>
-                    <MenuItem onAction="#showImageMathEditor" text="%imagemath.editor"/>
-                    <MenuItem onAction="#showScriptRepositories" text="%script.repositories"/>
-                    <SeparatorMenuItem/>
-                    <MenuItem onAction="#loadImages" text="%load.images"/>
-                    <SeparatorMenuItem/>
-                    <MenuItem onAction="#showEmbeddedServerMenu" text="%embedded.server"/>
-                </Menu>
-                <Menu text="%equipment">
-                    <MenuItem onAction="#showSHGEditor" text="%shg.editor"/>
-                    <MenuItem onAction="#showSetupEditor" text="%setup.editor"/>
-                </Menu>
-                <Menu text="%sharing">
-                    <MenuItem fx:id="bass2000MenuItem" onAction="#showBass2000Submission" text="%bass2000.menu.submit" disable="true"/>
-                    <MenuItem fx:id="spectroSolHubMenuItem" onAction="#showSpectroSolHubPublishing" text="%spectrosolhub.menu.publish" disable="true"/>
-                    <SeparatorMenuItem/>
-                    <MenuItem onAction="#showLiveSessionDialog" text="%live.menu"/>
-                </Menu>
-                <Menu text="%help">
-                    <MenuItem onAction="#showHelp" text="%documentation"/>
-                    <MenuItem onAction="#openDiscord" text="%discord"/>
-                    <SeparatorMenuItem/>
-                    <MenuItem onAction="#exportPythonStubs" text="%export.python.stubs"/>
-                    <SeparatorMenuItem/>
-                    <MenuItem onAction="#donate" text="%donate"/>
-                    <MenuItem onAction="#about" text="%about"/>
-                </Menu>
-            </MenuBar>
-            <Pane HBox.hgrow="ALWAYS"/>
-            <HBox alignment="CENTER_RIGHT" spacing="8">
-                <padding>
-                    <Insets right="8.0"/>
-                </padding>
-                <Button fx:id="serverStatus" onMouseClicked="#showEmbeddedServerMenu" alignment="BASELINE_CENTER" styleClass="menu-bar-button"/>
-                <Button fx:id="liveStatus" onMouseClicked="#toggleLive" alignment="BASELINE_CENTER" styleClass="menu-bar-button"/>
+        <VBox>
+            <HBox alignment="CENTER_LEFT" styleClass="menu-bar">
+                <MenuBar HBox.hgrow="NEVER">
+                    <Menu text="%file">
+                        <MenuItem onAction="#open" text="%open.ser.file"/>
+                        <MenuItem onAction="#openBatch" text="%open.batch"/>
+                        <MenuItem onAction="#watchMode" text="%open.watch"/>
+                        <MenuItem onAction="#openFromSunscan" text="%open.sunscan"/>
+                        <Menu fx:id="recentFilesMenu" text="%recent.files"/>
+                        <SeparatorMenuItem/>
+                        <MenuItem onAction="#showAdvancedParams" text="%advanced.params"/>
+                        <SeparatorMenuItem/>
+                        <MenuItem onAction="#exit" text="%exit"/>
+                    </Menu>
+                    <Menu text="%tools">
+                        <MenuItem onAction="#showFrameDebugger" text="%video.analyzer"/>
+                        <MenuItem onAction="#showExposureCalculator" text="%exposure.calculator"/>
+                        <MenuItem onAction="#showMosaicParams" text="%mosaic.stacking"/>
+                        <MenuItem onAction="#showSpectrumBrowser" text="%spectrum.browser"/>
+                        <SeparatorMenuItem/>
+                        <MenuItem onAction="#showFileNamePatternEditor" text="%filename.pattern.editor"/>
+                        <MenuItem onAction="#showSpectralRayEditor" text="%spectralray.editor"/>
+                        <MenuItem onAction="#showImageMathEditor" text="%imagemath.editor"/>
+                        <MenuItem onAction="#showScriptRepositories" text="%script.repositories"/>
+                        <SeparatorMenuItem/>
+                        <MenuItem onAction="#loadImages" text="%load.images"/>
+                        <SeparatorMenuItem/>
+                        <MenuItem onAction="#showEmbeddedServerMenu" text="%embedded.server"/>
+                    </Menu>
+                    <Menu text="%equipment">
+                        <MenuItem onAction="#showSHGEditor" text="%shg.editor"/>
+                        <MenuItem onAction="#showSetupEditor" text="%setup.editor"/>
+                    </Menu>
+                    <Menu text="%sharing">
+                        <MenuItem fx:id="bass2000MenuItem" onAction="#showBass2000Submission" text="%bass2000.menu.submit" disable="true"/>
+                        <MenuItem fx:id="spectroSolHubMenuItem" onAction="#showSpectroSolHubPublishing" text="%spectrosolhub.menu.publish" disable="true"/>
+                        <SeparatorMenuItem/>
+                        <MenuItem onAction="#showLiveSessionDialog" text="%live.menu"/>
+                    </Menu>
+                    <Menu text="%help">
+                        <MenuItem onAction="#showHelp" text="%documentation"/>
+                        <MenuItem onAction="#openDiscord" text="%discord"/>
+                        <SeparatorMenuItem/>
+                        <MenuItem onAction="#exportPythonStubs" text="%export.python.stubs"/>
+                        <SeparatorMenuItem/>
+                        <MenuItem onAction="#donate" text="%donate"/>
+                        <MenuItem onAction="#about" text="%about"/>
+                    </Menu>
+                </MenuBar>
+                <Pane HBox.hgrow="ALWAYS"/>
+                <HBox alignment="CENTER_RIGHT" spacing="8">
+                    <padding>
+                        <Insets right="8.0"/>
+                    </padding>
+                    <Button fx:id="serverStatus" onMouseClicked="#showEmbeddedServerMenu" alignment="BASELINE_CENTER" styleClass="menu-bar-button"/>
+                    <Button fx:id="liveStatus" onMouseClicked="#toggleLive" alignment="BASELINE_CENTER" styleClass="menu-bar-button"/>
+                </HBox>
             </HBox>
-        </HBox>
+        </VBox>
     </top>
     <center>
-        <SplitPane dividerPositions="0.7">
-            <TabPane fx:id="mainPane" prefWidth="400.0"/>
+      <StackPane fx:id="centerStack">
+        <SplitPane fx:id="mainSplitPane" dividerPositions="0.7">
+            <TabPane fx:id="mainPane" prefWidth="400.0" minWidth="0.0"/>
             <VBox>
-                <HBox spacing="8">
+                <HBox alignment="CENTER_LEFT" spacing="8" styleClass="ser-actions-bar">
                     <padding>
-                        <Insets bottom="4.0" left="4.0" right="20.0" top="4.0"/>
+                        <Insets bottom="4" left="8" right="8" top="6"/>
                     </padding>
                     <Button fx:id="closeAllButton" onAction="#resetUI" text="%reset.ui" disable="true" styleClass="default-button">
                         <tooltip>
@@ -90,144 +93,169 @@
                             <Tooltip text="%trim.ser.file.tooltip"/>
                         </tooltip>
                     </Button>
-                    <Button fx:id="bass2000Button" onAction="#showBass2000Submission" text="%bass2000.submit" disable="true" styleClass="default-button"/>
+                    <Pane HBox.hgrow="ALWAYS"/>
+                    <Button fx:id="shareButton" onAction="#showPublishingPanel" disable="true" styleClass="default-button">
+                        <tooltip>
+                            <Tooltip text="%share.tooltip"/>
+                        </tooltip>
+                    </Button>
                 </HBox>
-                <SplitPane dividerPositions="0.5" orientation="VERTICAL">
-                    <items>
-                        <TabPane side="right" tabClosingPolicy="UNAVAILABLE" fx:id="rightTabs">
-                            <Tab text="%logs" fx:id="logsTab">
-                                <VBox>
-                                    <ButtonBar>
+                <HBox alignment="CENTER_LEFT" spacing="8" styleClass="panel-selector-bar">
+                    <padding>
+                        <Insets bottom="6" left="8" right="8" top="4"/>
+                    </padding>
+                    <ComboBox fx:id="panelSelector" styleClass="panel-selector" maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
+                </HBox>
+                <TabPane fx:id="rightTabs" styleClass="no-tab-header" tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS">
+                    <Tab fx:id="logsTab" text="%logs">
+                        <BorderPane>
+                            <top>
+                                <HBox alignment="CENTER_RIGHT" spacing="8">
+                                    <padding>
+                                        <Insets bottom="4" left="4" right="4" top="4"/>
+                                    </padding>
+                                    <Button onAction="#clearLog" text="%clear.log" styleClass="default-button"/>
+                                    <Button onAction="#saveLog" text="%save.log" styleClass="primary-button"/>
+                                </HBox>
+                            </top>
+                            <center>
+                                <VirtualizedScrollPane>
+                                    <content>
+                                        <StyleClassedTextArea fx:id="console" editable="false" wrapText="true">
+                                            <padding>
+                                                <Insets bottom="4.0" left="4.0" right="4.0" top="4.0"/>
+                                            </padding>
+                                        </StyleClassedTextArea>
+                                    </content>
+                                </VirtualizedScrollPane>
+                            </center>
+                        </BorderPane>
+                    </Tab>
+                    <Tab fx:id="referenceImageTab" text="%reference.image"/>
+                    <Tab fx:id="statsTab" text="%stats" disable="true"/>
+                    <Tab fx:id="profileTab" text="%profile" disable="true"/>
+                    <Tab fx:id="analysisTab" text="%analysis" disable="true"/>
+                    <Tab fx:id="redshiftTab" text="%redshifts" disable="true">
+                        <BorderPane>
+                            <padding>
+                                <Insets bottom="4.0" left="4.0" right="4.0" top="4.0"/>
+                            </padding>
+                            <top>
+                                <VBox alignment="CENTER">
+                                    <Label text="%redshifts.description" style="-fx-font-weight: bold;"/>
+                                </VBox>
+                            </top>
+                            <center>
+                                <ScrollPane fitToHeight="true" fitToWidth="true">
+                                    <GridPane alignment="BASELINE_LEFT" hgap="10" vgap="10">
                                         <padding>
-                                            <Insets bottom="4.0" left="4.0" right="20.0" top="4.0"/>
+                                            <Insets bottom="4.0" left="4.0" right="4.0" top="4.0"/>
                                         </padding>
+                                        <Label text="%redshifts.help" GridPane.rowIndex="0" GridPane.columnIndex="0" wrapText="true" GridPane.columnSpan="2"/>
+
+                                        <Label text="%box.size" GridPane.columnIndex="0" GridPane.rowIndex="1" prefWidth="200"/>
+                                        <ChoiceBox fx:id="redshiftBoxSize" GridPane.columnIndex="1" GridPane.rowIndex="1" prefWidth="200"/>
+
+                                        <Label text="%pixel.shift.margin" GridPane.columnIndex="0" GridPane.rowIndex="2" prefWidth="200"/>
+                                        <TextField fx:id="pixelShiftMargin" GridPane.columnIndex="1" GridPane.rowIndex="2" maxWidth="50" prefWidth="50"/>
+
+                                        <Label text="%redshift.creator.kind" GridPane.columnIndex="0" GridPane.rowIndex="3" prefWidth="200"/>
+                                        <ChoiceBox fx:id="redshiftCreatorKind" GridPane.columnIndex="1" GridPane.rowIndex="3" prefWidth="200"/>
+
+                                        <Label fx:id="annotateAnimationsLabel" text="%annotate.animations" GridPane.columnIndex="0" GridPane.rowIndex="4" prefWidth="300">
+                                            <tooltip>
+                                                <Tooltip text="%annotate.animations.tooltip"/>
+                                            </tooltip>
+                                        </Label>
+                                        <CheckBox fx:id="annotateAnimations" GridPane.columnIndex="1" GridPane.rowIndex="4" prefWidth="100">
+                                            <tooltip>
+                                                <Tooltip text="%annotate.animations.tooltip"/>
+                                            </tooltip>
+                                        </CheckBox>
+
+                                        <Label fx:id="fullRangePanelsLabel" text="%full.range.panels" GridPane.columnIndex="0" GridPane.rowIndex="5" prefWidth="300">
+                                            <tooltip>
+                                                <Tooltip text="%full.range.panels.tooltip"/>
+                                            </tooltip>
+                                        </Label>
+                                        <CheckBox fx:id="fullRangePanels" GridPane.columnIndex="1" GridPane.rowIndex="5" prefWidth="100">
+                                            <tooltip>
+                                                <Tooltip text="%full.range.panels.tooltip"/>
+                                            </tooltip>
+                                        </CheckBox>
+                                        <VBox GridPane.rowIndex="6" GridPane.columnIndex="0" GridPane.columnSpan="2" spacing="4">
+                                            <Label text="%what.to.generate"/>
+                                            <GridPane fx:id="redshiftSelectionBox">
+                                            </GridPane>
+                                        </VBox>
+                                        <VBox alignment="CENTER" GridPane.rowIndex="7" GridPane.columnIndex="0" GridPane.columnSpan="2">
+                                            <Label fx:id="estimatedDiskSpace"/>
+                                        </VBox>
+                                        <VBox alignment="CENTER" GridPane.rowIndex="8" GridPane.columnIndex="0" GridPane.columnSpan="2">
+                                            <Button fx:id="generateRedshiftImages" text="%generate" styleClass="primary-button"/>
+                                        </VBox>
+                                    </GridPane>
+                                </ScrollPane>
+                            </center>
+                        </BorderPane>
+                    </Tab>
+                    <Tab fx:id="publishingTab" text="%image.publishing" disable="true">
+                        <ScrollPane fitToWidth="true" styleClass="publishing-scroll">
+                            <VBox styleClass="publishing-pane" spacing="14">
+                                <VBox fx:id="bass2000Card" styleClass="publishing-card" spacing="8">
+                                    <Label text="%bass2000.submit" styleClass="publishing-card-title"/>
+                                    <Label text="%bass2000.description" styleClass="publishing-card-description" wrapText="true"/>
+                                    <Label fx:id="bass2000UnavailableLabel" styleClass="publishing-card-unavailable" wrapText="true" managed="false" visible="false"/>
+                                    <Button fx:id="bass2000Button" onAction="#showBass2000Submission" text="%bass2000.menu.submit" disable="true" styleClass="primary-button"/>
+                                </VBox>
+                                <VBox styleClass="publishing-card" spacing="8">
+                                    <Label text="%spectrosolhub.publish" styleClass="publishing-card-title"/>
+                                    <Label text="%spectrosolhub.description" styleClass="publishing-card-description" wrapText="true"/>
+                                    <Button fx:id="spectroSolHubButton" onAction="#showSpectroSolHubPublishing" text="%spectrosolhub.menu.publish" disable="true" styleClass="primary-button"/>
+                                </VBox>
+                            </VBox>
+                        </ScrollPane>
+                    </Tab>
+                    <Tab fx:id="scriptTab" text="%imagemath.script">
+                        <BorderPane>
+                            <top>
+                                <HBox alignment="CENTER_LEFT" spacing="8">
+                                    <padding>
+                                        <Insets bottom="4" left="4" right="4" top="4"/>
+                                    </padding>
+                                    <ChoiceBox fx:id="scriptLanguageChoice" prefWidth="100"/>
+                                </HBox>
+                            </top>
+                            <center>
+                                <ImageMathTextArea fx:id="imageMathScript"/>
+                            </center>
+                            <bottom>
+                                <HBox alignment="CENTER_LEFT" spacing="8">
+                                    <padding>
+                                        <Insets bottom="4" left="4" right="4" top="4"/>
+                                    </padding>
+                                    <CheckBox fx:id="clearImagesCheckbox" text="%clear.images"/>
+                                    <Pane HBox.hgrow="ALWAYS"/>
+                                    <ButtonBar prefHeight="40.0">
                                         <buttons>
-                                            <Button onAction="#clearLog" text="%clear.log" styleClass="default-button"/>
-                                            <Button onAction="#saveLog" text="%save.log" styleClass="primary-button"/>
+                                            <Button fx:id="imageMathLoad" mnemonicParsing="false" text="%imagemath.load" styleClass="default-button"/>
+                                            <Button fx:id="imageMathSave" mnemonicParsing="false" text="%imagemath.save" styleClass="default-button"/>
+                                            <SplitMenuButton fx:id="imageMathRun" mnemonicParsing="false" text="%imagemath.run" styleClass="primary-button"/>
                                         </buttons>
                                     </ButtonBar>
-                                    <VirtualizedScrollPane VBox.vgrow="ALWAYS">
-                                        <content>
-                                            <StyleClassedTextArea fx:id="console" editable="false" wrapText="true">
-                                                <padding>
-                                                    <Insets bottom="4.0" left="4.0" right="4.0" top="4.0"/>
-                                                </padding>
-                                            </StyleClassedTextArea>
-                                        </content>
-                                    </VirtualizedScrollPane>
-                                </VBox>
-                            </Tab>
-                            <Tab fx:id="referenceImageTab" text="%reference.image">
-
-                            </Tab>
-                            <Tab fx:id="statsTab" text="%stats">
-
-                            </Tab>
-
-                            <Tab fx:id="profileTab" text="%profile"/>
-                            <Tab fx:id="analysisTab" text="%analysis"/>
-                            <Tab fx:id="metadataTab" text="%metadata"/>
-
-                            <Tab fx:id="redshiftTab" text="%redshifts" disable="true">
-                                <BorderPane>
-                                    <padding>
-                                        <Insets bottom="4.0" left="4.0" right="4.0" top="4.0"/>
-                                    </padding>
-                                    <top>
-                                        <VBox alignment="CENTER">
-                                            <Label text="%redshifts.description" style="-fx-font-weight: bold;"/>
-                                        </VBox>
-                                    </top>
-                                    <center>
-                                        <ScrollPane fitToHeight="true" fitToWidth="true">
-                                            <GridPane alignment="BASELINE_LEFT" hgap="10" vgap="10">
-                                                <padding>
-                                                    <Insets bottom="4.0" left="4.0" right="4.0" top="4.0"/>
-                                                </padding>
-                                                <Label text="%redshifts.help" GridPane.rowIndex="0" GridPane.columnIndex="0" wrapText="true" GridPane.columnSpan="2"/>
-
-                                                <Label text="%box.size" GridPane.columnIndex="0" GridPane.rowIndex="1" prefWidth="200"/>
-                                                <ChoiceBox fx:id="redshiftBoxSize" GridPane.columnIndex="1" GridPane.rowIndex="1" prefWidth="200"/>
-
-                                                <Label text="%pixel.shift.margin" GridPane.columnIndex="0" GridPane.rowIndex="2" prefWidth="200"/>
-                                                <TextField fx:id="pixelShiftMargin" GridPane.columnIndex="1" GridPane.rowIndex="2" maxWidth="50" prefWidth="50"/>
-
-                                                <Label text="%redshift.creator.kind" GridPane.columnIndex="0" GridPane.rowIndex="3" prefWidth="200"/>
-                                                <ChoiceBox fx:id="redshiftCreatorKind" GridPane.columnIndex="1" GridPane.rowIndex="3" prefWidth="200"/>
-
-                                                <Label fx:id="annotateAnimationsLabel" text="%annotate.animations" GridPane.columnIndex="0" GridPane.rowIndex="4" prefWidth="300">
-                                                    <tooltip>
-                                                        <Tooltip text="%annotate.animations.tooltip"/>
-                                                    </tooltip>
-                                                </Label>
-                                                <CheckBox fx:id="annotateAnimations" GridPane.columnIndex="1" GridPane.rowIndex="4" prefWidth="100">
-                                                    <tooltip>
-                                                        <Tooltip text="%annotate.animations.tooltip"/>
-                                                    </tooltip>
-                                                </CheckBox>
-
-                                                <Label fx:id="fullRangePanelsLabel" text="%full.range.panels" GridPane.columnIndex="0" GridPane.rowIndex="5" prefWidth="300">
-                                                    <tooltip>
-                                                        <Tooltip text="%full.range.panels.tooltip"/>
-                                                    </tooltip>
-                                                </Label>
-                                                <CheckBox fx:id="fullRangePanels" GridPane.columnIndex="1" GridPane.rowIndex="5" prefWidth="100">
-                                                    <tooltip>
-                                                        <Tooltip text="%full.range.panels.tooltip"/>
-                                                    </tooltip>
-                                                </CheckBox>
-                                                <VBox GridPane.rowIndex="6" GridPane.columnIndex="0" GridPane.columnSpan="2" spacing="4">
-                                                    <Label text="%what.to.generate"/>
-                                                    <GridPane fx:id="redshiftSelectionBox">
-                                                    </GridPane>
-                                                </VBox>
-                                                <VBox alignment="CENTER" GridPane.rowIndex="7" GridPane.columnIndex="0" GridPane.columnSpan="2">
-                                                    <Label fx:id="estimatedDiskSpace"/>
-                                                </VBox>
-                                                <VBox alignment="CENTER" GridPane.rowIndex="8" GridPane.columnIndex="0" GridPane.columnSpan="2">
-                                                    <Button fx:id="generateRedshiftImages" text="%generate" styleClass="primary-button"/>
-                                                </VBox>
-                                            </GridPane>
-                                        </ScrollPane>
-                                    </center>
-                                </BorderPane>
-                            </Tab>
-                        </TabPane>
-                        <VBox fx:id="imageMathPane">
-                            <children>
-                                <TitledPane text="%imagemath.script">
-                                    <BorderPane>
-                                        <top>
-                                            <HBox alignment="CENTER_LEFT" spacing="8">
-                                                <padding>
-                                                    <Insets bottom="4"/>
-                                                </padding>
-                                                <ChoiceBox fx:id="scriptLanguageChoice" prefWidth="100"/>
-                                            </HBox>
-                                        </top>
-                                        <center>
-                                            <ImageMathTextArea fx:id="imageMathScript"/>
-                                        </center>
-                                        <bottom>
-                                            <HBox alignment="CENTER_LEFT" spacing="8">
-                                                <CheckBox fx:id="clearImagesCheckbox" text="%clear.images"/>
-                                                <ButtonBar prefHeight="40.0">
-                                                    <buttons>
-                                                        <Button fx:id="imageMathLoad" mnemonicParsing="false" text="%imagemath.load" styleClass="default-button"/>
-                                                        <Button fx:id="imageMathSave" mnemonicParsing="false" text="%imagemath.save" styleClass="default-button"/>
-                                                        <SplitMenuButton fx:id="imageMathRun" mnemonicParsing="false" text="%imagemath.run" styleClass="primary-button"/>
-                                                    </buttons>
-                                                </ButtonBar>
-                                            </HBox>
-                                        </bottom>
-                                    </BorderPane>
-                                </TitledPane>
-                            </children>
-                        </VBox>
-                    </items>
-                </SplitPane>
+                                </HBox>
+                            </bottom>
+                        </BorderPane>
+                    </Tab>
+                </TabPane>
             </VBox>
         </SplitPane>
+        <Label fx:id="expandPanelButton" text="«" styleClass="panel-expand-anchor" mouseTransparent="false" pickOnBounds="true" StackPane.alignment="TOP_LEFT" onMouseClicked="#togglePanelExpansion">
+            <tooltip>
+                <Tooltip text="%panel.expand.tooltip"/>
+            </tooltip>
+        </Label>
+      </StackPane>
     </center>
     <bottom>
         <HBox spacing="10.0" alignment="CENTER_LEFT">
@@ -251,7 +279,6 @@
                                     <ProgressBar fx:id="memory" prefWidth="200.0" progress="0.0" blendMode="SOFT_LIGHT"/>
                                     <Label fx:id="memoryLabel" style="-fx-text-fill: #666666"/>
                                 </StackPane>
-                                <Button fx:id="spectroSolHubButton" onAction="#showSpectroSolHubPublishing" text="%spectrosolhub.publish" disable="true" styleClass="default-button"/>
                                 <Button onAction="#donate" style="-fx-background-color: transparent; -fx-text-fill: red; -fx-font-size: 12px;" text="♥">
                                     <tooltip>
                                         <Tooltip text="%donate.tooltip"/>

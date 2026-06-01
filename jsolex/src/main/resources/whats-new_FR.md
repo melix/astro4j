@@ -9,6 +9,7 @@
 - Correction des fichiers log qui étaient vides en mode batch
 - Correction d'un plantage lors de la génération des animations et panneaux de redshift
 - Ajout d'un suivi de progression lors de la génération des animations et panneaux de redshift
+- Réorganisation du panneau de droite avec un sélecteur de panneau et un panneau de publication d'images dédié.
 - Correction du marqueur de raie spectrale dans la vue de reconstruction qui était mal positionné
 - Le profil spectral normalise désormais les intensités de la trame et de la ligne cliquée par rapport à l'image moyenne
 

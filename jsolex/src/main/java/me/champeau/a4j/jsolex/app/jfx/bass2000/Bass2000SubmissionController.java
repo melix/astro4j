@@ -96,6 +96,21 @@ public class Bass2000SubmissionController {
 
     static final double TOLERANCE_ANGSTROMS = 0.1;
 
+    /**
+     * Returns whether the given spectral ray matches one of the spectral lines
+     * accepted by BASS2000 (H-alpha, Ca K, Ca H), within the wavelength tolerance.
+     * @param ray the spectral ray to test (may be null)
+     * @return true if the ray is accepted by BASS2000
+     */
+    public static boolean isAcceptedSpectralLine(SpectralRay ray) {
+        if (ray == null) {
+            return false;
+        }
+        var angstroms = ray.wavelength().angstroms();
+        return ACCEPTED_SPECTRAL_RAYS.keySet().stream()
+                .anyMatch(accepted -> Math.abs(accepted.wavelength().angstroms() - angstroms) <= TOLERANCE_ANGSTROMS);
+    }
+
     @FXML
     private ProgressBar wizardProgress;
 

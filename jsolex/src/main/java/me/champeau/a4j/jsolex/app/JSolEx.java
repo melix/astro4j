@@ -17,7 +17,9 @@ package me.champeau.a4j.jsolex.app;
 
 import ch.qos.logback.classic.Level;
 import javafx.animation.Animation;
+import javafx.animation.FadeTransition;
 import javafx.animation.KeyFrame;
+import javafx.animation.KeyValue;
 import javafx.animation.PauseTransition;
 import javafx.animation.Timeline;
 import javafx.application.Application;
@@ -38,26 +40,35 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.SplitMenuButton;
+import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
+import javafx.scene.control.skin.ComboBoxListViewSkin;
 import javafx.scene.image.Image;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
+import javafx.scene.layout.Background;
+import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.CornerRadii;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
@@ -164,6 +175,7 @@ import me.champeau.a4j.ser.Header;
 import me.champeau.a4j.ser.ImageMetadata;
 import me.champeau.a4j.ser.SerFileReader;
 import org.fxmisc.richtext.StyleClassedTextArea;
+import org.kordamp.ikonli.javafx.FontIcon;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -193,7 +205,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
@@ -223,6 +234,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     private static final FileChooser.ExtensionFilter LOG_FILE_EXTENSION_FILTER = new FileChooser.ExtensionFilter("Log files (*" + LOG_EXTENSION + ")", "*" + LOG_EXTENSION);
     private static final FileChooser.ExtensionFilter SER_FILES_EXTENSION_FILTER = new FileChooser.ExtensionFilter("SER files", "*.ser", "*.SER");
     private static final String DISCORD_INVITE = "https://discord.gg/y9NCGaWzve";
+    private static final int PANEL_ROW_WIDTH_INSET = 24;
 
     /**
      * Default port for the embedded web server.
@@ -268,8 +280,6 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     private HBox workButtons;
 
     @FXML
-    private Node imageMathPane;
-    @FXML
     private ImageMathTextArea imageMathScript;
     @FXML
     private CheckBox clearImagesCheckbox;
@@ -287,10 +297,33 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     private Label memoryLabel;
 
     @FXML
+    private StackPane centerStack;
+
+    @FXML
+    private SplitPane mainSplitPane;
+
+    @FXML
+    private Label expandPanelButton;
+
+    private boolean panelExpanded = false;
+    private double savedDividerPosition = 0.7;
+    private Timeline dividerAnimation;
+
+    private final Circle unreadLogIndicator = createUnreadDot();
+    private final FadeTransition unreadLogBlink = new FadeTransition(Duration.seconds(0.7), unreadLogIndicator);
+    private Level unreadLogLevel;
+
+    @FXML
     private TabPane rightTabs;
 
     @FXML
+    private ComboBox<Tab> panelSelector;
+
+    @FXML
     private Tab logsTab;
+
+    @FXML
+    private Tab referenceImageTab;
 
     @FXML
     private Tab statsTab;
@@ -302,13 +335,22 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     private Tab analysisTab;
 
     @FXML
-    private Tab metadataTab;
-
-    @FXML
     private Tab redshiftTab;
 
     @FXML
-    private Tab referenceImageTab;
+    private Tab scriptTab;
+
+    @FXML
+    private Tab publishingTab;
+
+    @FXML
+    private Button shareButton;
+
+    @FXML
+    private VBox bass2000Card;
+
+    @FXML
+    private Label bass2000UnavailableLabel;
 
     @FXML
     private Button bass2000Button;
@@ -413,8 +455,88 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     }
 
     @Override
-    public Tab getLogsTab() {
-        return logsTab;
+    public void revealConsole() {
+        rightTabs.getSelectionModel().select(logsTab);
+    }
+
+    @FXML
+    private void togglePanelExpansion() {
+        if (panelExpanded) {
+            collapsePanel();
+        } else {
+            savedDividerPosition = mainSplitPane.getDividerPositions()[0];
+            panelExpanded = true;
+            expandPanelButton.setText("»");
+            var width = mainSplitPane.getWidth();
+            var listWidth = multipleImagesViewer.computeImageListWidth();
+            var target = width > 0 ? Math.min(savedDividerPosition, listWidth / width) : 0.0;
+            animateDivider(target);
+        }
+    }
+
+    private void collapsePanel() {
+        collapsePanel(true);
+    }
+
+    private void collapsePanel(boolean animate) {
+        if (!panelExpanded) {
+            return;
+        }
+        panelExpanded = false;
+        expandPanelButton.setText("«");
+        if (animate) {
+            animateDivider(savedDividerPosition);
+        } else {
+            stopDividerAnimation();
+            mainSplitPane.setDividerPosition(0, savedDividerPosition);
+        }
+    }
+
+    private void animateDivider(double target) {
+        stopDividerAnimation();
+        var divider = mainSplitPane.getDividers().getFirst();
+        dividerAnimation = new Timeline(new KeyFrame(Duration.millis(220), new KeyValue(divider.positionProperty(), target)));
+        dividerAnimation.playFromStart();
+    }
+
+    private void stopDividerAnimation() {
+        if (dividerAnimation != null) {
+            dividerAnimation.stop();
+            dividerAnimation = null;
+        }
+    }
+
+    private void setupExpandAnchor() {
+        Platform.runLater(() -> {
+            var dividerNode = mainSplitPane.lookup(".split-pane-divider");
+            if (dividerNode == null) {
+                Platform.runLater(this::setupExpandAnchor);
+                return;
+            }
+            expandPanelButton.translateXProperty().bind(Bindings.createDoubleBinding(
+                    () -> {
+                        var bounds = dividerNode.getBoundsInParent();
+                        return bounds.getMinX() + bounds.getWidth() / 2 - expandPanelButton.getWidth() / 2;
+                    },
+                    dividerNode.boundsInParentProperty(), expandPanelButton.widthProperty()));
+            expandPanelButton.translateYProperty().bind(Bindings.createDoubleBinding(
+                    () -> {
+                        var selectorBounds = centerStack.sceneToLocal(panelSelector.localToScene(panelSelector.getBoundsInLocal()));
+                        return selectorBounds.getMinY() + selectorBounds.getHeight() / 2 - expandPanelButton.getHeight() / 2;
+                    },
+                    panelSelector.boundsInLocalProperty(), panelSelector.localToSceneTransformProperty(),
+                    centerStack.localToSceneTransformProperty(), expandPanelButton.heightProperty()));
+        });
+    }
+
+    @Override
+    public void revealProfilePanel() {
+        rightTabs.getSelectionModel().select(profileTab);
+    }
+
+    @FXML
+    private void showPublishingPanel() {
+        rightTabs.getSelectionModel().select(publishingTab);
     }
 
     @Override
@@ -435,11 +557,6 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     @Override
     public StackPane getRootStackPane() {
         return rootStackPane;
-    }
-
-    @Override
-    public Tab getMetadataTab() {
-        return metadataTab;
     }
 
     @Override
@@ -535,7 +652,15 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             bass2000Button.setVisible(true);
             stage.show();
             refreshRecentItemsMenu();
-            setupLogsTabActivityIndicator();
+            publishingTab.disableProperty().bind(bass2000Button.disableProperty().and(spectroSolHubButton.disableProperty()));
+            shareButton.disableProperty().bind(publishingTab.disableProperty());
+            var shareIcon = new FontIcon("fltfmz-share-24");
+            shareIcon.setIconSize(16);
+            shareButton.setGraphic(shareIcon);
+            setupPanelSelector();
+            setupConsoleActivityIndicator();
+            setupExpandAnchor();
+            multipleImagesViewer.setOnImageSelected(() -> collapsePanel(false));
             setupLogWindowContextMenu();
             setupImageMathEditorContextMenu();
             createFastModePane();
@@ -636,19 +761,125 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         });
     }
 
-    private void setupLogsTabActivityIndicator() {
-        var unreadLevel = new AtomicReference<Level>();
-        Runnable clearTabIndicator = () -> {
-            unreadLevel.set(null);
-            logsTab.setGraphic(null);
+    private void setupPanelSelector() {
+        panelSelector.setCellFactory(lv -> new ListCell<>() {
+            private final Circle logsUnreadDot = createUnreadDot();
+            private final Label itemLabel = new Label();
+            private final HBox box;
+
+            {
+                itemLabel.getStyleClass().add("panel-selector-item-label");
+                var highlighted = selectedProperty().or(hoverProperty());
+                itemLabel.textFillProperty().bind(Bindings.when(highlighted)
+                        .then(Color.WHITE)
+                        .otherwise(Color.web("#212529")));
+                var highlightBackground = new Background(new BackgroundFill(Color.web("#007bff"), new CornerRadii(6), Insets.EMPTY));
+                backgroundProperty().bind(Bindings.when(highlighted)
+                        .then(highlightBackground)
+                        .otherwise(Background.EMPTY));
+                box = buildSelectorRow(itemLabel, logsUnreadDot);
+                box.prefWidthProperty().bind(widthProperty().subtract(PANEL_ROW_WIDTH_INSET));
+            }
+
+            @Override
+            protected void updateItem(Tab tab, boolean empty) {
+                super.updateItem(tab, empty);
+                if (empty || tab == null) {
+                    setGraphic(null);
+                    setDisable(false);
+                } else {
+                    itemLabel.setText(tab.getText());
+                    setDisable(tab.isDisable());
+                    var unread = tab == logsTab && unreadLogLevel != null;
+                    if (unread) {
+                        logsUnreadDot.setFill(colorFor(unreadLogLevel));
+                    }
+                    logsUnreadDot.setVisible(unread);
+                    logsUnreadDot.setManaged(unread);
+                    setGraphic(box);
+                }
+            }
+        });
+        var buttonLabel = new Label();
+        buttonLabel.getStyleClass().add("panel-selector-button-label");
+        unreadLogIndicator.setVisible(false);
+        unreadLogIndicator.setManaged(false);
+        var buttonBox = buildSelectorRow(buttonLabel, unreadLogIndicator);
+        unreadLogBlink.setFromValue(1.0);
+        unreadLogBlink.setToValue(0.25);
+        unreadLogBlink.setCycleCount(Animation.INDEFINITE);
+        unreadLogBlink.setAutoReverse(true);
+        var buttonCell = new ListCell<Tab>() {
+            @Override
+            protected void updateItem(Tab tab, boolean empty) {
+                super.updateItem(tab, empty);
+                if (empty || tab == null) {
+                    setGraphic(null);
+                } else {
+                    buttonLabel.setText(tab.getText());
+                    setGraphic(buttonBox);
+                }
+            }
         };
+        panelSelector.setButtonCell(buttonCell);
+        buttonBox.prefWidthProperty().bind(buttonCell.widthProperty().subtract(PANEL_ROW_WIDTH_INSET));
+        panelSelector.skinProperty().addListener((obs, old, skin) -> {
+            var listSkin = (ComboBoxListViewSkin<?>) skin;
+            listSkin.getPopupContent().getStyleClass().add("panel-selector-list");
+        });
+        panelSelector.showingProperty().addListener((obs, was, showing) -> refreshUnreadLogIndicator());
+        for (var tab : rightTabs.getTabs()) {
+            tab.disableProperty().addListener((obs, was, isDisabled) -> refreshPanelSelectorItems());
+        }
+        refreshPanelSelectorItems();
+        panelSelector.valueProperty().addListener((obs, oldTab, tab) -> {
+            if (tab != null && !tab.isDisable()) {
+                rightTabs.getSelectionModel().select(tab);
+            }
+        });
+        rightTabs.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, tab) -> {
+            panelSelector.setValue(tab);
+            animatePanelSwitch(tab);
+        });
+        rightTabs.getSelectionModel().select(logsTab);
+        panelSelector.setValue(logsTab);
+    }
+
+    private void refreshPanelSelectorItems() {
+        var selected = panelSelector.getValue();
+        var enabled = rightTabs.getTabs().stream().filter(tab -> !tab.isDisable()).toList();
+        panelSelector.getItems().setAll(enabled);
+        if (selected != null && enabled.contains(selected)) {
+            panelSelector.setValue(selected);
+        }
+        var current = rightTabs.getSelectionModel().getSelectedItem();
+        if (current != null && current.isDisable()) {
+            rightTabs.getSelectionModel().select(logsTab);
+        }
+    }
+
+    private static void animatePanelSwitch(Tab tab) {
+        if (tab == null) {
+            return;
+        }
+        var content = tab.getContent();
+        if (content == null) {
+            return;
+        }
+        var fade = new FadeTransition(Duration.millis(180), content);
+        fade.setFromValue(0.0);
+        fade.setToValue(1.0);
+        fade.playFromStart();
+    }
+
+    private void setupConsoleActivityIndicator() {
         var clearLatestLog = new PauseTransition(Duration.seconds(8));
         clearLatestLog.setOnFinished(e -> latestLogLabel.setText(""));
         rightTabs.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
             if (newTab == logsTab) {
-                clearTabIndicator.run();
                 latestLogLabel.setText("");
                 clearLatestLog.stop();
+                clearUnreadLogIndicator();
             }
         });
         LogbackConfigurer.configureLogger(console, (level, message) -> {
@@ -663,19 +894,48 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             }
             latestLogLabel.setText(squashWhitespace(message));
             clearLatestLog.playFromStart();
-            var current = unreadLevel.get();
-            if (current == null || level.toInt() > current.toInt()) {
-                unreadLevel.set(level);
-                logsTab.setGraphic(new Circle(4, colorFor(level)));
+            if (unreadLogLevel == null || level.toInt() > unreadLogLevel.toInt()) {
+                unreadLogLevel = level;
+                refreshUnreadLogIndicator();
             }
         });
     }
 
-    private static String squashWhitespace(String message) {
-        if (message == null) {
-            return "";
+    private void clearUnreadLogIndicator() {
+        unreadLogLevel = null;
+        refreshUnreadLogIndicator();
+    }
+
+    private void refreshUnreadLogIndicator() {
+        var show = unreadLogLevel != null && !panelSelector.isShowing();
+        if (show) {
+            unreadLogIndicator.setFill(colorFor(unreadLogLevel));
+            unreadLogIndicator.setVisible(true);
+            unreadLogIndicator.setManaged(true);
+            if (unreadLogBlink.getStatus() != Animation.Status.RUNNING) {
+                unreadLogBlink.playFromStart();
+            }
+        } else {
+            unreadLogBlink.stop();
+            unreadLogIndicator.setOpacity(1.0);
+            unreadLogIndicator.setVisible(false);
+            unreadLogIndicator.setManaged(false);
         }
-        return message.replaceAll("\\s+", " ").trim();
+    }
+
+    private static HBox buildSelectorRow(Label label, Circle dot) {
+        var spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        var row = new HBox(label, spacer, dot);
+        row.setAlignment(Pos.CENTER_LEFT);
+        return row;
+    }
+
+    private static Circle createUnreadDot() {
+        var dot = new Circle(4);
+        dot.setStroke(Color.WHITE);
+        dot.setStrokeWidth(1.0);
+        return dot;
     }
 
     private static Color colorFor(Level level) {
@@ -686,6 +946,13 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             return Color.ORANGE;
         }
         return Color.DODGERBLUE;
+    }
+
+    private static String squashWhitespace(String message) {
+        if (message == null) {
+            return "";
+        }
+        return message.replaceAll("\\s+", " ").trim();
     }
 
     private void createFastModePane() {
@@ -2136,10 +2403,42 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         multipleImagesViewer.clear();
         multipleImagesViewer.setCollageContext(this, lastExecutionProcessParams, outputDirectory);
         hideTabHeaderWhenSingleTab(mainPane);
+        resetInspectorTabs();
         bass2000Button.setDisable(true);
         bass2000MenuItem.setDisable(true);
         spectroSolHubButton.setDisable(true);
         spectroSolHubMenuItem.setDisable(true);
+        bass2000Card.getStyleClass().remove("publishing-card-disabled");
+        bass2000UnavailableLabel.setVisible(false);
+        bass2000UnavailableLabel.setManaged(false);
+    }
+
+    private void resetInspectorTabs() {
+        for (var tab : List.of(statsTab, profileTab, analysisTab)) {
+            tab.setContent(null);
+            tab.setDisable(true);
+        }
+    }
+
+    private void updateBass2000Availability() {
+        String unavailableReason = null;
+        if (lastExecutionProcessParams == null
+                || !lastExecutionProcessParams.observationDetails().instrument().isSupportedByBass2000()) {
+            unavailableReason = message("bass2000.unavailable.instrument");
+        } else if (!Bass2000SubmissionController.isAcceptedSpectralLine(detectedSpectralRay)) {
+            unavailableReason = message("bass2000.unavailable.line");
+        }
+        var available = unavailableReason == null;
+        bass2000Button.setDisable(!available);
+        bass2000MenuItem.setDisable(!available);
+        if (available) {
+            bass2000Card.getStyleClass().remove("publishing-card-disabled");
+        } else if (!bass2000Card.getStyleClass().contains("publishing-card-disabled")) {
+            bass2000Card.getStyleClass().add("publishing-card-disabled");
+        }
+        bass2000UnavailableLabel.setText(unavailableReason);
+        bass2000UnavailableLabel.setVisible(!available);
+        bass2000UnavailableLabel.setManaged(!available);
     }
 
     @Override
@@ -2154,9 +2453,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         FxUtils.runLater(() -> {
             redshiftTab.setDisable(redshifts.isEmpty());
             if (lastExecutionProcessParams != null) {
-                var bass2000Disabled = !lastExecutionProcessParams.observationDetails().instrument().isSupportedByBass2000();
-                bass2000Button.setDisable(bass2000Disabled);
-                bass2000MenuItem.setDisable(bass2000Disabled);
+                updateBass2000Availability();
             }
             fullRangePanels.disableProperty().bind(redshiftCreatorKind.valueProperty().isEqualTo(RedshiftImagesProcessor.RedshiftCreatorKind.ANIMATION));
             fullRangePanelsLabel.disableProperty().bind(redshiftCreatorKind.valueProperty().isEqualTo(RedshiftImagesProcessor.RedshiftCreatorKind.ANIMATION));
@@ -2212,7 +2509,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
                 }
                 if (kind != null && size != null) {
                     BackgroundOperations.async(() -> {
-                        FxUtils.runLater(() -> rightTabs.getSelectionModel().select(logsTab));
+                        FxUtils.runLater(this::revealConsole);
                         processor.withRedshifts(selectedShifts.stream().toList()).produceImages(kind, size, margin, useFullRangePanels, annotate, new int[]{255, 255, 0});
                     });
                 }
@@ -2299,14 +2596,20 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     }
 
     private static void hideTabHeaderWhenSingleTab(TabPane tabPane) {
-        tabPane.getTabs().addListener((ListChangeListener<? super Tab>) tab -> {
+        Runnable update = () -> {
             var styleClass = tabPane.getStyleClass();
             if (tabPane.getTabs().size() <= 1) {
-                styleClass.add("no-tab-header");
+                if (!styleClass.contains("no-tab-header")) {
+                    styleClass.add("no-tab-header");
+                }
             } else {
                 styleClass.removeIf("no-tab-header"::equals);
             }
-        });
+        };
+        if (tabPane.getProperties().putIfAbsent("single-tab-header-listener", Boolean.TRUE) == null) {
+            tabPane.getTabs().addListener((ListChangeListener<? super Tab>) change -> update.run());
+        }
+        update.run();
     }
 
     private static void configureThreadExceptionHandler() {
@@ -2459,13 +2762,13 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         closeAllButton.setDisable(false);
         if (!batchMode) {
             deleteSerFileButton.setDisable(false);
+            trimSerFileButton.setDisable(trimmingParameters == null);
         }
     }
 
     @Override
     public void setTrimmingParameters(TrimmingParameters payload) {
         this.trimmingParameters = payload;
-        trimSerFileButton.setDisable(false);
     }
 
     @Override
@@ -2595,6 +2898,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         trimSerFileButton.setDisable(true);
         console.clear();
         mainPane.getTabs().clear();
+        resetInspectorTabs();
         trimmingParameters = null;
         createFastModePane();
     }
