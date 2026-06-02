@@ -53,6 +53,8 @@ import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.ToggleButton;
+import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
 import javafx.scene.control.skin.ComboBoxListViewSkin;
@@ -264,6 +266,9 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
 
     @FXML
     private TabPane mainPane;
+
+    @FXML
+    private HBox mainSwitcherBar;
 
     @FXML
     private ProgressBar progressBar;
@@ -650,7 +655,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             stage.setTitle("JSol'Ex " + version);
             stage.setScene(rootScene);
             addIcons(stage);
-            hideTabHeaderWhenSingleTab(mainPane);
+            setupMainAreaSwitcher();
             configureRedshiftControls();
             referenceImageHelper = new ReferenceImageHelper(rootStage, referenceImageTab, this::findActiveImage);
             referenceImageHelper.initialize();
@@ -1803,7 +1808,6 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             mainPane.getTabs().clear();
             imagesViewerTab = new Tab(message("images"), multipleImagesViewer);
             mainPane.getTabs().add(imagesViewerTab);
-            hideTabHeaderWhenSingleTab(mainPane);
         }
         var defaults = ProcessParams.loadDefaults();
         new StandaloneImagesLoader(rootStage, config, multipleImagesViewer, IMAGE_FILES_EXTENSIONS, this::updateProgress, defaults, popupViewers).loadImages();
@@ -2408,7 +2412,6 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         mainPane.getTabs().add(imagesViewerTab);
         multipleImagesViewer.clear();
         multipleImagesViewer.setCollageContext(this, lastExecutionProcessParams, outputDirectory);
-        hideTabHeaderWhenSingleTab(mainPane);
         resetInspectorTabs();
         bass2000Button.setDisable(true);
         bass2000MenuItem.setDisable(true);
@@ -2601,21 +2604,44 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         return power;
     }
 
-    private static void hideTabHeaderWhenSingleTab(TabPane tabPane) {
-        Runnable update = () -> {
-            var styleClass = tabPane.getStyleClass();
-            if (tabPane.getTabs().size() <= 1) {
-                if (!styleClass.contains("no-tab-header")) {
-                    styleClass.add("no-tab-header");
-                }
-            } else {
-                styleClass.removeIf("no-tab-header"::equals);
-            }
-        };
-        if (tabPane.getProperties().putIfAbsent("single-tab-header-listener", Boolean.TRUE) == null) {
-            tabPane.getTabs().addListener((ListChangeListener<? super Tab>) change -> update.run());
+    private void setupMainAreaSwitcher() {
+        if (!mainPane.getStyleClass().contains("no-tab-header")) {
+            mainPane.getStyleClass().add("no-tab-header");
         }
-        update.run();
+        var group = new ToggleGroup();
+        Runnable rebuild = () -> {
+            var tabs = mainPane.getTabs();
+            mainSwitcherBar.getChildren().clear();
+            var selected = mainPane.getSelectionModel().getSelectedItem();
+            for (var i = 0; i < tabs.size(); i++) {
+                var tab = tabs.get(i);
+                var button = new ToggleButton(tab.getText());
+                button.getStyleClass().add("segment-button");
+                if (tabs.size() > 1) {
+                    button.getStyleClass().add(i == 0 ? "segment-first" : i == tabs.size() - 1 ? "segment-last" : "segment-middle");
+                }
+                button.setToggleGroup(group);
+                button.setUserData(tab);
+                button.setSelected(tab == selected);
+                button.setOnAction(event -> {
+                    button.setSelected(true);
+                    mainPane.getSelectionModel().select(tab);
+                });
+                mainSwitcherBar.getChildren().add(button);
+            }
+            var multiple = tabs.size() > 1;
+            mainSwitcherBar.setVisible(multiple);
+            mainSwitcherBar.setManaged(multiple);
+        };
+        mainPane.getTabs().addListener((ListChangeListener<? super Tab>) change -> rebuild.run());
+        mainPane.getSelectionModel().selectedItemProperty().addListener((obs, was, selected) -> {
+            for (var node : mainSwitcherBar.getChildren()) {
+                if (node instanceof ToggleButton button) {
+                    button.setSelected(button.getUserData() == selected);
+                }
+            }
+        });
+        rebuild.run();
     }
 
     private static void configureThreadExceptionHandler() {

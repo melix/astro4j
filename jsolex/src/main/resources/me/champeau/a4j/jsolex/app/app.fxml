@@ -72,7 +72,10 @@
     <center>
       <StackPane fx:id="centerStack">
         <SplitPane fx:id="mainSplitPane" dividerPositions="0.7">
-            <TabPane fx:id="mainPane" prefWidth="400.0" minWidth="0.0"/>
+            <VBox prefWidth="400.0" minWidth="0.0">
+                <HBox fx:id="mainSwitcherBar" styleClass="main-switcher-bar" managed="false" visible="false"/>
+                <TabPane fx:id="mainPane" VBox.vgrow="ALWAYS"/>
+            </VBox>
             <VBox>
                 <HBox alignment="CENTER_LEFT" spacing="8" styleClass="ser-actions-bar">
                     <padding>

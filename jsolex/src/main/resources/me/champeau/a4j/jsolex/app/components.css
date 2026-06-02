@@ -102,6 +102,57 @@
     -fx-padding: 0;
 }
 
+/* Main area view switcher (shown only when there are 2 views) */
+.main-switcher-bar {
+    -fx-background-color: white;
+    -fx-border-color: #e3e8ee;
+    -fx-border-width: 0 0 1 0;
+    -fx-padding: 6 8 6 8;
+    -fx-spacing: 0;
+    -fx-alignment: center-left;
+}
+
+.segment-button {
+    -fx-background-color: white;
+    -fx-text-fill: #2b3742;
+    -fx-border-color: #ced4da;
+    -fx-border-width: 1;
+    -fx-background-radius: 0;
+    -fx-border-radius: 0;
+    -fx-padding: 4 14;
+    -fx-font-weight: 500;
+    -fx-cursor: hand;
+}
+
+.segment-button:hover {
+    -fx-background-color: #eaf2ff;
+}
+
+.segment-button:selected {
+    -fx-background-color: #007bff;
+    -fx-text-fill: white;
+    -fx-border-color: #0056b3;
+}
+
+.segment-button:selected:hover {
+    -fx-background-color: #0056b3;
+}
+
+.segment-first {
+    -fx-background-radius: 6 0 0 6;
+    -fx-border-radius: 6 0 0 6;
+}
+
+.segment-last {
+    -fx-background-radius: 0 6 6 0;
+    -fx-border-radius: 0 6 6 0;
+    -fx-border-width: 1 1 1 0;
+}
+
+.segment-middle {
+    -fx-border-width: 1 1 1 0;
+}
+
 /* Image viewer (center column) */
 .image-viewer-root {
     -fx-background-color: #f4f6f8;

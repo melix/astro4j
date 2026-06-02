@@ -15,6 +15,7 @@
 - The spectral profile tab can now display absolute intensities (ADU) instead of values normalized to 100
 - The GONG reference image tab now lets you pick the observatory and the image size, up to full resolution
 - The GONG reference image tab can detect possible flips of your active image compared to the GONG reference
+- Refreshed the main window with a consistent color theme
 
 ## What's New in Version 5.2.2
 
