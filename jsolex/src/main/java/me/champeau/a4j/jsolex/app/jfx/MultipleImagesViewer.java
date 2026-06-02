@@ -17,6 +17,8 @@ package me.champeau.a4j.jsolex.app.jfx;
 
 import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.beans.binding.Bindings;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
@@ -29,6 +31,7 @@ import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
@@ -112,6 +115,10 @@ public class MultipleImagesViewer extends Pane {
     private Path outputDirectory;
     private Runnable onImageSelected;
 
+    private final BooleanProperty closeAllEnabled = new SimpleBooleanProperty(false);
+    private final BooleanProperty deleteSerEnabled = new SimpleBooleanProperty(false);
+    private final BooleanProperty trimSerEnabled = new SimpleBooleanProperty(false);
+
     /**
      * Creates a new instance.
      */
@@ -155,26 +162,82 @@ public class MultipleImagesViewer extends Pane {
         var nonReconstructionImageCount = Bindings.createIntegerBinding(() -> (int) viewerKinds.values().stream()
                 .filter(kind -> kind != GeneratedImageKind.RECONSTRUCTION)
                 .count(), viewerKinds);
+        var collageAvailable = nonReconstructionImageCount.greaterThanOrEqualTo(2);
 
-        actionsSection.visibleProperty().bind(nonReconstructionImageCount.greaterThanOrEqualTo(2));
+        actionsSection.visibleProperty().bind(collageAvailable.or(closeAllEnabled).or(deleteSerEnabled).or(trimSerEnabled));
         actionsSection.managedProperty().bind(actionsSection.visibleProperty());
 
         var titleLabel = new Label(message("actions"));
         titleLabel.getStyleClass().add("category-title");
         actionsSection.getChildren().add(titleLabel);
 
-        var collageBox = new HBox();
-        collageBox.getStyleClass().add("category-row");
-        collageBox.setAlignment(Pos.CENTER_LEFT);
-
-        var collageLink = new Hyperlink(message("create.collage"));
-        collageLink.getStyleClass().add("category-link");
-        collageLink.setOnAction(e -> createCollage());
-
-        collageBox.getChildren().add(collageLink);
+        var collageBox = createActionRow(message("create.collage"), null, this::createCollage);
+        collageBox.visibleProperty().bind(collageAvailable);
+        collageBox.managedProperty().bind(collageBox.visibleProperty());
         actionsSection.getChildren().add(collageBox);
 
+        actionsSection.getChildren().add(createSerActionRow(message("action.delete.ser"), message("delete.ser.file.tooltip"), deleteSerEnabled, () -> {
+            if (owner != null) {
+                owner.deleteSerFile();
+            }
+        }));
+        actionsSection.getChildren().add(createSerActionRow(message("action.trim.ser"), message("trim.ser.file.tooltip"), trimSerEnabled, () -> {
+            if (owner != null) {
+                owner.trimSerFile();
+            }
+        }));
+        actionsSection.getChildren().add(createSerActionRow(message("action.close.all"), message("action.close.all.tooltip"), closeAllEnabled, () -> {
+            if (owner != null) {
+                owner.resetUI();
+            }
+        }));
+
         return actionsSection;
+    }
+
+    private HBox createActionRow(String label, String tooltip, Runnable action) {
+        var box = new HBox();
+        box.getStyleClass().add("category-row");
+        box.setAlignment(Pos.CENTER_LEFT);
+        var link = new Hyperlink(label);
+        link.getStyleClass().add("category-link");
+        if (tooltip != null) {
+            link.setTooltip(new Tooltip(tooltip));
+        }
+        link.setOnAction(e -> action.run());
+        box.getChildren().add(link);
+        return box;
+    }
+
+    private HBox createSerActionRow(String label, String tooltip, BooleanProperty enabled, Runnable action) {
+        var box = createActionRow(label, tooltip, action);
+        box.visibleProperty().bind(enabled);
+        box.managedProperty().bind(box.visibleProperty());
+        return box;
+    }
+
+    /**
+     * Enables or disables the "close all images" action.
+     * @param enabled whether the action is available
+     */
+    public void setCloseAllEnabled(boolean enabled) {
+        closeAllEnabled.set(enabled);
+    }
+
+    /**
+     * Enables or disables the "delete the SER file" action.
+     * @param enabled whether the action is available
+     */
+    public void setDeleteSerEnabled(boolean enabled) {
+        deleteSerEnabled.set(enabled);
+    }
+
+    /**
+     * Enables or disables the "trim the SER file" action.
+     * @param enabled whether the action is available
+     */
+    public void setTrimSerEnabled(boolean enabled) {
+        trimSerEnabled.set(enabled);
     }
 
     /**

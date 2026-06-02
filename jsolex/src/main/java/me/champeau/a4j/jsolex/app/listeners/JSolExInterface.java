@@ -159,6 +159,21 @@ public interface JSolExInterface {
     void newSession();
 
     /**
+     * Closes all images and resets the UI to its initial state.
+     */
+    void resetUI();
+
+    /**
+     * Deletes the processed SER file.
+     */
+    void deleteSerFile();
+
+    /**
+     * Trims the processed SER file to reduce disk space usage.
+     */
+    void trimSerFile();
+
+    /**
      * Prepares the UI for redshift image processing.
      * @param processor the redshift images processor
      */

@@ -18,7 +18,6 @@ package me.champeau.a4j.jsolex.app.jfx;
 import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.fxml.FXML;
 import javafx.scene.Parent;
-import javafx.scene.Scene;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
@@ -103,7 +102,7 @@ public class SerFileTrimmerController {
             var node = (Parent) fxmlLoader.load();
             var controller = (SerFileTrimmerController) fxmlLoader.getController();
             controller.setup(stage, payload, progressConsumer, onStart, onFinish);
-            Scene scene = new Scene(node);
+            var scene = JSolEx.newScene(node);
             FxUtils.runLater(() -> {
                 stage.setTitle(I18N.string(JSolEx.class, "ser-trimmer", "frame.title"));
                 stage.setScene(scene);

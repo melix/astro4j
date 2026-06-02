@@ -237,6 +237,9 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     private static final FileChooser.ExtensionFilter SER_FILES_EXTENSION_FILTER = new FileChooser.ExtensionFilter("SER files", "*.ser", "*.SER");
     private static final String DISCORD_INVITE = "https://discord.gg/y9NCGaWzve";
     private static final int PANEL_ROW_WIDTH_INSET = 24;
+    // Must match -fx-fixed-cell-size and the vertical padding/border of .panel-selector-list in components.css
+    private static final int PANEL_SELECTOR_CELL_SIZE = 34;
+    private static final int PANEL_SELECTOR_LIST_PADDING = 10;
 
     /**
      * Default port for the embedded web server.
@@ -411,15 +414,6 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
 
     @FXML
     private Label estimatedDiskSpace;
-
-    @FXML
-    private Button closeAllButton;
-
-    @FXML
-    private Button deleteSerFileButton;
-
-    @FXML
-    private Button trimSerFileButton;
 
     @FXML
     private Button serverStatus;
@@ -792,7 +786,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
 
             {
                 itemLabel.getStyleClass().add("panel-selector-item-label");
-                var highlighted = selectedProperty().or(hoverProperty());
+                var highlighted = selectedProperty().or(hoverProperty()).and(emptyProperty().not());
                 itemLabel.textFillProperty().bind(Bindings.when(highlighted)
                         .then(Color.WHITE)
                         .otherwise(Color.web("#212529")));
@@ -845,11 +839,18 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             }
         };
         panelSelector.setButtonCell(buttonCell);
-        panelSelector.setVisibleRowCount(rightTabs.getTabs().size());
         buttonBox.prefWidthProperty().bind(buttonCell.widthProperty().subtract(PANEL_ROW_WIDTH_INSET));
         panelSelector.skinProperty().addListener((obs, old, skin) -> {
             var listSkin = (ComboBoxListViewSkin<?>) skin;
-            listSkin.getPopupContent().getStyleClass().add("panel-selector-list");
+            var popupContent = listSkin.getPopupContent();
+            popupContent.getStyleClass().add("panel-selector-list");
+            if (popupContent instanceof Region listRegion) {
+                var exactHeight = Bindings.size(panelSelector.getItems())
+                        .multiply(PANEL_SELECTOR_CELL_SIZE)
+                        .add(PANEL_SELECTOR_LIST_PADDING);
+                listRegion.prefHeightProperty().bind(exactHeight);
+                listRegion.maxHeightProperty().bind(exactHeight);
+            }
         });
         panelSelector.showingProperty().addListener((obs, was, showing) -> refreshUnreadLogIndicator());
         for (var tab : rightTabs.getTabs()) {
@@ -870,16 +871,15 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     }
 
     private void refreshPanelSelectorItems() {
-        var selected = panelSelector.getValue();
         var enabled = rightTabs.getTabs().stream().filter(tab -> !tab.isDisable()).toList();
-        panelSelector.getItems().setAll(enabled);
-        if (selected != null && enabled.contains(selected)) {
-            panelSelector.setValue(selected);
-        }
         var current = rightTabs.getSelectionModel().getSelectedItem();
-        if (current != null && current.isDisable()) {
+        if (current == null || current.isDisable()) {
             rightTabs.getSelectionModel().select(logsTab);
+            current = logsTab;
         }
+        panelSelector.getSelectionModel().clearSelection();
+        panelSelector.getItems().setAll(enabled);
+        panelSelector.getSelectionModel().select(current);
     }
 
     private static void animatePanelSwitch(Tab tab) {
@@ -2382,8 +2382,8 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
                 reusedProcessParams = params;
                 reusedProcessParamsBinding.invalidate();
             }
-            deleteSerFileButton.setDisable(true);
-            trimSerFileButton.setDisable(true);
+            multipleImagesViewer.setDeleteSerEnabled(false);
+            multipleImagesViewer.setTrimSerEnabled(false);
             processFileWithParams(selectedFile, firstHeader, params);
         });
     }
@@ -2808,10 +2808,10 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             onComplete.run();
             appender.stop();
         }
-        closeAllButton.setDisable(false);
+        multipleImagesViewer.setCloseAllEnabled(true);
         if (!batchMode) {
-            deleteSerFileButton.setDisable(false);
-            trimSerFileButton.setDisable(trimmingParameters == null);
+            multipleImagesViewer.setDeleteSerEnabled(true);
+            multipleImagesViewer.setTrimSerEnabled(trimmingParameters != null);
         }
     }
 
@@ -2839,7 +2839,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     /**
      * Trims a SER file by removing unwanted frames.
      */
-    @FXML
+    @Override
     public void trimSerFile() {
         FxUtils.runLater(() -> {
             var stage = newStage();
@@ -2940,11 +2940,11 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         console.clear();
     }
 
-    @FXML
-    void resetUI() {
-        closeAllButton.setDisable(true);
-        deleteSerFileButton.setDisable(true);
-        trimSerFileButton.setDisable(true);
+    @Override
+    public void resetUI() {
+        multipleImagesViewer.setCloseAllEnabled(false);
+        multipleImagesViewer.setDeleteSerEnabled(false);
+        multipleImagesViewer.setTrimSerEnabled(false);
         console.clear();
         mainPane.getTabs().clear();
         resetInspectorTabs();
@@ -2952,8 +2952,8 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         createFastModePane();
     }
 
-    @FXML
-    void deleteSerFile() {
+    @Override
+    public void deleteSerFile() {
         var confirmation = AlertFactory.confirmation(message("delete.ser.file.confirm"));
         confirmation.setTitle(message("delete.ser.file"));
         if (confirmation.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK) {

@@ -80,8 +80,8 @@
         </Label>
         <ButtonBar GridPane.columnIndex="3" GridPane.rowIndex="5">
             <buttons>
-                <Button mnemonicParsing="false" onAction="#cancel" text="%cancel" />
-                <Button mnemonicParsing="false" onAction="#trim" text="%trim" />
+                <Button mnemonicParsing="false" onAction="#cancel" text="%cancel" styleClass="default-button" />
+                <Button mnemonicParsing="false" onAction="#trim" text="%trim" styleClass="primary-button" />
             </buttons>
         </ButtonBar>
         <Label style="-fx-font-weight: bold;" text="%trim.warning.header" textAlignment="CENTER" textFill="RED" GridPane.columnSpan="6" GridPane.halignment="CENTER" GridPane.hgrow="ALWAYS" GridPane.rowIndex="3" />

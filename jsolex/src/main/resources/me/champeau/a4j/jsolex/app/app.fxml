@@ -77,37 +77,16 @@
                 <TabPane fx:id="mainPane" VBox.vgrow="ALWAYS"/>
             </VBox>
             <VBox>
-                <HBox alignment="CENTER_LEFT" spacing="8" styleClass="ser-actions-bar">
+                <HBox alignment="CENTER_LEFT" spacing="8" styleClass="panel-selector-bar">
                     <padding>
-                        <Insets bottom="4" left="8" right="8" top="6"/>
+                        <Insets bottom="6" left="8" right="8" top="6"/>
                     </padding>
-                    <Button fx:id="closeAllButton" onAction="#resetUI" text="%reset.ui" disable="true" styleClass="default-button">
-                        <tooltip>
-                            <Tooltip text="%reset.ui.tooltip"/>
-                        </tooltip>
-                    </Button>
-                    <Button fx:id="deleteSerFileButton" onAction="#deleteSerFile" text="%delete.ser.file" disable="true" styleClass="default-button">
-                        <tooltip>
-                            <Tooltip text="%delete.ser.file.tooltip"/>
-                        </tooltip>
-                    </Button>
-                    <Button fx:id="trimSerFileButton" onAction="#trimSerFile" text="%trim.ser.file" disable="true" styleClass="default-button">
-                        <tooltip>
-                            <Tooltip text="%trim.ser.file.tooltip"/>
-                        </tooltip>
-                    </Button>
-                    <Pane HBox.hgrow="ALWAYS"/>
+                    <ComboBox fx:id="panelSelector" styleClass="panel-selector" maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
                     <Button fx:id="shareButton" onAction="#showPublishingPanel" disable="true" styleClass="default-button">
                         <tooltip>
                             <Tooltip text="%share.tooltip"/>
                         </tooltip>
                     </Button>
-                </HBox>
-                <HBox alignment="CENTER_LEFT" spacing="8" styleClass="panel-selector-bar">
-                    <padding>
-                        <Insets bottom="6" left="8" right="8" top="4"/>
-                    </padding>
-                    <ComboBox fx:id="panelSelector" styleClass="panel-selector" maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
                 </HBox>
                 <TabPane fx:id="rightTabs" styleClass="no-tab-header" tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS">
                     <Tab fx:id="logsTab" text="%logs">
