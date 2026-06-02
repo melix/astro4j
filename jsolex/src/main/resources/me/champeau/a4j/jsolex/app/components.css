@@ -95,8 +95,11 @@
 }
 
 .no-tab-header .tab-header-area {
-    visibility: hidden ;
-    -fx-padding: -24 0 0 0;
+    visibility: hidden;
+    -fx-min-height: 0;
+    -fx-pref-height: 0;
+    -fx-max-height: 0;
+    -fx-padding: 0;
 }
 
 /* Image viewer (center column) */
