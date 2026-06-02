@@ -10,7 +10,7 @@
 <BorderPane>
     <top>
         <VBox>
-            <HBox alignment="CENTER_LEFT" styleClass="menu-bar">
+            <HBox alignment="CENTER_LEFT" styleClass="menu-bar-container">
                 <MenuBar HBox.hgrow="NEVER">
                     <Menu text="%file">
                         <MenuItem onAction="#open" text="%open.ser.file"/>

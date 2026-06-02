@@ -221,6 +221,36 @@
     -fx-background-color: rgba(0,0,0,0.06);
 }
 
+/* Top menu bar — flat, matches the light theme */
+.menu-bar-container {
+    -fx-background-color: white;
+    -fx-border-color: #e3e8ee;
+    -fx-border-width: 0 0 1 0;
+}
+
+.menu-bar {
+    -fx-background-color: transparent;
+    -fx-padding: 2 4;
+}
+
+.menu-bar > .container > .menu-button {
+    -fx-background-color: transparent;
+    -fx-background-radius: 6;
+    -fx-padding: 0;
+}
+
+.menu-bar > .container > .menu-button > .label {
+    -fx-text-fill: #2b3742;
+    -fx-padding: 4 10;
+}
+
+.menu-bar > .container > .menu-button:hover,
+.menu-bar > .container > .menu-button:focused,
+.menu-bar > .container > .menu-button:showing {
+    -fx-background-color: rgba(0,0,0,0.06);
+    -fx-background-radius: 6;
+}
+
 .default-button:hover {
     -fx-background-color: #f8f9fa;
     -fx-border-color: #adb5bd;
@@ -228,7 +258,7 @@
 
 
 .custom-button {
-    -fx-background-color: #17a2b8;
+    -fx-background-color: #007bff;
     -fx-text-fill: white;
     -fx-background-radius: 6;
     -fx-padding: 4 8;
@@ -237,10 +267,10 @@
 }
 
 .custom-button:hover {
-    -fx-background-color: #138496;
+    -fx-background-color: #0056b3;
 }
 
-/* SplitMenuButton with the custom-button (teal) palette */
+/* SplitMenuButton with the custom-button palette */
 .split-menu-button.custom-button {
     -fx-background-color: transparent;
     -fx-background-radius: 6;
@@ -248,7 +278,7 @@
 }
 
 .split-menu-button.custom-button .label {
-    -fx-background-color: #17a2b8;
+    -fx-background-color: #007bff;
     -fx-text-fill: white;
     -fx-font-weight: 500;
     -fx-padding: 4 8;
@@ -260,11 +290,11 @@
 }
 
 .split-menu-button.custom-button:hover .label {
-    -fx-background-color: #138496;
+    -fx-background-color: #0056b3;
 }
 
 .split-menu-button.custom-button .arrow-button {
-    -fx-background-color: #17a2b8;
+    -fx-background-color: #007bff;
     -fx-background-radius: 0 6 6 0;
     -fx-padding: 4 8;
     -fx-background-insets: 0;
@@ -272,7 +302,7 @@
 }
 
 .split-menu-button.custom-button:hover .arrow-button {
-    -fx-background-color: #138496;
+    -fx-background-color: #0056b3;
 }
 
 .split-menu-button.custom-button .arrow-button .arrow {
@@ -282,7 +312,7 @@
 }
 
 .quick-button {
-    -fx-background-color: #17a2b8;
+    -fx-background-color: #007bff;
     -fx-text-fill: white;
     -fx-background-radius: 6;
     -fx-padding: 4 8;
@@ -291,7 +321,7 @@
 }
 
 .quick-button:hover {
-    -fx-background-color: #138496;
+    -fx-background-color: #0056b3;
 }
 
 .image-viewer-button {
@@ -329,13 +359,13 @@
 }
 
 .overlay-chip:selected {
-    -fx-background-color: #17a2b8;
+    -fx-background-color: #007bff;
     -fx-text-fill: white;
-    -fx-border-color: #117a8b #117a8b transparent #117a8b;
+    -fx-border-color: #0056b3 #0056b3 transparent #0056b3;
 }
 
 .overlay-chip:selected:hover {
-    -fx-background-color: #138496;
+    -fx-background-color: #0056b3;
 }
 
 .overlay-swatch {
@@ -358,7 +388,7 @@
 }
 
 .overlay-popover-header {
-    -fx-background-color: linear-gradient(to right, rgba(23, 162, 184, 0.92), rgba(19, 132, 150, 0.92));
+    -fx-background-color: linear-gradient(to right, rgba(0, 123, 255, 0.92), rgba(0, 86, 179, 0.92));
     -fx-background-radius: 12 12 0 0;
     -fx-padding: 8 12 8 14;
     -fx-cursor: move;
@@ -406,13 +436,13 @@
 }
 
 .overlay-popover .overlay-chip:selected {
-    -fx-background-color: #17a2b8;
+    -fx-background-color: #007bff;
     -fx-text-fill: white;
-    -fx-border-color: #117a8b;
+    -fx-border-color: #0056b3;
 }
 
 .overlay-popover .overlay-chip:selected:hover {
-    -fx-background-color: #138496;
+    -fx-background-color: #0056b3;
 }
 
 .overlay-popover .overlay-chip:selected .ikonli-font-icon {
@@ -473,8 +503,8 @@
 
 .overlay-popover-footer-button:hover {
     -fx-background-color: white;
-    -fx-border-color: #17a2b8;
-    -fx-text-fill: #117a8b;
+    -fx-border-color: #007bff;
+    -fx-text-fill: #0056b3;
 }
 
 .overlay-popover-footer-button-confirmed {
@@ -875,7 +905,7 @@
 }
 
 .quick-button, .custom-button {
-    -fx-background-color: #17a2b8;
+    -fx-background-color: #007bff;
     -fx-text-fill: white;
     -fx-background-radius: 6;
     -fx-padding: 4 8;
@@ -884,7 +914,7 @@
 }
 
 .quick-button:hover, .custom-button:hover {
-    -fx-background-color: #138496;
+    -fx-background-color: #0056b3;
 }
 
 .validation-status {
@@ -948,7 +978,7 @@
 }
 
 .tooltip-info {
-    -fx-background-color: #17a2b8;
+    -fx-background-color: #007bff;
 }
 
 .tooltip-warning {
@@ -1141,17 +1171,17 @@
 }
 
 .check-box:selected .box {
-    -fx-background-color: #17a2b8;
-    -fx-border-color: #17a2b8;
+    -fx-background-color: #007bff;
+    -fx-border-color: #007bff;
 }
 
 .check-box:selected:hover .box {
-    -fx-background-color: #138496;
-    -fx-border-color: #138496;
+    -fx-background-color: #0056b3;
+    -fx-border-color: #0056b3;
 }
 
 .check-box:focused .box {
-    -fx-effect: dropshadow(gaussian, rgba(23,162,184,0.4), 4, 0, 0, 0);
+    -fx-effect: dropshadow(gaussian, rgba(0,123,255,0.4), 4, 0, 0, 0);
 }
 
 .check-box .mark {
@@ -1166,7 +1196,7 @@
 }
 
 .help-icon {
-    -fx-background-color: #17a2b8;
+    -fx-background-color: #007bff;
     -fx-text-fill: white;
     -fx-font-size: 10px;
     -fx-font-weight: bold;
@@ -1179,12 +1209,12 @@
     -fx-max-height: 16;
     -fx-alignment: center;
     -fx-cursor: hand;
-    -fx-effect: dropshadow(gaussian, rgba(23,162,184,0.3), 2, 0, 0, 1);
+    -fx-effect: dropshadow(gaussian, rgba(0,123,255,0.3), 2, 0, 0, 1);
 }
 
 .help-icon:hover {
-    -fx-background-color: #138496;
-    -fx-effect: dropshadow(gaussian, rgba(19,132,150,0.4), 3, 0, 0, 1);
+    -fx-background-color: #0056b3;
+    -fx-effect: dropshadow(gaussian, rgba(0,86,179,0.4), 3, 0, 0, 1);
 }
 
 .form-grid .help-icon {
