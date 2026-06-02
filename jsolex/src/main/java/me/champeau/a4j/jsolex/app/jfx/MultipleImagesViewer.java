@@ -56,6 +56,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -86,6 +88,10 @@ public class MultipleImagesViewer extends Pane {
             GeneratedImageKind.COLORIZED,
             GeneratedImageKind.CONTINUUM
     );
+
+    private static final String RUN_NUMBER_KEY = "script-run-number";
+    private static final DateTimeFormatter RUN_TITLE_FORMAT = DateTimeFormatter.ofPattern("HH:mm");
+    private static final DateTimeFormatter RUN_TOOLTIP_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss");
 
     private final Set<ImageViewer> imageViews = new HashSet<>();
     private final List<CategoryPane> safeCategories = new ArrayList<>();
@@ -252,10 +258,37 @@ public class MultipleImagesViewer extends Pane {
                                                PixelShift pixelShift,
                                                Function<? super ImageViewer, T> transformer,
                                                Consumer<? super ImageViewer> onShow) {
+        return addImage(listener, operation, title, baseName, kind, description, imageWrapper, file, params,
+                popupViews, pixelShift, 0, null, transformer, onShow);
+    }
+
+    public <T extends WithRootNode> T addImage(ProcessingEventListener listener,
+                                               ProgressOperation operation,
+                                               String title,
+                                               String baseName,
+                                               GeneratedImageKind kind,
+                                               String description,
+                                               ImageWrapper imageWrapper,
+                                               File file,
+                                               ProcessParams params,
+                                               Map<String, ImageViewer> popupViews,
+                                               PixelShift pixelShift,
+                                               int scriptRunNumber,
+                                               LocalDateTime runStartTime,
+                                               Function<? super ImageViewer, T> transformer,
+                                               Consumer<? super ImageViewer> onShow) {
         try {
             lock.lock();
 
-            var category = getOrCreateCategory(kind);
+            var runScoped = scriptRunNumber > 0 && kind == GeneratedImageKind.IMAGE_MATH;
+            var category = runScoped ? getOrCreateRunCategory(scriptRunNumber, runStartTime) : getOrCreateCategory(kind);
+            String badge = null;
+            String badgeTooltip = null;
+            if (runScoped) {
+                badge = "#" + scriptRunNumber;
+                var prefix = message("displayCategory." + DisplayCategory.IMAGE_MATH.name());
+                badgeTooltip = String.format(message("script.run.tooltip"), prefix, scriptRunNumber, RUN_TOOLTIP_FORMAT.format(runStartTime));
+            }
             var viewer = newImageViewer();
             var transformed = transformer.apply(viewer);
             viewerTitles.put(viewer, title);
@@ -280,7 +313,7 @@ public class MultipleImagesViewer extends Pane {
                 addImage(listener, operation, clonedTitle, clonedBaseName, kind, description,
                         clonedImage, file, params, popupViews, pixelShift, v -> v, onShow);
             };
-            var hyperlink = category.addImage(title, pixelShift, link -> {
+            var hyperlink = category.addImage(title, pixelShift, badge, badgeTooltip, link -> {
                 if (onImageSelected != null) {
                     onImageSelected.run();
                 }
@@ -505,6 +538,13 @@ public class MultipleImagesViewer extends Pane {
                 .orElseGet(() -> addCategory(category));
     }
 
+    private CategoryPane getOrCreateRunCategory(int runNumber, LocalDateTime startTime) {
+        return categories()
+                .filter(t -> Integer.valueOf(runNumber).equals(t.getProperties().get(RUN_NUMBER_KEY)))
+                .findFirst()
+                .orElseGet(() -> addRunCategory(runNumber, startTime));
+    }
+
     private Stream<CategoryPane> categories() {
         return safeCategories.stream();
     }
@@ -516,10 +556,35 @@ public class MultipleImagesViewer extends Pane {
         });
         categoryPane.setMinWidth(190);
         categoryPane.getProperties().put(DisplayCategory.class, category);
-        safeCategories.add(categoryPane);
-        safeCategories.sort(Comparator.comparingInt(t -> categoryOf(t).ordinal()));
+        return registerCategory(categoryPane);
+    }
+
+    private CategoryPane addRunCategory(int runNumber, LocalDateTime startTime) {
+        var prefix = message("displayCategory." + DisplayCategory.IMAGE_MATH.name());
+        var title = String.format(message("script.run.section"), prefix, runNumber, RUN_TITLE_FORMAT.format(startTime));
+        var runPane = new CategoryPane(title, e -> {
+            categories.remove(e);
+            safeCategories.remove(e);
+        });
+        runPane.setMinWidth(190);
+        runPane.getProperties().put(RUN_NUMBER_KEY, runNumber);
+        runPane.getStyleClass().add("run-pane");
+        return registerCategory(runPane);
+    }
+
+    private CategoryPane registerCategory(CategoryPane pane) {
+        safeCategories.add(pane);
+        safeCategories.sort(Comparator.comparingInt(MultipleImagesViewer::sortKey));
         FxUtils.runLater(() -> categories.setAll(safeCategories));
-        return categoryPane;
+        return pane;
+    }
+
+    private static int sortKey(CategoryPane pane) {
+        var runNumber = (Integer) pane.getProperties().get(RUN_NUMBER_KEY);
+        if (runNumber != null) {
+            return -runNumber;
+        }
+        return categoryOf(pane).ordinal();
     }
 
     private static DisplayCategory categoryOf(CategoryPane pane) {

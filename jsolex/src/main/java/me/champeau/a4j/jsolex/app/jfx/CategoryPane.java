@@ -19,6 +19,7 @@ import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
@@ -47,6 +48,9 @@ public class CategoryPane extends VBox {
 
     private Hyperlink selected = null;
     private final Consumer<? super CategoryPane> whenEmpty;
+    private final Label titleLabel;
+    private final String baseTitle;
+    private boolean collapsed;
 
     /**
      * Creates a category pane.
@@ -55,13 +59,33 @@ public class CategoryPane extends VBox {
      */
     public CategoryPane(String title, Consumer<? super CategoryPane> whenEmpty) {
         this.whenEmpty = whenEmpty;
-        Label titleLabel = new Label(title);
-        titleLabel.getStyleClass().add("category-title");
+        this.baseTitle = title;
+        titleLabel = new Label();
+        titleLabel.getStyleClass().addAll("category-title", "category-title-collapsible");
+        titleLabel.setOnMouseClicked(e -> toggleCollapsed());
         getChildren().add(titleLabel);
         getStyleClass().add("category-pane");
+        updateTitle();
     }
 
-    Hyperlink addImage(String title, PixelShift pixelShift, Consumer<? super Hyperlink> onClick, Consumer<? super Hyperlink> onClose, Consumer<? super String> onRename, Runnable onClone) {
+    private void updateTitle() {
+        titleLabel.setText((collapsed ? "▸ " : "▾ ") + baseTitle);
+    }
+
+    private void toggleCollapsed() {
+        collapsed = !collapsed;
+        for (var i = 1; i < getChildren().size(); i++) {
+            applyCollapseState(getChildren().get(i));
+        }
+        updateTitle();
+    }
+
+    private void applyCollapseState(Node node) {
+        node.setVisible(!collapsed);
+        node.setManaged(!collapsed);
+    }
+
+    Hyperlink addImage(String title, PixelShift pixelShift, String badge, String badgeTooltip, Consumer<? super Hyperlink> onClick, Consumer<? super Hyperlink> onClose, Consumer<? super String> onRename, Runnable onClone) {
         var box = new HBox();
         box.getStyleClass().add("category-row");
         box.getProperties().put(PixelShift.class, pixelShift);
@@ -77,6 +101,14 @@ public class CategoryPane extends VBox {
         link.getStyleClass().add("category-link");
         safeLinks.add(link);
         box.getChildren().add(link);
+        if (badge != null) {
+            var badgeLabel = new Label(badge);
+            badgeLabel.getStyleClass().add("category-run-badge");
+            if (badgeTooltip != null) {
+                badgeLabel.setTooltip(new Tooltip(badgeTooltip));
+            }
+            box.getChildren().add(badgeLabel);
+        }
         String shiftSuffix = null;
         if (pixelShift != null && pixelShift.pixelShift() != 0) {
             var label = pixelShift.pixelShift() > 0 ? "+" : "";
@@ -110,6 +142,7 @@ public class CategoryPane extends VBox {
             installContextMenu(box, link, shiftSuffix, onRename, onClone);
         }
         getChildren().add(insertPoint, box);
+        applyCollapseState(box);
         FxUtils.runLater(() -> links.setAll(safeLinks));
         return link;
     }
@@ -218,6 +251,7 @@ public class CategoryPane extends VBox {
         var close = createCloseLink(box, link, onClose);
         box.getChildren().addAll(link, spacer, close);
         getChildren().add(box);
+        applyCollapseState(box);
         return link;
     }
 

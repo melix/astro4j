@@ -822,6 +822,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         var generatedImageKind = payload.kind();
         var imageWrapper = payload.image();
         var pixelShift = imageWrapper.findMetadata(PixelShift.class);
+        var runNumber = owner.currentScriptRunNumber();
+        var runStartTime = owner.currentScriptRunStartTime();
         FxUtils.runLater(() -> {
             var addedImageViewer = owner.getImagesViewer().addImage(this,
                     rootOperation,
@@ -834,6 +836,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     adjustedParams != null ? adjustedParams : params,
                     popupViews,
                     pixelShift.orElse(null),
+                    runNumber,
+                    runStartTime,
                     viewer -> viewer,
                     viewer -> viewer.setOnStretchedImageUpdate(stretchedImage -> {
                         BackgroundOperations.async(() -> {

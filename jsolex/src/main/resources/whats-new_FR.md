@@ -16,6 +16,7 @@
 - L'onglet d'image de référence GONG permet désormais de choisir l'observatoire et la taille de l'image, jusqu'à la pleine résolution
 - L'onglet d'image de référence GONG peut détecter d'éventuels miroirs de votre image active par rapport à la référence GONG
 - Rafraîchissement de la fenêtre principale avec un thème de couleurs cohérent.
+- La réexécution d'un script regroupe désormais ses résultats dans des sections de passe numérotées et repliables, pour distinguer et comparer facilement les exécutions successives
 
 ## Nouveautés de la version 5.2.2
 

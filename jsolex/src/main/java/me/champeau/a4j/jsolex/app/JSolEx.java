@@ -270,6 +270,9 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     @FXML
     private HBox mainSwitcherBar;
 
+    private int scriptRunNumber;
+    private LocalDateTime scriptRunStartTime;
+
     @FXML
     private ProgressBar progressBar;
 
@@ -577,6 +580,16 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     @Override
     public Tab getImagesViewerTab() {
         return imagesViewerTab;
+    }
+
+    @Override
+    public int currentScriptRunNumber() {
+        return scriptRunNumber;
+    }
+
+    @Override
+    public LocalDateTime currentScriptRunStartTime() {
+        return scriptRunStartTime;
     }
 
     @Override
@@ -1432,6 +1445,8 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             if (clearImagesCheckbox.isSelected()) {
                 FxUtils.runLater(this::clearDisplayedImages);
             }
+            scriptRunNumber++;
+            scriptRunStartTime = LocalDateTime.now();
             config.findLastOpenDirectory(Configuration.DirectoryKind.IMAGE_MATH).ifPresent(executor::setIncludesDir);
             BackgroundOperations.async(() -> {
                 var startTime = System.nanoTime();
@@ -2397,6 +2412,8 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     }
 
     public void newSession() {
+        scriptRunNumber = 0;
+        scriptRunStartTime = null;
         clearDisplayedImages();
         FileBackedImage.clearCache();
     }

@@ -16,6 +16,7 @@
 - The GONG reference image tab now lets you pick the observatory and the image size, up to full resolution
 - The GONG reference image tab can detect possible flips of your active image compared to the GONG reference
 - Refreshed the main window with a consistent color theme
+- Re-running a script now groups its results into collapsible, numbered run sections so successive runs are easy to tell apart and compare
 
 ## What's New in Version 5.2.2
 

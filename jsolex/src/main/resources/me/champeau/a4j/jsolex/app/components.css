@@ -76,6 +76,32 @@
     -fx-text-fill: #dbe9ff;
 }
 
+.category-run-badge {
+    -fx-font-size: 0.68em;
+    -fx-font-weight: bold;
+    -fx-text-fill: white;
+    -fx-background-color: #007bff;
+    -fx-background-radius: 8;
+    -fx-padding: 1 6 1 6;
+}
+
+.category-row-selected .category-run-badge {
+    -fx-background-color: white;
+    -fx-text-fill: #007bff;
+}
+
+.category-title-collapsible {
+    -fx-cursor: hand;
+}
+
+.run-pane {
+    -fx-border-color: #cfe0ff;
+}
+
+.run-pane .category-title {
+    -fx-text-fill: #0a4fb0;
+}
+
 .category-close {
     -fx-text-fill: #b0b8c0;
     -fx-padding: 2 4 2 4;

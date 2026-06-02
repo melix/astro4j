@@ -31,6 +31,7 @@ import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.TrimmingParameters;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.regression.Ellipse;
+import java.time.LocalDateTime;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -132,6 +133,19 @@ public interface JSolExInterface {
      * @param sectionKind the section kind being executed
      */
     void prepareForScriptExecution(ImageMathScriptExecutor executor, ProcessParams params, ProgressOperation rootOperation, ImageMathScriptExecutor.SectionKind sectionKind);
+
+    /**
+     * Returns the number of the currently active manual script run, or 0 if the images being
+     * generated are not the result of a manual re-run (initial processing).
+     * @return the current script run number, or 0
+     */
+    int currentScriptRunNumber();
+
+    /**
+     * Returns the start time of the currently active manual script run.
+     * @return the start time, or null if there is no active run
+     */
+    LocalDateTime currentScriptRunStartTime();
 
     /**
      * Returns the host services for opening URLs in the browser.
