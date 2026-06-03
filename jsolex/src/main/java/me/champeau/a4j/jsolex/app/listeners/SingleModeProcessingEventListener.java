@@ -45,6 +45,8 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.image.PixelFormat;
 import javafx.scene.image.WritableImage;
 import javafx.scene.image.WritablePixelFormat;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.control.ScrollPane;
@@ -429,11 +431,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 rootOperation,
                 message("image.reconstruction"), baseName,
                 GeneratedImageKind.RECONSTRUCTION, null, null, null, params, popupViews, new PixelShift(pixelShift),
-                viewer -> {
-                    var parentWidth = owner.getImagesViewer().widthProperty();
-                    viewer.getImageView().getScrollPane().maxWidthProperty().bind(parentWidth);
-                    return new ReconstructionView(viewer.getImageView(), buffer, bufferWidth, bufferHeight);
-                },
+                viewer -> new ReconstructionView(viewer.getImageView(), buffer, bufferWidth, bufferHeight),
                 viewer -> {
 
                 });
@@ -702,7 +700,34 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 var zoom = solarView.getZoom();
                 var imageX = (evt.getX() + view.getOffsetX()) / zoom;
                 var frameNb = (evt.getY() + view.getOffsetY()) / zoom;
+                solarView.requestFocus();
                 triggerAt.accept(imageX, frameNb);
+            });
+            solarView.setFocusTraversable(true);
+            solarView.addEventHandler(KeyEvent.KEY_PRESSED, evt -> {
+                var code = evt.getCode();
+                if (code != KeyCode.UP && code != KeyCode.DOWN && code != KeyCode.LEFT && code != KeyCode.RIGHT) {
+                    return;
+                }
+                var step = evt.isShiftDown() ? 10 : 1;
+                var x = Double.isNaN(lastMarkerPosition[0]) ? 0 : Math.round(lastMarkerPosition[0]);
+                var y = Double.isNaN(lastMarkerPosition[1]) ? 0 : Math.round(lastMarkerPosition[1]);
+                switch (code) {
+                    case UP -> y -= step;
+                    case DOWN -> y += step;
+                    case LEFT -> x -= step;
+                    case RIGHT -> x += step;
+                    default -> {
+                        return;
+                    }
+                }
+                var image = solarView.getImage();
+                var maxX = image != null ? (long) image.getWidth() - 1 : 0;
+                x = Math.max(0, Math.min(maxX, x));
+                y = Math.max(0, Math.min(frameCount - 1L, y));
+                evt.consume();
+                scrollToCenter(solarView, x, y);
+                triggerAt.accept((double) x, (double) y);
             });
             var goToItem = new MenuItem(message("recon.goto"));
             goToItem.setOnAction(ev -> showGoToDialog(solarView, frameCount, triggerAt));
@@ -2187,6 +2212,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             var series = new XYChart.Series<String, Number>();
             var image = payload.image();
             var height = image.height();
+            var width = image.width();
             var start = payload.leftBorder();
             var end = payload.rightBorder();
             var data = image.data();
@@ -2256,7 +2282,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             SpectralProfileHelper.NormalizedDataPoints normalizedFrameDataPoints;
             SpectralProfileHelper.NormalizedDataPoints normalizedLineDataPoints;
             SpectralLineAnalysis.LineStatistics frameLineStatistics = null;
-            if (currentColumn != null && currentColumn >= start && currentColumn < end) {
+            if (currentColumn != null && currentColumn >= 0 && currentColumn < width) {
                 var frameDataPoints = new ArrayList<SpectrumAnalyzer.DataPoint>();
                 var lineDataPoints = new ArrayList<SpectrumAnalyzer.DataPoint>();
 

@@ -22,9 +22,14 @@ import javafx.scene.Node;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
+import javafx.scene.Cursor;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.stage.FileChooser;
@@ -87,11 +92,17 @@ public class ReconstructionView extends BorderPane implements WithRootNode {
             spectrumView.setFitWidth(w);
             spectrumViewOverlay.setWidth(w);
         });
-        solarView.getScrollPane().setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        solarView.getScrollPane().setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
         solarView.getScrollPane().setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        // ZoomableImageView is an HBox: without this, the scroll pane is laid out at its
+        // preferred (zoomed content) width and overflows the visible area, making the right
+        // edge unreachable. Growing it to fill keeps the viewport at the visible width.
+        HBox.setHgrow(solarView.getScrollPane(), Priority.ALWAYS);
         solarView.getScrollPane().hvalueProperty().addListener((unused1, unused2, hvalue) -> {
             spectrumScrollPane.setHvalue(hvalue.doubleValue());
         });
+        installDragToPan(solarView);
+        installViewportWidthCap(solarView);
         spectrumViewOverlay.heightProperty().bind(spectrumView.layoutBoundsProperty().map(Bounds::getHeight));
         solarViewOverlay.widthProperty().bind(solarView.layoutBoundsProperty().map(Bounds::getWidth));
         solarViewOverlay.heightProperty().bind(solarView.layoutBoundsProperty().map(Bounds::getHeight));
@@ -128,6 +139,78 @@ public class ReconstructionView extends BorderPane implements WithRootNode {
             }));
             menu.getItems().add(save);
             menu.show(spectrumViewStack, event.getScreenX(), event.getScreenY());
+        });
+    }
+
+    /**
+     * Installs drag-to-pan on the solar view. A press only records the starting
+     * scroll position; the actual panning happens on drag and consumes the event,
+     * which both prevents the native scroll-pane panning from running twice and
+     * stops a drag from being interpreted as a pixel-selection click. A plain
+     * click (no drag) is left untouched so pixel selection keeps working.
+     */
+    private void installDragToPan(ZoomableImageView solarView) {
+        var scrollPane = solarView.getScrollPane();
+        var dragAnchor = new double[]{0, 0, 0, 0};
+        solarView.addEventFilter(MouseEvent.MOUSE_PRESSED, e -> {
+            if (e.getButton() != MouseButton.PRIMARY || e.isControlDown()) {
+                return;
+            }
+            dragAnchor[0] = e.getSceneX();
+            dragAnchor[1] = e.getSceneY();
+            dragAnchor[2] = scrollPane.getHvalue();
+            dragAnchor[3] = scrollPane.getVvalue();
+        });
+        solarView.addEventFilter(MouseEvent.MOUSE_DRAGGED, e -> {
+            if (!e.isPrimaryButtonDown() || e.isControlDown()) {
+                return;
+            }
+            var content = (Region) scrollPane.getContent();
+            var viewport = scrollPane.getViewportBounds();
+            var hmax = content.getWidth() - viewport.getWidth();
+            var vmax = content.getHeight() - viewport.getHeight();
+            if (hmax > 0) {
+                var hvalue = dragAnchor[2] - (e.getSceneX() - dragAnchor[0]) / hmax;
+                scrollPane.setHvalue(Math.max(0, Math.min(1, hvalue)));
+            }
+            if (vmax > 0) {
+                var vvalue = dragAnchor[3] - (e.getSceneY() - dragAnchor[1]) / vmax;
+                scrollPane.setVvalue(Math.max(0, Math.min(1, vvalue)));
+            }
+            solarView.setCursor(Cursor.MOVE);
+            e.consume();
+        });
+        solarView.addEventFilter(MouseEvent.MOUSE_RELEASED, e -> solarView.setCursor(Cursor.DEFAULT));
+    }
+
+    /**
+     * Caps the solar scroll pane to the width that is actually on screen, measured in scene
+     * coordinates as the distance between the scroll pane's left edge and the right edge of the
+     * main tab pane. The reconstruction view's container inflates with the zoomed image and
+     * overflows the (fixed) tab pane; without this cap the scroll pane extends past the visible
+     * area, so the image's right edge is parked off screen and can never be scrolled into view.
+     * Using live geometry avoids depending on a reported sidebar width, which is unreliable.
+     */
+    private void installViewportWidthCap(ZoomableImageView solarView) {
+        var scrollPane = solarView.getScrollPane();
+        Runnable update = () -> {
+            var scene = getScene();
+            if (scene == null || !(scene.lookup("#mainPane") instanceof Region mainPane)) {
+                return;
+            }
+            var left = scrollPane.localToScene(scrollPane.getLayoutBounds()).getMinX();
+            var right = mainPane.localToScene(mainPane.getLayoutBounds()).getMaxX();
+            var target = right - left;
+            if (target > 0 && Math.abs(target - scrollPane.getMaxWidth()) > 0.5) {
+                scrollPane.setMaxWidth(target);
+            }
+        };
+        scrollPane.localToSceneTransformProperty().addListener((o, a, b) -> update.run());
+        sceneProperty().addListener((o, oldScene, scene) -> {
+            if (scene != null) {
+                scene.widthProperty().addListener((o2, a2, b2) -> update.run());
+                FxUtils.runLater(update);
+            }
         });
     }
 

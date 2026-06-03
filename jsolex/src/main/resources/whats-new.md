@@ -1,5 +1,9 @@
 # Welcome to JSol'Ex {{version}}!
 
+## What's New in Version 5.3.1
+
+- The reconstruction view can now be navigated pixel by pixel with the arrow keys (hold Shift for larger steps).
+
 ## What's New in Version 5.3.0
 
 - Replaced the standalone Technical Card image with interactive annotations toggled per image: orientation grid, observation details, solar parameters, prominence scale, drag-and-place Earth size reference and a free-text signature, all with customisable colors, line thickness and templates, savable as a preset.
