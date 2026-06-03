@@ -1,5 +1,9 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+## Nouveautés de la version 5.3.1
+
+- La vue de reconstruction peut désormais être parcourue pixel par pixel avec les touches fléchées (maintenez Maj pour des déplacements plus grands).
+
 ## Nouveautés de la version 5.3.0
 
 - La fiche technique générée séparément est remplacée par des annotations interactives activables image par image : grille d'orientation, détails d'observation, paramètres solaires, échelle des protubérances, référence de taille Terre déplaçable à la souris et signature libre, avec couleurs, épaisseur de trait et modèles personnalisables, le tout enregistrable en tant que préréglage.
