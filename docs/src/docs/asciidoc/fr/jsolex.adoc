@@ -345,6 +345,7 @@ Les annotations suivantes sont disponibles :
 
 - *Grille d'orientation* : méridiens et parallèles héliographiques tracés sur le disque solaire, avec l'axe de rotation et les marqueurs des directions cardinales. Le style (coordonnées équatoriales ou solaires) et la correction de l'angle P se règlent depuis le menu d'options de la grille.
 - *Échelle des protubérances* : cercles concentriques pointillés à l'extérieur du limbe, avec des étiquettes de distance en kilomètres. Vous pouvez choisir le nombre de cercles et l'espacement entre eux.
+- *Régions actives* : les numéros des régions actives NOAA placés à leur position sur le disque solaire. Depuis le menu d'options, vous pouvez tracer un rectangle autour de chaque région et régler la correction de l'angle P pour les images ImageMath.
 - *Détails d'observation* : un bloc de texte généralement placé en haut à gauche avec le nom de l'observateur, la date, l'instrument, le télescope, la caméra, etc. Le contenu est entièrement modifiable via un modèle avec des variables (par exemple `%OBSERVER%`, `%DATETIME%`, `%TELESCOPE%`) : vous choisissez les champs affichés, vous les réorganisez, vous y ajoutez votre propre texte. Les lignes vides (lorsque la valeur est absente) sont automatiquement ignorées.
 - *Paramètres solaires* : un bloc listant les angles P, B0, L0 et la rotation de Carrington, placé en haut à droite.
 - *Référence de taille (Terre)* : une petite image de la Terre superposée à l'image pour servir de comparaison de taille. Le marqueur est déplaçable à la souris.

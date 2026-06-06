@@ -1219,6 +1219,7 @@ public class ImageViewer implements WithRootNode {
                 || overlays.drawSolarParameters()
                 || overlays.drawEarth()
                 || overlays.drawProminenceScale()
+                || overlays.drawActiveRegions()
                 || overlays.drawSignature());
     }
 

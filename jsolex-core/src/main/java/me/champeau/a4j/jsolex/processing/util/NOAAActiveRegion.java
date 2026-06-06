@@ -21,7 +21,8 @@ import java.time.ZonedDateTime;
 public record NOAAActiveRegion(
     String id,
     double latitudeDeg,
-    double longitudeDeg
+    double longitudeDeg,
+    int extentDeg
 ) {
     private static final double ROTATION_DAYS = 27.2753;
     private static final double ROTATION_DEGREES_PER_DAY = 360.0 / ROTATION_DAYS;
@@ -37,7 +38,8 @@ public record NOAAActiveRegion(
         return new NOAAActiveRegion(
             id,
             latitudeDeg,
-            longitudeDeg + hours * ROTATION_DEGREES_PER_HOUR
+            longitudeDeg + hours * ROTATION_DEGREES_PER_HOUR,
+            extentDeg
         );
     }
 }

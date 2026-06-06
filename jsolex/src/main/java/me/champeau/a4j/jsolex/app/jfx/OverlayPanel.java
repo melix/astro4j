@@ -77,6 +77,7 @@ final class OverlayPanel {
     private static final String ICON_SOLAR = "fltfmz-weather-sunny-24";
     private static final String ICON_EARTH = "fltfal-earth-24";
     private static final String ICON_SIGNATURE = "fltfmz-signature-24";
+    private static final String ICON_ACTIVE_REGIONS = "fltfmz-my-location-24";
 
     private final Consumer<ImageOverlayState> onChange;
     private final Consumer<GlobeStyle> onGlobeStyleChange;
@@ -105,6 +106,9 @@ final class OverlayPanel {
     private ToggleButton promBtn;
     private Shape promSwatch;
     private Button promOptionsBtn;
+    private ToggleButton activeRegionsBtn;
+    private Shape activeRegionsSwatch;
+    private Button activeRegionsOptionsBtn;
     private Button gridOptionsBtn;
     private ToggleButton signatureBtn;
     private Shape signatureSwatch;
@@ -432,6 +436,16 @@ final class OverlayPanel {
             promOptionsBtn.setFocusTraversable(false);
             promOptionsBtn.setOnAction(e -> showPromOptions());
             addRow(grid, row++, promBtn, promSwatch, null, promOptionsBtn);
+
+            activeRegionsBtn = makeChip(ICON_ACTIVE_REGIONS, "overlay.active.regions",
+                    ImageOverlayState::drawActiveRegions, ImageOverlayState::withDrawActiveRegions);
+            activeRegionsSwatch = makeSwatch(state.activeRegionsColor(),
+                    hex -> mutate(s -> s.withActiveRegionsColor(hex)));
+            activeRegionsOptionsBtn = new Button("⋯");
+            activeRegionsOptionsBtn.getStyleClass().add("overlay-popover-mini");
+            activeRegionsOptionsBtn.setFocusTraversable(false);
+            activeRegionsOptionsBtn.setOnAction(e -> showActiveRegionsOptions(kind));
+            addRow(grid, row++, activeRegionsBtn, activeRegionsSwatch, null, activeRegionsOptionsBtn);
         }
         obsBtn = makeChip(ICON_DETAILS, "overlay.obs.details",
                 ImageOverlayState::drawObservationDetails, ImageOverlayState::withDrawObservationDetails);
@@ -870,6 +884,28 @@ final class OverlayPanel {
         }
     }
 
+    private void showActiveRegionsOptions(GeneratedImageKind kind) {
+        var boxes = new CheckBox(message("overlay.active.regions.boxes"));
+        boxes.setSelected(state.activeRegionsBoxes());
+        boxes.selectedProperty().addListener((o, ov, nv) -> mutate(s -> s.withActiveRegionsBoxes(nv)));
+        var content = new VBox(8, boxes);
+        if (kind == GeneratedImageKind.IMAGE_MATH) {
+            var pCorrected = new CheckBox(message("overlay.p.corrected"));
+            pCorrected.setSelected(state.pCorrected());
+            pCorrected.selectedProperty().addListener((o, ov, nv) -> mutate(s -> s.withPCorrected(nv)));
+            content.getChildren().add(pCorrected);
+        }
+        content.getStyleClass().add("overlay-subpopup");
+        var sub = new Popup();
+        sub.setAutoHide(true);
+        sub.setHideOnEscape(true);
+        sub.getContent().add(content);
+        var bounds = activeRegionsOptionsBtn.localToScreen(activeRegionsOptionsBtn.getBoundsInLocal());
+        if (bounds != null) {
+            sub.show(activeRegionsOptionsBtn, bounds.getMinX(), bounds.getMaxY() + 4);
+        }
+    }
+
     private void applyState(ImageOverlayState s) {
         ignoreChanges = true;
         if (gridBtn != null) {
@@ -879,6 +915,10 @@ final class OverlayPanel {
         if (promBtn != null) {
             promBtn.setSelected(s.drawProminenceScale());
             promSwatch.setFill(s.promScaleColor() == null ? defaultSwatchFill() : parseHex(s.promScaleColor()));
+        }
+        if (activeRegionsBtn != null) {
+            activeRegionsBtn.setSelected(s.drawActiveRegions());
+            activeRegionsSwatch.setFill(s.activeRegionsColor() == null ? defaultSwatchFill() : parseHex(s.activeRegionsColor()));
         }
         obsBtn.setSelected(s.drawObservationDetails());
         obsSwatch.setFill(s.obsDetailsColor() == null ? defaultSwatchFill() : parseHex(s.obsDetailsColor()));

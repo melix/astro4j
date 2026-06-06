@@ -101,6 +101,11 @@ final class OverlayRenderer {
                 int stepKm = state.promStepKm() != null ? state.promStepKm() : ImageDraw.PROMINENCE_SCALE_STEP_KM;
                 draw.drawProminenceScaleOn(g, ellipse, promColor, circles, stepKm, promThickness);
             }
+            if (state.drawActiveRegions() && ellipse != null && solarParams != null) {
+                boolean correctP = effectivePCorrected(state, kind, baseImageIsPCorrected);
+                var arColor = parseColor(state.activeRegionsColor());
+                draw.drawActiveRegionLabelsOn(g, prepared, ellipse, solarParams, correctP, arColor, state.activeRegionsBoxes());
+            }
         } finally {
             g.dispose();
         }
@@ -109,7 +114,8 @@ final class OverlayRenderer {
 
     private static boolean hasAnyOverlay(ImageOverlayState state) {
         return state.drawGlobe()
-                || state.drawProminenceScale();
+                || state.drawProminenceScale()
+                || state.drawActiveRegions();
     }
 
     private static boolean anyColorSet(ImageOverlayState state) {
@@ -117,6 +123,7 @@ final class OverlayRenderer {
                 || state.obsDetailsColor() != null
                 || state.solarParamsColor() != null
                 || state.promScaleColor() != null
+                || state.activeRegionsColor() != null
                 || state.signatureColor() != null;
     }
 
