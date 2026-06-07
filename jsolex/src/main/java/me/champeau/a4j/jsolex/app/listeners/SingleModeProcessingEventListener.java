@@ -1865,14 +1865,16 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     public void onProcessingStart(ProcessingStartEvent e) {
         var payload = e.getPayload();
         sd = payload.timestamp();
-        owner.getRedshiftTab().setDisable(true);
         scriptImagesByLabel.clear();
         scriptValuesByLabel.clear();
         var spectralRay = params.spectrumParams().ray();
         if (spectralRay != null && !SpectralRay.AUTO.equals(spectralRay)) {
             owner.updateSpectralLineIndicator(spectralRay, false);
         }
-        FxUtils.runLater(owner::revealConsole);
+        FxUtils.runLater(() -> {
+            owner.getRedshiftTab().setDisable(true);
+            owner.revealConsole();
+        });
     }
 
     @Override
