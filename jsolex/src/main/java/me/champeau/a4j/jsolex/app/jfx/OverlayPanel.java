@@ -670,15 +670,6 @@ final class OverlayPanel {
         return row;
     }
 
-    private HBox buildColorPickerRow(String initialHex, Consumer<String> onColor) {
-        var label = new Label(message("overlay.color") + ":");
-        var picker = new ColorPicker(initialHex != null ? parseHex(initialHex) : defaultSwatchFill());
-        picker.valueProperty().addListener((o, ov, nv) -> onColor.accept(nv == null ? null : toHex(nv)));
-        var row = new HBox(8, label, picker);
-        row.setAlignment(Pos.CENTER_LEFT);
-        return row;
-    }
-
     private void showColorOnlyOptions(Node anchor, String initialHex, Consumer<String> onColor) {
         var content = new VBox(8, buildColorRow(initialHex, onColor));
         content.getStyleClass().add("overlay-subpopup");
@@ -796,7 +787,7 @@ final class OverlayPanel {
         var weightLabel = new Label(message("overlay.signature.weight") + ":");
         var weightChoice = buildWeightChoice(initialWeight);
         var colorLabel = new Label(message("overlay.color") + ":");
-        var colorPicker = new ColorPicker(initialColor != null ? parseHex(initialColor) : defaultSwatchFill());
+        var colorSwatch = makeSwatch(initialColor, onColor);
         var grid = new GridPane();
         grid.setHgap(10);
         grid.setVgap(8);
@@ -809,7 +800,7 @@ final class OverlayPanel {
         grid.add(weightLabel, 0, 3);
         grid.add(weightChoice, 1, 3);
         grid.add(colorLabel, 0, 4);
-        grid.add(colorPicker, 1, 4);
+        grid.add(colorSwatch, 1, 4);
         var body = new VBox(10, grid);
         body.setPadding(new Insets(15, 20, 10, 20));
         var closeBtn = new Button(message("overlay.close"));
@@ -835,7 +826,6 @@ final class OverlayPanel {
         fontChoice.valueProperty().addListener((o, ov, nv) -> onFont.accept(nv));
         sizeSpinner.valueProperty().addListener((o, ov, nv) -> onSize.accept(nv));
         weightChoice.valueProperty().addListener((o, ov, nv) -> onWeight.accept(nv));
-        colorPicker.valueProperty().addListener((o, ov, nv) -> onColor.accept(nv == null ? null : toHex(nv)));
         closeBtn.setOnAction(e -> stage.close());
         applyBtn.setOnAction(e -> {
             applied[0] = true;
@@ -903,7 +893,7 @@ final class OverlayPanel {
         hint.setWrapText(true);
         hint.setMaxWidth(520);
         hint.getStyleClass().add("overlay-popover-hint");
-        var colorRow = buildColorPickerRow(state.obsDetailsColor(), hex -> mutate(s -> s.withObsDetailsColor(hex)));
+        var colorRow = buildColorRow(state.obsDetailsColor(), hex -> mutate(s -> s.withObsDetailsColor(hex)));
         var body = new VBox(10, hint, textArea, colorRow);
         body.setPadding(new Insets(15, 20, 10, 20));
         var resetBtn = new Button(message("overlay.reset.color"));
