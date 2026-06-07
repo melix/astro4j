@@ -419,6 +419,21 @@
     -fx-text-fill: #212529;
 }
 
+/* Save button when there are unsaved changes: a filled accent button that
+   clearly signals it can be clicked. */
+.image-viewer-button.save-button-pending {
+    -fx-background-color: #007bff;
+    -fx-text-fill: white;
+    -fx-border-color: #007bff;
+    -fx-font-weight: 600;
+    -fx-effect: dropshadow(gaussian, rgba(0,123,255,0.35), 4, 0, 0, 1);
+}
+
+.image-viewer-button.save-button-pending:hover {
+    -fx-background-color: #0056b3;
+    -fx-text-fill: white;
+}
+
 /* Overlay chips: compact toggle buttons embedded in the image viewer
    toolbar, with a colored bottom border showing the overlay color. */
 .overlay-chip {

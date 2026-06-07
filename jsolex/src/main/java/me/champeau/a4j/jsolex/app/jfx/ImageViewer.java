@@ -33,6 +33,8 @@ import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
@@ -49,6 +51,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.util.Duration;
+import me.champeau.a4j.jsolex.app.AlertFactory;
 import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.app.listeners.MetadataComparator;
@@ -94,6 +97,7 @@ import java.util.Set;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
@@ -109,6 +113,8 @@ public class ImageViewer implements WithRootNode {
     private Stage stage;
     private ContrastAdjustmentStrategy contrastAdjustStrategy = ContrastAdjustmentStrategy.DEFAULT;
     private CurveTransformStrategy curveTransformStrategy = new CurveTransformStrategy(32768, 32768);
+    private boolean preserveStretchSettings;
+    private boolean unsavedChanges = true;
     private FileBackedImage image;
     private ImageWrapper stretchedImage;
     private File imageFile;
@@ -134,6 +140,8 @@ public class ImageViewer implements WithRootNode {
     private boolean firstShow = true;
     private ImageOverlayState overlays = ImageOverlayState.DEFAULT;
     private GlobeStyle overlayGlobeStyle;
+    private boolean annotationWarningSuppressed;
+    private Function<ImageWrapper, ImageViewer> annotatedCopyFactory;
     private OverlayPanel overlayPanel;
     private EarthDragLayer earthLayer;
     private DraggableTextOverlayLayer signatureLayer;
@@ -440,7 +448,114 @@ public class ImageViewer implements WithRootNode {
         }
     }
 
+    /**
+     * Sets the factory used to create a copy of this image in a new tab. The factory
+     * receives the image to display and returns the newly created viewer.
+     *
+     * @param annotatedCopyFactory the factory
+     */
+    public void setAnnotatedCopyFactory(Function<ImageWrapper, ImageViewer> annotatedCopyFactory) {
+        this.annotatedCopyFactory = annotatedCopyFactory;
+    }
+
+    /**
+     * Suppresses the warning shown when saving an annotated image. This is used when
+     * an untouched copy of the original already exists (for instance after the image
+     * has been duplicated), so baking the annotations does not lose anything.
+     */
+    public void suppressAnnotationWarning() {
+        this.annotationWarningSuppressed = true;
+    }
+
     private void saveImage() {
+        if (shouldWarnBeforeAnnotatedSave()) {
+            promptAnnotatedSave();
+            return;
+        }
+        doSaveImage();
+    }
+
+    private boolean shouldWarnBeforeAnnotatedSave() {
+        return Platform.isFxApplicationThread()
+                && hasActiveOverlays()
+                && !annotationWarningSuppressed
+                && annotatedCopyFactory != null;
+    }
+
+    private void promptAnnotatedSave() {
+        var alert = AlertFactory.confirmation(message("annotation.save.message"));
+        alert.setTitle(message("annotation.save.title"));
+        alert.setHeaderText(message("annotation.save.header"));
+        var copyButton = new ButtonType(message("annotation.save.copy"), ButtonBar.ButtonData.OTHER);
+        var overwriteButton = new ButtonType(message("annotation.save.overwrite"), ButtonBar.ButtonData.OTHER);
+        alert.getButtonTypes().setAll(copyButton, overwriteButton, ButtonType.CANCEL);
+        var choice = alert.showAndWait();
+        if (choice.isEmpty() || choice.get() == ButtonType.CANCEL) {
+            return;
+        }
+        if (choice.get() == copyButton) {
+            saveAnnotationsOnCopy();
+        } else {
+            annotationWarningSuppressed = true;
+            doSaveImage();
+        }
+    }
+
+    private void saveAnnotationsOnCopy() {
+        var copy = annotatedCopyFactory.apply(image.unwrapToMemory().copy());
+        if (copy != null) {
+            copy.transferOverlaysFrom(this);
+            copy.doSaveImage();
+        }
+        removeAnnotations();
+    }
+
+    private void transferOverlaysFrom(ImageViewer source) {
+        annotationWarningSuppressed = true;
+        overlays = source.overlays;
+        overlayGlobeStyle = source.overlayGlobeStyle;
+        rotation = source.rotation;
+        vflip = source.vflip;
+        if (correctAngleP != null && source.correctAngleP != null) {
+            correctAngleP.setSelected(source.correctAngleP.isSelected());
+        }
+        displayLock.lock();
+        try {
+            stretchingMode = source.stretchingMode;
+            contrastAdjustStrategy = source.contrastAdjustStrategy;
+            curveTransformStrategy = source.curveTransformStrategy;
+            preserveStretchSettings = true;
+        } finally {
+            displayLock.unlock();
+        }
+        FxUtils.runLater(() -> {
+            invalidateStretchCache();
+            syncEarthLayer();
+            syncSignatureLayer();
+            syncObsDetailsLayer();
+            syncSolarParamsLayer();
+            syncTextAreaLayers();
+            redrawOverlays();
+        });
+    }
+
+    private void removeAnnotations() {
+        overlays = ImageOverlayState.DEFAULT;
+        overlayGlobeStyle = null;
+        if (overlayPanel != null) {
+            overlayPanel.updateState(overlays);
+        }
+        FxUtils.runLater(() -> {
+            syncEarthLayer();
+            syncSignatureLayer();
+            syncObsDetailsLayer();
+            syncSolarParamsLayer();
+            syncTextAreaLayers();
+            redrawOverlays();
+        });
+    }
+
+    private void doSaveImage() {
         boolean hasOverlays = hasActiveOverlays();
         ImageWrapper toSave;
         StretchingStrategy strategy;
@@ -455,8 +570,9 @@ public class ImageViewer implements WithRootNode {
         files.stream()
                 .findFirst()
                 .ifPresent(file -> imageView.setImagePathForOpeningInExplorer(file.toPath()));
+        unsavedChanges = false;
         FxUtils.runLater(() -> {
-            saveButton.setDisable(true);
+            refreshSaveButton();
             imageView.fileSaved();
         });
     }
@@ -473,8 +589,11 @@ public class ImageViewer implements WithRootNode {
     private void configureStretching() {
         try {
             displayLock.lock();
-            this.contrastAdjustStrategy = ContrastAdjustmentStrategy.DEFAULT;
-            this.curveTransformStrategy = new CurveTransformStrategy(32768, 32768);
+            if (!preserveStretchSettings) {
+                this.contrastAdjustStrategy = ContrastAdjustmentStrategy.DEFAULT;
+                this.curveTransformStrategy = new CurveTransformStrategy(32768, 32768);
+            }
+            preserveStretchSettings = false;
             var line2 = new HBox(8);
             line2.setAlignment(Pos.CENTER_LEFT);
             var linearStretchParams = new HBox(8);
@@ -508,6 +627,8 @@ public class ImageViewer implements WithRootNode {
             });
             saveButton = createButton(message("save"));
             saveButton.setOnAction(e -> saveImage());
+            saveButton.disableProperty().addListener((obs, was, disabled) -> updateSaveButtonStyle(disabled));
+            updateSaveButtonStyle(saveButton.isDisable());
             dimensions = new Label();
             var zoomLabel = new Label("Zoom");
             var zoomMinus = createButton("-");
@@ -815,6 +936,7 @@ public class ImageViewer implements WithRootNode {
     }
 
     private void stretchAndDisplay() {
+        unsavedChanges = true;
         invalidateStretchCache();
         stretchAndDisplay(false);
     }
@@ -835,7 +957,7 @@ public class ImageViewer implements WithRootNode {
             if (resetZoom) {
                 imageView.resetZoom();
             }
-            saveButton.setDisable(false);
+            refreshSaveButton();
             maybeRunOnUpdate();
         } finally {
             displayLock.unlock();
@@ -921,6 +1043,7 @@ public class ImageViewer implements WithRootNode {
                     effectiveGlobeStyle(),
                     newState -> {
                         overlays = newState;
+                        markEdited();
                         if (overlays.drawEarth() && overlays.earthX() == null) {
                             placeEarthDefault();
                             if (overlayPanel != null) {
@@ -938,10 +1061,12 @@ public class ImageViewer implements WithRootNode {
                     },
                     style -> {
                         overlayGlobeStyle = style;
+                        markEdited();
                         BackgroundOperations.async(this::redrawOverlays);
                     },
                     () -> {
                         overlays = overlays.withEarthPosition(null, null);
+                        markEdited();
                         if (overlayPanel != null) {
                             overlayPanel.updateState(overlays);
                         }
@@ -949,6 +1074,7 @@ public class ImageViewer implements WithRootNode {
                     },
                     () -> {
                         overlays = overlays.withSignaturePosition(null, null);
+                        markEdited();
                         if (overlayPanel != null) {
                             overlayPanel.updateState(overlays);
                         }
@@ -956,6 +1082,7 @@ public class ImageViewer implements WithRootNode {
                     },
                     () -> {
                         overlays = overlays.withObsDetailsPosition(null, null);
+                        markEdited();
                         if (overlayPanel != null) {
                             overlayPanel.updateState(overlays);
                         }
@@ -963,6 +1090,7 @@ public class ImageViewer implements WithRootNode {
                     },
                     () -> {
                         overlays = overlays.withSolarParamsPosition(null, null);
+                        markEdited();
                         if (overlayPanel != null) {
                             overlayPanel.updateState(overlays);
                         }
@@ -1040,7 +1168,7 @@ public class ImageViewer implements WithRootNode {
                 if (overlayPanel != null) {
                     overlayPanel.updateState(overlays);
                 }
-                saveButton.setDisable(false);
+                markEdited();
             });
             pane.getChildren().add(earthLayer);
         }
@@ -1063,7 +1191,7 @@ public class ImageViewer implements WithRootNode {
                 if (overlayPanel != null) {
                     overlayPanel.updateState(overlays);
                 }
-                saveButton.setDisable(false);
+                markEdited();
             });
             pane.getChildren().add(obsDetailsLayer);
         }
@@ -1092,7 +1220,7 @@ public class ImageViewer implements WithRootNode {
                 if (overlayPanel != null) {
                     overlayPanel.updateState(overlays);
                 }
-                saveButton.setDisable(false);
+                markEdited();
             });
             pane.getChildren().add(solarParamsLayer);
         }
@@ -1149,7 +1277,7 @@ public class ImageViewer implements WithRootNode {
                 if (overlayPanel != null) {
                     overlayPanel.updateState(overlays);
                 }
-                saveButton.setDisable(false);
+                markEdited();
             });
             pane.getChildren().add(signatureLayer);
         }
@@ -1190,7 +1318,7 @@ public class ImageViewer implements WithRootNode {
                     if (overlayPanel != null) {
                         overlayPanel.updateState(overlays);
                     }
-                    saveButton.setDisable(false);
+                    markEdited();
                 }
             });
             textAreaLayers.add(layer);
@@ -1313,22 +1441,22 @@ public class ImageViewer implements WithRootNode {
                 kind,
                 baseImageIsPCorrected()
         );
-        if (overlays.drawEarth() && earthLayer != null) {
-            baked = OverlayRenderer.bakeEarth(baked, earthLayer.getImageX(), earthLayer.getImageY(), processParams);
+        if (overlays.drawEarth() && overlays.earthX() != null && overlays.earthY() != null) {
+            baked = OverlayRenderer.bakeEarth(baked, overlays.earthX(), overlays.earthY(), processParams);
         }
-        if (overlays.drawSignature() && signatureLayer != null) {
-            baked = OverlayRenderer.bakeSignature(baked, overlays, signatureLayer.getImageX(), signatureLayer.getImageY(), processParams);
+        if (overlays.drawSignature() && overlays.signatureX() != null && overlays.signatureY() != null) {
+            baked = OverlayRenderer.bakeSignature(baked, overlays, overlays.signatureX(), overlays.signatureY(), processParams);
         }
-        if (overlays.drawObservationDetails() && obsDetailsLayer != null) {
-            baked = OverlayRenderer.bakeObsDetails(baked, overlays, obsDetailsLayer.getImageX(), obsDetailsLayer.getImageY(), processParams);
+        if (overlays.drawObservationDetails() && overlays.obsDetailsX() != null && overlays.obsDetailsY() != null) {
+            baked = OverlayRenderer.bakeObsDetails(baked, overlays, overlays.obsDetailsX(), overlays.obsDetailsY(), processParams);
         }
-        if (overlays.drawSolarParameters() && solarParamsLayer != null) {
-            baked = OverlayRenderer.bakeSolarParameters(baked, overlays, solarParamsLayer.getImageX(), solarParamsLayer.getImageY(), processParams);
+        if (overlays.drawSolarParameters() && overlays.solarParamsX() != null && overlays.solarParamsY() != null) {
+            baked = OverlayRenderer.bakeSolarParameters(baked, overlays, overlays.solarParamsX(), overlays.solarParamsY(), processParams);
         }
-        var areas = overlays.textAreas();
-        for (int i = 0; i < areas.size() && i < textAreaLayers.size(); i++) {
-            var layer = textAreaLayers.get(i);
-            baked = OverlayRenderer.bakeTextArea(baked, areas.get(i), layer.getImageX(), layer.getImageY(), processParams);
+        for (var area : overlays.textAreas()) {
+            if (area.x() != null && area.y() != null) {
+                baked = OverlayRenderer.bakeTextArea(baked, area, area.x(), area.y(), processParams);
+            }
         }
         return baked;
     }
@@ -1377,7 +1505,6 @@ public class ImageViewer implements WithRootNode {
             updateTitle();
             imageView.setImage(new Image(imageFile.toURI().toString()));
             imageView.setSolarDisk(image.findMetadata(Ellipse.class).orElse(null));
-            saveButton.setDisable(true);
             stretchAndDisplay();
         });
     }
@@ -1395,6 +1522,24 @@ public class ImageViewer implements WithRootNode {
             File imageFile
     ) {
 
+    }
+
+    private void updateSaveButtonStyle(boolean disabled) {
+        saveButton.getStyleClass().remove("save-button-pending");
+        if (!disabled) {
+            saveButton.getStyleClass().add("save-button-pending");
+        }
+    }
+
+    private void markEdited() {
+        unsavedChanges = true;
+        refreshSaveButton();
+    }
+
+    private void refreshSaveButton() {
+        if (saveButton != null) {
+            saveButton.setDisable(!unsavedChanges);
+        }
     }
 
     private static Button createButton(String text) {

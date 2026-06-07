@@ -369,12 +369,19 @@ public class MultipleImagesViewer extends Pane {
                     popupViews,
                     imageViews
             );
-            Runnable onClone = () -> {
-                var clonedImage = imageWrapper.copy();
+            Function<ImageWrapper, ImageViewer> copyFactory = imageToDisplay -> {
                 var clonedTitle = title + " " + message("clone.suffix");
                 var clonedBaseName = baseName + "_copy";
-                addImage(listener, operation, clonedTitle, clonedBaseName, kind, description,
-                        clonedImage, file, params, popupViews, pixelShift, v -> v, onShow);
+                return addImage(listener, operation, clonedTitle, clonedBaseName, kind, description,
+                        imageToDisplay, file, params, popupViews, pixelShift, v -> v, onShow);
+            };
+            viewer.setAnnotatedCopyFactory(copyFactory);
+            Runnable onClone = () -> {
+                var clone = copyFactory.apply(imageWrapper.copy());
+                if (clone != null) {
+                    clone.suppressAnnotationWarning();
+                }
+                viewer.suppressAnnotationWarning();
             };
             var hyperlink = category.addImage(title, pixelShift, badge, badgeTooltip, link -> {
                 if (onImageSelected != null) {

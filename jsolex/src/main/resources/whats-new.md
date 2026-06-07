@@ -6,6 +6,9 @@
 - The reconstruction view can now be navigated pixel by pixel with the arrow keys (hold Shift for larger steps).
 - Added an active regions annotation layer.
 - Added free-text annotations.
+- When saving an annotated image, you can now keep the original untouched and save the annotations on a copy instead.
+- The Save button now stands out when an image has unsaved changes.
+- Fixed a duplicate reconstruction view sometimes appearing for the same pixel shift.
 
 ## What's New in Version 5.3.0
 

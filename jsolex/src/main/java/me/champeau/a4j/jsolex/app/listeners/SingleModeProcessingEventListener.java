@@ -491,7 +491,12 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             if (pendingViewCreation.add(pixelShift)) {
                 FxUtils.runLater(() -> {
                     try {
-                        imageViews.put(pixelShift, createImageViewOnFx(pixelShift, rgb, lineWidth, bufferHeight, spectrumWidth, spectrumHeight));
+                        // Another scheduled task may already have created the view; all
+                        // creation happens here on the FX thread, so a containsKey check
+                        // is enough to avoid two views for the same pixel shift.
+                        if (!imageViews.containsKey(pixelShift)) {
+                            imageViews.put(pixelShift, createImageViewOnFx(pixelShift, rgb, lineWidth, bufferHeight, spectrumWidth, spectrumHeight));
+                        }
                     } finally {
                         pendingViewCreation.remove(pixelShift);
                     }

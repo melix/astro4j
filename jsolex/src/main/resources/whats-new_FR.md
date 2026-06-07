@@ -6,6 +6,9 @@
 - La vue de reconstruction peut désormais être parcourue pixel par pixel avec les touches fléchées (maintenez Maj pour des déplacements plus grands).
 - Ajout d'un calque d'annotation des régions actives.
 - Ajout d'annotations de texte libre.
+- Lors de l'enregistrement d'une image annotée, vous pouvez désormais conserver l'original intact et enregistrer les annotations sur une copie.
+- Le bouton d'enregistrement est désormais mis en évidence lorsqu'une image a des modifications non enregistrées.
+- Correction d'une vue de reconstruction dupliquée apparaissant parfois pour le même décalage de pixels.
 
 ## Nouveautés de la version 5.3.0
 
