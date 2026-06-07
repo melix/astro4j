@@ -16,9 +16,11 @@
 package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.animation.PauseTransition;
+import javafx.application.Platform;
 import javafx.geometry.HPos;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar;
@@ -62,10 +64,13 @@ import me.champeau.a4j.jsolex.processing.params.GlobeStyle;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import org.kordamp.ikonli.javafx.FontIcon;
 
+import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.UnaryOperator;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
 
@@ -78,6 +83,7 @@ final class OverlayPanel {
     private static final String ICON_EARTH = "fltfal-earth-24";
     private static final String ICON_SIGNATURE = "fltfmz-signature-24";
     private static final String ICON_ACTIVE_REGIONS = "fltfmz-my-location-24";
+    private static final List<String> FONT_WEIGHTS = List.of("THIN", "LIGHT", "NORMAL", "MEDIUM", "SEMI_BOLD", "BOLD", "BLACK");
 
     private final Consumer<ImageOverlayState> onChange;
     private final Consumer<GlobeStyle> onGlobeStyleChange;
@@ -109,6 +115,7 @@ final class OverlayPanel {
     private ToggleButton activeRegionsBtn;
     private Shape activeRegionsSwatch;
     private Button activeRegionsOptionsBtn;
+    private VBox textAreasBox;
     private Button gridOptionsBtn;
     private ToggleButton signatureBtn;
     private Shape signatureSwatch;
@@ -387,9 +394,78 @@ final class OverlayPanel {
 
     private VBox buildBody(GeneratedImageKind kind, boolean hasEllipse) {
         var grid = buildChipsGrid(kind, hasEllipse);
-        var container = new VBox(8, grid);
+        textAreasBox = new VBox(6);
+        rebuildTextAreasBox();
+        var container = new VBox(8, grid, textAreasBox);
         container.getStyleClass().add("overlay-popover-body");
         return container;
+    }
+
+    private void rebuildTextAreasBox() {
+        if (textAreasBox == null) {
+            return;
+        }
+        textAreasBox.getChildren().clear();
+        for (int i = 0; i < state.textAreas().size(); i++) {
+            textAreasBox.getChildren().add(buildTextAreaRow(i));
+        }
+        var addBtn = new Button(message("overlay.add.text.area"));
+        addBtn.getStyleClass().add("default-button");
+        addBtn.setMaxWidth(Double.MAX_VALUE);
+        addBtn.setFocusTraversable(false);
+        var addIcon = safeIcon("fltfmz-add-24");
+        if (addIcon != null) {
+            addBtn.setGraphic(addIcon);
+        }
+        addBtn.setOnAction(e -> {
+            state = state.addTextArea(new TextAreaOverlay(message("overlay.text.area.default"), null, null, null, null, null, null));
+            rebuildTextAreasBox();
+            onChange.accept(state);
+            showTextAreaOptions(state.textAreas().size() - 1);
+        });
+        textAreasBox.getChildren().add(addBtn);
+    }
+
+    private HBox buildTextAreaRow(int index) {
+        var area = state.textAreas().get(index);
+        var box = new HBox(10);
+        box.setAlignment(Pos.CENTER_LEFT);
+        var label = new Label(textAreaLabel(area, index));
+        label.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(label, Priority.ALWAYS);
+        var swatch = makeSwatch(area.color(), hex -> mutate(s -> updateArea(s, index, a -> a.withColor(hex))));
+        var optionsBtn = new Button("⋯");
+        optionsBtn.getStyleClass().add("overlay-popover-mini");
+        optionsBtn.setFocusTraversable(false);
+        optionsBtn.setOnAction(e -> showTextAreaOptions(index));
+        var deleteBtn = new Button("🗑");
+        deleteBtn.getStyleClass().add("overlay-popover-mini");
+        deleteBtn.setFocusTraversable(false);
+        deleteBtn.setTooltip(new Tooltip(message("overlay.text.area.delete")));
+        deleteBtn.setOnAction(e -> {
+            state = state.withoutTextAreaAt(index);
+            rebuildTextAreasBox();
+            onChange.accept(state);
+        });
+        box.getChildren().addAll(label, swatch, optionsBtn, deleteBtn);
+        return box;
+    }
+
+    private String textAreaLabel(TextAreaOverlay area, int index) {
+        var text = area.text();
+        if (text != null && !text.isBlank()) {
+            var firstLine = text.strip().split("\n", 2)[0].strip();
+            if (firstLine.startsWith("<b>")) {
+                firstLine = firstLine.substring(3);
+            }
+            if (firstLine.length() > 24) {
+                firstLine = firstLine.substring(0, 24) + "…";
+            }
+            if (!firstLine.isBlank()) {
+                return firstLine;
+            }
+        }
+        return message("overlay.text.area") + " " + (index + 1);
     }
 
 
@@ -481,7 +557,11 @@ final class OverlayPanel {
             }
         });
         solarResetBtn.disableProperty().bind(solarBtn.selectedProperty().not());
-        addRow(grid, row++, solarBtn, solarSwatch, solarResetBtn, null);
+        var solarOptionsBtn = new Button("⋯");
+        solarOptionsBtn.getStyleClass().add("overlay-popover-mini");
+        solarOptionsBtn.setFocusTraversable(false);
+        solarOptionsBtn.setOnAction(e -> showColorOnlyOptions(solarOptionsBtn, state.solarParamsColor(), hex -> mutate(s -> s.withSolarParamsColor(hex))));
+        addRow(grid, row++, solarBtn, solarSwatch, solarResetBtn, solarOptionsBtn);
 
         if (hasEllipse) {
             earthBtn = makeChip(ICON_EARTH, "overlay.earth",
@@ -572,6 +652,7 @@ final class OverlayPanel {
         swatch.setFill(initialHex == null ? defaultSwatchFill() : parseHex(initialHex));
         swatch.setStroke(Color.web("#adb5bd"));
         swatch.setStrokeWidth(1);
+        swatch.setCursor(Cursor.HAND);
         swatch.setOnMouseClicked(e -> showColorPicker(swatch, onColorChange));
         Tooltip.install(swatch, new Tooltip(message("overlay.color")));
         return swatch;
@@ -579,6 +660,36 @@ final class OverlayPanel {
 
     private static Color defaultSwatchFill() {
         return Color.web("#e9ecef");
+    }
+
+    private HBox buildColorRow(String initialHex, Consumer<String> onColor) {
+        var label = new Label(message("overlay.color") + ":");
+        var swatch = makeSwatch(initialHex, onColor);
+        var row = new HBox(8, label, swatch);
+        row.setAlignment(Pos.CENTER_LEFT);
+        return row;
+    }
+
+    private HBox buildColorPickerRow(String initialHex, Consumer<String> onColor) {
+        var label = new Label(message("overlay.color") + ":");
+        var picker = new ColorPicker(initialHex != null ? parseHex(initialHex) : defaultSwatchFill());
+        picker.valueProperty().addListener((o, ov, nv) -> onColor.accept(nv == null ? null : toHex(nv)));
+        var row = new HBox(8, label, picker);
+        row.setAlignment(Pos.CENTER_LEFT);
+        return row;
+    }
+
+    private void showColorOnlyOptions(Node anchor, String initialHex, Consumer<String> onColor) {
+        var content = new VBox(8, buildColorRow(initialHex, onColor));
+        content.getStyleClass().add("overlay-subpopup");
+        var sub = new Popup();
+        sub.setAutoHide(true);
+        sub.setHideOnEscape(true);
+        sub.getContent().add(content);
+        var bounds = anchor.localToScreen(anchor.getBoundsInLocal());
+        if (bounds != null) {
+            sub.show(anchor, bounds.getMinX(), bounds.getMaxY() + 4);
+        }
     }
 
     private void showColorPicker(Shape swatch, Consumer<String> onColorChange) {
@@ -604,6 +715,7 @@ final class OverlayPanel {
         var bounds = swatch.localToScreen(swatch.getBoundsInLocal());
         if (bounds != null) {
             sub.show(swatch, bounds.getMinX(), bounds.getMaxY() + 4);
+            Platform.runLater(picker::show);
         }
     }
 
@@ -624,31 +736,67 @@ final class OverlayPanel {
     }
 
     private void showSignatureOptions() {
-        var initialText = state.signatureText() != null ? state.signatureText() : "";
-        var textArea = new TextArea(initialText);
+        showTextOptions(message("overlay.signature"),
+                state.signatureText(), state.signatureFontFamily(), state.signatureFontSize(), state.signatureFontWeight(), state.signatureColor(),
+                nv -> mutate(s -> s.withSignatureText(blankToNull(nv))),
+                nv -> mutate(s -> s.withSignatureFontFamily(defaultFontToNull(nv))),
+                nv -> mutate(s -> s.withSignatureFontSize(nv == null || nv == ImageDraw.DEFAULT_SIGNATURE_SIZE ? null : nv)),
+                nv -> mutate(s -> s.withSignatureFontWeight(weightToNull(nv))),
+                hex -> mutate(s -> s.withSignatureColor(hex)));
+    }
+
+    private void showTextAreaOptions(int index) {
+        if (index < 0 || index >= state.textAreas().size()) {
+            return;
+        }
+        var area = state.textAreas().get(index);
+        showTextOptions(message("overlay.text.area"),
+                area.text(), area.fontFamily(), area.fontSize(), area.fontWeight(), area.color(),
+                nv -> mutate(s -> updateArea(s, index, a -> a.withText(blankToNull(nv)))),
+                nv -> mutate(s -> updateArea(s, index, a -> a.withFontFamily(defaultFontToNull(nv)))),
+                nv -> mutate(s -> updateArea(s, index, a -> a.withFontSize(nv == null || nv == ImageDraw.DEFAULT_SIGNATURE_SIZE ? null : nv))),
+                nv -> mutate(s -> updateArea(s, index, a -> a.withFontWeight(weightToNull(nv)))),
+                hex -> mutate(s -> updateArea(s, index, a -> a.withColor(hex))));
+        rebuildTextAreasBox();
+    }
+
+    private static ImageOverlayState updateArea(ImageOverlayState s, int index, UnaryOperator<TextAreaOverlay> op) {
+        if (index < 0 || index >= s.textAreas().size()) {
+            return s;
+        }
+        return s.withTextAreaAt(index, op.apply(s.textAreas().get(index)));
+    }
+
+    private static String blankToNull(String v) {
+        return v == null || v.isBlank() ? null : v;
+    }
+
+    private static String defaultFontToNull(String v) {
+        return v == null || v.equals(ImageDraw.DEFAULT_SIGNATURE_FONT) ? null : v;
+    }
+
+    private static String weightToNull(String v) {
+        return v == null || v.equals("NORMAL") ? null : v;
+    }
+
+    private void showTextOptions(String title, String initialText, String initialFont, Integer initialSize, String initialWeight, String initialColor,
+                                 Consumer<String> onText, Consumer<String> onFont, Consumer<Integer> onSize, Consumer<String> onWeight, Consumer<String> onColor) {
+        var textArea = new TextArea(initialText != null ? initialText : "");
         textArea.setPrefRowCount(3);
         textArea.setPrefColumnCount(30);
         textArea.setWrapText(true);
         var textLabel = new Label(message("overlay.signature.text") + ":");
         var fontLabel = new Label(message("overlay.signature.font") + ":");
-        var fontChoice = new ComboBox<String>();
-        fontChoice.setVisibleRowCount(12);
-        fontChoice.setPrefWidth(220);
-        var fontNames = GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames();
-        fontChoice.getItems().add(ImageDraw.DEFAULT_SIGNATURE_FONT);
-        for (var name : fontNames) {
-            if (!name.equals(ImageDraw.DEFAULT_SIGNATURE_FONT)) {
-                fontChoice.getItems().add(name);
-            }
-        }
-        fontChoice.setCellFactory(lv -> fontPreviewCell());
-        fontChoice.setButtonCell(fontPreviewCell());
-        fontChoice.setValue(state.signatureFontFamily() != null ? state.signatureFontFamily() : ImageDraw.DEFAULT_SIGNATURE_FONT);
+        var fontChoice = buildFontChoice(initialFont);
         var sizeLabel = new Label(message("overlay.signature.size") + ":");
-        int initialSize = state.signatureFontSize() != null ? state.signatureFontSize() : ImageDraw.DEFAULT_SIGNATURE_SIZE;
-        var sizeSpinner = new Spinner<Integer>(8, 200, initialSize, 1);
+        int size0 = initialSize != null ? initialSize : ImageDraw.DEFAULT_SIGNATURE_SIZE;
+        var sizeSpinner = new Spinner<Integer>(8, 200, size0, 1);
         sizeSpinner.setEditable(true);
         sizeSpinner.setPrefWidth(90);
+        var weightLabel = new Label(message("overlay.signature.weight") + ":");
+        var weightChoice = buildWeightChoice(initialWeight);
+        var colorLabel = new Label(message("overlay.color") + ":");
+        var colorPicker = new ColorPicker(initialColor != null ? parseHex(initialColor) : defaultSwatchFill());
         var grid = new GridPane();
         grid.setHgap(10);
         grid.setVgap(8);
@@ -658,6 +806,10 @@ final class OverlayPanel {
         grid.add(fontChoice, 1, 1);
         grid.add(sizeLabel, 0, 2);
         grid.add(sizeSpinner, 1, 2);
+        grid.add(weightLabel, 0, 3);
+        grid.add(weightChoice, 1, 3);
+        grid.add(colorLabel, 0, 4);
+        grid.add(colorPicker, 1, 4);
         var body = new VBox(10, grid);
         body.setPadding(new Insets(15, 20, 10, 20));
         var closeBtn = new Button(message("overlay.close"));
@@ -676,15 +828,14 @@ final class OverlayPanel {
         root.setBottom(buttonBar);
         var ownerStage = (Stage) popup.getOwnerWindow();
         var stage = FXUtils.newModalStage(ownerStage, root);
-        stage.setTitle(message("overlay.signature"));
+        stage.setTitle(title);
         var snapshot = state;
         boolean[] applied = {false};
-        textArea.textProperty().addListener((o, ov, nv) ->
-                mutate(s -> s.withSignatureText(nv == null || nv.isBlank() ? null : nv)));
-        fontChoice.valueProperty().addListener((o, ov, nv) ->
-                mutate(s -> s.withSignatureFontFamily(nv == null || nv.equals(ImageDraw.DEFAULT_SIGNATURE_FONT) ? null : nv)));
-        sizeSpinner.valueProperty().addListener((o, ov, nv) ->
-                mutate(s -> s.withSignatureFontSize(nv == null || nv == ImageDraw.DEFAULT_SIGNATURE_SIZE ? null : nv)));
+        textArea.textProperty().addListener((o, ov, nv) -> onText.accept(nv));
+        fontChoice.valueProperty().addListener((o, ov, nv) -> onFont.accept(nv));
+        sizeSpinner.valueProperty().addListener((o, ov, nv) -> onSize.accept(nv));
+        weightChoice.valueProperty().addListener((o, ov, nv) -> onWeight.accept(nv));
+        colorPicker.valueProperty().addListener((o, ov, nv) -> onColor.accept(nv == null ? null : toHex(nv)));
         closeBtn.setOnAction(e -> stage.close());
         applyBtn.setOnAction(e -> {
             applied[0] = true;
@@ -707,6 +858,41 @@ final class OverlayPanel {
         }
     }
 
+    private ComboBox<String> buildFontChoice(String initial) {
+        var fontChoice = new ComboBox<String>();
+        fontChoice.setVisibleRowCount(12);
+        fontChoice.setPrefWidth(220);
+        var fontNames = GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames();
+        fontChoice.getItems().add(ImageDraw.DEFAULT_SIGNATURE_FONT);
+        for (var name : fontNames) {
+            if (!name.equals(ImageDraw.DEFAULT_SIGNATURE_FONT)) {
+                fontChoice.getItems().add(name);
+            }
+        }
+        fontChoice.setCellFactory(lv -> fontPreviewCell());
+        fontChoice.setButtonCell(fontPreviewCell());
+        fontChoice.setValue(initial != null ? initial : ImageDraw.DEFAULT_SIGNATURE_FONT);
+        return fontChoice;
+    }
+
+    private ComboBox<String> buildWeightChoice(String initial) {
+        var weightChoice = new ComboBox<String>();
+        weightChoice.getItems().addAll(FONT_WEIGHTS);
+        weightChoice.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(String s) {
+                return s == null ? "" : message("overlay.weight." + s.toLowerCase(Locale.ROOT));
+            }
+
+            @Override
+            public String fromString(String s) {
+                return null;
+            }
+        });
+        weightChoice.setValue(initial != null && FONT_WEIGHTS.contains(initial) ? initial : "NORMAL");
+        return weightChoice;
+    }
+
     private void showObsTemplate() {
         var initial = state.obsDetailsTemplate() != null ? state.obsDetailsTemplate() : ImageDraw.DEFAULT_OBS_DETAILS_TEMPLATE;
         var textArea = new TextArea(initial);
@@ -717,7 +903,8 @@ final class OverlayPanel {
         hint.setWrapText(true);
         hint.setMaxWidth(520);
         hint.getStyleClass().add("overlay-popover-hint");
-        var body = new VBox(10, hint, textArea);
+        var colorRow = buildColorPickerRow(state.obsDetailsColor(), hex -> mutate(s -> s.withObsDetailsColor(hex)));
+        var body = new VBox(10, hint, textArea, colorRow);
         body.setPadding(new Insets(15, 20, 10, 20));
         var resetBtn = new Button(message("overlay.reset.color"));
         resetBtn.getStyleClass().add("default-button");
@@ -797,7 +984,7 @@ final class OverlayPanel {
         grid.add(stepLabel, 0, 1);
         grid.add(stepSpinner, 1, 1);
         addPromThicknessSpinner(grid, 2);
-        var content = new VBox(grid);
+        var content = new VBox(8, grid, buildColorRow(state.promScaleColor(), hex -> mutate(s -> s.withPromScaleColor(hex))));
         content.getStyleClass().add("overlay-subpopup");
         var sub = new Popup();
         sub.setAutoHide(true);
@@ -874,6 +1061,7 @@ final class OverlayPanel {
         var thicknessRow = new HBox(6, thicknessLabel, thicknessLocal);
         thicknessRow.setAlignment(Pos.CENTER_LEFT);
         content.getChildren().add(thicknessRow);
+        content.getChildren().add(buildColorRow(state.gridColor(), hex -> mutate(s -> s.withGridColor(hex))));
         var sub = new Popup();
         sub.setAutoHide(true);
         sub.setHideOnEscape(true);
@@ -895,6 +1083,7 @@ final class OverlayPanel {
             pCorrected.selectedProperty().addListener((o, ov, nv) -> mutate(s -> s.withPCorrected(nv)));
             content.getChildren().add(pCorrected);
         }
+        content.getChildren().add(buildColorRow(state.activeRegionsColor(), hex -> mutate(s -> s.withActiveRegionsColor(hex))));
         content.getStyleClass().add("overlay-subpopup");
         var sub = new Popup();
         sub.setAutoHide(true);
@@ -931,6 +1120,7 @@ final class OverlayPanel {
             signatureBtn.setSelected(s.drawSignature());
             signatureSwatch.setFill(s.signatureColor() == null ? defaultSwatchFill() : parseHex(s.signatureColor()));
         }
+        rebuildTextAreasBox();
         ignoreChanges = false;
     }
 
@@ -939,6 +1129,7 @@ final class OverlayPanel {
             return;
         }
         state = f.apply(state);
+        applyState(state);
         onChange.accept(state);
     }
 

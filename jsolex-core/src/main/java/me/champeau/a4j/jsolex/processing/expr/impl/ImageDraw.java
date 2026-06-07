@@ -38,6 +38,7 @@ import me.champeau.a4j.math.regression.Ellipse;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
+import java.awt.font.TextAttribute;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Path2D;
 import java.awt.image.BufferedImage;
@@ -608,10 +609,14 @@ public class ImageDraw extends AbstractFunctionImpl {
     }
 
     public void drawSignatureOn(Graphics2D g, ImageWrapper image, String text, String fontFamily, int fontSize, String color) {
-        drawSignatureOn(g, image, text, fontFamily, fontSize, color, -1, -1);
+        drawSignatureOn(g, image, text, fontFamily, fontSize, color, -1, -1, null);
     }
 
     public void drawSignatureOn(Graphics2D g, ImageWrapper image, String text, String fontFamily, int fontSize, String color, int anchorX, int anchorY) {
+        drawSignatureOn(g, image, text, fontFamily, fontSize, color, anchorX, anchorY, null);
+    }
+
+    public void drawSignatureOn(Graphics2D g, ImageWrapper image, String text, String fontFamily, int fontSize, String color, int anchorX, int anchorY, String fontWeight) {
         if (text == null || text.isBlank()) {
             return;
         }
@@ -620,7 +625,7 @@ public class ImageDraw extends AbstractFunctionImpl {
         try {
             var family = fontFamily != null && !fontFamily.isBlank() ? fontFamily : DEFAULT_SIGNATURE_FONT;
             int size = fontSize > 0 ? fontSize : DEFAULT_SIGNATURE_SIZE;
-            g.setFont(new Font(family, Font.PLAIN, size));
+            g.setFont(weightedFont(family, size, fontWeight));
             configureColor(color, g);
             var metrics = g.getFontMetrics();
             var lines = text.split("\n", -1);
@@ -643,6 +648,31 @@ public class ImageDraw extends AbstractFunctionImpl {
             g.setFont(savedFont);
             g.setColor(savedColor);
         }
+    }
+
+    private static Font weightedFont(String family, int size, String fontWeight) {
+        var attributes = new HashMap<TextAttribute, Object>();
+        attributes.put(TextAttribute.FAMILY, family);
+        attributes.put(TextAttribute.SIZE, (float) size);
+        attributes.put(TextAttribute.WEIGHT, awtWeight(fontWeight));
+        return new Font(attributes);
+    }
+
+    private static Float awtWeight(String fontWeight) {
+        if (fontWeight == null) {
+            return TextAttribute.WEIGHT_REGULAR;
+        }
+        return switch (fontWeight) {
+            case "THIN" -> TextAttribute.WEIGHT_EXTRA_LIGHT;
+            case "EXTRA_LIGHT" -> TextAttribute.WEIGHT_LIGHT;
+            case "LIGHT" -> TextAttribute.WEIGHT_DEMILIGHT;
+            case "MEDIUM" -> TextAttribute.WEIGHT_MEDIUM;
+            case "SEMI_BOLD" -> TextAttribute.WEIGHT_SEMIBOLD;
+            case "BOLD" -> TextAttribute.WEIGHT_BOLD;
+            case "EXTRA_BOLD" -> TextAttribute.WEIGHT_EXTRABOLD;
+            case "BLACK" -> TextAttribute.WEIGHT_ULTRABOLD;
+            default -> TextAttribute.WEIGHT_REGULAR;
+        };
     }
 
     private Optional<ProcessParams> findProcessParams(ImageWrapper img) {

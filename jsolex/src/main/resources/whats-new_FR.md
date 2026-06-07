@@ -4,6 +4,7 @@
 
 - La vue de reconstruction peut désormais être parcourue pixel par pixel avec les touches fléchées (maintenez Maj pour des déplacements plus grands).
 - Ajout d'un calque d'annotation des régions actives.
+- Ajout d'annotations de texte libre.
 
 ## Nouveautés de la version 5.3.0
 

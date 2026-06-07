@@ -157,7 +157,20 @@ final class OverlayRenderer {
         int size = state.signatureFontSize() != null ? state.signatureFontSize() : ImageDraw.DEFAULT_SIGNATURE_SIZE;
         var draw = newDraw(processParams);
         var bi = ImageDraw.drawOnImageAsBuffered(prepared,
-                (g, image) -> draw.drawSignatureOn(g, image, state.signatureText(), family, size, state.signatureColor(), x, y));
+                (g, image) -> draw.drawSignatureOn(g, image, state.signatureText(), family, size, state.signatureColor(), x, y, state.signatureFontWeight()));
+        return Loader.toImageWrapper(bi, prepared.metadata());
+    }
+
+    static ImageWrapper bakeTextArea(ImageWrapper source, TextAreaOverlay area, int x, int y, ProcessParams processParams) {
+        if (source == null || area == null || area.text() == null || area.text().isBlank()) {
+            return source;
+        }
+        var prepared = prepareForColorAt(source, area.color());
+        var family = area.fontFamily() != null ? area.fontFamily() : ImageDraw.DEFAULT_SIGNATURE_FONT;
+        int size = area.fontSize() != null ? area.fontSize() : ImageDraw.DEFAULT_SIGNATURE_SIZE;
+        var draw = newDraw(processParams);
+        var bi = ImageDraw.drawOnImageAsBuffered(prepared,
+                (g, image) -> draw.drawSignatureOn(g, image, area.text(), family, size, area.color(), x, y, area.fontWeight()));
         return Loader.toImageWrapper(bi, prepared.metadata());
     }
 

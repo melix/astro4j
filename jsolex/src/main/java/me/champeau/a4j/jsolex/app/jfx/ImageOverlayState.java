@@ -15,6 +15,9 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public record ImageOverlayState(
         boolean drawGlobe,
         boolean drawObservationDetails,
@@ -46,127 +49,165 @@ public record ImageOverlayState(
         Float promScaleLineThickness,
         boolean drawActiveRegions,
         String activeRegionsColor,
-        boolean activeRegionsBoxes
+        boolean activeRegionsBoxes,
+        String signatureFontWeight,
+        List<TextAreaOverlay> textAreas
 ) {
+    public ImageOverlayState {
+        textAreas = textAreas == null ? List.of() : List.copyOf(textAreas);
+    }
+
     public static final ImageOverlayState DEFAULT = new ImageOverlayState(
             false, false, false, false, false, false, null, null,
             null, null, null, null, null, null, null, null,
             false, null, null, null, null, null, null,
-            null, null, null, null, null, false, null, false);
+            null, null, null, null, null, false, null, false, null, List.of());
 
     public ImageOverlayState withDrawGlobe(boolean v) {
-        return new ImageOverlayState(v, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes);
+        return new ImageOverlayState(v, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes, signatureFontWeight, textAreas);
     }
 
     public ImageOverlayState withDrawObservationDetails(boolean v) {
-        return new ImageOverlayState(drawGlobe, v, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes);
+        return new ImageOverlayState(drawGlobe, v, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes, signatureFontWeight, textAreas);
     }
 
     public ImageOverlayState withDrawSolarParameters(boolean v) {
-        return new ImageOverlayState(drawGlobe, drawObservationDetails, v, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes);
+        return new ImageOverlayState(drawGlobe, drawObservationDetails, v, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes, signatureFontWeight, textAreas);
     }
 
     public ImageOverlayState withDrawEarth(boolean v) {
-        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, v, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes);
+        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, v, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes, signatureFontWeight, textAreas);
     }
 
     public ImageOverlayState withDrawProminenceScale(boolean v) {
-        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, v, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes);
+        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, v, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes, signatureFontWeight, textAreas);
     }
 
     public ImageOverlayState withPCorrected(boolean v) {
-        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, v, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes);
+        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, v, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes, signatureFontWeight, textAreas);
     }
 
     public ImageOverlayState withEarthPosition(Integer x, Integer y) {
-        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, x, y, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes);
+        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, x, y, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes, signatureFontWeight, textAreas);
     }
 
     public ImageOverlayState withGridColor(String c) {
-        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, c, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes);
+        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, c, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes, signatureFontWeight, textAreas);
     }
 
     public ImageOverlayState withObsDetailsColor(String c) {
-        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, c, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes);
+        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, c, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes, signatureFontWeight, textAreas);
     }
 
     public ImageOverlayState withSolarParamsColor(String c) {
-        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, c, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes);
+        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, c, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes, signatureFontWeight, textAreas);
     }
 
     public ImageOverlayState withPromScaleColor(String c) {
-        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, c, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes);
+        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, c, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes, signatureFontWeight, textAreas);
     }
 
     public ImageOverlayState withPromCircles(Integer v) {
-        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, v, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes);
+        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, v, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes, signatureFontWeight, textAreas);
     }
 
     public ImageOverlayState withPromStepKm(Integer v) {
-        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, v, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes);
+        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, v, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes, signatureFontWeight, textAreas);
     }
 
     public ImageOverlayState withObsDetailsTemplate(String v) {
-        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, v, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes);
+        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, v, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes, signatureFontWeight, textAreas);
     }
 
     public ImageOverlayState withLineThickness(Float v) {
-        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, v, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes);
+        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, v, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes, signatureFontWeight, textAreas);
     }
 
     public ImageOverlayState withDrawSignature(boolean v) {
-        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, v, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes);
+        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, v, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes, signatureFontWeight, textAreas);
     }
 
     public ImageOverlayState withSignatureText(String v) {
-        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, v, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes);
+        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, v, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes, signatureFontWeight, textAreas);
     }
 
     public ImageOverlayState withSignatureColor(String v) {
-        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, v, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes);
+        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, v, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes, signatureFontWeight, textAreas);
     }
 
     public ImageOverlayState withSignatureFontFamily(String v) {
-        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, v, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes);
+        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, v, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes, signatureFontWeight, textAreas);
     }
 
     public ImageOverlayState withSignatureFontSize(Integer v) {
-        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, v, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes);
+        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, v, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes, signatureFontWeight, textAreas);
+    }
+
+    public ImageOverlayState withSignatureFontWeight(String v) {
+        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes, v, textAreas);
     }
 
     public ImageOverlayState withSignaturePosition(Integer x, Integer y) {
-        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, x, y, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes);
+        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, x, y, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes, signatureFontWeight, textAreas);
     }
 
     public ImageOverlayState withObsDetailsPosition(Integer x, Integer y) {
-        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, x, y, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes);
+        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, x, y, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes, signatureFontWeight, textAreas);
     }
 
     public ImageOverlayState withSolarParamsPosition(Integer x, Integer y) {
-        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, x, y, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes);
+        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, x, y, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes, signatureFontWeight, textAreas);
     }
 
     public ImageOverlayState withPromScaleLineThickness(Float v) {
-        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, v, drawActiveRegions, activeRegionsColor, activeRegionsBoxes);
+        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, v, drawActiveRegions, activeRegionsColor, activeRegionsBoxes, signatureFontWeight, textAreas);
     }
 
     public ImageOverlayState withDrawActiveRegions(boolean v) {
-        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, v, activeRegionsColor, activeRegionsBoxes);
+        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, v, activeRegionsColor, activeRegionsBoxes, signatureFontWeight, textAreas);
     }
 
     public ImageOverlayState withActiveRegionsColor(String c) {
-        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, c, activeRegionsBoxes);
+        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, c, activeRegionsBoxes, signatureFontWeight, textAreas);
     }
 
     public ImageOverlayState withActiveRegionsBoxes(boolean v) {
-        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, v);
+        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, v, signatureFontWeight, textAreas);
+    }
+
+    public ImageOverlayState withTextAreas(List<TextAreaOverlay> v) {
+        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, earthX, earthY, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes, signatureFontWeight, v);
+    }
+
+    public ImageOverlayState addTextArea(TextAreaOverlay area) {
+        var copy = new ArrayList<>(textAreas);
+        copy.add(area);
+        return withTextAreas(copy);
+    }
+
+    public ImageOverlayState withTextAreaAt(int index, TextAreaOverlay area) {
+        if (index < 0 || index >= textAreas.size()) {
+            return this;
+        }
+        var copy = new ArrayList<>(textAreas);
+        copy.set(index, area);
+        return withTextAreas(copy);
+    }
+
+    public ImageOverlayState withoutTextAreaAt(int index) {
+        if (index < 0 || index >= textAreas.size()) {
+            return this;
+        }
+        var copy = new ArrayList<>(textAreas);
+        copy.remove(index);
+        return withTextAreas(copy);
     }
 
     public ImageOverlayState asPreset() {
-        return new ImageOverlayState(drawGlobe, drawObservationDetails, drawSolarParameters, drawEarth, drawProminenceScale, pCorrected, null, null, gridColor, obsDetailsColor, solarParamsColor, promScaleColor, promCircles, promStepKm, obsDetailsTemplate, lineThickness, drawSignature, signatureText, signatureColor, signatureFontFamily, signatureFontSize, null, null, null, null, null, null, promScaleLineThickness, drawActiveRegions, activeRegionsColor, activeRegionsBoxes);
+        return this;
     }
 
     public ImageOverlayState mergePreset(ImageOverlayState preset) {
-        return new ImageOverlayState(preset.drawGlobe, preset.drawObservationDetails, preset.drawSolarParameters, preset.drawEarth, preset.drawProminenceScale, preset.pCorrected, earthX, earthY, preset.gridColor, preset.obsDetailsColor, preset.solarParamsColor, preset.promScaleColor, preset.promCircles, preset.promStepKm, preset.obsDetailsTemplate, preset.lineThickness, preset.drawSignature, preset.signatureText, preset.signatureColor, preset.signatureFontFamily, preset.signatureFontSize, signatureX, signatureY, obsDetailsX, obsDetailsY, solarParamsX, solarParamsY, promScaleLineThickness, preset.drawActiveRegions, preset.activeRegionsColor, preset.activeRegionsBoxes);
+        return preset;
     }
 }
