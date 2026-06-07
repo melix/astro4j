@@ -360,11 +360,164 @@ class ImageMathTest extends Specification {
         Math.abs(hires.data()[10][8] - 11.0f) < 1e-3f
     }
 
+    def "gaussianBlur is bit-for-bit identical to convolve with GAUSSIAN_BLUR on integer inputs (#label, #width x #height)"() {
+        // With integer-valued inputs every intermediate (weighted sums, /16 by a power of two)
+        // is exactly representable as a float, so separable blur must match the 2D convolution exactly.
+        var image = randomIntegerImage(width, height, 65535, 123)
+        var expected = new float[height][width]
+        var actual = new float[height][width]
+
+        when:
+        imageMath.convolve(image, Kernel33.GAUSSIAN_BLUR, expected)
+        imageMath.gaussianBlur(image, actual)
+
+        then:
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                assert actual[y][x] == expected[y][x]
+            }
+        }
+
+        where:
+        label        | imageMath                | width | height
+        'fallback'   | new FallbackImageMath()  | 1     | 1
+        'fallback'   | new FallbackImageMath()  | 1     | 7
+        'fallback'   | new FallbackImageMath()  | 7     | 1
+        'fallback'   | new FallbackImageMath()  | 2     | 2
+        'fallback'   | new FallbackImageMath()  | 3     | 3
+        'fallback'   | new FallbackImageMath()  | 64    | 64
+        'fallback'   | new FallbackImageMath()  | 257   | 131
+        'vectorized' | new VectorApiImageMath() | 1     | 1
+        'vectorized' | new VectorApiImageMath() | 1     | 7
+        'vectorized' | new VectorApiImageMath() | 7     | 1
+        'vectorized' | new VectorApiImageMath() | 2     | 2
+        'vectorized' | new VectorApiImageMath() | 3     | 3
+        'vectorized' | new VectorApiImageMath() | 64    | 64
+        'vectorized' | new VectorApiImageMath() | 257   | 131
+    }
+
+    def "gaussianBlur matches convolve with GAUSSIAN_BLUR on float inputs within float-reassociation noise (#label)"() {
+        var image = randomFloatImage(width, height, 65535, 7)
+        var expected = new float[height][width]
+        var actual = new float[height][width]
+
+        when:
+        imageMath.convolve(image, Kernel33.GAUSSIAN_BLUR, expected)
+        imageMath.gaussianBlur(image, actual)
+
+        then:
+        // values span [0, 65535]; reassociation of float adds yields sub-0.01 differences
+        compareImages(new Image(width, height, actual), new Image(width, height, expected), 0.01f)
+
+        where:
+        label        | imageMath                | width | height
+        'fallback'   | new FallbackImageMath()  | 333   | 211
+        'vectorized' | new VectorApiImageMath() | 333   | 211
+    }
+
+    def "vectorized gaussianBlur is bit-for-bit identical to fallback gaussianBlur (float inputs)"() {
+        var image = randomFloatImage(333, 211, 65535, 99)
+        var fallback = new float[211][333]
+        var vectorized = new float[211][333]
+
+        when:
+        new FallbackImageMath().gaussianBlur(image, fallback)
+        new VectorApiImageMath().gaussianBlur(image, vectorized)
+
+        then:
+        for (int y = 0; y < 211; y++) {
+            for (int x = 0; x < 333; x++) {
+                assert vectorized[y][x] == fallback[y][x]
+            }
+        }
+    }
+
+    def "column-ranged gaussianBlur is bit-for-bit identical to full blur over the range (#label, [#from,#to))"() {
+        var image = randomFloatImage(width, height, 65535, 21)
+        var full = new float[height][width]
+        var ranged = new float[height][width]
+
+        when:
+        imageMath.gaussianBlur(image, full)
+        imageMath.gaussianBlur(image, ranged, from, to)
+
+        then:
+        for (int y = 0; y < height; y++) {
+            for (int x = from; x < to; x++) {
+                assert Float.floatToRawIntBits(ranged[y][x]) == Float.floatToRawIntBits(full[y][x])
+            }
+        }
+
+        where:
+        label        | imageMath                | width | height | from | to
+        'fallback'   | new FallbackImageMath()  | 333   | 211    | 40   | 300
+        'fallback'   | new FallbackImageMath()  | 333   | 211    | 0    | 333
+        'fallback'   | new FallbackImageMath()  | 333   | 211    | 1    | 332
+        'fallback'   | new FallbackImageMath()  | 64    | 32     | 0    | 1
+        'vectorized' | new VectorApiImageMath() | 333   | 211    | 40   | 300
+        'vectorized' | new VectorApiImageMath() | 333   | 211    | 0    | 333
+        'vectorized' | new VectorApiImageMath() | 333   | 211    | 1    | 332
+        'vectorized' | new VectorApiImageMath() | 1920  | 200    | 247  | 1666
+    }
+
+    def "scratch-buffer gaussianBlur is bit-for-bit identical to the allocating blur even with a dirty tmp (#label, [#from,#to))"() {
+        var image = randomFloatImage(width, height, 65535, 31)
+        var full = new float[height][width]
+        var reused = new float[height][width]
+        // Pre-fill tmp with garbage to prove the blur never reads stale scratch values.
+        var tmp = new float[height][width]
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                tmp[y][x] = 123456.0f
+            }
+        }
+
+        when:
+        imageMath.gaussianBlur(image, full, from, to)
+        imageMath.gaussianBlur(image, reused, tmp, from, to)
+
+        then:
+        for (int y = 0; y < height; y++) {
+            for (int x = from; x < to; x++) {
+                assert Float.floatToRawIntBits(reused[y][x]) == Float.floatToRawIntBits(full[y][x])
+            }
+        }
+
+        where:
+        label        | imageMath                | width | height | from | to
+        'fallback'   | new FallbackImageMath()  | 333   | 211    | 40   | 300
+        'fallback'   | new FallbackImageMath()  | 333   | 211    | 0    | 333
+        'vectorized' | new VectorApiImageMath() | 333   | 211    | 40   | 300
+        'vectorized' | new VectorApiImageMath() | 1920  | 200    | 247  | 1666
+    }
+
     static Image newImage(int width, int height) {
         var data = new float[height][width]
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 data[y][x] = y + x
+            }
+        }
+        return new Image(width, height, data)
+    }
+
+    static Image randomIntegerImage(int width, int height, int maxValue, long seed) {
+        var random = new Random(seed)
+        var data = new float[height][width]
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                data[y][x] = random.nextInt(maxValue + 1)
+            }
+        }
+        return new Image(width, height, data)
+    }
+
+    static Image randomFloatImage(int width, int height, float maxValue, long seed) {
+        var random = new Random(seed)
+        var data = new float[height][width]
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                data[y][x] = random.nextFloat() * maxValue
             }
         }
         return new Image(width, height, data)

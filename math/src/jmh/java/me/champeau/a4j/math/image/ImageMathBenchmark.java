@@ -41,11 +41,21 @@ public class ImageMathBenchmark {
         private final ImageMath fallback = new FallbackImageMath();
         private final ImageMath vector = new VectorApiImageMath();
         private Image image;
+        private float[][] output;
+        private float[][] tmp;
 
         @Setup
         public void setup() {
             float[][] data = new float[height][width];
+            var random = new java.util.Random(42);
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    data[y][x] = random.nextFloat() * 65535f;
+                }
+            }
             image = new Image(width, height, data);
+            output = new float[height][width];
+            tmp = new float[height][width];
         }
     }
 
@@ -57,5 +67,41 @@ public class ImageMathBenchmark {
     @Benchmark
     public void averageOfLineVector(Blackhole blackhole, Data data) {
         blackhole.consume(data.vector.lineAverages(data.image));
+    }
+
+    @Benchmark
+    public void gaussianConvolveFallback(Blackhole blackhole, Data data) {
+        blackhole.consume(data.fallback.convolve(data.image, Kernel33.GAUSSIAN_BLUR, data.output));
+    }
+
+    @Benchmark
+    public void gaussianConvolveVector(Blackhole blackhole, Data data) {
+        blackhole.consume(data.vector.convolve(data.image, Kernel33.GAUSSIAN_BLUR, data.output));
+    }
+
+    @Benchmark
+    public void gaussianBlurFallback(Blackhole blackhole, Data data) {
+        blackhole.consume(data.fallback.gaussianBlur(data.image, data.output));
+    }
+
+    @Benchmark
+    public void gaussianBlurVector(Blackhole blackhole, Data data) {
+        blackhole.consume(data.vector.gaussianBlur(data.image, data.output));
+    }
+
+    @Benchmark
+    public void gaussianBlurRangedVector(Blackhole blackhole, Data data) {
+        // Blur only the central ~75% of columns (representative of the detected sun region).
+        int from = data.width / 8;
+        int to = data.width - data.width / 8;
+        blackhole.consume(data.vector.gaussianBlur(data.image, data.output, from, to));
+    }
+
+    @Benchmark
+    public void gaussianBlurRangedReuseVector(Blackhole blackhole, Data data) {
+        // As above, but reusing a pre-allocated scratch buffer (no per-call allocation).
+        int from = data.width / 8;
+        int to = data.width - data.width / 8;
+        blackhole.consume(data.vector.gaussianBlur(data.image, data.output, data.tmp, from, to));
     }
 }

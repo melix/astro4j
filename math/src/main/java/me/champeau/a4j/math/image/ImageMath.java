@@ -599,6 +599,81 @@ public interface ImageMath {
     }
 
     /**
+     * Applies a separable 3x3 Gaussian blur, equivalent to convolving with
+     * {@link Kernel33#GAUSSIAN_BLUR}. Border pixels replicate the edge.
+     *
+     * @param image  the source image
+     * @param output the output buffer ({@code float[height][width]})
+     * @return the {@code output} buffer, populated with the blurred data
+     */
+    default float[][] gaussianBlur(Image image, float[][] output) {
+        return gaussianBlur(image, output, 0, image.width());
+    }
+
+    /**
+     * Variant of {@link #gaussianBlur(Image, float[][])} that blurs only the columns in
+     * {@code [fromColumn, toColumn)}, leaving the remaining columns of {@code output} untouched.
+     *
+     * @param image      the source image
+     * @param output     the output buffer ({@code float[height][width]})
+     * @param fromColumn the first column to blur (inclusive)
+     * @param toColumn   the column past the last to blur (exclusive)
+     * @return the {@code output} buffer, with columns {@code [fromColumn, toColumn)} blurred
+     */
+    default float[][] gaussianBlur(Image image, float[][] output, int fromColumn, int toColumn) {
+        return gaussianBlur(image, output, new float[image.height()][image.width()], fromColumn, toColumn);
+    }
+
+    /**
+     * Variant of {@link #gaussianBlur(Image, float[][], int, int)} that reuses a
+     * caller-supplied scratch buffer instead of allocating one per call.
+     *
+     * @param image      the source image
+     * @param output     the output buffer ({@code float[height][width]})
+     * @param tmp        a reusable scratch buffer ({@code float[height][width]})
+     * @param fromColumn the first column to blur (inclusive)
+     * @param toColumn   the column past the last to blur (exclusive)
+     * @return the {@code output} buffer, with columns {@code [fromColumn, toColumn)} blurred
+     */
+    default float[][] gaussianBlur(Image image, float[][] output, float[][] tmp, int fromColumn, int toColumn) {
+        var source = image.data();
+        var height = image.height();
+        var width = image.width();
+        int interiorStart = Math.max(fromColumn, 1);
+        int interiorEnd = Math.min(toColumn, width - 1);
+        for (int y = 0; y < height; y++) {
+            var srcRow = source[y];
+            var tmpRow = tmp[y];
+            if (width == 1) {
+                if (fromColumn == 0) {
+                    tmpRow[0] = 4 * srcRow[0];
+                }
+                continue;
+            }
+            if (fromColumn == 0) {
+                tmpRow[0] = srcRow[0] + 2 * srcRow[0] + srcRow[1];
+            }
+            for (int x = interiorStart; x < interiorEnd; x++) {
+                tmpRow[x] = srcRow[x - 1] + 2 * srcRow[x] + srcRow[x + 1];
+            }
+            if (toColumn == width) {
+                tmpRow[width - 1] = srcRow[width - 2] + 2 * srcRow[width - 1] + srcRow[width - 1];
+            }
+        }
+        for (int y = 0; y < height; y++) {
+            var up = tmp[y > 0 ? y - 1 : 0];
+            var mid = tmp[y];
+            var down = tmp[y < height - 1 ? y + 1 : height - 1];
+            var outRow = output[y];
+            for (int x = fromColumn; x < toColumn; x++) {
+                var val = (up[x] + 2 * mid[x] + down[x]) * (1f / 16f);
+                outRow[x] = Math.clamp(val, 0, MAX_VALUE);
+            }
+        }
+        return output;
+    }
+
+    /**
      * Computes the gradient using left-top Sobel operators.
      *
      * @param image the source image
