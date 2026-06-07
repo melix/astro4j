@@ -154,6 +154,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.AnimationFormat;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
+import me.champeau.a4j.jsolex.processing.util.JitWarmup;
 import me.champeau.a4j.jsolex.processing.util.Bass2000ConfigService;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.DurationFormatter;
@@ -668,6 +669,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             referenceImageHelper.initialize();
             bass2000Button.setVisible(true);
             stage.show();
+            BackgroundOperations.async(JitWarmup::warmup);
             refreshRecentItemsMenu();
             publishingTab.disableProperty().bind(bass2000Button.disableProperty().and(spectroSolHubButton.disableProperty()));
             shareButton.disableProperty().bind(publishingTab.disableProperty());

@@ -21,7 +21,6 @@ import me.champeau.a4j.jsolex.processing.util.Wavelen;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
-import me.champeau.a4j.math.image.Kernel33;
 import me.champeau.a4j.math.regression.EllipseRegression;
 import me.champeau.a4j.math.regression.LinearRegression;
 import me.champeau.a4j.math.tuples.DoublePair;
@@ -67,6 +66,8 @@ public class PhenomenaDetector {
     private static final int MAX_ELLERMAN_COUNT = 5;
     private static final int ELLERMAN_LOCAL_RANGE = 8;
     private static final int ELLERMAN_MIN_WIDTH_FOR_DETECTION = 12 * ELLERMAN_LOCAL_RANGE;
+    private static final double ELLERMAN_SCORE_THRESHOLD = 12;
+    private static final double ELLERMAN_CANDIDATE_SCORE_THRESHOLD = ELLERMAN_SCORE_THRESHOLD / 2;
     private static final int FLARE_DEDUP_DISTANCE = 16;
     private static final int REDSHIFT_NEIGHBOR_HALF_WINDOW = 3;
     private static final int REDSHIFT_MIN_VALID_NEIGHBORS = 3;
@@ -134,10 +135,14 @@ public class PhenomenaDetector {
     }
 
     public void performDetection(int frameId, int width, int height, float[][] original, DoubleUnaryOperator polynomial, Header header) {
-        performDetection(frameId, width, height, original, polynomial, header, null);
+        performDetection(frameId, width, height, original, polynomial, header, null, null);
     }
 
     public void performDetection(int frameId, int width, int height, float[][] original, DoubleUnaryOperator polynomial, Header header, float[][] blurredScratch) {
+        performDetection(frameId, width, height, original, polynomial, header, blurredScratch, null);
+    }
+
+    public void performDetection(int frameId, int width, int height, float[][] original, DoubleUnaryOperator polynomial, Header header, float[][] blurredScratch, float[][] blurTmpScratch) {
         if (!detectRedshifts && !detectActiveRegions && !findBorders && !detectEllermanBombs) {
             return;
         }
@@ -179,13 +184,13 @@ public class PhenomenaDetector {
             var columnStats = new ColumnStats[width];
             var columnsAverages = new double[width];
             var columnsStddevs = new double[width];
-            // reduce noise (reuse caller-provided scratch when available; convolve fully overwrites the output)
-            var blurred = blurredScratch != null ? blurredScratch : new float[height][width];
-            imageMath.convolve(new Image(width, height, original), Kernel33.GAUSSIAN_BLUR, blurred);
+            computeColumnAverages(original, left, right, height, columnsAverages);
+            computeColumnStddevs(original, left, right, height, columnsAverages, columnsStddevs);
             for (int x = left; x < right; x++) {
-                var columnAvg = columnAverage(x, height, original);
-                columnStats[x] = computeColumnStatsForEllermanDetection(frameId, x, height, blurred, polynomial);
-                columnsAverages[x] = columnAvg;
+                var columnAvg = columnsAverages[x];
+                if (detectEllermanBombs) {
+                    columnStats[x] = computeColumnStatsForEllermanDetection(frameId, x, height, original, polynomial);
+                }
                 avgOfColumnAverages += columnAvg;
                 var y = (int) Math.round(polynomial.applyAsDouble(x));
                 if (y < 0 || y >= height) {
@@ -195,7 +200,7 @@ public class PhenomenaDetector {
                 avgCenterLine += v;
                 avgCenterCount++;
             }
-            var models = computeColumnModels(height, original, left, right, columnsAverages, columnsStddevs);
+            var models = computeColumnModels(left, right, columnsAverages, columnsStddevs);
             avgOfColumnAverages /= range;
             avgCenterLine /= avgCenterCount;
             // perform per column analysis
@@ -215,8 +220,13 @@ public class PhenomenaDetector {
             } finally {
                 lock.unlock();
             }
+            var ellermanCandidates = new ArrayList<Integer>();
             for (int x = left; x <= right; x++) {
-                analyzeColumn(frameId, x, width, height, polynomial, columnsAverages, columnsStddevs, models.avgModel(), models.stddevModel(), activeRegionsMask, columnStats, globalLineAvgForEllermanDetection, globalWingAvgForEllermanDetection, leftBorder, rightBorder);
+                analyzeColumn(frameId, x, width, height, polynomial, columnsAverages, columnsStddevs, models.avgModel(), models.stddevModel(), activeRegionsMask, columnStats, globalLineAvgForEllermanDetection, globalWingAvgForEllermanDetection, leftBorder, rightBorder, ellermanCandidates);
+            }
+            if (!ellermanCandidates.isEmpty()) {
+                confirmEllermanCandidates(frameId, ellermanCandidates, original, columnStats, left, right, leftBorder, rightBorder, width, height, polynomial,
+                        globalLineAvgForEllermanDetection, globalWingAvgForEllermanDetection, blurredScratch, blurTmpScratch);
             }
             if (detectRedshifts) {
                 emitRedshifts(frameId, leftBorder, rightBorder, width, height, original, polynomial, wingShiftInPixels, finalAvgCenterLine, finalAvgOfColumnAverages, columnsAverages, collector);
@@ -230,22 +240,47 @@ public class PhenomenaDetector {
         });
     }
 
-    private static ColumnModels computeColumnModels(int height, float[][] original, int left, int right, double[] columnsAverages, double[] columnsStddevs) {
+    /**
+     * Fills {@code columnsAverages[left..right)} with the per-column mean over the full image height.
+     */
+    static void computeColumnAverages(float[][] data, int left, int right, int height, double[] columnsAverages) {
+        for (int y = 0; y < height; y++) {
+            var row = data[y];
+            for (int x = left; x < right; x++) {
+                columnsAverages[x] += row[x];
+            }
+        }
+        for (int x = left; x < right; x++) {
+            columnsAverages[x] /= height;
+        }
+    }
+
+    /**
+     * Fills {@code columnsStddevs[left..right)} with the per-column population standard deviation,
+     * using {@code columnsAverages} as the per-column mean.
+     */
+    static void computeColumnStddevs(float[][] data, int left, int right, int height, double[] columnsAverages, double[] columnsStddevs) {
+        for (int y = 0; y < height; y++) {
+            var row = data[y];
+            for (int x = left; x < right; x++) {
+                var delta = row[x] - columnsAverages[x];
+                columnsStddevs[x] += delta * delta;
+            }
+        }
+        for (int x = left; x < right; x++) {
+            columnsStddevs[x] = Math.sqrt(columnsStddevs[x] / height);
+        }
+    }
+
+    private static ColumnModels computeColumnModels(int left, int right, double[] columnsAverages, double[] columnsStddevs) {
         int n = right - left;
         double[] xs = new double[n];
         double[] avgYs = new double[n];
         double[] stddevYs = new double[n];
         for (int i = 0; i < n; i++) {
             int x = left + i;
-            var avg = columnsAverages[x];
             xs[i] = x;
-            avgYs[i] = avg;
-            double stddev = 0;
-            for (int y = 0; y < height; y++) {
-                var delta = original[y][x] - avg;
-                stddev += delta * delta;
-            }
-            columnsStddevs[x] = Math.sqrt(stddev / height);
+            avgYs[i] = columnsAverages[x];
             stddevYs[i] = columnsStddevs[x];
         }
         var avgModel = LinearRegression.asPolynomial(LinearRegression.kOrderRegression(xs, avgYs, 3));
@@ -280,14 +315,6 @@ public class PhenomenaDetector {
         return Math.sqrt(variance);
     }
 
-
-    private static double columnAverage(int column, int height, float[][] data) {
-        var tmp = 0d;
-        for (int y = 0; y < height; y++) {
-            tmp += data[y][column];
-        }
-        return tmp / height;
-    }
 
     private ColumnStats computeColumnStatsForEllermanDetection(int frameId, int column, int height, float[][] blurred, DoubleUnaryOperator polynomial) {
         double lineSum = 0;
@@ -377,19 +404,62 @@ public class PhenomenaDetector {
                                double globalLineAvgForEllermanDetection,
                                double globalWingAvgForEllermanDetection,
                                int leftBorder,
-                               int rightBorder) {
+                               int rightBorder,
+                               List<Integer> ellermanCandidates) {
         if (detectActiveRegions) {
             detectActiveRegions(x, columnsAverages, columnsStddevs, avgModel, stddevModel, activeRegionMask);
         }
-        if (detectEllermanBombs && globalWingAvgForEllermanDetection > 0 && x > leftBorder + 16 && x < rightBorder - 16) {
-            performEllermanBombDetection(frameId, x, width, leftBorder, rightBorder, polynomial, columnStats, globalLineAvgForEllermanDetection, globalWingAvgForEllermanDetection)
-                    .ifPresent(flare ->
-                            candidateFlares.add(new CandidateFlare(
-                                    flare,
-                                    frameId,
-                                    leftBorder,
-                                    rightBorder
-                            )));
+        if (detectEllermanBombs && globalWingAvgForEllermanDetection > 0 && x > leftBorder + 16 && x < rightBorder - 16
+                && performEllermanBombDetection(frameId, x, width, leftBorder, rightBorder, polynomial, columnStats, globalLineAvgForEllermanDetection, globalWingAvgForEllermanDetection, ELLERMAN_CANDIDATE_SCORE_THRESHOLD).isPresent()) {
+            ellermanCandidates.add(x);
+        }
+    }
+
+    private void confirmEllermanCandidates(int frameId,
+                                           List<Integer> candidates,
+                                           float[][] original,
+                                           ColumnStats[] columnStats,
+                                           int left,
+                                           int right,
+                                           int leftBorder,
+                                           int rightBorder,
+                                           int width,
+                                           int height,
+                                           DoubleUnaryOperator polynomial,
+                                           double globalLineAvg,
+                                           double globalWingAvg,
+                                           float[][] blurredScratch,
+                                           float[][] blurTmpScratch) {
+        var blurred = blurredScratch != null ? blurredScratch : new float[height][width];
+        var blurTmp = blurTmpScratch != null ? blurTmpScratch : new float[height][width];
+        var image = new Image(width, height, original);
+        var inBand = new boolean[width];
+        for (int candidate : candidates) {
+            int from = Math.max(left, candidate - ELLERMAN_LOCAL_RANGE);
+            int to = Math.min(right, candidate + ELLERMAN_LOCAL_RANGE + 1);
+            for (int x = from; x < to; x++) {
+                inBand[x] = true;
+            }
+        }
+        int x = left;
+        while (x < right) {
+            if (!inBand[x]) {
+                x++;
+                continue;
+            }
+            int runStart = x;
+            while (x < right && inBand[x]) {
+                x++;
+            }
+            int runEnd = x;
+            imageMath.gaussianBlur(image, blurred, blurTmp, runStart, runEnd);
+            for (int column = runStart; column < runEnd; column++) {
+                columnStats[column] = computeColumnStatsForEllermanDetection(frameId, column, height, blurred, polynomial);
+            }
+        }
+        for (int candidate : candidates) {
+            performEllermanBombDetection(frameId, candidate, width, leftBorder, rightBorder, polynomial, columnStats, globalLineAvg, globalWingAvg, ELLERMAN_SCORE_THRESHOLD)
+                    .ifPresent(flare -> candidateFlares.add(new CandidateFlare(flare, frameId, leftBorder, rightBorder)));
         }
     }
 
@@ -401,7 +471,8 @@ public class PhenomenaDetector {
                                                          DoubleUnaryOperator polynomial,
                                                          ColumnStats[] columnStats,
                                                          double globalLineAvg,
-                                                         double globalWingAvg) {
+                                                         double globalWingAvg,
+                                                         double scoreThreshold) {
         if (right - left < ELLERMAN_MIN_WIDTH_FOR_DETECTION) {
             return Optional.empty();
         }
@@ -438,7 +509,7 @@ public class PhenomenaDetector {
                     // convert to Angstroms
                     var maxShift = shiftWithMaxValue * dispersion.angstromsPerPixel();
                     score /= (1 + Math.abs(1 - maxShift)); // a maximum around 1A is expected
-                    if (score > 12) {
+                    if (score > scoreThreshold) {
                         if (lineBrightening < 1.5) {
                             return Optional.of(new Flare(Flare.Kind.ELLERMAN_BOMB, frameId, x, x, frameId, score));
                         } else if (lineBrightening > 2) {

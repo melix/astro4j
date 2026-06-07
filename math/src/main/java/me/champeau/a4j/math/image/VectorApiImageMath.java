@@ -267,6 +267,63 @@ class VectorApiImageMath implements ImageMath {
     }
 
     @Override
+    public float[][] gaussianBlur(Image image, float[][] output, float[][] tmp, int fromColumn, int toColumn) {
+        var source = image.data();
+        var height = image.height();
+        var width = image.width();
+        int interiorStart = Math.max(fromColumn, 1);
+        int interiorEnd = Math.min(toColumn, width - 1);
+        var two = FloatVector.broadcast(FLOAT_SPECIES, 2f);
+        for (int y = 0; y < height; y++) {
+            var srcRow = source[y];
+            var tmpRow = tmp[y];
+            if (width == 1) {
+                if (fromColumn == 0) {
+                    tmpRow[0] = 4 * srcRow[0];
+                }
+                continue;
+            }
+            if (fromColumn == 0) {
+                tmpRow[0] = srcRow[0] + 2 * srcRow[0] + srcRow[1];
+            }
+            int x = interiorStart;
+            for (; x + FLOAT_LEN <= interiorEnd; x += FLOAT_LEN) {
+                var left = FloatVector.fromArray(FLOAT_SPECIES, srcRow, x - 1);
+                var center = FloatVector.fromArray(FLOAT_SPECIES, srcRow, x);
+                var right = FloatVector.fromArray(FLOAT_SPECIES, srcRow, x + 1);
+                left.add(center.mul(two)).add(right).intoArray(tmpRow, x);
+            }
+            for (; x < interiorEnd; x++) {
+                tmpRow[x] = srcRow[x - 1] + 2 * srcRow[x] + srcRow[x + 1];
+            }
+            if (toColumn == width) {
+                tmpRow[width - 1] = srcRow[width - 2] + 2 * srcRow[width - 1] + srcRow[width - 1];
+            }
+        }
+        var norm = FloatVector.broadcast(FLOAT_SPECIES, 1f / 16f);
+        var zeroVec = FloatVector.zero(FLOAT_SPECIES);
+        var maxVec = FloatVector.broadcast(FLOAT_SPECIES, MAX_VALUE);
+        for (int y = 0; y < height; y++) {
+            var up = tmp[y > 0 ? y - 1 : 0];
+            var mid = tmp[y];
+            var down = tmp[y < height - 1 ? y + 1 : height - 1];
+            var outRow = output[y];
+            int x = fromColumn;
+            for (; x + FLOAT_LEN <= toColumn; x += FLOAT_LEN) {
+                var u = FloatVector.fromArray(FLOAT_SPECIES, up, x);
+                var m = FloatVector.fromArray(FLOAT_SPECIES, mid, x);
+                var d = FloatVector.fromArray(FLOAT_SPECIES, down, x);
+                u.add(m.mul(two)).add(d).mul(norm).max(zeroVec).min(maxVec).intoArray(outRow, x);
+            }
+            for (; x < toColumn; x++) {
+                var val = (up[x] + 2 * mid[x] + down[x]) * (1f / 16f);
+                outRow[x] = Math.clamp(val, 0, MAX_VALUE);
+            }
+        }
+        return output;
+    }
+
+    @Override
     public void incrementalAverage(float[][] current, float[][] average, int n) {
         var invN = FloatVector.broadcast(FLOAT_SPECIES, 1.0f / n);
         for (int j = 0; j < current.length; j++) {

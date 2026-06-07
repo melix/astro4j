@@ -98,14 +98,16 @@ public class SpectrumFrameAnalyzer {
         Integer leftBorder = null;
         Integer rightBorder = null;
         var columnAverages = new double[width];
-        for (int x = 0; x < width; x++) {
-            double colSum = 0;
-            for (int y = 0; y < height; y++) {
-                double value = data[y][x];
-                colSum += value;
+        for (int y = 0; y < height; y++) {
+            var row = data[y];
+            for (int x = 0; x < width; x++) {
+                columnAverages[x] += row[x];
             }
+        }
+        for (int x = 0; x < width; x++) {
+            double avg = columnAverages[x] / height;
             // square the average to increase sensitivity
-            columnAverages[x] = (colSum / height) * (colSum / height);
+            columnAverages[x] = avg * avg;
         }
         double min = Double.MAX_VALUE;
         double max = 0;
@@ -135,15 +137,17 @@ public class SpectrumFrameAnalyzer {
     }
 
     private Borders findBordersExplicit(float[][] data) {
+        var columnSums = new double[width];
+        for (int y = 0; y < height; y++) {
+            var row = data[y];
+            for (int x = 0; x < width; x++) {
+                columnSums[x] += row[x];
+            }
+        }
         Integer leftBorder = null;
         Integer rightBorder = null;
         for (int x = 0; x < width; x++) {
-            double lineAvg = 0;
-            for (int y = 0; y < height; y++) {
-                double value = data[y][x];
-                lineAvg += value;
-            }
-            lineAvg /= height;
+            double lineAvg = columnSums[x] / height;
             if (lineAvg > sunDetectionThreshold) {
                 if (leftBorder == null) {
                     leftBorder = x;
