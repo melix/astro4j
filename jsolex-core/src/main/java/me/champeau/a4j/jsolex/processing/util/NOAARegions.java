@@ -102,7 +102,13 @@ public class NOAARegions {
                     if ('E' == lonDir) {
                         lonDeg = -lonDeg;
                     }
-                    regions.add(new NOAAActiveRegion(id, latDeg, lonDeg));
+                    // "LL" column: longitudinal extent of the region in degrees
+                    int extentDeg = 0;
+                    try {
+                        extentDeg = Integer.parseInt(parts[5]);
+                    } catch (NumberFormatException ignored) {
+                    }
+                    regions.add(new NOAAActiveRegion(id, latDeg, lonDeg, extentDeg));
                 }
             }
         }

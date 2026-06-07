@@ -101,6 +101,11 @@ final class OverlayRenderer {
                 int stepKm = state.promStepKm() != null ? state.promStepKm() : ImageDraw.PROMINENCE_SCALE_STEP_KM;
                 draw.drawProminenceScaleOn(g, ellipse, promColor, circles, stepKm, promThickness);
             }
+            if (state.drawActiveRegions() && ellipse != null && solarParams != null) {
+                boolean correctP = effectivePCorrected(state, kind, baseImageIsPCorrected);
+                var arColor = parseColor(state.activeRegionsColor());
+                draw.drawActiveRegionLabelsOn(g, prepared, ellipse, solarParams, correctP, arColor, state.activeRegionsBoxes());
+            }
         } finally {
             g.dispose();
         }
@@ -109,7 +114,8 @@ final class OverlayRenderer {
 
     private static boolean hasAnyOverlay(ImageOverlayState state) {
         return state.drawGlobe()
-                || state.drawProminenceScale();
+                || state.drawProminenceScale()
+                || state.drawActiveRegions();
     }
 
     private static boolean anyColorSet(ImageOverlayState state) {
@@ -117,6 +123,7 @@ final class OverlayRenderer {
                 || state.obsDetailsColor() != null
                 || state.solarParamsColor() != null
                 || state.promScaleColor() != null
+                || state.activeRegionsColor() != null
                 || state.signatureColor() != null;
     }
 
@@ -150,7 +157,20 @@ final class OverlayRenderer {
         int size = state.signatureFontSize() != null ? state.signatureFontSize() : ImageDraw.DEFAULT_SIGNATURE_SIZE;
         var draw = newDraw(processParams);
         var bi = ImageDraw.drawOnImageAsBuffered(prepared,
-                (g, image) -> draw.drawSignatureOn(g, image, state.signatureText(), family, size, state.signatureColor(), x, y));
+                (g, image) -> draw.drawSignatureOn(g, image, state.signatureText(), family, size, state.signatureColor(), x, y, state.signatureFontWeight()));
+        return Loader.toImageWrapper(bi, prepared.metadata());
+    }
+
+    static ImageWrapper bakeTextArea(ImageWrapper source, TextAreaOverlay area, int x, int y, ProcessParams processParams) {
+        if (source == null || area == null || area.text() == null || area.text().isBlank()) {
+            return source;
+        }
+        var prepared = prepareForColorAt(source, area.color());
+        var family = area.fontFamily() != null ? area.fontFamily() : ImageDraw.DEFAULT_SIGNATURE_FONT;
+        int size = area.fontSize() != null ? area.fontSize() : ImageDraw.DEFAULT_SIGNATURE_SIZE;
+        var draw = newDraw(processParams);
+        var bi = ImageDraw.drawOnImageAsBuffered(prepared,
+                (g, image) -> draw.drawSignatureOn(g, image, area.text(), family, size, area.color(), x, y, area.fontWeight()));
         return Loader.toImageWrapper(bi, prepared.metadata());
     }
 

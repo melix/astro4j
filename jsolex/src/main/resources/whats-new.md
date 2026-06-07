@@ -3,6 +3,8 @@
 ## What's New in Version 5.3.1
 
 - The reconstruction view can now be navigated pixel by pixel with the arrow keys (hold Shift for larger steps).
+- Added an active regions annotation layer.
+- Added free-text annotations.
 
 ## What's New in Version 5.3.0
 

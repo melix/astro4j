@@ -38,6 +38,7 @@ import me.champeau.a4j.math.regression.Ellipse;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
+import java.awt.font.TextAttribute;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Path2D;
 import java.awt.image.BufferedImage;
@@ -46,6 +47,7 @@ import java.awt.image.DataBufferUShort;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -607,10 +609,14 @@ public class ImageDraw extends AbstractFunctionImpl {
     }
 
     public void drawSignatureOn(Graphics2D g, ImageWrapper image, String text, String fontFamily, int fontSize, String color) {
-        drawSignatureOn(g, image, text, fontFamily, fontSize, color, -1, -1);
+        drawSignatureOn(g, image, text, fontFamily, fontSize, color, -1, -1, null);
     }
 
     public void drawSignatureOn(Graphics2D g, ImageWrapper image, String text, String fontFamily, int fontSize, String color, int anchorX, int anchorY) {
+        drawSignatureOn(g, image, text, fontFamily, fontSize, color, anchorX, anchorY, null);
+    }
+
+    public void drawSignatureOn(Graphics2D g, ImageWrapper image, String text, String fontFamily, int fontSize, String color, int anchorX, int anchorY, String fontWeight) {
         if (text == null || text.isBlank()) {
             return;
         }
@@ -619,7 +625,7 @@ public class ImageDraw extends AbstractFunctionImpl {
         try {
             var family = fontFamily != null && !fontFamily.isBlank() ? fontFamily : DEFAULT_SIGNATURE_FONT;
             int size = fontSize > 0 ? fontSize : DEFAULT_SIGNATURE_SIZE;
-            g.setFont(new Font(family, Font.PLAIN, size));
+            g.setFont(weightedFont(family, size, fontWeight));
             configureColor(color, g);
             var metrics = g.getFontMetrics();
             var lines = text.split("\n", -1);
@@ -642,6 +648,31 @@ public class ImageDraw extends AbstractFunctionImpl {
             g.setFont(savedFont);
             g.setColor(savedColor);
         }
+    }
+
+    private static Font weightedFont(String family, int size, String fontWeight) {
+        var attributes = new HashMap<TextAttribute, Object>();
+        attributes.put(TextAttribute.FAMILY, family);
+        attributes.put(TextAttribute.SIZE, (float) size);
+        attributes.put(TextAttribute.WEIGHT, awtWeight(fontWeight));
+        return new Font(attributes);
+    }
+
+    private static Float awtWeight(String fontWeight) {
+        if (fontWeight == null) {
+            return TextAttribute.WEIGHT_REGULAR;
+        }
+        return switch (fontWeight) {
+            case "THIN" -> TextAttribute.WEIGHT_EXTRA_LIGHT;
+            case "EXTRA_LIGHT" -> TextAttribute.WEIGHT_LIGHT;
+            case "LIGHT" -> TextAttribute.WEIGHT_DEMILIGHT;
+            case "MEDIUM" -> TextAttribute.WEIGHT_MEDIUM;
+            case "SEMI_BOLD" -> TextAttribute.WEIGHT_SEMIBOLD;
+            case "BOLD" -> TextAttribute.WEIGHT_BOLD;
+            case "EXTRA_BOLD" -> TextAttribute.WEIGHT_EXTRABOLD;
+            case "BLACK" -> TextAttribute.WEIGHT_ULTRABOLD;
+            default -> TextAttribute.WEIGHT_REGULAR;
+        };
     }
 
     private Optional<ProcessParams> findProcessParams(ImageWrapper img) {
@@ -817,46 +848,143 @@ public class ImageDraw extends AbstractFunctionImpl {
             List<NOAAActiveRegion> regions,
             double centerX,
             double centerY,
-            boolean rotateLabels) {
+            boolean rotateLabels,
+            Color overrideColor,
+            boolean drawBoxes) {
         autoScaleFont(g, 2.0d, radius);
-        if (rotateLabels) {
-            g.setFont(g.getFont().deriveFont(AffineTransform.getRotateInstance(-angleP)));
-        }
-        for (var activeRegion : regions) {
-            String regionId = activeRegion.id();
+        // Same guard as the globe grid: when the image is already P-corrected the disk is upright,
+        // so the active regions must be projected without applying the P angle. This only affects
+        // the position of the regions; labels are always drawn upright.
+        double effectiveP = rotateLabels ? 0.0 : angleP;
+        var baseFont = g.getFont();
+        var fm = g.getFontMetrics();
+        int labelHeight = fm.getHeight();
+        var pxPerDeg = radius * Math.PI / 180.0;
 
-            // Convert latitude and longitude to radians
+        var layouts = new ArrayList<ArLabelLayout>();
+        for (var activeRegion : regions) {
+            var regionId = activeRegion.id();
             double latitude = Math.toRadians(activeRegion.latitudeDeg()) + Math.PI / 2;
             double longitude = Math.toRadians(activeRegion.longitudeDeg());
+            var regionCoords = ofSpherical(longitude, latitude, radius).rotateX(-b0).rotateZ(-effectiveP);
+            if (regionCoords.z <= 0) {
+                continue;
+            }
+            double anchorX = centerX + regionCoords.x;
+            double anchorY = centerY + regionCoords.y;
+            boolean detected = detectedRegions.stream()
+                    .anyMatch(s -> {
+                        var cx = s.topLeft().x() + s.width() / 2;
+                        var cy = s.topLeft().y() + s.height() / 2;
+                        // the label matches a detected region if the center is within 10% of the sun radius
+                        return Math.hypot(cx - anchorX, cy - anchorY) < 0.1 * radius;
+                    });
+            double boxHalf = drawBoxes
+                    ? Math.max(3, activeRegion.extentDeg() > 0 ? activeRegion.extentDeg() : 5) * pxPerDeg / 2
+                    : 0;
+            int textWidth = fm.stringWidth(regionId);
+            double labelX;
+            double labelY;
+            if (drawBoxes) {
+                labelX = anchorX;
+                labelY = anchorY - boxHalf - PROMS_CIRCLES;
+            } else {
+                labelX = anchorX + PROMS_CIRCLES + textWidth / 2.0;
+                labelY = anchorY;
+            }
+            layouts.add(new ArLabelLayout(anchorX, anchorY, boxHalf, detected, regionId, textWidth, labelX, labelY));
+        }
 
-            // Convert spherical coordinates (latitude, longitude) to 2D screen coordinates
-            var regionCoords = ofSpherical(longitude, latitude, radius).rotateX(-b0).rotateZ(-angleP);
-
-            // Draw the region label on the globe
-            if (regionCoords.z > 0) {
-                // Adjust the position slightly so the label doesn't overlap with the region
-                int labelX = (int) round(centerX + regionCoords.x);
-                int labelY = (int) round(centerY + regionCoords.y);
-                var wasDetected = detectedRegions.stream()
-                        .anyMatch(s -> {
-                            var cx = s.topLeft().x() + s.width() / 2;
-                            var cy = s.topLeft().y() + s.height() / 2;
-                            // we have the radius of the sun and the width of the region
-                            // and we consider that the label matches if the center of the region is within a distance
-                            // of 10% of the sun radius
-                            return Math.hypot(cx - labelX, cy - labelY) < 0.1 * radius;
-                        });
-                if (wasDetected) {
-                    g.setColor(Color.BLUE);
-                    g.setFont(g.getFont().deriveFont(Font.BOLD));
-                } else {
-                    g.setColor(Color.RED);
-                    g.setFont(g.getFont().deriveFont(Font.PLAIN));
+        // Resolve label overlaps by nudging colliding labels vertically.
+        for (int pass = 0; pass < 10; pass++) {
+            boolean moved = false;
+            for (int a = 0; a < layouts.size(); a++) {
+                for (int b2 = a + 1; b2 < layouts.size(); b2++) {
+                    var la = layouts.get(a);
+                    var lb = layouts.get(b2);
+                    boolean overlapX = Math.abs(la.labelX - lb.labelX) < (la.textWidth + lb.textWidth) / 2.0 + 4;
+                    boolean overlapY = Math.abs(la.labelY - lb.labelY) < labelHeight;
+                    if (overlapX && overlapY) {
+                        if (la.labelY > lb.labelY) {
+                            la.labelY = lb.labelY + labelHeight;
+                        } else {
+                            lb.labelY = la.labelY + labelHeight;
+                        }
+                        moved = true;
+                    }
                 }
-                // Draw the active region id (or other information) as a label
-                g.drawString(regionId, labelX + PROMS_CIRCLES, labelY);  // Offset the label a bit to the right
+            }
+            if (!moved) {
+                break;
             }
         }
+
+        float boxStroke = Math.max(1f, (float) (radius / 400d));
+        for (var l : layouts) {
+            var color = l.detected
+                    ? (overrideColor != null ? overrideColor : Color.BLUE)
+                    : (overrideColor != null ? overrideColor : Color.RED);
+            g.setColor(color);
+            if (drawBoxes) {
+                int boxHalf = (int) round(l.boxHalf);
+                var savedStroke = g.getStroke();
+                g.setStroke(new BasicStroke(boxStroke));
+                g.drawRect((int) round(l.anchorX - boxHalf), (int) round(l.anchorY - boxHalf), 2 * boxHalf, 2 * boxHalf);
+                double naturalLabelY = l.anchorY - l.boxHalf - PROMS_CIRCLES;
+                if (Math.abs(l.labelY - naturalLabelY) > labelHeight) {
+                    g.setStroke(new BasicStroke(Math.max(0.5f, boxStroke / 2f)));
+                    g.drawLine((int) round(l.anchorX), (int) round(l.anchorY - l.boxHalf), (int) round(l.labelX), (int) round(l.labelY));
+                }
+                g.setStroke(savedStroke);
+            }
+            g.setFont(l.detected ? baseFont.deriveFont(Font.BOLD) : baseFont.deriveFont(Font.PLAIN));
+            g.drawString(l.text, (int) round(l.labelX - l.textWidth / 2.0), (int) round(l.labelY));
+        }
+    }
+
+    private static final class ArLabelLayout {
+        final double anchorX;
+        final double anchorY;
+        final double boxHalf;
+        final boolean detected;
+        final String text;
+        final int textWidth;
+        double labelX;
+        double labelY;
+
+        ArLabelLayout(double anchorX, double anchorY, double boxHalf, boolean detected, String text, int textWidth, double labelX, double labelY) {
+            this.anchorX = anchorX;
+            this.anchorY = anchorY;
+            this.boxHalf = boxHalf;
+            this.detected = detected;
+            this.text = text;
+            this.textWidth = textWidth;
+            this.labelX = labelX;
+            this.labelY = labelY;
+        }
+    }
+
+    public void drawActiveRegionLabelsOn(Graphics2D g,
+                                         ImageWrapper image,
+                                         Ellipse ellipse,
+                                         SolarParameters solarParams,
+                                         boolean correctAngleP,
+                                         Color color,
+                                         boolean drawBoxes) {
+        var processParams = findProcessParams(image).orElse(null);
+        if (processParams == null) {
+            return;
+        }
+        var date = processParams.observationDetails().date();
+        var regions = NOAARegions.findActiveRegions(date, broadcaster);
+        if (regions.isEmpty()) {
+            return;
+        }
+        double centerX = ellipse.center().a();
+        double centerY = ellipse.center().b();
+        double radius = (ellipse.semiAxis().a() + ellipse.semiAxis().b()) / 2d;
+        var detectedRegions = image.findMetadata(ActiveRegions.class).map(ActiveRegions::regionList).orElse(List.of());
+        drawActiveRegionsLabels(detectedRegions, solarParams.p(), solarParams.b0(), g, radius, regions, centerX, centerY, correctAngleP, color, drawBoxes);
     }
 
     private static void autoScaleFont(Graphics2D g, double radius, double factor) {
@@ -1120,7 +1248,7 @@ public class ImageDraw extends AbstractFunctionImpl {
             if (maybeDrawSunspots && processParams.isPresent() && !detectedRegions.isEmpty()) {
                 var date = processParams.get().observationDetails().date();
                 var regions = NOAARegions.findActiveRegions(date, broadcaster);
-                drawActiveRegionsLabels(detectedRegions, angleP, b0, g, radius, regions, centerX, centerY, correctAngleP);
+                drawActiveRegionsLabels(detectedRegions, angleP, b0, g, radius, regions, centerX, centerY, correctAngleP, null, false);
             }
             if (drawProminenceScale) {
                 drawProminenceDistanceScale(g, centerX, centerY, radius, Math.PI / 4, PROMS_CIRCLES, PROMINENCE_SCALE_STEP_KM, lineThickness);
@@ -1307,7 +1435,7 @@ public class ImageDraw extends AbstractFunctionImpl {
                         double radius = (ellipse.semiAxis().a() + ellipse.semiAxis().b()) / 2d;
                         var detectedActiveRegions = activeRegions.regionList();
                         result.set((RGBImage) drawOnImage(rgb, (g, image) -> {
-                            drawActiveRegionsLabels(detectedActiveRegions, angleP, b0, g, radius, NOAARegions.findActiveRegions(date, broadcaster), centerX, centerY, processParams.geometryParams().isAutocorrectAngleP());
+                            drawActiveRegionsLabels(detectedActiveRegions, angleP, b0, g, radius, NOAARegions.findActiveRegions(date, broadcaster), centerX, centerY, processParams.geometryParams().isAutocorrectAngleP(), null, false);
                         }));
                     });
                 });

@@ -33,6 +33,7 @@ class DraggableTextOverlayLayer extends StackPane {
     private final TextFlow textFlow;
     private String family = ImageDraw.DEFAULT_SIGNATURE_FONT;
     private int fontSize = ImageDraw.DEFAULT_SIGNATURE_SIZE;
+    private FontWeight weight = FontWeight.NORMAL;
     private Color color = Color.web("#cccccc");
     private int imageX;
     private int imageY;
@@ -56,11 +57,27 @@ class DraggableTextOverlayLayer extends StackPane {
     }
 
     void update(String content, String fontFamily, Integer fontSizeBoxed, String hexColor) {
+        update(content, fontFamily, fontSizeBoxed, hexColor, null);
+    }
+
+    void update(String content, String fontFamily, Integer fontSizeBoxed, String hexColor, String fontWeightName) {
         this.family = fontFamily != null && !fontFamily.isBlank() ? fontFamily : ImageDraw.DEFAULT_SIGNATURE_FONT;
         this.fontSize = fontSizeBoxed != null && fontSizeBoxed > 0 ? fontSizeBoxed : ImageDraw.DEFAULT_SIGNATURE_SIZE;
+        this.weight = parseWeight(fontWeightName);
         this.color = parseColor(hexColor);
         rebuildTextFlow(content == null ? "" : content);
         applyLayout();
+    }
+
+    private static FontWeight parseWeight(String name) {
+        if (name == null || name.isBlank()) {
+            return FontWeight.NORMAL;
+        }
+        try {
+            return FontWeight.valueOf(name);
+        } catch (IllegalArgumentException ex) {
+            return FontWeight.NORMAL;
+        }
     }
 
     void place(int imageX, int imageY) {
@@ -81,8 +98,7 @@ class DraggableTextOverlayLayer extends StackPane {
         double zoom = scale();
         for (var node : textFlow.getChildren()) {
             if (node instanceof Text t) {
-                boolean bold = FontWeight.BOLD.equals(getWeight(t));
-                t.setFont(Font.font(family, bold ? FontWeight.BOLD : FontWeight.NORMAL, fontSize * zoom));
+                t.setFont(Font.font(family, getWeight(t), fontSize * zoom));
             }
         }
         setLayoutX(imageX * zoom);
@@ -96,10 +112,11 @@ class DraggableTextOverlayLayer extends StackPane {
             String raw = lines[i];
             boolean bold = raw.startsWith("<b>");
             String body = bold ? raw.substring(3) : raw;
+            var lineWeight = bold ? FontWeight.BOLD : weight;
             var text = new Text(body);
             text.setFill(color);
-            text.setFont(Font.font(family, bold ? FontWeight.BOLD : FontWeight.NORMAL, fontSize));
-            tagWeight(text, bold ? FontWeight.BOLD : FontWeight.NORMAL);
+            text.setFont(Font.font(family, lineWeight, fontSize));
+            tagWeight(text, lineWeight);
             textFlow.getChildren().add(text);
             if (i < lines.length - 1) {
                 var br = new Text("\n");
