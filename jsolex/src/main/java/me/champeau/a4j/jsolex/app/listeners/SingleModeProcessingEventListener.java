@@ -24,7 +24,6 @@ import javafx.geometry.Pos;
 import javafx.geometry.VPos;
 import javafx.scene.Node;
 import javafx.scene.Parent;
-import javafx.scene.Scene;
 import javafx.scene.chart.BarChart;
 import javafx.scene.chart.CategoryAxis;
 import javafx.scene.chart.LineChart;
@@ -202,6 +201,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private static final String[] CHART_SERIES_PALETTE = {
             "#f3622d", "#fba71b", "#57b757", "#41a9c9", "#4258c9", "#9a42c8", "#c84164", "#888888"
     };
+    private static final String COLOR_FRAME = "#9a42c8";
+    private static final String COLOR_LINE = "#c84164";
     private static final int BINS = 256;
     private static final double SPEED_OF_LIGHT_KM_S = 299792.458;
     private static final double SOLAR_RADIUS_KM = 696000.0;
@@ -2211,12 +2212,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         averageImage = payload.image().data();
         profileViewFactory = () -> {
             // Spectral profile mode
-            var xAxis = new CategoryAxis();
-            var yAxis = new NumberAxis();
-            xAxis.setLabel(message("wavelength"));
-            yAxis.setLabel(absoluteSpectralValues ? message("intensity.adu") : message("intensity"));
-            var lineChart = new LineChart<>(xAxis, yAxis);
-            var series = new XYChart.Series<String, Number>();
             var image = payload.image();
             var height = image.height();
             var width = image.width();
@@ -2229,7 +2224,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             var binning = params.observationDetails().binning();
             var pixelSize = params.observationDetails().pixelSize();
             var canDrawReference = binning != null && pixelSize != null && lambda0.nanos() > 0 && pixelSize > 0 && binning > 0;
-            series.setName(SpectralProfileHelper.formatLegend(params.observationDetails().instrument(), lambda0, binning, pixelSize));
             var dispersion = canDrawReference ? SpectrumAnalyzer.computeSpectralDispersion(params.observationDetails().instrument(), lambda0, pixelSize * binning) : null;
             var range = PixelShiftRange.computePixelShiftRange(start, end, height, polynomial);
             var dataPoints = new ArrayList<SpectrumAnalyzer.DataPoint>();
@@ -2256,24 +2250,13 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     dataPoints.add(new SpectrumAnalyzer.DataPoint(wl, pixelShift, val / cpt));
                 }
             }
-            lineChart.getData().add(series);
-
             List<SpectrumAnalyzer.DataPoint> referenceDataPoints;
             if (canDrawReference) {
-                var referenceSeries = new XYChart.Series<String, Number>();
-                referenceSeries.setName(message("reference.intensity"));
-                lineChart.getData().add(referenceSeries);
                 referenceDataPoints = SpectralProfileHelper.normalizeDatapoints(SpectrumAnalyzer.findReferenceDatapoints(dataPoints), null, absoluteSpectralValues).dataPoints();
-                for (var dataPoint : referenceDataPoints) {
-                    addDataPointToSeries(dataPoint, referenceSeries);
-                }
             } else {
                 referenceDataPoints = null;
             }
             var normalizedDataPoints = SpectralProfileHelper.normalizeDatapoints(dataPoints, null, absoluteSpectralValues);
-            for (var dataPoint : normalizedDataPoints.dataPoints()) {
-                addDataPointToSeries(dataPoint, series);
-            }
             // Shared normalization basis so frame and clicked-line profiles, which are on the
             // same intensity scale as the average image, read below 100 at darker locations.
             var sharedMaxIntensity = normalizedDataPoints.maxIntensity();
@@ -2283,9 +2266,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             var realLineCenter = canDrawReference ? lambda0.nanos() : null;
             currentLineStatistics = SpectralLineAnalysis.computeStatistics(normalizedDataPoints.dataPoints(), referenceDataPoints, realLineCenter);
 
-            // Add FWHM visualization to the chart
-            addFWHMVisualization(lineChart, currentLineStatistics, normalizedDataPoints.dataPoints());
-
             SpectralProfileHelper.NormalizedDataPoints normalizedFrameDataPoints;
             SpectralProfileHelper.NormalizedDataPoints normalizedLineDataPoints;
             SpectralLineAnalysis.LineStatistics frameLineStatistics = null;
@@ -2293,11 +2273,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 var frameDataPoints = new ArrayList<SpectrumAnalyzer.DataPoint>();
                 var lineDataPoints = new ArrayList<SpectrumAnalyzer.DataPoint>();
 
-                // Add frame profile curve - averaged across all columns for the current frame
-                var frameSeries = new XYChart.Series<String, Number>();
-                frameSeries.setName(message("frame.intensity"));
-                lineChart.getData().add(frameSeries);
-
+                // Frame profile curve - averaged across all columns for the current frame
                 for (var pixelShift = range.minPixelShift(); pixelShift < range.maxPixelShift(); pixelShift++) {
                     double cpt = 0;
                     double val = 0;
@@ -2340,27 +2316,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 }
 
                 normalizedFrameDataPoints = SpectralProfileHelper.normalizeDatapoints(frameDataPoints, sharedMaxIntensity, absoluteSpectralValues);
-                for (var dataPoint : normalizedFrameDataPoints.dataPoints()) {
-                    addDataPointToSeries(dataPoint, frameSeries);
-                }
-
-                var lineSeries = new XYChart.Series<String, Number>();
-                // Compute wavelength for the clicked column
-                String lineLabel;
-                if (canDrawReference) {
-                    var columnPixelShift = polynomial.applyAsDouble(currentColumn);
-                    var wavelength = SpectralProfileHelper.computeWavelength(columnPixelShift, lambda0, dispersion);
-                    lineLabel = message("line.intensity") + " (" + String.format(Locale.US, "%.2f Å", wavelength.angstroms()) + ")";
-                } else {
-                    lineLabel = message("line.intensity") + " (" + currentColumn + ")";
-                }
-                lineSeries.setName(lineLabel);
-                lineChart.getData().add(lineSeries);
-
                 normalizedLineDataPoints = SpectralProfileHelper.normalizeDatapoints(lineDataPoints, sharedMaxIntensity, absoluteSpectralValues);
-                for (var dataPoint : normalizedLineDataPoints.dataPoints()) {
-                    addDataPointToSeries(dataPoint, lineSeries);
-                }
 
                 // Compute statistics for the line profile at clicked position, using reference for continuum if available
                 frameLineStatistics = SpectralLineAnalysis.computeStatistics(normalizedLineDataPoints.dataPoints(), referenceDataPoints, realLineCenter);
@@ -2379,11 +2335,15 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             final var finalNormalizedLineDataPoints = normalizedLineDataPoints;
             final var finalNormalizedDataPoints = normalizedDataPoints;
             final var finalStatsToDisplay = statsToDisplay;
+            // The FWHM overlay is drawn over the average profile curve, so it must use the average
+            // profile statistics, not the clicked-line statistics shown in the panel.
+            final var finalOverlayStats = currentLineStatistics;
             Supplier<LineChart<?, ?>> chartSupplier = () -> createProfileChart(
                     params, payload, range, finalNormalizedDataPoints, finalReferenceDataPoints,
-                    finalNormalizedFrameDataPoints, finalNormalizedLineDataPoints, finalStatsToDisplay,
+                    finalNormalizedFrameDataPoints, finalNormalizedLineDataPoints, finalOverlayStats,
                     canDrawReference, dispersion, lambda0
             );
+            var lineChart = chartSupplier.get();
             registerSaveChartAction(new GraphData.ProfileData(lineChart, chartSupplier, writer -> {
                 writer.print("pixel_shift;wavelength;reference_intensity;intensity");
                 if (currentColumn != null) {
@@ -2684,22 +2644,18 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         grid.getColumnConstraints().addAll(swatchColumn, textColumn);
 
         var row = 0;
-        var paletteIndex = 0;
-        addLegendRow(grid, row++, CHART_SERIES_PALETTE[paletteIndex++ % 8], message("intensity"), message("profile.legend.intensity"));
+        addLegendRow(grid, row++, CHART_SERIES_PALETTE[0], message("intensity"), message("profile.legend.intensity"));
         if (hasReference) {
-            addLegendRow(grid, row++, CHART_SERIES_PALETTE[paletteIndex++ % 8], message("reference.intensity"), message("profile.legend.reference"));
+            addLegendRow(grid, row++, CHART_SERIES_PALETTE[1], message("reference.intensity"), message("profile.legend.reference"));
         }
         addLegendRow(grid, row++, "#27ae60", message("line.continuum"), message("profile.legend.continuum"));
-        paletteIndex++;
         addLegendRow(grid, row++, "#3498db", message("line.center"), message("profile.legend.center"));
-        paletteIndex++;
         if (hasFwhm) {
-            addLegendRow(grid, row++, "#9b59b6", "FWHM", message("profile.legend.fwhm"));
-            paletteIndex++;
+            addLegendRow(grid, row++, "#2c3e50", "FWHM", message("profile.legend.fwhm"));
         }
         if (hasFrameAndLine) {
-            addLegendRow(grid, row++, CHART_SERIES_PALETTE[paletteIndex++ % 8], message("frame.intensity"), message("profile.legend.frame"));
-            addLegendRow(grid, row++, CHART_SERIES_PALETTE[paletteIndex++ % 8], message("line.intensity"), message("profile.legend.line"));
+            addLegendRow(grid, row++, COLOR_FRAME, message("frame.intensity"), message("profile.legend.frame"));
+            addLegendRow(grid, row++, COLOR_LINE, message("line.intensity"), message("profile.legend.line"));
         }
         var titledPane = new TitledPane(message("profile.legend.title"), grid);
         titledPane.getStyleClass().add("profile-legend-pane");
@@ -2766,7 +2722,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         minSeries.getData().add(new XYChart.Data<>(lastLabel, stats.lineMinIntensity()));
         chart.getData().add(minSeries);
 
-        // Add half-max horizontal line (FWHM) if data is available - red solid
+        // Add half-max horizontal line (FWHM) if data is available - dark slate solid
         XYChart.Series<String, Number> halfMaxSeries = null;
         String blueLabel = null;
         String redLabel = null;
@@ -2827,14 +2783,14 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 }
             }
 
-            // Style FWHM line - purple solid with larger markers
+            // Style FWHM line - dark slate solid with larger markers
             if (finalHalfMaxSeries != null) {
                 if (finalHalfMaxSeries.getNode() != null) {
-                    finalHalfMaxSeries.getNode().setStyle("-fx-stroke: #9b59b6; -fx-stroke-width: 3px;");
+                    finalHalfMaxSeries.getNode().setStyle("-fx-stroke: #2c3e50; -fx-stroke-width: 3px;");
                 }
                 for (var data : finalHalfMaxSeries.getData()) {
                     if (data.getNode() != null) {
-                        data.getNode().setStyle("-fx-background-color: #9b59b6, white; -fx-background-insets: 0, 2; -fx-background-radius: 7px; -fx-padding: 7px;");
+                        data.getNode().setStyle("-fx-background-color: #2c3e50, white; -fx-background-insets: 0, 2; -fx-background-radius: 7px; -fx-padding: 7px;");
                     }
                 }
             }
@@ -2855,7 +2811,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                             } else if (seriesIndex == dataSeriesCount - 2) {
                                 node.setStyle("-fx-background-color: #3498db;");
                             } else if (seriesIndex == dataSeriesCount - 1) {
-                                node.setStyle("-fx-background-color: #9b59b6;");
+                                node.setStyle("-fx-background-color: #2c3e50;");
                             }
                         } else {
                             if (seriesIndex == dataSeriesCount - 2) {
@@ -2940,6 +2896,15 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             for (var dataPoint : normalizedLineDataPoints.dataPoints()) {
                 addDataPointToSeries(dataPoint, lineSeries);
             }
+        }
+
+        // Pin frame and line colors so they don't depend on series ordering and stay distinct
+        // from the green/blue/charcoal analysis lines. They occupy the default-color slots right
+        // after the intensity (and optional reference) series.
+        if (normalizedFrameDataPoints != null) {
+            var frameColorSlot = canDrawReference ? 3 : 2;
+            var lineColorSlot = canDrawReference ? 4 : 3;
+            chart.setStyle("CHART_COLOR_" + frameColorSlot + ": " + COLOR_FRAME + "; CHART_COLOR_" + lineColorSlot + ": " + COLOR_LINE + ";");
         }
 
         // Add FWHM visualization
@@ -3046,7 +3011,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 var popupMenu = ChartExportHelper.createChartContextMenu(name, () -> pane, popupCsvWriter, outputDirectory, baseName, this::createNamingStrategy);
                 newChart.setOnContextMenuRequested(menuEvt -> popupMenu.show(newChart, menuEvt.getScreenX(), menuEvt.getScreenY()));
 
-                var scene = new Scene(pane, 800, 600);
+                var scene = JSolEx.newScene(pane, 800, 600);
                 newWindow.setScene(scene);
                 newWindow.show();
 
