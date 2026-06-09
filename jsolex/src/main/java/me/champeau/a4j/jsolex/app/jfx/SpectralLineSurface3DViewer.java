@@ -22,6 +22,7 @@ import javafx.geometry.Pos;
 import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.control.Separator;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.PhongMaterial;
@@ -267,7 +268,7 @@ public class SpectralLineSurface3DViewer extends AbstractSpectral3DViewer {
     }
 
     @Override
-    protected HBox createControlPanel() {
+    protected FlowPane createControlPanel() {
         return createCommonControlPanel();
     }
 

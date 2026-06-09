@@ -40,6 +40,7 @@ import javafx.scene.control.Slider;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.WritableImage;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
@@ -223,7 +224,7 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
      * Creates the control panel with buttons and sliders.
      * @return the control panel
      */
-    protected abstract HBox createControlPanel();
+    protected abstract FlowPane createControlPanel();
 
     /**
      * Returns the i18n key for the interpretation text.
@@ -1378,7 +1379,7 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
      * @param additionalControls additional controls to include in the panel
      * @return the control panel
      */
-    protected HBox createCommonControlPanel(Node... additionalControls) {
+    protected FlowPane createCommonControlPanel(Node... additionalControls) {
         var resetButton = createStyledButton(I18N.string(JSolEx.class, "spectral-surface-3d", "reset.view"));
         resetButton.setOnAction(e -> resetView());
 
@@ -1457,12 +1458,18 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
         controls.add(elevationBox);
         controls.add(rotationBox);
 
-        var buttonBox = new HBox(8, controls.toArray(new Node[0]));
-        buttonBox.setAlignment(Pos.CENTER);
-        buttonBox.setPadding(new Insets(6));
-        buttonBox.setStyle("-fx-background-color: #f5f5f5; -fx-border-color: #cccccc; -fx-border-width: 1 0 0 0;");
+        for (var node : controls) {
+            if (node instanceof Separator separator) {
+                separator.setPrefHeight(26);
+            }
+        }
 
-        return buttonBox;
+        var flowPane = new FlowPane(Orientation.HORIZONTAL, 8, 6, controls.toArray(new Node[0]));
+        flowPane.setAlignment(Pos.CENTER);
+        flowPane.setPadding(new Insets(6));
+        flowPane.setStyle("-fx-background-color: #f5f5f5; -fx-border-color: #cccccc; -fx-border-width: 1 0 0 0;");
+
+        return flowPane;
     }
 
     /**

@@ -27,8 +27,11 @@ import javafx.scene.Cursor;
 import javafx.scene.Group;
 import javafx.scene.SnapshotParameters;
 import javafx.scene.canvas.Canvas;
+import javafx.event.EventHandler;
 import javafx.scene.control.Button;
+import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.image.WritableImage;
 import javafx.scene.control.ComboBox;
@@ -36,6 +39,8 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Separator;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TextInputControl;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
@@ -72,6 +77,9 @@ public class SpectralEvolution4DViewer extends AbstractSpectral3DViewer {
     private TextField slicePositionField;
     private Label sliceUnitLabel;
     private Button playButton;
+    private Button stepBackButton;
+    private Button stepForwardButton;
+    private final EventHandler<KeyEvent> stepKeyHandler = this::handleStepKey;
     private ComboBox<SliceMode> sliceModeCombo;
     private boolean animationMode = false;
     private int animationResolution;
@@ -134,6 +142,29 @@ public class SpectralEvolution4DViewer extends AbstractSpectral3DViewer {
         addHelpOverlay();
         updateSliceOverlay();
         updateProfileOverlay();
+
+        sceneProperty().addListener((obs, oldScene, newScene) -> {
+            if (oldScene != null) {
+                oldScene.removeEventFilter(KeyEvent.KEY_PRESSED, stepKeyHandler);
+            }
+            if (newScene != null) {
+                newScene.addEventFilter(KeyEvent.KEY_PRESSED, stepKeyHandler);
+            }
+        });
+    }
+
+    private void handleStepKey(KeyEvent evt) {
+        var code = evt.getCode();
+        if (code != KeyCode.LEFT && code != KeyCode.RIGHT) {
+            return;
+        }
+        var focusOwner = getScene() != null ? getScene().getFocusOwner() : null;
+        if (focusOwner instanceof TextInputControl || focusOwner instanceof ComboBox || focusOwner instanceof Slider) {
+            return;
+        }
+        var step = evt.isShiftDown() ? 10 : 1;
+        stepSlice(code == KeyCode.LEFT ? -step : step);
+        evt.consume();
     }
 
     private void addHelpOverlay() {
@@ -912,7 +943,7 @@ public class SpectralEvolution4DViewer extends AbstractSpectral3DViewer {
     }
 
     @Override
-    protected HBox createControlPanel() {
+    protected FlowPane createControlPanel() {
         var sliceModeLabel = createStyledLabel(I18N.string(JSolEx.class, "spectral-surface-3d", "slice.mode"));
         sliceModeCombo = new ComboBox<>();
         sliceModeCombo.getItems().addAll(SliceMode.values());
@@ -960,7 +991,7 @@ public class SpectralEvolution4DViewer extends AbstractSpectral3DViewer {
             buildSurface();
         });
         slicePositionField = new TextField();
-        slicePositionField.setPrefColumnCount(8);
+        slicePositionField.setStyle("-fx-min-width: 70; -fx-pref-width: 70; -fx-max-width: 70;");
         slicePositionField.setOnAction(e -> applyTextFieldValue());
         slicePositionField.focusedProperty().addListener((obs, wasFocused, isFocused) -> {
             if (!isFocused) {
@@ -976,7 +1007,15 @@ public class SpectralEvolution4DViewer extends AbstractSpectral3DViewer {
         sliceUnitLabel = new Label();
         sliceUnitLabel.setMinSize(Label.USE_PREF_SIZE, Label.USE_PREF_SIZE);
         updateSlicePositionField();
-        var sliceBox = new HBox(5, sliceSlider, slicePositionField, sliceUnitLabel);
+
+        stepBackButton = createStyledButton("◀");
+        stepBackButton.setTooltip(new Tooltip(I18N.string(JSolEx.class, "spectral-surface-3d", "step.back")));
+        stepBackButton.setOnAction(e -> stepSlice(-1));
+        stepForwardButton = createStyledButton("▶");
+        stepForwardButton.setTooltip(new Tooltip(I18N.string(JSolEx.class, "spectral-surface-3d", "step.forward")));
+        stepForwardButton.setOnAction(e -> stepSlice(1));
+
+        var sliceBox = new HBox(5, sliceSlider, stepBackButton, stepForwardButton, slicePositionField, sliceUnitLabel);
         sliceBox.setAlignment(Pos.CENTER_LEFT);
 
         playButton = createStyledButton(I18N.string(JSolEx.class, "spectral-surface-3d", "play"));
@@ -1034,17 +1073,37 @@ public class SpectralEvolution4DViewer extends AbstractSpectral3DViewer {
                     yield findFractionForWavelength(value);
                 }
             };
-            currentSliceFraction = fraction;
-            settingSliderProgrammatically = true;
-            sliceSlider.setValue(fraction);
-            settingSliderProgrammatically = false;
-            clearClickMarker();
-            buildSurface();
-            updateSliceOverlay();
-            updateProfileOverlay();
+            applySliceFraction(fraction);
         } catch (NumberFormatException ignored) {
         }
         updateSlicePositionField();
+    }
+
+    private void applySliceFraction(double fraction) {
+        currentSliceFraction = fraction;
+        settingSliderProgrammatically = true;
+        sliceSlider.setValue(fraction);
+        settingSliderProgrammatically = false;
+        clearClickMarker();
+        buildSurface();
+        updateSliceOverlay();
+        updateProfileOverlay();
+    }
+
+    private void stepSlice(int delta) {
+        if (animationTimer != null) {
+            return;
+        }
+        var sliceCount = data.getSliceCount(currentSliceMode.toDataSliceMode());
+        if (sliceCount <= 1) {
+            return;
+        }
+        var index = getCurrentSliceIndex();
+        var newIndex = Math.max(0, Math.min(sliceCount - 1, index + delta));
+        if (newIndex == index) {
+            return;
+        }
+        applySliceFraction((double) newIndex / (sliceCount - 1));
     }
 
     private double findFractionForFrame(int frameNumber) {
@@ -1095,6 +1154,8 @@ public class SpectralEvolution4DViewer extends AbstractSpectral3DViewer {
             sliceSlider.setDisable(false);
             sliceModeCombo.setDisable(false);
             slicePositionField.setDisable(false);
+            stepBackButton.setDisable(false);
+            stepForwardButton.setDisable(false);
             invalidateMesh();
             // Defer to the FX thread to ensure any pending animation frame has completed
             FxUtils.runLater(this::buildSurface);
@@ -1102,6 +1163,8 @@ public class SpectralEvolution4DViewer extends AbstractSpectral3DViewer {
             sliceSlider.setDisable(true);
             sliceModeCombo.setDisable(true);
             slicePositionField.setDisable(true);
+            stepBackButton.setDisable(true);
+            stepForwardButton.setDisable(true);
             playButton.setText(I18N.string(JSolEx.class, "spectral-surface-3d", "stop"));
 
             animationMode = true;
