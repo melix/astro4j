@@ -118,6 +118,7 @@ import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.RequestedImages;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectralLineAnalysis;
+import me.champeau.a4j.jsolex.processing.spectrum.SpectralLineCatalog;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
@@ -2907,10 +2908,99 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             chart.setStyle("CHART_COLOR_" + frameColorSlot + ": " + COLOR_FRAME + "; CHART_COLOR_" + lineColorSlot + ": " + COLOR_LINE + ";");
         }
 
+        addAlternateLineMarkers(chart, params, range, lambda0, canDrawReference, normalizedDataPoints,
+                referenceDataPoints, normalizedFrameDataPoints, normalizedLineDataPoints);
+
         // Add FWHM visualization
         addFWHMVisualization(chart, stats, normalizedDataPoints.dataPoints());
 
         return chart;
+    }
+
+    private void addAlternateLineMarkers(LineChart<String, Number> chart,
+                                         ProcessParams params,
+                                         PixelShiftRange range,
+                                         Wavelen lambda0,
+                                         boolean canDrawReference,
+                                         SpectralProfileHelper.NormalizedDataPoints normalizedDataPoints,
+                                         List<SpectrumAnalyzer.DataPoint> referenceDataPoints,
+                                         SpectralProfileHelper.NormalizedDataPoints normalizedFrameDataPoints,
+                                         SpectralProfileHelper.NormalizedDataPoints normalizedLineDataPoints) {
+        if (!canDrawReference) {
+            return;
+        }
+        var pixelSize = params.observationDetails().pixelSize();
+        var binning = params.observationDetails().binning();
+        var instrument = params.observationDetails().instrument();
+        if (pixelSize == null || binning == null) {
+            return;
+        }
+        var linesInWindow = SpectralLineCatalog.findLinesInWindow(lambda0, pixelSize, binning, instrument, range);
+        var dataPoints = normalizedDataPoints.dataPoints();
+        if (linesInWindow.isEmpty() || dataPoints.isEmpty()) {
+            return;
+        }
+        var yMin = Double.MAX_VALUE;
+        var yMax = -Double.MAX_VALUE;
+        for (var series : List.of(
+                dataPoints,
+                referenceDataPoints != null ? referenceDataPoints : List.<SpectrumAnalyzer.DataPoint>of(),
+                normalizedFrameDataPoints != null ? normalizedFrameDataPoints.dataPoints() : List.<SpectrumAnalyzer.DataPoint>of(),
+                normalizedLineDataPoints != null ? normalizedLineDataPoints.dataPoints() : List.<SpectrumAnalyzer.DataPoint>of())) {
+            for (var dp : series) {
+                yMin = Math.min(yMin, dp.intensity());
+                yMax = Math.max(yMax, dp.intensity());
+            }
+        }
+        var markerSeriesList = new ArrayList<XYChart.Series<String, Number>>();
+        for (var line : linesInWindow) {
+            var label = nearestCategoryLabel(dataPoints, line.pixelShift());
+            var markerSeries = new XYChart.Series<String, Number>();
+            markerSeries.setName(line.name());
+            var bottom = new XYChart.Data<String, Number>(label, yMin);
+            var hidden = new Region();
+            hidden.setVisible(false);
+            bottom.setNode(hidden);
+            var top = new XYChart.Data<String, Number>(label, yMax);
+            var nameLabel = new Label(line.name());
+            nameLabel.getStyleClass().add("alternate-line-label");
+            nameLabel.setTranslateY(-8);
+            top.setNode(nameLabel);
+            markerSeries.getData().add(bottom);
+            markerSeries.getData().add(top);
+            chart.getData().add(markerSeries);
+            markerSeriesList.add(markerSeries);
+        }
+        FxUtils.runLater(() -> {
+            for (var markerSeries : markerSeriesList) {
+                if (markerSeries.getNode() != null) {
+                    markerSeries.getNode().setStyle("-fx-stroke: #7f8c8d; -fx-stroke-width: 1; -fx-stroke-dash-array: 2 6;");
+                }
+                var index = chart.getData().indexOf(markerSeries);
+                for (var symbol : chart.lookupAll(".chart-legend-item-symbol")) {
+                    if (symbol.getStyleClass().contains("series" + index)) {
+                        var item = symbol.getParent();
+                        if (item != null) {
+                            item.setVisible(false);
+                            item.setManaged(false);
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    private static String nearestCategoryLabel(List<SpectrumAnalyzer.DataPoint> dataPoints, double pixelShift) {
+        var nearest = dataPoints.getFirst();
+        var best = Double.MAX_VALUE;
+        for (var dp : dataPoints) {
+            var distance = Math.abs(dp.pixelShift() - pixelShift);
+            if (distance < best) {
+                best = distance;
+                nearest = dp;
+            }
+        }
+        return SpectralProfileHelper.formatWavelength(nearest.pixelShift(), nearest.wavelen());
     }
 
     private void addDataPointToSeries(SpectrumAnalyzer.DataPoint dataPoint, XYChart.Series<String, Number> series) {

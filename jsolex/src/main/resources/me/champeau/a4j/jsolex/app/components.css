@@ -1812,6 +1812,13 @@
     -fx-background-insets: 0;
 }
 
+/* Marker label for alternate spectral lines detected in the capture window */
+.alternate-line-label {
+    -fx-font-size: 10px;
+    -fx-text-fill: #7f8c8d;
+    -fx-font-weight: bold;
+}
+
 /* Spectral profile chart legend explanation (collapsible, below the graph) */
 .profile-legend-pane {
     -fx-background-color: transparent;

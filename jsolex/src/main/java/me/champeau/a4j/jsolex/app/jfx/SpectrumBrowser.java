@@ -63,6 +63,7 @@ import java.util.List;
 import me.champeau.a4j.jsolex.processing.params.SpectroHeliograph;
 import me.champeau.a4j.jsolex.processing.params.SpectroHeliographsIO;
 import me.champeau.a4j.jsolex.processing.spectrum.ReferenceIntensities;
+import me.champeau.a4j.jsolex.processing.spectrum.SpectralLineCatalog;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
 import me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper;
 import me.champeau.a4j.jsolex.processing.sun.DistortionCorrection;
@@ -75,11 +76,7 @@ import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.jsolex.processing.util.Wavelen;
 import me.champeau.a4j.math.image.ImageMath;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
@@ -829,27 +826,9 @@ public class SpectrumBrowser extends BorderPane {
     }
 
     private static IdentifiedLine[] loadDefaultLines() {
-        try (var reader = new BufferedReader(new InputStreamReader(SpectrumBrowser.class.getResourceAsStream("interesting-lines.txt"), StandardCharsets.UTF_8))) {
-            List<IdentifiedLine> lines = new ArrayList<>();
-            String cur;
-            while ((cur = reader.readLine()) != null) {
-                if (cur.startsWith("#")) {
-                    continue;
-                }
-                var parts = cur.split(";");
-                if (parts.length == 4) {
-                    var line = new IdentifiedLine(
-                        Wavelen.ofAngstroms(Double.parseDouble(parts[0])),
-                        parts[1] + " (" + parts[2] + ")",
-                        Integer.parseInt(parts[3])
-                    );
-                    lines.add(line);
-                }
-            }
-            return lines.toArray(new IdentifiedLine[0]);
-        } catch (IOException e) {
-            return new IdentifiedLine[0];
-        }
+        return SpectralLineCatalog.defaults().stream()
+            .map(line -> new IdentifiedLine(line.wavelength(), line.fullName(), line.difficulty()))
+            .toArray(IdentifiedLine[]::new);
     }
 
 }

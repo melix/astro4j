@@ -33,6 +33,7 @@ public final class WorkflowState {
     private final int width;
     private final int height;
     private boolean internal;
+    private String label;
     private TruncationDetails truncationDetails = new TruncationDetails();
 
     public WorkflowState(
@@ -59,6 +60,20 @@ public final class WorkflowState {
 
     public void setInternal(boolean internal) {
         this.internal = internal;
+    }
+
+    /**
+     * An optional label identifying the spectral line this state was produced for (e.g. an alternate line
+     * found in the capture window). When present, the emitted images mention it in their title.
+     *
+     * @return the line label, or {@code null} for regular pixel shifts
+     */
+    public String label() {
+        return label;
+    }
+
+    public void setLabel(String label) {
+        this.label = label;
     }
 
     public static WorkflowState prepare(int width, int height, double pixelShift) {
