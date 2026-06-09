@@ -344,6 +344,7 @@ The panel is a floating popover that you can drag around the screen while you wo
 
 The following annotations are available:
 
+- *Colorize*: applies a color to a monochrome image, which is useful as a backdrop for colored annotations. This option only appears for monochrome images. From its options menu you can pick a spectral profile (e.g. H-alpha, Calcium, Helium) or a custom color; the default profile matches the spectral line of the image. A "Preserve brightness" option keeps the original luminance so colorizing only adds hue without darkening the image. RGB images are left untouched.
 - *Orientation grid*: heliographic meridians and parallels drawn on the solar disk, with the rotation axis and cardinal direction markers. The grid style (equatorial or solar coordinates) and the P-angle correction can be tweaked from the grid options menu.
 - *Prominence scale*: dashed concentric circles outside the solar limb with distance labels in kilometres. You can choose the number of circles and the spacing between them.
 - *Active regions*: the NOAA active region numbers placed at their position on the solar disk. From the options menu you can optionally draw a rectangle around each region, and set the P-angle correction for ImageMath images.

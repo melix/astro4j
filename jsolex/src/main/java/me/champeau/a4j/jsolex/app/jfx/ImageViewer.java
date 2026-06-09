@@ -59,6 +59,7 @@ import me.champeau.a4j.jsolex.processing.event.GenericMessage;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
+import me.champeau.a4j.jsolex.processing.expr.impl.Colorize;
 import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
 import me.champeau.a4j.jsolex.processing.params.AutocropMode;
 import me.champeau.a4j.jsolex.processing.params.GlobeStyle;
@@ -72,6 +73,7 @@ import me.champeau.a4j.jsolex.processing.stretching.StretchingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
+import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.ImageSaver;
@@ -1006,7 +1008,7 @@ public class ImageViewer implements WithRootNode {
 
     private Image renderForDisplay() {
         return OverlayRenderer.renderToFx(
-                stretchedImage,
+                applyColorize(stretchedImage),
                 overlays,
                 effectiveGlobeStyle(),
                 processParams,
@@ -1015,8 +1017,82 @@ public class ImageViewer implements WithRootNode {
         );
     }
 
+    private ImageWrapper applyColorize(ImageWrapper img) {
+        if (img == null || overlays == null || !overlays.isColorizeActive()) {
+            return img;
+        }
+        if (!(img.unwrapToMemory() instanceof ImageWrapper32 mono)) {
+            return img;
+        }
+        ImageWrapper colorized;
+        if (overlays.colorizeProfile() != null) {
+            var result = new Colorize(Map.of(), Broadcaster.NO_OP)
+                    .colorize(Map.of("img", mono, "profile", overlays.colorizeProfile()));
+            if (!(result instanceof ImageWrapper colorizedImage)) {
+                return img;
+            }
+            colorized = colorizedImage;
+        } else {
+            var rgb = hexToRgb(overlays.colorizeColor());
+            if (rgb == null) {
+                return img;
+            }
+            colorized = RGBImage.fromMono(mono, data -> Colorize.doColorize(mono.width(), mono.height(), data.data(), rgb));
+        }
+        if (overlays.colorizePreserveBrightness() && colorized.unwrapToMemory() instanceof RGBImage rgbImage) {
+            return preserveBrightness(mono, rgbImage);
+        }
+        return colorized;
+    }
+
+    private static RGBImage preserveBrightness(ImageWrapper32 mono, RGBImage rgb) {
+        var src = mono.data();
+        var r = rgb.r();
+        var g = rgb.g();
+        var b = rgb.b();
+        for (int y = 0; y < rgb.height(); y++) {
+            for (int x = 0; x < rgb.width(); x++) {
+                var target = src[y][x];
+                var luminance = 0.299f * r[y][x] + 0.587f * g[y][x] + 0.114f * b[y][x];
+                if (luminance > 1e-4f) {
+                    var scale = target / luminance;
+                    r[y][x] = Math.min(Constants.MAX_PIXEL_VALUE, r[y][x] * scale);
+                    g[y][x] = Math.min(Constants.MAX_PIXEL_VALUE, g[y][x] * scale);
+                    b[y][x] = Math.min(Constants.MAX_PIXEL_VALUE, b[y][x] * scale);
+                } else {
+                    r[y][x] = target;
+                    g[y][x] = target;
+                    b[y][x] = target;
+                }
+            }
+        }
+        return rgb;
+    }
+
+    private static int[] hexToRgb(String hex) {
+        if (hex == null || hex.length() != 6) {
+            return null;
+        }
+        try {
+            return new int[]{
+                    Integer.parseInt(hex.substring(0, 2), 16),
+                    Integer.parseInt(hex.substring(2, 4), 16),
+                    Integer.parseInt(hex.substring(4, 6), 16)
+            };
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+
     private void invalidateStretchCache() {
         stretchedImage = null;
+    }
+
+    private String defaultColorizeProfile() {
+        if (processParams != null && processParams.spectrumParams() != null && processParams.spectrumParams().ray() != null) {
+            return processParams.spectrumParams().ray().label();
+        }
+        return null;
     }
 
     private GlobeStyle effectiveGlobeStyle() {
@@ -1036,9 +1112,12 @@ public class ImageViewer implements WithRootNode {
     private void toggleOverlayPanel(Node anchor) {
         if (overlayPanel == null) {
             boolean hasEllipse = image != null && image.findMetadata(Ellipse.class).isPresent();
+            boolean colorizable = image != null && image.unwrapToMemory() instanceof ImageWrapper32;
             overlayPanel = new OverlayPanel(
                     kind,
                     hasEllipse,
+                    colorizable,
+                    defaultColorizeProfile(),
                     overlays,
                     effectiveGlobeStyle(),
                     newState -> {
@@ -1426,6 +1505,7 @@ public class ImageViewer implements WithRootNode {
                 || overlays.drawProminenceScale()
                 || overlays.drawActiveRegions()
                 || overlays.drawSignature()
+                || overlays.isColorizeActive()
                 || !overlays.textAreas().isEmpty());
     }
 
@@ -1434,7 +1514,7 @@ public class ImageViewer implements WithRootNode {
             computeStretchedImage();
         }
         var baked = OverlayRenderer.apply(
-                stretchedImage.unwrapToMemory(),
+                applyColorize(stretchedImage.unwrapToMemory()),
                 overlays,
                 effectiveGlobeStyle(),
                 processParams,

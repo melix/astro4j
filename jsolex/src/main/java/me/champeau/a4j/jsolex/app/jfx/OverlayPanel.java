@@ -61,6 +61,8 @@ import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
 
 import java.awt.GraphicsEnvironment;
 import me.champeau.a4j.jsolex.processing.params.GlobeStyle;
+import me.champeau.a4j.jsolex.processing.params.SpectralRay;
+import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import org.kordamp.ikonli.javafx.FontIcon;
 
@@ -83,6 +85,7 @@ final class OverlayPanel {
     private static final String ICON_EARTH = "fltfal-earth-24";
     private static final String ICON_SIGNATURE = "fltfmz-signature-24";
     private static final String ICON_ACTIVE_REGIONS = "fltfmz-my-location-24";
+    private static final String ICON_COLORIZE = "fltfal-color-24";
     private static final List<String> FONT_WEIGHTS = List.of("THIN", "LIGHT", "NORMAL", "MEDIUM", "SEMI_BOLD", "BOLD", "BLACK");
 
     private final Consumer<ImageOverlayState> onChange;
@@ -119,10 +122,15 @@ final class OverlayPanel {
     private Button gridOptionsBtn;
     private ToggleButton signatureBtn;
     private Shape signatureSwatch;
-    private Button signatureOptionsBtn;
+    private ToggleButton colorizeBtn;
+    private Button colorizeOptionsBtn;
+    private final boolean colorizable;
+    private final String defaultColorizeProfile;
 
     OverlayPanel(GeneratedImageKind kind,
                  boolean hasEllipse,
+                 boolean colorizable,
+                 String defaultColorizeProfile,
                  ImageOverlayState initial,
                  GlobeStyle initialGlobeStyle,
                  Consumer<ImageOverlayState> onChange,
@@ -132,6 +140,8 @@ final class OverlayPanel {
                  Runnable onResetObsDetails,
                  Runnable onResetSolarParams) {
         this.state = initial;
+        this.colorizable = colorizable;
+        this.defaultColorizeProfile = defaultColorizeProfile;
         this.globeStyle = initialGlobeStyle;
         this.onChange = onChange;
         this.onGlobeStyleChange = onGlobeStyleChange;
@@ -312,7 +322,7 @@ final class OverlayPanel {
             stage.close();
         });
         cancelBtn.setOnAction(e -> stage.close());
-        boolean wasShowing = popup.isShowing();
+        var wasShowing = popup.isShowing();
         if (wasShowing) {
             popup.hide();
         }
@@ -358,7 +368,7 @@ final class OverlayPanel {
             listView.getItems().setAll(OverlayPresetIO.names());
         });
         closeBtn.setOnAction(e -> stage.close());
-        boolean wasShowing = popup.isShowing();
+        var wasShowing = popup.isShowing();
         if (wasShowing) {
             popup.hide();
         }
@@ -406,7 +416,7 @@ final class OverlayPanel {
             return;
         }
         textAreasBox.getChildren().clear();
-        for (int i = 0; i < state.textAreas().size(); i++) {
+        for (var i = 0; i < state.textAreas().size(); i++) {
             textAreasBox.getChildren().add(buildTextAreaRow(i));
         }
         var addBtn = new Button(message("overlay.add.text.area"));
@@ -491,7 +501,18 @@ final class OverlayPanel {
         c3.setMinWidth(28);
         grid.getColumnConstraints().addAll(c0, c1, c2, c3);
 
-        int row = 0;
+        var row = 0;
+        if (colorizable) {
+            colorizeBtn = makeChip(ICON_COLORIZE, "overlay.colorize",
+                    ImageOverlayState::isColorizeActive,
+                    (s, v) -> v ? (s.isColorizeActive() ? s : s.withColorizeProfile(resolveDefaultProfile())) : s.withoutColorize());
+            colorizeOptionsBtn = new Button("⋯");
+            colorizeOptionsBtn.getStyleClass().add("overlay-popover-mini");
+            colorizeOptionsBtn.setFocusTraversable(false);
+            colorizeOptionsBtn.setOnAction(e -> showColorizeOptions());
+            colorizeOptionsBtn.disableProperty().bind(colorizeBtn.selectedProperty().not());
+            addRow(grid, row++, colorizeBtn, null, null, colorizeOptionsBtn);
+        }
         if (hasEllipse) {
             gridBtn = makeChip(ICON_GRID, "overlay.grid",
                     ImageOverlayState::drawGlobe, ImageOverlayState::withDrawGlobe);
@@ -582,7 +603,7 @@ final class OverlayPanel {
                 ImageOverlayState::drawSignature, ImageOverlayState::withDrawSignature);
         signatureSwatch = makeSwatch(state.signatureColor(),
                 hex -> mutate(s -> s.withSignatureColor(hex)));
-        signatureOptionsBtn = new Button("⋯");
+        var signatureOptionsBtn = new Button("⋯");
         signatureOptionsBtn.getStyleClass().add("overlay-popover-mini");
         signatureOptionsBtn.setFocusTraversable(false);
         signatureOptionsBtn.setOnAction(e -> showSignatureOptions());
@@ -668,6 +689,61 @@ final class OverlayPanel {
         var row = new HBox(8, label, swatch);
         row.setAlignment(Pos.CENTER_LEFT);
         return row;
+    }
+
+    private List<String> colorizeProfiles() {
+        return SpectralRayIO.loadDefaults().stream()
+                .filter(r -> r.colorCurve() != null || r.wavelength().angstroms() != 0)
+                .map(SpectralRay::label)
+                .toList();
+    }
+
+    private String resolveDefaultProfile() {
+        var profiles = colorizeProfiles();
+        if (defaultColorizeProfile != null && profiles.contains(defaultColorizeProfile)) {
+            return defaultColorizeProfile;
+        }
+        if (profiles.contains(SpectralRay.H_ALPHA.label())) {
+            return SpectralRay.H_ALPHA.label();
+        }
+        return profiles.isEmpty() ? null : profiles.getFirst();
+    }
+
+    private void showColorizeOptions() {
+        var profileLabel = new Label(message("overlay.colorize.profile") + ":");
+        var profileChoice = new ComboBox<String>();
+        profileChoice.getItems().addAll(colorizeProfiles());
+        profileChoice.setValue(state.colorizeProfile());
+        profileChoice.valueProperty().addListener((o, ov, nv) -> {
+            if (ignoreChanges || nv == null) {
+                return;
+            }
+            mutate(s -> s.withColorizeProfile(nv));
+        });
+        var profileRow = new HBox(8, profileLabel, profileChoice);
+        profileRow.setAlignment(Pos.CENTER_LEFT);
+        var customLabel = new Label(message("overlay.colorize.custom") + ":");
+        var customSwatch = makeSwatch(state.colorizeColor(), hex -> mutate(s -> s.withColorizeColor(hex)));
+        var customRow = new HBox(8, customLabel, customSwatch);
+        customRow.setAlignment(Pos.CENTER_LEFT);
+        var preserveBrightness = new CheckBox(message("overlay.colorize.preserve.brightness"));
+        preserveBrightness.setSelected(state.colorizePreserveBrightness());
+        preserveBrightness.selectedProperty().addListener((o, ov, nv) -> {
+            if (ignoreChanges) {
+                return;
+            }
+            mutate(s -> s.withColorizePreserveBrightness(nv));
+        });
+        var content = new VBox(8, profileRow, customRow, preserveBrightness);
+        content.getStyleClass().add("overlay-subpopup");
+        var sub = new Popup();
+        sub.setAutoHide(true);
+        sub.setHideOnEscape(true);
+        sub.getContent().add(content);
+        var bounds = colorizeOptionsBtn.localToScreen(colorizeOptionsBtn.getBoundsInLocal());
+        if (bounds != null) {
+            sub.show(colorizeOptionsBtn, bounds.getMinX(), bounds.getMaxY() + 4);
+        }
     }
 
     private void showColorOnlyOptions(Node anchor, String initialHex, Consumer<String> onColor) {
@@ -780,7 +856,7 @@ final class OverlayPanel {
         var fontLabel = new Label(message("overlay.signature.font") + ":");
         var fontChoice = buildFontChoice(initialFont);
         var sizeLabel = new Label(message("overlay.signature.size") + ":");
-        int size0 = initialSize != null ? initialSize : ImageDraw.DEFAULT_SIGNATURE_SIZE;
+        var size0 = initialSize != null ? initialSize : ImageDraw.DEFAULT_SIGNATURE_SIZE;
         var sizeSpinner = new Spinner<Integer>(8, 200, size0, 1);
         sizeSpinner.setEditable(true);
         sizeSpinner.setPrefWidth(90);
@@ -821,7 +897,7 @@ final class OverlayPanel {
         var stage = FXUtils.newModalStage(ownerStage, root);
         stage.setTitle(title);
         var snapshot = state;
-        boolean[] applied = {false};
+        var applied = new boolean[]{false};
         textArea.textProperty().addListener((o, ov, nv) -> onText.accept(nv));
         fontChoice.valueProperty().addListener((o, ov, nv) -> onFont.accept(nv));
         sizeSpinner.valueProperty().addListener((o, ov, nv) -> onSize.accept(nv));
@@ -838,7 +914,7 @@ final class OverlayPanel {
                 onChange.accept(state);
             }
         });
-        boolean wasShowing = popup.isShowing();
+        var wasShowing = popup.isShowing();
         if (wasShowing) {
             popup.hide();
         }
@@ -917,7 +993,7 @@ final class OverlayPanel {
         var stage = FXUtils.newModalStage(ownerStage, root);
         stage.setTitle(message("overlay.obs.details"));
         var snapshot = state;
-        boolean[] applied = {false};
+        var applied = new boolean[]{false};
         textArea.textProperty().addListener((o, ov, nv) ->
                 mutate(s -> s.withObsDetailsTemplate(nv == null || nv.equals(ImageDraw.DEFAULT_OBS_DETAILS_TEMPLATE) ? null : nv)));
         resetBtn.setOnAction(e -> textArea.setText(ImageDraw.DEFAULT_OBS_DETAILS_TEMPLATE));
@@ -933,7 +1009,7 @@ final class OverlayPanel {
                 onChange.accept(state);
             }
         });
-        boolean wasShowing = popup.isShowing();
+        var wasShowing = popup.isShowing();
         if (wasShowing) {
             popup.hide();
         }
@@ -944,8 +1020,8 @@ final class OverlayPanel {
     }
 
     private void showPromOptions() {
-        int initialCircles = state.promCircles() != null ? state.promCircles() : ImageDraw.PROMS_CIRCLES;
-        int initialStep = state.promStepKm() != null ? state.promStepKm() : ImageDraw.PROMINENCE_SCALE_STEP_KM;
+        var initialCircles = state.promCircles() != null ? state.promCircles() : ImageDraw.PROMS_CIRCLES;
+        var initialStep = state.promStepKm() != null ? state.promStepKm() : ImageDraw.PROMINENCE_SCALE_STEP_KM;
         var circlesLabel = new Label(message("overlay.prom.circles") + ":");
         var circlesSpinner = new Spinner<Integer>(1, 20, initialCircles);
         circlesSpinner.setEditable(true);
@@ -996,7 +1072,7 @@ final class OverlayPanel {
             if (ignoreChanges || nv == null) {
                 return;
             }
-            float v = nv.floatValue();
+            var v = nv.floatValue();
             mutate(s -> s.withPromScaleLineThickness(v == ImageDraw.DEFAULT_LINE_THICKNESS ? null : v));
         });
         grid.add(label, 0, row);
@@ -1045,7 +1121,7 @@ final class OverlayPanel {
             if (ignoreChanges || nv == null) {
                 return;
             }
-            float v = nv.floatValue();
+            var v = nv.floatValue();
             mutate(s -> s.withLineThickness(v == ImageDraw.DEFAULT_LINE_THICKNESS ? null : v));
         });
         var thicknessRow = new HBox(6, thicknessLabel, thicknessLocal);
@@ -1087,6 +1163,9 @@ final class OverlayPanel {
 
     private void applyState(ImageOverlayState s) {
         ignoreChanges = true;
+        if (colorizeBtn != null) {
+            colorizeBtn.setSelected(s.isColorizeActive());
+        }
         if (gridBtn != null) {
             gridBtn.setSelected(s.drawGlobe());
             gridSwatch.setFill(s.gridColor() == null ? defaultSwatchFill() : parseHex(s.gridColor()));
@@ -1132,9 +1211,9 @@ final class OverlayPanel {
     }
 
     private static String toHex(Color c) {
-        int r = (int) Math.round(c.getRed() * 255);
-        int g = (int) Math.round(c.getGreen() * 255);
-        int b = (int) Math.round(c.getBlue() * 255);
+        var r = (int) Math.round(c.getRed() * 255);
+        var g = (int) Math.round(c.getGreen() * 255);
+        var b = (int) Math.round(c.getBlue() * 255);
         return String.format("%02X%02X%02X", r, g, b);
     }
 
