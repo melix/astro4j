@@ -285,6 +285,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private boolean absoluteSpectralValues;
     private boolean profileLegendExpanded = true;
     private Integer currentColumn;
+    private Integer currentFrameNumber;
     private float[][] currentSpectrumFrameData;
     private AverageImageComputedEvent.AverageImage cachedAverageImagePayload;
     private TrimmingParameters cachedTrimmingParameters;
@@ -679,6 +680,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     });
                     if (polynomial != null) {
                         currentColumn = xIndex;
+                        currentFrameNumber = (int) frameNb;
                         currentSpectrumFrameData = spectrum.data();
                         if (profileViewFactory != null) {
                             FxUtils.runLater(() -> enableTab(profileTab, profileViewFactory.get()));
@@ -2372,7 +2374,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                     }
                     writer.println();
                 }
-            }, finalStatsToDisplay, canDrawReference));
+            }, finalStatsToDisplay, canDrawReference, currentColumn, currentColumn != null ? currentFrameNumber : null));
 
             // Create button bar above the chart
             show3DButton = new Button(I18N.string(JSolEx.class, "spectral-surface-3d", "show.3d.profile"));
@@ -3296,8 +3298,13 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         record ProfileData(XYChart<?, ?> chart, Supplier<? extends XYChart<?, ?>> graphFactory,
                            Consumer<? super PrintWriter> csvWriter,
                            SpectralLineAnalysis.LineStatistics statistics,
-                           boolean hasWavelength) implements GraphData {
+                           boolean hasWavelength,
+                           Integer line,
+                           Integer frame) implements GraphData {
             public String name() {
+                if (line != null && frame != null) {
+                    return line + "-" + frame + "_profile";
+                }
                 return "profile";
             }
         }
