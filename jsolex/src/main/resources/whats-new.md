@@ -1,5 +1,9 @@
 # Welcome to JSol'Ex {{version}}!
 
+## What's New in Version 5.3.2
+
+- The 3D spectral views now offer an "Invert" option and an opacity slider to better reveal dark features such as sunspots.
+
 ## What's New in Version 5.3.1
 
 - Faster image processing, including a quicker first run after launching the application.
