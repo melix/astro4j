@@ -3,6 +3,7 @@
 ## What's New in Version 5.3.2
 
 - The 3D spectral views now offer an "Invert" option and an opacity slider to better reveal dark features such as sunspots.
+- Monochrome images can now be colorized directly in the viewer, from the annotations panel, using a spectral profile or a custom color.
 
 ## What's New in Version 5.3.1
 

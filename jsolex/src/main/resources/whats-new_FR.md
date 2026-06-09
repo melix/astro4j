@@ -3,6 +3,7 @@
 ## Nouveautés de la version 5.3.2
 
 - Les vues spectrales 3D disposent désormais d'une option « Inverser » et d'un curseur d'opacité pour mieux révéler les zones sombres comme les taches solaires.
+- Les images monochromes peuvent désormais être colorisées directement dans la visionneuse, depuis le panneau d'annotations, à l'aide d'un profil spectral ou d'une couleur personnalisée.
 
 ## Nouveautés de la version 5.3.1
 

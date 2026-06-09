@@ -343,6 +343,7 @@ Ce panneau est une fenêtre flottante que vous pouvez déplacer à votre guise p
 
 Les annotations suivantes sont disponibles :
 
+- *Coloriser* : applique une couleur à une image monochrome, utile comme arrière-plan pour des annotations colorées. Cette option n'apparaît que pour les images monochromes. Depuis son menu d'options, vous pouvez choisir un profil spectral (par exemple H-alpha, Calcium, Hélium) ou une couleur personnalisée ; le profil par défaut correspond à la raie spectrale de l'image. Une option « Préserver la luminosité » conserve la luminosité d'origine afin que la colorisation n'ajoute que la teinte sans assombrir l'image. Les images RVB ne sont pas modifiées.
 - *Grille d'orientation* : méridiens et parallèles héliographiques tracés sur le disque solaire, avec l'axe de rotation et les marqueurs des directions cardinales. Le style (coordonnées équatoriales ou solaires) et la correction de l'angle P se règlent depuis le menu d'options de la grille.
 - *Échelle des protubérances* : cercles concentriques pointillés à l'extérieur du limbe, avec des étiquettes de distance en kilomètres. Vous pouvez choisir le nombre de cercles et l'espacement entre eux.
 - *Régions actives* : les numéros des régions actives NOAA placés à leur position sur le disque solaire. Depuis le menu d'options, vous pouvez tracer un rectangle autour de chaque région et régler la correction de l'angle P pour les images ImageMath.
