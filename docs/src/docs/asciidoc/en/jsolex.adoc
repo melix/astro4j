@@ -337,6 +337,12 @@ In addition, right-clicking the image will let you open it into your file explor
 
 You can also duplicate an image from the sidebar by right-clicking on its name and choosing "Duplicate", which is useful when you want to keep a clean original alongside an annotated version.
 
+=== Other spectral lines in the capture window
+
+The captured window often contains known spectral lines other than the one you are studying. For example, when imaging in Calcium H, the H-epsilon line usually falls within the same window.
+
+When this happens, JSol'Ex marks each of these lines with a dotted vertical marker, labelled with the line name, on the spectral profile graph, and automatically reconstructs a dedicated image at that line's position, exactly as if you had added its pixel shift manually.
+
 === Annotations
 
 Each image has its own set of annotations that you can turn on or off independently from the annotations panel, opened with the ⊕ button in the toolbar.

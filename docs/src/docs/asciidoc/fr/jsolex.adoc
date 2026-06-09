@@ -336,6 +336,12 @@ Un clic droit vous permettra d'ouvrir l'image générée dans votre explorateur 
 
 Vous pouvez aussi dupliquer une image depuis la barre latérale en faisant un clic droit sur son nom et en choisissant « Dupliquer », ce qui est utile lorsque vous voulez conserver une version originale à côté d'une version annotée.
 
+=== Autres raies spectrales dans la fenêtre de capture
+
+La fenêtre capturée contient souvent des raies spectrales connues autres que celle que vous étudiez. Par exemple, lors d'une capture en Calcium H, la raie H-epsilon se trouve généralement dans la même fenêtre.
+
+Dans ce cas, JSol'Ex signale chacune de ces raies par un marqueur vertical en pointillés, accompagné du nom de la raie, sur le graphe du profil spectral, et reconstruit automatiquement une image dédiée à la position de cette raie, exactement comme si vous aviez ajouté son décalage de pixels manuellement.
+
 === Annotations
 
 Chaque image a son propre jeu d'annotations que vous pouvez activer ou désactiver indépendamment depuis le panneau d'annotations, ouvert via le bouton ⊕ de la barre d'outils.

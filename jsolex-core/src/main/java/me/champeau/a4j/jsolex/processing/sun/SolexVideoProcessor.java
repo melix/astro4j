@@ -56,6 +56,7 @@ import me.champeau.a4j.jsolex.processing.params.ScriptParameterExtractor;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
 import me.champeau.a4j.jsolex.processing.spectrum.FlatCreator;
+import me.champeau.a4j.jsolex.processing.spectrum.SpectralLineCatalog;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
 import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegions;
 import me.champeau.a4j.jsolex.processing.sun.detection.Flare;
@@ -449,6 +450,7 @@ public class SolexVideoProcessor implements Broadcaster {
             var canGenerateHeliumD3Images = heliumLineVisible(pixelShiftRange, heliumLineShift) && processParams.requestedImages().isEnabled(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED);
             addPixelShiftsForRequestedByWavelength(width, newHeight, imageList);
             addPixelShiftsForAutoContinnum(canGenerateHeliumD3Images, width, newHeight, imageList, heliumLineShift);
+            addPixelShiftsForAlternateLines(width, newHeight, imageList);
             broadcast(new AverageImageComputedEvent(new AverageImageComputedEvent.AverageImage(avgImage, polynomial, analysis.leftBorder().orElse(0), analysis.rightBorder().orElse(width), processParams)));
             LOGGER.info(message("starting.reconstruction"));
             LOGGER.info(message("distortion.polynomial"), polynomial);
@@ -960,6 +962,29 @@ public class SolexVideoProcessor implements Broadcaster {
                     state.setInternal(true);
                     imageList.add(state);
                 }
+            }
+        }
+    }
+
+    private void addPixelShiftsForAlternateLines(int width, int newHeight, List<WorkflowState> imageList) {
+        var pixelSize = processParams.observationDetails().pixelSize();
+        var binning = processParams.observationDetails().binning();
+        if (pixelSize == null || binning == null) {
+            return;
+        }
+        var lambda0 = processParams.spectrumParams().ray().wavelength();
+        var instrument = processParams.observationDetails().instrument();
+        var heliumD3 = SpectralRay.HELIUM_D3.wavelength().angstroms();
+        for (var line : SpectralLineCatalog.findLinesInWindow(lambda0, pixelSize, binning, instrument, pixelShiftRange)) {
+            // Helium D3 is reconstructed by its own dedicated emission-line process, so skip it here
+            if (Math.abs(line.wavelength().angstroms() - heliumD3) < 0.5) {
+                continue;
+            }
+            var shift = line.pixelShift();
+            if (imageList.stream().map(WorkflowState::pixelShift).noneMatch(s -> s == shift)) {
+                var state = new WorkflowState(width, newHeight, shift);
+                state.setLabel(line.name());
+                imageList.add(state);
             }
         }
     }
@@ -1930,7 +1955,15 @@ public class SolexVideoProcessor implements Broadcaster {
                     return name;
                 }
                 var spectrumParams = processParams.spectrumParams();
-                var suffix = shift == spectrumParams.pixelShift() ? "" : " (" + (shift == spectrumParams.continuumShift() ? "continuum" : shift) + ")";
+                String descriptor;
+                if (state.label() != null) {
+                    descriptor = state.label();
+                } else if (shift == spectrumParams.continuumShift()) {
+                    descriptor = "continuum";
+                } else {
+                    descriptor = String.valueOf(shift);
+                }
+                var suffix = shift == spectrumParams.pixelShift() ? "" : " (" + descriptor + ")";
                 return name + suffix;
             }, name -> {
                 if (name.toLowerCase(Locale.US).contains("doppler")) {
