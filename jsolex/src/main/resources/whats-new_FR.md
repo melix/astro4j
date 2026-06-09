@@ -1,5 +1,9 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+## Nouveautés de la version 5.3.2
+
+- Les vues spectrales 3D disposent désormais d'une option « Inverser » et d'un curseur d'opacité pour mieux révéler les zones sombres comme les taches solaires.
+
 ## Nouveautés de la version 5.3.1
 
 - Traitement des images plus rapide, avec notamment un premier traitement plus rapide après le lancement de l'application.

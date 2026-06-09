@@ -31,6 +31,7 @@ import javafx.scene.canvas.Canvas;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
@@ -112,8 +113,18 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
 
     /** Current intensity scale mode. */
     protected IntensityScale scale = IntensityScale.LINEAR;
+    /** Whether intensities are inverted so that dark features (e.g. sunspots) rise as peaks. */
+    protected boolean invert = false;
+    /** Minimum normalized on-disk intensity of the current slice, used to stretch inverted heights. */
+    private float invertNormMin = 0f;
+    /** Maximum normalized on-disk intensity of the current slice, used to stretch inverted heights. */
+    private float invertNormMax = 1f;
     /** Group containing the 3D surface mesh. */
     protected Group surfaceGroup;
+    /** The surface mesh view, kept so its material can be updated when opacity changes. */
+    protected MeshView surfaceMeshView;
+    /** Opacity of the surface in [0, 1]; below 1 the walls become see-through. */
+    protected double surfaceOpacity = 1.0;
     /** Group containing the axes and labels. */
     protected Group axesGroup;
 
@@ -137,6 +148,10 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
     protected Label legendLowLabel;
     /** Label for interpretation text. */
     protected Label legendInterpretLabel;
+    /** Label showing the value at the top of the color bar. */
+    protected Label legendTopValueLabel;
+    /** Label showing the value at the bottom of the color bar. */
+    protected Label legendBottomValueLabel;
 
     /** Pane containing the 3D graph. */
     protected final StackPane graphPane;
@@ -265,6 +280,10 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
      */
     protected void buildSurfaceFromData(SpectralLineSurfaceData surfaceData, int meshXCount, int meshZCount,
                                         boolean preserveAspectRatio) {
+        if (invert) {
+            computeInvertRange(surfaceData);
+        }
+
         var fullXCount = surfaceData.xAxisCount();
         var fullZCount = surfaceData.wavelengthCount();
 
@@ -308,6 +327,7 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
             meshView.setCullFace(CullFace.NONE);
             meshView.setDrawMode(DrawMode.FILL);
             meshView.setMouseTransparent(true);
+            surfaceMeshView = meshView;
 
             surfaceGroup = new Group(meshView);
             surfaceGroup.setMouseTransparent(true);
@@ -784,21 +804,75 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
         if (normalizedValue < 0 || normalizedValue > 1) {
             throw new IllegalArgumentException("Normalized value must be in [0, 1], got: " + normalizedValue);
         }
+        var value = invert ? invertIntensity(normalizedValue) : normalizedValue;
         return switch (scale) {
-            case LINEAR -> normalizedValue;
-            case SQUARE -> normalizedValue * normalizedValue;
+            case LINEAR -> value;
+            case SQUARE -> value * value;
             case LOG2 -> {
                 // log2(1 + x) where x ∈ [0,1] → output ∈ [0, 1]
-                var logValue = Math.log1p(normalizedValue) / Math.log(2);
+                var logValue = Math.log1p(value) / Math.log(2);
                 yield (float) logValue;
             }
             case LOG10 -> {
                 // log10(1 + 9*x) where x ∈ [0,1] → output ∈ [0, 1]
                 // Stronger compression than log2
-                var logValue = Math.log10(1 + 9 * normalizedValue);
+                var logValue = Math.log10(1 + 9 * value);
                 yield (float) logValue;
             }
         };
+    }
+
+    /**
+     * Inverts a normalized intensity so dark features rise as peaks. All cells are treated
+     * identically: the inversion is scaled over the intensity range of the current slice so that the
+     * tallest inverted feature reaches the same height as the brightest point in the non-inverted
+     * view.
+     * @param normalizedValue the normalized intensity value in [0, 1]
+     * @return the inverted value in [0, 1]
+     */
+    private float invertIntensity(float normalizedValue) {
+        var range = invertNormMax - invertNormMin;
+        if (range <= 0) {
+            return 0f;
+        }
+        var stretched = (invertNormMax - normalizedValue) / range;
+        var scaled = stretched * invertNormMax;
+        if (scaled < 0f) {
+            return 0f;
+        }
+        if (scaled > 1f) {
+            return 1f;
+        }
+        return scaled;
+    }
+
+    /**
+     * Computes the normalized intensity range of the current slice, used to scale inverted heights.
+     * @param surfaceData the spectral data being rendered
+     */
+    private void computeInvertRange(SpectralLineSurfaceData surfaceData) {
+        var min = Float.MAX_VALUE;
+        var max = -Float.MAX_VALUE;
+        var xCount = surfaceData.xAxisCount();
+        var zCount = surfaceData.wavelengthCount();
+        for (var x = 0; x < xCount; x++) {
+            for (var z = 0; z < zCount; z++) {
+                var n = surfaceData.normalizedIntensity(x, z);
+                if (n < min) {
+                    min = n;
+                }
+                if (n > max) {
+                    max = n;
+                }
+            }
+        }
+        if (max <= min) {
+            invertNormMin = 0f;
+            invertNormMax = 1f;
+        } else {
+            invertNormMin = min;
+            invertNormMax = max;
+        }
     }
 
     /**
@@ -814,6 +888,9 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
         for (var x = 0; x < width; x++) {
             var t = (double) x / (width - 1);
             var color = intensityToColor(t);
+            if (surfaceOpacity < 1.0) {
+                color = new Color(color.getRed(), color.getGreen(), color.getBlue(), surfaceOpacity);
+            }
             writer.setColor(x, 0, color);
         }
 
@@ -901,17 +978,17 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
 
         var colorBar = createColorBar();
 
-        var maxLabel = new Label(String.format(Locale.US, "%.0f", getMaxIntensity()));
-        maxLabel.setStyle("-fx-text-fill: #333333; -fx-font-size: 9px;");
+        legendTopValueLabel = new Label();
+        legendTopValueLabel.setStyle("-fx-text-fill: #333333; -fx-font-size: 9px;");
 
-        var minLabel = new Label(String.format(Locale.US, "%.0f", getMinIntensity()));
-        minLabel.setStyle("-fx-text-fill: #333333; -fx-font-size: 9px;");
+        legendBottomValueLabel = new Label();
+        legendBottomValueLabel.setStyle("-fx-text-fill: #333333; -fx-font-size: 9px;");
 
         var labelsBox = new VBox();
         labelsBox.setAlignment(Pos.CENTER_RIGHT);
         var spacer = new VBox();
         VBox.setVgrow(spacer, Priority.ALWAYS);
-        labelsBox.getChildren().addAll(maxLabel, spacer, minLabel);
+        labelsBox.getChildren().addAll(legendTopValueLabel, spacer, legendBottomValueLabel);
         labelsBox.setMinHeight(150);
         labelsBox.setMaxHeight(150);
 
@@ -946,12 +1023,25 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
     protected void updateLegendLabels() {
         var isLog = scale != IntensityScale.LINEAR;
         var titleKey = isLog ? "legend.intensity.log" : "legend.intensity";
-        var highKey = isLog ? "legend.high.log" : "legend.high";
-        var lowKey = isLog ? "legend.low.log" : "legend.low";
+        String highKey;
+        String lowKey;
+        if (invert) {
+            highKey = "legend.high.invert";
+            lowKey = "legend.low.invert";
+        } else {
+            highKey = isLog ? "legend.high.log" : "legend.high";
+            lowKey = isLog ? "legend.low.log" : "legend.low";
+        }
 
         legendTitleLabel.setText(I18N.string(JSolEx.class, "spectral-surface-3d", titleKey));
         legendHighLabel.setText(I18N.string(JSolEx.class, "spectral-surface-3d", highKey));
         legendLowLabel.setText(I18N.string(JSolEx.class, "spectral-surface-3d", lowKey));
+
+        var topValue = invert ? getMinIntensity() : getMaxIntensity();
+        var bottomValue = invert ? getMaxIntensity() : getMinIntensity();
+        legendTopValueLabel.setText(String.format(Locale.US, "%.0f", topValue));
+        legendBottomValueLabel.setText(String.format(Locale.US, "%.0f", bottomValue));
+
         var interpretationText = I18N.string(JSolEx.class, "spectral-surface-3d", getInterpretationKey());
         legendInterpretLabel.setText(interpretationText);
         legendInterpretLabel.setTooltip(new Tooltip(interpretationText));
@@ -1307,6 +1397,27 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
         var scaleBox = new HBox(3, scaleLabel, scaleCombo);
         scaleBox.setAlignment(Pos.CENTER_LEFT);
 
+        var invertCheck = new CheckBox(I18N.string(JSolEx.class, "spectral-surface-3d", "invert"));
+        invertCheck.setSelected(invert);
+        invertCheck.setTooltip(new Tooltip(I18N.string(JSolEx.class, "spectral-surface-3d", "invert.tooltip")));
+        invertCheck.setOnAction(e -> {
+            invert = invertCheck.isSelected();
+            buildSurface();
+            updateLegendLabels();
+        });
+
+        var opacitySlider = new Slider(10, 100, surfaceOpacity * 100);
+        opacitySlider.setPrefWidth(100);
+        opacitySlider.valueProperty().addListener((obs, oldVal, newVal) -> {
+            surfaceOpacity = newVal.doubleValue() / 100.0;
+            if (surfaceMeshView != null) {
+                surfaceMeshView.setMaterial(createMaterial());
+            }
+        });
+        var opacityLabel = createStyledLabel(I18N.string(JSolEx.class, "spectral-surface-3d", "opacity"));
+        var opacityBox = new HBox(3, opacityLabel, opacitySlider);
+        opacityBox.setAlignment(Pos.CENTER_LEFT);
+
         var elevationSlider = new Slider(-90, 90, -30);
         elevationSlider.setPrefWidth(100);
         elevationSlider.valueProperty().addListener((obs, oldVal, newVal) ->
@@ -1337,6 +1448,8 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
 
         controls.add(new Separator(Orientation.VERTICAL));
         controls.add(scaleBox);
+        controls.add(invertCheck);
+        controls.add(opacityBox);
 
         controls.addAll(List.of(additionalControls));
 
