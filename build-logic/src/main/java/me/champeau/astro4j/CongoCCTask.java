@@ -34,7 +34,10 @@ import org.gradle.process.ExecOperations;
 
 import javax.inject.Inject;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.stream.Stream;
 
 @CacheableTask
 public abstract class CongoCCTask extends DefaultTask {
@@ -77,5 +80,23 @@ public abstract class CongoCCTask extends DefaultTask {
             spec.args(getOptions().get());
             spec.args("-jdk" + getJdkVersion().get(), "-d", getOutputDirectory().get().getAsFile().getAbsolutePath(), getGrammarFile().get());
         });
+        fixInvalidJavadocTags();
+    }
+
+    private void fixInvalidJavadocTags() throws IOException {
+        try (Stream<Path> sources = Files.walk(getOutputDirectory().get().getAsFile().toPath())) {
+            sources.filter(path -> path.toString().endsWith(".java"))
+                .forEach(path -> {
+                    try {
+                        var contents = Files.readString(path);
+                        var fixed = contents.replace("* @Deprecated ", "* @deprecated ");
+                        if (!fixed.equals(contents)) {
+                            Files.writeString(path, fixed);
+                        }
+                    } catch (IOException e) {
+                        throw new UncheckedIOException(e);
+                    }
+                });
+        }
     }
 }
