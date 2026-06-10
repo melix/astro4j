@@ -79,6 +79,11 @@ class EnhancementParamsSerializer implements JsonSerializer<EnhancementParams>, 
                 var sigma = getNullableDouble(jaggingCorrectionParams, "sigma");
                 jaggingCorrection = new JaggingCorrectionParams(enabled, sigma == null ? JaggingCorrection.DEFAULT_SIGMA : sigma);
             }
+            var oscillationCorrectionParams = obj.getAsJsonObject("oscillationCorrectionParams");
+            var oscillationCorrection = new OscillationCorrectionParams(false);
+            if (oscillationCorrectionParams != null) {
+                oscillationCorrection = new OscillationCorrectionParams(getNullableBoolean(oscillationCorrectionParams, "enabled"));
+            }
             SharpeningParams sharpeningParams = SharpeningParams.none();
             var sharpening = obj.getAsJsonObject("sharpeningParams");
             if (sharpening != null) {
@@ -99,7 +104,7 @@ class EnhancementParamsSerializer implements JsonSerializer<EnhancementParams>, 
                     }
                 }
             }
-            return new EnhancementParams(artificialFlatCorrection, loPercentile, hiPercentile, order, masterFlat==null ? null : Path.of(masterFlat), slitDetectionSigma, jaggingCorrection, sharpeningParams);
+            return new EnhancementParams(artificialFlatCorrection, loPercentile, hiPercentile, order, masterFlat==null ? null : Path.of(masterFlat), slitDetectionSigma, jaggingCorrection, oscillationCorrection, sharpeningParams);
         }
         throw new IllegalAccessError("Unexpected JSON type " + json.getClass());
     }
@@ -118,6 +123,9 @@ class EnhancementParamsSerializer implements JsonSerializer<EnhancementParams>, 
         jaggingCorrectionParams.addProperty("enabled", src.jaggingCorrectionParams().enabled());
         jaggingCorrectionParams.addProperty("sigma", src.jaggingCorrectionParams().sigma());
         obj.add("jaggingCorrectionParams", jaggingCorrectionParams);
+        var oscillationCorrectionParams = new JsonObject();
+        oscillationCorrectionParams.addProperty("enabled", src.oscillationCorrectionParams().enabled());
+        obj.add("oscillationCorrectionParams", oscillationCorrectionParams);
         var sharpeningParams = new JsonObject();
         switch (src.sharpeningParams()) {
             case SharpeningParams.None none -> {

@@ -78,6 +78,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.sun.workflow.JaggingCorrection;
 import me.champeau.a4j.jsolex.processing.sun.workflow.NamingStrategyAwareImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.NoOpImageEmitter;
+import me.champeau.a4j.jsolex.processing.sun.workflow.OscillationCorrection;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShiftRange;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ProcessingWorkflow;
@@ -710,6 +711,9 @@ public class SolexVideoProcessor implements Broadcaster {
         var progress = new AtomicInteger(0);
         var imageEmitterFactory = createImageEmitterFactory(imageList, imageNamingStrategy, baseName);
         var initialFit = performInitialEllipseFit(imageList);
+        // the borders are detected once, on the line center reconstruction, so the
+        // correction models are computed once and shared by all pixel shifts
+        var correctionModels = computeCorrectionModels(imageList, initialFit.orElse(null), fps, imageEmitterFactory);
         // Per-state preparation is independent across pixel shifts: each state
         // has its own emitter, results map, and metadata. Run them concurrently
         // when the heap can afford the parallel working set.
@@ -717,7 +721,7 @@ public class SolexVideoProcessor implements Broadcaster {
                     CancellationSupport.checkCancelled();
                     initialFit.ifPresent(e -> i.recordResult(WorkflowResults.INITIAL_ELLIPSE_FITTING, e));
                     double pg = ((double) progress.incrementAndGet()) / imageList.size();
-                    prepareImageForCorrections(i, header, initialFit.orElse(null), imageEmitterFactory.newEmitter(this, outputDirectory));
+                    prepareImageForCorrections(i, header, initialFit.orElse(null), correctionModels);
                     broadcast(prepareOperation.update(pg));
                 });
         broadcast(prepareOperation.complete());
@@ -823,7 +827,37 @@ public class SolexVideoProcessor implements Broadcaster {
         }
     }
 
-    private void prepareImageForCorrections(WorkflowState state, Header header, Ellipse ellipse, ImageEmitter emitter) {
+    private CorrectionModels computeCorrectionModels(List<WorkflowState> imageList, Ellipse ellipse, Double fps, ImageEmitterFactory imageEmitterFactory) {
+        var enhancementParams = processParams.enhancementParams();
+        var oscillationEnabled = enhancementParams.oscillationCorrectionParams().enabled();
+        var jaggingEnabled = enhancementParams.jaggingCorrectionParams().enabled();
+        if (ellipse == null || (!oscillationEnabled && !jaggingEnabled)) {
+            return new CorrectionModels(null, null);
+        }
+        var firstState = imageList.getFirst();
+        var borders = firstState.<PhenomenaDetector.BorderDetection>findResult(WorkflowResults.BORDERS).orElse(null);
+        var reconstructed = firstState.<ImageWrapper32>findResult(WorkflowResults.RECONSTRUCTED).orElse(null);
+        if (borders == null || reconstructed == null) {
+            return new CorrectionModels(null, null);
+        }
+        var debugEnabled = processParams.requestedImages().isEnabled(GeneratedImageKind.DEBUG);
+        OscillationCorrection.OscillationModel oscillationModel = null;
+        if (oscillationEnabled) {
+            var debugEmitter = debugEnabled ? imageEmitterFactory.newEmitter(this, outputDirectory) : null;
+            oscillationModel = OscillationCorrection.detectOscillation(borders, ellipse, reconstructed.width(), reconstructed.height(), fps, debugEmitter).orElse(null);
+        }
+        JaggingCorrection.JaggingModel jaggingModel = null;
+        if (jaggingEnabled) {
+            var debugEmitter = debugEnabled ? imageEmitterFactory.newEmitter(this, outputDirectory) : null;
+            jaggingModel = JaggingCorrection.computeModel(borders, ellipse, reconstructed.width(), reconstructed.height(), enhancementParams.jaggingCorrectionParams().sigma(), oscillationModel, debugEmitter).orElse(null);
+        }
+        return new CorrectionModels(oscillationModel, jaggingModel);
+    }
+
+    private record CorrectionModels(OscillationCorrection.OscillationModel oscillationModel, JaggingCorrection.JaggingModel jaggingModel) {
+    }
+
+    private void prepareImageForCorrections(WorkflowState state, Header header, Ellipse ellipse, CorrectionModels correctionModels) {
         ImageWrapper32 rotated;
         ImageWrapper32 reconstructed = maybeRemoveZeroPixels(state.reconstructed());
         state.recordResult(WorkflowResults.RECONSTRUCTED, reconstructed);
@@ -831,8 +865,12 @@ public class SolexVideoProcessor implements Broadcaster {
         reconstructed.metadata().put(PixelShift.class, new PixelShift(state.pixelShift()));
         performBandingCorrection(reconstructed, ellipse);
         if (ellipse != null) {
-            var jaggingCorrection = new JaggingCorrection(state, processParams, emitter);
-            jaggingCorrection.maybePerformJaggedEdgesCorrection(reconstructed, ellipse);
+            if (correctionModels.oscillationModel() != null) {
+                OscillationCorrection.applyCorrection(reconstructed, correctionModels.oscillationModel());
+            }
+            if (correctionModels.jaggingModel() != null) {
+                JaggingCorrection.applyCorrection(reconstructed, correctionModels.jaggingModel());
+            }
         }
         var recon = reconstructed.asImage();
         var rotateLeft = ImageMath.newInstance().rotateLeft(recon);
@@ -1618,7 +1656,7 @@ public class SolexVideoProcessor implements Broadcaster {
         var detectRedshifts = processParams.spectrumParams().ray().label().equalsIgnoreCase(SpectralRay.H_ALPHA.label()) && processParams.requestedImages().isEnabled(GeneratedImageKind.REDSHIFT);
         var detectEllermanBombs = processParams.spectrumParams().ray().label().equalsIgnoreCase(SpectralRay.H_ALPHA.label()) && processParams.requestedImages().isEnabled(GeneratedImageKind.ELLERMAN_BOMBS);
         var detectActiveRegions = forceDetectActiveRegions || processParams.requestedImages().isEnabled(GeneratedImageKind.ACTIVE_REGIONS);
-        var detectBorders = processParams.enhancementParams().jaggingCorrectionParams().enabled();
+        var detectBorders = processParams.enhancementParams().jaggingCorrectionParams().enabled() || processParams.enhancementParams().oscillationCorrectionParams().enabled();
         var detectPhenomena = detectBorders || detectRedshifts || detectEllermanBombs || detectActiveRegions;
         if (detectPhenomena) {
             phenomenaDetector.setDetectBorders(detectBorders);

@@ -762,6 +762,7 @@ public class Bass2000SubmissionController {
                 var messageKey = switch (validationResult.error()) {
                     case PARTIAL_DISK -> "bass2000.validation.partial.disk.message";
                     case JAGGED_EDGES_CORRECTION -> "bass2000.validation.jagged.edges.message";
+                    case OSCILLATION_CORRECTION -> "bass2000.validation.oscillation.message";
                 };
                 label.setText(message(messageKey));
                 label.setVisible(true);
@@ -796,7 +797,8 @@ public class Bass2000SubmissionController {
 
     private enum ValidationError {
         PARTIAL_DISK,
-        JAGGED_EDGES_CORRECTION
+        JAGGED_EDGES_CORRECTION,
+        OSCILLATION_CORRECTION
     }
 
     private record ValidationResult(boolean isValid, ValidationError error) {
@@ -811,20 +813,23 @@ public class Bass2000SubmissionController {
 
     private record Bass2000Images(ImageWrapper lineCenter, ImageWrapper offBand) {
         ValidationResult validate() {
-            var jaggingValidation = validateJaggedEdgesCorrection();
-            if (!jaggingValidation.isValid()) {
-                return jaggingValidation;
+            var enhancementValidation = validateEnhancementCorrections();
+            if (!enhancementValidation.isValid()) {
+                return enhancementValidation;
             }
 
             return validatePartialDisk();
         }
 
-        private ValidationResult validateJaggedEdgesCorrection() {
+        private ValidationResult validateEnhancementCorrections() {
             var processParams = lineCenter.findMetadata(ProcessParams.class).orElse(null);
             if (processParams != null) {
-                var jaggingEnabled = processParams.enhancementParams().jaggingCorrectionParams().enabled();
-                if (jaggingEnabled) {
+                var enhancementParams = processParams.enhancementParams();
+                if (enhancementParams.jaggingCorrectionParams().enabled()) {
                     return ValidationResult.invalid(ValidationError.JAGGED_EDGES_CORRECTION);
+                }
+                if (enhancementParams.oscillationCorrectionParams().enabled()) {
+                    return ValidationResult.invalid(ValidationError.OSCILLATION_CORRECTION);
                 }
             }
             return ValidationResult.valid();

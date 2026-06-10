@@ -179,6 +179,21 @@ La correction de bords dentelés peut avoir des effets de bord, tels que la déf
 Dans tous les cas, il est recommandé de commencer sans correction et de vérifier le résultat dans tous les cas.
 ====
 
+==== Correction des oscillations de la monture
+
+Ceci est une fonctionnalité expérimentale disponible depuis JSol'Ex 5.3.2.
+Certaines montures présentent une oscillation régulière et périodique pendant le scan, qui se traduit par des ondulations sinusoïdales du limbe solaire.
+La correction des bords dentelés peut réduire ce défaut, mais elle corrige chaque ligne indépendamment, ce qui la rend sensible au bruit et peut introduire des artéfacts.
+
+La correction des oscillations de la monture effectue à la place une analyse spectrale de la position du limbe pour trouver les fréquences dominantes de l'oscillation, puis ajuste un modèle du déplacement qui est appliqué à l'image entière.
+Le modèle est une sinusoïde lorsque l'oscillation est stable, ou une courbe de déplacement lissée lorsque sa période ou son amplitude dérive pendant le scan.
+Comme la correction est pilotée par un modèle global plutôt que par des mesures ligne à ligne, elle est insensible au bruit de détection, et elle peut aussi corriger les lignes où le limbe ne peut pas être mesuré de manière fiable, par exemple près des pôles ou en dehors du disque.
+
+Si aucune oscillation périodique significative n'est détectée, aucune correction n'est appliquée.
+L'amplitude et la période détectées sont écrites dans le journal, ce qui peut aider à diagnostiquer la monture.
+Lorsque les images de débogage sont activées, un graphique est également généré, montrant le décalage mesuré du limbe, le modèle d'oscillation ajusté et le décalage résiduel après correction.
+Les deux corrections peuvent être activées ensemble : dans ce cas, l'oscillation est supprimée en premier, et la correction des bords dentelés ne traite que les défauts aléatoires restants.
+
 === Détails d'observation
 
 image::params-3-fr.jpg[]
