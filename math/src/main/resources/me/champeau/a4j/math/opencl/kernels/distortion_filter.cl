@@ -18,120 +18,12 @@
  * replacing expensive CPU operations for large distortion grids.
  */
 
-/**
- * Simple insertion sort for small arrays in private memory.
- * More efficient than bitonic sort for very small n.
- */
-inline void insertion_sort_private(__private float* data, int n) {
-    for (int i = 1; i < n; i++) {
-        float key = data[i];
-        int j = i - 1;
-        while (j >= 0 && data[j] > key) {
-            data[j + 1] = data[j];
-            j--;
-        }
-        data[j + 1] = key;
-    }
-}
-
 // Maximum window size supported: 11x11 (halfWindow=5), yielding up to 120 neighbors
 // Uses ~1.9KB private memory per work-item (4 arrays × 120 × 4 bytes)
 #define MAX_NEIGHBORS 120
 
 // Number of histogram bins for approximate median computation
 #define NUM_BINS 512
-
-/**
- * MAD-based outlier removal for distortion grid.
- * Uses local median and MAD (Median Absolute Deviation) to identify
- * and replace outlier displacement values.
- *
- * Supports window sizes up to 23x23 (halfWindow <= 11).
- *
- * Global size: (gridWidth, gridHeight)
- * Local size: should be (1, 1) for this implementation due to private memory usage
- */
-__kernel void mad_filter_grid(
-    __global const float* inputDx,
-    __global const float* inputDy,
-    __global float* outputDx,
-    __global float* outputDy,
-    const int gridWidth,
-    const int gridHeight,
-    const int halfWindow,
-    const float madThreshold
-) {
-    int gx = get_global_id(0);
-    int gy = get_global_id(1);
-    if (gx >= gridWidth || gy >= gridHeight) return;
-
-    int idx = gy * gridWidth + gx;
-    float valueDx = inputDx[idx];
-    float valueDy = inputDy[idx];
-
-    // Collect neighbors into private arrays (one per work-item)
-    // Supports windows up to 23x23 (halfWindow=11)
-    float neighborsDx[MAX_NEIGHBORS];
-    float neighborsDy[MAX_NEIGHBORS];
-    float absDiffDx[MAX_NEIGHBORS];
-    float absDiffDy[MAX_NEIGHBORS];
-
-    int count = 0;
-    for (int ny = gy - halfWindow; ny <= gy + halfWindow; ny++) {
-        if (ny < 0 || ny >= gridHeight) continue;
-        for (int nx = gx - halfWindow; nx <= gx + halfWindow; nx++) {
-            if (nx < 0 || nx >= gridWidth) continue;
-            if (nx == gx && ny == gy) continue;  // Skip self
-            if (count >= MAX_NEIGHBORS) break;  // Safety limit
-            int nidx = ny * gridWidth + nx;
-            neighborsDx[count] = inputDx[nidx];
-            neighborsDy[count] = inputDy[nidx];
-            count++;
-        }
-        if (count >= MAX_NEIGHBORS) break;  // Safety limit
-    }
-
-    if (count == 0) {
-        outputDx[idx] = valueDx;
-        outputDy[idx] = valueDy;
-        return;
-    }
-
-    // Sort to find medians
-    insertion_sort_private(neighborsDx, count);
-    insertion_sort_private(neighborsDy, count);
-
-    float medianDx = neighborsDx[count / 2];
-    float medianDy = neighborsDy[count / 2];
-
-    // Compute absolute deviations
-    for (int i = 0; i < count; i++) {
-        absDiffDx[i] = fabs(neighborsDx[i] - medianDx);
-        absDiffDy[i] = fabs(neighborsDy[i] - medianDy);
-    }
-
-    // Sort absolute deviations to get MAD
-    insertion_sort_private(absDiffDx, count);
-    insertion_sort_private(absDiffDy, count);
-
-    // MAD scaled for normal distribution (1.4826 factor)
-    float madDx = absDiffDx[count / 2] * 1.4826f;
-    float madDy = absDiffDy[count / 2] * 1.4826f;
-
-    // Ensure minimum MAD to avoid division issues
-    madDx = fmax(madDx, 0.1f);
-    madDy = fmax(madDy, 0.1f);
-
-    // Check if current value is an outlier
-    float threshDx = madThreshold * madDx;
-    float threshDy = madThreshold * madDy;
-
-    bool isOutlierDx = fabs(valueDx - medianDx) > threshDx;
-    bool isOutlierDy = fabs(valueDy - medianDy) > threshDy;
-
-    outputDx[idx] = isOutlierDx ? medianDx : valueDx;
-    outputDy[idx] = isOutlierDy ? medianDy : valueDy;
-}
 
 /**
  * Interpolates unsampled points using inverse-distance-squared weighting.

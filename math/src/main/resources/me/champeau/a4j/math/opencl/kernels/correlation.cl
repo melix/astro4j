@@ -319,27 +319,38 @@ float2 subpixel_fit_32(__local float data[32][32], int centerY, int centerX) {
     return (float2)(offsetX, offsetY);
 }
 
-// Compute confidence for 32x32 kernel
-// Must be called by thread (0,0) after peak finding
-float compute_confidence_32(__local float data[32][32], int peakY, int peakX, float peakVal) {
-    // Compute mean
-    float sum = 0.0f;
-    for (int y = 0; y < 32; y++) {
-        for (int x = 0; x < 32; x++) {
-            sum += data[y][x];
-        }
-    }
-    float mean = sum / 1024.0f;
+// Compute confidence for 32x32 kernel using parallel reductions.
+// All 1024 threads must call this together; the returned value is
+// valid on every thread. scratch must hold 1024 floats.
+float compute_confidence_32(__local float data[32][32], __local float* scratch,
+                            int peakY, int peakX, float peakVal,
+                            int localX, int localY) {
+    int linear = localY * 32 + localX;
 
-    // Find second max excluding 3x3 around peak
-    float secondMax = -1e30f;
-    for (int y = 0; y < 32; y++) {
-        for (int x = 0; x < 32; x++) {
-            if (abs(y - peakY) > 1 || abs(x - peakX) > 1) {
-                secondMax = fmax(secondMax, data[y][x]);
-            }
+    // Mean via parallel sum reduction
+    scratch[linear] = data[localY][localX];
+    barrier(CLK_LOCAL_MEM_FENCE);
+    for (int stride = 512; stride > 0; stride >>= 1) {
+        if (linear < stride) {
+            scratch[linear] += scratch[linear + stride];
         }
+        barrier(CLK_LOCAL_MEM_FENCE);
     }
+    float mean = scratch[0] / 1024.0f;
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    // Second max excluding 3x3 around peak, via parallel max reduction
+    bool excluded = abs(localY - peakY) <= 1 && abs(localX - peakX) <= 1;
+    scratch[linear] = excluded ? -1e30f : data[localY][localX];
+    barrier(CLK_LOCAL_MEM_FENCE);
+    for (int stride = 512; stride > 0; stride >>= 1) {
+        if (linear < stride) {
+            scratch[linear] = fmax(scratch[linear], scratch[linear + stride]);
+        }
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+    float secondMax = scratch[0];
+    barrier(CLK_LOCAL_MEM_FENCE);
 
     // Compute PSR and confidence (matches CPU)
     float psr = (peakVal - mean) / (secondMax - mean + 1e-10f);
@@ -375,10 +386,12 @@ __kernel void batched_correlation_32(
     __local int peakY, peakX;
     __local float peakVal;
 
-    // Additional arrays for peak finding reduction
-    __local float rowData[32][32];
-    __local int rowIdx[32][32];
-    __local int rowDistSq[32][32];  // Distance to center for tie-breaking
+    // Peak-finding scratch overlays tgtData/refData, which are dead once
+    // realResult has been filled. This keeps local memory usage low enough
+    // to fit the 32 KB limit of many devices.
+    __local float (*rowData)[32] = (__local float (*)[32]) tgtData;
+    __local int (*rowIdx)[32] = (__local int (*)[32]) (((__local float*) tgtData) + 1024);
+    __local int (*rowDistSq)[32] = (__local int (*)[32]) refData;  // Distance to center for tie-breaking
     __local float colData[32];
     __local int colIdxY[32];
     __local int colIdxX[32];
@@ -449,16 +462,17 @@ __kernel void batched_correlation_32(
                     rowData, rowIdx, rowDistSq, colData, colIdxY, colIdxX, colDistSq, localX, localY);
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    // Subpixel refinement, confidence, and write result (only thread 0,0)
+    // Compute confidence (PSR-based, matches CPU) with all threads participating
+    float confidence = compute_confidence_32(realResult, (__local float*) tgtData,
+                                             peakY, peakX, peakVal, localX, localY);
+
+    // Subpixel refinement and write result (only thread 0,0)
     if (localX == 0 && localY == 0) {
         float2 subpixel = subpixel_fit_32(realResult, peakY, peakX);
 
         float center = 16.0f;
         float dy = (float)peakY - center + subpixel.y;
         float dx = (float)peakX - center + subpixel.x;
-
-        // Compute confidence (PSR-based, matches CPU)
-        float confidence = compute_confidence_32(realResult, peakY, peakX, peakVal);
 
         results[tileIdx * 3] = -dx;
         results[tileIdx * 3 + 1] = -dy;
@@ -522,7 +536,9 @@ __kernel void fft_rows(
             int j = i + mHalf;
 
             float angle = sign * M_PI_F * pos / (float)mHalf;
-            float2 w = (float2)(cos(angle), sin(angle));
+            float c;
+            float s = sincos(angle, &c);
+            float2 w = (float2)(c, s);
 
             float2 a = row[i];
             float2 b = cmul(w, row[j]);
@@ -702,13 +718,11 @@ __kernel void find_peaks(
     int centerX = tileSize / 2;
     int centerY = tileSize / 2;
 
-    // Each thread finds max, sum, and second max among its assigned elements
+    // Each thread finds max and sum among its assigned elements
     float localMax = -1e30f;
     int localIdx = 0;
     int localDistSq = 2147483647;  // INT_MAX
     float localSum = 0.0f;
-    float localSecondMax = -1e30f;
-    int localMaxX = 0, localMaxY = 0;
 
     // First pass: find local max and sum
     for (int i = tid; i < tileElements; i += localSize) {
@@ -723,17 +737,9 @@ __kernel void find_peaks(
 
         // Tie-breaking: prefer peak closer to center
         if (val > localMax || (val == localMax && distSq < localDistSq)) {
-            // Before updating max, save old max as potential second max
-            if (localMax > localSecondMax) {
-                localSecondMax = localMax;
-            }
             localMax = val;
             localIdx = i;
             localDistSq = distSq;
-            localMaxX = x;
-            localMaxY = y;
-        } else if (val > localSecondMax) {
-            localSecondMax = val;
         }
     }
 
@@ -741,7 +747,6 @@ __kernel void find_peaks(
     maxIdxs[tid] = localIdx;
     maxDistSqs[tid] = localDistSq;
     sumVals[tid] = localSum;
-    secondMaxVals[tid] = localSecondMax;
     barrier(CLK_LOCAL_MEM_FENCE);
 
     // Parallel reduction for max (with tie-breaking) and sum
@@ -755,46 +760,45 @@ __kernel void find_peaks(
             // Sum reduction
             sumVals[tid] += sumVals[tid + stride];
 
-            // Track second max during reduction
-            float secA = secondMaxVals[tid];
-            float secB = secondMaxVals[tid + stride];
-            float newSecondMax = fmax(secA, secB);
-
             // Tie-breaking: prefer peak closer to center
             if (valB > valA || (valB == valA && distB < distA)) {
-                // B becomes new max, A might be second max
-                newSecondMax = fmax(newSecondMax, valA);
                 maxVals[tid] = valB;
                 maxIdxs[tid] = maxIdxs[tid + stride];
                 maxDistSqs[tid] = distB;
-            } else {
-                // A stays max, B might be second max
-                newSecondMax = fmax(newSecondMax, valB);
             }
-            secondMaxVals[tid] = newSecondMax;
+        }
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+
+    // Second pass: all threads cooperate to find the second max,
+    // excluding the 3x3 neighborhood around the peak (like CPU does)
+    int peakIdx = maxIdxs[0];
+    int peakY = peakIdx / tileSize;
+    int peakX = peakIdx % tileSize;
+
+    float localSecondMax = -1e30f;
+    for (int i = tid; i < tileElements; i += localSize) {
+        int y = i / tileSize;
+        int x = i % tileSize;
+        if (abs(y - peakY) > 1 || abs(x - peakX) > 1) {
+            localSecondMax = fmax(localSecondMax, data[tileOffset + i]);
+        }
+    }
+    secondMaxVals[tid] = localSecondMax;
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    for (int stride = localSize / 2; stride > 0; stride >>= 1) {
+        if (tid < stride) {
+            secondMaxVals[tid] = fmax(secondMaxVals[tid], secondMaxVals[tid + stride]);
         }
         barrier(CLK_LOCAL_MEM_FENCE);
     }
 
     // Thread 0 computes final result with subpixel refinement and confidence
     if (tid == 0) {
-        int peakIdx = maxIdxs[0];
-        int peakY = peakIdx / tileSize;
-        int peakX = peakIdx % tileSize;
         float peakVal = maxVals[0];
         float mean = sumVals[0] / (float)tileElements;
-
-        // Find true second max excluding 3x3 around peak (like CPU does)
-        float secondMax = -1e30f;
-        for (int i = 0; i < tileElements; i++) {
-            int y = i / tileSize;
-            int x = i % tileSize;
-            // Exclude 3x3 neighborhood around peak
-            if (abs(y - peakY) > 1 || abs(x - peakX) > 1) {
-                float val = data[tileOffset + i];
-                secondMax = fmax(secondMax, val);
-            }
-        }
+        float secondMax = secondMaxVals[0];
 
         // Compute confidence using Peak-to-Sidelobe Ratio (matches CPU)
         float psr = (peakVal - mean) / (secondMax - mean + 1e-10f);
@@ -1116,9 +1120,13 @@ __kernel void batched_ncc_32(
     __local int peakY, peakX;
     __local float peakVal;
 
-    __local float rowData[32][32];
-    __local int rowIdx[32][32];
-    __local int rowDistSq[32][32];
+    // Reduction scratch overlays tgtData/refData: the stats reductions run
+    // before the tiles are loaded into refData/tgtData, and peak finding runs
+    // after both are dead. This keeps local memory usage low enough to fit
+    // the 32 KB limit of many devices.
+    __local float (*rowData)[32] = (__local float (*)[32]) tgtData;
+    __local int (*rowIdx)[32] = (__local int (*)[32]) (((__local float*) tgtData) + 1024);
+    __local int (*rowDistSq)[32] = (__local int (*)[32]) refData;
     __local float colData[32];
     __local int colIdxY[32];
     __local int colIdxX[32];
@@ -1678,9 +1686,13 @@ __kernel void correlate_resident_ncc_32(
     __local int peakY, peakX;
     __local float peakVal;
 
-    __local float rowData[32][32];
-    __local int rowIdx[32][32];
-    __local int rowDistSq[32][32];
+    // Reduction scratch overlays tgtData/refData: the stats reductions run
+    // before the tiles are loaded into refData/tgtData, and peak finding runs
+    // after both are dead. This keeps local memory usage low enough to fit
+    // the 32 KB limit of many devices.
+    __local float (*rowData)[32] = (__local float (*)[32]) tgtData;
+    __local int (*rowIdx)[32] = (__local int (*)[32]) (((__local float*) tgtData) + 1024);
+    __local int (*rowDistSq)[32] = (__local int (*)[32]) refData;
     __local float colData[32];
     __local int colIdxY[32];
     __local int colIdxX[32];

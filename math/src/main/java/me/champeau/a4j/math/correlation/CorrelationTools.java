@@ -39,6 +39,8 @@ import static org.lwjgl.opencl.CL10.CL_MEM_READ_WRITE;
  */
 public class CorrelationTools {
     private static final int MIN_TILES_FOR_GPU = 100;
+    private static final long SINGLE_KERNEL_32_WORK_GROUP_SIZE = 1024;
+    private static final long MULTI_KERNEL_WORK_GROUP_SIZE = 256;
     private static final Map<Integer, float[][]> HANN_WINDOW_CACHE = new ConcurrentHashMap<>();
     private static final CorrelationTools INSTANCE = new CorrelationTools();
 
@@ -96,9 +98,9 @@ public class CorrelationTools {
         int tileSize = refTiles[0].length;
         long maxWorkGroupSize = context.getCapabilities().maxWorkGroupSize();
 
-        if (isSupported(tileSize, maxWorkGroupSize, 32)) {
+        if (supportsSingleKernel32(tileSize, maxWorkGroupSize)) {
             return batchedCorrelationGPU32(context, refTiles, targetTiles, normalize);
-        } else if (isSupported(tileSize, maxWorkGroupSize, 64, 128)) {
+        } else if (supportsMultiKernelPipeline(tileSize, maxWorkGroupSize)) {
             return batchedCorrelationGPULarge(context, refTiles, targetTiles, tileSize, normalize);
         } else {
             return batchedCorrelationCPU(refTiles, targetTiles, normalize);
@@ -370,9 +372,9 @@ public class CorrelationTools {
         int tileSize = refTiles[0].length;
         long maxWorkGroupSize = context.getCapabilities().maxWorkGroupSize();
 
-        if (isSupported(tileSize, maxWorkGroupSize, 32)) {
+        if (supportsSingleKernel32(tileSize, maxWorkGroupSize)) {
             return batchedNCCGPU32(context, refTiles, targetTiles);
-        } else if (isSupported(tileSize, maxWorkGroupSize, 64, 128)) {
+        } else if (supportsMultiKernelPipeline(tileSize, maxWorkGroupSize)) {
             return batchedNCCGPULarge(context, refTiles, targetTiles, tileSize);
         } else {
             return batchedNCCCPU(refTiles, targetTiles);
@@ -827,7 +829,7 @@ public class CorrelationTools {
      * @param imageWidth        image width in pixels
      * @param imageHeight       image height in pixels
      * @param tilePositions     tile center positions as [N][2] array of (x, y) pairs
-     * @param tileSize          tile size (64 or 128)
+     * @param tileSize          tile size (32, 64, or 128)
      * @return displacements [N][3] containing (dx, dy, confidence) per tile
      */
     public float[][] correlateResidentImagesNCCLarge(OpenCLContext context,
@@ -1046,29 +1048,26 @@ public class CorrelationTools {
      * @return true if GPU-resident correlation is supported for this tile size
      */
     public boolean isGpuResidentCorrelationSupported(OpenCLContext context, int tileSize) {
+        return supportsMultiKernelPipeline(tileSize, context.getCapabilities().maxWorkGroupSize());
+    }
+
+    /**
+     * The single-kernel 32x32 implementation requires 32x32 work groups (1024 work items).
+     */
+    private static boolean supportsSingleKernel32(int tileSize, long maxWorkGroupSize) {
+        return tileSize == 32 && maxWorkGroupSize >= SINGLE_KERNEL_32_WORK_GROUP_SIZE;
+    }
+
+    /**
+     * The multi-kernel pipeline uses work groups of 256 (statistics, peak finding)
+     * and of tileSize (row FFTs), so it works on devices with smaller work group
+     * limits, such as Apple Silicon GPUs (256).
+     */
+    private static boolean supportsMultiKernelPipeline(int tileSize, long maxWorkGroupSize) {
         if (tileSize != 32 && tileSize != 64 && tileSize != 128) {
             return false;
         }
-        return context.getCapabilities().maxWorkGroupSize() >= requiredWorkGroupSize(tileSize);
-    }
-
-    private static long requiredWorkGroupSize(int tileSize) {
-        return switch (tileSize) {
-            // 32x32 tiles use 32x32 work groups = 1024 work items
-            case 32 -> 1024;
-            // 64/128 tiles use smaller work groups (256 for statistics passes)
-            case 64, 128 -> 256;
-            default -> throw new IllegalArgumentException("Unsupported tile size: " + tileSize);
-        };
-    }
-
-    private static boolean isSupported(int tileSize, long maxWorkGroupSize, int... supportedTileSizes) {
-        for (int supported : supportedTileSizes) {
-            if (tileSize == supported) {
-                return maxWorkGroupSize >= requiredWorkGroupSize(tileSize);
-            }
-        }
-        return false;
+        return maxWorkGroupSize >= Math.max(MULTI_KERNEL_WORK_GROUP_SIZE, tileSize);
     }
 
     /**
@@ -1092,14 +1091,13 @@ public class CorrelationTools {
                                                 int imageHeight,
                                                 int[][] tilePositions,
                                                 int tileSize) {
+        long maxWorkGroupSize = context.getCapabilities().maxWorkGroupSize();
         if (!isGpuResidentCorrelationSupported(context, tileSize)) {
-            long maxWorkGroupSize = context.getCapabilities().maxWorkGroupSize();
-            long required = requiredWorkGroupSize(tileSize);
             throw new UnsupportedOperationException(
                     String.format("GPU does not support tile size %d: requires work group size %d but device supports max %d",
-                            tileSize, required, maxWorkGroupSize));
+                            tileSize, Math.max(MULTI_KERNEL_WORK_GROUP_SIZE, tileSize), maxWorkGroupSize));
         }
-        if (tileSize == 32) {
+        if (supportsSingleKernel32(tileSize, maxWorkGroupSize)) {
             return correlateResidentImagesNCC32(context, refImageBuffer, targetImageBuffer,
                     imageWidth, imageHeight, tilePositions);
         } else {

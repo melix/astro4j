@@ -54,6 +54,11 @@ public class OpenCLImageMathBenchmark {
     private ImageMath gpuMath;
     private Kernel blurKernel;
     private Kernel sharpenKernel;
+    private Kernel sharpenKernel15;
+    private Kernel nonSeparableKernel15;
+    private Image deconvPsf;
+    private Deconvolution cpuDeconvolution;
+    private Deconvolution gpuDeconvolution;
     private float[][] gridDx;
     private float[][] gridDy;
     private int gridStep;
@@ -65,11 +70,51 @@ public class OpenCLImageMathBenchmark {
         if (openclContext != null) {
             System.out.println("[OpenCL] Using GPU: " + openclContext.getCapabilities().deviceName());
             gpuMath = new OpenCLImageMath(openclContext, 0, 0, false);
+            gpuDeconvolution = new Deconvolution(gpuMath);
         } else {
             System.out.println("[OpenCL] No GPU available, GPU benchmarks will be skipped");
         }
         blurKernel = BlurKernel.of(5);
         sharpenKernel = SharpenKernel.of(3);
+        sharpenKernel15 = SharpenKernel.of(15);
+        nonSeparableKernel15 = randomKernel(15);
+        deconvPsf = Deconvolution.generateGaussianPSF(Deconvolution.DEFAULT_RADIUS, Deconvolution.DEFAULT_SIGMA);
+        cpuDeconvolution = new Deconvolution(cpuMath);
+    }
+
+    private static Kernel randomKernel(int size) {
+        var rand = new Random(42);
+        var data = new float[size][size];
+        for (int y = 0; y < size; y++) {
+            for (int x = 0; x < size; x++) {
+                data[y][x] = rand.nextFloat();
+            }
+        }
+        var kernel = new Kernel() {
+            @Override
+            public int rows() {
+                return size;
+            }
+
+            @Override
+            public int cols() {
+                return size;
+            }
+
+            @Override
+            public float[][] kernel() {
+                return data;
+            }
+
+            @Override
+            public float factor() {
+                return 1f / (size * size);
+            }
+        };
+        if (KernelDecomposition.decompose(kernel).isPresent()) {
+            throw new IllegalStateException("Expected a non-separable kernel");
+        }
+        return kernel;
     }
 
     @TearDown(Level.Trial)
@@ -134,6 +179,42 @@ public class OpenCLImageMathBenchmark {
             return null;
         }
         return gpuMath.convolve(image, sharpenKernel);
+    }
+
+    @Benchmark
+    public Image cpuConvolveSharpen15() {
+        return cpuMath.convolve(image, sharpenKernel15);
+    }
+
+    @Benchmark
+    public Image gpuConvolveSharpen15() {
+        if (gpuMath == null) {
+            return null;
+        }
+        return gpuMath.convolve(image, sharpenKernel15);
+    }
+
+    @Benchmark
+    public Image gpuConvolve15x15NonSeparable() {
+        if (gpuMath == null) {
+            return null;
+        }
+        return gpuMath.convolve(image, nonSeparableKernel15);
+    }
+
+    // ========== Richardson-Lucy Deconvolution Benchmarks ==========
+
+    @Benchmark
+    public Image cpuRichardsonLucy10() {
+        return cpuDeconvolution.richardsonLucy(image, deconvPsf, 10);
+    }
+
+    @Benchmark
+    public Image gpuRichardsonLucy10() {
+        if (gpuDeconvolution == null) {
+            return null;
+        }
+        return gpuDeconvolution.richardsonLucy(image, deconvPsf, 10);
     }
 
     // ========== Rotation Benchmarks ==========

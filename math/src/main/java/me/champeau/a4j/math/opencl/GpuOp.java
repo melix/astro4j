@@ -20,6 +20,9 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Scoped GPU operation: tracks the buffers allocated through it and releases
@@ -50,8 +53,17 @@ public final class GpuOp implements AutoCloseable {
     private final Deque<Long> ownedBuffers = new ArrayDeque<>();
     private final Deque<KernelHandle> borrowedKernels = new ArrayDeque<>();
 
+    private final GpuOperationEvent event = new GpuOperationEvent();
+    private final Map<String, Integer> kernelLaunches = new LinkedHashMap<>();
+    private long bytesUploaded;
+    private long bytesDownloaded;
+    private long bytesAllocated;
+    private int buffersAllocated;
+    private int launches;
+
     GpuOp(OpenCLContext context) {
         this.context = context;
+        event.begin();
     }
 
     OpenCLContext getContext() {
@@ -76,6 +88,8 @@ public final class GpuOp implements AutoCloseable {
     public long allocateBuffer(int sizeInBytes, long flags) {
         long buffer = context.allocateBuffer(sizeInBytes, flags);
         ownedBuffers.push(buffer);
+        bytesAllocated += sizeInBytes;
+        buffersAllocated++;
         return buffer;
     }
 
@@ -84,6 +98,7 @@ public final class GpuOp implements AutoCloseable {
      */
     public void write(long buffer, float[] data) {
         context.writeBuffer(buffer, data);
+        bytesUploaded += data.length * (long) Float.BYTES;
     }
 
     /**
@@ -91,6 +106,7 @@ public final class GpuOp implements AutoCloseable {
      */
     public void writeInts(long buffer, int[] data) {
         context.writeBufferInt(buffer, data);
+        bytesUploaded += data.length * (long) Integer.BYTES;
     }
 
     /**
@@ -99,6 +115,7 @@ public final class GpuOp implements AutoCloseable {
      */
     public void read(long buffer, float[] data) {
         context.readBuffer(buffer, data);
+        bytesDownloaded += data.length * (long) Float.BYTES;
     }
 
     /**
@@ -106,6 +123,14 @@ public final class GpuOp implements AutoCloseable {
      */
     public void readInts(long buffer, int[] data) {
         context.readBufferInt(buffer, data);
+        bytesDownloaded += data.length * (long) Integer.BYTES;
+    }
+
+    void recordKernelLaunch(String programName, String kernelName) {
+        launches++;
+        if (event.isEnabled()) {
+            kernelLaunches.merge(programName + "." + kernelName, 1, Integer::sum);
+        }
     }
 
     /**
@@ -154,6 +179,18 @@ public final class GpuOp implements AutoCloseable {
                 // doesn't leak the rest. The OpenCLContext records the error.
                 LOGGER.error("releaseBuffer failed", e);
             }
+        }
+        event.end();
+        if (event.shouldCommit()) {
+            event.kernels = kernelLaunches.entrySet().stream()
+                    .map(e -> e.getValue() == 1 ? e.getKey() : e.getKey() + " x" + e.getValue())
+                    .collect(Collectors.joining(", "));
+            event.kernelLaunches = launches;
+            event.bytesUploaded = bytesUploaded;
+            event.bytesDownloaded = bytesDownloaded;
+            event.bytesAllocated = bytesAllocated;
+            event.buffersAllocated = buffersAllocated;
+            event.commit();
         }
     }
 }
