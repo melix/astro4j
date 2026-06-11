@@ -47,7 +47,10 @@ import static org.lwjgl.opencl.CL10.clSetKernelArg1p;
  */
 public final class KernelCall {
 
+    private final GpuOp op;
     private final OpenCLContext context;
+    private final String programName;
+    private final String kernelName;
     private final long kernel;
     private int nextArg;
     private long[] globalWorkSize;
@@ -55,7 +58,10 @@ public final class KernelCall {
     private boolean done;
 
     KernelCall(GpuOp op, String programName, String kernelName) {
+        this.op = op;
         this.context = op.getContext();
+        this.programName = programName;
+        this.kernelName = kernelName;
         this.kernel = context.getKernelManager().borrow(programName, kernelName);
         op.trackKernel(programName, kernelName, this.kernel);
     }
@@ -158,6 +164,7 @@ public final class KernelCall {
             check(err, "clEnqueueNDRangeKernel");
         }
         done = true;
+        op.recordKernelLaunch(programName, kernelName);
     }
 
     /**

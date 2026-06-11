@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.math.image;
 
+import me.champeau.a4j.math.opencl.GpuOp;
 import me.champeau.a4j.math.opencl.OpenCLContext;
 import me.champeau.a4j.math.opencl.OpenCLException;
 import org.lwjgl.BufferUtils;
@@ -248,25 +249,128 @@ class OpenCLImageMath extends VectorApiImageMath {
         var n = width * height;
         var flatImage = flatten(image.data(), width, height);
 
-        var krows = kernel.kernel();
-        var kHeight = krows.length;
-        var kWidth = krows[0].length;
-        var flatKernel = flattenKernel(krows, kWidth, kHeight);
-
         return context.runOp(op -> {
+            var plan = prepareConvolutionPlan(op, kernel);
             var imageBuffer = op.allocateBuffer(n * Float.BYTES, CL_MEM_READ_ONLY);
-            var kernelBuffer = op.allocateBuffer(flatKernel.length * Float.BYTES, CL_MEM_READ_ONLY);
-            var outputBuffer = op.allocateBuffer(n * Float.BYTES, CL_MEM_WRITE_ONLY);
             op.write(imageBuffer, flatImage);
-            op.write(kernelBuffer, flatKernel);
-            op.kernel("convolution", "convolve2d")
-                    .arg(imageBuffer).arg(kernelBuffer).arg(outputBuffer)
-                    .arg(width).arg(height).arg(kWidth).arg(kHeight).arg(kernel.factor())
-                    .run(width, height);
+            long tempBuffer = plan.separable() ? op.allocateBuffer(n * Float.BYTES, CL_MEM_READ_WRITE) : 0;
+            var outputBuffer = op.allocateBuffer(n * Float.BYTES, CL_MEM_READ_WRITE);
+            enqueueConvolution(op, plan, imageBuffer, tempBuffer, outputBuffer, width, height);
             var result = new float[n];
             op.read(outputBuffer, result);
             return image.withData(unflatten(result, width, height));
         });
+    }
+
+    /**
+     * GPU buffers and metadata for one convolution kernel within a
+     * {@link GpuOp}. Either the separable row/col term buffers are set, or
+     * the flat 2D kernel buffer.
+     */
+    private record GpuConvolutionPlan(float factor, int kernelWidth, int kernelHeight,
+                                      long[] rowBuffers, long[] colBuffers, long kernel2d) {
+        boolean separable() {
+            return rowBuffers != null;
+        }
+    }
+
+    private GpuConvolutionPlan prepareConvolutionPlan(GpuOp op, Kernel kernel) {
+        var krows = kernel.kernel();
+        var kHeight = krows.length;
+        var kWidth = krows[0].length;
+        var decomposition = KernelDecomposition.decompose(kernel)
+                .filter(d -> d.cheaperThan2D(kWidth, kHeight));
+        if (decomposition.isPresent()) {
+            var terms = decomposition.get().terms();
+            var rowBuffers = new long[terms.size()];
+            var colBuffers = new long[terms.size()];
+            for (int t = 0; t < terms.size(); t++) {
+                var term = terms.get(t);
+                rowBuffers[t] = op.allocateBuffer(term.row().length * Float.BYTES, CL_MEM_READ_ONLY);
+                colBuffers[t] = op.allocateBuffer(term.col().length * Float.BYTES, CL_MEM_READ_ONLY);
+                op.write(rowBuffers[t], term.row());
+                op.write(colBuffers[t], term.col());
+            }
+            return new GpuConvolutionPlan(kernel.factor(), kWidth, kHeight, rowBuffers, colBuffers, 0);
+        }
+        var flatKernel = flattenKernel(krows, kWidth, kHeight);
+        var kernelBuffer = op.allocateBuffer(flatKernel.length * Float.BYTES, CL_MEM_READ_ONLY);
+        op.write(kernelBuffer, flatKernel);
+        return new GpuConvolutionPlan(kernel.factor(), kWidth, kHeight, null, null, kernelBuffer);
+    }
+
+    private void enqueueConvolution(GpuOp op, GpuConvolutionPlan plan, long input, long temp, long output, int width, int height) {
+        if (!plan.separable()) {
+            op.kernel("convolution", "convolve2d")
+                    .arg(input).arg(plan.kernel2d()).arg(output)
+                    .arg(width).arg(height).arg(plan.kernelWidth()).arg(plan.kernelHeight()).arg(plan.factor())
+                    .run(width, height);
+            return;
+        }
+        int last = plan.rowBuffers().length - 1;
+        for (int t = 0; t <= last; t++) {
+            op.kernel("convolution", "convolve1d_horizontal")
+                    .arg(input).arg(plan.rowBuffers()[t]).arg(temp)
+                    .arg(width).arg(height).arg(plan.kernelWidth())
+                    .run(width, height);
+            op.kernel("convolution", "convolve1d_vertical")
+                    .arg(temp).arg(plan.colBuffers()[t]).arg(output)
+                    .arg(width).arg(height).arg(plan.kernelHeight()).arg(plan.factor())
+                    .arg(t > 0 ? 1 : 0).arg(t == last ? 1 : 0)
+                    .run(width, height);
+        }
+    }
+
+    /**
+     * Richardson-Lucy deconvolution with the estimate resident on the GPU
+     * across iterations: the image and PSF are uploaded once and only the
+     * final estimate is downloaded, instead of a full image round-trip per
+     * convolution. Semantics match {@link Deconvolution#richardsonLucy}.
+     */
+    Image richardsonLucy(Image image, Image psf, int iterations) {
+        var psfFlipped = super.mirror(psf, false, true);
+        var psfKernel = ImageKernel.of(psf);
+        var psfFlippedKernel = ImageKernel.of(psfFlipped);
+        var width = image.width();
+        var height = image.height();
+        var n = width * height;
+        var flatImage = flatten(image.data(), width, height);
+
+        return context.runOp(op -> {
+            var psfPlan = prepareConvolutionPlan(op, psfKernel);
+            var psfFlippedPlan = prepareConvolutionPlan(op, psfFlippedKernel);
+            var imageBuffer = op.allocateBuffer(n * Float.BYTES, CL_MEM_READ_ONLY);
+            var estimateBuffer = op.allocateBuffer(n * Float.BYTES, CL_MEM_READ_WRITE);
+            var convBuffer = op.allocateBuffer(n * Float.BYTES, CL_MEM_READ_WRITE);
+            var ratioBuffer = op.allocateBuffer(n * Float.BYTES, CL_MEM_READ_WRITE);
+            var tempBuffer = op.allocateBuffer(n * Float.BYTES, CL_MEM_READ_WRITE);
+            op.write(imageBuffer, flatImage);
+            op.write(estimateBuffer, flatImage);
+
+            for (int i = 0; i < iterations; i++) {
+                enqueueConvolution(op, psfPlan, estimateBuffer, tempBuffer, convBuffer, width, height);
+                op.kernel("deconvolution", "rl_ratio")
+                        .arg(imageBuffer).arg(convBuffer).arg(ratioBuffer)
+                        .arg(Deconvolution.EPSILON).arg(n)
+                        .run(n);
+                enqueueConvolution(op, psfFlippedPlan, ratioBuffer, tempBuffer, convBuffer, width, height);
+                op.kernel("deconvolution", "rl_update")
+                        .arg(estimateBuffer).arg(convBuffer).arg(n)
+                        .run(n);
+            }
+
+            var result = new float[n];
+            op.read(estimateBuffer, result);
+            return new Image(width, height, unflatten(result, width, height));
+        });
+    }
+
+    boolean supportsResidentDeconvolution(Image image) {
+        return shouldUseGPUForConvolution(image);
+    }
+
+    boolean allowsFallback() {
+        return allowFallback;
     }
 
     private void setKernelArgs(long kernel, long inputBuffer, float scalar, long outputBuffer, int n) {

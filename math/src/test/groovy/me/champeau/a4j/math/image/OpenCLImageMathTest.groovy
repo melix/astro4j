@@ -256,6 +256,52 @@ class OpenCLImageMathTest extends Specification {
         100   | 200    | Kernel33.GAUSSIAN_BLUR
     }
 
+    def "separable convolution with large kernels produces same results as CPU implementation"() {
+        given:
+        def image = createTestImage(width, height)
+
+        when:
+        def gpuResult = openclMath.convolve(image, kernel)
+        def cpuResult = referenceMath.convolve(image, kernel)
+
+        then:
+        // these kernels take the separable (low-rank) path; tolerance is wider
+        // than for 3x3 kernels because the summation order differs from the CPU
+        compareImages(gpuResult, cpuResult, 0.5f)
+
+        where:
+        width | height | kernel
+        256   | 256    | ImageKernel.of(Deconvolution.generateGaussianPSF(2.5d, 2.5d))
+        256   | 256    | ImageKernel.of(Deconvolution.generateGaussianPSF(7.5d, 5.0d))
+        256   | 256    | SharpenKernel.of(7)
+        256   | 256    | SharpenKernel.of(15)
+        300   | 200    | SharpenKernel.of(9)
+        256   | 256    | gaussianKernel(11, 2.0d)
+    }
+
+    def "non-separable kernel uses the 2D path and matches CPU implementation"() {
+        given:
+        def image = createTestImage(256, 256)
+        def random = new Random(42)
+        def data = new float[5][5]
+        for (int y = 0; y < 5; y++) {
+            for (int x = 0; x < 5; x++) {
+                data[y][x] = random.nextFloat()
+            }
+        }
+        def kernel = new ArrayKernel(data, 0.04f)
+
+        expect:
+        KernelDecomposition.decompose(kernel).empty
+
+        when:
+        def gpuResult = openclMath.convolve(image, kernel)
+        def cpuResult = referenceMath.convolve(image, kernel)
+
+        then:
+        compareImages(gpuResult, cpuResult, 0.05f)
+    }
+
     def "convolution with identity kernel produces similar image"() {
         given:
         def image = createTestImage(128, 128, 1000f)
@@ -570,7 +616,140 @@ class OpenCLImageMathTest extends Specification {
         !hasNaN(convResult)
     }
 
+    // ==================== DEDISTORT TESTS ====================
+
+    def "dedistort with zero displacement grid reproduces input (lanczos=#useLanczos)"() {
+        given:
+        def image = createSmoothTestImage(256, 256)
+        int gridStep = 16
+        int gridWidth = (int) (256 / gridStep) + 2
+        int gridHeight = (int) (256 / gridStep) + 2
+        def gridDx = new float[gridHeight][gridWidth]
+        def gridDy = new float[gridHeight][gridWidth]
+
+        when:
+        def gpuResult = openclMath.dedistort(image, gridDx, gridDy, gridStep, useLanczos)
+
+        then:
+        compareImages(gpuResult, image, 0.05f)
+
+        where:
+        useLanczos << [true, false]
+    }
+
+    def "dedistort produces same results as CPU implementation (lanczos=#useLanczos)"() {
+        given:
+        def image = createSmoothTestImage(256, 256)
+        int gridStep = 16
+        int gridWidth = (int) (256 / gridStep) + 2
+        int gridHeight = (int) (256 / gridStep) + 2
+        def gridDx = new float[gridHeight][gridWidth]
+        def gridDy = new float[gridHeight][gridWidth]
+        for (int y = 0; y < gridHeight; y++) {
+            for (int x = 0; x < gridWidth; x++) {
+                gridDx[y][x] = (float) (2.5 * Math.sin(x * 0.5) * Math.cos(y * 0.3))
+                gridDy[y][x] = (float) (2.5 * Math.cos(x * 0.4) * Math.sin(y * 0.6))
+            }
+        }
+
+        when:
+        def gpuResult = openclMath.dedistort(image, gridDx, gridDy, gridStep, useLanczos)
+        def cpuResult = referenceMath.dedistort(image, gridDx, gridDy, gridStep, useLanczos)
+
+        then:
+        compareImages(gpuResult, cpuResult, 0.5f)
+
+        where:
+        useLanczos << [true, false]
+    }
+
+    // ==================== RICHARDSON-LUCY DECONVOLUTION TESTS ====================
+
+    def "resident richardson-lucy deconvolution produces same results as CPU implementation (#iterations iterations)"() {
+        given:
+        def image = createSmoothTestImage(256, 256)
+        def psf = Deconvolution.generateGaussianPSF(2.5d, 2.5d)
+        def cpuDeconvolution = new Deconvolution(referenceMath)
+
+        when:
+        def gpuResult = openclMath.richardsonLucy(image, psf, iterations)
+        def cpuResult = cpuDeconvolution.richardsonLucy(image, psf, iterations)
+
+        then:
+        compareImages(gpuResult, cpuResult, tolerance)
+
+        where:
+        iterations | tolerance
+        1          | 0.5f
+        5          | 1.0f
+        15         | 2.0f
+    }
+
+    def "deconvolution dispatches to the resident GPU implementation"() {
+        given:
+        def image = createSmoothTestImage(256, 256)
+        def psf = Deconvolution.generateGaussianPSF(2.5d, 2.5d)
+
+        when:
+        def dispatched = new Deconvolution(openclMath).richardsonLucy(image, psf, 5)
+        def direct = openclMath.richardsonLucy(image, psf, 5)
+
+        then:
+        openclMath.supportsResidentDeconvolution(image)
+        compareImages(dispatched, direct, 0.001f)
+    }
+
     // ==================== HELPER METHODS ====================
+
+    private static Kernel gaussianKernel(int size, double sigma) {
+        def g = new double[size]
+        def center = (size - 1) / 2.0d
+        double sum = 0
+        for (int i = 0; i < size; i++) {
+            g[i] = Math.exp(-(i - center) * (i - center) / (2 * sigma * sigma))
+            sum += g[i]
+        }
+        def data = new float[size][size]
+        for (int y = 0; y < size; y++) {
+            for (int x = 0; x < size; x++) {
+                data[y][x] = (float) (g[y] * g[x])
+            }
+        }
+        return new ArrayKernel(data, (float) (1.0d / (sum * sum)))
+    }
+
+    private static class ArrayKernel implements Kernel {
+        private final float[][] data
+        private final float factor
+
+        ArrayKernel(float[][] data, float factor) {
+            this.data = data
+            this.factor = factor
+        }
+
+        @Override
+        int rows() { return data.length }
+
+        @Override
+        int cols() { return data[0].length }
+
+        @Override
+        float[][] kernel() { return data }
+
+        @Override
+        float factor() { return factor }
+    }
+
+
+    private static Image createSmoothTestImage(int width, int height) {
+        var data = new float[height][width]
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                data[y][x] = (float) (30000 + 25000 * Math.sin(x * 0.05) * Math.cos(y * 0.07))
+            }
+        }
+        return new Image(width, height, data)
+    }
 
     private static Image createTestImage(int width, int height, float baseValue = 0f) {
         var data = new float[height][width]

@@ -15,12 +15,14 @@
  */
 package me.champeau.a4j.math.image;
 
+import me.champeau.a4j.math.opencl.OpenCLException;
+
 /**
  * This class implements deconvolution algorithms.
  * In particular, it adds support for Richardson-Lucy deconvolution.
  */
 public class Deconvolution {
-    private static final float EPSILON = 1e-7f;
+    static final float EPSILON = 1e-7f;
     private static final int MAX_VALUE = 65535;
 
     /** Default PSF radius. */
@@ -74,6 +76,15 @@ public class Deconvolution {
      * @return the deconvolved image
      */
     public Image richardsonLucy(Image image, Image psf, int iterations) {
+        if (imageMath instanceof OpenCLImageMath openclMath && openclMath.supportsResidentDeconvolution(image)) {
+            try {
+                return openclMath.richardsonLucy(image, psf, iterations);
+            } catch (OpenCLException e) {
+                if (!openclMath.allowsFallback()) {
+                    throw e;
+                }
+            }
+        }
         var estimate = image;
         var psfFlipped = imageMath.mirror(psf, false, true);
         var psfKernel = ImageKernel.of(psf);

@@ -69,6 +69,8 @@ inline float bilinear_sample(
 }
 
 // Lanczos-3 interpolation (high quality, slower)
+// The 2D kernel is separable: weights are computed once per row/column
+// instead of once per tap, which divides the transcendental call count by 6.
 inline float lanczos_sample(
     __global const float* image,
     float xx, float yy,
@@ -77,16 +79,27 @@ inline float lanczos_sample(
     int x0 = (int)floor(xx);
     int y0 = (int)floor(yy);
 
+    float wx[2 * LANCZOS_A];
+    float wy[2 * LANCZOS_A];
+    for (int t = 0; t < 2 * LANCZOS_A; t++) {
+        wx[t] = lanczos_weight(xx - (x0 - LANCZOS_A + 1 + t));
+        wy[t] = lanczos_weight(yy - (y0 - LANCZOS_A + 1 + t));
+    }
+
     float sum = 0.0f;
     float weightSum = 0.0f;
 
-    for (int j = y0 - LANCZOS_A + 1; j <= y0 + LANCZOS_A; j++) {
-        for (int i = x0 - LANCZOS_A + 1; i <= x0 + LANCZOS_A; i++) {
-            if (i >= 0 && i < width && j >= 0 && j < height) {
-                float wx = lanczos_weight(xx - i);
-                float wy = lanczos_weight(yy - j);
-                float w = wx * wy;
-                sum += image[j * width + i] * w;
+    for (int tj = 0; tj < 2 * LANCZOS_A; tj++) {
+        int j = y0 - LANCZOS_A + 1 + tj;
+        if (j < 0 || j >= height) {
+            continue;
+        }
+        int rowOffset = j * width;
+        for (int ti = 0; ti < 2 * LANCZOS_A; ti++) {
+            int i = x0 - LANCZOS_A + 1 + ti;
+            if (i >= 0 && i < width) {
+                float w = wx[ti] * wy[tj];
+                sum += image[rowOffset + i] * w;
                 weightSum += w;
             }
         }
@@ -131,71 +144,6 @@ inline float bicubic_grid_sample(
         }
     }
     return result;
-}
-
-/**
- * Dedistort kernel using a dense displacement map (precomputed on CPU).
- * Each pixel looks up its displacement directly from dx_map/dy_map.
- */
-__kernel void dedistort_dense_bilinear(
-    __global const float* input,
-    __global const float* dx_map,
-    __global const float* dy_map,
-    __global float* output,
-    int width,
-    int height
-) {
-    int x = get_global_id(0);
-    int y = get_global_id(1);
-
-    if (x >= width || y >= height) {
-        return;
-    }
-
-    int idx = y * width + x;
-    float dx = dx_map[idx];
-    float dy = dy_map[idx];
-
-    float srcX = x + dx;
-    float srcY = y + dy;
-
-    if (srcX >= 0 && srcX < width && srcY >= 0 && srcY < height) {
-        output[idx] = bilinear_sample(input, srcX, srcY, width, height);
-    } else {
-        output[idx] = 0.0f;
-    }
-}
-
-/**
- * Dedistort kernel using a dense displacement map with Lanczos-3 interpolation.
- */
-__kernel void dedistort_dense_lanczos(
-    __global const float* input,
-    __global const float* dx_map,
-    __global const float* dy_map,
-    __global float* output,
-    int width,
-    int height
-) {
-    int x = get_global_id(0);
-    int y = get_global_id(1);
-
-    if (x >= width || y >= height) {
-        return;
-    }
-
-    int idx = y * width + x;
-    float dx = dx_map[idx];
-    float dy = dy_map[idx];
-
-    float srcX = x + dx;
-    float srcY = y + dy;
-
-    if (srcX >= 0 && srcX < width && srcY >= 0 && srcY < height) {
-        output[idx] = lanczos_sample(input, srcX, srcY, width, height);
-    } else {
-        output[idx] = 0.0f;
-    }
 }
 
 /**
