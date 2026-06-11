@@ -27,6 +27,7 @@ import me.champeau.a4j.jsolex.expr.ast.NumericalLiteral;
 import me.champeau.a4j.jsolex.expr.ast.Section;
 import me.champeau.a4j.jsolex.expr.ast.StringLiteral;
 import me.champeau.a4j.jsolex.expr.ast.UnaryExpression;
+import me.champeau.a4j.jsolex.processing.util.CancellationSupport;
 
 import java.util.List;
 
@@ -93,6 +94,7 @@ public abstract class ExpressionEvaluator {
     }
 
     protected Object doEvaluate(Node expression) {
+        CancellationSupport.checkCancelled();
         if (expression instanceof StringLiteral literal) {
             return literal.toString();
         }
@@ -136,8 +138,9 @@ public abstract class ExpressionEvaluator {
                     var useParallel = args.size() > 1
                             && args.stream().anyMatch(arg -> arg.getFirst() instanceof FunctionCall)
                             && !containsNonConcurrentFunction(args);
+                    var cancelFlag = CancellationSupport.currentFlag();
                     var evaluatedArgs = useParallel
-                            ? args.parallelStream().map(this::doEvaluate).toList()
+                            ? args.parallelStream().map(arg -> CancellationSupport.callWith(cancelFlag, () -> doEvaluate(arg))).toList()
                             : args.stream().map(this::doEvaluate).toList();
                     return functionCall(fun, fun.mapPositionalArguments(evaluatedArgs));
                 }
@@ -147,12 +150,13 @@ public abstract class ExpressionEvaluator {
                             .map(arg -> (NamedArgument) arg.getFirst())
                             .anyMatch(namedArg -> namedArg.children().getLast() instanceof FunctionCall)
                             && !containsNonConcurrentFunctionInNamedArgs(args);
+                    var cancelFlag = CancellationSupport.currentFlag();
                     var stream = useParallel ? args.parallelStream() : args.stream();
                     var map = stream
                             .map(arg -> (NamedArgument) arg.getFirst())
                             .map(namedArg -> new Object() {
                                 private final String name = namedArg.children().getFirst().toString();
-                                private final Object value = doEvaluate(namedArg.children().getLast());
+                                private final Object value = CancellationSupport.callWith(cancelFlag, () -> doEvaluate(namedArg.children().getLast()));
                             })
                             .collect(Collectors.toMap(o -> o.name, o -> o.value, (e1, e2) -> e1, LinkedHashMap::new));
                     return functionCall(fun, map);

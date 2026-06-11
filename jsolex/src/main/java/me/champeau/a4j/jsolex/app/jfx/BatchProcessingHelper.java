@@ -33,6 +33,7 @@ import me.champeau.a4j.jsolex.processing.spectrum.ReferenceIntensities;
 import me.champeau.a4j.jsolex.processing.spectrum.SerFileTrimmer;
 import me.champeau.a4j.jsolex.processing.sun.TrimmingParameters;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
+import me.champeau.a4j.jsolex.processing.util.CancellationSupport;
 import me.champeau.a4j.ser.Header;
 
 import java.io.File;
@@ -74,6 +75,8 @@ public final class BatchProcessingHelper {
         void updateProgress(ProgressOperation operation);
 
         void hideProgress();
+
+        void suppressProgress();
 
         void processSingleFile(ProcessParams params,
                                ProgressOperation operation,
@@ -159,7 +162,7 @@ public final class BatchProcessingHelper {
             interruptButton.setDisable(true);
             BackgroundOperations.interrupt();
             batchThread.interrupt();
-            context.hideProgress();
+            context.suppressProgress();
             FxUtils.runLater(() -> context.setImageMathRunDisabled(false));
         });
     }
@@ -218,7 +221,7 @@ public final class BatchProcessingHelper {
                                       AtomicBoolean interrupted,
                                       boolean autoTrimSerFile,
                                       Runnable onComplete) {
-        var batchThread = new Thread(() -> {
+        var batchThread = new Thread(() -> CancellationSupport.runWith(interrupted, () -> {
             // Eagerly initialize ReferenceIntensities to avoid virtual thread
             // pinning when all batch threads trigger class loading simultaneously
             var unused = ReferenceIntensities.INSTANCE;
@@ -258,7 +261,7 @@ public final class BatchProcessingHelper {
                                 reconstructionSemaphore.release();
                             }
                         };
-                        executor.submit(() -> {
+                        executor.submit(() -> CancellationSupport.runWith(interrupted, () -> {
                             try {
                                 processFile(
                                         context,
@@ -277,13 +280,13 @@ public final class BatchProcessingHelper {
                                 totalInFlightSemaphore.release();
                                 context.updateProgress(singleOperation.complete());
                             }
-                        });
+                        }));
                     }
                 }
             } finally {
                 onComplete.run();
             }
-        });
+        }));
         batchThread.start();
         return batchThread;
     }
@@ -298,6 +301,9 @@ public final class BatchProcessingHelper {
                              AtomicBoolean interrupted,
                              boolean autoTrimSerFile,
                              Runnable onReconstructionComplete) {
+        if (interrupted.get()) {
+            return;
+        }
         context.processSingleFile(params, operation, selectedFile, sequenceNumber, batchContext, header, onReconstructionComplete, () -> {
             if (autoTrimSerFile && !interrupted.get()) {
                 var trimmingParams = context.getTrimmingParameters();

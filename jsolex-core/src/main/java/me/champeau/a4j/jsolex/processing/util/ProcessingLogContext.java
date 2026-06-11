@@ -94,11 +94,12 @@ public final class ProcessingLogContext {
     }
 
     private static Runnable wrap(Runnable task) {
+        var cancellable = CancellationSupport.propagate(task);
         var fileId = currentFileId();
         if (fileId.isEmpty()) {
-            return task;
+            return cancellable;
         }
         int id = fileId.getAsInt();
-        return () -> runWith(id, task);
+        return () -> runWith(id, cancellable);
     }
 }
