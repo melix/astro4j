@@ -899,6 +899,25 @@ In all cases, it is recommended to start without correction and verify the resul
 </table>
 </div>
 </div>
+<div class="sect3">
+<h4 id="_mount_oscillations_correction">Mount Oscillations Correction</h4>
+<div class="paragraph">
+<p>This is an experimental feature available since JSol&#8217;Ex 5.3.2.
+Some mounts exhibit a regular, periodic oscillation during the scan, which shows up as a sinusoidal wave pattern on the solar limb.
+While jagged edges correction can reduce this defect, it corrects each line independently, which makes it sensitive to noise and can introduce artifacts.</p>
+</div>
+<div class="paragraph">
+<p>The mount oscillations correction instead performs a spectral analysis of the limb position to find the dominant oscillation frequencies, then fits a model of the displacement and applies it to the whole image.
+The model is a sinusoid when the oscillation is stable, or a smoothed displacement curve when its period or amplitude drifts during the scan.
+Because the correction is driven by a global model rather than per-line measurements, it is insensitive to per-line detection noise, and it can also correct lines where the limb cannot be measured reliably, for example near the poles or outside of the disk.</p>
+</div>
+<div class="paragraph">
+<p>If no significant periodic oscillation is detected, no correction is applied.
+The detected amplitude and period are written to the log, which can help diagnosing the mount.
+When debug images are enabled, a graph is also generated, showing the measured limb shift, the fitted oscillation model and the residual shift after correction.
+Both corrections can be enabled together: in this case the oscillation is removed first, and the jagged edges correction only deals with the remaining random defects.</p>
+</div>
+</div>
 </div>
 <div class="sect2">
 <h3 id="_observation_details">Observation details</h3>
