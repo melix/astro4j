@@ -87,12 +87,14 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.SpectralLinePolynomial;
 import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
 import me.champeau.a4j.jsolex.processing.sun.workflow.TruncatedDisk;
 import me.champeau.a4j.jsolex.processing.sun.workflow.WorkflowResults;
+import me.champeau.a4j.jsolex.processing.util.CancellationSupport;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.LocaleUtils;
+import me.champeau.a4j.jsolex.processing.util.LoggingSupport;
 import me.champeau.a4j.jsolex.processing.util.MemoryAwareStreams;
 import me.champeau.a4j.jsolex.processing.util.ProcessingLogContext;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
@@ -355,6 +357,9 @@ public class SolexVideoProcessor implements Broadcaster {
 
     private void broadcastError(Throwable ex) {
         String trace = logError(ex);
+        if (LoggingSupport.isProcessingCancelled(ex)) {
+            return;
+        }
         broadcast(new NotificationEvent(new Notification(Notification.AlertType.ERROR, message("unexpected.error"), message("error.during.processing"), trace)));
     }
 
@@ -464,6 +469,7 @@ public class SolexVideoProcessor implements Broadcaster {
             }
 
             for (int i = 0; i < batches.size(); i++) {
+                CancellationSupport.checkCancelled();
                 var batch = batches.get(i);
                 LOGGER.info(message("processing.batch"), i + 1, batches.size());
                 try {
@@ -538,6 +544,7 @@ public class SolexVideoProcessor implements Broadcaster {
             try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
                 var futures = runnables.stream()
                         .map(task -> ProcessingLogContext.runAsync(executor, () -> {
+                            CancellationSupport.checkCancelled();
                             broadcast(generationOperation.update(((double) progress.get()) / runnables.size()));
                             try {
                                 task.run();
@@ -707,6 +714,7 @@ public class SolexVideoProcessor implements Broadcaster {
         // has its own emitter, results map, and metadata. Run them concurrently
         // when the heap can afford the parallel working set.
         imageList.forEach(i -> {
+                    CancellationSupport.checkCancelled();
                     initialFit.ifPresent(e -> i.recordResult(WorkflowResults.INITIAL_ELLIPSE_FITTING, e));
                     double pg = ((double) progress.incrementAndGet()) / imageList.size();
                     prepareImageForCorrections(i, header, initialFit.orElse(null), imageEmitterFactory.newEmitter(this, outputDirectory));
@@ -728,13 +736,15 @@ public class SolexVideoProcessor implements Broadcaster {
         // only to its own state. Run them concurrently when heap permits — this
         // is the dominant single-file throughput win.
         var fileId = ProcessingLogContext.currentFileId();
+        var cancelFlag = CancellationSupport.currentFlag();
         MemoryAwareStreams.maybeParallel(IntStream.range(0, imageList.size()))
                 .mapToObj(i -> new Object() {
                     private final WorkflowState state = imageList.get(i);
                     private final int step = i;
                 })
                 .forEach(o -> {
-                    Runnable body = () -> {
+                    Runnable workflowBody = () -> {
+                        CancellationSupport.checkCancelled();
                         broadcast(generationOperation.update(((double) progress.get()) / imageList.size()));
                         var state = o.state;
                         var step = o.step;
@@ -743,6 +753,7 @@ public class SolexVideoProcessor implements Broadcaster {
                         workflow.start();
                         broadcast(generationOperation.update(((double) progress.incrementAndGet()) / imageList.size()));
                     };
+                    Runnable body = () -> CancellationSupport.runWith(cancelFlag, workflowBody);
                     fileId.ifPresentOrElse(id -> ProcessingLogContext.runWith(id, body), body);
                 });
         broadcast(generationOperation.complete());
@@ -1623,6 +1634,7 @@ public class SolexVideoProcessor implements Broadcaster {
         var completedFrames = new AtomicInteger(0);
         try {
             for (int batchStart = start; batchStart < end; batchStart += laneCount) {
+                CancellationSupport.checkCancelled();
                 int batchEnd = Math.min(batchStart + laneCount, end);
                 int batchSize = batchEnd - batchStart;
                 // Stage frame data on the main thread — the SerFileReader is sequential.
@@ -1637,6 +1649,7 @@ public class SolexVideoProcessor implements Broadcaster {
                     int frameId = batchStart + k;
                     int y = frameId - start;
                     futures[k] = ProcessingLogContext.runAsync(CONVERSION_POOL, () -> {
+                        CancellationSupport.checkCancelled();
                         var original = buffers[lane];
                         converter.convert(frameId, frameDataBatch[lane], geometry, original);
                         if (flat != null) {

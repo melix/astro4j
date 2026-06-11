@@ -49,6 +49,7 @@ import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.sun.tasks.CoronagraphTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.EllipseFittingTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.GeometryCorrector;
+import me.champeau.a4j.jsolex.processing.util.CancellationSupport;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -274,8 +275,12 @@ public class ProcessingWorkflow {
                 }
             });
         }
+        var cancelFlag = CancellationSupport.currentFlag();
         var stream = batchMode ? runnables.stream() : runnables.stream().parallel();
-        stream.forEach(Runnable::run);
+        stream.forEach(runnable -> CancellationSupport.runWith(cancelFlag, () -> {
+            CancellationSupport.checkCancelled();
+            runnable.run();
+        }));
     }
 
     private void produceActiveRegionsImage(ImageWrapper32 image) {

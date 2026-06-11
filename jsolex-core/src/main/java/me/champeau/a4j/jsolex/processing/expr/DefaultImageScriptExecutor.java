@@ -36,11 +36,13 @@ import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
+import me.champeau.a4j.jsolex.processing.util.CancellationSupport;
 import me.champeau.a4j.jsolex.processing.util.DurationFormatter;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.LoggingSupport;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.SolarParameters;
 
@@ -58,6 +60,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
@@ -703,17 +706,25 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
             return;
         }
         var forkJoinPool = ForkJoinPool.commonPool();
+        var cancelFlag = CancellationSupport.currentFlag();
         try {
-            forkJoinPool.submit(() -> assignments.parallelStream().forEach(assignment -> {
+            forkJoinPool.submit(() -> assignments.parallelStream().forEach(assignment -> CancellationSupport.runWith(cancelFlag, () -> {
                 var isFromOutputSection = outputAssignments != null && outputAssignments.contains(assignment);
                 executeSingleExpression(index, evaluator, assignment, isFromOutputSection, cpt, imagesByLabel, filesByLabel, valuesByLabel, invalidExpressions, resultsLock, progressOperation);
-            })).get();
-        } catch (InterruptedException | ExecutionException ex) {
-            LOGGER.warn("Parallel execution interrupted: " + ex.getMessage());
+            }))).get();
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new CancellationException("Script execution was interrupted");
+        } catch (ExecutionException ex) {
+            if (LoggingSupport.isProcessingCancelled(ex)) {
+                throw new CancellationException("Script execution was interrupted");
+            }
+            LOGGER.warn("Parallel execution failed: " + ex.getMessage());
         }
     }
 
     private void executeSingleExpression(int index, MemoizingExpressionEvaluator evaluator, Assignment assignment, boolean isOutputSection, AtomicInteger cpt, Map<String, ImageWrapper> imagesByLabel, Map<String, FileOutputResult> filesByLabel, Map<String, Object> valuesByLabel, List<InvalidExpression> invalidExpressions, ReentrantLock resultsLock, ProgressOperation progressOperation) {
+        CancellationSupport.checkCancelled();
         ProgressOperation exprOperation = null;
         if (progressOperation != null) {
             exprOperation = progressOperation.createChild("Evaluating " + truncateForProgress(assignment.toString()));

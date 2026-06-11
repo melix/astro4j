@@ -22,6 +22,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.PrintWriter;
 import java.nio.channels.ClosedByInterruptException;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RejectedExecutionException;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
@@ -44,15 +46,15 @@ public class LoggingSupport implements Thread.UncaughtExceptionHandler {
         return trace;
     }
 
-    private static boolean isProcessingCancelled(Throwable ex) {
+    public static boolean isProcessingCancelled(Throwable ex) {
         if (ex instanceof CancellationException
             || ex instanceof RejectedExecutionException
             || ex instanceof InterruptedException
             || ex instanceof ClosedByInterruptException) {
             return true;
         }
-        if (ex instanceof ProcessingException pe) {
-            return isProcessingCancelled(pe.getCause());
+        if ((ex instanceof ProcessingException || ex instanceof CompletionException || ex instanceof ExecutionException) && ex.getCause() != null) {
+            return isProcessingCancelled(ex.getCause());
         }
         return false;
     }

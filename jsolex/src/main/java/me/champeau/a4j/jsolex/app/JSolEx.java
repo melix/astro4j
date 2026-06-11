@@ -154,6 +154,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.AnimationFormat;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
+import me.champeau.a4j.jsolex.processing.util.CancellationSupport;
 import me.champeau.a4j.jsolex.processing.util.JitWarmup;
 import me.champeau.a4j.jsolex.processing.util.Bass2000ConfigService;
 import me.champeau.a4j.jsolex.processing.util.Constants;
@@ -1287,6 +1288,11 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         progressHandler.hide();
     }
 
+    @Override
+    public void suppressProgress() {
+        progressHandler.suppress();
+    }
+
     public void showProgress() {
         progressHandler.markDirty();
     }
@@ -2393,21 +2399,25 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     private void processFileWithParams(File selectedFile, Header firstHeader, ProcessParams params) {
         newSession();
         console.clear();
+        var cancelFlag = new AtomicBoolean();
         var interruptButton = addInterruptButton();
         var rootOperation = createRootOperation(selectedFile.getName());
         FxUtils.runLater(() -> imageMathRun.setDisable(true));
         var processingThread =
-                new Thread(() -> processSingleFile(params, rootOperation, selectedFile, false, 0, selectedFile, firstHeader, () -> {
-                }, () -> FxUtils.runLater(() -> {
-                    workButtons.getChildren().remove(interruptButton);
-                    imageMathRun.setDisable(false);
-                })));
+                new Thread(() -> CancellationSupport.runWith(cancelFlag,
+                        () -> processSingleFile(params, rootOperation, selectedFile, false, 0, selectedFile, firstHeader, () -> {
+                        }, () -> FxUtils.runLater(() -> {
+                            workButtons.getChildren().remove(interruptButton);
+                            imageMathRun.setDisable(false);
+                        }))));
         interruptButton.setOnAction(e -> {
             FxUtils.runLater(() -> {
-                hideProgress();
+                suppressProgress();
                 workButtons.getChildren().remove(interruptButton);
                 imageMathRun.setDisable(false);
             });
+            cancelFlag.set(true);
+            BackgroundOperations.interrupt();
             processingThread.interrupt();
         });
         processingThread.start();

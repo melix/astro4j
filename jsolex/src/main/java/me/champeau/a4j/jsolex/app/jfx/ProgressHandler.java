@@ -51,6 +51,7 @@ public final class ProgressHandler {
     private final AtomicReference<String> completionMessage = new AtomicReference<>("");
     private final AtomicBoolean dirty = new AtomicBoolean(false);
     private final AtomicBoolean running = new AtomicBoolean(true);
+    private final AtomicBoolean suppressed = new AtomicBoolean(false);
 
     /**
      * Snapshot of progress state for UI updates.
@@ -89,6 +90,7 @@ public final class ProgressHandler {
      * @param root the root progress operation
      */
     public void registerRoot(ProgressOperation root) {
+        suppressed.set(false);
         completionMessage.set(""); // Clear completion message when new work starts
         activeRoots.put(root, System.currentTimeMillis());
         dirty.set(true);
@@ -128,7 +130,7 @@ public final class ProgressHandler {
      * @param operation the operation to track
      */
     public void ensureTracked(ProgressOperation operation) {
-        if (operation == null) {
+        if (operation == null || suppressed.get()) {
             return;
         }
         // Find the root of this operation
@@ -173,6 +175,17 @@ public final class ProgressHandler {
         rotationIndex.set(0);
         completionMessage.set("");
         dirty.set(true);
+    }
+
+    /**
+     * Hides the progress indicator and ignores subsequent progress updates
+     * until a new root operation is registered. Used when processing is
+     * interrupted: tasks of the cancelled run may still broadcast progress
+     * while they wind down, which must not resurrect the indicator.
+     */
+    public void suppress() {
+        suppressed.set(true);
+        hide();
     }
 
     /**
