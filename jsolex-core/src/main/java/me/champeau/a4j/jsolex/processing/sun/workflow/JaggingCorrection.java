@@ -15,8 +15,6 @@
  */
 package me.champeau.a4j.jsolex.processing.sun.workflow;
 
-import me.champeau.a4j.jsolex.processing.params.ProcessParams;
-import me.champeau.a4j.jsolex.processing.sun.WorkflowState;
 import me.champeau.a4j.jsolex.processing.sun.detection.PhenomenaDetector;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageInterpolation;
@@ -29,154 +27,127 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.DoubleUnaryOperator;
 import java.util.stream.Collectors;
 
+/**
+ * Corrects the jagged edges which can appear on reconstructed images, by realigning
+ * each line on the fitted ellipse from its own border measurements. The correction
+ * model only depends on the detected borders and the ellipse, which are shared by
+ * all pixel shifts, so it is computed once and applied to each image.
+ */
 public class JaggingCorrection {
     public static final double DEFAULT_SIGMA = 2.5;
 
-    private final WorkflowState state;
-    private final ProcessParams processParams;
-    private final ImageEmitter imageEmitter;
-
-    public JaggingCorrection(WorkflowState state, ProcessParams processParams, ImageEmitter imageEmitter) {
-        this.state = state;
-        this.processParams = processParams;
-        this.imageEmitter = imageEmitter;
+    private JaggingCorrection() {
     }
 
-    public void maybePerformJaggedEdgesCorrection(ImageWrapper32 image, Ellipse ellipse) {
-        if (!processParams.enhancementParams().jaggingCorrectionParams().enabled()) {
-            return;
+    /**
+     * Computes the per-line corrections from the border detections.
+     *
+     * @param borders the detected borders
+     * @param ellipse the fitted ellipse
+     * @param width the width of the reconstructed images
+     * @param height the height of the reconstructed images
+     * @param sigma the outlier rejection factor
+     * @param oscillationModel the oscillation model which was already applied to the images, if any
+     * @param debugImageEmitter when non-null, a debug chart of the corrections is emitted
+     * @return the correction model, if enough measurements are available
+     */
+    public static Optional<JaggingModel> computeModel(PhenomenaDetector.BorderDetection borders, Ellipse ellipse, int width, int height, double sigma, OscillationCorrection.OscillationModel oscillationModel, ImageEmitter debugImageEmitter) {
+        var limit = 2 * (ellipse.semiAxis().a() + ellipse.semiAxis().b()) / 100;
+        var boundingBox = ellipse.boundingBox();
+        var ey1 = Math.max(0, boundingBox.c());
+        var ey2 = Math.min(boundingBox.d(), height);
+        var measurements = new ArrayList<Correction>();
+        for (var y = ey1; y < ey2; y++) {
+            var line = (int) Math.round(y);
+            var prediction = ellipse.findX(line);
+            if (prediction.isPresent()) {
+                var pair = prediction.get();
+                var left = pair.a();
+                var right = pair.b();
+                if (left > right) {
+                    var tmp = left;
+                    left = right;
+                    right = tmp;
+                }
+                if (left < 0) {
+                    left = 0;
+                }
+                if (right >= width) {
+                    right = width - 1;
+                }
+                // the borders are detected on the raw frames, so when the oscillation correction
+                // has already shifted the lines, the detected positions must be shifted too
+                var oscillationShift = oscillationModel != null ? oscillationModel.shiftAt(line) : 0;
+                var detectedX1 = borders.left()[line] >= 0 ? borders.left()[line] - oscillationShift : -1;
+                var detectedX2 = borders.right()[line] >= 0 ? borders.right()[line] - oscillationShift : -1;
+                if (detectedX1 >= 0 && detectedX2 >= 0) {
+                    var c = new Correction(line, detectedX1, detectedX2, left, right);
+                    if (c.isValid(limit)) {
+                        measurements.add(c);
+                    }
+                } else if (detectedX1 < 0 && detectedX2 >= 0) {
+                    // left border not detected
+                    var c = new Correction(line, left, detectedX2, left, right);
+                    if (c.isValid(limit)) {
+                        measurements.add(c);
+                    }
+                } else if (detectedX1 >= 0) {
+                    // right border not detected
+                    var c = new Correction(line, detectedX1, right, left, right);
+                    if (c.isValid(limit)) {
+                        measurements.add(c);
+                    }
+                }
+            }
         }
-        Optional<PhenomenaDetector.BorderDetection> bordersResult = state.findResult(WorkflowResults.BORDERS);
-        bordersResult.ifPresent(borders -> {
-            var sigma = processParams.enhancementParams().jaggingCorrectionParams().sigma();
-            var totalLines = image.height();
-            var limit = 2 * (ellipse.semiAxis().a() + ellipse.semiAxis().b()) / 100;
-            var boundingBox = ellipse.boundingBox();
-            var ey1 = Math.max(0, boundingBox.c());
-            var ey2 = Math.min(boundingBox.d(), totalLines);
-            var measurements = new ArrayList<Correction>();
-            for (var y = ey1; y < ey2; y++) {
-                var line = (int) Math.round(y);
-                var prediction = ellipse.findX(line);
-                if (prediction.isPresent()) {
-                    var pair = prediction.get();
-                    var left = pair.a();
-                    var right = pair.b();
-                    if (left > right) {
-                        var tmp = left;
-                        left = right;
-                        right = tmp;
-                    }
-                    if (left < 0) {
-                        left = 0;
-                    }
-                    if (right >= image.width()) {
-                        right = image.width() - 1;
-                    }
-                    var detectedX1 = borders.left()[line];
-                    var detectedX2 = borders.right()[line];
-                    if (detectedX1 >= 0 && detectedX2 >= 0) {
-                        var c = new Correction(line, detectedX1, detectedX2, left, right);
-                        if (c.isValid(limit)) {
-                            measurements.add(c);
-                        }
-                    } else if (detectedX1 < 0 && detectedX2 >= 0) {
-                        // left border not detected
-                        var c = new Correction(line, left, detectedX2, left, right);
-                        if (c.isValid(limit)) {
-                            measurements.add(c);
-                        }
-                    } else if (detectedX1 >= 0) {
-                        // right border not detected
-                        var c = new Correction(line, detectedX1, right, left, right);
-                        if (c.isValid(limit)) {
-                            measurements.add(c);
-                        }
-                    }
+        if (measurements.isEmpty()) {
+            return Optional.empty();
+        }
+        var avgDx1 = measurements.stream().mapToDouble(Correction::dx1).average().orElse(0);
+        var avgDx2 = measurements.stream().mapToDouble(Correction::dx2).average().orElse(0);
+        var stddevDx1 = Math.sqrt(measurements.stream().mapToDouble(c -> Math.pow(c.dx1() - avgDx1, 2)).sum() / measurements.size());
+        var stddevDx2 = Math.sqrt(measurements.stream().mapToDouble(c -> Math.pow(c.dx2() - avgDx2, 2)).sum() / measurements.size());
+        var filtered = measurements.stream()
+                .filter(p ->
+                        Math.abs(p.dx1() - avgDx1) < sigma * stddevDx1 || Math.abs(p.dx2() - avgDx2) < sigma * stddevDx2
+                )
+                .collect(Collectors.toMap(Correction::y, c -> c));
+        var polynomials = new DoubleUnaryOperator[height];
+        for (var y = 0; y < height; y++) {
+            var mid = filtered.get(y);
+            if (mid != null) {
+                polynomials[y] = buildPolynomial(List.of(mid), width);
+            } else {
+                // interpolate between the two closest points
+                int finalY = y;
+                var left = filtered.entrySet().stream()
+                        .filter(e -> e.getKey() < finalY)
+                        .max(Map.Entry.comparingByKey());
+                var right = filtered.entrySet().stream()
+                        .filter(e -> e.getKey() > finalY)
+                        .min(Map.Entry.comparingByKey());
+                if (left.isPresent() && right.isPresent()) {
+                    polynomials[y] = buildPolynomial(List.of(left.get().getValue(), right.get().getValue()), width);
+                }
+                if (left.isEmpty() && right.isPresent()) {
+                    y = right.get().getKey() - 1;
                 }
             }
-            if (!measurements.isEmpty()) {
-                // compute average and stddev
-                var avgDx1 = measurements.stream().mapToDouble(Correction::dx1).average().orElse(0);
-                var avgDx2 = measurements.stream().mapToDouble(Correction::dx2).average().orElse(0);
-                var stddevDx1 = Math.sqrt(measurements.stream().mapToDouble(c -> Math.pow(c.dx1() - avgDx1, 2)).sum() / measurements.size());
-                var stddevDx2 = Math.sqrt(measurements.stream().mapToDouble(c -> Math.pow(c.dx2() - avgDx2, 2)).sum() / measurements.size());
-                var filtered = measurements.stream()
-                        .filter(p ->
-                                Math.abs(p.dx1() - avgDx1) < sigma * stddevDx1 || Math.abs(p.dx2() - avgDx2) < sigma * stddevDx2
-                        )
-                        .collect(Collectors.toMap(Correction::y, c -> c));
-                // correct all images
-                var data = image.data();
-                float[][] debugR;
-                float[][] debugG;
-                float[][] debugB;
-                boolean debug = false;
-                if (processParams.requestedImages().isEnabled(GeneratedImageKind.DEBUG)) {
-                    debug = true;
-                    var w = 2 * image.width();
-                    var h = image.height();
-                    debugR = new float[h][w];
-                    debugG = new float[h][w];
-                    debugB = new float[h][w];
-                } else {
-                    debugB = null;
-                    debugG = null;
-                    debugR = null;
-                }
-                for (int y = 0; y < data.length; y++) {
-                    var line = data[y];
-                    var mid = filtered.get(y);
-                    float[] debugLineR = debug ? debugR[y] : null;
-                    float[] debugLineG = debug ? debugG[y] : null;
-                    float[] debugLuneB = debug ? debugB[y] : null;
-                    if (mid != null) {
-                        performCorrectionForSingleLine(y, line, List.of(mid), debug, debugLineR, debugLineG, debugLuneB);
-                    } else {
-                        // interpolate between the two closest points
-                        int finalY = y;
-                        var left = filtered.entrySet().stream()
-                                .filter(e -> e.getKey() < finalY)
-                                .max(Map.Entry.comparingByKey());
-                        var right = filtered.entrySet().stream()
-                                .filter(e -> e.getKey() > finalY)
-                                .min(Map.Entry.comparingByKey());
-                        if (left.isPresent() || right.isPresent()) {
-                            var leftCorrection = left.map(Map.Entry::getValue).orElse(null);
-                            var rightCorrection = right.map(Map.Entry::getValue).orElse(null);
-                            if (leftCorrection != null && rightCorrection != null) {
-                                performCorrectionForSingleLine(y, line, List.of(leftCorrection, rightCorrection), debug, debugLineR, debugLineG, debugLuneB);
-                            }
-                        }
-                        if (left.isEmpty() && right.isPresent()) {
-                            y = right.get().getKey() - 1;
-                        }
-                    }
-                }
-                if (debug) {
-                    imageEmitter.newColorImage(
-                            GeneratedImageKind.DEBUG,
-                            null,
-                            "Jagging correction",
-                            "jagging-correction",
-                            "Jagging correction",
-                            2 * image.width(),
-                            image.height(),
-                            image.metadata(),
-                            () -> new float[][][]{debugR, debugG, debugB}
-                    );
-                }
-            }
-        });
+        }
+        if (debugImageEmitter != null) {
+            emitDebugChart(debugImageEmitter, measurements, polynomials, ellipse, width, height);
+        }
+        return Optional.of(new JaggingModel(polynomials));
     }
 
-    private void performCorrectionForSingleLine(int y, float[] line, List<Correction> samples, boolean debug, float[] debugR, float[] debugG, float[] debugB) {
+    private static DoubleUnaryOperator buildPolynomial(List<Correction> samples, int width) {
         List<Point2D> points = new ArrayList<>();
         for (var sample : samples) {
             var dx = 1.5 * (sample.x2() - sample.x1());
-            if (sample.x1() - dx > 0 && sample.x2() + dx < line.length) {
+            if (sample.x1() - dx > 0 && sample.x2() + dx < width) {
                 // this makes the correction more robust when the sample points are close to each other
                 points.add(new Point2D(sample.x1() - dx, sample.x1() - dx));
                 points.add(new Point2D(sample.x2() + dx, sample.x2() + dx));
@@ -184,30 +155,80 @@ public class JaggingCorrection {
             points.add(new Point2D(sample.cx1(), sample.x1()));
             points.add(new Point2D(sample.cx2(), sample.x2()));
         }
-        var poly = samples.size() == 4 ?
+        return samples.size() == 4 ?
                 LinearRegression.secondOrderRegression(points.toArray(new Point2D[0])).asPolynomial() :
                 LinearRegression.firstOrderRegression(points.toArray(new Point2D[0])).asPolynomial();
-        var corrected = new float[line.length];
-        for (int x = 0; x < line.length; x++) {
-            double srcX = poly.applyAsDouble(x);
-            float value = srcX == x ? line[x] : ImageInterpolation.lanczos1D(line, srcX);
-            corrected[x] = Math.clamp(value, 0, Constants.MAX_PIXEL_VALUE);
-
-            if (debug) {
-                var w = line.length;
-                var orig = line[x];
-                debugR[x] = orig;
-                debugG[x] = orig;
-                debugB[x] = orig;
-                debugR[w + x] = value;
-                debugG[w + x] = value;
-                debugB[w + x] = value;
-            }
-        }
-
-        System.arraycopy(corrected, 0, line, 0, line.length);
     }
 
+    public static void applyCorrection(ImageWrapper32 image, JaggingModel model) {
+        var data = image.data();
+        var polynomials = model.polynomials();
+        var corrected = new float[image.width()];
+        for (var y = 0; y < data.length && y < polynomials.length; y++) {
+            var poly = polynomials[y];
+            if (poly == null) {
+                continue;
+            }
+            var line = data[y];
+            for (var x = 0; x < line.length; x++) {
+                double srcX = poly.applyAsDouble(x);
+                float value = srcX == x ? line[x] : ImageInterpolation.lanczos1D(line, srcX);
+                corrected[x] = Math.clamp(value, 0, Constants.MAX_PIXEL_VALUE);
+            }
+            System.arraycopy(corrected, 0, line, 0, line.length);
+        }
+    }
+
+    /**
+     * Emits a debug chart showing, for each border, the measured shifts and the
+     * correction which is actually applied at the border position, after outlier
+     * filtering and interpolation across unmeasured lines.
+     */
+    private static void emitDebugChart(ImageEmitter imageEmitter, List<Correction> measurements, DoubleUnaryOperator[] polynomials, Ellipse ellipse, int width, int height) {
+        var leftShifts = new double[height];
+        var leftWeights = new double[height];
+        var rightShifts = new double[height];
+        var rightWeights = new double[height];
+        for (var measurement : measurements) {
+            leftShifts[measurement.y()] = measurement.dx1();
+            leftWeights[measurement.y()] = 1;
+            rightShifts[measurement.y()] = measurement.dx2();
+            rightWeights[measurement.y()] = 1;
+        }
+        var leftCurve = new double[height];
+        var rightCurve = new double[height];
+        var correctedLines = 0;
+        for (var y = 0; y < height; y++) {
+            leftCurve[y] = Double.NaN;
+            rightCurve[y] = Double.NaN;
+            var poly = polynomials[y];
+            if (poly == null) {
+                continue;
+            }
+            correctedLines++;
+            var prediction = ellipse.findX(y);
+            if (prediction.isPresent()) {
+                var pair = prediction.get();
+                var left = Math.clamp(Math.min(pair.a(), pair.b()), 0, width - 1);
+                var right = Math.clamp(Math.max(pair.a(), pair.b()), 0, width - 1);
+                leftCurve[y] = poly.applyAsDouble(left) - left;
+                rightCurve[y] = poly.applyAsDouble(right) - right;
+            }
+        }
+        var chartTitle = String.format("Jagged edges correction: %d measured lines, %d corrected lines", measurements.size(), correctedLines);
+        ShiftDebugChart.emit(imageEmitter, chartTitle, "Jagging correction", "jagging-correction", List.of(
+                new ShiftDebugChart.Panel("Left border shift and applied correction", leftShifts, leftWeights, leftCurve),
+                new ShiftDebugChart.Panel("Right border shift and applied correction", rightShifts, rightWeights, rightCurve)
+        ));
+    }
+
+    /**
+     * The per-line correction polynomials, mapping the coordinates of the corrected
+     * line to the coordinates of the source line. Lines without a correction have
+     * a null entry.
+     */
+    public record JaggingModel(DoubleUnaryOperator[] polynomials) {
+    }
 
     private record Correction(
             /*

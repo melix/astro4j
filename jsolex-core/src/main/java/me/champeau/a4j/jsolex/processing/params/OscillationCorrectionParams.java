@@ -15,17 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.params;
 
-import java.nio.file.Path;
-
-public record EnhancementParams(
-    boolean artificialFlatCorrection,
-    double artificialFlatCorrectionLoPercentile,
-    double artificialFlatCorrectionHiPercentile,
-    int artificialFlatCorrectionOrder,
-    Path masterFlatFile,
-    double slitDetectionSigma,
-    JaggingCorrectionParams jaggingCorrectionParams,
-    OscillationCorrectionParams oscillationCorrectionParams,
-    SharpeningParams sharpeningParams
+public record OscillationCorrectionParams(
+        boolean enabled
 ) {
 }

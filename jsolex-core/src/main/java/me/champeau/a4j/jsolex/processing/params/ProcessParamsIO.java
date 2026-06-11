@@ -114,7 +114,7 @@ public abstract class ProcessParamsIO {
                 createDefaultClaheParams(),
                 createDefaultAutoStretchParams(),
                 ContrastEnhancement.AUTOSTRETCH,
-                new EnhancementParams(false, FlatCorrection.DEFAULT_LO_PERCENTILE, FlatCorrection.DEFAULT_HI_PERCENTILE, FlatCorrection.DEFAULT_ORDER, null, FlatCreator.DEFAULT_SLIT_DETECTION_SIGMA, new JaggingCorrectionParams(false, JaggingCorrection.DEFAULT_SIGMA), SharpeningParams.none())
+                new EnhancementParams(false, FlatCorrection.DEFAULT_LO_PERCENTILE, FlatCorrection.DEFAULT_HI_PERCENTILE, FlatCorrection.DEFAULT_ORDER, null, FlatCreator.DEFAULT_SLIT_DETECTION_SIGMA, new JaggingCorrectionParams(false, JaggingCorrection.DEFAULT_SIGMA), new OscillationCorrectionParams(false), SharpeningParams.none())
         );
     }
 
@@ -242,7 +242,7 @@ public abstract class ProcessParamsIO {
                 params = params.withContrastEnhancement(ContrastEnhancement.AUTOSTRETCH);
             }
             if (params.enhancementParams() == null) {
-                params = params.withEnhancementParams(new EnhancementParams(false, FlatCorrection.DEFAULT_LO_PERCENTILE, FlatCorrection.DEFAULT_HI_PERCENTILE, FlatCorrection.DEFAULT_ORDER, null, FlatCreator.DEFAULT_SLIT_DETECTION_SIGMA, new JaggingCorrectionParams(false, JaggingCorrection.DEFAULT_SIGMA), SharpeningParams.none()));
+                params = params.withEnhancementParams(new EnhancementParams(false, FlatCorrection.DEFAULT_LO_PERCENTILE, FlatCorrection.DEFAULT_HI_PERCENTILE, FlatCorrection.DEFAULT_ORDER, null, FlatCreator.DEFAULT_SLIT_DETECTION_SIGMA, new JaggingCorrectionParams(false, JaggingCorrection.DEFAULT_SIGMA), new OscillationCorrectionParams(false), SharpeningParams.none()));
             }
             if (params.extraParams().globeStyle() == null) {
                 params = params.withExtraParams(params.extraParams().withGlobeStyle(GlobeStyle.EQUATORIAL_COORDS));

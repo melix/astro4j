@@ -28,6 +28,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
 import javafx.util.converter.IntegerStringConverter;
+import me.champeau.a4j.jsolex.app.AlertFactory;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.expr.impl.Clahe;
 import me.champeau.a4j.jsolex.processing.params.AutoStretchParams;
@@ -37,6 +38,7 @@ import me.champeau.a4j.jsolex.processing.params.ContrastEnhancement;
 import me.champeau.a4j.jsolex.processing.params.DeconvolutionMode;
 import me.champeau.a4j.jsolex.processing.params.EnhancementParams;
 import me.champeau.a4j.jsolex.processing.params.JaggingCorrectionParams;
+import me.champeau.a4j.jsolex.processing.params.OscillationCorrectionParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.RichardsonLucyDeconvolutionParams;
 import me.champeau.a4j.jsolex.processing.params.SharpeningMethod;
@@ -93,6 +95,7 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
     
     private CheckBox jaggingCorrection;
     private TextField jaggingCorrectionSigma;
+    private CheckBox oscillationCorrection;
     
     private ChoiceBox<FlatMode> flatMode;
     private TextField flatLoPercentile;
@@ -259,6 +262,16 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
         jaggingCorrection.setOnAction(e -> updateParameterVisibility());
         jaggingCorrectionSigma = new TextField("2.5");
         jaggingCorrectionSigma.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "jagging.correction.sigma.tooltip")));
+
+        oscillationCorrection = new CheckBox();
+        oscillationCorrection.setOnAction(e -> {
+            if (oscillationCorrection.isSelected()) {
+                var alert = AlertFactory.warning(I18N.string(JSolEx.class, "process-params", "oscillation.correction.warning"));
+                alert.setTitle(I18N.string(JSolEx.class, "process-params", "oscillation.correction"));
+                alert.setHeaderText(null);
+                alert.showAndWait();
+            }
+        });
         
         flatMode = createChoiceBox();
         flatMode.setItems(FXCollections.observableArrayList(FlatMode.values()));
@@ -429,12 +442,17 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
         jaggingCorrectionSigmaRow.getChildren().add(jaggingSigmaGrid);
         
         jaggingSection.getChildren().addAll(jaggingGrid, jaggingCorrectionSigmaRow);
-        
+
+        var oscillationSection = createSection("oscillation.correction");
+        var oscillationGrid = createGrid();
+        addGridRow(oscillationGrid, 0, I18N.string(JSolEx.class, "process-params", "oscillation.correction") + ":", oscillationCorrection, "oscillation.correction.tooltip");
+        oscillationSection.getChildren().add(oscillationGrid);
+
         var resetButton = new Button(I18N.string(JSolEx.class, "process-params", "reset.to.defaults"));
         resetButton.getStyleClass().add("default-button");
         resetButton.setOnAction(e -> resetToDefaults());
-        
-        getChildren().addAll(contrastSection, bandingSection, deconvolutionSharpeningSection, flatSection, jaggingSection, resetButton);
+
+        getChildren().addAll(contrastSection, bandingSection, deconvolutionSharpeningSection, flatSection, jaggingSection, oscillationSection, resetButton);
         
         updateParameterVisibility();
     }
@@ -482,6 +500,7 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
         
         jaggingCorrection.setSelected(false);
         jaggingCorrectionSigma.setText(String.valueOf(JaggingCorrection.DEFAULT_SIGMA));
+        oscillationCorrection.setSelected(false);
         
         flatMode.setValue(FlatMode.NONE);
         flatLoPercentile.setText(String.valueOf(FlatCorrection.DEFAULT_LO_PERCENTILE));
@@ -523,6 +542,7 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
         var jaggingParams = params.enhancementParams().jaggingCorrectionParams();
         jaggingCorrection.setSelected(jaggingParams.enabled());
         jaggingCorrectionSigma.setText(String.valueOf(jaggingParams.sigma()));
+        oscillationCorrection.setSelected(params.enhancementParams().oscillationCorrectionParams().enabled());
         
         var enhancementParams = params.enhancementParams();
         if (enhancementParams.artificialFlatCorrection()) {
@@ -766,7 +786,7 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
             jaggingCorrection.isSelected(),
             parseDouble(jaggingCorrectionSigma.getText(), JaggingCorrection.DEFAULT_SIGMA)
         );
-        
+
         return new EnhancementParams(
             artificialFlat,
             parseDouble(flatLoPercentile.getText(), FlatCorrection.DEFAULT_LO_PERCENTILE),
@@ -775,6 +795,7 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
             masterFlatFile,
             parseDouble(slitDetectionSigma.getText(), FlatCreator.DEFAULT_SLIT_DETECTION_SIGMA),
             jaggingParams,
+            new OscillationCorrectionParams(oscillationCorrection.isSelected()),
             getSharpeningParams()
         );
     }
