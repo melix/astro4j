@@ -15,13 +15,17 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
-import javafx.animation.PauseTransition;
 import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ObservableValue;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Cursor;
+import javafx.scene.Node;
+import javafx.scene.control.Button;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
@@ -34,21 +38,26 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
+import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
-import javafx.util.Duration;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.math.regression.Ellipse;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
 
 public class ZoomableImageView extends HBox {
-    private final PauseTransition pause = new PauseTransition(Duration.millis(250));
+    private static final double HANDLE_SIZE = 10;
+
     private final ScrollPane scrollPane;
     private final ImageView imageView;
     private final ContextMenu ctxMenu;
@@ -68,14 +77,52 @@ public class ZoomableImageView extends HBox {
     private Path imagePath;
     private Pane imagePane;
 
-    // Fields for rectangle selection
-    private double startX;
-    private double startY;
+    // Fields for rectangle selection (model stored in image-space pixels)
+    private double selImgX;
+    private double selImgY;
+    private double selImgW;
+    private double selImgH;
+    private double moveStartImgX;
+    private double moveStartImgY;
+    private double moveStartSelX;
+    private double moveStartSelY;
+    private RectangleSelectionListener.ActionKind singleActionKind;
     private final Rectangle selectionRectangle;
     private final Label selectionLabel;
+    private final EnumMap<HandlePos, Rectangle> handles = new EnumMap<>(HandlePos.class);
     private final BooleanProperty isSelectingRectangle = new SimpleBooleanProperty();
     private RectangleSelectionListener rectangleSelectionListener;
-    private ContextMenu rectangleSelectionMenu;
+    private Pane selectionOverlayHost;
+    private Region selectionActionBar;
+    private boolean contextMenuEnabled = true;
+
+    private enum HandlePos {
+        NW(Cursor.NW_RESIZE), N(Cursor.N_RESIZE), NE(Cursor.NE_RESIZE),
+        E(Cursor.E_RESIZE), SE(Cursor.SE_RESIZE), S(Cursor.S_RESIZE),
+        SW(Cursor.SW_RESIZE), W(Cursor.W_RESIZE);
+
+        private final Cursor cursor;
+
+        HandlePos(Cursor cursor) {
+            this.cursor = cursor;
+        }
+
+        boolean affectsLeft() {
+            return this == NW || this == W || this == SW;
+        }
+
+        boolean affectsRight() {
+            return this == NE || this == E || this == SE;
+        }
+
+        boolean affectsTop() {
+            return this == NW || this == N || this == NE;
+        }
+
+        boolean affectsBottom() {
+            return this == SW || this == S || this == SE;
+        }
+    }
 
     // Fields for zoom tracking
     private double lastImageX = -1;
@@ -146,17 +193,30 @@ public class ZoomableImageView extends HBox {
         showFile.setOnAction(e -> ExplorerSupport.openInExplorer(imagePath));
         ctxMenu.getItems().add(showFile);
 
-        setOnContextMenuRequested(e -> ctxMenu.show(ZoomableImageView.this, e.getScreenX(), e.getScreenY()));
+        setOnContextMenuRequested(e -> {
+            if (contextMenuEnabled) {
+                ctxMenu.show(ZoomableImageView.this, e.getScreenX(), e.getScreenY());
+            }
+        });
 
         // Add selection rectangle
         selectionRectangle = new Rectangle();
         selectionRectangle.setFill(Color.rgb(255, 0, 0, 0.3));
         selectionRectangle.setStroke(Color.RED);
+        selectionRectangle.setCursor(Cursor.MOVE);
+        selectionRectangle.setOnMousePressed(this::handleSelectionMovePressed);
+        selectionRectangle.setOnMouseDragged(this::handleSelectionMoveDragged);
         selectionLabel = new Label();
         selectionLabel.setTextFill(Color.RED);
-        disableSelection();
+        createHandles();
 
-        this.imagePane = new Pane(imageView, selectionRectangle, selectionLabel);
+        var paneChildren = new ArrayList<Node>();
+        paneChildren.add(imageView);
+        paneChildren.add(selectionRectangle);
+        paneChildren.add(selectionLabel);
+        paneChildren.addAll(handles.values());
+        this.imagePane = new Pane(paneChildren.toArray(new Node[0]));
+        disableSelection();
         scrollPane.setContent(imagePane);
         scrollPane.pannableProperty().bind(isSelectingRectangle.not());
         scrollPane.addEventFilter(ScrollEvent.ANY, event -> {
@@ -173,47 +233,33 @@ public class ZoomableImageView extends HBox {
                 disableSelection();
             }
         });
-        setOnKeyReleased(e -> {
-            if (isSelectingRectangle.get() && e.getCode() == KeyCode.CONTROL) {
-                handleSelectionFinished(getWidth() / 2, getHeight() / 2);
-            }
-        });
     }
 
     private void disableSelection() {
         isSelectingRectangle.set(false);
         selectionRectangle.setVisible(false);
         selectionLabel.setVisible(false);
+        setHandlesVisible(false);
+        hideActionBar();
     }
 
     private void addSelectionHandlers() {
-        imageView.setOnMousePressed(this::handleMousePressed);
         imageView.setOnMouseMoved(this::handleMouseMoved);
         imageView.setOnMouseDragged(this::handleMouseMoved);
-        imageView.setOnMouseReleased(this::handleMouseReleased);
-        selectionRectangle.setOnMouseReleased(this::handleMouseReleased);
-        imageView.addEventFilter(MouseEvent.MOUSE_RELEASED, event -> {
-            if (isSelectingRectangle.get() && event.isControlDown()) {
-                event.consume();
-            }
-        });
     }
 
-    private void handleMousePressed(MouseEvent event) {
-        // Allow subclasses to control mouse event handling
-        if (!shouldHandleMouseEvent(event)) {
-            return;
-        }
-        
-        if (rectangleSelectionListener != null && event.getButton() == MouseButton.PRIMARY && event.isControlDown()) {
-            isSelectingRectangle.set(true);
-            startX = event.getX();
-            startY = event.getY();
-            selectionRectangle.setX(startX);
-            selectionRectangle.setY(startY);
-            selectionRectangle.setWidth(0);
-            selectionRectangle.setHeight(0);
-            selectionRectangle.setVisible(true);
+    private void createHandles() {
+        for (var pos : HandlePos.values()) {
+            var handle = new Rectangle(HANDLE_SIZE, HANDLE_SIZE);
+            handle.setFill(Color.WHITE);
+            handle.setStroke(Color.RED);
+            handle.setCursor(pos.cursor);
+            handle.setOnMousePressed(MouseEvent::consume);
+            handle.setOnMouseDragged(event -> {
+                handleResize(pos, event);
+                event.consume();
+            });
+            handles.put(pos, handle);
         }
     }
 
@@ -222,93 +268,243 @@ public class ZoomableImageView extends HBox {
         if (!shouldHandleMouseEvent(event)) {
             return;
         }
-        
-        if (event.isControlDown() && isSelectingRectangle.get()) {
-            double endX = event.getX();
-            double endY = event.getY();
-            selectionRectangle.setX(Math.min(startX, endX));
-            selectionRectangle.setY(Math.min(startY, endY));
-            selectionRectangle.setWidth(Math.abs(endX - startX));
-            selectionRectangle.setHeight(Math.abs(endY - startY));
-            var selectionWidth = (int) Math.round(selectionRectangle.getWidth() / zoom);
-            var selectionHeight = (int) Math.round(selectionRectangle.getHeight() / zoom);
-            selectionLabel.setText(selectionWidth + "x" + selectionHeight);
-            selectionLabel.setLayoutX(selectionRectangle.getX() + selectionRectangle.getWidth() / 2);
-            selectionLabel.setLayoutY(selectionRectangle.getY() + selectionRectangle.getHeight() / 2);
-            selectionLabel.setVisible(true);
-        }
         if (onCoordinatesListener != null) {
             onCoordinatesListener.accept(event.getX() / zoom, event.getY() / zoom);
         }
     }
 
-    private void handleMouseReleased(MouseEvent event) {
-        // Allow subclasses to control mouse event handling
-        if (!shouldHandleMouseEvent(event)) {
+    /**
+     * Starts an interactive crop selection with a default rectangle centered on the
+     * image. The user can resize and move the selection before confirming the action.
+     */
+    public void startCropSelection() {
+        startSelection(RectangleSelectionListener.ActionKind.CROP);
+    }
+
+    /**
+     * Starts an interactive selection scoped to a single action, with a default
+     * rectangle centered on the image. The user can resize and move the selection
+     * before confirming the action.
+     *
+     * @param kind the action to perform on confirmation
+     */
+    public void startSelection(RectangleSelectionListener.ActionKind kind) {
+        if (rectangleSelectionListener == null || !rectangleSelectionListener.supports(kind)) {
             return;
         }
-        
-        if (event.getButton() == MouseButton.PRIMARY && isSelectingRectangle.get()) {
-            handleSelectionFinished(event.getScreenX(), event.getScreenY());
-        }
-    }
-
-    private void handleSelectionFinished(double x, double y) {
-        pause.setOnFinished(unused -> {
-            if (selectionRectangle.getWidth() > 0 && selectionRectangle.getHeight() > 0) {
-                showSelectionMenu(x, y);
-            }
-        });
-        pause.playFromStart();
-    }
-
-    private void showSelectionMenu(double screenX, double screenY) {
-        if (rectangleSelectionMenu != null && rectangleSelectionMenu.isShowing()) {
-            rectangleSelectionMenu.hide();
-        }
-        rectangleSelectionMenu = new ContextMenu();
-        rectangleSelectionMenu.setOnHidden(e -> disableSelection());
-        var items = rectangleSelectionMenu.getItems();
         var image = imageView.getImage();
-        var selectionX = (int) Math.max(0, Math.round(selectionRectangle.getX() / zoom));
-        var selectionY = (int) Math.max(0, Math.round(selectionRectangle.getY() / zoom));
-        var selectionWidth = (int) Math.min(image.getWidth() - selectionX, Math.round(selectionRectangle.getWidth() / zoom));
-        var selectionHeight = (int) Math.min(image.getHeight() - selectionY, Math.round(selectionRectangle.getHeight() / zoom));
-        if (selectionWidth < 0) {
-            selectionX += selectionWidth;
-            selectionWidth = -selectionWidth;
+        if (image == null) {
+            return;
         }
-        if (selectionHeight < 0) {
-            selectionY += selectionHeight;
-            selectionHeight = -selectionHeight;
+        selImgW = image.getWidth() / 2;
+        selImgH = image.getHeight() / 2;
+        selImgX = (image.getWidth() - selImgW) / 2;
+        selImgY = (image.getHeight() - selImgH) / 2;
+        singleActionKind = kind;
+        isSelectingRectangle.set(true);
+        selectionRectangle.setVisible(true);
+        selectionLabel.setVisible(true);
+        enterEditMode();
+    }
+
+    /**
+     * Indicates whether the current selection listener supports the given action.
+     *
+     * @param kind the action to check
+     * @return true if the action is currently available
+     */
+    public boolean supportsSelectionAction(RectangleSelectionListener.ActionKind kind) {
+        return rectangleSelectionListener != null && rectangleSelectionListener.supports(kind);
+    }
+
+    /**
+     * Returns the localized label for a selection action.
+     *
+     * @param kind the action
+     * @return the localized label
+     */
+    public static String actionLabel(RectangleSelectionListener.ActionKind kind) {
+        return switch (kind) {
+            case CROP -> message("crop");
+            case CREATE_ANIM_OR_PANEL -> message("create.animation.panel");
+            case IMAGEMATH_CROP -> message("imagemath.crop");
+            case EXTRACT_SER_FRAMES -> message("extract.ser.frames");
+        };
+    }
+
+    private void enterEditMode() {
+        setHandlesVisible(true);
+        renderSelection();
+        showActionBar();
+    }
+
+    private void handleSelectionMovePressed(MouseEvent event) {
+        if (!isSelectingRectangle.get()) {
+            return;
         }
-        int finalSelectionY = selectionY;
-        int finalSelectionX = selectionX;
-        int finalSelectionWidth = selectionWidth;
-        int finalSelectionHeight = selectionHeight;
-        if (rectangleSelectionListener.supports(RectangleSelectionListener.ActionKind.CREATE_ANIM_OR_PANEL)) {
-            var action1 = new MenuItem(message("create.animation.panel"));
-            action1.setOnAction(e -> rectangleSelectionListener.onSelectRegion(RectangleSelectionListener.ActionKind.CREATE_ANIM_OR_PANEL, finalSelectionX, finalSelectionY, finalSelectionWidth, finalSelectionHeight));
-            items.add(action1);
+        var p = imagePane.sceneToLocal(event.getSceneX(), event.getSceneY());
+        moveStartImgX = p.getX() / zoom;
+        moveStartImgY = p.getY() / zoom;
+        moveStartSelX = selImgX;
+        moveStartSelY = selImgY;
+        event.consume();
+    }
+
+    private void handleSelectionMoveDragged(MouseEvent event) {
+        if (!isSelectingRectangle.get()) {
+            return;
         }
-        if (rectangleSelectionListener.supports(RectangleSelectionListener.ActionKind.CROP)) {
-            var action2 = new MenuItem(message("crop"));
-            action2.setOnAction(e -> rectangleSelectionListener.onSelectRegion(RectangleSelectionListener.ActionKind.CROP, finalSelectionX, finalSelectionY, finalSelectionWidth, finalSelectionHeight));
-            items.add(action2);
+        var p = imagePane.sceneToLocal(event.getSceneX(), event.getSceneY());
+        var dx = p.getX() / zoom - moveStartImgX;
+        var dy = p.getY() / zoom - moveStartImgY;
+        selImgX = clamp(moveStartSelX + dx, 0, imageWidth() - selImgW);
+        selImgY = clamp(moveStartSelY + dy, 0, imageHeight() - selImgH);
+        renderSelection();
+        event.consume();
+    }
+
+    private void handleResize(HandlePos pos, MouseEvent event) {
+        var p = imagePane.sceneToLocal(event.getSceneX(), event.getSceneY());
+        var imgX = clamp(p.getX() / zoom, 0, imageWidth());
+        var imgY = clamp(p.getY() / zoom, 0, imageHeight());
+        var left = selImgX;
+        var top = selImgY;
+        var right = selImgX + selImgW;
+        var bottom = selImgY + selImgH;
+        if (pos.affectsLeft()) {
+            left = imgX;
         }
-        if (rectangleSelectionListener.supports(RectangleSelectionListener.ActionKind.IMAGEMATH_CROP)) {
-            var action3 = new MenuItem(message("imagemath.crop"));
-            action3.setOnAction(e -> rectangleSelectionListener.onSelectRegion(RectangleSelectionListener.ActionKind.IMAGEMATH_CROP, finalSelectionX, finalSelectionY, finalSelectionWidth, finalSelectionHeight));
-            items.add(action3);
+        if (pos.affectsRight()) {
+            right = imgX;
         }
-        if (rectangleSelectionListener.supports(RectangleSelectionListener.ActionKind.EXTRACT_SER_FRAMES)) {
-            var action4 = new MenuItem(message("extract.ser.frames"));
-            action4.setOnAction(e -> rectangleSelectionListener.onSelectRegion(RectangleSelectionListener.ActionKind.EXTRACT_SER_FRAMES, finalSelectionX, finalSelectionY, finalSelectionWidth, finalSelectionHeight));
-            items.add(action4);
+        if (pos.affectsTop()) {
+            top = imgY;
         }
-        var action5 = new MenuItem(message("cancel"));
-        items.add(action5);
-        rectangleSelectionMenu.show(ZoomableImageView.this, screenX, screenY);
+        if (pos.affectsBottom()) {
+            bottom = imgY;
+        }
+        selImgX = Math.min(left, right);
+        selImgY = Math.min(top, bottom);
+        selImgW = Math.abs(right - left);
+        selImgH = Math.abs(bottom - top);
+        renderSelection();
+    }
+
+    private void renderSelection() {
+        var px = selImgX * zoom;
+        var py = selImgY * zoom;
+        var pw = selImgW * zoom;
+        var ph = selImgH * zoom;
+        selectionRectangle.setX(px);
+        selectionRectangle.setY(py);
+        selectionRectangle.setWidth(pw);
+        selectionRectangle.setHeight(ph);
+        selectionLabel.setText(Math.round(selImgW) + "x" + Math.round(selImgH));
+        selectionLabel.setLayoutX(px + pw / 2);
+        selectionLabel.setLayoutY(py + ph / 2);
+        positionHandles(px, py, pw, ph);
+    }
+
+    private void positionHandles(double px, double py, double pw, double ph) {
+        var cx = px + pw / 2;
+        var cy = py + ph / 2;
+        var right = px + pw;
+        var bottom = py + ph;
+        placeHandle(HandlePos.NW, px, py);
+        placeHandle(HandlePos.N, cx, py);
+        placeHandle(HandlePos.NE, right, py);
+        placeHandle(HandlePos.E, right, cy);
+        placeHandle(HandlePos.SE, right, bottom);
+        placeHandle(HandlePos.S, cx, bottom);
+        placeHandle(HandlePos.SW, px, bottom);
+        placeHandle(HandlePos.W, px, cy);
+    }
+
+    private void placeHandle(HandlePos pos, double cx, double cy) {
+        var handle = handles.get(pos);
+        handle.setX(cx - HANDLE_SIZE / 2);
+        handle.setY(cy - HANDLE_SIZE / 2);
+    }
+
+    private void setHandlesVisible(boolean visible) {
+        for (var handle : handles.values()) {
+            handle.setVisible(visible);
+        }
+    }
+
+    private void showActionBar() {
+        if (selectionOverlayHost == null || rectangleSelectionListener == null) {
+            return;
+        }
+        hideActionBar();
+        var bar = new VBox(6);
+        bar.setAlignment(Pos.CENTER);
+        bar.setPadding(new Insets(8));
+        bar.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+        bar.setStyle("-fx-background-color: rgba(30, 30, 40, 0.92);"
+                + " -fx-background-radius: 10;"
+                + " -fx-border-color: rgba(255, 255, 255, 0.2);"
+                + " -fx-border-radius: 10;");
+        addActionButton(bar, singleActionKind, actionLabel(singleActionKind), true);
+        var cancel = new Button(message("cancel"));
+        cancel.setMaxWidth(Double.MAX_VALUE);
+        cancel.setOnAction(e -> disableSelection());
+        bar.getChildren().add(cancel);
+        selectionActionBar = bar;
+        selectionOverlayHost.getChildren().add(bar);
+        StackPane.setAlignment(bar, Pos.BOTTOM_CENTER);
+        StackPane.setMargin(bar, new Insets(0, 0, 20, 0));
+    }
+
+    private void addActionButton(Pane bar, RectangleSelectionListener.ActionKind kind, String label, boolean primary) {
+        if (!rectangleSelectionListener.supports(kind)) {
+            return;
+        }
+        var button = new Button(label);
+        button.setMaxWidth(Double.MAX_VALUE);
+        button.setDefaultButton(primary);
+        button.setOnAction(e -> triggerSelectionAction(kind));
+        bar.getChildren().add(button);
+    }
+
+    private void triggerSelectionAction(RectangleSelectionListener.ActionKind kind) {
+        var bounds = currentSelectionBounds();
+        disableSelection();
+        rectangleSelectionListener.onSelectRegion(kind, bounds[0], bounds[1], bounds[2], bounds[3]);
+    }
+
+    private int[] currentSelectionBounds() {
+        var image = imageView.getImage();
+        var x = (int) Math.max(0, Math.round(selImgX));
+        var y = (int) Math.max(0, Math.round(selImgY));
+        var w = (int) Math.round(selImgW);
+        var h = (int) Math.round(selImgH);
+        if (image != null) {
+            w = (int) Math.min(image.getWidth() - x, w);
+            h = (int) Math.min(image.getHeight() - y, h);
+        }
+        return new int[]{x, y, w, h};
+    }
+
+    private void hideActionBar() {
+        if (selectionActionBar != null && selectionOverlayHost != null) {
+            selectionOverlayHost.getChildren().remove(selectionActionBar);
+        }
+        selectionActionBar = null;
+    }
+
+    private double imageWidth() {
+        var image = imageView.getImage();
+        return image == null ? 0 : image.getWidth();
+    }
+
+    private double imageHeight() {
+        var image = imageView.getImage();
+        return image == null ? 0 : image.getHeight();
+    }
+
+    private static double clamp(double value, double min, double max) {
+        return Math.max(min, Math.min(max, value));
     }
 
     private void handleScroll(ScrollEvent event) {
@@ -477,6 +673,9 @@ public class ZoomableImageView extends HBox {
         imageView.setFitHeight(image.getHeight() * zoom);
         adjustScrollPane();
         triggerOnZoomChanged();
+        if (isSelectingRectangle.get()) {
+            renderSelection();
+        }
     }
 
     private void adjustScrollPane() {
@@ -512,8 +711,64 @@ public class ZoomableImageView extends HBox {
         this.rectangleSelectionListener = rectangleSelectionListener;
     }
 
+    /**
+     * Sets the pane used to host the floating selection action bar. The bar is added
+     * to this pane (expected to be a {@link StackPane}) while a selection is being edited.
+     *
+     * @param host the overlay host pane
+     */
+    public void setSelectionOverlayHost(Pane host) {
+        this.selectionOverlayHost = host;
+    }
+
+    /**
+     * Indicates whether a rectangular selection is currently active (being drawn or edited).
+     *
+     * @return the selection state as an observable value
+     */
+    public ObservableValue<Boolean> selectingProperty() {
+        return isSelectingRectangle;
+    }
+
     public void setImagePathForOpeningInExplorer(Path imagePath) {
         this.imagePath = imagePath;
+    }
+
+    /**
+     * Enables or disables the right-click context menu.
+     *
+     * @param enabled whether the context menu should be shown on right-click
+     */
+    public void setContextMenuEnabled(boolean enabled) {
+        this.contextMenuEnabled = enabled;
+    }
+
+    /**
+     * Indicates whether the backing image file currently exists on disk.
+     *
+     * @return true if the file can be revealed in the system file explorer
+     */
+    public boolean canOpenInExplorer() {
+        return imagePath != null && Files.exists(imagePath);
+    }
+
+    /**
+     * Indicates whether the backing image file is currently missing on disk, i.e.
+     * whether revealing it in the file explorer should be disabled.
+     *
+     * @return an observable that is true when the file cannot be revealed
+     */
+    public ObservableValue<Boolean> cannotOpenInExplorerProperty() {
+        return allowFileOpen;
+    }
+
+    /**
+     * Reveals the backing image file in the system file explorer.
+     */
+    public void openInExplorer() {
+        if (canOpenInExplorer()) {
+            ExplorerSupport.openInExplorer(imagePath);
+        }
     }
 
     /**

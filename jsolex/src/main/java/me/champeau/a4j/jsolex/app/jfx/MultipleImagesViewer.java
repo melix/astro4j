@@ -416,7 +416,7 @@ public class MultipleImagesViewer extends Pane {
             if (selected == null) {
                 category.selectFirst();
                 hyperlink.fire();
-            } else if (shouldSelectAutomatically(params, kind, pixelShift)) {
+            } else if (isUserInitiated(kind) || shouldSelectAutomatically(params, kind, pixelShift)) {
                 hyperlink.fire();
             }
             return transformed;
@@ -487,7 +487,7 @@ public class MultipleImagesViewer extends Pane {
                 selected = link;
                 selectedView = contentBox;
             }, this::onClose);
-            if (selected == null) {
+            if (selected == null || isUserInitiated(kind)) {
                 hyperlink.fire();
             }
             return mediaPlayer;
@@ -537,7 +537,7 @@ public class MultipleImagesViewer extends Pane {
                 selected = link;
                 selectedView = contentBox;
             }, this::onClose);
-            if (selected == null) {
+            if (selected == null || isUserInitiated(kind)) {
                 hyperlink.fire();
             }
         } finally {
@@ -569,6 +569,18 @@ public class MultipleImagesViewer extends Pane {
             }
         }
         return new Media(filePath.toUri().toString());
+    }
+
+    /**
+     * Indicates whether an image of the given kind is the direct result of an explicit
+     * user action (cropping, generating a custom panel or animation). Such results are
+     * always brought to the front when added, since the user is waiting for them.
+     *
+     * @param kind the generated image kind
+     * @return true if the result should be opened immediately
+     */
+    private static boolean isUserInitiated(GeneratedImageKind kind) {
+        return kind == GeneratedImageKind.CROPPED;
     }
 
     private boolean shouldSelectAutomatically(ProcessParams params, GeneratedImageKind kind, PixelShift pixelShift) {
