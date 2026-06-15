@@ -2,6 +2,7 @@
 
 ## What's New in Version 5.3.2
 
+- Cropping in the image viewer is now interactive, with common actions available from the toolbar.
 - A new experimental correction can detect and remove regular wave patterns on the solar limb caused by mount oscillations.
 - The debug image of the jagged edges correction is now a graph showing the measured limb shifts and the applied corrections.
 - Other known spectral lines present in the capture window are now extracted automatically.

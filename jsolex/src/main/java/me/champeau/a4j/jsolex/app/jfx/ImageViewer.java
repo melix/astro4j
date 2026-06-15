@@ -28,6 +28,7 @@ import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.event.EventTarget;
 import javafx.geometry.Insets;
+import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Parent;
@@ -38,8 +39,11 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ProgressIndicator;
+import javafx.scene.control.Separator;
+import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Slider;
 import javafx.scene.control.Tooltip;
@@ -48,6 +52,7 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.image.Image;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.util.Duration;
@@ -121,6 +126,10 @@ public class ImageViewer implements WithRootNode {
     private ImageWrapper stretchedImage;
     private File imageFile;
     private GeneratedImageKind kind;
+    private String baseName;
+    private String description;
+    private File imageName;
+    private Map<String, ImageViewer> popupViews;
     private ProcessingEventListener broadcaster;
     private ProgressOperation operation;
     private ProcessParams processParams;
@@ -169,12 +178,14 @@ public class ImageViewer implements WithRootNode {
      */
     public void init() {
         this.imageView = new ZoomableImageView();
+        imageView.setContextMenuEnabled(false);
         this.loadingIndicator = new ProgressIndicator();
         loadingIndicator.setMaxWidth(80);
         loadingIndicator.setMaxHeight(80);
         loadingIndicator.setVisible(false);
         loadingIndicator.setMouseTransparent(true);
         this.imageContainer = new StackPane(imageView, loadingIndicator);
+        imageView.setSelectionOverlayHost(imageContainer);
         this.stretchingParams = new VBox();
         stretchingParams.getStyleClass().add("image-viewer-toolbar");
         stretchingParams.setAlignment(Pos.CENTER_LEFT);
@@ -236,6 +247,10 @@ public class ImageViewer implements WithRootNode {
         this.kind = kind;
         this.title = title;
         this.siblings = siblings;
+        this.baseName = baseName;
+        this.description = description;
+        this.imageName = imageName;
+        this.popupViews = popupViews;
         if (kind == GeneratedImageKind.IMAGE_MATH || kind == GeneratedImageKind.COLLAGE) {
             this.stretchingMode = StretchingMode.NO_STRETCH;
         }
@@ -253,6 +268,9 @@ public class ImageViewer implements WithRootNode {
                 imageContainer.getChildren().add(helpOverlay);
                 // Add button separately with mouse events enabled
                 var button = helpOverlay.createStandaloneButton();
+                // Let the button ignore the mouse while a selection is being drawn or edited,
+                // so the crop area can be extended into the corner the button occupies.
+                button.mouseTransparentProperty().bind(imageView.selectingProperty());
                 imageContainer.getChildren().add(button);
             });
         }
@@ -271,38 +289,52 @@ public class ImageViewer implements WithRootNode {
                 if (params.extraParams().autosave()) {
                     saveImage();
                 }
-                if (!popupViews.containsKey(title)) {
-                    var openInNewWindow = new MenuItem(message("open.new.window"));
-                    openInNewWindow.setOnAction(e -> {
-                        var controller = new ImageViewer();
-                        controller.init();
-                        controller.setup(new ProcessingEventListener() {
-                        }, operation, title, baseName, kind, description, wrapped, imageName, processParams, popupViews, siblings);
-                        var stage = newStage();
-                        var scene = newScene((Parent) controller.getRoot());
-                        controller.stage = stage;
-                        controller.fitWidthProperty().bind(stage.widthProperty());
-                        controller.updateTitle();
-                        stage.setWidth(1024);
-                        stage.setHeight(768);
-                        stage.setScene(scene);
-                        stage.setOnCloseRequest(evt -> popupViews.remove(title));
-                        stage.show();
-                        popupViews.put(title, controller);
-                        controller.display();
-                        controller.saveButton.setVisible(false);
-                    });
-                    FxUtils.runLater(() -> imageView.getCtxMenu().getItems().add(openInNewWindow));
-                }
-                var showMetadata = new MenuItem(message("show.metadata"));
-                showMetadata.setOnAction(e -> showMetadataDialog());
-                FxUtils.runLater(() -> imageView.getCtxMenu().getItems().add(showMetadata));
             });
-            maybeAddMeasurementTool(() -> {
-                var measureDistance = new MenuItem(I18N.string(JSolEx.class, "measures", "measure.distance"));
-                imageView.getCtxMenu().getItems().add(measureDistance);
-                return measureDistance;
-            });
+        }
+    }
+
+    private void openInNewWindow() {
+        var controller = new ImageViewer();
+        controller.init();
+        controller.setup(new ProcessingEventListener() {
+        }, operation, title, baseName, kind, description, image, imageName, processParams, popupViews, siblings);
+        var stage = newStage();
+        var scene = newScene((Parent) controller.getRoot());
+        controller.stage = stage;
+        controller.fitWidthProperty().bind(stage.widthProperty());
+        controller.updateTitle();
+        stage.setWidth(1024);
+        stage.setHeight(768);
+        stage.setScene(scene);
+        stage.setOnCloseRequest(evt -> popupViews.remove(title));
+        stage.show();
+        popupViews.put(title, controller);
+        controller.display();
+        controller.saveButton.setVisible(false);
+    }
+
+    private void populateActionsMenu(MenuButton menu) {
+        menu.getItems().clear();
+        for (var kind : RectangleSelectionListener.ActionKind.values()) {
+            if (kind == RectangleSelectionListener.ActionKind.CROP) {
+                continue;
+            }
+            if (imageView.supportsSelectionAction(kind)) {
+                var item = new MenuItem(ZoomableImageView.actionLabel(kind));
+                item.setOnAction(e -> imageView.startSelection(kind));
+                menu.getItems().add(item);
+            }
+        }
+        if (!menu.getItems().isEmpty()) {
+            menu.getItems().add(new SeparatorMenuItem());
+        }
+        var metadata = new MenuItem(message("show.metadata"));
+        metadata.setOnAction(e -> showMetadataDialog());
+        menu.getItems().add(metadata);
+        if (popupViews != null && !popupViews.containsKey(title)) {
+            var openNew = new MenuItem(message("open.new.window"));
+            openNew.setOnAction(e -> openInNewWindow());
+            menu.getItems().add(openNew);
         }
     }
 
@@ -598,6 +630,8 @@ public class ImageViewer implements WithRootNode {
             preserveStretchSettings = false;
             var line2 = new HBox(8);
             line2.setAlignment(Pos.CENTER_LEFT);
+            var line3 = new HBox(8);
+            line3.setAlignment(Pos.CENTER_LEFT);
             var linearStretchParams = new HBox(8);
             linearStretchParams.setAlignment(Pos.CENTER_LEFT);
             configureContrastAdjustment(linearStretchParams);
@@ -627,18 +661,21 @@ public class ImageViewer implements WithRootNode {
                 configureStretching();
                 stretchAndDisplay();
             });
-            saveButton = createButton(message("save"));
+            saveButton = createButton("💾 " + message("save"));
             saveButton.setOnAction(e -> saveImage());
             saveButton.disableProperty().addListener((obs, was, disabled) -> updateSaveButtonStyle(disabled));
             updateSaveButtonStyle(saveButton.isDisable());
+            var openExplorerButton = createButton("📂 " + message("open.in.explorer"));
+            openExplorerButton.setOnAction(e -> imageView.openInExplorer());
+            openExplorerButton.disableProperty().bind(imageView.cannotOpenInExplorerProperty());
             dimensions = new Label();
             var zoomLabel = new Label("Zoom");
-            var zoomMinus = createButton("-");
+            var zoomMinus = createIconButton("-");
             zoomMinus.setOnAction(evt -> {
                 clearPendingAlignment();
                 imageView.setZoomAroundCenter(imageView.getZoom() * 0.8);
             });
-            var zoomPlus = createButton("+");
+            var zoomPlus = createIconButton("+");
             zoomPlus.setOnAction(evt -> {
                 clearPendingAlignment();
                 imageView.setZoomAroundCenter(imageView.getZoom() * 1.2);
@@ -676,7 +713,7 @@ public class ImageViewer implements WithRootNode {
                 }
                 coordinatesLabel.setText("(" + xx + ", " + yy + extra + ")");
             });
-            var applyNextTime = createButton("✔");
+            var applyNextTime = createIconButton("✔");
             correctAngleP.selectedProperty().addListener((obj, oldValue, newValue) -> {
                 stretchAndDisplay();
                 if (!Objects.equals(oldValue, newValue)) {
@@ -713,14 +750,14 @@ public class ImageViewer implements WithRootNode {
                 clearPendingAlignment();
                 imageView.oneToOneZoomAndCenter();
             });
-            var leftRotate = createButton("↶");
+            var leftRotate = createIconButton("↶");
             leftRotate.setOnAction(evt -> {
                 rotation = (rotation - 1) % 4;
                 applyNextTime.setDisable(false);
                 stretchAndDisplay();
             });
             leftRotate.disableProperty().set(kind.cannotPerformManualRotation());
-            var rightRotate = createButton("↷");
+            var rightRotate = createIconButton("↷");
             rightRotate.setOnAction(evt -> {
                 rotation = (rotation + 1) % 4;
                 applyNextTime.setDisable(false);
@@ -728,7 +765,7 @@ public class ImageViewer implements WithRootNode {
                 stretchAndDisplay();
             });
             rightRotate.disableProperty().set(kind.cannotPerformManualRotation());
-            var verticalMirror = createButton("⇅");
+            var verticalMirror = createIconButton("⇅");
             verticalMirror.setOnAction(evt -> {
                 vflip = !vflip;
                 rotation = -rotation;
@@ -736,7 +773,7 @@ public class ImageViewer implements WithRootNode {
                 stretchAndDisplay();
             });
             verticalMirror.disableProperty().set(kind.cannotPerformManualRotation());
-            var horizontalMirror = createButton("⇄");
+            var horizontalMirror = createIconButton("⇄");
             horizontalMirror.setOnAction(evt -> {
                 rotation = (rotation + 2) % 4;
                 applyNextTime.setDisable(false);
@@ -749,15 +786,13 @@ public class ImageViewer implements WithRootNode {
                 applyNextTime.setDisable(true);
             });
             applyNextTime.setDisable(true);
-            var measureButton = createButton("⚖");
-            measureButton.setStyle("-fx-padding: 2; -fx-font-size: 18");
+            var measureButton = createIconButton("⚖");
             measureButton.setDisable(true);
             maybeAddMeasurementTool(() -> {
                 measureButton.setDisable(false);
                 return measureButton;
             });
-            var view3dButton = createButton("3D");
-            view3dButton.setStyle("-fx-padding: 2; -fx-font-size: 18");
+            var view3dButton = createIconButton("3D");
             view3dButton.setVisible(false);
             view3dButton.setManaged(false);
             maybeAdd3DView(() -> {
@@ -765,15 +800,21 @@ public class ImageViewer implements WithRootNode {
                 view3dButton.setManaged(true);
                 return view3dButton;
             });
-            var overlayButton = createButton("⊕");
-            overlayButton.setStyle("-fx-padding: 2; -fx-font-size: 18");
+            var overlayButton = createIconButton("⊕");
             overlayButton.setOnAction(evt -> toggleOverlayPanel(overlayButton));
-            line1.getChildren().addAll(reset, saveButton, prevButton, nextButton);
-            line2.getChildren().addAll(correctAngleP, zoomLabel, zoomMinus, zoomPlus, fitButton, fitToCenter, oneToOneFit, leftRotate, rightRotate, verticalMirror, horizontalMirror, applyNextTime, overlayButton, measureButton, view3dButton, dimensions, coordinatesLabel);
+            var cropButton = createIconButton("⛶");
+            cropButton.setOnAction(evt -> imageView.startCropSelection());
+            var actionsMenu = new MenuButton(message("actions.menu"));
+            actionsMenu.getStyleClass().add("image-viewer-button");
+            actionsMenu.setOnShowing(e -> populateActionsMenu(actionsMenu));
+            populateActionsMenu(actionsMenu);
+            line1.getChildren().addAll(reset, prevButton, nextButton);
+            var readoutSpacer = new Region();
+            line2.getChildren().addAll(zoomLabel, zoomMinus, zoomPlus, fitButton, fitToCenter, oneToOneFit, verticalSeparator(), saveButton, openExplorerButton);
+            line3.getChildren().addAll(correctAngleP, leftRotate, rightRotate, verticalMirror, horizontalMirror, applyNextTime, verticalSeparator(), cropButton, overlayButton, measureButton, view3dButton, verticalSeparator(), actionsMenu, readoutSpacer, dimensions, coordinatesLabel);
             var titleLabel = new Label(title);
             titleLabel.setStyle("-fx-font-weight: bold");
-            var alignButton = createButton("⌖");
-            alignButton.setStyle("-fx-padding: 2; -fx-font-size: 18");
+            var alignButton = createIconButton("⌖");
             alignButton.setOnAction(evt -> {
                 onDisplayUpdate = null;
                 for (var viewer : siblings) {
@@ -785,6 +826,7 @@ public class ImageViewer implements WithRootNode {
 
             FxUtils.runLater(() -> {
                 alignButton.setTooltip(new Tooltip(message("align.images")));
+                cropButton.setTooltip(new Tooltip(message("crop")));
                 leftRotate.setTooltip(new Tooltip(message("rotate.left")));
                 rightRotate.setTooltip(new Tooltip(message("rotate.right")));
                 verticalMirror.setTooltip(new Tooltip(message("vertical.flip")));
@@ -796,9 +838,10 @@ public class ImageViewer implements WithRootNode {
                 var titleBox = new HBox(alignButton, titleLabel, new Label("(" + imageFile.getName() + ")"));
                 titleBox.setSpacing(4);
                 titleBox.setAlignment(Pos.CENTER_LEFT);
-                stretchingParams.getChildren().addAll(titleBox, line1, line2);
+                stretchingParams.getChildren().addAll(titleBox, line1, line2, line3);
                 configureHGrow(line1.getChildren());
-                configureHGrow(line2.getChildren().stream().filter(e -> !(e instanceof Slider)).toList());
+                configureHGrow(line2.getChildren().stream().filter(e -> !(e instanceof Slider) && !(e instanceof Separator)).toList());
+                configureHGrow(line3.getChildren().stream().filter(e -> !(e instanceof Slider) && !(e instanceof Separator)).toList());
             });
         } finally {
             displayLock.unlock();
@@ -1627,6 +1670,18 @@ public class ImageViewer implements WithRootNode {
         button.getStyleClass().add("image-viewer-button");
         button.setMinSize(Button.USE_PREF_SIZE, Button.USE_PREF_SIZE);
         return button;
+    }
+
+    private static Button createIconButton(String glyph) {
+        var button = new Button(glyph);
+        button.getStyleClass().addAll("image-viewer-button", "image-viewer-icon-button");
+        return button;
+    }
+
+    private static Separator verticalSeparator() {
+        var separator = new Separator(Orientation.VERTICAL);
+        separator.getStyleClass().add("toolbar-separator");
+        return separator;
     }
 
     private enum StretchingMode {

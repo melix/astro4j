@@ -434,6 +434,28 @@
     -fx-text-fill: white;
 }
 
+/* Icon/symbol buttons in the image viewer toolbar: fixed width so that
+   single-glyph controls line up consistently regardless of glyph metrics. */
+.image-viewer-icon-button {
+    -fx-min-width: 34px;
+    -fx-pref-width: 34px;
+    -fx-max-width: 34px;
+    -fx-padding: 4px 4px;
+    -fx-font-size: 14px;
+    -fx-alignment: center;
+}
+
+/* Group separators in the image viewer toolbar: a visible thin rule so that
+   button groups read as distinct clusters. */
+.toolbar-separator {
+    -fx-padding: 2 4 2 4;
+}
+
+.toolbar-separator:vertical .line {
+    -fx-border-color: #ced4da;
+    -fx-border-width: 0 1 0 0;
+}
+
 /* Overlay chips: compact toggle buttons embedded in the image viewer
    toolbar, with a colored bottom border showing the overlay color. */
 .overlay-chip {
