@@ -1539,6 +1539,36 @@ public class ImageViewer implements WithRootNode {
         return applyOverlaysToStretchedImage();
     }
 
+    /**
+     * Returns the original (unstretched) image displayed by this viewer, including
+     * its metadata, as used for session export.
+     *
+     * @return the image, or {@code null} if none
+     */
+    public ImageWrapper getImage() {
+        return image;
+    }
+
+    public GeneratedImageKind getKind() {
+        return kind;
+    }
+
+    public String getBaseName() {
+        return baseName;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public ProcessParams getProcessParams() {
+        return processParams;
+    }
+
     public boolean hasActiveOverlays() {
         return overlays != null
                 && (overlays.drawGlobe()

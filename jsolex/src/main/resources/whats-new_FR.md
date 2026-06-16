@@ -2,6 +2,7 @@
 
 ## Nouveautés de la version 5.3.2
 
+- Vous pouvez désormais exporter les images en cours dans un fichier de session, puis le rouvrir plus tard pour partager vos résultats sans retraiter la vidéo d'origine.
 - Le recadrage dans la visionneuse est désormais interactif, avec les actions courantes accessibles depuis la barre d'outils.
 - Une nouvelle correction expérimentale permet de détecter et supprimer les ondulations régulières du limbe solaire causées par des oscillations de la monture.
 - L'image de débogage de la correction des bords dentelés est désormais un graphique montrant les décalages mesurés du limbe et les corrections appliquées.

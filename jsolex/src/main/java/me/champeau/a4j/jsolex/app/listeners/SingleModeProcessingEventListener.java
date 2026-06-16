@@ -2074,6 +2074,36 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         return img;
     }
 
+    /**
+     * Prepares this listener to reconstruct images on demand from its SER file when a
+     * session is re-run after import. The SER file, parameters and output directory are
+     * provided at construction time; this supplies the remaining state needed by
+     * {@link #reconstructForReRun(PixelShift)}.
+     *
+     * @param range   the valid pixel-shift range (must not be {@code null})
+     * @param ellipse the fitted solar disk ellipse (may be {@code null})
+     */
+    public void prepareForReRun(PixelShiftRange range, Ellipse ellipse) {
+        pixelShiftRange = range;
+        mainEllipse = ellipse;
+    }
+
+    /**
+     * Reconstructs the image at the given pixel shift from the SER file, reusing the
+     * same on-demand reconstruction path as a live processing session. Returns
+     * {@code null} if reconstruction is not possible (e.g. the SER file is missing).
+     *
+     * @param shift the requested pixel shift
+     * @return the reconstructed image, or {@code null}
+     */
+    public ImageWrapper reconstructForReRun(PixelShift shift) {
+        if (serFile == null || pixelShiftRange == null) {
+            LOGGER.error("Cannot reconstruct image for re-run: SER file or pixel shift range is missing");
+            return null;
+        }
+        return lazyReconstructMissingImage(shift);
+    }
+
     private void restartProcessForMissingShifts(Set<Double> missingShifts) {
         var outOfRange = missingShifts.stream()
                 .filter(s -> s > pixelShiftRange.maxPixelShift())

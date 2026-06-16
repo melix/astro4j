@@ -47,6 +47,9 @@ import me.champeau.a4j.jsolex.app.listeners.JSolExInterface;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.jsolex.processing.session.SessionData;
+import me.champeau.a4j.jsolex.processing.session.SessionImage;
+import me.champeau.a4j.jsolex.processing.session.SessionMedia;
 import me.champeau.a4j.jsolex.processing.sun.workflow.DisplayCategory;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
@@ -68,6 +71,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -93,9 +97,15 @@ public class MultipleImagesViewer extends Pane {
     );
 
     private static final String RUN_NUMBER_KEY = "script-run-number";
+    private static final String GROUP_ID_KEY = "import-group-id";
+    private static final String GROUP_SEQ_KEY = "import-group-seq";
     private static final DateTimeFormatter RUN_TITLE_FORMAT = DateTimeFormatter.ofPattern("HH:mm");
     private static final DateTimeFormatter RUN_TOOLTIP_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss");
 
+    private static final int GROUP_SORT_BASE = 1000;
+
+    private final AtomicInteger importGroupSequence = new AtomicInteger();
+    private final Map<String, Integer> importGroupSeqById = new HashMap<>();
     private final Set<ImageViewer> imageViews = new HashSet<>();
     private final List<CategoryPane> safeCategories = new ArrayList<>();
     private final ObservableList<Node> categories;
@@ -118,6 +128,8 @@ public class MultipleImagesViewer extends Pane {
     private final BooleanProperty closeAllEnabled = new SimpleBooleanProperty(false);
     private final BooleanProperty deleteSerEnabled = new SimpleBooleanProperty(false);
     private final BooleanProperty trimSerEnabled = new SimpleBooleanProperty(false);
+
+    private final List<SessionMedia> mediaEntries = new ArrayList<>();
 
     /**
      * Creates a new instance.
@@ -255,10 +267,48 @@ public class MultipleImagesViewer extends Pane {
                 viewerKinds.clear();
                 onShowHooks.clear();
                 linkToViewer.clear();
+                mediaEntries.clear();
+                importGroupSeqById.clear();
             });
             selected = null;
             selectedKind = null;
             selectedView = null;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /**
+     * Collects the current content of the viewer (generated images and media)
+     * into a {@link SessionData} suitable for export.
+     *
+     * @return the session data
+     */
+    public SessionData collectSessionData() {
+        try {
+            lock.lock();
+            var images = new ArrayList<SessionImage>();
+            for (var viewer : imageViews) {
+                var image = viewer.getImage();
+                if (image != null) {
+                    images.add(new SessionImage(viewer.getKind(), viewer.getTitle(), viewer.getBaseName(), viewer.getDescription(), image));
+                }
+            }
+            return new SessionData(images, new ArrayList<>(mediaEntries));
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /**
+     * Returns whether the viewer currently holds any image or media.
+     *
+     * @return {@code true} if there is something to export
+     */
+    public boolean hasContent() {
+        try {
+            lock.lock();
+            return !imageViews.isEmpty() || !mediaEntries.isEmpty();
         } finally {
             lock.unlock();
         }
@@ -340,11 +390,63 @@ public class MultipleImagesViewer extends Pane {
                                                LocalDateTime runStartTime,
                                                Function<? super ImageViewer, T> transformer,
                                                Consumer<? super ImageViewer> onShow) {
+        return addImageInternal(null, null, listener, operation, title, baseName, kind, description, imageWrapper,
+                file, params, popupViews, pixelShift, scriptRunNumber, runStartTime, transformer, onShow);
+    }
+
+    /**
+     * Adds an image inside a named group. Images are still split into their kind categories,
+     * but each category is namespaced by the group id and labelled with the group title, so an
+     * imported session gets its own set of categories instead of merging into the existing ones.
+     */
+    public <T extends WithRootNode> T addImageToGroup(String groupId,
+                                                      String groupTitle,
+                                                      ProcessingEventListener listener,
+                                                      ProgressOperation operation,
+                                                      String title,
+                                                      String baseName,
+                                                      GeneratedImageKind kind,
+                                                      String description,
+                                                      ImageWrapper imageWrapper,
+                                                      File file,
+                                                      ProcessParams params,
+                                                      Map<String, ImageViewer> popupViews,
+                                                      PixelShift pixelShift,
+                                                      Function<? super ImageViewer, T> transformer,
+                                                      Consumer<? super ImageViewer> onShow) {
+        return addImageInternal(groupId, groupTitle, listener, operation, title, baseName, kind, description, imageWrapper,
+                file, params, popupViews, pixelShift, 0, null, transformer, onShow);
+    }
+
+    private <T extends WithRootNode> T addImageInternal(String groupId,
+                                                        String groupTitle,
+                                                        ProcessingEventListener listener,
+                                                        ProgressOperation operation,
+                                                        String title,
+                                                        String baseName,
+                                                        GeneratedImageKind kind,
+                                                        String description,
+                                                        ImageWrapper imageWrapper,
+                                                        File file,
+                                                        ProcessParams params,
+                                                        Map<String, ImageViewer> popupViews,
+                                                        PixelShift pixelShift,
+                                                        int scriptRunNumber,
+                                                        LocalDateTime runStartTime,
+                                                        Function<? super ImageViewer, T> transformer,
+                                                        Consumer<? super ImageViewer> onShow) {
         try {
             lock.lock();
 
             var runScoped = scriptRunNumber > 0 && kind == GeneratedImageKind.IMAGE_MATH;
-            var category = runScoped ? getOrCreateRunCategory(scriptRunNumber, runStartTime) : getOrCreateCategory(kind);
+            CategoryPane category;
+            if (groupId != null) {
+                category = getOrCreateGroupCategory(kind.displayCategory(), groupId, groupTitle);
+            } else if (runScoped) {
+                category = getOrCreateRunCategory(scriptRunNumber, runStartTime);
+            } else {
+                category = getOrCreateCategory(kind);
+            }
             String badge = null;
             String badgeTooltip = null;
             if (runScoped) {
@@ -372,8 +474,8 @@ public class MultipleImagesViewer extends Pane {
             Function<ImageWrapper, ImageViewer> copyFactory = imageToDisplay -> {
                 var clonedTitle = title + " " + message("clone.suffix");
                 var clonedBaseName = baseName + "_copy";
-                return addImage(listener, operation, clonedTitle, clonedBaseName, kind, description,
-                        imageToDisplay, file, params, popupViews, pixelShift, v -> v, onShow);
+                return addImageInternal(groupId, groupTitle, listener, operation, clonedTitle, clonedBaseName, kind, description,
+                        imageToDisplay, file, params, popupViews, pixelShift, scriptRunNumber, runStartTime, v -> v, onShow);
             };
             viewer.setAnnotatedCopyFactory(copyFactory);
             Runnable onClone = () -> {
@@ -455,6 +557,7 @@ public class MultipleImagesViewer extends Pane {
             lock.lock();
 
             var category = getOrCreateCategory(kind);
+            mediaEntries.add(new SessionMedia(kind, title, description, filePath, SessionMedia.Type.VIDEO));
             var media = createMedia(filePath);
             var mediaPlayer = new MediaPlayer(media);
             var viewer = new MediaView(mediaPlayer);
@@ -511,6 +614,7 @@ public class MultipleImagesViewer extends Pane {
             lock.lock();
 
             var category = getOrCreateCategory(kind);
+            mediaEntries.add(new SessionMedia(kind, title, description, filePath, SessionMedia.Type.GIF));
             var image = new Image(filePath.toUri().toString());
             var imageView = new ImageView(image);
             imageView.setPreserveRatio(true);
@@ -627,6 +731,27 @@ public class MultipleImagesViewer extends Pane {
                 .orElseGet(() -> addRunCategory(runNumber, startTime));
     }
 
+    private CategoryPane getOrCreateGroupCategory(DisplayCategory category, String groupId, String title) {
+        return categories()
+                .filter(t -> groupId.equals(t.getProperties().get(GROUP_ID_KEY)) && t.getProperties().get(DisplayCategory.class) == category)
+                .findFirst()
+                .orElseGet(() -> addGroupCategory(category, groupId, title));
+    }
+
+    private CategoryPane addGroupCategory(DisplayCategory category, String groupId, String title) {
+        var label = message("displayCategory." + category.name()) + " (" + title + ")";
+        var pane = new CategoryPane(label, e -> {
+            categories.remove(e);
+            safeCategories.remove(e);
+        });
+        pane.setMinWidth(190);
+        pane.getProperties().put(DisplayCategory.class, category);
+        pane.getProperties().put(GROUP_ID_KEY, groupId);
+        pane.getProperties().put(GROUP_SEQ_KEY, importGroupSeqById.computeIfAbsent(groupId, unused -> importGroupSequence.incrementAndGet()));
+        pane.getStyleClass().add("run-pane");
+        return registerCategory(pane);
+    }
+
     private Stream<CategoryPane> categories() {
         return safeCategories.stream();
     }
@@ -662,6 +787,10 @@ public class MultipleImagesViewer extends Pane {
     }
 
     private static int sortKey(CategoryPane pane) {
+        var groupSeq = (Integer) pane.getProperties().get(GROUP_SEQ_KEY);
+        if (groupSeq != null) {
+            return GROUP_SORT_BASE + groupSeq * 100 + categoryOf(pane).ordinal();
+        }
         var runNumber = (Integer) pane.getProperties().get(RUN_NUMBER_KEY);
         if (runNumber != null) {
             return -runNumber;
