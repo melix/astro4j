@@ -2,6 +2,7 @@
 
 ## What's New in Version 5.3.2
 
+- You can now export the current images to a session file and reopen it later to share your results without reprocessing the original video.
 - Cropping in the image viewer is now interactive, with common actions available from the toolbar.
 - A new experimental correction can detect and remove regular wave patterns on the solar limb caused by mount oscillations.
 - The debug image of the jagged edges correction is now a graph showing the measured limb shifts and the applied corrections.

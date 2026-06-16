@@ -19,6 +19,9 @@
                         <MenuItem onAction="#openFromSunscan" text="%open.sunscan"/>
                         <Menu fx:id="recentFilesMenu" text="%recent.files"/>
                         <SeparatorMenuItem/>
+                        <MenuItem onAction="#importSession" text="%import.session"/>
+                        <MenuItem onAction="#exportSession" text="%export.session"/>
+                        <SeparatorMenuItem/>
                         <MenuItem onAction="#showAdvancedParams" text="%advanced.params"/>
                         <SeparatorMenuItem/>
                         <MenuItem onAction="#exit" text="%exit"/>

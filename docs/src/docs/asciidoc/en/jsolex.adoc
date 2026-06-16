@@ -384,6 +384,19 @@ Click "Apply" to keep them or "Close" to revert.
 You can save the current annotation settings (toggles, colors, line thickness, prominence scale options, observation details template, signature) as a preset with the "Save preset" button at the bottom of the panel, and reload them on any other image with "Load preset".
 The preset is stored on your computer and persists across JSol'Ex sessions.
 
+== Exporting and importing sessions
+
+After processing one or more files, you often want to compare the results and later share the best image, for example on SpectroSolHub.
+Instead of reprocessing the original SER video, you can export the current state of the image viewer to a *session file* and reopen it whenever you need it.
+
+To export, choose "Export session..." from the *File* menu and pick a destination.
+The session file (`.jsxs`) stores every generated image, the animations and videos, and their processing parameters.
+The file is compressed, but keep in mind that a session containing many images can still be large.
+
+To restore a session, choose "Import session..." from the *File* menu and select a `.jsxs` file.
+If the viewer already contains images, JSol'Ex asks whether you want to replace them or merge the imported ones with the current view.
+The restored images keep their original parameters, so you can save, annotate or share them exactly as if they had just been processed, without touching the original video.
+
 == Watching a directory for changes
 
 When trying to find the ideal focus, it can be useful to process video files quickly until we obtain a satisfying result.

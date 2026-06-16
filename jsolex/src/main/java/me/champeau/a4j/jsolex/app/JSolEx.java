@@ -109,6 +109,7 @@ import me.champeau.a4j.jsolex.app.jfx.SpectralLineDebugger;
 import me.champeau.a4j.jsolex.app.jfx.SpectralRayEditor;
 import me.champeau.a4j.jsolex.app.jfx.SpectroHeliographEditor;
 import me.champeau.a4j.jsolex.app.jfx.SpectrumBrowser;
+import me.champeau.a4j.jsolex.app.jfx.SessionIO;
 import me.champeau.a4j.jsolex.app.jfx.StandaloneImagesLoader;
 import me.champeau.a4j.jsolex.app.jfx.bass2000.Bass2000SubmissionController;
 import me.champeau.a4j.jsolex.app.jfx.ime.ImageMathTextArea;
@@ -150,7 +151,12 @@ import me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper;
 import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
 import me.champeau.a4j.jsolex.processing.sun.TrimmingParameters;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
+import me.champeau.a4j.jsolex.processing.session.SessionBatchOutputs;
+import me.champeau.a4j.jsolex.processing.session.SessionReRunData;
+import me.champeau.a4j.jsolex.processing.session.SessionSingleRun;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
+import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
+import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.AnimationFormat;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
@@ -197,6 +203,7 @@ import java.text.MessageFormat;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -210,6 +217,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static java.nio.file.StandardWatchEventKinds.OVERFLOW;
@@ -441,6 +449,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     private HostServices hostServices;
     private Tab imagesViewerTab;
     private ImageMathScriptExecutor scriptExecutor;
+    private BatchProcessingContext lastBatchProcessingContext;
     private Path outputDirectory;
     private final RepositoryUpdateService repositoryUpdateService = new RepositoryUpdateService();
     private ProgressHandler progressHandler;
@@ -1827,13 +1836,129 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
 
     @FXML
     private void loadImages() {
+        ensureImagesViewerTab();
+        var defaults = ProcessParams.loadDefaults();
+        new StandaloneImagesLoader(rootStage, config, multipleImagesViewer, IMAGE_FILES_EXTENSIONS, this::updateProgress, defaults, popupViewers).loadImages();
+        config.findLastOpenDirectory().ifPresent(dir -> {
+            this.outputDirectory = dir;
+            multipleImagesViewer.setCollageContext(this, defaults, dir);
+        });
+    }
+
+    private void ensureImagesViewerTab() {
         if (imagesViewerTab == null || !mainPane.getTabs().contains(imagesViewerTab)) {
             mainPane.getTabs().clear();
             imagesViewerTab = new Tab(message("images"), multipleImagesViewer);
             mainPane.getTabs().add(imagesViewerTab);
         }
+    }
+
+    private File sessionBaseDirectory() {
+        if (outputDirectory != null) {
+            return outputDirectory.toFile();
+        }
+        return config.findLastOpenDirectory()
+                .map(Path::toFile)
+                .orElseGet(() -> new File(System.getProperty("java.io.tmpdir")));
+    }
+
+    private SessionIO newSessionIO(ProcessParams defaults) {
+        return new SessionIO(rootStage, config, multipleImagesViewer, defaults, popupViewers,
+                sessionBaseDirectory(), this::ensureImagesViewerTab, this::isImagesViewerShowingContent,
+                this::gatherReRunData, this::restoreReRun);
+    }
+
+    private boolean isImagesViewerShowingContent() {
+        return imagesViewerTab != null
+                && mainPane.getTabs().contains(imagesViewerTab)
+                && multipleImagesViewer.hasContent();
+    }
+
+    /**
+     * Gathers the data needed to re-run scripts after import: the collected batch outputs
+     * when the last run was a batch, otherwise the single run's SER file and parameters.
+     *
+     * @return the re-run data, or {@code null} if none is available
+     */
+    private SessionReRunData gatherReRunData() {
+        var batchContext = lastBatchProcessingContext;
+        if (batchContext != null) {
+            var lock = batchContext.dataLock();
+            lock.readLock().lock();
+            try {
+                var images = new LinkedHashMap<String, List<ImageWrapper>>();
+                batchContext.imagesByLabel().forEach((label, list) -> images.put(label, new ArrayList<>(list)));
+                var values = new LinkedHashMap<String, List<Object>>();
+                batchContext.valuesByLabel().forEach((label, list) -> values.put(label, new ArrayList<>(list)));
+                if (images.isEmpty() && values.isEmpty()) {
+                    return null;
+                }
+                return new SessionReRunData(List.of(), new SessionBatchOutputs(images, values));
+            } finally {
+                lock.readLock().unlock();
+            }
+        }
+        if (scriptExecutor instanceof SingleModeProcessingEventListener listener
+                && listener.hasSerFile()
+                && listener.getSerFile() != null) {
+            var run = new SessionSingleRun(
+                    listener.getSerFile().getAbsolutePath(),
+                    listener.getParams(),
+                    listener.getMainEllipse(),
+                    listener.getPixelShiftRange());
+            return new SessionReRunData(List.of(run), null);
+        }
+        return null;
+    }
+
+    /**
+     * Rebuilds an executor from imported re-run data and wires it as the active script
+     * executor so the editor's "Run" works against the restored session.
+     */
+    private void restoreReRun(SessionReRunData reRun) {
+        if (reRun == null) {
+            return;
+        }
+        var rootOperation = ProgressOperation.root(message("script.execution"), op -> {
+        });
+        if (reRun.batchOutputs() != null) {
+            var batchParams = lastBatchProcessingContext != null
+                    ? lastBatchProcessingContext.processParamsByIndex().values().stream().findFirst().orElseGet(ProcessParams::loadDefaults)
+                    : ProcessParams.loadDefaults();
+            var outputDir = sessionBaseDirectory();
+            var executor = createNewStandaloneExecutor(batchParams, rootOperation, outputDir);
+            reRun.batchOutputs().imagesByLabel().forEach(executor::putVariable);
+            reRun.batchOutputs().valuesByLabel().forEach(executor::putVariable);
+            prepareForScriptExecution(executor, batchParams, rootOperation, ImageMathScriptExecutor.SectionKind.BATCH);
+            return;
+        }
+        if (reRun.singleRuns() != null && !reRun.singleRuns().isEmpty()) {
+            var run = reRun.singleRuns().getFirst();
+            var serFile = run.serFilePath() != null ? new File(run.serFilePath()) : null;
+            if (serFile == null || !serFile.exists()) {
+                LOGGER.error("Cannot re-run imported session: SER file not found at {}", run.serFilePath());
+                return;
+            }
+            var params = run.params() != null ? run.params() : ProcessParams.loadDefaults();
+            var outputDir = serFile.getParentFile();
+            var baseName = serFile.getName().contains(".") ? serFile.getName().substring(0, serFile.getName().lastIndexOf('.')) : serFile.getName();
+            var reconstructor = new SingleModeProcessingEventListener(this, rootOperation, baseName, serFile, outputDir.toPath(), params, LocalDateTime.now(), popupViewers);
+            reconstructor.prepareForReRun(run.pixelShiftRange(), run.ellipse());
+            Function<PixelShift, ImageWrapper> imageSupplier = reconstructor::reconstructForReRun;
+            var executor = createStandaloneStyleExecutor(params, rootOperation, outputDir, imageSupplier, MutableMap.of(ProcessParams.class, params));
+            prepareForScriptExecution(executor, params, rootOperation, ImageMathScriptExecutor.SectionKind.SINGLE);
+        }
+    }
+
+    @FXML
+    private void exportSession() {
+        newSessionIO(ProcessParams.loadDefaults()).exportSession();
+    }
+
+    @FXML
+    private void importSession() {
         var defaults = ProcessParams.loadDefaults();
-        new StandaloneImagesLoader(rootStage, config, multipleImagesViewer, IMAGE_FILES_EXTENSIONS, this::updateProgress, defaults, popupViewers).loadImages();
+        newSessionIO(defaults).importSession();
         config.findLastOpenDirectory().ifPresent(dir -> {
             this.outputDirectory = dir;
             multipleImagesViewer.setCollageContext(this, defaults, dir);
@@ -2179,14 +2304,24 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     }
 
     private JSolExScriptExecutor createNewStandaloneExecutor(ProcessParams params, ProgressOperation rootOperation, File outputDirectory) {
+        return createStandaloneStyleExecutor(params, rootOperation, outputDirectory, img -> {
+            throw new ProcessingException("img() is not available in standalone image math scripts. Use load or load_many to load images");
+        }, MutableMap.of());
+    }
+
+    private JSolExScriptExecutor createStandaloneStyleExecutor(ProcessParams params,
+                                                              ProgressOperation rootOperation,
+                                                              File outputDirectory,
+                                                              Function<PixelShift, ImageWrapper> imageSupplier,
+                                                              Map<Class<?>, Object> extraContext) {
         var processingDate = LocalDateTime.now();
         var listener = delegatingListener(new SingleModeProcessingEventListener(this, rootOperation, "", null, outputDirectory.toPath(), params, processingDate, popupViewers));
         var namingStrategy = new FileNamingStrategy(params.extraParams().fileNamePattern(), params.extraParams().datetimeFormat(), params.extraParams().dateFormat(), processingDate, createFakeHeader(processingDate));
         // Create a child operation for script execution so the root doesn't get marked complete prematurely
         var scriptOperation = rootOperation.createChild("Script");
-        var imageScriptExecutor = new JSolExScriptExecutor(img -> {
-            throw new ProcessingException("img() is not available in standalone image math scripts. Use load or load_many to load images");
-        }, ScriptExecutionContext.builder().progressOperation(scriptOperation).build(), (Broadcaster) listener, null) {
+        var context = ScriptExecutionContext.builder().progressOperation(scriptOperation).build();
+        context.mergeAll(extraContext);
+        var imageScriptExecutor = new JSolExScriptExecutor(imageSupplier, context, (Broadcaster) listener, null) {
             @Override
             public ImageMathScriptResult execute(String script, SectionKind kind) {
                 var result = super.execute(script, kind);
@@ -2782,6 +2917,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
                                    Runnable onComplete) {
         Thread.currentThread().setUncaughtExceptionHandler((t, e) -> LoggingSupport.logError(e));
         lastExecutionProcessParams = params;
+        lastBatchProcessingContext = context instanceof BatchProcessingContext bpc ? bpc : null;
         var processingDate = context instanceof BatchProcessingContext batch ? batch.processingDate() : LocalDateTime.now();
         var namingStrategy = new FileNamingStrategy(params.extraParams().fileNamePattern(), params.extraParams().datetimeFormat(), params.extraParams().dateFormat(), processingDate, header);
         var outputDirectory = selectedFile.getParentFile();
@@ -2957,6 +3093,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         multipleImagesViewer.setCloseAllEnabled(false);
         multipleImagesViewer.setDeleteSerEnabled(false);
         multipleImagesViewer.setTrimSerEnabled(false);
+        multipleImagesViewer.clear();
         console.clear();
         mainPane.getTabs().clear();
         resetInspectorTabs();

@@ -383,6 +383,19 @@ Cliquez sur « Appliquer » pour les conserver ou « Fermer » pour les annuler.
 Vous pouvez enregistrer les réglages d'annotations actuels (activations, couleurs, épaisseur, options de l'échelle des protubérances, modèle des détails, signature) en tant que préréglage via le bouton « Enregistrer le préréglage » en bas du panneau, et les recharger sur n'importe quelle autre image avec « Charger le préréglage ».
 Le préréglage est stocké sur votre ordinateur et conservé entre les sessions de JSol'Ex.
 
+== Exporter et importer une session
+
+Après avoir traité un ou plusieurs fichiers, on souhaite souvent comparer les résultats puis partager la meilleure image, par exemple sur SpectroSolHub.
+Plutôt que de retraiter la vidéo SER d'origine, vous pouvez exporter l'état actuel de la visionneuse dans un *fichier de session* et le rouvrir à tout moment.
+
+Pour exporter, choisissez « Exporter la session... » dans le menu *Fichier* et indiquez la destination.
+Le fichier de session (`.jsxs`) enregistre toutes les images générées, les animations et vidéos, ainsi que leurs paramètres de traitement.
+Le fichier est compressé, mais gardez à l'esprit qu'une session contenant de nombreuses images peut rester volumineuse.
+
+Pour restaurer une session, choisissez « Importer une session... » dans le menu *Fichier* et sélectionnez un fichier `.jsxs`.
+Si la visionneuse contient déjà des images, JSol'Ex vous demande si vous souhaitez les remplacer ou fusionner les images importées avec la vue actuelle.
+Les images restaurées conservent leurs paramètres d'origine : vous pouvez les enregistrer, les annoter ou les partager exactement comme si elles venaient d'être traitées, sans toucher à la vidéo d'origine.
+
 == Mode surveillance de répertoire
 
 Lors de la mise au point, il peut être utile de traiter "à la chaîne" de nouvelles vidéos jusqu'à avoir obtenu un résultat satisfaisant (image centrée, mise au point correcte, etc.).

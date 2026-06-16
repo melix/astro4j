@@ -29,7 +29,6 @@ import java.io.IOException;
 import java.lang.ref.Cleaner;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.SoftReference;
-import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -67,8 +66,6 @@ public final class FileBackedImage implements ImageWrapper {
     private static final Lock LOCK = new ReentrantLock();
     private static final Map<ImageWrapper, FileBackedImage> WRAP_CACHE = new WeakHashMap<>();
     private static final Lock CACHE_LOCK = new ReentrantLock();
-    private static final byte MONO = 0;
-    private static final byte RGB = 2;
     private static final int AUTOFLUSH_TIMEOUT = 10_000;
     private static final int DEFAULT_RW_BUFFER_SIZE = 65536;
     private static final int WRITE_PERMITS = 4;
@@ -368,56 +365,19 @@ public final class FileBackedImage implements ImageWrapper {
                     event.skipped = true;
                     return;
                 }
-                long uncompressed = 0;
+                long uncompressed;
+                if (source instanceof RGBImage) {
+                    uncompressed = 1L + 8L + (long) height * width * 3 * Float.BYTES;
+                } else {
+                    uncompressed = 1L + 8L + (long) height * width * Float.BYTES;
+                }
                 var deflater = new Deflater(Deflater.BEST_SPEED);
                 try {
-                    if (source instanceof ImageWrapper32 mono) {
-                        try (var fos = new BufferedOutputStream(new FileOutputStream(backingFile.toFile()), DEFAULT_RW_BUFFER_SIZE);
-                             var dos = new DataOutputStream(new DeflaterOutputStream(fos, deflater, DEFAULT_RW_BUFFER_SIZE))) {
-                            dos.writeByte(MONO);
-                            dos.writeInt(height);
-                            dos.writeInt(width);
-                            var data = mono.data();
-                            var rowBytes = new byte[width * Float.BYTES];
-                            var shuffled = new byte[rowBytes.length];
-                            var rowFloats = ByteBuffer.wrap(rowBytes).asFloatBuffer();
-                            for (int y = 0; y < height; y++) {
-                                rowFloats.clear();
-                                rowFloats.put(data[y]);
-                                shuffleBytes(rowBytes, shuffled, width);
-                                dos.write(shuffled);
-                            }
-                            uncompressed = 1L + 8L + (long) height * rowBytes.length;
-                        } catch (IOException e) {
-                            throw new RuntimeException(e);
-                        }
-                    } else if (source instanceof RGBImage rgb) {
-                        try (var fos = new BufferedOutputStream(new FileOutputStream(backingFile.toFile()), DEFAULT_RW_BUFFER_SIZE);
-                             var dos = new DataOutputStream(new DeflaterOutputStream(fos, deflater, DEFAULT_RW_BUFFER_SIZE))) {
-                            dos.writeByte(RGB);
-                            dos.writeInt(height);
-                            dos.writeInt(width);
-                            var r = rgb.r();
-                            var g = rgb.g();
-                            var b = rgb.b();
-                            var rowBytes = new byte[width * 3 * Float.BYTES];
-                            var shuffled = new byte[rowBytes.length];
-                            var rowFloats = ByteBuffer.wrap(rowBytes).asFloatBuffer();
-                            for (int y = 0; y < height; y++) {
-                                rowFloats.clear();
-                                var rRow = r[y];
-                                var gRow = g[y];
-                                var bRow = b[y];
-                                for (int x = 0; x < width; x++) {
-                                    rowFloats.put(rRow[x]).put(gRow[x]).put(bRow[x]);
-                                }
-                                shuffleBytes(rowBytes, shuffled, width * 3);
-                                dos.write(shuffled);
-                            }
-                            uncompressed = 1L + 8L + (long) height * rowBytes.length;
-                        } catch (IOException e) {
-                            throw new RuntimeException(e);
-                        }
+                    try (var fos = new BufferedOutputStream(new FileOutputStream(backingFile.toFile()), DEFAULT_RW_BUFFER_SIZE);
+                         var dos = new DataOutputStream(new DeflaterOutputStream(fos, deflater, DEFAULT_RW_BUFFER_SIZE))) {
+                        ImageSerializer.write(dos, source);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
                     }
                     event.bytes = deflater.getBytesWritten();
                 } finally {
@@ -475,76 +435,11 @@ public final class FileBackedImage implements ImageWrapper {
         var inflater = new Inflater();
         try (var fis = new BufferedInputStream(new FileInputStream(backingFile.toFile()), DEFAULT_RW_BUFFER_SIZE);
              var dis = new DataInputStream(new InflaterInputStream(fis, inflater, DEFAULT_RW_BUFFER_SIZE))) {
-            int kind = dis.readByte();
-            int height = dis.readInt();
-            int width = dis.readInt();
-            return switch (kind) {
-                case MONO -> {
-                    float[][] data = new float[height][width];
-                    var rowBytes = new byte[width * Float.BYTES];
-                    var shuffled = new byte[rowBytes.length];
-                    var rowFloats = ByteBuffer.wrap(rowBytes).asFloatBuffer();
-                    for (int y = 0; y < height; y++) {
-                        dis.readFully(shuffled);
-                        unshuffleBytes(shuffled, rowBytes, width);
-                        rowFloats.clear();
-                        rowFloats.get(data[y]);
-                    }
-                    yield new ImageWrapper32(width, height, data, metadata);
-                }
-                case RGB -> {
-                    float[][] r = new float[height][width];
-                    float[][] g = new float[height][width];
-                    float[][] b = new float[height][width];
-                    var rowBytes = new byte[width * 3 * Float.BYTES];
-                    var shuffled = new byte[rowBytes.length];
-                    var rowFloats = ByteBuffer.wrap(rowBytes).asFloatBuffer();
-                    for (int y = 0; y < height; y++) {
-                        dis.readFully(shuffled);
-                        unshuffleBytes(shuffled, rowBytes, width * 3);
-                        rowFloats.clear();
-                        var rRow = r[y];
-                        var gRow = g[y];
-                        var bRow = b[y];
-                        for (int x = 0; x < width; x++) {
-                            rRow[x] = rowFloats.get();
-                            gRow[x] = rowFloats.get();
-                            bRow[x] = rowFloats.get();
-                        }
-                    }
-                    yield new RGBImage(width, height, r, g, b, metadata);
-                }
-                default -> throw new IllegalStateException("Undefined image kind " + kind);
-            };
+            return ImageSerializer.read(dis, metadata);
         } catch (IOException ex) {
             throw new ProcessingException(ex);
         } finally {
             inflater.end();
-        }
-    }
-
-    /**
-     * Byte-plane shuffle: regroups the {@code Float.BYTES} bytes of each float
-     * by significance position. The high-order plane (sign + exponent) is
-     * highly repetitive across a smooth solar image, so grouping like-bytes
-     * together lets the deflater find much longer matches than it would on the
-     * natural interleaved layout.
-     */
-    private static void shuffleBytes(byte[] src, byte[] dst, int floatCount) {
-        for (int plane = 0; plane < Float.BYTES; plane++) {
-            int base = plane * floatCount;
-            for (int i = 0; i < floatCount; i++) {
-                dst[base + i] = src[i * Float.BYTES + plane];
-            }
-        }
-    }
-
-    private static void unshuffleBytes(byte[] src, byte[] dst, int floatCount) {
-        for (int plane = 0; plane < Float.BYTES; plane++) {
-            int base = plane * floatCount;
-            for (int i = 0; i < floatCount; i++) {
-                dst[i * Float.BYTES + plane] = src[base + i];
-            }
         }
     }
 

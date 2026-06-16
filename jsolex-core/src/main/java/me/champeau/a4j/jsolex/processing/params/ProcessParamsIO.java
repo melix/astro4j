@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.params;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.AutohistogramStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.ClaheStrategy;
@@ -63,6 +64,17 @@ public abstract class ProcessParamsIO {
     }
 
     private static Gson newGson() {
+        return newGsonBuilder().create();
+    }
+
+    /**
+     * Returns a Gson builder configured with all the custom type adapters required
+     * to serialize {@link ProcessParams} and its nested types. Other components
+     * (such as session export) reuse it to serialize image metadata consistently.
+     *
+     * @return a configured Gson builder
+     */
+    public static GsonBuilder newGsonBuilder() {
         var builder = new Gson().newBuilder();
         builder.registerTypeAdapter(ObservationDetails.class, new ObservationDetailsSerializer());
         builder.registerTypeAdapter(SpectralRay.class, new SpectralRaySerializer());
@@ -72,7 +84,7 @@ public abstract class ProcessParamsIO {
         builder.registerTypeAdapter(EnhancementParams.class, new EnhancementParamsSerializer());
         builder.registerTypeAdapter(AutoStretchParams.class, new AutoStretchParamsSerializer());
         builder.registerTypeAdapter(ExtraParams.class, new ExtraParamsSerializer());
-        return builder.create();
+        return builder;
     }
 
     public static ProcessParams loadDefaults() {
