@@ -491,6 +491,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_annotations">Annotations</a></li>
 </ul>
 </li>
+<li><a href="#_exporting_and_importing_sessions">Exporting and importing sessions</a></li>
 <li><a href="#_watching_a_directory_for_changes">Watching a directory for changes</a></li>
 <li><a href="#_importing_scans_from_a_sunscan">Importing scans from a SunScan</a></li>
 <li><a href="#custom_images">Customization of generated images</a></li>
@@ -1309,6 +1310,25 @@ Click "Apply" to keep them or "Close" to revert.</p>
 <p>You can save the current annotation settings (toggles, colors, line thickness, prominence scale options, observation details template, signature) as a preset with the "Save preset" button at the bottom of the panel, and reload them on any other image with "Load preset".
 The preset is stored on your computer and persists across JSol&#8217;Ex sessions.</p>
 </div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_exporting_and_importing_sessions">Exporting and importing sessions</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>After processing one or more files, you often want to compare the results and later share the best image, for example on SpectroSolHub.
+Instead of reprocessing the original SER video, you can export the current state of the image viewer to a <strong>session file</strong> and reopen it whenever you need it.</p>
+</div>
+<div class="paragraph">
+<p>To export, choose "Export session&#8230;&#8203;" from the <strong>File</strong> menu and pick a destination.
+The session file (<code>.jsxs</code>) stores every generated image, the animations and videos, and their processing parameters.
+The file is compressed, but keep in mind that a session containing many images can still be large.</p>
+</div>
+<div class="paragraph">
+<p>To restore a session, choose "Import session&#8230;&#8203;" from the <strong>File</strong> menu and select a <code>.jsxs</code> file.
+If the viewer already contains images, JSol&#8217;Ex asks whether you want to replace them or merge the imported ones with the current view.
+The restored images keep their original parameters, so you can save, annotate or share them exactly as if they had just been processed, without touching the original video.</p>
 </div>
 </div>
 </div>
