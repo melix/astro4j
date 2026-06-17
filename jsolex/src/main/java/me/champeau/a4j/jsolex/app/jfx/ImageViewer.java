@@ -38,6 +38,7 @@ import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
@@ -178,7 +179,7 @@ public class ImageViewer implements WithRootNode {
      */
     public void init() {
         this.imageView = new ZoomableImageView();
-        imageView.setContextMenuEnabled(false);
+        imageView.getCtxMenu().setOnShowing(e -> populateContextMenu(imageView.getCtxMenu()));
         this.loadingIndicator = new ProgressIndicator();
         loadingIndicator.setMaxWidth(80);
         loadingIndicator.setMaxHeight(80);
@@ -315,26 +316,40 @@ public class ImageViewer implements WithRootNode {
 
     private void populateActionsMenu(MenuButton menu) {
         menu.getItems().clear();
+        addCommonActionItems(menu.getItems(), false);
+    }
+
+    private void populateContextMenu(ContextMenu menu) {
+        menu.getItems().clear();
+        addCommonActionItems(menu.getItems(), true);
+        menu.getItems().add(new SeparatorMenuItem());
+        var showFile = new MenuItem(message("show.in.files"));
+        showFile.disableProperty().bind(imageView.cannotOpenInExplorerProperty());
+        showFile.setOnAction(e -> imageView.openInExplorer());
+        menu.getItems().add(showFile);
+    }
+
+    private void addCommonActionItems(List<MenuItem> items, boolean includeCrop) {
         for (var kind : RectangleSelectionListener.ActionKind.values()) {
-            if (kind == RectangleSelectionListener.ActionKind.CROP) {
+            if (!includeCrop && kind == RectangleSelectionListener.ActionKind.CROP) {
                 continue;
             }
             if (imageView.supportsSelectionAction(kind)) {
                 var item = new MenuItem(ZoomableImageView.actionLabel(kind));
                 item.setOnAction(e -> imageView.startSelection(kind));
-                menu.getItems().add(item);
+                items.add(item);
             }
         }
-        if (!menu.getItems().isEmpty()) {
-            menu.getItems().add(new SeparatorMenuItem());
+        if (!items.isEmpty()) {
+            items.add(new SeparatorMenuItem());
         }
         var metadata = new MenuItem(message("show.metadata"));
         metadata.setOnAction(e -> showMetadataDialog());
-        menu.getItems().add(metadata);
+        items.add(metadata);
         if (popupViews != null && !popupViews.containsKey(title)) {
             var openNew = new MenuItem(message("open.new.window"));
             openNew.setOnAction(e -> openInNewWindow());
-            menu.getItems().add(openNew);
+            items.add(openNew);
         }
     }
 

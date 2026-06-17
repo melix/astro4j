@@ -86,7 +86,7 @@ public class ZoomableImageView extends HBox {
     private double moveStartImgY;
     private double moveStartSelX;
     private double moveStartSelY;
-    private RectangleSelectionListener.ActionKind singleActionKind;
+    private RectangleSelectionListener.ActionKind defaultActionKind;
     private final Rectangle selectionRectangle;
     private final Label selectionLabel;
     private final EnumMap<HandlePos, Rectangle> handles = new EnumMap<>(HandlePos.class);
@@ -94,7 +94,6 @@ public class ZoomableImageView extends HBox {
     private RectangleSelectionListener rectangleSelectionListener;
     private Pane selectionOverlayHost;
     private Region selectionActionBar;
-    private boolean contextMenuEnabled = true;
 
     private enum HandlePos {
         NW(Cursor.NW_RESIZE), N(Cursor.N_RESIZE), NE(Cursor.NE_RESIZE),
@@ -193,11 +192,7 @@ public class ZoomableImageView extends HBox {
         showFile.setOnAction(e -> ExplorerSupport.openInExplorer(imagePath));
         ctxMenu.getItems().add(showFile);
 
-        setOnContextMenuRequested(e -> {
-            if (contextMenuEnabled) {
-                ctxMenu.show(ZoomableImageView.this, e.getScreenX(), e.getScreenY());
-            }
-        });
+        setOnContextMenuRequested(e -> ctxMenu.show(ZoomableImageView.this, e.getScreenX(), e.getScreenY()));
 
         // Add selection rectangle
         selectionRectangle = new Rectangle();
@@ -220,7 +215,7 @@ public class ZoomableImageView extends HBox {
         scrollPane.setContent(imagePane);
         scrollPane.pannableProperty().bind(isSelectingRectangle.not());
         scrollPane.addEventFilter(ScrollEvent.ANY, event -> {
-            if (isSelectingRectangle.get()) {
+            if (isSelectingRectangle.get() && !event.isControlDown()) {
                 event.consume();
             }
         });
@@ -282,11 +277,12 @@ public class ZoomableImageView extends HBox {
     }
 
     /**
-     * Starts an interactive selection scoped to a single action, with a default
-     * rectangle centered on the image. The user can resize and move the selection
-     * before confirming the action.
+     * Starts an interactive selection with a default rectangle centered on the image.
+     * The user can resize and move the selection before confirming. The action bar
+     * offers every supported action, with the given kind as the default (highlighted)
+     * choice.
      *
-     * @param kind the action to perform on confirmation
+     * @param kind the action proposed as the default on confirmation
      */
     public void startSelection(RectangleSelectionListener.ActionKind kind) {
         if (rectangleSelectionListener == null || !rectangleSelectionListener.supports(kind)) {
@@ -300,7 +296,7 @@ public class ZoomableImageView extends HBox {
         selImgH = image.getHeight() / 2;
         selImgX = (image.getWidth() - selImgW) / 2;
         selImgY = (image.getHeight() - selImgH) / 2;
-        singleActionKind = kind;
+        defaultActionKind = kind;
         isSelectingRectangle.set(true);
         selectionRectangle.setVisible(true);
         selectionLabel.setVisible(true);
@@ -441,12 +437,15 @@ public class ZoomableImageView extends HBox {
         bar.setAlignment(Pos.CENTER);
         bar.setPadding(new Insets(8));
         bar.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
-        bar.setStyle("-fx-background-color: rgba(30, 30, 40, 0.92);"
-                + " -fx-background-radius: 10;"
-                + " -fx-border-color: rgba(255, 255, 255, 0.2);"
-                + " -fx-border-radius: 10;");
-        addActionButton(bar, singleActionKind, actionLabel(singleActionKind), true);
+        bar.getStyleClass().add("image-viewer-toolbar");
+        addActionButton(bar, defaultActionKind, actionLabel(defaultActionKind), true);
+        for (var kind : RectangleSelectionListener.ActionKind.values()) {
+            if (kind != defaultActionKind) {
+                addActionButton(bar, kind, actionLabel(kind), false);
+            }
+        }
         var cancel = new Button(message("cancel"));
+        cancel.getStyleClass().add("image-viewer-button");
         cancel.setMaxWidth(Double.MAX_VALUE);
         cancel.setOnAction(e -> disableSelection());
         bar.getChildren().add(cancel);
@@ -461,6 +460,7 @@ public class ZoomableImageView extends HBox {
             return;
         }
         var button = new Button(label);
+        button.getStyleClass().add(primary ? "primary-button" : "image-viewer-button");
         button.setMaxWidth(Double.MAX_VALUE);
         button.setDefaultButton(primary);
         button.setOnAction(e -> triggerSelectionAction(kind));
@@ -508,7 +508,7 @@ public class ZoomableImageView extends HBox {
     }
 
     private void handleScroll(ScrollEvent event) {
-        if (event.isControlDown() && !isSelectingRectangle.get()) {
+        if (event.isControlDown()) {
             double deltaY = event.getDeltaY();
             if (deltaY != 0) {
                 var image = imageView.getImage();
@@ -732,15 +732,6 @@ public class ZoomableImageView extends HBox {
 
     public void setImagePathForOpeningInExplorer(Path imagePath) {
         this.imagePath = imagePath;
-    }
-
-    /**
-     * Enables or disables the right-click context menu.
-     *
-     * @param enabled whether the context menu should be shown on right-click
-     */
-    public void setContextMenuEnabled(boolean enabled) {
-        this.contextMenuEnabled = enabled;
     }
 
     /**
