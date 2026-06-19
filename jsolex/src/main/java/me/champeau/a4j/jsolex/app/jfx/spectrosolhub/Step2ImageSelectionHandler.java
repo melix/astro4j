@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx.spectrosolhub;
 
+import javafx.animation.PauseTransition;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.SnapshotParameters;
@@ -33,6 +34,7 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.Popup;
+import javafx.util.Duration;
 import me.champeau.a4j.jsolex.app.AlertFactory;
 import me.champeau.a4j.jsolex.app.jfx.MultipleImagesViewer;
 import me.champeau.a4j.jsolex.app.jfx.WritableImageSupport;
@@ -90,7 +92,7 @@ class Step2ImageSelectionHandler implements StepHandler {
     private Popup hoverPopup;
     private ImageView hoverImageView;
     private Label hoverTitleLabel;
-    private javafx.animation.PauseTransition hoverDelay;
+    private PauseTransition hoverDelay;
     private int dragSourceIndex = -1;
 
     Step2ImageSelectionHandler(Supplier<List<MultipleImagesViewer.ImageInfo>> imagesSupplier, SpectralRay detectedSpectralRay) {
@@ -295,7 +297,7 @@ class Step2ImageSelectionHandler implements StepHandler {
             if (hoverDelay != null) {
                 hoverDelay.stop();
             }
-            hoverDelay = new javafx.animation.PauseTransition(javafx.util.Duration.millis(500));
+            hoverDelay = new PauseTransition(Duration.millis(1200));
             hoverDelay.setOnFinished(ev -> {
                 if (dragSourceIndex >= 0) {
                     return;
