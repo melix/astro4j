@@ -19,10 +19,12 @@ import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.beans.value.ChangeListener;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Slider;
 import javafx.scene.image.Image;
@@ -31,6 +33,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import me.champeau.a4j.jsolex.app.jfx.Corrector;
+import me.champeau.a4j.jsolex.app.jfx.GongOrientationAnalyzer;
 import me.champeau.a4j.jsolex.app.jfx.MultipleImagesViewer;
 import me.champeau.a4j.jsolex.app.jfx.WritableImageSupport;
 import me.champeau.a4j.jsolex.app.jfx.ZoomableImageView;
@@ -59,9 +62,14 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.function.Supplier;
 
 import static me.champeau.a4j.jsolex.app.jfx.bass2000.ComparisonModeManager.ComparisonMode.*;
@@ -69,12 +77,25 @@ import static me.champeau.a4j.jsolex.app.jfx.bass2000.ComparisonModeManager.Comp
 class Step3OrientationHandler implements StepHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(Step3OrientationHandler.class);
     private static final int IMAGE_VIEW_SIZE = 400;
+    private static final Set<GeneratedImageKind> NON_DISK_KINDS = EnumSet.of(
+            GeneratedImageKind.RECONSTRUCTION,
+            GeneratedImageKind.RAW,
+            GeneratedImageKind.DEBUG,
+            GeneratedImageKind.CROPPED,
+            GeneratedImageKind.COLLAGE,
+            GeneratedImageKind.REDSHIFT,
+            GeneratedImageKind.ELLERMAN_BOMBS,
+            GeneratedImageKind.FLARES,
+            GeneratedImageKind.ACTIVE_REGIONS,
+            GeneratedImageKind.VIRTUAL_ECLIPSE,
+            GeneratedImageKind.DOPPLER_ECLIPSE);
 
     private final ProcessParams processParams;
     private final Supplier<List<MultipleImagesViewer.ImageInfo>> imagesSupplier;
     private final ComparisonModeManager comparisonModeManager;
     private final Scaling scaling = new Scaling(Map.of(), Broadcaster.NO_OP, new Crop(Map.of(), Broadcaster.NO_OP));
     private ZoomableImageView userImageView;
+    private VBox userImageLoadingOverlay;
     private ZoomableImageView gongImageView;
     private VBox gongImageContainer;
     private StackPane gongImageStack;
@@ -85,6 +106,7 @@ class Step3OrientationHandler implements StepHandler {
     private Label comparisonModeLabel;
     private Slider comparisonModeSlider;
     private Image gongReferenceImage;
+    private boolean userImageDisplayed;
 
     Step3OrientationHandler(ProcessParams processParams, Supplier<List<MultipleImagesViewer.ImageInfo>> imagesSupplier) {
         this.processParams = processParams;
@@ -130,7 +152,11 @@ class Step3OrientationHandler implements StepHandler {
         userImageView.getScrollPane().setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         userImageView.getScrollPane().setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         userImageView.setStyle("-fx-border-color: gray; -fx-border-width: 1;");
-        userImageContainer.getChildren().addAll(userImageLabel, userImageView);
+        userImageLoadingOverlay = createLoadingIndicator(message("orientation.your.image.loading"));
+        var userImageStack = new StackPane(userImageView, userImageLoadingOverlay);
+        VBox.setVgrow(userImageStack, Priority.ALWAYS);
+        HBox.setHgrow(userImageStack, Priority.ALWAYS);
+        userImageContainer.getChildren().addAll(userImageLabel, userImageStack);
 
         gongImageContainer = new VBox(5);
         gongImageContainer.setAlignment(Pos.CENTER);
@@ -201,7 +227,6 @@ class Step3OrientationHandler implements StepHandler {
 
     @Override
     public void load() {
-        loadUserImage();
         loadGongReferenceImage();
     }
 
@@ -215,37 +240,126 @@ class Step3OrientationHandler implements StepHandler {
         return true;
     }
 
-    private void loadUserImage() {
-        var allImages = imagesSupplier.get();
-        var representative = findRepresentativeImage(allImages);
+    private void loadUserImageWithHeuristic() {
+        if (userImageDisplayed) {
+            return;
+        }
+        var representative = findRepresentativeImage(imagesSupplier.get());
         if (representative == null) {
+            hideUserImageLoadingOverlay();
+            return;
+        }
+        BackgroundOperations.async(() -> displayUserImage(representative));
+    }
+
+    private void selectBestMatchingUserImage(Image gongImage) {
+        if (userImageDisplayed) {
+            return;
+        }
+        var allImages = imagesSupplier.get();
+        if (allImages.isEmpty()) {
+            hideUserImageLoadingOverlay();
             return;
         }
         BackgroundOperations.async(() -> {
-            try {
-                var wrapper = representative.image();
-                if (wrapper instanceof FileBackedImage fbi) {
-                    wrapper = fbi.unwrapToMemory();
-                }
-                var image = wrapper.copy();
-                image = applyPAngleCorrectionIfNeeded(image, representative.kind());
-                image = scaling.rescaleToRadius(image, 225, 512, 512);
-                LinearStrechingStrategy.DEFAULT.stretch(image);
-                if (image instanceof ImageWrapper32 mono) {
-                    image = RGBImage.toRGB(mono);
-                }
-                var writableImage = WritableImageSupport.asWritable(image);
-                FxUtils.runLater(() -> {
-                    userImageView.setImage(writableImage);
-                    userImageView.resetZoom();
-                    if (gongReferenceImage != null) {
-                        comparisonModeManager.setImages(writableImage, gongReferenceImage);
-                    }
-                });
-            } catch (Exception e) {
-                LOGGER.error("Failed to load user image for orientation check", e);
+            var representative = findClosestImageToGong(allImages, gongImage);
+            if (representative == null) {
+                representative = findRepresentativeImage(allImages);
+            }
+            if (representative != null) {
+                displayUserImage(representative);
             }
         });
+    }
+
+    private void displayUserImage(MultipleImagesViewer.ImageInfo representative) {
+        try {
+            var wrapper = representative.image();
+            if (wrapper instanceof FileBackedImage fbi) {
+                wrapper = fbi.unwrapToMemory();
+            }
+            var image = wrapper.copy();
+            image = applyPAngleCorrectionIfNeeded(image, representative.kind());
+            image = scaling.rescaleToRadius(image, 225, 512, 512);
+            LinearStrechingStrategy.DEFAULT.stretch(image);
+            if (image instanceof ImageWrapper32 mono) {
+                image = RGBImage.toRGB(mono);
+            }
+            var writableImage = WritableImageSupport.asWritable(image);
+            FxUtils.runLater(() -> {
+                userImageDisplayed = true;
+                hideUserImageLoadingOverlay();
+                userImageView.setImage(writableImage);
+                userImageView.resetZoom();
+                if (gongReferenceImage != null) {
+                    comparisonModeManager.setImages(writableImage, gongReferenceImage);
+                }
+            });
+        } catch (Exception e) {
+            LOGGER.error("Failed to load user image for orientation check", e);
+            hideUserImageLoadingOverlay();
+        }
+    }
+
+    private void hideUserImageLoadingOverlay() {
+        FxUtils.runLater(() -> {
+            if (userImageLoadingOverlay != null) {
+                userImageLoadingOverlay.setVisible(false);
+                userImageLoadingOverlay.setManaged(false);
+            }
+        });
+    }
+
+    private MultipleImagesViewer.ImageInfo findClosestImageToGong(List<MultipleImagesViewer.ImageInfo> images, Image gongImage) {
+        var scored = collectDiskCandidates(images).stream()
+                .map(candidate -> scoreAgainstGong(candidate, gongImage))
+                .filter(Objects::nonNull)
+                .toList();
+        var byScore = Comparator.comparingDouble(ScoredCandidate::score);
+        return scored.stream()
+                .filter(ScoredCandidate::mono)
+                .max(byScore)
+                .or(() -> scored.stream().max(byScore))
+                .map(ScoredCandidate::info)
+                .orElse(null);
+    }
+
+    private ScoredCandidate scoreAgainstGong(MultipleImagesViewer.ImageInfo candidate, Image gongImage) {
+        try {
+            var wrapper = candidate.image();
+            if (wrapper instanceof FileBackedImage fbi) {
+                wrapper = fbi.unwrapToMemory();
+            }
+            var detection = GongOrientationAnalyzer.detect(wrapper, 0, gongImage, false);
+            return new ScoredCandidate(candidate, detection.score(), wrapper instanceof ImageWrapper32);
+        } catch (Exception e) {
+            LOGGER.debug("Failed to score image against GONG reference", e);
+            return null;
+        }
+    }
+
+    private record ScoredCandidate(MultipleImagesViewer.ImageInfo info, double score, boolean mono) {
+    }
+
+    private List<MultipleImagesViewer.ImageInfo> collectDiskCandidates(List<MultipleImagesViewer.ImageInfo> images) {
+        var mainShift = processParams != null ? new PixelShift(processParams.spectrumParams().pixelShift()) : new PixelShift(0);
+        var zeroShift = new PixelShift(0);
+        var byKind = new EnumMap<GeneratedImageKind, MultipleImagesViewer.ImageInfo>(GeneratedImageKind.class);
+        var rankByKind = new EnumMap<GeneratedImageKind, Integer>(GeneratedImageKind.class);
+        for (var image : images) {
+            var kind = image.kind();
+            if (NON_DISK_KINDS.contains(kind)) {
+                continue;
+            }
+            var ps = image.image().findMetadata(PixelShift.class).orElse(null);
+            var rank = ps != null && ps.equals(mainShift) ? 0 : ps != null && ps.equals(zeroShift) ? 1 : 2;
+            var existing = rankByKind.get(kind);
+            if (existing == null || rank < existing) {
+                rankByKind.put(kind, rank);
+                byKind.put(kind, image);
+            }
+        }
+        return new ArrayList<>(byKind.values());
     }
 
     private void loadGongReferenceImage() {
@@ -255,6 +369,7 @@ class Step3OrientationHandler implements StepHandler {
             return;
         }
         if (processParams == null || processParams.observationDetails().date() == null) {
+            loadUserImageWithHeuristic();
             return;
         }
         var observationDate = processParams.observationDetails().date();
@@ -264,34 +379,54 @@ class Step3OrientationHandler implements StepHandler {
                 var candidates = GONG.listGongCandidates(observationDate);
                 FxUtils.runLater(() -> populateGongSiteMenu(candidates, observationDate));
                 if (candidates.isEmpty()) {
-                    FxUtils.runLater(this::showGongUnavailableLabel);
+                    FxUtils.runLater(() -> {
+                        showGongUnavailableLabel();
+                        loadUserImageWithHeuristic();
+                    });
                     return;
                 }
                 loadGongCandidate(candidates.getFirst());
             } catch (Exception e) {
                 LOGGER.error("Failed to load GONG reference image", e);
-                FxUtils.runLater(this::showGongUnavailableLabel);
+                FxUtils.runLater(() -> {
+                    showGongUnavailableLabel();
+                    loadUserImageWithHeuristic();
+                });
             }
         });
     }
 
     private void showGongLoadingLabel() {
-        swapGongContent(new Label(message("orientation.gong.loading")), "-fx-font-size: 14px; -fx-text-fill: gray;");
+        swapGongContent(createLoadingIndicator(message("orientation.gong.loading")));
     }
 
     private void showGongUnavailableLabel() {
-        swapGongContent(new Label(message("orientation.gong.unavailable")), "-fx-font-size: 14px; -fx-text-fill: orange;");
+        var label = new Label(message("orientation.gong.unavailable"));
+        label.setStyle("-fx-font-size: 14px; -fx-text-fill: orange;");
+        swapGongContent(label);
         if (gongSiteMenuButton != null && !gongCandidates.isEmpty()) {
             gongSiteMenuButton.setDisable(false);
         }
     }
 
-    private void swapGongContent(Label label, String style) {
-        label.setStyle(style);
+    private void swapGongContent(Node content) {
         if (gongImageStack == null) {
             return;
         }
-        gongImageStack.getChildren().set(0, label);
+        gongImageStack.getChildren().set(0, content);
+    }
+
+    private static VBox createLoadingIndicator(String text) {
+        var spinner = new ProgressIndicator();
+        spinner.setMinSize(48, 48);
+        spinner.setMaxSize(48, 48);
+        var label = new Label(text);
+        label.setStyle("-fx-font-size: 14px; -fx-text-fill: gray;");
+        label.setWrapText(true);
+        label.setMaxWidth(IMAGE_VIEW_SIZE * 0.8);
+        var box = new VBox(12, spinner, label);
+        box.setAlignment(Pos.CENTER);
+        return box;
     }
 
     private void populateGongSiteMenu(List<GONG.GongCandidate> candidates, ZonedDateTime requestedDate) {
@@ -343,7 +478,10 @@ class Step3OrientationHandler implements StepHandler {
         try {
             var url = GONG.fetchCandidateImage(candidate);
             if (url.isEmpty()) {
-                FxUtils.runLater(this::showGongUnavailableLabel);
+                FxUtils.runLater(() -> {
+                    showGongUnavailableLabel();
+                    loadUserImageWithHeuristic();
+                });
                 return;
             }
             try (var inputStream = url.get().openStream()) {
@@ -361,14 +499,19 @@ class Step3OrientationHandler implements StepHandler {
                         if (userImageView.getImage() != null) {
                             comparisonModeManager.setImages(userImageView.getImage(), image);
                         }
+                        selectBestMatchingUserImage(image);
                     } else {
                         showGongUnavailableLabel();
+                        loadUserImageWithHeuristic();
                     }
                 });
             }
         } catch (Exception e) {
             LOGGER.error("Failed to load GONG candidate image", e);
-            FxUtils.runLater(this::showGongUnavailableLabel);
+            FxUtils.runLater(() -> {
+                showGongUnavailableLabel();
+                loadUserImageWithHeuristic();
+            });
         }
     }
 
