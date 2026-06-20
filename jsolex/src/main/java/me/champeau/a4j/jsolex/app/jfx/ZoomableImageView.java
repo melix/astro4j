@@ -92,6 +92,7 @@ public class ZoomableImageView extends HBox {
     private final EnumMap<HandlePos, Rectangle> handles = new EnumMap<>(HandlePos.class);
     private final BooleanProperty isSelectingRectangle = new SimpleBooleanProperty();
     private RectangleSelectionListener rectangleSelectionListener;
+    private RectangleSelectionMemory selectionMemory;
     private Pane selectionOverlayHost;
     private Region selectionActionBar;
 
@@ -292,10 +293,18 @@ public class ZoomableImageView extends HBox {
         if (image == null) {
             return;
         }
-        selImgW = image.getWidth() / 2;
-        selImgH = image.getHeight() / 2;
-        selImgX = (image.getWidth() - selImgW) / 2;
-        selImgY = (image.getHeight() - selImgH) / 2;
+        var remembered = selectionMemory == null ? null : selectionMemory.recall(image.getWidth(), image.getHeight());
+        if (remembered != null) {
+            selImgX = remembered.x();
+            selImgY = remembered.y();
+            selImgW = remembered.width();
+            selImgH = remembered.height();
+        } else {
+            selImgW = image.getWidth() / 2;
+            selImgH = image.getHeight() / 2;
+            selImgX = (image.getWidth() - selImgW) / 2;
+            selImgY = (image.getHeight() - selImgH) / 2;
+        }
         defaultActionKind = kind;
         isSelectingRectangle.set(true);
         selectionRectangle.setVisible(true);
@@ -469,8 +478,20 @@ public class ZoomableImageView extends HBox {
 
     private void triggerSelectionAction(RectangleSelectionListener.ActionKind kind) {
         var bounds = currentSelectionBounds();
+        rememberSelection();
         disableSelection();
         rectangleSelectionListener.onSelectRegion(kind, bounds[0], bounds[1], bounds[2], bounds[3]);
+    }
+
+    private void rememberSelection() {
+        if (selectionMemory == null) {
+            return;
+        }
+        var image = imageView.getImage();
+        if (image != null) {
+            selectionMemory.remember(new RectangleSelectionMemory.Region(
+                    selImgX, selImgY, selImgW, selImgH, image.getWidth(), image.getHeight()));
+        }
     }
 
     private int[] currentSelectionBounds() {
@@ -709,6 +730,16 @@ public class ZoomableImageView extends HBox {
 
     public void setRectangleSelectionListener(RectangleSelectionListener rectangleSelectionListener) {
         this.rectangleSelectionListener = rectangleSelectionListener;
+    }
+
+    /**
+     * Sets the shared memory used to reproduce the last selection on another image of identical
+     * dimensions.
+     *
+     * @param selectionMemory the shared selection memory, or {@code null} to disable the feature
+     */
+    public void setSelectionMemory(RectangleSelectionMemory selectionMemory) {
+        this.selectionMemory = selectionMemory;
     }
 
     /**

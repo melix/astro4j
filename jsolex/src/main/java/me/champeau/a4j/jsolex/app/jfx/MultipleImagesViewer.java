@@ -113,6 +113,7 @@ public class MultipleImagesViewer extends Pane {
     private ScrollPane sideScrollPane;
     private final ReentrantLock lock = new ReentrantLock();
     private final Map<Object, Runnable> onShowHooks = new HashMap<>();
+    private final RectangleSelectionMemory selectionMemory = new RectangleSelectionMemory();
     private final Map<ImageViewer, String> viewerTitles = new HashMap<>();
     private final ObservableMap<ImageViewer, GeneratedImageKind> viewerKinds = FXCollections.observableHashMap();
     private final Map<Hyperlink, ImageViewer> linkToViewer = new HashMap<>();
@@ -319,6 +320,7 @@ public class MultipleImagesViewer extends Pane {
             lock.lock();
             var controller = new ImageViewer();
             controller.init();
+            controller.getImageView().setSelectionMemory(selectionMemory);
             imageViews.add(controller);
             return controller;
         } finally {

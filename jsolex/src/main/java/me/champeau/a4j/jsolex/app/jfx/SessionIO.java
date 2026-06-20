@@ -26,9 +26,11 @@ import javafx.stage.Stage;
 import me.champeau.a4j.jsolex.app.AlertFactory;
 import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.JSolEx;
+import me.champeau.a4j.jsolex.app.jfx.RectangleSelectionListener.ActionKind;
 import me.champeau.a4j.jsolex.app.util.FxUtils;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
+import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.session.Session;
 import me.champeau.a4j.jsolex.processing.session.SessionData;
@@ -37,13 +39,17 @@ import me.champeau.a4j.jsolex.processing.session.SessionMedia;
 import me.champeau.a4j.jsolex.processing.session.SessionReRunData;
 import me.champeau.a4j.jsolex.processing.session.SessionReader;
 import me.champeau.a4j.jsolex.processing.session.SessionWriter;
+import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
+import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -67,6 +73,7 @@ public class SessionIO {
     private final Consumer<SessionReRunData> reRunRestorer;
     private String importGroupId;
     private String importGroupTitle;
+    private final AtomicInteger cropCount = new AtomicInteger();
 
     public SessionIO(Stage stage,
                      Configuration config,
@@ -204,22 +211,70 @@ public class SessionIO {
     }
 
     private void addImage(ProcessingEventListener listener, ProgressOperation operation, SessionImage image) {
-        var params = image.image().findMetadata(ProcessParams.class).orElse(defaultParams);
+        addImage(listener, operation, image.title(), image.baseName(), image.kind(),
+                image.description(), image.image(), importGroupId, importGroupTitle);
+    }
+
+    private void addImage(ProcessingEventListener listener,
+                          ProgressOperation operation,
+                          String title,
+                          String baseName,
+                          GeneratedImageKind kind,
+                          String description,
+                          ImageWrapper imageWrapper,
+                          String groupId,
+                          String groupTitle) {
+        var params = imageWrapper.findMetadata(ProcessParams.class).orElse(defaultParams);
         params = params.withExtraParams(params.extraParams().withAutosave(false));
-        var pixelShift = image.image().findMetadata(PixelShift.class).orElse(new PixelShift(0));
-        var imageName = new File(baseDirectory, image.baseName());
+        var pixelShift = imageWrapper.findMetadata(PixelShift.class).orElse(new PixelShift(0));
+        var imageName = new File(baseDirectory, baseName);
         var finalParams = params;
         FxUtils.runLater(() -> {
-            if (importGroupId != null) {
-                multipleImagesViewer.addImageToGroup(importGroupId, importGroupTitle, listener, operation,
-                        image.title(), image.baseName(), image.kind(), image.description(), image.image(), imageName,
-                        finalParams, popupViewers, pixelShift, viewer -> viewer, viewer -> {
-                        });
+            Consumer<ImageViewer> installCrop = viewer ->
+                    viewer.getImageView().setRectangleSelectionListener(new RectangleSelectionListener() {
+                        @Override
+                        public boolean supports(ActionKind actionKind) {
+                            return actionKind == ActionKind.CROP;
+                        }
+
+                        @Override
+                        public void onSelectRegion(ActionKind actionKind, int x, int y, int width, int height) {
+                            if (actionKind == ActionKind.CROP) {
+                                performCrop(listener, operation, viewer, groupId, groupTitle, x, y, width, height);
+                            }
+                        }
+                    });
+            if (groupId != null) {
+                multipleImagesViewer.addImageToGroup(groupId, groupTitle, listener, operation,
+                        title, baseName, kind, description, imageWrapper, imageName,
+                        finalParams, popupViewers, pixelShift, viewer -> viewer, installCrop);
             } else {
-                multipleImagesViewer.addImage(listener, operation, image.title(), image.baseName(), image.kind(),
-                        image.description(), image.image(), imageName, finalParams, popupViewers, pixelShift,
-                        viewer -> viewer, viewer -> {
-                        });
+                multipleImagesViewer.addImage(listener, operation, title, baseName, kind,
+                        description, imageWrapper, imageName, finalParams, popupViewers, pixelShift,
+                        viewer -> viewer, installCrop);
+            }
+        });
+    }
+
+    private void performCrop(ProcessingEventListener listener,
+                             ProgressOperation operation,
+                             ImageViewer viewer,
+                             String groupId,
+                             String groupTitle,
+                             int x, int y, int width, int height) {
+        BackgroundOperations.async(() -> {
+            var source = viewer.getStretchedImageWithOverlays();
+            if (source == null) {
+                return;
+            }
+            var crop = new Crop(Map.of(), Broadcaster.NO_OP);
+            var cropped = crop.crop(Map.of("img", source, "left", x, "top", y, "width", width, "height", height));
+            if (cropped instanceof ImageWrapper croppedImage) {
+                var id = cropCount.getAndIncrement();
+                var baseName = "cropped-" + id;
+                var title = String.format(message("cropped.image"), id);
+                addImage(listener, operation, title, baseName, GeneratedImageKind.CROPPED, null,
+                        croppedImage, groupId, groupTitle);
             }
         });
     }
