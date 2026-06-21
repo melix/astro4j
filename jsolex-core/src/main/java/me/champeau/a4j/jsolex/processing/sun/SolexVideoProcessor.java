@@ -647,6 +647,7 @@ public class SolexVideoProcessor implements Broadcaster {
         var ref = imageList.stream()
                 .filter(i -> i.pixelShift() == processParams.spectrumParams().pixelShift())
                 .findFirst()
+                .or(() -> imageList.stream().filter(i -> !i.isInternal()).findFirst())
                 .orElse(imageList.getFirst());
         return new ProcessAwareImageEmitterFactory(ref, imageNamingStrategy, baseName);
     }

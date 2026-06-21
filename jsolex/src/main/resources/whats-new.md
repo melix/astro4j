@@ -1,5 +1,9 @@
 # Welcome to JSol'Ex {{version}}!
 
+## What's New in Version 5.3.3
+
+- Fixed Helium D3 images that were not generated in some cases when the reference line was not in the middle of the frame.
+
 ## What's New in Version 5.3.2
 
 - You can now export the current images to a session file and reopen it later to share your results without reprocessing the original video.
