@@ -1,5 +1,9 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+## Nouveautés de la version 5.3.3
+
+- Correction des images Hélium qui n'étaient parfois pas générées lorsque la ligne de référence était trop proche du bord de l'image.
+
 ## Nouveautés de la version 5.3.2
 
 - Vous pouvez désormais exporter les images en cours dans un fichier de session, puis le rouvrir plus tard pour partager vos résultats sans retraiter la vidéo d'origine.
