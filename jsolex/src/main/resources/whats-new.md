@@ -1,5 +1,9 @@
 # Welcome to JSol'Ex {{version}}!
 
+## What's New in Version 5.3.4
+
+- Fixed line artifacts that could appear when stacking with local dedistortion enabled.
+
 ## What's New in Version 5.3.3
 
 - Fixed Helium D3 images that were not generated in some cases when the reference line was not in the middle of the frame.

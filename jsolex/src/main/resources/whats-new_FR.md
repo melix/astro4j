@@ -1,5 +1,9 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+## Nouveautés de la version 5.3.4
+
+- Correction d'artefacts en forme de lignes pouvant apparaître lors de l'empilement avec la dédistorsion locale activée.
+
 ## Nouveautés de la version 5.3.3
 
 - Correction des images Hélium qui n'étaient parfois pas générées lorsque la ligne de référence était trop proche du bord de l'image.
