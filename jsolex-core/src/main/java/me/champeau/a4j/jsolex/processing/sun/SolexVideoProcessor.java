@@ -2003,7 +2003,7 @@ public class SolexVideoProcessor implements Broadcaster {
             var shift = state.pixelShift();
 
             emitter = new NamingStrategyAwareImageEmitter(new RenamingImageEmitter(emitter, name -> {
-                if (name.toLowerCase(Locale.US).contains("doppler")) {
+                if (isUnshiftedName(name)) {
                     return name;
                 }
                 var spectrumParams = processParams.spectrumParams();
@@ -2018,13 +2018,18 @@ public class SolexVideoProcessor implements Broadcaster {
                 var suffix = shift == spectrumParams.pixelShift() ? "" : " (" + descriptor + ")";
                 return name + suffix;
             }, name -> {
-                if (name.toLowerCase(Locale.US).contains("doppler")) {
+                if (isUnshiftedName(name)) {
                     return name;
                 }
                 var suffix = "_" + String.format(Locale.US, "%.2f", shift).replace('.', '_');
                 return name + suffix;
             }), imageNamingStrategy, sequenceNumber, baseName);
             return new DiscardNonRequiredImages(emitter, processParams.requestedImages().images());
+        }
+
+        private static boolean isUnshiftedName(String name) {
+            var lower = name.toLowerCase(Locale.US);
+            return lower.contains("doppler") || lower.contains("helium");
         }
     }
 
