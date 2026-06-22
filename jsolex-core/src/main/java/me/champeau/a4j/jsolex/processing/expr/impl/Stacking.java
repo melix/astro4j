@@ -58,6 +58,9 @@ public class Stacking extends AbstractFunctionImpl {
     private static final String STACKING_MESSAGE = message("stacking");
     private static final String FIND_CORRESP_MESSAGE = message("finding.correspondances");
     private static final double DECAY_RATE = -2.0;
+    // Width of the soft selection transition, as a fraction of the local weight spread. Larger =
+    // smoother fade between kept and dropped frames (fewer seams, but less aggressive selection).
+    private static final double SOFT_SELECTION_SOFTNESS = 0.3;
     public static final int DEFAULT_TILE_SIZE = 32;
     public static final float DEFAULT_SAMPLING = .5f;
     public static final double DEFAULT_SELECTION_RATIO = 1;
@@ -240,20 +243,35 @@ public class Stacking extends AbstractFunctionImpl {
                         }
 
                         if (localMaxError > 0 && maxSharpness > 0) {
-                            var weightsAndIndices = new double[imagesWithError.size()][2];
-                            for (int i = 0; i < imagesWithError.size(); i++) {
+                            var n = imagesWithError.size();
+                            var weights = new double[n];
+                            for (int i = 0; i < n; i++) {
                                 var errorWeight = Math.exp(DECAY_RATE * localErrors[i] / localMaxError);
                                 var sharpnessWeight = localSharpness[i] / maxSharpness;
-                                weightsAndIndices[i][0] = errorWeight * sharpnessWeight;
-                                weightsAndIndices[i][1] = i;
+                                weights[i] = errorWeight * sharpnessWeight;
                             }
-                            Arrays.sort(weightsAndIndices, (a, b) -> Double.compare(b[0], a[0]));
-
-                            for (int i = 0; i < maxImagesToKeep; i++) {
-                                var weight = weightsAndIndices[i][0];
-                                var idx = (int) weightsAndIndices[i][1];
-                                sum += weight * imagesWithError.get(idx).image().data()[y][x];
-                                weightSum += weight;
+                            if (maxImagesToKeep >= n) {
+                                for (int i = 0; i < n; i++) {
+                                    sum += weights[i] * imagesWithError.get(i).image().data()[y][x];
+                                    weightSum += weights[i];
+                                }
+                            } else {
+                                // Soft selection: instead of a hard top-K cutoff (which makes the set of
+                                // contributing frames change abruptly across the image, producing visible
+                                // seam/line artifacts), fade frames in and out with a smooth sigmoid mask
+                                // centred on the ratio cut. This keeps the lucky-imaging benefit while
+                                // making the per-pixel weighting continuous, so no seams appear.
+                                var keep = Math.max(1, maxImagesToKeep);
+                                var sorted = weights.clone();
+                                Arrays.sort(sorted);
+                                var threshold = 0.5 * (sorted[n - keep] + sorted[n - keep - 1]);
+                                var band = SOFT_SELECTION_SOFTNESS * (sorted[n - 1] - sorted[0]) + 1e-9;
+                                for (int i = 0; i < n; i++) {
+                                    var mask = 1.0 / (1.0 + Math.exp(-(weights[i] - threshold) / band));
+                                    var weight = weights[i] * mask;
+                                    sum += weight * imagesWithError.get(i).image().data()[y][x];
+                                    weightSum += weight;
+                                }
                             }
                         } else {
                             for (int i = 0; i < maxImagesToKeep; i++) {
