@@ -58,7 +58,7 @@ public class Stacking extends AbstractFunctionImpl {
     private static final String STACKING_MESSAGE = message("stacking");
     private static final String FIND_CORRESP_MESSAGE = message("finding.correspondances");
     private static final double DECAY_RATE = -2.0;
-    // Width of the soft selection transition, as a fraction of the local weight spread. Larger =
+    // Width of the soft selection transition, as a fraction of the number of kept frames. Larger =
     // smoother fade between kept and dropped frames (fewer seams, but less aggressive selection).
     private static final double SOFT_SELECTION_SOFTNESS = 0.3;
     public static final int DEFAULT_TILE_SIZE = 32;
@@ -264,8 +264,12 @@ public class Stacking extends AbstractFunctionImpl {
                                 var keep = Math.max(1, maxImagesToKeep);
                                 var sorted = weights.clone();
                                 Arrays.sort(sorted);
-                                var threshold = 0.5 * (sorted[n - keep] + sorted[n - keep - 1]);
-                                var band = SOFT_SELECTION_SOFTNESS * (sorted[n - 1] - sorted[0]) + 1e-9;
+                                var cut = n - keep;
+                                var threshold = 0.5 * (sorted[cut] + sorted[cut - 1]);
+                                var w = Math.max(1, (int) Math.round(SOFT_SELECTION_SOFTNESS * keep));
+                                var lo = sorted[Math.max(0, cut - w)];
+                                var hi = sorted[Math.min(n - 1, cut + w)];
+                                var band = 0.5 * (hi - lo) + 1e-9;
                                 for (int i = 0; i < n; i++) {
                                     var mask = 1.0 / (1.0 + Math.exp(-(weights[i] - threshold) / band));
                                     var weight = weights[i] * mask;
