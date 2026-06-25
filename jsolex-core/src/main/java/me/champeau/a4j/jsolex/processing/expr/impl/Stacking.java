@@ -256,22 +256,21 @@ public class Stacking extends AbstractFunctionImpl {
                                     weightSum += weights[i];
                                 }
                             } else {
-                                // Soft selection: instead of a hard top-K cutoff (which makes the set of
-                                // contributing frames change abruptly across the image, producing visible
-                                // seam/line artifacts), fade frames in and out with a smooth sigmoid mask
-                                // centred on the ratio cut. This keeps the lucky-imaging benefit while
-                                // making the per-pixel weighting continuous, so no seams appear.
+                                // Soft selection in rank space: instead of a hard top-K cutoff (which
+                                // makes the set of contributing frames change abruptly across the image,
+                                // producing visible seam/line artifacts), fade frames in and out with a
+                                // smooth sigmoid based on each frame's rank relative to the cut. The
+                                // transition is a fixed number of frames wide, so the fade is uniform
+                                // regardless of how the weights are distributed, and the ratio has a
+                                // predictable effect while staying seam-free.
                                 var keep = Math.max(1, maxImagesToKeep);
                                 var sorted = weights.clone();
                                 Arrays.sort(sorted);
-                                var cut = n - keep;
-                                var threshold = 0.5 * (sorted[cut] + sorted[cut - 1]);
-                                var w = Math.max(1, (int) Math.round(SOFT_SELECTION_SOFTNESS * keep));
-                                var lo = sorted[Math.max(0, cut - w)];
-                                var hi = sorted[Math.min(n - 1, cut + w)];
-                                var band = 0.5 * (hi - lo) + 1e-9;
+                                var cut = n - keep - 0.5;
+                                var band = SOFT_SELECTION_SOFTNESS * keep + 1e-9;
                                 for (int i = 0; i < n; i++) {
-                                    var mask = 1.0 / (1.0 + Math.exp(-(weights[i] - threshold) / band));
+                                    var rank = lowerBound(sorted, weights[i]);
+                                    var mask = 1.0 / (1.0 + Math.exp(-(rank - cut) / band));
                                     var weight = weights[i] * mask;
                                     sum += weight * imagesWithError.get(i).image().data()[y][x];
                                     weightSum += weight;
@@ -292,6 +291,20 @@ public class Stacking extends AbstractFunctionImpl {
 
         var metadata = MetadataMerger.merge(imagesWithError.stream().map(ImageWithError::image).toList());
         return new ImageWrapper32(width, height, result, metadata);
+    }
+
+    private static int lowerBound(double[] sortedAscending, double value) {
+        int lo = 0;
+        int hi = sortedAscending.length;
+        while (lo < hi) {
+            var mid = (lo + hi) >>> 1;
+            if (sortedAscending[mid] < value) {
+                lo = mid + 1;
+            } else {
+                hi = mid;
+            }
+        }
+        return lo;
     }
 
     private static float[][] computeSharpnessMap(float[][] data, int width, int height, int tileSize) {
