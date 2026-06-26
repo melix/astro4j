@@ -23,6 +23,7 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
@@ -271,15 +272,16 @@ public class ZoomableImageView extends HBox {
 
     /**
      * Starts an interactive crop selection with a default rectangle centered on the
-     * image. The user can resize and move the selection before confirming the action.
+     * currently visible region. The user can resize and move the selection before confirming
+     * the action.
      */
     public void startCropSelection() {
         startSelection(RectangleSelectionListener.ActionKind.CROP);
     }
 
     /**
-     * Starts an interactive selection with a default rectangle centered on the image.
-     * The user can resize and move the selection before confirming. The action bar
+     * Starts an interactive selection with a default rectangle centered on the currently
+     * visible region. The user can resize and move the selection before confirming. The action bar
      * offers every supported action, with the given kind as the default (highlighted)
      * choice.
      *
@@ -300,10 +302,11 @@ public class ZoomableImageView extends HBox {
             selImgW = remembered.width();
             selImgH = remembered.height();
         } else {
-            selImgW = image.getWidth() / 2;
-            selImgH = image.getHeight() / 2;
-            selImgX = (image.getWidth() - selImgW) / 2;
-            selImgY = (image.getHeight() - selImgH) / 2;
+            var visible = computeVisibleImageRegion();
+            selImgW = visible.getWidth() / 2;
+            selImgH = visible.getHeight() / 2;
+            selImgX = visible.getMinX() + (visible.getWidth() - selImgW) / 2;
+            selImgY = visible.getMinY() + (visible.getHeight() - selImgH) / 2;
         }
         defaultActionKind = kind;
         isSelectingRectangle.set(true);
@@ -703,6 +706,40 @@ public class ZoomableImageView extends HBox {
         var boundsInLocal = imageView.getBoundsInLocal();
         scrollPane.setPrefViewportWidth(boundsInLocal.getWidth());
         scrollPane.setPrefViewportHeight(boundsInLocal.getHeight());
+    }
+
+    /**
+     * Computes the portion of the image currently visible in the viewport, expressed in image
+     * pixel coordinates. Falls back to the full image when the viewport cannot be measured (for
+     * example before the first layout pass).
+     *
+     * @return the visible region in image coordinates
+     */
+    private Rectangle2D computeVisibleImageRegion() {
+        var image = imageView.getImage();
+        if (image == null) {
+            return new Rectangle2D(0, 0, 0, 0);
+        }
+        double imageWidth = image.getWidth();
+        double imageHeight = image.getHeight();
+        scrollPane.layout();
+        var viewportBounds = scrollPane.getViewportBounds();
+        double viewportWidth = viewportBounds.getWidth();
+        double viewportHeight = viewportBounds.getHeight();
+        if (viewportWidth <= 0 || viewportHeight <= 0 || zoom <= 0) {
+            return new Rectangle2D(0, 0, imageWidth, imageHeight);
+        }
+        double contentWidth = imageWidth * zoom;
+        double contentHeight = imageHeight * zoom;
+        double hmax = Math.max(0, contentWidth - viewportWidth);
+        double vmax = Math.max(0, contentHeight - viewportHeight);
+        double offsetX = scrollPane.getHvalue() * hmax;
+        double offsetY = scrollPane.getVvalue() * vmax;
+        double visX = Math.max(0, offsetX / zoom);
+        double visY = Math.max(0, offsetY / zoom);
+        double visW = Math.min(imageWidth - visX, viewportWidth / zoom);
+        double visH = Math.min(imageHeight - visY, viewportHeight / zoom);
+        return new Rectangle2D(visX, visY, visW, visH);
     }
 
     private void centerViewportOn(double imageX, double imageY) {
