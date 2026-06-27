@@ -31,9 +31,11 @@ import javafx.scene.Node;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
 import javafx.scene.image.ImageView;
@@ -48,6 +50,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.StrokeLineCap;
 import javafx.stage.FileChooser;
+import javafx.stage.Stage;
 import javafx.util.Duration;
 import javafx.util.StringConverter;
 import javafx.util.converter.DoubleStringConverter;
@@ -87,6 +90,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
+import java.util.function.DoubleUnaryOperator;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.DoubleStream;
 
@@ -127,6 +132,11 @@ public class SpectrumBrowser extends BorderPane {
 
     private final Set<IdentifiedLine> userDefinedLines = new HashSet<>();
     private final Configuration configuration;
+
+    private final BooleanProperty hasCurvature = new SimpleBooleanProperty();
+    private ImageWrapper32 loadedImage;
+    private SpectrumFrameAnalyzer.Result loadedDistortion;
+    private SpectrumCurvature curvature;
 
     public SpectrumBrowser(double height) {
         getStyleClass().add("params-dialog");
@@ -322,25 +332,29 @@ public class SpectrumBrowser extends BorderPane {
             helpMessage.setHeaderText(I18N.string(JSolEx.class, "spectrum-browser", "help"));
             helpMessage.showAndWait();
         });
-        var loadImage = new Button(I18N.string(JSolEx.class, "spectrum-browser", "identify"));
+        var loadImage = new Button(I18N.string(JSolEx.class, "spectrum-browser", "load"));
         loadImage.getStyleClass().add("primary-button");
-        loadImage.setOnAction(evt -> {
-            var fileChooser = new FileChooser();
-            configuration.findLastOpenDirectory(Configuration.DirectoryKind.SPECTRUM_IDENTIFICATION).ifPresent(dir -> fileChooser.setInitialDirectory(dir.toFile()));
-            fileChooser.getExtensionFilters().add(IMAGE_FILES_EXTENSIONS);
-            var file = fileChooser.showOpenDialog(null);
-            if (file != null) {
-                configuration.updateLastOpenDirectory(file.getParentFile().toPath(), Configuration.DirectoryKind.SPECTRUM_IDENTIFICATION);
-                BackgroundOperations.async(() -> performWavelengthIdentification(file));
-            }
-
-        });
+        loadImage.setOnAction(evt -> loadAndChooseAction());
         var hide = new Button(I18N.string(JSolEx.class, "spectrum-browser", "hide"));
         hide.getStyleClass().add("default-button");
-        hide.setOnAction(evt -> imageView.setImage(null));
-        hide.disableProperty().bind(imageView.imageProperty().isNull());
+        hide.setOnAction(evt -> {
+            imageView.setImage(null);
+            curvature = null;
+            hasCurvature.set(false);
+            drawSpectrum();
+        });
+        hide.disableProperty().bind(imageView.imageProperty().isNull().and(hasCurvature.not()));
         flipSpectrumCheckBox.getStyleClass().add("check-box");
-        
+
+        var alwaysOnTop = new CheckBox(I18N.string(JSolEx.class, "spectrum-browser", "always.on.top"));
+        alwaysOnTop.getStyleClass().add("check-box");
+        alwaysOnTop.selectedProperty().addListener((observableValue, oldValue, selected) -> withStage(stage -> stage.setAlwaysOnTop(selected)));
+        var opacityLabel = new Label(I18N.string(JSolEx.class, "spectrum-browser", "opacity"));
+        opacityLabel.getStyleClass().add("field-label");
+        var opacitySlider = new Slider(0.2, 1.0, 1.0);
+        opacitySlider.setPrefWidth(120);
+        opacitySlider.valueProperty().addListener((observableValue, oldValue, value) -> withStage(stage -> stage.setOpacity(value.doubleValue())));
+
         var line1 = new HBox();
         line1.setAlignment(Pos.CENTER);
         line1.setSpacing(8);
@@ -349,10 +363,17 @@ public class SpectrumBrowser extends BorderPane {
         line2.setAlignment(Pos.CENTER);
         line2.setSpacing(8);
         line2.setPadding(new Insets(4, 4, 4, 4));
-        line1.getChildren().addAll(gtLabel, textField, unit, searchButton, choiceBox, colorize, flipSpectrumCheckBox);
+        line1.getChildren().addAll(gtLabel, textField, unit, searchButton, choiceBox, colorize, flipSpectrumCheckBox, alwaysOnTop, opacityLabel, opacitySlider);
         line2.getChildren().addAll(instrumentLabel, shg, pixelSizeLabel, pixelSizeValue, adjustDispersion, zoomIn, zoomOut, zoomPresetChoice, help, loadImage, hide);
         vbox.getChildren().addAll(line1, line2);
         return vbox;
+    }
+
+    private void withStage(Consumer<Stage> action) {
+        var scene = getScene();
+        if (scene != null && scene.getWindow() instanceof Stage stage) {
+            action.accept(stage);
+        }
     }
 
     private double calculatePosition(double originalPosition, double spectrumHeight) {
@@ -370,120 +391,190 @@ public class SpectrumBrowser extends BorderPane {
         });
     }
 
-    private void performWavelengthIdentification(File file) {
-        var wrapper = Loader.loadImage(file);
-        if (wrapper instanceof RGBImage rgb) {
-            wrapper = rgb.toMono();
+    private void loadAndChooseAction() {
+        var fileChooser = new FileChooser();
+        configuration.findLastOpenDirectory(Configuration.DirectoryKind.SPECTRUM_IDENTIFICATION).ifPresent(dir -> fileChooser.setInitialDirectory(dir.toFile()));
+        fileChooser.getExtensionFilters().add(IMAGE_FILES_EXTENSIONS);
+        var file = fileChooser.showOpenDialog(null);
+        if (file == null) {
+            return;
         }
-        if (wrapper instanceof ImageWrapper32 image) {
-            CaptureSoftwareMetadataHelper.readSharpcapMetadata(file)
-                .or(() -> CaptureSoftwareMetadataHelper.readFireCaptureMetadata(file))
-                .ifPresent(md -> {
-                    var observationDetails = ProcessParamsIO.loadDefaults().observationDetails();
-                    FxUtils.runLater(() -> pixelSize.set(observationDetails.pixelSize() * md.binning()));
-                });
-            // in order to improve distorsion correction, and because identification is likely to use an image which is full height
-            // we are going to perform a polynomial detection based on a limited area
-            var polynomialImage = cropForPolynomialDetection(image);
-            var width = image.width();
-            var analyzer = new SpectrumFrameAnalyzer(width, polynomialImage.height(), false, null);
-            analyzer.analyze(polynomialImage.data());
-            var result = analyzer.result();
-            result.distortionPolynomial().ifPresentOrElse(polynomial -> {
-                var distorsionCorrection = new DistortionCorrection(image.data(), width, image.height());
-                var correctedImage = distorsionCorrection.polynomicalCorrectionHeightRestricted(polynomial);
-                var corrected = correctedImage.data();
-                for (float[] line : corrected) {
-                    for (float v : line) {
-                        if (Float.isNaN(v)) {
-                            showIdentificationFailure();
-                            return;
-                        }
-                    }
-                }
-                var height = correctedImage.height();
-                int minX = result.leftBorder().orElse(0);
-                if (minX > 0) {
-                    minX += 5 * width / 100;
-                }
-                int maxX = result.rightBorder().orElse(width);
-                if (maxX < width) {
-                    maxX -= 5 * width / 100;
-                }
-                var range = maxX - minX;
-                int finalMinX = minX;
-                int finalMaxX = maxX;
-                double[] lineAverages = new double[height];
-                var flipped = flipSpectrumCheckBox.isSelected();
-                for (int y = 0; y < height; y++) {
-                    double sum = 0;
-                    for (int x = minX; x < maxX; x++) {
-                        var v = corrected[y][x] / Constants.MAX_PIXEL_VALUE;
-                        sum += v;
-                    }
-                    var yy = flipped ? height - y - 1 : y;
-                    lineAverages[yy] = sum / range;
-                }
-                var localMinima = identifyLocalMinima(lineAverages);
-
-                var step = ReferenceIntensities.INSTANCE.getStep();
-                DoubleStream.iterate(ReferenceIntensities.INSTANCE.getMinWavelength(), wl -> wl < ReferenceIntensities.INSTANCE.getMaxWavelength(), wl -> wl + step)
-                    .parallel()
-                    .mapToObj(wl -> {
-                        var baseDispersion = computeDispersion(Wavelen.ofAngstroms(wl));
-                        if (Double.isNaN(baseDispersion.angstromsPerPixel())) {
-                            return new Score(Wavelen.ofAngstroms(wl), Double.MAX_VALUE);
-                        }
-                        double[] ref = new double[height];
-                        double maxAvg = 0;
-                        for (int y = 0; y < height; y++) {
-                            var currentWl = Wavelen.ofAngstroms(wl + y * baseDispersion.angstromsPerPixel());
-                            ref[y] = ReferenceIntensities.intensityAt(currentWl) / 10000;
-                            maxAvg = Math.max(maxAvg, lineAverages[y]);
-                        }
-                        var localRefMinima = identifyLocalMinima(ref);
-                        var total = 0d;
-                        for (int y = 0; y < height; y++) {
-                            var diff = ref[y] - lineAverages[y];
-                            var diff2 = ref[y] - lineAverages[y] / maxAvg;
-                            total += Math.min(Math.abs(diff), Math.abs(diff2));
-                        }
-                        var common = (BitSet) localMinima.clone();
-                        common.and(localRefMinima);
-                        var weight = Math.pow(common.cardinality() / (double) Math.max(localRefMinima.cardinality(), localMinima.cardinality()), 2);
-                        total = total / weight;
-                        return new Score(Wavelen.ofAngstroms(wl), total);
-                    })
-                    .min(Comparator.comparingDouble(Score::score))
-                    .ifPresent(score -> {
-                        var disp = computeDispersion(score.wavelength);
-                        if (Double.isNaN(disp.angstromsPerPixel())) {
-                            return;
-                        }
-                        visibleRangeAngstroms.set(disp.angstromsPerPixel() * height);
-                        imageRangeAngstroms.set(visibleRangeAngstroms.get());
-                        FxUtils.runLater(() -> {
-                            var writableImage = new WritableImage(range, height);
-                            for (int y = 0; y < height; y++) {
-                                for (int x = finalMinX; x < finalMaxX; x++) {
-                                    var v = corrected[y][x] / Constants.MAX_PIXEL_VALUE;
-                                    writableImage.getPixelWriter().setColor(x - finalMinX, y, Color.gray(v, .8));
-                                }
-                                imageView.fitHeightProperty().set(canvas.heightProperty().flatMap(w ->
-                                    visibleRangeAngstroms.flatMap(visible ->
-                                        imageRangeAngstroms.map(r -> w.doubleValue() * r.doubleValue() / visible.doubleValue()))
-                                ).getValue());
-                                imageView.setImage(writableImage);
-                            }
-                            adjustDispersion.setSelected(false);
-                            var targetWavelen = score.wavelength.plusAngstroms(disp.angstromsPerPixel() * height / 2);
-                            searchByWavelength(targetWavelen);
-                        });
+        configuration.updateLastOpenDirectory(file.getParentFile().toPath(), Configuration.DirectoryKind.SPECTRUM_IDENTIFICATION);
+        BackgroundOperations.async(() -> {
+            var wrapper = Loader.loadImage(file);
+            if (wrapper instanceof RGBImage rgb) {
+                wrapper = rgb.toMono();
+            }
+            if (wrapper instanceof ImageWrapper32 image) {
+                CaptureSoftwareMetadataHelper.readSharpcapMetadata(file)
+                    .or(() -> CaptureSoftwareMetadataHelper.readFireCaptureMetadata(file))
+                    .ifPresent(md -> {
+                        var observationDetails = ProcessParamsIO.loadDefaults().observationDetails();
+                        FxUtils.runLater(() -> pixelSize.set(observationDetails.pixelSize() * md.binning()));
                     });
-            }, this::showIdentificationFailure);
-        } else {
-            AlertFactory.error(I18N.string(JSolEx.class, "spectrum-browser", "unsupported.format")).showAndWait();
+                var distortion = detectDistortion(image);
+                if (distortion.distortionPolynomial().isEmpty()) {
+                    showIdentificationFailure();
+                    return;
+                }
+                FxUtils.runLater(() -> {
+                    loadedImage = image;
+                    loadedDistortion = distortion;
+                    showActionChooser();
+                });
+            } else {
+                FxUtils.runLater(() -> AlertFactory.error(I18N.string(JSolEx.class, "spectrum-browser", "unsupported.format")).showAndWait());
+            }
+        });
+    }
+
+    private void showActionChooser() {
+        var identifyButton = new ButtonType(I18N.string(JSolEx.class, "spectrum-browser", "identify"));
+        var curvatureButton = new ButtonType(I18N.string(JSolEx.class, "spectrum-browser", "apply.curvature"));
+        var alert = AlertFactory.confirmation(I18N.string(JSolEx.class, "spectrum-browser", "action.message"));
+        alert.setTitle(I18N.string(JSolEx.class, "spectrum-browser", "action.title"));
+        alert.setHeaderText(I18N.string(JSolEx.class, "spectrum-browser", "action.title"));
+        alert.getButtonTypes().setAll(identifyButton, curvatureButton, ButtonType.CANCEL);
+        alert.showAndWait().ifPresent(choice -> {
+            if (choice == identifyButton) {
+                BackgroundOperations.async(this::performWavelengthIdentification);
+            } else if (choice == curvatureButton) {
+                BackgroundOperations.async(this::applyCurvatureFromLoadedImage);
+            }
+        });
+    }
+
+    private SpectrumFrameAnalyzer.Result detectDistortion(ImageWrapper32 image) {
+        var polynomialImage = cropForPolynomialDetection(image);
+        var analyzer = new SpectrumFrameAnalyzer(image.width(), polynomialImage.height(), false, null);
+        analyzer.analyze(polynomialImage.data());
+        return analyzer.result();
+    }
+
+    private void applyCurvatureFromLoadedImage() {
+        var image = loadedImage;
+        var result = loadedDistortion;
+        if (image == null || result == null) {
+            return;
         }
+        var width = image.width();
+        result.distortionPolynomial().ifPresentOrElse(polynomial -> {
+            int minX = result.leftBorder().orElse(0);
+            if (minX > 0) {
+                minX += 5 * width / 100;
+            }
+            int maxX = result.rightBorder().orElse(width);
+            if (maxX < width) {
+                maxX -= 5 * width / 100;
+            }
+            var curv = new SpectrumCurvature(polynomial, minX, maxX, (minX + maxX) / 2.0);
+            FxUtils.runLater(() -> {
+                curvature = curv;
+                hasCurvature.set(true);
+                drawSpectrum();
+            });
+        }, this::showIdentificationFailure);
+    }
+
+    private void performWavelengthIdentification() {
+        var image = loadedImage;
+        var result = loadedDistortion;
+        if (image == null || result == null) {
+            return;
+        }
+        var width = image.width();
+        result.distortionPolynomial().ifPresentOrElse(polynomial -> {
+            var distorsionCorrection = new DistortionCorrection(image.data(), width, image.height());
+            var correctedImage = distorsionCorrection.polynomicalCorrectionHeightRestricted(polynomial);
+            var corrected = correctedImage.data();
+            for (float[] line : corrected) {
+                for (float v : line) {
+                    if (Float.isNaN(v)) {
+                        showIdentificationFailure();
+                        return;
+                    }
+                }
+            }
+            var height = correctedImage.height();
+            int minX = result.leftBorder().orElse(0);
+            if (minX > 0) {
+                minX += 5 * width / 100;
+            }
+            int maxX = result.rightBorder().orElse(width);
+            if (maxX < width) {
+                maxX -= 5 * width / 100;
+            }
+            var range = maxX - minX;
+            int finalMinX = minX;
+            int finalMaxX = maxX;
+            double[] lineAverages = new double[height];
+            var flipped = flipSpectrumCheckBox.isSelected();
+            for (int y = 0; y < height; y++) {
+                double sum = 0;
+                for (int x = minX; x < maxX; x++) {
+                    var v = corrected[y][x] / Constants.MAX_PIXEL_VALUE;
+                    sum += v;
+                }
+                var yy = flipped ? height - y - 1 : y;
+                lineAverages[yy] = sum / range;
+            }
+            var localMinima = identifyLocalMinima(lineAverages);
+
+            var step = ReferenceIntensities.INSTANCE.getStep();
+            DoubleStream.iterate(ReferenceIntensities.INSTANCE.getMinWavelength(), wl -> wl < ReferenceIntensities.INSTANCE.getMaxWavelength(), wl -> wl + step)
+                .parallel()
+                .mapToObj(wl -> {
+                    var baseDispersion = computeDispersion(Wavelen.ofAngstroms(wl));
+                    if (Double.isNaN(baseDispersion.angstromsPerPixel())) {
+                        return new Score(Wavelen.ofAngstroms(wl), Double.MAX_VALUE);
+                    }
+                    double[] ref = new double[height];
+                    double maxAvg = 0;
+                    for (int y = 0; y < height; y++) {
+                        var currentWl = Wavelen.ofAngstroms(wl + y * baseDispersion.angstromsPerPixel());
+                        ref[y] = ReferenceIntensities.intensityAt(currentWl) / 10000;
+                        maxAvg = Math.max(maxAvg, lineAverages[y]);
+                    }
+                    var localRefMinima = identifyLocalMinima(ref);
+                    var total = 0d;
+                    for (int y = 0; y < height; y++) {
+                        var diff = ref[y] - lineAverages[y];
+                        var diff2 = ref[y] - lineAverages[y] / maxAvg;
+                        total += Math.min(Math.abs(diff), Math.abs(diff2));
+                    }
+                    var common = (BitSet) localMinima.clone();
+                    common.and(localRefMinima);
+                    var weight = Math.pow(common.cardinality() / (double) Math.max(localRefMinima.cardinality(), localMinima.cardinality()), 2);
+                    total = total / weight;
+                    return new Score(Wavelen.ofAngstroms(wl), total);
+                })
+                .min(Comparator.comparingDouble(Score::score))
+                .ifPresent(score -> {
+                    var disp = computeDispersion(score.wavelength);
+                    if (Double.isNaN(disp.angstromsPerPixel())) {
+                        return;
+                    }
+                    visibleRangeAngstroms.set(disp.angstromsPerPixel() * height);
+                    imageRangeAngstroms.set(visibleRangeAngstroms.get());
+                    FxUtils.runLater(() -> {
+                        var writableImage = new WritableImage(range, height);
+                        for (int y = 0; y < height; y++) {
+                            for (int x = finalMinX; x < finalMaxX; x++) {
+                                var v = corrected[y][x] / Constants.MAX_PIXEL_VALUE;
+                                writableImage.getPixelWriter().setColor(x - finalMinX, y, Color.gray(v, .8));
+                            }
+                            imageView.fitHeightProperty().set(canvas.heightProperty().flatMap(w ->
+                                visibleRangeAngstroms.flatMap(visible ->
+                                    imageRangeAngstroms.map(r -> w.doubleValue() * r.doubleValue() / visible.doubleValue()))
+                            ).getValue());
+                            imageView.setImage(writableImage);
+                        }
+                        adjustDispersion.setSelected(false);
+                        var targetWavelen = score.wavelength.plusAngstroms(disp.angstromsPerPixel() * height / 2);
+                        searchByWavelength(targetWavelen);
+                    });
+                });
+        }, this::showIdentificationFailure);
     }
 
     private static ImageWrapper32 cropForPolynomialDetection(ImageWrapper32 image) {
@@ -587,6 +678,13 @@ public class SpectrumBrowser extends BorderPane {
         return SpectrumAnalyzer.computeSpectralDispersion(selectedShg, centerWavelength, pixelSize.get());
     }
 
+    private record SpectrumCurvature(DoubleUnaryOperator polynomial, double minColumn, double maxColumn, double refColumn) {
+        double rowOffsetAt(double normalizedX) {
+            var column = minColumn + normalizedX * (maxColumn - minColumn);
+            return polynomial.applyAsDouble(column) - polynomial.applyAsDouble(refColumn);
+        }
+    }
+
     private HBox createBottomBar() {
         var hbox = new HBox();
         hbox.getStyleClass().add("status-bar");
@@ -630,22 +728,47 @@ public class SpectrumBrowser extends BorderPane {
         gc.strokeLine(SPECTRUM_OFFSET, 0, SPECTRUM_OFFSET, height);
         gc.strokeLine(SPECTRUM_OFFSET + spectrumWidth, 0, SPECTRUM_OFFSET + spectrumWidth, height);
 
+        var curv = curvature;
+        double[] curveXs = null;
+        double[] curveOffsets = null;
+        double[] curveYs = null;
+        int curveSamples = 0;
+        if (curv != null) {
+            var scale = (!Double.isNaN(referenceRangeAngstroms) && referenceRangeAngstroms > 0)
+                ? referenceRangeAngstroms / visibleRangeAngstroms.get()
+                : 1.0;
+            curveSamples = (int) Math.max(8, Math.min(64, spectrumWidth / 16));
+            curveXs = new double[curveSamples];
+            curveOffsets = new double[curveSamples];
+            curveYs = new double[curveSamples];
+            for (int s = 0; s < curveSamples; s++) {
+                var frac = s / (double) (curveSamples - 1);
+                curveXs[s] = SPECTRUM_OFFSET + frac * spectrumWidth;
+                curveOffsets[s] = curv.rowOffsetAt(frac) * scale;
+            }
+        }
+
         for (int i = 0; i < height; i++) {
             // Calculate wavelength and intensity
             var wavelength = Wavelen.ofAngstroms(currentMinWavelength + i * step);
             var intensity = ReferenceIntensities.intensityAt(wavelength);
             var grayscale = 0.9 * (intensity / 10000.0);
 
-            // Determine drawing position, flipped if necessary
-            var position = calculatePosition(i, height);
-
             // Choose color
             var color = colorizeSpectrum.get() ? createColor(grayscale, wavelength) : Color.gray(grayscale);
 
-            // Draw spectrum line
+            // Draw spectrum line, following the detected curvature when available
             gc.setStroke(color);
             gc.setLineWidth(1);
-            gc.strokeLine(SPECTRUM_OFFSET, position, SPECTRUM_OFFSET + spectrumWidth, position);
+            if (curv == null) {
+                var position = calculatePosition(i, height);
+                gc.strokeLine(SPECTRUM_OFFSET, position, SPECTRUM_OFFSET + spectrumWidth, position);
+            } else {
+                for (int s = 0; s < curveSamples; s++) {
+                    curveYs[s] = calculatePosition(i + curveOffsets[s], height);
+                }
+                gc.strokePolyline(curveXs, curveYs, curveSamples);
+            }
         }
 
         // Draw legend and identified lines
