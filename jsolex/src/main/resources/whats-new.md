@@ -2,6 +2,7 @@
 
 ## What's New in Version 5.3.4
 
+- The spectrum browser can now be overlaid on your capture software, with adjustable transparency and spectral curvature matching.
 - Fixed line artifacts that could appear when stacking with local dedistortion enabled.
 
 ## What's New in Version 5.3.3
