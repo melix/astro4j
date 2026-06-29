@@ -3,6 +3,7 @@
 ## What's New in Version 5.3.4
 
 - The spectrum browser can now be overlaid on your capture software, with adjustable transparency and spectral curvature matching.
+- The spectrum browser window can now be made borderless with its controls moved to the bottom, for cleaner overlays at the top of the screen.
 - Fixed line artifacts that could appear when stacking with local dedistortion enabled.
 
 ## What's New in Version 5.3.3

@@ -51,6 +51,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.StrokeLineCap;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import javafx.stage.StageStyle;
 import javafx.util.Duration;
 import javafx.util.StringConverter;
 import javafx.util.converter.DoubleStringConverter;
@@ -134,6 +135,11 @@ public class SpectrumBrowser extends BorderPane {
     private final Configuration configuration;
 
     private final BooleanProperty hasCurvature = new SimpleBooleanProperty();
+    private final BooleanProperty borderless = new SimpleBooleanProperty();
+    private final BooleanProperty controlsAtBottom = new SimpleBooleanProperty();
+    private final VBox bottomContainer = new VBox();
+    private final double[] dragAnchor = new double[2];
+    private Node controlBar;
     private ImageWrapper32 loadedImage;
     private SpectrumFrameAnalyzer.Result loadedDistortion;
     private SpectrumCurvature curvature;
@@ -155,11 +161,12 @@ public class SpectrumBrowser extends BorderPane {
         })));
         stackPane = new StackPane(canvas, imageViewPane);
         stackPane.setAlignment(Pos.BASELINE_LEFT);
-        widthProperty().addListener((observableValue, oldW, w) -> {
+        stackPane.setMinSize(0, 0);
+        stackPane.widthProperty().addListener((observableValue, oldW, w) -> {
             canvas.setWidth(w.doubleValue());
             drawSpectrum();
         });
-        heightProperty().addListener((observableValue, oldH, h) -> {
+        stackPane.heightProperty().addListener((observableValue, oldH, h) -> {
             if (oldH != null && oldH.doubleValue() != h.doubleValue()) {
                 canvas.setHeight(h.doubleValue());
                 drawSpectrum();
@@ -213,8 +220,10 @@ public class SpectrumBrowser extends BorderPane {
         flipSpectrumCheckBox.selectedProperty().addListener((observable, oldValue, newValue) -> {
             drawSpectrum();
         });
-        setTop(createTopBar());
-        setBottom(createBottomBar());
+        controlBar = createTopBar();
+        bottomContainer.getChildren().add(createBottomBar());
+        installWindowDrag(controlBar);
+        layoutControls();
         FxUtils.runLater(this::adjustZoomToOpticsAndDraw);
     }
 
@@ -355,6 +364,20 @@ public class SpectrumBrowser extends BorderPane {
         opacitySlider.setPrefWidth(120);
         opacitySlider.valueProperty().addListener((observableValue, oldValue, value) -> withStage(stage -> stage.setOpacity(value.doubleValue())));
 
+        var borderlessCheckBox = new CheckBox(I18N.string(JSolEx.class, "spectrum-browser", "borderless"));
+        borderlessCheckBox.getStyleClass().add("check-box");
+        borderless.bind(borderlessCheckBox.selectedProperty());
+        borderlessCheckBox.selectedProperty().addListener((observableValue, oldValue, selected) -> recreateStage(selected));
+        var controlsAtBottomCheckBox = new CheckBox(I18N.string(JSolEx.class, "spectrum-browser", "controls.bottom"));
+        controlsAtBottomCheckBox.getStyleClass().add("check-box");
+        controlsAtBottom.bind(controlsAtBottomCheckBox.selectedProperty());
+        controlsAtBottomCheckBox.selectedProperty().addListener((observableValue, oldValue, selected) -> layoutControls());
+        var closeButton = new Button("✕");
+        closeButton.getStyleClass().add("default-button");
+        closeButton.setOnAction(evt -> withStage(Stage::close));
+        closeButton.visibleProperty().bind(borderless);
+        closeButton.managedProperty().bind(borderless);
+
         var line1 = new HBox();
         line1.setAlignment(Pos.CENTER);
         line1.setSpacing(8);
@@ -363,9 +386,14 @@ public class SpectrumBrowser extends BorderPane {
         line2.setAlignment(Pos.CENTER);
         line2.setSpacing(8);
         line2.setPadding(new Insets(4, 4, 4, 4));
-        line1.getChildren().addAll(gtLabel, textField, unit, searchButton, choiceBox, colorize, flipSpectrumCheckBox, alwaysOnTop, opacityLabel, opacitySlider);
+        var line3 = new HBox();
+        line3.setAlignment(Pos.CENTER);
+        line3.setSpacing(8);
+        line3.setPadding(new Insets(4, 4, 4, 4));
+        line1.getChildren().addAll(gtLabel, textField, unit, searchButton, choiceBox, colorize, flipSpectrumCheckBox);
         line2.getChildren().addAll(instrumentLabel, shg, pixelSizeLabel, pixelSizeValue, adjustDispersion, zoomIn, zoomOut, zoomPresetChoice, help, loadImage, hide);
-        vbox.getChildren().addAll(line1, line2);
+        line3.getChildren().addAll(alwaysOnTop, opacityLabel, opacitySlider, borderlessCheckBox, controlsAtBottomCheckBox, closeButton);
+        vbox.getChildren().addAll(line1, line2, line3);
         return vbox;
     }
 
@@ -374,6 +402,66 @@ public class SpectrumBrowser extends BorderPane {
         if (scene != null && scene.getWindow() instanceof Stage stage) {
             action.accept(stage);
         }
+    }
+
+    private void layoutControls() {
+        bottomContainer.getChildren().remove(controlBar);
+        if (controlsAtBottom.get()) {
+            setTop(null);
+            bottomContainer.getChildren().add(0, controlBar);
+        } else {
+            setTop(controlBar);
+        }
+        setBottom(bottomContainer);
+    }
+
+    private void recreateStage(boolean undecorated) {
+        withStage(oldStage -> {
+            var scene = oldStage.getScene();
+            var x = oldStage.getX();
+            var y = oldStage.getY();
+            var width = oldStage.getWidth();
+            var height = oldStage.getHeight();
+            var onTop = oldStage.isAlwaysOnTop();
+            var opacity = oldStage.getOpacity();
+            var title = oldStage.getTitle();
+            oldStage.setScene(null);
+            oldStage.hide();
+            var newStage = FXUtils.newStage();
+            newStage.initStyle(undecorated ? StageStyle.UNDECORATED : StageStyle.DECORATED);
+            newStage.setTitle(title);
+            newStage.setScene(scene);
+            newStage.setX(x);
+            newStage.setY(y);
+            newStage.setWidth(width);
+            newStage.setHeight(height);
+            newStage.setAlwaysOnTop(onTop);
+            newStage.setOpacity(opacity);
+            newStage.show();
+        });
+    }
+
+    private void installWindowDrag(Node handle) {
+        handle.addEventHandler(MouseEvent.MOUSE_PRESSED, evt -> {
+            if (borderless.get() && isDragSurface(evt.getTarget())) {
+                dragAnchor[0] = evt.getScreenX();
+                dragAnchor[1] = evt.getScreenY();
+            }
+        });
+        handle.addEventHandler(MouseEvent.MOUSE_DRAGGED, evt -> {
+            if (borderless.get() && isDragSurface(evt.getTarget())) {
+                withStage(stage -> {
+                    stage.setX(stage.getX() + evt.getScreenX() - dragAnchor[0]);
+                    stage.setY(stage.getY() + evt.getScreenY() - dragAnchor[1]);
+                });
+                dragAnchor[0] = evt.getScreenX();
+                dragAnchor[1] = evt.getScreenY();
+            }
+        });
+    }
+
+    private static boolean isDragSurface(Object target) {
+        return target instanceof HBox || target instanceof VBox || target instanceof Label;
     }
 
     private double calculatePosition(double originalPosition, double spectrumHeight) {
@@ -737,13 +825,15 @@ public class SpectrumBrowser extends BorderPane {
             var scale = (!Double.isNaN(referenceRangeAngstroms) && referenceRangeAngstroms > 0)
                 ? referenceRangeAngstroms / visibleRangeAngstroms.get()
                 : 1.0;
-            curveSamples = (int) Math.max(8, Math.min(64, spectrumWidth / 16));
+            // Use the image pixel scale, not the window width, so the curve is truncated rather than stretched
+            var curveWidth = (curv.maxColumn() - curv.minColumn()) * scale;
+            curveSamples = (int) Math.max(8, Math.min(64, curveWidth / 16));
             curveXs = new double[curveSamples];
             curveOffsets = new double[curveSamples];
             curveYs = new double[curveSamples];
             for (int s = 0; s < curveSamples; s++) {
                 var frac = s / (double) (curveSamples - 1);
-                curveXs[s] = SPECTRUM_OFFSET + frac * spectrumWidth;
+                curveXs[s] = SPECTRUM_OFFSET + frac * curveWidth;
                 curveOffsets[s] = curv.rowOffsetAt(frac) * scale;
             }
         }

@@ -3,6 +3,7 @@
 ## Nouveautés de la version 5.3.4
 
 - L'explorateur de spectre peut désormais être superposé à votre logiciel de capture, avec transparence réglable et correspondance de la courbure du spectre.
+- La fenêtre de l'explorateur de spectre peut désormais être affichée sans bordure avec ses contrôles déplacés en bas, pour une superposition plus propre en haut de l'écran.
 - Correction d'artefacts en forme de lignes pouvant apparaître lors de l'empilement avec la dédistorsion locale activée.
 
 ## Nouveautés de la version 5.3.3
