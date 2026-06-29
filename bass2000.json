@@ -1,6 +1,6 @@
 {
       "requiresVersion": "4.4.5",
-      "enabled": false,
+      "enabled": true,
       "message": {
          "en": "BASS2000 is under maintenance and should be back on Monday!",
          "fr": "BASS2000 est actuellement en maintenance et devrait revenir dans la journée lundi si tout se passe bien !"
