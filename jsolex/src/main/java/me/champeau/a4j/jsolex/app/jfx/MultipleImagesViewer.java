@@ -440,21 +440,16 @@ public class MultipleImagesViewer extends Pane {
         try {
             lock.lock();
 
-            var runScoped = scriptRunNumber > 0 && kind == GeneratedImageKind.IMAGE_MATH;
             CategoryPane category;
-            if (groupId != null) {
-                category = getOrCreateGroupCategory(kind.displayCategory(), groupId, groupTitle);
-            } else if (runScoped) {
-                category = getOrCreateRunCategory(scriptRunNumber, runStartTime);
-            } else {
-                category = getOrCreateCategory(kind);
-            }
             String badge = null;
             String badgeTooltip = null;
-            if (runScoped) {
-                badge = "#" + scriptRunNumber;
-                var prefix = message("displayCategory." + DisplayCategory.IMAGE_MATH.name());
-                badgeTooltip = String.format(message("script.run.tooltip"), prefix, scriptRunNumber, RUN_TOOLTIP_FORMAT.format(runStartTime));
+            if (groupId != null) {
+                category = getOrCreateGroupCategory(kind.displayCategory(), groupId, groupTitle);
+            } else {
+                var scope = resolveRunScope(kind, scriptRunNumber, runStartTime);
+                category = scope.category();
+                badge = scope.badge();
+                badgeTooltip = scope.badgeTooltip();
             }
             var viewer = newImageViewer();
             var transformed = transformer.apply(viewer);
@@ -555,10 +550,31 @@ public class MultipleImagesViewer extends Pane {
                                 String title,
                                 Path filePath,
                                 String description) {
+        return addVideo(kind, title, filePath, description, 0, null);
+    }
+
+    /**
+     * Adds a video to the viewer, placing it in the timestamped section of the
+     * given script run when applicable.
+     * @param kind the kind of generated image
+     * @param title the title of the video
+     * @param filePath the path to the video file
+     * @param description the description of the video
+     * @param scriptRunNumber the script run number, or 0 if not run-scoped
+     * @param runStartTime the script run start time, or {@code null} if not run-scoped
+     * @return the media player for the video
+     */
+    public MediaPlayer addVideo(GeneratedImageKind kind,
+                                String title,
+                                Path filePath,
+                                String description,
+                                int scriptRunNumber,
+                                LocalDateTime runStartTime) {
         try {
             lock.lock();
 
-            var category = getOrCreateCategory(kind);
+            var scope = resolveRunScope(kind, scriptRunNumber, runStartTime);
+            var category = scope.category();
             mediaEntries.add(new SessionMedia(kind, title, description, filePath, SessionMedia.Type.VIDEO));
             var media = createMedia(filePath);
             var mediaPlayer = new MediaPlayer(media);
@@ -586,7 +602,7 @@ public class MultipleImagesViewer extends Pane {
             contentBox.setAlignment(Pos.CENTER);
             viewer.fitWidthProperty().bind(widthProperty());
             viewer.fitHeightProperty().bind(heightProperty().subtract(buttonBox.heightProperty()));
-            var hyperlink = category.addVideo(title, link -> {
+            var hyperlink = category.addVideo(title, scope.badge(), scope.badgeTooltip(), link -> {
                 categories().forEach(CategoryPane::clearSelection);
                 FxUtils.runLater(() -> borderPane.setCenter(contentBox));
                 selected = link;
@@ -612,10 +628,30 @@ public class MultipleImagesViewer extends Pane {
                                String title,
                                Path filePath,
                                String description) {
+        addAnimatedGif(kind, title, filePath, description, 0, null);
+    }
+
+    /**
+     * Adds an animated GIF to the viewer, placing it in the timestamped section of
+     * the given script run when applicable.
+     * @param kind the kind of generated image
+     * @param title the title of the animation
+     * @param filePath the path to the GIF file
+     * @param description the description of the animation
+     * @param scriptRunNumber the script run number, or 0 if not run-scoped
+     * @param runStartTime the script run start time, or {@code null} if not run-scoped
+     */
+    public void addAnimatedGif(GeneratedImageKind kind,
+                               String title,
+                               Path filePath,
+                               String description,
+                               int scriptRunNumber,
+                               LocalDateTime runStartTime) {
         try {
             lock.lock();
 
-            var category = getOrCreateCategory(kind);
+            var scope = resolveRunScope(kind, scriptRunNumber, runStartTime);
+            var category = scope.category();
             mediaEntries.add(new SessionMedia(kind, title, description, filePath, SessionMedia.Type.GIF));
             var image = new Image(filePath.toUri().toString());
             var imageView = new ImageView(image);
@@ -637,7 +673,7 @@ public class MultipleImagesViewer extends Pane {
             imageView.fitWidthProperty().bind(widthProperty());
             imageView.fitHeightProperty().bind(heightProperty().subtract(buttonBox.heightProperty()));
 
-            var hyperlink = category.addVideo(title, link -> {
+            var hyperlink = category.addVideo(title, scope.badge(), scope.badgeTooltip(), link -> {
                 categories().forEach(CategoryPane::clearSelection);
                 FxUtils.runLater(() -> borderPane.setCenter(contentBox));
                 selected = link;
@@ -724,6 +760,19 @@ public class MultipleImagesViewer extends Pane {
                 .filter(t -> t.getProperties().get(DisplayCategory.class) == category)
                 .findFirst()
                 .orElseGet(() -> addCategory(category));
+    }
+
+    private record RunScope(CategoryPane category, String badge, String badgeTooltip) {
+    }
+
+    private RunScope resolveRunScope(GeneratedImageKind kind, int scriptRunNumber, LocalDateTime runStartTime) {
+        if (scriptRunNumber > 0 && kind == GeneratedImageKind.IMAGE_MATH) {
+            var prefix = message("displayCategory." + DisplayCategory.IMAGE_MATH.name());
+            var badge = "#" + scriptRunNumber;
+            var badgeTooltip = String.format(message("script.run.tooltip"), prefix, scriptRunNumber, RUN_TOOLTIP_FORMAT.format(runStartTime));
+            return new RunScope(getOrCreateRunCategory(scriptRunNumber, runStartTime), badge, badgeTooltip);
+        }
+        return new RunScope(getOrCreateCategory(kind), null, null);
     }
 
     private CategoryPane getOrCreateRunCategory(int runNumber, LocalDateTime startTime) {

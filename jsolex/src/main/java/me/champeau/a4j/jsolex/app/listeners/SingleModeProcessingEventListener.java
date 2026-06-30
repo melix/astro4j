@@ -1835,10 +1835,12 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         var fileName = filePath.toFile().getName();
         var displayTitle = payload.displayTitle() != null ? payload.displayTitle() : payload.title();
         var description = payload.description();
+        var runNumber = owner.currentScriptRunNumber();
+        var runStartTime = owner.currentScriptRunStartTime();
         if (fileName.endsWith(".mp4")) {
-            FxUtils.runLater(() -> owner.getImagesViewer().addVideo(payload.kind(), displayTitle, filePath, description));
+            FxUtils.runLater(() -> owner.getImagesViewer().addVideo(payload.kind(), displayTitle, filePath, description, runNumber, runStartTime));
         } else if (fileName.endsWith(".gif")) {
-            FxUtils.runLater(() -> owner.getImagesViewer().addAnimatedGif(payload.kind(), displayTitle, filePath, description));
+            FxUtils.runLater(() -> owner.getImagesViewer().addAnimatedGif(payload.kind(), displayTitle, filePath, description, runNumber, runStartTime));
         }
     }
 

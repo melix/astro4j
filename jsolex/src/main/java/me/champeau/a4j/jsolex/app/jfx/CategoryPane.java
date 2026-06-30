@@ -232,7 +232,7 @@ public class CategoryPane extends VBox {
      * @param onClose callback when closed
      * @return the created hyperlink
      */
-    public Hyperlink addVideo(String title, Consumer<? super Hyperlink> onClick, Consumer<? super Hyperlink> onClose) {
+    public Hyperlink addVideo(String title, String badge, String badgeTooltip, Consumer<? super Hyperlink> onClick, Consumer<? super Hyperlink> onClose) {
         var link = new Hyperlink(title);
         link.setOnAction(e -> {
             if (selected == link) {
@@ -246,10 +246,19 @@ public class CategoryPane extends VBox {
         var box = new HBox();
         box.getStyleClass().add("category-row");
         box.setAlignment(Pos.CENTER_LEFT);
+        box.getChildren().add(link);
+        if (badge != null) {
+            var badgeLabel = new Label(badge);
+            badgeLabel.getStyleClass().add("category-run-badge");
+            if (badgeTooltip != null) {
+                badgeLabel.setTooltip(new Tooltip(badgeTooltip));
+            }
+            box.getChildren().add(badgeLabel);
+        }
         var spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
         var close = createCloseLink(box, link, onClose);
-        box.getChildren().addAll(link, spacer, close);
+        box.getChildren().addAll(spacer, close);
         getChildren().add(box);
         applyCollapseState(box);
         return link;
