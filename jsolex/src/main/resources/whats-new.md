@@ -6,6 +6,8 @@
 - The spectrum browser window can now be made borderless with its controls moved to the bottom, for cleaner overlays at the top of the screen.
 - Fixed line artifacts that could appear when stacking with local dedistortion enabled.
 - Animations and videos are now grouped into the same per-run sections as images when re-running a script.
+- A section in the image list can now be closed at once using the close button next to its title.
+- The SER trimmer now shows a progress bar again while trimming, and its dialog layout was fixed.
 
 ## What's New in Version 5.3.3
 

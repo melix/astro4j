@@ -94,6 +94,10 @@
     -fx-cursor: hand;
 }
 
+.category-header {
+    -fx-alignment: center-left;
+}
+
 .run-pane {
     -fx-border-color: #cfe0ff;
 }

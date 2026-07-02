@@ -33,22 +33,22 @@
                 <Tooltip text="%frames.tooltip" />
             </tooltip>
         </Label>
-        <TextField fx:id="firstFrame" GridPane.columnIndex="1">
+        <TextField fx:id="firstFrame" style="-fx-min-width: 0; -fx-pref-width: 70;" GridPane.columnIndex="1">
             <tooltip>
                 <Tooltip text="%frames.tooltip" />
             </tooltip>
         </TextField>
-        <TextField fx:id="lastFrame" GridPane.columnIndex="4">
+        <TextField fx:id="lastFrame" style="-fx-min-width: 0; -fx-pref-width: 70;" GridPane.columnIndex="4">
             <tooltip>
                 <Tooltip text="%frames.tooltip" />
             </tooltip>
         </TextField>
-        <TextField fx:id="pixelsUp" GridPane.columnIndex="1" GridPane.rowIndex="2">
+        <TextField fx:id="pixelsUp" style="-fx-min-width: 0; -fx-pref-width: 70;" GridPane.columnIndex="1" GridPane.rowIndex="2">
             <tooltip>
                 <Tooltip text="%updown.tooltip" />
             </tooltip>
         </TextField>
-        <TextField fx:id="pixelsDown" GridPane.columnIndex="4" GridPane.rowIndex="2">
+        <TextField fx:id="pixelsDown" style="-fx-min-width: 0; -fx-pref-width: 70;" GridPane.columnIndex="4" GridPane.rowIndex="2">
             <tooltip>
                 <Tooltip text="%updown.tooltip" />
             </tooltip>
@@ -95,12 +95,12 @@
                 <Tooltip text="%minmax.x.tooltip" />
             </tooltip>
         </Label>
-        <TextField fx:id="minX" GridPane.columnIndex="1" GridPane.rowIndex="1">
+        <TextField fx:id="minX" style="-fx-min-width: 0; -fx-pref-width: 70;" GridPane.columnIndex="1" GridPane.rowIndex="1">
             <tooltip>
                 <Tooltip text="%minmax.x.tooltip" />
             </tooltip>
         </TextField>
-        <TextField fx:id="maxX" GridPane.columnIndex="4" GridPane.rowIndex="1">
+        <TextField fx:id="maxX" style="-fx-min-width: 0; -fx-pref-width: 70;" GridPane.columnIndex="4" GridPane.rowIndex="1">
             <tooltip>
                 <Tooltip text="%minmax.x.tooltip" />
             </tooltip>

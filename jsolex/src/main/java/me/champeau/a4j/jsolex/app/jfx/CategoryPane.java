@@ -35,7 +35,9 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
@@ -45,6 +47,7 @@ public class CategoryPane extends VBox {
 
     private final List<Hyperlink> safeLinks = Collections.synchronizedList(new ArrayList<>());
     private final ObservableList<Hyperlink> links = FXCollections.observableArrayList();
+    private final Map<Hyperlink, RowHandle> rows = new LinkedHashMap<>();
 
     private Hyperlink selected = null;
     private final Consumer<? super CategoryPane> whenEmpty;
@@ -63,7 +66,18 @@ public class CategoryPane extends VBox {
         titleLabel = new Label();
         titleLabel.getStyleClass().addAll("category-title", "category-title-collapsible");
         titleLabel.setOnMouseClicked(e -> toggleCollapsed());
-        getChildren().add(titleLabel);
+        var header = new HBox();
+        header.getStyleClass().add("category-header");
+        header.setAlignment(Pos.CENTER_LEFT);
+        var spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        var closeAllButton = new Hyperlink("x");
+        closeAllButton.getStyleClass().add("category-close");
+        closeAllButton.setAlignment(Pos.CENTER_RIGHT);
+        closeAllButton.setTooltip(new Tooltip(message("close.section")));
+        closeAllButton.setOnAction(e -> closeAll());
+        header.getChildren().addAll(titleLabel, spacer, closeAllButton);
+        getChildren().add(header);
         getStyleClass().add("category-pane");
         updateTitle();
     }
@@ -206,23 +220,43 @@ public class CategoryPane extends VBox {
     }
 
     private Hyperlink createCloseLink(HBox box, Hyperlink link, Consumer<? super Hyperlink> onClose) {
+        rows.put(link, new RowHandle(box, onClose));
         var close = new Hyperlink("x");
         close.getStyleClass().add("category-close");
         close.setAlignment(Pos.CENTER_RIGHT);
-        close.setOnAction(e -> {
-            getChildren().remove(box);
-            var idx = Math.max(0, links.indexOf(link) - 1);
-            links.remove(link);
-            onClose.accept(link);
-            if (links.isEmpty()) {
-                whenEmpty.accept(this);
-            }
-            if (selected == link && !links.isEmpty()) {
-                links.get(idx).fire();
-            }
-        });
+        close.setOnAction(e -> closeRow(link, true));
         close.setTooltip(new Tooltip(message("close.image")));
         return close;
+    }
+
+    private void closeRow(Hyperlink link, boolean reselect) {
+        var handle = rows.remove(link);
+        if (handle == null) {
+            return;
+        }
+        getChildren().remove(handle.box());
+        var idx = Math.max(0, links.indexOf(link) - 1);
+        links.remove(link);
+        safeLinks.remove(link);
+        handle.onClose().accept(link);
+        if (links.isEmpty()) {
+            whenEmpty.accept(this);
+        } else if (reselect && selected == link) {
+            links.get(idx).fire();
+        }
+        if (selected == link) {
+            selected = null;
+        }
+    }
+
+    /** Closes every item in this section, which also removes the section once empty. */
+    public void closeAll() {
+        for (var link : new ArrayList<>(links)) {
+            closeRow(link, false);
+        }
+    }
+
+    private record RowHandle(HBox box, Consumer<? super Hyperlink> onClose) {
     }
 
     /**

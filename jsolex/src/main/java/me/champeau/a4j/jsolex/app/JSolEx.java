@@ -216,6 +216,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -2991,11 +2992,24 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     public void trimSerFile() {
         FxUtils.runLater(() -> {
             var stage = newStage();
+            var trimOperation = new AtomicReference<ProgressOperation>();
             SerFileTrimmerController.create(stage,
                     trimmingParameters,
-                    this::showProgress,
-                    this::updateProgress,
+                    () -> {
+                        var root = createRootOperation("");
+                        trimOperation.set(root.createChild(I18N.string(JSolEx.class, "ser-trimmer", "trimming")));
+                    },
+                    (progress, msg) -> {
+                        var op = trimOperation.get();
+                        if (op != null) {
+                            updateProgress(op.update(progress, msg));
+                        }
+                    },
                     trimmedFile -> {
+                        var op = trimOperation.get();
+                        if (op != null) {
+                            updateProgress(op.complete());
+                        }
                         hideProgress();
                         if (trimmedFile != null) {
                             long initialSize = trimmingParameters.serFile().length();
