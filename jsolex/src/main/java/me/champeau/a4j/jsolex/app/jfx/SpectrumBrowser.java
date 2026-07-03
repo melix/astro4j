@@ -44,6 +44,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
@@ -130,6 +131,7 @@ public class SpectrumBrowser extends BorderPane {
 
     private double referenceRangeAngstroms = Double.NaN;
     private final ChoiceBox<String> zoomPresetChoice = new ChoiceBox<>();
+    private boolean adjustingZoomPreset;
 
     private final Set<IdentifiedLine> userDefinedLines = new HashSet<>();
     private final Configuration configuration;
@@ -236,7 +238,7 @@ public class SpectrumBrowser extends BorderPane {
         gtLabel.getStyleClass().add("field-label");
         var textField = new TextField();
         textField.getStyleClass().add("text-field");
-        textField.setPrefWidth(CROP_HEIGHT);
+        textField.setStyle("-fx-min-width: 80px; -fx-pref-width: 80px;");
         var unit = new Label("Å");
         unit.getStyleClass().add("field-unit");
         adjustDispersion.setSelected(true);
@@ -249,6 +251,7 @@ public class SpectrumBrowser extends BorderPane {
         searchButton.getStyleClass().add("default-button");
         var choiceBox = new ChoiceBox<IdentifiedLine>();
         choiceBox.getStyleClass().add("choice-box");
+        choiceBox.setPrefWidth(200);
         choiceBox.getItems().addAll(Arrays.stream(IDENTIFIED_LINES).sorted(IDENTIFIED_LINE_COMPARATOR).toList());
         choiceBox.getSelectionModel().selectedItemProperty().addListener((observableValue, identifiedLine, t1) -> searchByWavelength(t1.wavelength()));
         textField.setOnAction(unused -> searchByWavelength(textField.getText()));
@@ -264,27 +267,25 @@ public class SpectrumBrowser extends BorderPane {
         zoomOut.getStyleClass().add("default-button");
         zoomOut.setOnAction(evt -> zoom(ZOOM_FACTOR));
         zoomPresetChoice.getStyleClass().add("choice-box");
-        zoomPresetChoice.setPrefWidth(80);
+        zoomPresetChoice.setStyle("-fx-min-width: 68px; -fx-pref-width: 68px;");
         for (int preset : ZOOM_PRESETS) {
             zoomPresetChoice.getItems().add(preset + "%");
         }
         zoomPresetChoice.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
-            if (newVal == null || Double.isNaN(referenceRangeAngstroms)) {
+            if (adjustingZoomPreset || newVal == null || Double.isNaN(referenceRangeAngstroms)) {
                 return;
             }
             int percent = Integer.parseInt(newVal.replace("%", ""));
             double targetRange = referenceRangeAngstroms * (100.0 / percent);
-            if (Math.abs(1.0 - targetRange / visibleRangeAngstroms.get()) < 1e-9) {
-                return;
-            }
             double centerWl = (currentMinWavelength + currentMaxWavelength) / 2.0;
-            adjustDispersion.setSelected(false);
             visibleRangeAngstroms.set(targetRange);
             centerWavelength(Wavelen.ofAngstroms(centerWl));
+            adjustDispersion.setSelected(false);
             drawSpectrum();
         });
         var shg = new ChoiceBox<SpectroHeliograph>();
         shg.getStyleClass().add("choice-box");
+        shg.setPrefWidth(160);
         shg.setConverter(new StringConverter<>() {
             @Override
             public String toString(SpectroHeliograph spectroHeliograph) {
@@ -303,22 +304,30 @@ public class SpectrumBrowser extends BorderPane {
         shg.getSelectionModel().selectedItemProperty().addListener((observableValue, spectroHeliograph, selected) -> {
             if (selected != null) {
                 selectedShg = selected;
+                configuration.setSpectrumBrowserInstrument(selected.label());
                 adjustZoomToOpticsAndDraw();
             }
         });
         var processParams = ProcessParamsIO.loadDefaults();
-        var instrument = processParams.observationDetails().instrument();
-        if (shg.getItems().contains(instrument)) {
-            shg.getSelectionModel().select(instrument);
+        var rememberedInstrument = configuration.getSpectrumBrowserInstrument()
+            .flatMap(label -> shg.getItems().stream().filter(item -> item.label().equals(label)).findFirst());
+        if (rememberedInstrument.isPresent()) {
+            shg.getSelectionModel().select(rememberedInstrument.get());
         } else {
-            shg.getSelectionModel().selectFirst();
+            var instrument = processParams.observationDetails().instrument();
+            if (shg.getItems().contains(instrument)) {
+                shg.getSelectionModel().select(instrument);
+            } else {
+                shg.getSelectionModel().selectFirst();
+            }
         }
-        var initialPixelSize = computeInitialPixelSize(processParams);
+        var initialPixelSize = configuration.getSpectrumBrowserPixelSize()
+            .orElseGet(() -> computeInitialPixelSize(processParams));
         var pixelSizeLabel = new Label(I18N.string(JSolEx.class, "spectrum-browser", "pixel.size"));
         pixelSizeLabel.getStyleClass().add("field-label");
         var pixelSizeValue = new TextField();
         pixelSizeValue.getStyleClass().add("text-field");
-        pixelSizeValue.setPrefWidth(48);
+        pixelSizeValue.setStyle("-fx-min-width: 60px; -fx-pref-width: 60px;");
         pixelSizeValue.setTextFormatter(createPixelSizeFormatter());
         pixelSizeValue.textProperty().addListener((observableValue, s, value) -> {
             double ps;
@@ -328,6 +337,7 @@ public class SpectrumBrowser extends BorderPane {
                 return;
             }
             pixelSize.set(ps);
+            configuration.setSpectrumBrowserPixelSize(ps);
             adjustZoomToOpticsAndDraw();
         });
         pixelSizeValue.setText("" + initialPixelSize);
@@ -378,23 +388,23 @@ public class SpectrumBrowser extends BorderPane {
         closeButton.visibleProperty().bind(borderless);
         closeButton.managedProperty().bind(borderless);
 
-        var line1 = new HBox();
-        line1.setAlignment(Pos.CENTER);
-        line1.setSpacing(8);
-        line1.setPadding(new Insets(4, 4, 4, 4));
-        var line2 = new HBox();
-        line2.setAlignment(Pos.CENTER);
-        line2.setSpacing(8);
-        line2.setPadding(new Insets(4, 4, 4, 4));
-        var line3 = new HBox();
-        line3.setAlignment(Pos.CENTER);
-        line3.setSpacing(8);
-        line3.setPadding(new Insets(4, 4, 4, 4));
+        var line1 = createControlRow();
+        var line2 = createControlRow();
+        var line3 = createControlRow();
         line1.getChildren().addAll(gtLabel, textField, unit, searchButton, choiceBox, colorize, flipSpectrumCheckBox);
         line2.getChildren().addAll(instrumentLabel, shg, pixelSizeLabel, pixelSizeValue, adjustDispersion, zoomIn, zoomOut, zoomPresetChoice, help, loadImage, hide);
         line3.getChildren().addAll(alwaysOnTop, opacityLabel, opacitySlider, borderlessCheckBox, controlsAtBottomCheckBox, closeButton);
         vbox.getChildren().addAll(line1, line2, line3);
         return vbox;
+    }
+
+    private static FlowPane createControlRow() {
+        var row = new FlowPane();
+        row.setAlignment(Pos.CENTER);
+        row.setHgap(8);
+        row.setVgap(4);
+        row.setPadding(new Insets(4, 4, 4, 4));
+        return row;
     }
 
     private void withStage(Consumer<Stage> action) {
@@ -461,7 +471,7 @@ public class SpectrumBrowser extends BorderPane {
     }
 
     private static boolean isDragSurface(Object target) {
-        return target instanceof HBox || target instanceof VBox || target instanceof Label;
+        return target instanceof HBox || target instanceof VBox || target instanceof FlowPane || target instanceof Label;
     }
 
     private double calculatePosition(double originalPosition, double spectrumHeight) {
@@ -920,16 +930,21 @@ public class SpectrumBrowser extends BorderPane {
     }
 
     private void updateZoomPresetIndicator() {
-        if (adjustDispersion.isSelected() || Double.isNaN(referenceRangeAngstroms) || referenceRangeAngstroms <= 0) {
-            zoomPresetChoice.getSelectionModel().clearSelection();
-            return;
-        }
-        int currentPercent = (int) Math.round(referenceRangeAngstroms / visibleRangeAngstroms.get() * 100);
-        String label = currentPercent + "%";
-        if (zoomPresetChoice.getItems().contains(label)) {
-            zoomPresetChoice.getSelectionModel().select(label);
-        } else {
-            zoomPresetChoice.getSelectionModel().clearSelection();
+        adjustingZoomPreset = true;
+        try {
+            if (adjustDispersion.isSelected() || Double.isNaN(referenceRangeAngstroms) || referenceRangeAngstroms <= 0) {
+                zoomPresetChoice.getSelectionModel().clearSelection();
+                return;
+            }
+            int currentPercent = (int) Math.round(referenceRangeAngstroms / visibleRangeAngstroms.get() * 100);
+            String label = currentPercent + "%";
+            if (zoomPresetChoice.getItems().contains(label)) {
+                zoomPresetChoice.getSelectionModel().select(label);
+            } else {
+                zoomPresetChoice.getSelectionModel().clearSelection();
+            }
+        } finally {
+            adjustingZoomPreset = false;
         }
     }
 

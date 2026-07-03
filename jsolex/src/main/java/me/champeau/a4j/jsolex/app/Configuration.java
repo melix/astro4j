@@ -35,6 +35,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
@@ -68,6 +69,10 @@ public class Configuration {
     private static final String SPECTROSOLHUB_TOKEN = "spectrosolhub.token";
     private static final String LIVE_SESSION_TITLE = "live.session.title";
     private static final String LIVE_STARTED_DIALOG_HIDDEN = "live.started.dialog.hidden";
+    private static final String SPECTRUM_BROWSER_WIDTH = "spectrum.browser.width";
+    private static final String SPECTRUM_BROWSER_HEIGHT = "spectrum.browser.height";
+    private static final String SPECTRUM_BROWSER_INSTRUMENT = "spectrum.browser.instrument";
+    private static final String SPECTRUM_BROWSER_PIXEL_SIZE = "spectrum.browser.pixel.size";
     private static final String DEFAULT_SPECTROSOLHUB_URL = "https://spectrosolhub.com";
     private static final String SUNSCAN_HOST = "sunscan.host";
 
@@ -308,6 +313,75 @@ public class Configuration {
      */
     public void setPreferredHeigth(int height) {
         prefs.put(PREFERRED_HEIGHT, String.valueOf(height));
+    }
+
+    /**
+     * Default spectrum browser window width.
+     */
+    public static final int SPECTRUM_BROWSER_DEFAULT_WIDTH = 1000;
+
+    /**
+     * Default spectrum browser window height, small enough to fit on a 1600x900 display.
+     */
+    public static final int SPECTRUM_BROWSER_DEFAULT_HEIGHT = 780;
+
+    /**
+     * Returns the remembered spectrum browser window dimensions.
+     * @return the window dimensions
+     */
+    public IntPair getSpectrumBrowserDimensions() {
+        return new IntPair(
+                prefs.getInt(SPECTRUM_BROWSER_WIDTH, SPECTRUM_BROWSER_DEFAULT_WIDTH),
+                prefs.getInt(SPECTRUM_BROWSER_HEIGHT, SPECTRUM_BROWSER_DEFAULT_HEIGHT)
+        );
+    }
+
+    /**
+     * Remembers the spectrum browser window dimensions.
+     * @param width the window width
+     * @param height the window height
+     */
+    public void setSpectrumBrowserDimensions(int width, int height) {
+        prefs.putInt(SPECTRUM_BROWSER_WIDTH, width);
+        prefs.putInt(SPECTRUM_BROWSER_HEIGHT, height);
+    }
+
+    /**
+     * Returns the last spectroheliograph selected in the spectrum browser.
+     * @return the instrument label, or empty if none was remembered
+     */
+    public Optional<String> getSpectrumBrowserInstrument() {
+        var label = prefs.get(SPECTRUM_BROWSER_INSTRUMENT, null);
+        return Optional.ofNullable(label);
+    }
+
+    /**
+     * Remembers the spectroheliograph selected in the spectrum browser.
+     * @param label the instrument label
+     */
+    public void setSpectrumBrowserInstrument(String label) {
+        if (label == null) {
+            prefs.remove(SPECTRUM_BROWSER_INSTRUMENT);
+        } else {
+            prefs.put(SPECTRUM_BROWSER_INSTRUMENT, label);
+        }
+    }
+
+    /**
+     * Returns the last pixel size used in the spectrum browser.
+     * @return the pixel size, or empty if none was remembered
+     */
+    public OptionalDouble getSpectrumBrowserPixelSize() {
+        var value = prefs.getDouble(SPECTRUM_BROWSER_PIXEL_SIZE, Double.NaN);
+        return Double.isNaN(value) ? OptionalDouble.empty() : OptionalDouble.of(value);
+    }
+
+    /**
+     * Remembers the pixel size used in the spectrum browser.
+     * @param pixelSize the pixel size
+     */
+    public void setSpectrumBrowserPixelSize(double pixelSize) {
+        prefs.putDouble(SPECTRUM_BROWSER_PIXEL_SIZE, pixelSize);
     }
 
     /**

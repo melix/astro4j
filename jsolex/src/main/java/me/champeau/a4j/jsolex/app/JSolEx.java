@@ -2104,11 +2104,19 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
 
     @FXML
     private void showSpectrumBrowser() {
-        var browser = new SpectrumBrowser(800);
+        var configuration = Configuration.getInstance();
+        var dimensions = configuration.getSpectrumBrowserDimensions();
+        var browser = new SpectrumBrowser(Configuration.SPECTRUM_BROWSER_DEFAULT_HEIGHT);
         var stage = newStage();
         stage.initModality(Modality.NONE);
         stage.setScene(newScene(browser));
         stage.setTitle(I18N.string(JSolEx.class, "spectrum-browser", "frame.title"));
+        stage.setWidth(dimensions.a());
+        stage.setHeight(dimensions.b());
+        stage.widthProperty().addListener((obs, oldValue, newValue) ->
+            configuration.setSpectrumBrowserDimensions((int) stage.getWidth(), (int) stage.getHeight()));
+        stage.heightProperty().addListener((obs, oldValue, newValue) ->
+            configuration.setSpectrumBrowserDimensions((int) stage.getWidth(), (int) stage.getHeight()));
         stage.show();
     }
 
