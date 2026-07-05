@@ -8,6 +8,7 @@
 - Les animations et vidéos sont désormais regroupées dans les mêmes sections par exécution que les images lors d'une nouvelle exécution d'un script.
 - Une section de la liste des images peut désormais être fermée d'un coup grâce au bouton de fermeture situé à côté de son titre.
 - Le rogneur de fichiers SER affiche à nouveau une barre de progression pendant le rognage, et la mise en page de sa fenêtre a été corrigée.
+- Les paramètres des scripts Python sont désormais affichés dans l'ordre où ils sont déclarés dans le script.
 
 ## Nouveautés de la version 5.3.3
 

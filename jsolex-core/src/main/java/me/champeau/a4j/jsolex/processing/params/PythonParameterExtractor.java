@@ -24,6 +24,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -77,10 +78,10 @@ public class PythonParameterExtractor {
         String requiredVersion = null;
         Set<GeneratedImageKind> requiredImages = EnumSet.noneOf(GeneratedImageKind.class);
 
-        // Collect parameter properties by parameter name
-        Map<String, Map<String, Object>> paramProperties = new HashMap<>();
-        // Collect output properties by output name
-        Map<String, Map<String, Object>> outputProperties = new HashMap<>();
+        // Collect parameter properties by parameter name, preserving declaration order
+        Map<String, Map<String, Object>> paramProperties = new LinkedHashMap<>();
+        // Collect output properties by output name, preserving declaration order
+        Map<String, Map<String, Object>> outputProperties = new LinkedHashMap<>();
 
         for (var line : scriptContent.lines().toList()) {
             // Try meta pattern
@@ -172,7 +173,7 @@ public class PythonParameterExtractor {
         }
 
         // Convert output properties to OutputMetadata records
-        Map<String, OutputMetadata> outputsMetadata = new HashMap<>();
+        Map<String, OutputMetadata> outputsMetadata = new LinkedHashMap<>();
         for (var entry : outputProperties.entrySet()) {
             var outputName = entry.getKey();
             var props = entry.getValue();

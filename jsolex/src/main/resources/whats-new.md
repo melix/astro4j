@@ -8,6 +8,7 @@
 - Animations and videos are now grouped into the same per-run sections as images when re-running a script.
 - A section in the image list can now be closed at once using the close button next to its title.
 - The SER trimmer now shows a progress bar again while trimming, and its dialog layout was fixed.
+- Parameters of Python scripts are now shown in the order they are declared in the script.
 
 ## What's New in Version 5.3.3
 
