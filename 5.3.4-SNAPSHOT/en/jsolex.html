@@ -1104,6 +1104,36 @@ When you have enough points, click on the "Compute polynomial" button, which wil
 </div>
 </div>
 <div class="sect3">
+<h4 id="saturated-disk-mode">Saturated disk mode</h4>
+<div class="paragraph">
+<p>When the solar disk is overexposed (saturated), the spectral line can no longer be distinguished reliably, so JSol&#8217;Ex cannot detect the distortion polynomial from the scan itself.
+In this situation, you can capture one or more <strong>non saturated</strong> reference scans and let JSol&#8217;Ex reuse their polynomial.</p>
+</div>
+<div class="paragraph">
+<p>Check the "Saturated disk mode" box (below "Force polynomial") and select the directory containing your non saturated reference scans.
+When processing a file, JSol&#8217;Ex looks up the reference scan which is the closest in time (based on the SER file dates) and applies its polynomial.</p>
+</div>
+<div class="paragraph">
+<p>This mode is especially useful in batch processing: several saturated scans may share the same reference scan, in which case the reference polynomial is computed only once and reused.</p>
+</div>
+<div class="paragraph">
+<p>If the closest reference scan is far away in time, a warning is issued because the polynomial may no longer be accurate.
+If no usable reference scan is found, JSol&#8217;Ex falls back to the regular automatic detection.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+"Saturated disk mode" and "Force polynomial" are mutually exclusive.
+</td>
+</tr>
+</table>
+</div>
+</div>
+<div class="sect3">
 <h4 id="filename-templates">File naming patterns</h4>
 <div class="paragraph">
 <p>By default, JSol&#8217;Ex will output the generated images in a subfolder which name matches the name of the SER file (without extension). Then each kind of images is stored in a subdirectory of that folder (e.g raw, debug, processed, &#8230;&#8203;).
