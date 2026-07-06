@@ -417,6 +417,8 @@ public class ProcessParamsController {
                 .withDisallowDownsampling(advancedPanel.isDisallowDownsamplingSelected())
                 .withForcePolynomial(advancedPanel.isForcePolynomialSelected())
                 .withForcedPolynomial(advancedPanel.getForcedPolynomial())
+                .withSaturatedDiskMode(advancedPanel.isSaturatedDiskModeSelected())
+                .withReferencePolynomialDirectory(advancedPanel.getReferencePolynomialDirectory().isEmpty() ? null : advancedPanel.getReferencePolynomialDirectory())
                 .withSpectrumVFlip(advancedPanel.isSpectrumVFlipSelected())
                 .withEllipseFittingMode(advancedPanel.getEllipseFittingMode())
                 .withRichardsonLucyDeconvolutionParams(enhancementPanel.getRichardsonLucyParams());

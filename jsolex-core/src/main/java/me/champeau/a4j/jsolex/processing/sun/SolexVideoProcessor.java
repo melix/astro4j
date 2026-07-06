@@ -388,6 +388,23 @@ public class SolexVideoProcessor implements Broadcaster {
         int batchSize = (int) (Math.ceil(maxMemory / (4d * imageSizeInBytes * memoryRestrictionMultiplier)));
         checkAvailableDiskSpace(imageList, imageSizeInBytes);
         var analysis = analyzeAverageImage(width, height, averageImage, imageNamingStrategy, header);
+        if (polynomial == null && processParams.geometryParams().isSaturatedDiskMode()) {
+            var referenceDirectory = processParams.geometryParams().referencePolynomialDirectory().orElse(null);
+            if (referenceDirectory != null) {
+                var referencePolynomial = ReferencePolynomialProvider.getInstance().findPolynomial(
+                        new File(referenceDirectory),
+                        header.metadata().utcDateTime(),
+                        serFile,
+                        processParams.videoParams().colorMode(),
+                        processParams.geometryParams().isSpectrumVFlip(),
+                        processParams.videoParams().trustSerFileBitDepth(),
+                        rootOperation);
+                referencePolynomial.ifPresent(doubleQuadruplet -> {
+                    polynomial = doubleQuadruplet.asPolynomial();
+                    polynomialCoefficients = doubleQuadruplet;
+                });
+            }
+        }
         if (polynomial == null && processParams.geometryParams().isForcePolynomial()) {
             var forcedPolynomialString = processParams.geometryParams().forcedPolynomial();
             if (forcedPolynomialString.isPresent()) {

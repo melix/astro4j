@@ -275,6 +275,22 @@ La façon la plus simple d'obtenir les coefficients du polynôme est de cliquer 
 Vous pouvez alors appuyer sur "CTRL" puis cliquer sur la ligne pour ajouter des points de mesure : une croix rouge sera ajoutée pour chaque point.
 Lorsque vous avez suffisamment de points, cliquez sur le bouton "Calculer le polynôme", qui ajustera un polynôme de 3ème ordre aux points et remplira automatiquement le champ "polynôme" dans les paramètres de traitement.
 
+[[saturated-disk-mode]]
+==== Mode disque saturé
+
+Lorsque le disque solaire est surexposé (saturé), la raie spectrale ne peut plus être distinguée de façon fiable, et JSol'Ex ne peut donc pas détecter le polynôme de distorsion à partir du scan lui-même.
+Dans ce cas, vous pouvez capturer un ou plusieurs scans de référence *non saturés* et laisser JSol'Ex réutiliser leur polynôme.
+
+Cochez la case "Mode disque saturé" (sous "Forcer le polynôme") et sélectionnez le répertoire contenant vos scans de référence non saturés.
+Lors du traitement d'un fichier, JSol'Ex recherche le scan de référence le plus proche dans le temps (d'après les dates des fichiers SER) et applique son polynôme.
+
+Ce mode est particulièrement utile en traitement par lots : plusieurs scans saturés peuvent partager le même scan de référence, auquel cas le polynôme de référence n'est calculé qu'une seule fois puis réutilisé.
+
+Si le scan de référence le plus proche est éloigné dans le temps, un avertissement est émis car le polynôme peut ne plus être précis.
+Si aucun scan de référence utilisable n'est trouvé, JSol'Ex revient à la détection automatique habituelle.
+
+NOTE: "Mode disque saturé" et "Forcer le polynôme" sont mutuellement exclusifs.
+
 [[modele-noms-fichier]]
 ==== Modèles de noms de fichier
 

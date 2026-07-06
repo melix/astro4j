@@ -67,6 +67,8 @@ public record ProcessParams(
                 geometryParams().richardsonLucyDeconvolutionParams().orElse(null),
                 geometryParams().isForcePolynomial(),
                 geometryParams().forcedPolynomial().orElse(null),
+                geometryParams().isSaturatedDiskMode(),
+                geometryParams().referencePolynomialDirectory().orElse(null),
                 geometryParams().isSpectrumVFlip(),
                 geometryParams().ellipseFittingMode()
             ),
