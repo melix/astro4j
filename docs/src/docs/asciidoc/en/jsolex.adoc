@@ -276,6 +276,22 @@ The easiest way to get the polynomial coefficients is to click on the "..." butt
 You can then press "CTRL" then click on the line to add measurement points: a red cross will be added for each point.
 When you have enough points, click on the "Compute polynomial" button, which will fit a 3rd order polynomial to the points and automatically fill the "polynomial" field in the process parameters.
 
+[[saturated-disk-mode]]
+==== Saturated disk mode
+
+When the solar disk is overexposed (saturated), the spectral line can no longer be distinguished reliably, so JSol'Ex cannot detect the distortion polynomial from the scan itself.
+In this situation, you can capture one or more *non saturated* reference scans and let JSol'Ex reuse their polynomial.
+
+Check the "Saturated disk mode" box (below "Force polynomial") and select the directory containing your non saturated reference scans.
+When processing a file, JSol'Ex looks up the reference scan which is the closest in time (based on the SER file dates) and applies its polynomial.
+
+This mode is especially useful in batch processing: several saturated scans may share the same reference scan, in which case the reference polynomial is computed only once and reused.
+
+If the closest reference scan is far away in time, a warning is issued because the polynomial may no longer be accurate.
+If no usable reference scan is found, JSol'Ex falls back to the regular automatic detection.
+
+NOTE: "Saturated disk mode" and "Force polynomial" are mutually exclusive.
+
 [[filename-templates]]
 ==== File naming patterns
 

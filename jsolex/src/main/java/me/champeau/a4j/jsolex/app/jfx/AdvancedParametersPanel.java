@@ -22,12 +22,15 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
+import javafx.stage.DirectoryChooser;
 import javafx.util.StringConverter;
+import me.champeau.a4j.jsolex.app.AlertFactory;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.params.EllipseFittingMode;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.ser.ColorMode;
 
+import java.io.File;
 import java.util.Locale;
 
 /**
@@ -46,7 +49,11 @@ public class AdvancedParametersPanel extends BaseParameterPanel {
     private CheckBox forcePolynomial;
     private TextField forcedPolynomial;
     private Button forcePolynomialOpen;
-    
+
+    private CheckBox saturatedDiskMode;
+    private TextField referencePolynomialDirectory;
+    private Button referencePolynomialDirectoryOpen;
+
     private ChoiceBox<EllipseFittingMode> ellipseFittingMode;
     
     private CheckBox disallowDownsampling;
@@ -79,7 +86,16 @@ public class AdvancedParametersPanel extends BaseParameterPanel {
         forcedPolynomial.setPromptText(I18N.string(JSolEx.class, "process-params", "force.polynomial"));
         forcePolynomialOpen = new Button("...");
         forcePolynomialOpen.setOnAction(e -> openPolynomialEditor());
-        
+
+        saturatedDiskMode = new CheckBox(I18N.string(JSolEx.class, "process-params", "saturated.disk.mode"));
+        saturatedDiskMode.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "saturated.disk.mode.tooltip")));
+        referencePolynomialDirectory = new TextField();
+        referencePolynomialDirectory.setEditable(false);
+        referencePolynomialDirectory.setPromptText(I18N.string(JSolEx.class, "process-params", "saturated.disk.reference.dir"));
+        referencePolynomialDirectory.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "saturated.disk.reference.dir.tooltip")));
+        referencePolynomialDirectoryOpen = new Button("...");
+        referencePolynomialDirectoryOpen.setOnAction(e -> browseForReferenceDirectory());
+
         ellipseFittingMode = createChoiceBox();
         ellipseFittingMode.setItems(FXCollections.observableArrayList(EllipseFittingMode.values()));
         ellipseFittingMode.setValue(EllipseFittingMode.AUTOMATIC);
@@ -111,6 +127,26 @@ public class AdvancedParametersPanel extends BaseParameterPanel {
         xyRatioValue.disableProperty().bind(forceXYRatio.selectedProperty().not());
         forcedPolynomial.disableProperty().bind(forcePolynomial.selectedProperty().not());
         forcePolynomialOpen.disableProperty().bind(forcePolynomial.selectedProperty().not());
+        referencePolynomialDirectory.disableProperty().bind(saturatedDiskMode.selectedProperty().not());
+        referencePolynomialDirectoryOpen.disableProperty().bind(saturatedDiskMode.selectedProperty().not());
+
+        forcePolynomial.selectedProperty().addListener((obs, was, isSelected) -> {
+            if (isSelected) {
+                saturatedDiskMode.setSelected(false);
+            }
+        });
+        saturatedDiskMode.selectedProperty().addListener((obs, was, isSelected) -> {
+            if (isSelected) {
+                forcePolynomial.setSelected(false);
+            }
+        });
+        saturatedDiskMode.setOnAction(e -> {
+            if (saturatedDiskMode.isSelected()) {
+                var alert = AlertFactory.info(I18N.string(JSolEx.class, "process-params", "saturated.disk.mode.explanation"));
+                alert.setHeaderText(I18N.string(JSolEx.class, "process-params", "saturated.disk.mode"));
+                alert.showAndWait();
+            }
+        });
     }
     
     private void setupLayout() {
@@ -127,12 +163,15 @@ public class AdvancedParametersPanel extends BaseParameterPanel {
         advancedGrid.add(forcePolynomial, 0, 2);
         advancedGrid.add(forcedPolynomial, 1, 2);
         advancedGrid.add(forcePolynomialOpen, 2, 2);
-        
-        addGridRow(advancedGrid, 3, I18N.string(JSolEx.class, "process-params", "ellipse.fitting.mode") + ":", ellipseFittingMode, "ellipse.fitting.mode.tooltip");
-        addGridRow(advancedGrid, 4, disallowDownsampling);
-        addGridRow(advancedGrid, 5, spectrumVFlip, "spectrum.vflip.tooltip");
-        addGridRow(advancedGrid, 6, assumeMonoVideo, "assume.mono.images.tooltip");
-        addGridRow(advancedGrid, 7, trustSerFileBitDepth, "trust.ser.bitdepth.tooltip");
+        advancedGrid.add(saturatedDiskMode, 0, 3);
+        advancedGrid.add(referencePolynomialDirectory, 1, 3);
+        advancedGrid.add(referencePolynomialDirectoryOpen, 2, 3);
+
+        addGridRow(advancedGrid, 4, I18N.string(JSolEx.class, "process-params", "ellipse.fitting.mode") + ":", ellipseFittingMode, "ellipse.fitting.mode.tooltip");
+        addGridRow(advancedGrid, 5, disallowDownsampling);
+        addGridRow(advancedGrid, 6, spectrumVFlip, "spectrum.vflip.tooltip");
+        addGridRow(advancedGrid, 7, assumeMonoVideo, "assume.mono.images.tooltip");
+        addGridRow(advancedGrid, 8, trustSerFileBitDepth, "trust.ser.bitdepth.tooltip");
         
         advancedSection.getChildren().add(advancedGrid);
         
@@ -151,6 +190,8 @@ public class AdvancedParametersPanel extends BaseParameterPanel {
         xyRatioValue.setText("");
         forcePolynomial.setSelected(false);
         forcedPolynomial.setText("");
+        saturatedDiskMode.setSelected(false);
+        referencePolynomialDirectory.setText("");
         ellipseFittingMode.setValue(EllipseFittingMode.AUTOMATIC);
         disallowDownsampling.setSelected(false);
         spectrumVFlip.setSelected(false);
@@ -189,7 +230,10 @@ public class AdvancedParametersPanel extends BaseParameterPanel {
         } else {
             forcedPolynomial.setText("");
         }
-        
+
+        saturatedDiskMode.setSelected(geometryParams.isSaturatedDiskMode());
+        referencePolynomialDirectory.setText(geometryParams.referencePolynomialDirectory().orElse(""));
+
         ellipseFittingMode.setValue(geometryParams.ellipseFittingMode());
         disallowDownsampling.setSelected(geometryParams.isDisallowDownsampling());
         spectrumVFlip.setSelected(geometryParams.isSpectrumVFlip());
@@ -256,6 +300,22 @@ public class AdvancedParametersPanel extends BaseParameterPanel {
     }
 
     /**
+     * Returns whether the saturated disk mode checkbox is selected.
+     * @return true if selected
+     */
+    public boolean isSaturatedDiskModeSelected() {
+        return saturatedDiskMode.isSelected();
+    }
+
+    /**
+     * Returns the reference scans directory used to source polynomials in saturated disk mode.
+     * @return the directory path, or an empty string if none is selected
+     */
+    public String getReferencePolynomialDirectory() {
+        return referencePolynomialDirectory.getText();
+    }
+
+    /**
      * Returns whether downsampling is disallowed.
      * @return true if downsampling is disallowed
      */
@@ -297,6 +357,22 @@ public class AdvancedParametersPanel extends BaseParameterPanel {
     
     private void openPolynomialEditor() {
         controller.openVideoDebugger();
+    }
+
+    private void browseForReferenceDirectory() {
+        var directoryChooser = new DirectoryChooser();
+        directoryChooser.setTitle(I18N.string(JSolEx.class, "process-params", "saturated.disk.select.directory"));
+        var current = referencePolynomialDirectory.getText();
+        if (current != null && !current.isEmpty()) {
+            var dir = new File(current);
+            if (dir.isDirectory()) {
+                directoryChooser.setInitialDirectory(dir);
+            }
+        }
+        var selected = directoryChooser.showDialog(getScene().getWindow());
+        if (selected != null) {
+            referencePolynomialDirectory.setText(selected.getAbsolutePath());
+        }
     }
 
     /**

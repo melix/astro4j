@@ -44,6 +44,8 @@ class GeometryParamsSerializer implements JsonSerializer<GeometryParams>, JsonDe
         var richardsonLucyDeconvolutionParams = readRichardsonLucyDeconvolutionParams(o.get("richardsonLucyDeconvolutionParams"));
         var forcePolynomial = o.get("forcePolynomial") != null ? o.get("forcePolynomial").getAsBoolean() : false;
         var forcedPolynomial = o.get("forcedPolynomial") != null ? o.get("forcedPolynomial").getAsString() : null;
+        var saturatedDiskMode = o.get("saturatedDiskMode") != null ? o.get("saturatedDiskMode").getAsBoolean() : false;
+        var referencePolynomialDirectory = o.get("referencePolynomialDirectory") != null ? o.get("referencePolynomialDirectory").getAsString() : null;
         var spectrumVFlip = o.get("spectrumVFlip") != null ? o.get("spectrumVFlip").getAsBoolean() : false;
         var ellipseFittingMode = o.get("ellipseFittingMode") != null ? EllipseFittingMode.valueOf(o.get("ellipseFittingMode").getAsString()) : EllipseFittingMode.AUTOMATIC;
         var fixedWidth = o.get("fixedWidth") != null ? o.get("fixedWidth").getAsInt() : null;
@@ -61,6 +63,8 @@ class GeometryParamsSerializer implements JsonSerializer<GeometryParams>, JsonDe
             richardsonLucyDeconvolutionParams,
             forcePolynomial,
             forcedPolynomial,
+            saturatedDiskMode,
+            referencePolynomialDirectory,
             spectrumVFlip,
             ellipseFittingMode);
     }
@@ -96,6 +100,8 @@ class GeometryParamsSerializer implements JsonSerializer<GeometryParams>, JsonDe
         });
         jsonObject.addProperty("forcePolynomial", src.isForcePolynomial());
         src.forcedPolynomial().ifPresent(forcedPolynomial -> jsonObject.addProperty("forcedPolynomial", forcedPolynomial));
+        jsonObject.addProperty("saturatedDiskMode", src.isSaturatedDiskMode());
+        src.referencePolynomialDirectory().ifPresent(referencePolynomialDirectory -> jsonObject.addProperty("referencePolynomialDirectory", referencePolynomialDirectory));
         jsonObject.addProperty("spectrumVFlip", src.isSpectrumVFlip());
         jsonObject.addProperty("ellipseFittingMode", src.ellipseFittingMode().toString());
         return jsonObject;
