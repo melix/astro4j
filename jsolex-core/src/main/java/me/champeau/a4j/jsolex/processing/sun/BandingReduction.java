@@ -45,6 +45,18 @@ public class BandingReduction {
     }
 
     /**
+     * Which pixels of each line feed the banding correction.
+     */
+    public enum Mode {
+        /** Ignore the solar disk: use all pixels of the line. */
+        WHOLE_LINE,
+        /** Use only pixels inside the solar disk. */
+        INSIDE_DISK,
+        /** Use only pixels outside the solar disk. */
+        OUTSIDE_DISK
+    }
+
+    /**
      * Reduces banding artifacts in the provided image data.
      * The algorithm computes line averages, applies multi-scale corrections,
      * and optionally constrains the operation within an elliptical region.
@@ -61,9 +73,11 @@ public class BandingReduction {
      *
      * @return the mean absolute deviation of per-line corrections from 1.0
      */
-    public static double reduceBanding(int width, int height, float[][] data, int bandSize, Ellipse ellipse) {
-        var lineAverages = lineAverages(width, height, data, ellipse);
-        var corrections = computeMultiScaleCorrections(height, lineAverages, bandSize, ellipse);
+    public static double reduceBanding(int width, int height, float[][] data, int bandSize, Ellipse ellipse, Mode mode) {
+        var effectiveEllipse = mode == Mode.WHOLE_LINE ? null : ellipse;
+        var outsideDisk = mode == Mode.OUTSIDE_DISK;
+        var lineAverages = lineAverages(width, height, data, effectiveEllipse, outsideDisk);
+        var corrections = computeMultiScaleCorrections(height, lineAverages, bandSize, effectiveEllipse);
 
         double totalDeviation = 0;
         int deviationCount = 0;
@@ -73,14 +87,14 @@ public class BandingReduction {
                 totalDeviation += Math.abs(correction - 1.0);
                 deviationCount++;
                 for (var x = 0; x < width; x++) {
-                    if (ellipse == null || ellipse.isWithin(x, y)) {
+                    if (effectiveEllipse == null || outsideDisk != effectiveEllipse.isWithin(x, y)) {
                         data[y][x] *= correction;
                     }
                 }
             }
         }
-        if (ellipse != null) {
-            bilinearSmoothing(ellipse, width, height, data);
+        if (effectiveEllipse != null && !outsideDisk) {
+            bilinearSmoothing(effectiveEllipse, width, height, data);
         }
         for (var y = 0; y < height; y++) {
             for (var x = 0; x < width; x++) {
@@ -183,21 +197,21 @@ public class BandingReduction {
         return baseWeight * poleWeight;
     }
 
-    private static double[] lineAverages(int width, int height, float[][] data, Ellipse ellipse) {
+    private static double[] lineAverages(int width, int height, float[][] data, Ellipse ellipse, boolean outsideDisk) {
         if (ellipse == null) {
             return ImageMath.newInstance().lineAverages(new Image(width, height, data));
         }
         return IntStream.range(0, height)
                 .parallel()
-                .mapToDouble(y -> lineAverage(width, y, data, ellipse))
+                .mapToDouble(y -> lineAverage(width, y, data, ellipse, outsideDisk))
                 .toArray();
     }
 
-    private static double lineAverage(int width, int y, float[][] data, Ellipse ellipse) {
+    private static double lineAverage(int width, int y, float[][] data, Ellipse ellipse, boolean outsideDisk) {
         double sum = 0;
         var count = 0;
         for (var x = 0; x < width; x++) {
-            if (ellipse.isWithin(x, y)) {
+            if (outsideDisk != ellipse.isWithin(x, y)) {
                 sum += data[y][x];
                 count++;
             }

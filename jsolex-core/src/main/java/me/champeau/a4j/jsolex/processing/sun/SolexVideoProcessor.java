@@ -945,7 +945,7 @@ public class SolexVideoProcessor implements Broadcaster {
         var buffer = rotated.data();
         var ellipse = e != null ? e.rotate(-Math.PI / 2, reconstructed.width(), reconstructed.height(), width, height) : null;
         for (int i = 0; i < passes; i++) {
-            BandingReduction.reduceBanding(width, height, buffer, bandSize, ellipse);
+            BandingReduction.reduceBanding(width, height, buffer, bandSize, ellipse, BandingReduction.Mode.INSIDE_DISK);
             broadcast(operation.update((i + 1d) / passes));
         }
         broadcast(operation.complete());

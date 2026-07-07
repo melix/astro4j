@@ -28,7 +28,7 @@ class BandingReductionTest extends Specification {
         def data = createTestImage(width, height)
 
         when:
-        BandingReduction.reduceBanding(width, height, data, BandingReduction.DEFAULT_BAND_SIZE, null)
+        BandingReduction.reduceBanding(width, height, data, BandingReduction.DEFAULT_BAND_SIZE, null, BandingReduction.Mode.WHOLE_LINE)
 
         then:
         !hasNaN(data, width, height)
@@ -43,7 +43,7 @@ class BandingReductionTest extends Specification {
         def ellipse = createTestEllipse(width, height)
 
         when:
-        BandingReduction.reduceBanding(width, height, data, BandingReduction.DEFAULT_BAND_SIZE, ellipse)
+        BandingReduction.reduceBanding(width, height, data, BandingReduction.DEFAULT_BAND_SIZE, ellipse, BandingReduction.Mode.INSIDE_DISK)
 
         then:
         !hasNaN(data, width, height)
@@ -57,7 +57,7 @@ class BandingReductionTest extends Specification {
         def data = createTestImage(width, height)
 
         when:
-        BandingReduction.reduceBanding(width, height, data, bandSize, null)
+        BandingReduction.reduceBanding(width, height, data, bandSize, null, BandingReduction.Mode.WHOLE_LINE)
 
         then:
         !hasNaN(data, width, height)

@@ -20,8 +20,10 @@ import me.champeau.a4j.jsolex.processing.sun.BandingReduction;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
+import me.champeau.a4j.math.regression.Ellipse;
 
 import java.util.Map;
+import java.util.Optional;
 
 public class FixBanding extends AbstractFunctionImpl {
     public FixBanding(Map<Class<?>, Object> context, Broadcaster broadcaster) {
@@ -30,7 +32,12 @@ public class FixBanding extends AbstractFunctionImpl {
 
     public Object fixBanding(Map<String ,Object> arguments) {
         BuiltinFunction.FIX_BANDING.validateArgs(arguments);
-        var ellipse = getEllipse(arguments, "ellipse");
+        var mode = switch (intArg(arguments, "ellipseMode", 1)) {
+            case 0 -> BandingReduction.Mode.WHOLE_LINE;
+            case 2 -> BandingReduction.Mode.OUTSIDE_DISK;
+            default -> BandingReduction.Mode.INSIDE_DISK;
+        };
+        var ellipse = mode == BandingReduction.Mode.WHOLE_LINE ? Optional.<Ellipse>empty() : getEllipse(arguments, "ellipse");
         int bandSize = intArg(arguments, "bs", 32);
         int passes = intArg(arguments, "passes", 1);
         return monoToMonoImageTransformer( "fix_banding", "img", arguments, src -> {
@@ -39,7 +46,7 @@ public class FixBanding extends AbstractFunctionImpl {
                 var height = image.height();
                 var data = image.data();
                 for (int i = 0; i < passes; i++) {
-                    BandingReduction.reduceBanding(width, height, data, bandSize, ellipse.orElse(null));
+                    BandingReduction.reduceBanding(width, height, data, bandSize, ellipse.orElse(null), mode);
                 }
             } else {
                 throw new ProcessingException("fix_banding can only be applied to mono images");

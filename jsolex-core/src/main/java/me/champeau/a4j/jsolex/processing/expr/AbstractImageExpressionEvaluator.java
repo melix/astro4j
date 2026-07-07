@@ -53,6 +53,7 @@ import me.champeau.a4j.jsolex.processing.expr.impl.PolyFit2D;
 import me.champeau.a4j.jsolex.processing.expr.impl.PythonScript;
 import me.champeau.a4j.jsolex.processing.expr.impl.RGBCombination;
 import me.champeau.a4j.jsolex.processing.expr.impl.RemoteScriptGen;
+import me.champeau.a4j.jsolex.processing.expr.impl.Deghost;
 import me.champeau.a4j.jsolex.processing.expr.impl.Rotate;
 import me.champeau.a4j.jsolex.processing.expr.impl.Saturation;
 import me.champeau.a4j.jsolex.processing.expr.impl.Scaling;
@@ -152,6 +153,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     private final PolyFit2D polyFit2D;
     private final PythonScript pythonScript;
     private final RemoteScriptGen remoteScriptGen;
+    private final Deghost deghost;
     private final Rotate rotate;
     private final Saturation saturation;
     private final Scaling scaling;
@@ -194,6 +196,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         this.polyFit2D = new PolyFit2D(context, broadcaster);
         this.pythonScript = new PythonScript(this, context, broadcaster);
         this.remoteScriptGen = new RemoteScriptGen(this, context, broadcaster);
+        this.deghost = new Deghost(context, broadcaster);
         this.rotate = new Rotate(context, broadcaster);
         this.saturation = new Saturation(context, broadcaster);
         this.signedDiff = new SignedDiff(context, broadcaster);
@@ -416,6 +419,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case FIT_CANVAS -> scaling.fitCanvas(arguments);
             case RANGE -> createRange(arguments);
             case REMOVE_BG -> bgRemoval.removeBackground(arguments);
+            case DEGHOST -> deghost.deghost(arguments);
             case RESCALE_ABS -> scaling.absoluteRescale(arguments);
             case RESCALE_REL -> scaling.relativeRescale(arguments);
             case RL_DECON -> convolution.richardsonLucy(arguments);

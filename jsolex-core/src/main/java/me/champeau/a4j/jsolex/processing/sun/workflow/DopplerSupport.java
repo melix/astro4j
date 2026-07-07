@@ -27,8 +27,9 @@ import me.champeau.a4j.jsolex.processing.sun.tasks.GeometryCorrector;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MetadataMerger;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
-import me.champeau.a4j.math.matrix.DoubleMatrix;
 import me.champeau.a4j.math.regression.Ellipse;
+import me.champeau.a4j.math.regression.LeastSquares;
+import me.champeau.a4j.math.regression.Polynomial2D;
 
 import java.util.Arrays;
 import java.util.List;
@@ -143,9 +144,7 @@ public class DopplerSupport {
         var d2 = grey2.data();
 
         // Fit a 2D polynomial of degree 3 to (d1 - d2) within the disk
-        // using normal equations: β = (XᵀX)⁻¹ Xᵀy
-        var xtx = new double[POLY_TERMS][POLY_TERMS];
-        var xty = new double[POLY_TERMS];
+        var fit = new LeastSquares(POLY_TERMS);
         var fitRadius = 0.97 * radius;
         var fitRadius2 = fitRadius * fitRadius;
         var terms = new double[POLY_TERMS];
@@ -156,36 +155,12 @@ public class DopplerSupport {
                 if (px * px + py * py >= fitRadius2) {
                     continue;
                 }
-                var dx = px / radius;
-                var dy = py / radius;
-                var diff = d1[y][x] - d2[y][x];
-                polyTerms2DInto(dx, dy, terms);
-                for (int i = 0; i < POLY_TERMS; i++) {
-                    xty[i] += terms[i] * diff;
-                    for (int j = i; j < POLY_TERMS; j++) {
-                        xtx[i][j] += terms[i] * terms[j];
-                    }
-                }
+                Polynomial2D.terms(px / radius, py / radius, POLY_DEGREE, terms);
+                fit.add(terms, d1[y][x] - d2[y][x]);
             }
         }
-        for (int i = 1; i < POLY_TERMS; i++) {
-            for (int j = 0; j < i; j++) {
-                xtx[i][j] = xtx[j][i];
-            }
-        }
-
-        double[] coeffs;
-        try {
-            var xtyMatrix = new double[POLY_TERMS][1];
-            for (int i = 0; i < POLY_TERMS; i++) {
-                xtyMatrix[i][0] = xty[i];
-            }
-            var result = DoubleMatrix.of(xtx).inverse().mul(DoubleMatrix.of(xtyMatrix)).asArray();
-            coeffs = new double[POLY_TERMS];
-            for (int i = 0; i < POLY_TERMS; i++) {
-                coeffs[i] = result[i][0];
-            }
-        } catch (Exception e) {
+        var coeffs = fit.solve();
+        if (coeffs == null) {
             return false;
         }
 
@@ -198,29 +173,12 @@ public class DopplerSupport {
                 if (px * px + py * py >= radius2) {
                     continue;
                 }
-                var dx = px / radius;
-                var dy = py / radius;
-                polyTerms2DInto(dx, dy, terms);
-                double surface = 0;
-                for (int i = 0; i < POLY_TERMS; i++) {
-                    surface += coeffs[i] * terms[i];
-                }
-                var halfCorrection = (float) (surface / 2.0);
+                var halfCorrection = (float) (Polynomial2D.evaluate(coeffs, px / radius, py / radius, POLY_DEGREE, terms) / 2.0);
                 d1[y][x] = Math.max(0, d1[y][x] - halfCorrection);
                 d2[y][x] = Math.max(0, d2[y][x] + halfCorrection);
             }
         }
         return true;
-    }
-
-    private static void polyTerms2DInto(double dx, double dy, double[] out) {
-        int idx = 0;
-        for (int d = 0; d <= POLY_DEGREE; d++) {
-            for (int px = d; px >= 0; px--) {
-                int py = d - px;
-                out[idx++] = Math.pow(dx, px) * Math.pow(dy, py);
-            }
-        }
     }
 
     static float[][][] toDopplerImage(int width, int height, ImageWrapper32 grey1, ImageWrapper32 grey2) {

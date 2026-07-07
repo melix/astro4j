@@ -225,7 +225,7 @@ public class HeliumLineProcessor {
                     (double) iter / maxIterations,
                     message("helium.banding.reduction") + " (band=" + bandSize + ", pass=" + (iter + 1) + ")"
             ));
-            var deviation = BandingReduction.reduceBanding(image.width(), image.height(), image.data(), bandSize, ellipse);
+            var deviation = BandingReduction.reduceBanding(image.width(), image.height(), image.data(), bandSize, ellipse, BandingReduction.Mode.INSIDE_DISK);
             if (iter == 0) {
                 firstPassDeviation = deviation;
                 if (firstPassDeviation < 1e-6) {
