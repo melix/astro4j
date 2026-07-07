@@ -1,0 +1,29 @@
+name: DEGHOST
+category: ENHANCEMENT
+description:
+  fr: "Atténue le reflet unilatéral (fantôme) du disque solaire en soustrayant une estimation lisse de son excès de luminosité, sans supprimer les détails sous-jacents. Tout est déduit de l'image, sans paramètre de position."
+  en: "Attenuates a one-sided reflection (ghost) of the solar disk by subtracting a smooth estimate of its excess brightness, without removing the underlying detail. Everything is derived from the image, with no position parameter."
+arguments:
+  - name: img
+    description: Image(s)
+  - name: strength
+    optional: true
+    default: 1.0
+    description:
+      fr: "Force de l'atténuation (0 désactive)."
+      en: "Attenuation strength (0 disables)."
+  - name: iterations
+    optional: true
+    default: 1
+    description:
+      fr: "Nombre de passes ; plus de passes atténuent davantage le reflet."
+      en: "Number of passes; more passes attenuate the reflection further."
+  - name: debug
+    optional: true
+    default: 0
+    description:
+      fr: "Affiche l'estimation du reflet retiré au lieu de la soustraire (pour le réglage)."
+      en: "Shows the estimated reflection that would be removed instead of subtracting it (for tuning)."
+examples:
+  - "deghost(img(0))"
+  - "deghost(img: some_image, strength: 0.8, iterations: 3)"

@@ -20,8 +20,9 @@ import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
-import me.champeau.a4j.math.matrix.DoubleMatrix;
 import me.champeau.a4j.math.regression.Ellipse;
+import me.champeau.a4j.math.regression.LeastSquares;
+import me.champeau.a4j.math.regression.Polynomial2D;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -71,10 +72,9 @@ public class PolyFit2D extends AbstractFunctionImpl {
         var width = img.width();
         var height = img.height();
         var data = img.data();
-        var polyTerms = (degree + 1) * (degree + 2) / 2;
-
-        var xtx = new double[polyTerms][polyTerms];
-        var xty = new double[polyTerms];
+        var polyTerms = Polynomial2D.termCount(degree);
+        var basis = new double[polyTerms];
+        var fit = new LeastSquares(polyTerms);
         var fitRadius = 0.97 * radius;
         var fitRadius2 = fitRadius * fitRadius;
         for (int y = 0; y < height; y++) {
@@ -84,37 +84,13 @@ public class PolyFit2D extends AbstractFunctionImpl {
                 if (px * px + py * py >= fitRadius2) {
                     continue;
                 }
-                var dx = px / radius;
-                var dy = py / radius;
-                var value = data[y][x];
-                var terms = polyTerms2D(dx, dy, degree, polyTerms);
-                for (int i = 0; i < polyTerms; i++) {
-                    xty[i] += terms[i] * value;
-                    for (int j = i; j < polyTerms; j++) {
-                        xtx[i][j] += terms[i] * terms[j];
-                    }
-                }
+                Polynomial2D.terms(px / radius, py / radius, degree, basis);
+                fit.add(basis, data[y][x]);
             }
         }
-        for (int i = 1; i < polyTerms; i++) {
-            for (int j = 0; j < i; j++) {
-                xtx[i][j] = xtx[j][i];
-            }
-        }
-
-        double[] coeffs;
-        try {
-            var xtyMatrix = new double[polyTerms][1];
-            for (int i = 0; i < polyTerms; i++) {
-                xtyMatrix[i][0] = xty[i];
-            }
-            var result = DoubleMatrix.of(xtx).inverse().mul(DoubleMatrix.of(xtyMatrix)).asArray();
-            coeffs = new double[polyTerms];
-            for (int i = 0; i < polyTerms; i++) {
-                coeffs[i] = result[i][0];
-            }
-        } catch (Exception e) {
-            throw new IllegalStateException("poly_fit_2d: failed to solve normal equations", e);
+        var coeffs = fit.solve();
+        if (coeffs == null) {
+            throw new IllegalStateException("poly_fit_2d: failed to solve normal equations");
         }
 
         var radius2 = radius * radius;
@@ -126,28 +102,9 @@ public class PolyFit2D extends AbstractFunctionImpl {
                 if (px * px + py * py >= radius2) {
                     continue;
                 }
-                var dx = px / radius;
-                var dy = py / radius;
-                var terms = polyTerms2D(dx, dy, degree, polyTerms);
-                double val = 0;
-                for (int i = 0; i < polyTerms; i++) {
-                    val += coeffs[i] * terms[i];
-                }
-                surface[y][x] = (float) val;
+                surface[y][x] = (float) Polynomial2D.evaluate(coeffs, px / radius, py / radius, degree, basis);
             }
         }
         return new ImageWrapper32(width, height, surface, new LinkedHashMap<>(img.metadata()));
-    }
-
-    private static double[] polyTerms2D(double dx, double dy, int degree, int numTerms) {
-        var terms = new double[numTerms];
-        int idx = 0;
-        for (int d = 0; d <= degree; d++) {
-            for (int px = d; px >= 0; px--) {
-                int py = d - px;
-                terms[idx++] = Math.pow(dx, px) * Math.pow(dy, py);
-            }
-        }
-        return terms;
     }
 }

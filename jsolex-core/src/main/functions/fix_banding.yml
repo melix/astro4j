@@ -14,6 +14,12 @@ arguments:
     description:
       fr: "Nombre de passes"
       en: "Number of passes"
+  - name: ellipseMode
+    optional: true
+    default: 1
+    description:
+      fr: "Utilisation du disque solaire : 0 = ignoré (tous les pixels de la ligne), 1 = pixels du disque (défaut), 2 = pixels hors du disque uniquement."
+      en: "Solar disk usage: 0 = ignored (all pixels in the line), 1 = pixels inside the disk (default), 2 = pixels outside the disk only."
 examples:
   - "fix_banding(img(0), 64, 3)"
-  - "fix_banding(img: img(0), bs: 48, passes: 10)"
+  - "fix_banding(img: img(0), bs: 48, passes: 10, ellipseMode: 2)"

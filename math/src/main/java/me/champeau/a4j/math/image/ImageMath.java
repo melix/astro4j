@@ -1028,14 +1028,11 @@ public interface ImageMath {
         return image.withData(result);
     }
 
-    private static float bilinear2D(float[][] image, double xx, double yy, int width, int height) {
-        int x0 = (int) Math.floor(xx);
-        int y0 = (int) Math.floor(yy);
+    static float bilinear2D(float[][] image, double xx, double yy, int width, int height) {
+        int x0 = Math.max(0, Math.min((int) Math.floor(xx), width - 1));
+        int y0 = Math.max(0, Math.min((int) Math.floor(yy), height - 1));
         int x1 = Math.min(x0 + 1, width - 1);
         int y1 = Math.min(y0 + 1, height - 1);
-
-        x0 = Math.max(0, Math.min(x0, width - 1));
-        y0 = Math.max(0, Math.min(y0, height - 1));
 
         double fx = xx - Math.floor(xx);
         double fy = yy - Math.floor(yy);

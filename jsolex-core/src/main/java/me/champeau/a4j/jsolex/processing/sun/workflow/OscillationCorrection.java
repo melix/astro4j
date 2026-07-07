@@ -19,8 +19,8 @@ import me.champeau.a4j.jsolex.processing.sun.detection.PhenomenaDetector;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageInterpolation;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
-import me.champeau.a4j.math.matrix.DoubleMatrix;
 import me.champeau.a4j.math.regression.Ellipse;
+import me.champeau.a4j.math.regression.LeastSquares;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -495,35 +495,19 @@ public class OscillationCorrection {
     private static Fit fitAt(double[] values, double[] weights, double frequency, int harmonics) {
         var n = values.length;
         var k = 2 + 2 * harmonics;
-        var normal = new double[k][k];
-        var rhs = new double[k][1];
         var basis = new double[k];
+        var fit = new LeastSquares(k);
         for (var y = 0; y < n; y++) {
             var weight = weights[y];
             if (weight <= 0) {
                 continue;
             }
             computeBasis(basis, y, n, frequency, harmonics);
-            for (var i = 0; i < k; i++) {
-                var wb = weight * basis[i];
-                for (var j = i; j < k; j++) {
-                    normal[i][j] += wb * basis[j];
-                }
-                rhs[i][0] += wb * values[y];
-            }
+            fit.add(basis, values[y], weight);
         }
-        for (var i = 0; i < k; i++) {
-            for (var j = 0; j < i; j++) {
-                normal[i][j] = normal[j][i];
-            }
-        }
-        var solution = DoubleMatrix.of(normal).inverse().mul(DoubleMatrix.of(rhs)).asArray();
-        var coefficients = new double[k];
-        for (var i = 0; i < k; i++) {
-            coefficients[i] = solution[i][0];
-            if (!Double.isFinite(coefficients[i])) {
-                return null;
-            }
+        var coefficients = fit.solve();
+        if (coefficients == null) {
+            return null;
         }
         double rss = 0;
         for (var y = 0; y < n; y++) {

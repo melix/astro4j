@@ -18,6 +18,25 @@ package me.champeau.a4j.math.image
 import spock.lang.Specification
 
 class ImageMathTest extends Specification {
+
+    def "bilinear2D clamps out-of-range coordinates instead of reading negative indices"() {
+        given:
+        float[][] image = new float[][]{
+                new float[]{1, 2},
+                new float[]{3, 4}
+        }
+
+        expect: "off-image coordinates return the clamped edge value without throwing"
+        ImageMath.bilinear2D(image, x as double, y as double, 2, 2) == expected
+
+        where:
+        x    | y    || expected
+        -5d  | -5d  || 1f      // top-left corner
+        10d  | 10d  || 4f      // bottom-right corner
+        -3d  | 1d   || 3f      // off the left edge, second row
+        1d   | -3d  || 2f      // off the top edge, second column
+    }
+
     def "tests integral image (#label)"() {
         var image = new Image(5, 4, new float[][]{
                 new float[]{4, 1, 2, 2, 1},
