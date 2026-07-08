@@ -31,6 +31,7 @@ import me.champeau.a4j.jsolex.processing.params.ContrastEnhancement;
 import me.champeau.a4j.jsolex.processing.params.DeconvolutionMode;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.SharpeningParams;
+import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.AutohistogramStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.ClaheStrategy;
@@ -232,10 +233,11 @@ public class ProcessingWorkflow {
         var enhanced = (ImageWrapper32) g.enhanced().unwrapToMemory();
         broadcaster.broadcast(OutputImageDimensionsDeterminedEvent.of(message("geometry.corrected"), geometryFixed.width(), geometryFixed.height()));
         boolean requiresStretched = shouldProduce(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED) || shouldProduce(GeneratedImageKind.COLORIZED);
-        var stretched = requiresStretched ? produceStretchedImage(enhanced, processParams.claheParams(), processParams.autoStretchParams(), processParams.contrastEnhancement()) : null;
+        var effectiveEnhancement = effectiveContrastEnhancement();
+        var stretched = requiresStretched ? produceStretchedImage(enhanced, processParams.claheParams(), processParams.autoStretchParams(), effectiveEnhancement) : null;
         if (stretched != null) {
-            imagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED, null, message("processed"), processParams.contrastEnhancement().name().toLowerCase(Locale.US),
-                    String.format(message("contrast.enhanced.description"), state.pixelShift(), processParams.contrastEnhancement()), stretched);
+            imagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED, null, message("processed"), effectiveEnhancement.name().toLowerCase(Locale.US),
+                    String.format(message("contrast.enhanced.description"), state.pixelShift(), effectiveEnhancement), stretched);
         }
         // Each runnable below runs on a parallel worker. Many of the produce*
         // methods stretch/smooth their input image in place, so callers must
@@ -491,6 +493,16 @@ public class ProcessingWorkflow {
                 });
     }
 
+    private ContrastEnhancement effectiveContrastEnhancement() {
+        var enhancement = processParams.contrastEnhancement();
+        if (enhancement == ContrastEnhancement.AUTO) {
+            var ray = processParams.spectrumParams().ray();
+            var isCalcium = ray.equals(SpectralRay.CALCIUM_K) || ray.equals(SpectralRay.CALCIUM_H);
+            return isCalcium ? ContrastEnhancement.CLAHE : ContrastEnhancement.AUTOSTRETCH;
+        }
+        return enhancement;
+    }
+
     private ImageWrapper32 produceStretchedImage(ImageWrapper32 geometryFixed, ClaheParams claheParams, AutoStretchParams autoStretchParams, ContrastEnhancement contrastEnhancement) {
         var stretched = geometryFixed.copy();
         switch (contrastEnhancement) {
@@ -584,7 +596,7 @@ public class ProcessingWorkflow {
                     var data = geometryFixed.data();
                     var copy = ImageWrapper.copyData(data);
                     var work = new ImageWrapper32(geometryFixed.width(), geometryFixed.height(), copy, geometryFixed.metadata());
-                    var stretched = produceStretchedImage(work, processParams.claheParams(), processParams.autoStretchParams(), processParams.contrastEnhancement());
+                    var stretched = produceStretchedImage(work, processParams.claheParams(), processParams.autoStretchParams(), effectiveContrastEnhancement());
                     new ArcsinhStretchingStrategy(blackPoint, 2, 2).stretch(stretched);
                     var width = geometryFixed.width();
                     var height = geometryFixed.height();

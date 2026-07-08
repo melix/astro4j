@@ -19,6 +19,7 @@ package me.champeau.a4j.jsolex.processing.params;
  * The supported contrast enhancement methods.
  */
 public enum ContrastEnhancement {
+    AUTO,
     CLAHE,
     CLAHE2,
     AUTOSTRETCH

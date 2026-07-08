@@ -40,6 +40,8 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.FileSystemException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -82,7 +84,7 @@ public final class SessionWriter {
             var parent = target.toAbsolutePath().getParent();
             tmp = Files.createTempFile(parent, target.getFileName().toString() + ".", ".tmp");
             writeArchive(data, tmp, listener);
-            Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
+            moveIntoPlace(tmp, target);
         } catch (IOException e) {
             deleteQuietly(tmp);
             throw new ProcessingException(e);
@@ -90,6 +92,29 @@ public final class SessionWriter {
             deleteQuietly(tmp);
             throw e;
         }
+    }
+
+    private static void moveIntoPlace(Path tmp, Path target) throws IOException {
+        FileSystemException lastFailure = null;
+        for (int attempt = 0; attempt < 10; attempt++) {
+            try {
+                try {
+                    Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+                } catch (AtomicMoveNotSupportedException | UnsupportedOperationException e) {
+                    Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
+                }
+                return;
+            } catch (FileSystemException e) {
+                lastFailure = e;
+                try {
+                    Thread.sleep(20L * (attempt + 1));
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw new IOException("Interrupted while finalizing session file", ie);
+                }
+            }
+        }
+        throw lastFailure;
     }
 
     private static void writeArchive(SessionData data, Path target, SessionProgressListener listener) throws IOException {

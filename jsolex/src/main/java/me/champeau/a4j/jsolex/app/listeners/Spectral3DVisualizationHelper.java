@@ -38,6 +38,7 @@ import me.champeau.a4j.jsolex.processing.event.ProcessingDoneEvent;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
+import me.champeau.a4j.jsolex.processing.params.ContrastEnhancement;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.RequestedImages;
@@ -374,12 +375,15 @@ final class Spectral3DVisualizationHelper {
                     }
                 }
 
+                var contrastEnhancement = adjustedParams.contrastEnhancement() == ContrastEnhancement.AUTO
+                        ? ContrastEnhancement.AUTOSTRETCH
+                        : adjustedParams.contrastEnhancement();
                 var tomographyData = SphericalTomographyExtractor.extract(
                         shellImages,
                         dispersion,
                         lambda0,
                         1.0,
-                        adjustedParams.contrastEnhancement(),
+                        contrastEnhancement,
                         adjustedParams.claheParams(),
                         adjustedParams.autoStretchParams()
                 );
