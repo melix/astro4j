@@ -19,6 +19,8 @@ import me.champeau.a4j.jsolex.processing.expr.stacking.DistorsionMap;
 import me.champeau.a4j.jsolex.processing.expr.stacking.DistorsionMaps;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParamsIO;
+import me.champeau.a4j.jsolex.processing.params.SpectralRay;
+import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
 import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegion;
 import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegions;
@@ -26,12 +28,15 @@ import me.champeau.a4j.jsolex.processing.sun.detection.Flare;
 import me.champeau.a4j.jsolex.processing.sun.detection.Flares;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
+import me.champeau.a4j.jsolex.processing.sun.workflow.HeliumLineProcessor.HeliumImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.MetadataTable;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
+import me.champeau.a4j.jsolex.processing.sun.workflow.SpectroSolHubImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
 import me.champeau.a4j.jsolex.processing.sun.workflow.SourceInfo;
 import me.champeau.a4j.jsolex.processing.sun.workflow.SpectralLinePolynomial;
 import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
+import me.champeau.a4j.jsolex.processing.sun.workflow.TruncatedDisk;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.regression.Ellipse;
 import me.champeau.a4j.math.tuples.DoubleQuadruplet;
@@ -94,6 +99,10 @@ public class FitsUtils {
     public static final String ACTIVE_REGION_VALUE = "AR";
     public static final String FLARE = "FLARE";
     public static final String SPECTRAL_LINE_POLYNOMIAL_VALUE = "SLPoly";
+    public static final String SPECTRAL_RAY_VALUE = "SpectralRay";
+    public static final String HELIUM_IMAGE_KIND_VALUE = "HeliumKind";
+    public static final String SPECTROSOLHUB_IMAGE_KIND_VALUE = "SSHKind";
+    public static final String TRUNCATED_DISK_VALUE = "Truncated";
 
     // INTI metadata
     public static final String CENTER_X = "CENTER_X";
@@ -459,6 +468,22 @@ public class FitsUtils {
                     var c = binaryTable.getDouble(0, 2);
                     var d = binaryTable.getDouble(0, 3);
                     metadata.put(SpectralLinePolynomial.class, new SpectralLinePolynomial(new DoubleQuadruplet(a, b, c, d)));
+                } else if (SPECTRAL_RAY_VALUE.equals(card.getValue())) {
+                    var bytes = (byte[]) binaryTableHdu.getData().get(0, 0);
+                    var json = new String(bytes, StandardCharsets.UTF_8);
+                    metadata.put(SpectralRay.class, SpectralRayIO.deserializeJson(json));
+                } else if (HELIUM_IMAGE_KIND_VALUE.equals(card.getValue())) {
+                    var binaryTable = binaryTableHdu.getData();
+                    var extracted = binaryTable.getNumber(0, 0).intValue() != 0;
+                    metadata.put(HeliumImageKind.class, new HeliumImageKind(extracted));
+                } else if (SPECTROSOLHUB_IMAGE_KIND_VALUE.equals(card.getValue())) {
+                    var binaryTable = binaryTableHdu.getData();
+                    var value = (String) binaryTable.get(0, 0);
+                    metadata.put(SpectroSolHubImageKind.class, new SpectroSolHubImageKind(value));
+                } else if (TRUNCATED_DISK_VALUE.equals(card.getValue())) {
+                    var binaryTable = binaryTableHdu.getData();
+                    var truncated = binaryTable.getNumber(0, 0).intValue() != 0;
+                    metadata.put(TruncatedDisk.class, new TruncatedDisk(truncated));
                 }
             }
         }
@@ -516,7 +541,44 @@ public class FitsUtils {
             writeActiveRegions(image, fits);
             writeFlares(image, fits);
             writeSpectralLinePolynomial(image, fits);
+            writeSpectralRay(image, fits);
+            writeHeliumImageKind(image, fits);
+            writeSpectroSolHubImageKind(image, fits);
+            writeTruncatedDisk(image, fits);
         }
+    }
+
+    private static void writeTruncatedDisk(ImageWrapper image, Fits fits) {
+        image.findMetadata(TruncatedDisk.class).ifPresent(truncatedDisk -> {
+            var table = new BinaryTable();
+            table.addRow(new Object[]{truncatedDisk.truncated() ? 1 : 0});
+            writeBinaryTable(table, TRUNCATED_DISK_VALUE, "Truncated disk", fits);
+        });
+    }
+
+    private static void writeSpectralRay(ImageWrapper image, Fits fits) {
+        image.findMetadata(SpectralRay.class).ifPresent(ray -> {
+            var json = SpectralRayIO.serializeToJson(ray);
+            var table = new BinaryTable();
+            table.addRow(new Object[]{json.getBytes(StandardCharsets.UTF_8)});
+            writeBinaryTable(table, SPECTRAL_RAY_VALUE, "Spectral ray", fits);
+        });
+    }
+
+    private static void writeHeliumImageKind(ImageWrapper image, Fits fits) {
+        image.findMetadata(HeliumImageKind.class).ifPresent(kind -> {
+            var table = new BinaryTable();
+            table.addRow(new Object[]{kind.extracted() ? 1 : 0});
+            writeBinaryTable(table, HELIUM_IMAGE_KIND_VALUE, "Helium image kind", fits);
+        });
+    }
+
+    private static void writeSpectroSolHubImageKind(ImageWrapper image, Fits fits) {
+        image.findMetadata(SpectroSolHubImageKind.class).ifPresent(kind -> {
+            var table = new BinaryTable();
+            table.addRow(new Object[]{kind.value()});
+            writeBinaryTable(table, SPECTROSOLHUB_IMAGE_KIND_VALUE, "SpectroSolHub image kind", fits);
+        });
     }
 
     private static void writeDistorsionMaps(ImageWrapper image, Fits fits) {

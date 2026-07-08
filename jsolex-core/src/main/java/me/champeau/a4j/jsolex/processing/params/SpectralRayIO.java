@@ -138,4 +138,12 @@ public abstract class SpectralRayIO {
         saveTo(rays, defaultsFile.toFile());
     }
 
+    public static String serializeToJson(SpectralRay ray) {
+        return newGson().toJson(ray);
+    }
+
+    public static SpectralRay deserializeJson(String json) {
+        return newGson().fromJson(json, SpectralRay.class);
+    }
+
 }

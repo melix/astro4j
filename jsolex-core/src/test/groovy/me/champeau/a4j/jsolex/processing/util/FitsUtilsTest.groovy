@@ -16,8 +16,12 @@
 package me.champeau.a4j.jsolex.processing.util
 
 import me.champeau.a4j.jsolex.processing.params.ProcessParams
+import me.champeau.a4j.jsolex.processing.params.SpectralRay
+import me.champeau.a4j.jsolex.processing.sun.workflow.HeliumLineProcessor
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift
 import me.champeau.a4j.jsolex.processing.sun.workflow.SpectralLinePolynomial
+import me.champeau.a4j.jsolex.processing.sun.workflow.SpectroSolHubImageKind
+import me.champeau.a4j.jsolex.processing.sun.workflow.TruncatedDisk
 import me.champeau.a4j.math.tuples.DoubleQuadruplet
 import spock.lang.Specification
 import spock.lang.TempDir
@@ -141,6 +145,51 @@ class FitsUtilsTest extends Specification {
         Math.abs(readCoeffs.b() - coefficients.b()) < 1e-10
         Math.abs(readCoeffs.c() - coefficients.c()) < 1e-10
         Math.abs(readCoeffs.d() - coefficients.d()) < 1e-10
+    }
+
+    def "should write and read back SpectralRay and helium metadata correctly"() {
+        given: "an image tagged with the Helium D3 spectral ray"
+        def width = 10
+        def height = 10
+        def data = new float[height][width]
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                data[y][x] = 5000.0f
+            }
+        }
+        def metadata = [
+            (PixelShift): new PixelShift(0.0),
+            (SpectralRay): SpectralRay.HELIUM_D3,
+            (HeliumLineProcessor.HeliumImageKind): HeliumLineProcessor.HeliumImageKind.EXTRACTED,
+            (SpectroSolHubImageKind): new SpectroSolHubImageKind("IMAGE_MATH_HE"),
+            (TruncatedDisk): new TruncatedDisk(true)
+        ] as Map<Class<?>, Object>
+
+        def originalImage = new ImageWrapper32(width, height, data, metadata)
+        // Process params carry a different ray to prove the SpectralRay metadata is not derived from them
+        def processParams = ProcessParams.loadDefaults()
+        def fitsFile = tempDir.resolve("helium_test.fits").toFile()
+
+        when: "writing and reading the image"
+        FitsUtils.writeFitsFile(originalImage, fitsFile, processParams)
+        def readImage = FitsUtils.readFitsFile(fitsFile)
+
+        then: "the SpectralRay metadata is preserved"
+        def readRay = readImage.findMetadata(SpectralRay).orElse(null)
+        readRay != null
+        readRay.label() == SpectralRay.HELIUM_D3.label()
+        Math.abs(readRay.wavelength().angstroms() - SpectralRay.HELIUM_D3.wavelength().angstroms()) < 1e-6
+
+        and: "the helium image kind is preserved"
+        def readKind = readImage.findMetadata(HeliumLineProcessor.HeliumImageKind).orElse(null)
+        readKind != null
+        readKind.extracted()
+
+        and: "the SpectroSolHub image kind is preserved"
+        readImage.findMetadata(SpectroSolHubImageKind).map { it.value() }.orElse(null) == "IMAGE_MATH_HE"
+
+        and: "the truncated disk flag is preserved"
+        readImage.findMetadata(TruncatedDisk).map { it.truncated() }.orElse(false)
     }
 
     def "SpectralLinePolynomial computes correct y position"() {

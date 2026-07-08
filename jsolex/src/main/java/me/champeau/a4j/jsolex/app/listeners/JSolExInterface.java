@@ -249,6 +249,16 @@ public interface JSolExInterface {
     void enableSpectroSolHubSubmission(SpectralRay detectedSpectralRay);
 
     /**
+     * Enables SpectroSolHub submission for images produced outside of a regular
+     * SER processing run (such as the standalone Stacking tool), using the given
+     * process parameters and detected spectral ray as the submission context.
+     *
+     * @param processParams the process parameters to associate with the produced images
+     * @param detectedSpectralRay the spectral ray of the produced images, may be null
+     */
+    void enableSpectroSolHubSubmission(ProcessParams processParams, SpectralRay detectedSpectralRay);
+
+    /**
      * Returns whether a SpectroSolHub Live session is currently active.
      * @return true if a live session is active
      */

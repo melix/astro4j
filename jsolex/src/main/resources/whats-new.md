@@ -1,5 +1,10 @@
 # Welcome to JSol'Ex {{version}}!
 
+## What's New in Version 5.3.5
+
+- Stacked images now keep the spectral line of the source images instead of falling back to the wrong wavelength.
+- Images produced by the Stacking tool can now be shared to SpectroSolHub.
+
 ## What's New in Version 5.3.4
 
 - A new "saturated disk mode" lets you reuse the spectral line polynomial from the closest non-saturated scan when the solar disk is overexposed.

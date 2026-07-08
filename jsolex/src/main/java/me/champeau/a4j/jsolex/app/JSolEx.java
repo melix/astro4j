@@ -1412,6 +1412,14 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         });
     }
 
+    @Override
+    public void enableSpectroSolHubSubmission(ProcessParams processParams, SpectralRay detectedSpectralRay) {
+        if (processParams != null) {
+            lastExecutionProcessParams = processParams;
+        }
+        enableSpectroSolHubSubmission(detectedSpectralRay);
+    }
+
     private static Color wavelengthToColor(double wavelengthNm) {
         if (wavelengthNm <= 0) {
             return Color.GRAY;

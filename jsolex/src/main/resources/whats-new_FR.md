@@ -1,5 +1,10 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+## Nouveautés de la version 5.3.5
+
+- Les images empilées conservent désormais la raie spectrale des images source au lieu de revenir à une longueur d'onde incorrecte.
+- Les images produites par l'outil d'empilement peuvent désormais être partagées vers SpectroSolHub.
+
 ## Nouveautés de la version 5.3.4
 
 - Un nouveau « mode disque saturé » permet de réutiliser le polynôme de la raie spectrale du scan non saturé le plus proche lorsque le disque solaire est surexposé.
