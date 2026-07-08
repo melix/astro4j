@@ -44,6 +44,7 @@ import me.champeau.a4j.jsolex.processing.params.FileNamingPatternsIO;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.NamedPattern;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.params.ProcessParamsIO;
 import me.champeau.a4j.jsolex.processing.params.RequestedImages;
 import me.champeau.a4j.jsolex.processing.params.StackingParamsIO;
@@ -320,7 +321,12 @@ public class StackingAndMosaicController {
             long sd = System.nanoTime();
             try {
                 var workflow = new StackingWorkflow(broadcaster, namingStrategy);
-                workflow.execute(params, panels, outputDirectory);
+                var stackedImages = workflow.execute(params, panels, outputDirectory);
+                stackedImages.stream().findFirst().ifPresent(stacked -> {
+                    var submissionParams = stacked.findMetadata(ProcessParams.class).orElse(processParams);
+                    var ray = stacked.findMetadata(SpectralRay.class).orElse(null);
+                    owner.enableSpectroSolHubSubmission(submissionParams, ray);
+                });
             } finally {
                 LOGGER.info(String.format(message("finished.in"), DurationFormatter.formatNanos(System.nanoTime() - sd)));
             }

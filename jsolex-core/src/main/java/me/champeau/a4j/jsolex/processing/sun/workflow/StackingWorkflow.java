@@ -73,7 +73,7 @@ public class StackingWorkflow {
         this.mosaicComposition = new MosaicComposition(context, broadcaster, ellipseFit, scaling);
     }
 
-    public void execute(Parameters parameters, List<Panel> panels, File outputDirectory) {
+    public List<ImageWrapper32> execute(Parameters parameters, List<Panel> panels, File outputDirectory) {
         var stackedImages = performStacking(parameters, panels);
         exportImages("stacked", outputDirectory, stackedImages);
         if (parameters.stackPostProcessingScriptFile() != null) {
@@ -85,6 +85,7 @@ public class StackingWorkflow {
                 executeScript(parameters.mosaicPostProcessingScriptFile(), outputDirectory, mosaic);
             }
         }
+        return stackedImages;
     }
 
     private void executeScript(File scriptFile, File outputDirectory, Object images) {
