@@ -2,6 +2,8 @@
 
 ## What's New in Version 5.3.5
 
+- You can now add more files to a finished batch without reprocessing the ones already done.
+- Fixed the last file of a batch showing all the other files after reviewing images.
 - A new "Best method" contrast enhancement option automatically picks the best technique for the detected spectral line: CLAHE for calcium and Autostretch for everything else.
 - Stacked images now keep the spectral line of the source images instead of falling back to the wrong wavelength.
 - Images produced by the Stacking tool can now be shared to SpectroSolHub.
