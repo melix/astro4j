@@ -20,6 +20,7 @@ import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.scene.control.Button;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
@@ -92,6 +93,10 @@ public final class BatchProcessingHelper {
         File toTrimmedFile(File serFile);
 
         void updateProgress(double progress, String message);
+
+        List<File> chooseAdditionalBatchFiles();
+
+        void startBatchComplementRun();
     }
 
     /**
@@ -116,7 +121,13 @@ public final class BatchProcessingHelper {
         var batchItems = createBatchItems(selectedFiles);
         var batchContext = createBatchContext(batchItems, selectedFiles.getFirst().getParentFile(), header);
         var table = BatchTableFactory.createBatchTable(batchItems, params);
-        var dashboard = BatchDashboard.create(batchItems, batchContext.batchScriptsRunning());
+        Runnable onAddFiles = () -> {
+            var additionalFiles = context.chooseAdditionalBatchFiles();
+            if (additionalFiles != null && !additionalFiles.isEmpty()) {
+                complementBatch(context, batchContext, params, progressOperation, header, autoTrimSerFile, additionalFiles);
+            }
+        };
+        var dashboard = BatchDashboard.create(batchItems, batchContext.batchScriptsRunning(), onAddFiles);
         var drawer = new BatchDetailDrawer(params);
         table.getSelectionModel().selectedItemProperty().addListener(
                 (obs, oldItem, newItem) -> drawer.setItem(newItem));
@@ -143,7 +154,7 @@ public final class BatchProcessingHelper {
         FxUtils.runLater(() -> context.setImageMathRunDisabled(true));
 
         var batchThread = runBatchProcessing(
-                selectedFiles,
+                batchItems,
                 batchContext,
                 params,
                 progressOperation,
@@ -167,24 +178,78 @@ public final class BatchProcessingHelper {
         });
     }
 
-    private List<BatchItem> createBatchItems(List<File> selectedFiles) {
-        var batchItems = new ArrayList<BatchItem>(selectedFiles.size());
+    private ObservableList<BatchItem> createBatchItems(List<File> selectedFiles) {
+        var batchItems = FXCollections.<BatchItem>observableArrayList();
         for (int i = 0; i < selectedFiles.size(); i++) {
-            var selectedFile = selectedFiles.get(i);
-            batchItems.add(new BatchItem(
-                    i,
-                    selectedFile,
-                    new SimpleDoubleProperty(0),
-                    FXCollections.synchronizedObservableList(FXCollections.observableArrayList()),
-                    new SimpleStringProperty(message("batch.pending")),
-                    new SimpleIntegerProperty(),
-                    new SimpleDoubleProperty(),
-                    new SimpleIntegerProperty(),
-                    new SimpleIntegerProperty(),
-                    new StringBuilder()
-            ));
+            batchItems.add(createBatchItem(i, selectedFiles.get(i)));
         }
         return batchItems;
+    }
+
+    private BatchItem createBatchItem(int id, File selectedFile) {
+        return new BatchItem(
+                id,
+                selectedFile,
+                new SimpleDoubleProperty(0),
+                FXCollections.synchronizedObservableList(FXCollections.observableArrayList()),
+                new SimpleStringProperty(message("batch.pending")),
+                new SimpleIntegerProperty(),
+                new SimpleDoubleProperty(),
+                new SimpleIntegerProperty(),
+                new SimpleIntegerProperty(),
+                new StringBuilder()
+        );
+    }
+
+    /**
+     * Adds more files to an already-completed batch without reprocessing the
+     * files already processed. The new files are processed with the original
+     * batch's parameters into the same batch context, then the end-of-batch
+     * scripts run again over the full set of results.
+     */
+    private void complementBatch(BatchContext context,
+                                 BatchProcessingContext batchContext,
+                                 ProcessParams params,
+                                 ProgressOperation progressOperation,
+                                 Header header,
+                                 boolean autoTrimSerFile,
+                                 List<File> additionalFiles) {
+        var base = batchContext.items().size();
+        var newItems = new ArrayList<BatchItem>(additionalFiles.size());
+        for (int i = 0; i < additionalFiles.size(); i++) {
+            newItems.add(createBatchItem(base + i, additionalFiles.get(i)));
+        }
+        batchContext.items().addAll(newItems);
+        batchContext.batchFinished().set(false);
+        context.startBatchComplementRun();
+
+        var interruptButton = context.addInterruptButton();
+        var interrupted = new AtomicBoolean();
+        FxUtils.runLater(() -> context.setImageMathRunDisabled(true));
+
+        var batchThread = runBatchProcessing(
+                newItems,
+                batchContext,
+                params,
+                progressOperation,
+                header,
+                context,
+                interrupted,
+                autoTrimSerFile,
+                () -> FxUtils.runLater(() -> {
+                    context.removeInterruptButton(interruptButton);
+                    context.setImageMathRunDisabled(false);
+                })
+        );
+
+        interruptButton.setOnAction(e -> {
+            interrupted.set(true);
+            interruptButton.setDisable(true);
+            BackgroundOperations.interrupt();
+            batchThread.interrupt();
+            context.suppressProgress();
+            FxUtils.runLater(() -> context.setImageMathRunDisabled(false));
+        });
     }
 
     private BatchProcessingContext createBatchContext(List<BatchItem> batchItems,
@@ -212,7 +277,7 @@ public final class BatchProcessingHelper {
         );
     }
 
-    private Thread runBatchProcessing(List<File> selectedFiles,
+    private Thread runBatchProcessing(List<BatchItem> itemsToProcess,
                                       BatchProcessingContext batchContext,
                                       ProcessParams params,
                                       ProgressOperation progressOperation,
@@ -230,16 +295,18 @@ public final class BatchProcessingHelper {
                 var reconstructionSemaphore = new Semaphore(parallelism, true);
                 var totalInFlightSemaphore = new Semaphore(parallelism + 1, true);
                 try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
-                    for (int fileIdx = 0; fileIdx < selectedFiles.size(); fileIdx++) {
+                    for (int position = 0; position < itemsToProcess.size(); position++) {
                         if (Thread.currentThread().isInterrupted() || interrupted.get()) {
                             Thread.currentThread().interrupt();
                             interrupted.set(true);
                             break;
                         }
-                        var selectedFile = selectedFiles.get(fileIdx);
+                        var batchItem = itemsToProcess.get(position);
+                        var selectedFile = batchItem.file();
+                        var sequenceNumber = batchItem.id();
                         var singleOperation = progressOperation.createChild(selectedFile.getName());
                         context.updateProgress(singleOperation);
-                        int finalFileIdx = fileIdx;
+                        int finalPosition = position;
                         try {
                             totalInFlightSemaphore.acquire();
                         } catch (InterruptedException ie) {
@@ -266,9 +333,9 @@ public final class BatchProcessingHelper {
                                 processFile(
                                         context,
                                         params,
-                                        singleOperation.update(((double) finalFileIdx) / selectedFiles.size()),
+                                        singleOperation.update(((double) finalPosition) / itemsToProcess.size()),
                                         selectedFile,
-                                        finalFileIdx,
+                                        sequenceNumber,
                                         batchContext,
                                         header,
                                         interrupted,

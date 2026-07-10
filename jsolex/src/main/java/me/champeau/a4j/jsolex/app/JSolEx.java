@@ -2912,6 +2912,25 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     }
 
     @Override
+    public List<File> chooseAdditionalBatchFiles() {
+        var fileChooser = new FileChooser();
+        fileChooser.getExtensionFilters().add(SER_FILES_EXTENSION_FILTER);
+        config.findLastOpenDirectory().ifPresent(dir -> fileChooser.setInitialDirectory(dir.toFile()));
+        var selectedFiles = fileChooser.showOpenMultipleDialog(rootStage);
+        if (selectedFiles == null || selectedFiles.isEmpty()) {
+            return List.of();
+        }
+        config.updateLastOpenDirectory(selectedFiles.getFirst().toPath().getParent());
+        return new ArrayList<>(selectedFiles);
+    }
+
+    @Override
+    public void startBatchComplementRun() {
+        scriptRunNumber++;
+        scriptRunStartTime = LocalDateTime.now();
+    }
+
+    @Override
     public void processSingleFile(ProcessParams params,
                                   ProgressOperation operation,
                                   File selectedFile,

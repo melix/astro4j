@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.application.Platform;
+import javafx.collections.ObservableList;
 import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.NumberBinding;
@@ -54,9 +55,9 @@ public final class BatchTableFactory {
      * @param params the processing parameters
      * @return the configured TableView
      */
-    public static TableView<BatchItem> createBatchTable(List<BatchItem> batchItems, ProcessParams params) {
+    public static TableView<BatchItem> createBatchTable(ObservableList<BatchItem> batchItems, ProcessParams params) {
         var table = new TableView<BatchItem>();
-        table.getItems().addAll(batchItems);
+        table.setItems(batchItems);
 
         var idColumn = createIdColumn();
         var stateIconColumn = createStateIconColumn();

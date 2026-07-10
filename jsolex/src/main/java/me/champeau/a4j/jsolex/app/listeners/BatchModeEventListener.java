@@ -381,14 +381,13 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     private void adjustDeletedAndMovedFilesList(Set<File> deletedFiles, Map<File, File> movedFiles) {
         for (var curItem : allItems) {
             curItem.generatedFiles().removeIf(deletedFiles::contains);
-        }
-        var newFileList = new ArrayList<File>();
-        for (var curItem : allItems) {
-            for (var file : curItem.generatedFiles()) {
-                newFileList.add(movedFiles.getOrDefault(file, file));
+            if (!movedFiles.isEmpty()) {
+                var remapped = curItem.generatedFiles().stream()
+                        .map(file -> movedFiles.getOrDefault(file, file))
+                        .toList();
+                curItem.generatedFiles().setAll(remapped);
             }
         }
-        item.generatedFiles().setAll(newFileList);
     }
 
     private void maybeExecuteEndOfBatch() {

@@ -23,6 +23,7 @@ import javafx.beans.value.ChangeListener;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.layout.HBox;
@@ -51,9 +52,10 @@ public final class BatchDashboard {
      *
      * @param items the batch items
      * @param batchScriptsRunning flag set while the post-processing batch outputs scripts are running
+     * @param onAddFiles action triggered to add more files to the finished batch
      * @return the dashboard node, ready to be inserted at the top of the batch view
      */
-    public static Node create(List<BatchItem> items, AtomicBoolean batchScriptsRunning) {
+    public static Node create(List<BatchItem> items, AtomicBoolean batchScriptsRunning, Runnable onAddFiles) {
         var headerLabel = new Label(message("batch.dashboard.progress"));
         headerLabel.setStyle("-fx-font-weight: bold;");
         headerLabel.setMinWidth(Region.USE_PREF_SIZE);
@@ -75,12 +77,21 @@ public final class BatchDashboard {
         var summaryLabel = new Label();
         summaryLabel.setMinWidth(Region.USE_PREF_SIZE);
 
+        var addFilesButton = new Button(message("batch.add.files"));
+        addFilesButton.getStyleClass().add("default-button");
+        addFilesButton.setMinWidth(Region.USE_PREF_SIZE);
+        addFilesButton.setDisable(true);
+        addFilesButton.setOnAction(e -> {
+            addFilesButton.setDisable(true);
+            onAddFiles.run();
+        });
+
         var doneChip = createChip("✓", "-fx-background-color: #d6f5d6; -fx-text-fill: #2c662c;");
         var runningChip = createChip("▶", "-fx-background-color: #d6e4f5; -fx-text-fill: #2c4d80;");
         var queuedChip = createChip("⏳", "-fx-background-color: #ececec; -fx-text-fill: #555;");
         var errorChip = createChip("✗", "-fx-background-color: #f5d6d6; -fx-text-fill: #802c2c;");
 
-        var topRow = new HBox(12, headerLabel, progressStack, summaryLabel);
+        var topRow = new HBox(12, headerLabel, progressStack, summaryLabel, addFilesButton);
         topRow.setAlignment(Pos.CENTER_LEFT);
         HBox.setHgrow(progressStack, Priority.ALWAYS);
 
@@ -92,7 +103,7 @@ public final class BatchDashboard {
         root.setStyle("-fx-background-color: -fx-control-inner-background; -fx-border-color: -fx-box-border; -fx-border-width: 0 0 1 0;");
 
         Runnable refresh = () -> updateAll(items, batchScriptsRunning,
-                progressBar, progressOverlay, summaryLabel,
+                progressBar, progressOverlay, summaryLabel, addFilesButton,
                 doneChip.text(), runningChip.text(), queuedChip.text(), errorChip.text());
 
         ChangeListener<Object> listener = (obs, oldV, newV) -> FxUtils.runLater(refresh);
@@ -131,6 +142,7 @@ public final class BatchDashboard {
                                   ProgressBar progressBar,
                                   Label progressOverlay,
                                   Label summaryLabel,
+                                  Button addFilesButton,
                                   Label doneText,
                                   Label runningText,
                                   Label queuedText,
@@ -151,6 +163,7 @@ public final class BatchDashboard {
         int finished = done + errors;
         boolean scriptsRunning = batchScriptsRunning.get();
         boolean allFilesDone = total > 0 && finished == total;
+        addFilesButton.setDisable(!allFilesDone || scriptsRunning);
         double progress;
         if (allFilesDone && scriptsRunning) {
             progress = ProgressBar.INDETERMINATE_PROGRESS;
