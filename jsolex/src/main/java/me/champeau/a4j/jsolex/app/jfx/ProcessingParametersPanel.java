@@ -25,6 +25,7 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
 import javafx.util.StringConverter;
+import me.champeau.a4j.jsolex.app.AlertFactory;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.params.AutocropMode;
 import me.champeau.a4j.jsolex.processing.params.GeometryParams;
@@ -63,6 +64,7 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
     private CheckBox autocorrectAnglePCheck;
     private CheckBox switchRedBlueChannelsCheck;
     private CheckBox reviewImagesAfterBatch;
+    private CheckBox alternateScanDirection;
     private ProcessParamsController controller;
     private boolean batchMode;
 
@@ -137,6 +139,15 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
         switchRedBlueChannelsCheck = new CheckBox();
 
         reviewImagesAfterBatch = new CheckBox();
+        alternateScanDirection = new CheckBox();
+        alternateScanDirection.setOnAction(e -> {
+            if (alternateScanDirection.isSelected()) {
+                var alert = AlertFactory.warning(I18N.string(JSolEx.class, "process-params", "alternate.scan.direction.warning"));
+                alert.setTitle(I18N.string(JSolEx.class, "process-params", "alternate.scan.direction"));
+                alert.setHeaderText(null);
+                alert.showAndWait();
+            }
+        });
 
         autocropChoice = createChoiceBox();
         autocropChoice.setItems(FXCollections.observableArrayList(AutocropMode.values()));
@@ -248,6 +259,7 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
             var batchSection = createSection("batch.options");
             var batchGrid = createGrid();
             addGridRow(batchGrid, 0, I18N.string(JSolEx.class, "process-params", "review.images.after.batch") + ":", reviewImagesAfterBatch, "review.images.after.batch.tooltip");
+            addGridRow(batchGrid, 1, I18N.string(JSolEx.class, "process-params", "alternate.scan.direction") + ":", alternateScanDirection, "alternate.scan.direction.tooltip");
             batchSection.getChildren().add(batchGrid);
             getChildren().add(batchSection);
         }
@@ -289,6 +301,7 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
         switchRedBlueChannelsCheck.setSelected(false);
         if (batchMode) {
             reviewImagesAfterBatch.setSelected(false);
+            alternateScanDirection.setSelected(false);
         }
     }
 
@@ -323,6 +336,7 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
 
         if (batchMode) {
             reviewImagesAfterBatch.setSelected(extraParams.reviewImagesAfterBatch());
+            alternateScanDirection.setSelected(extraParams.alternateScanDirection());
         }
 
         var savedRay = spectrum.ray();
@@ -432,6 +446,16 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
      */
     public boolean isReviewImagesAfterBatch() {
         return batchMode && reviewImagesAfterBatch.isSelected();
+    }
+
+    /**
+     * Returns whether every other scan of a batch must be flipped, to account for
+     * back-and-forth scanning.
+     *
+     * @return true if alternate scan direction is enabled
+     */
+    public boolean isAlternateScanDirection() {
+        return batchMode && alternateScanDirection.isSelected();
     }
 
     /**

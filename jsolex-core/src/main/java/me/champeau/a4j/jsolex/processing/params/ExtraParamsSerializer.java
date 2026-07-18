@@ -36,6 +36,7 @@ class ExtraParamsSerializer implements JsonSerializer<ExtraParams>, JsonDeserial
             var datetimeFormat = obj.has("datetimeFormat") ? obj.get("datetimeFormat").getAsString() : null;
             var dateFormat = obj.has("dateFormat") ? obj.get("dateFormat").getAsString() : null;
             var reviewImagesAfterBatch = obj.has("reviewImagesAfterBatch") && obj.get("reviewImagesAfterBatch").getAsBoolean();
+            var alternateScanDirection = obj.has("alternateScanDirection") && obj.get("alternateScanDirection").getAsBoolean();
             GlobeStyle globeStyle = obj.has("globeStyle") ? context.deserialize(obj.get("globeStyle"), GlobeStyle.class) : null;
             return new ExtraParams(
                     generateDebugImages,
@@ -44,6 +45,7 @@ class ExtraParamsSerializer implements JsonSerializer<ExtraParams>, JsonDeserial
                     datetimeFormat,
                     dateFormat,
                     reviewImagesAfterBatch,
+                    alternateScanDirection,
                     globeStyle
             );
         }
@@ -65,6 +67,7 @@ class ExtraParamsSerializer implements JsonSerializer<ExtraParams>, JsonDeserial
             obj.addProperty("dateFormat", src.dateFormat());
         }
         obj.addProperty("reviewImagesAfterBatch", src.reviewImagesAfterBatch());
+        obj.addProperty("alternateScanDirection", src.alternateScanDirection());
         if (src.globeStyle() != null) {
             obj.add("globeStyle", context.serialize(src.globeStyle()));
         }

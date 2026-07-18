@@ -36,10 +36,13 @@ import me.champeau.a4j.jsolex.processing.sun.TrimmingParameters;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.jsolex.processing.util.CancellationSupport;
 import me.champeau.a4j.ser.Header;
+import me.champeau.a4j.ser.SerFileReader;
 
 import java.io.File;
 import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -121,8 +124,9 @@ public final class BatchProcessingHelper {
         context.newSession();
         LOGGER.info(message("batch.mode.info"));
 
-        var batchItems = createBatchItems(selectedFiles);
-        var batchContext = createBatchContext(batchItems, selectedFiles.getFirst().getParentFile(), header);
+        var orderedFiles = maybeSortByCaptureDate(selectedFiles, params);
+        var batchItems = createBatchItems(orderedFiles);
+        var batchContext = createBatchContext(batchItems, orderedFiles.getFirst().getParentFile(), header);
         var table = BatchTableFactory.createBatchTable(batchItems, params);
         Runnable onAddFiles = () -> {
             var additionalFiles = context.chooseAdditionalBatchFiles();
@@ -191,6 +195,41 @@ public final class BatchProcessingHelper {
         });
     }
 
+    /**
+     * When scans are flipped alternately, the parity of a file only makes sense if files are
+     * ordered by capture time, which the file chooser does not guarantee. Files whose header
+     * cannot be read are sorted last, by name.
+     */
+    private static List<File> maybeSortByCaptureDate(List<File> files, ProcessParams params) {
+        if (!params.extraParams().alternateScanDirection()) {
+            return files;
+        }
+        var dates = new HashMap<File, ZonedDateTime>();
+        for (var file : files) {
+            try (var reader = SerFileReader.of(file, true)) {
+                dates.put(file, reader.header().metadata().utcDateTime());
+            } catch (Exception e) {
+                LOGGER.warn(message("batch.unreadable.capture.date"), file.getName());
+            }
+        }
+        return files.stream()
+                .sorted(Comparator.comparing((File file) -> dates.get(file), Comparator.nullsLast(Comparator.naturalOrder()))
+                        .thenComparing(File::getName))
+                .toList();
+    }
+
+    /**
+     * In back-and-forth scanning, every other scan runs in the opposite direction and must be
+     * mirrored along the scan axis, which is horizontal at the stage where flips are applied.
+     */
+    private static ProcessParams adjustForScanDirection(ProcessParams params, int sequenceNumber) {
+        if (!params.extraParams().alternateScanDirection() || sequenceNumber % 2 == 0) {
+            return params;
+        }
+        var geometry = params.geometryParams();
+        return params.withGeometryParams(geometry.withHorizontalMirror(!geometry.isHorizontalMirror()));
+    }
+
     private ObservableList<BatchItem> createBatchItems(List<File> selectedFiles) {
         var batchItems = FXCollections.<BatchItem>observableArrayList();
         for (int i = 0; i < selectedFiles.size(); i++) {
@@ -246,9 +285,10 @@ public final class BatchProcessingHelper {
                                  boolean autoTrimSerFile,
                                  List<File> additionalFiles) {
         var base = batchContext.items().size();
-        var newItems = new ArrayList<BatchItem>(additionalFiles.size());
-        for (int i = 0; i < additionalFiles.size(); i++) {
-            newItems.add(createBatchItem(base + i, additionalFiles.get(i)));
+        var orderedFiles = maybeSortByCaptureDate(additionalFiles, params);
+        var newItems = new ArrayList<BatchItem>(orderedFiles.size());
+        for (int i = 0; i < orderedFiles.size(); i++) {
+            newItems.add(createBatchItem(base + i, orderedFiles.get(i)));
         }
         batchContext.items().addAll(newItems);
         batchContext.batchFinished().set(false);
@@ -403,7 +443,8 @@ public final class BatchProcessingHelper {
         if (interrupted.get()) {
             return;
         }
-        context.processSingleFile(params, operation, selectedFile, sequenceNumber, batchContext, header, onReconstructionComplete, () -> {
+        var fileParams = adjustForScanDirection(params, sequenceNumber);
+        context.processSingleFile(fileParams, operation, selectedFile, sequenceNumber, batchContext, header, onReconstructionComplete, () -> {
             if (autoTrimSerFile && !interrupted.get()) {
                 var trimmingParams = context.getTrimmingParameters();
                 if (trimmingParams != null) {
