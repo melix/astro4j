@@ -524,6 +524,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </li>
 <li><a href="#batch-mode">Batch processing</a>
 <ul class="sectlevel2">
+<li><a href="#batch-back-and-forth">Back-and-forth scanning</a></li>
 <li><a href="#batch-add-files">Adding files to a batch</a></li>
 <li><a href="#_reviewing_batch_processed_images">Reviewing batch processed images</a></li>
 <li><a href="#script-batch">ImageMath extensions available in batch mode</a></li>
@@ -2866,6 +2867,41 @@ In batch mode, we recommend that you pick a custom <a href="#filename-templates"
 </table>
 </div>
 <div class="sect2">
+<h3 id="batch-back-and-forth">Back-and-forth scanning</h3>
+<div class="admonitionblock warning">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-warning" title="Warning"></i>
+</td>
+<td class="content">
+Back-and-forth scanning is strongly discouraged. Most mounts have a preferred scanning direction, for which the scanning speed is more consistent: scanning in both directions may therefore distort half of your images. Only use this option if you are absolutely sure that scans in both directions are perfect.
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>Some observers scan alternately in one direction, then in the other, in order to avoid having to move the telescope back to its starting point between two scans.
+Because a scan performed in the opposite direction produces a mirrored image, one image out of two would have to be flipped by hand.</p>
+</div>
+<div class="paragraph">
+<p>Check the "Back-and-forth scanning" option, in the "Batch Options" section of the processing parameters, to let JSol&#8217;Ex do it for you.
+The files of the batch are then sorted by capture time, and every other scan, starting with the second one, is flipped automatically.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+If the flip is applied to the wrong scans, for example because your first file happens to be a scan in the reverse direction, simply check the "Flip horizontal axis" option in addition: this reverses which scans are flipped.
+</td>
+</tr>
+</table>
+</div>
+</div>
+<div class="sect2">
 <h3 id="batch-add-files">Adding files to a batch</h3>
 <div class="paragraph">
 <p>Once a batch is finished, you can add more files to it without having to process the files which are already done.
@@ -3279,7 +3315,7 @@ The following options are available:</p>
 <p>the tile size allows to cut the image in tiles for stacking. The smaller the tile size, the more precise the stacking will be, but the longer it will take and the less likely it will be able to compensate for large shifts between images.</p>
 </li>
 <li>
-<p>the sampling factor determines where samples will be picked when computing the distorsion model. A sampling factor of 0.5 combined with a tile size of 32 means that a sample will be picked every 16 pixels.</p>
+<p>the sampling factor determines where samples will be picked when computing the distortion model. A sampling factor of 0.5 combined with a tile size of 32 means that a sample will be picked every 16 pixels.</p>
 </li>
 <li>
 <p>Forcing the computation of ellipses can be useful if the images you import come from another software or if the ellipses were badly detected. In that case, we will recompute them before stacking.</p>
