@@ -515,6 +515,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </li>
 <li><a href="#batch-mode">Traitement par lots</a>
 <ul class="sectlevel2">
+<li><a href="#ajout-fichiers-lot">Ajouter des fichiers à un lot</a></li>
 <li><a href="#_passage_en_revue_des_images_traitées_en_lot">Passage en revue des images traitées en lot</a></li>
 <li><a href="#script-batch">Extensions d&#8217;ImageMath disponibles en mode batch</a></li>
 <li><a href="#_scripts_indépendants">Scripts indépendants</a></li>
@@ -2722,6 +2723,26 @@ En mode batch, nous recommendons d&#8217;utiliser un <a href="#modele-noms-fichi
 </td>
 </tr>
 </table>
+</div>
+<div class="sect2">
+<h3 id="ajout-fichiers-lot">Ajouter des fichiers à un lot</h3>
+<div class="paragraph">
+<p>Une fois qu&#8217;un lot est terminé, vous pouvez y ajouter des fichiers sans avoir à retraiter ceux qui sont déjà traités.
+Les nouveaux fichiers sont traités avec les mêmes paramètres que le reste du lot, puis, si votre script comporte une section <code>[[batch]]</code>, les résultats du lot sont recalculés sur l&#8217;ensemble des fichiers, anciens et nouveaux.
+Ils apparaissent dans leur propre section horodatée, ce qui permet de les comparer avec les précédents.</p>
+</div>
+<div class="paragraph">
+<p>Pour cela, cliquez sur le bouton "Ajouter des fichiers&#8230;&#8203;", en haut du tableau du lot, et sélectionnez les fichiers à ajouter.</p>
+</div>
+<div class="paragraph">
+<p>Vous pouvez également cliquer sur le bouton "Surveiller un dossier&#8230;&#8203;" et choisir un dossier.
+JSol&#8217;Ex surveille alors ce dossier : chaque nouveau fichier SER qui y apparaît est automatiquement ajouté au lot.
+C&#8217;est particulièrement pratique pendant une session d&#8217;observation : lancez un lot avec les premiers scans, puis laissez JSol&#8217;Ex ajouter les suivants au fur et à mesure que votre logiciel d&#8217;acquisition les enregistre.</p>
+</div>
+<div class="paragraph">
+<p>Les fichiers ne sont ajoutés au lot que lorsque le traitement en cours est terminé : les fichiers détectés pendant que le lot tourne sont mis en attente et seront ajoutés dès que celui-ci sera fini.
+Cliquez sur "Arrêter la surveillance" pour cesser de surveiller le dossier.</p>
+</div>
 </div>
 <div class="sect2">
 <h3 id="_passage_en_revue_des_images_traitées_en_lot">Passage en revue des images traitées en lot</h3>

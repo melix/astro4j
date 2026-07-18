@@ -524,6 +524,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </li>
 <li><a href="#batch-mode">Batch processing</a>
 <ul class="sectlevel2">
+<li><a href="#batch-add-files">Adding files to a batch</a></li>
 <li><a href="#_reviewing_batch_processed_images">Reviewing batch processed images</a></li>
 <li><a href="#script-batch">ImageMath extensions available in batch mode</a></li>
 <li><a href="#_standalone_scripts">Standalone scripts</a></li>
@@ -2863,6 +2864,26 @@ In batch mode, we recommend that you pick a custom <a href="#filename-templates"
 </td>
 </tr>
 </table>
+</div>
+<div class="sect2">
+<h3 id="batch-add-files">Adding files to a batch</h3>
+<div class="paragraph">
+<p>Once a batch is finished, you can add more files to it without having to process the files which are already done.
+The new files are processed with the same parameters as the rest of the batch, then, if your script has a <code>[[batch]]</code> section, the batch outputs are computed again over all the files, old and new.
+The results appear in their own timestamped section, so that you can compare them with the previous ones.</p>
+</div>
+<div class="paragraph">
+<p>To do this, click on the "Add files&#8230;&#8203;" button, at the top of the batch table, and select the files you want to add.</p>
+</div>
+<div class="paragraph">
+<p>Alternatively, you can click on the "Watch a directory&#8230;&#8203;" button and select a directory.
+JSol&#8217;Ex then monitors that directory: each new SER file which appears in it is automatically added to the batch.
+This is particularly convenient during an observation session: start a batch with the first scans, then let JSol&#8217;Ex add the following ones as your capture software writes them.</p>
+</div>
+<div class="paragraph">
+<p>Files are only added to the batch once the current processing is done, which means that new files detected while the batch is running are put on hold and will be added as soon as it is finished.
+Click on "Stop watching" to stop monitoring the directory.</p>
+</div>
 </div>
 <div class="sect2">
 <h3 id="_reviewing_batch_processed_images">Reviewing batch processed images</h3>
