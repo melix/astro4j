@@ -406,6 +406,7 @@ public class ProcessParamsController {
 
         var extraParams = outputPanel.getExtraParams()
                 .withReviewImagesAfterBatch(processingPanel.isReviewImagesAfterBatch())
+                .withAlternateScanDirection(processingPanel.isAlternateScanDirection())
                 .withGenerateDebugImages(imageSelectionPanel.getRequestedImages().isEnabled(GeneratedImageKind.DEBUG));
                 
         var baseGeometry = processingPanel.getGeometryParams()

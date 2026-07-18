@@ -2,6 +2,7 @@
 
 ## Nouveautés de la version 5.3.5
 
+- Le mode lot gère désormais les balayages aller-retour : les fichiers sont triés par heure de capture et un scan sur deux est retourné automatiquement.
 - Vous pouvez désormais ajouter des fichiers à un lot terminé sans retraiter ceux déjà traités.
 - Un lot peut désormais surveiller un dossier et y ajouter automatiquement les nouveaux fichiers SER qui y apparaissent.
 - Correction du dernier fichier d'un lot qui affichait tous les autres fichiers après la revue des images.

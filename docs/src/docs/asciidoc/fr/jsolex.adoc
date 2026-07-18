@@ -1332,6 +1332,19 @@ La liste des fichiers comprend le _fichier de log_ du traitement de ce fichier, 
 
 NOTE: En mode batch, nous recommendons d'utiliser un <<#modele-noms-fichier,modèle de nom de fichier>> qui met toutes les images dans le même dossier, ce qui rendra plus simple leur exploitation dans un programme tiers.
 
+[[balayage-aller-retour]]
+=== Balayage aller-retour
+
+WARNING: Le balayage aller-retour est fortement déconseillé. La plupart des montures ont un sens de balayage préférentiel, pour lequel la vitesse de balayage est plus régulière : balayer dans les deux sens risque donc de distordre la moitié de vos images. N'utilisez cette option que si vous êtes absolument certain que les scans dans les deux sens sont parfaits.
+
+Certains observateurs balayent alternativement dans un sens, puis dans l'autre, afin d'éviter d'avoir à ramener le télescope à son point de départ entre deux scans.
+Comme un scan effectué dans le sens inverse produit une image en miroir, il faudrait retourner une image sur deux à la main.
+
+Cochez l'option « Balayage aller-retour », dans la section « Options de traitement par lot » des paramètres de traitement, pour que JSol'Ex le fasse à votre place.
+Les fichiers du lot sont alors triés par heure de capture, et un scan sur deux, à partir du second, est retourné automatiquement.
+
+NOTE: Si le retournement s'applique aux mauvais scans, par exemple parce que votre premier fichier est un scan dans le sens inverse, cochez simplement l'option « Inverser l'axe horizontal » en plus : cela inverse les scans qui sont retournés.
+
 [[ajout-fichiers-lot]]
 === Ajouter des fichiers à un lot
 

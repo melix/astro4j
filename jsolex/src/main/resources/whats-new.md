@@ -2,6 +2,7 @@
 
 ## What's New in Version 5.3.5
 
+- Batch mode can now handle back-and-forth scanning: files are sorted by capture time and every other scan is flipped automatically.
 - You can now add more files to a finished batch without reprocessing the ones already done.
 - A batch can now watch a directory and automatically add the new SER files which appear in it.
 - Fixed the last file of a batch showing all the other files after reviewing images.
@@ -157,7 +158,7 @@ I do- Added an advanced parameter to choose the directory where temporary files 
 
 - Added a new "Sharing" menu with items for publishing to BASS2000 and sharing on SpectroSolHub
 - Added the ability to post-process images externally before uploading to SpectroSolHub. In the image selection step, check the post-processing option to edit your images (contrast, sharpening, etc.) in your favorite editor before upload.
-- Fixed non deterministic dedistorsion results
+- Fixed non deterministic dedistortion results
 - Improved performance on multi-core systems
 - Reworked Helium line image extraction
 - Added the ability to declare the type of image generated in scripts

@@ -22,32 +22,37 @@ public record ExtraParams(
         String datetimeFormat,
         String dateFormat,
         boolean reviewImagesAfterBatch,
+        boolean alternateScanDirection,
         GlobeStyle globeStyle) {
     public ExtraParams withGenerateDebugImages(boolean generateDebugImages) {
-        return new ExtraParams(generateDebugImages, autosave, fileNamePattern, datetimeFormat, dateFormat, reviewImagesAfterBatch, globeStyle);
+        return new ExtraParams(generateDebugImages, autosave, fileNamePattern, datetimeFormat, dateFormat, reviewImagesAfterBatch, alternateScanDirection, globeStyle);
     }
 
     public ExtraParams withAutosave(boolean autosave) {
-        return new ExtraParams(generateDebugImages, autosave, fileNamePattern, datetimeFormat, dateFormat, reviewImagesAfterBatch, globeStyle);
+        return new ExtraParams(generateDebugImages, autosave, fileNamePattern, datetimeFormat, dateFormat, reviewImagesAfterBatch, alternateScanDirection, globeStyle);
     }
 
     public ExtraParams withFileNamePattern(String fileNamePattern) {
-        return new ExtraParams(generateDebugImages, autosave, fileNamePattern, datetimeFormat, dateFormat, reviewImagesAfterBatch, globeStyle);
+        return new ExtraParams(generateDebugImages, autosave, fileNamePattern, datetimeFormat, dateFormat, reviewImagesAfterBatch, alternateScanDirection, globeStyle);
     }
 
     public ExtraParams withDateTimeFormat(String datetimeFormat) {
-        return new ExtraParams(generateDebugImages, autosave, fileNamePattern, datetimeFormat, dateFormat, reviewImagesAfterBatch, globeStyle);
+        return new ExtraParams(generateDebugImages, autosave, fileNamePattern, datetimeFormat, dateFormat, reviewImagesAfterBatch, alternateScanDirection, globeStyle);
     }
 
     public ExtraParams withDateFormat(String dateFormat) {
-        return new ExtraParams(generateDebugImages, autosave, fileNamePattern, datetimeFormat, dateFormat, reviewImagesAfterBatch, globeStyle);
+        return new ExtraParams(generateDebugImages, autosave, fileNamePattern, datetimeFormat, dateFormat, reviewImagesAfterBatch, alternateScanDirection, globeStyle);
     }
 
     public ExtraParams withReviewImagesAfterBatch(boolean reviewImagesAfterBatch) {
-        return new ExtraParams(generateDebugImages, autosave, fileNamePattern, datetimeFormat, dateFormat, reviewImagesAfterBatch, globeStyle);
+        return new ExtraParams(generateDebugImages, autosave, fileNamePattern, datetimeFormat, dateFormat, reviewImagesAfterBatch, alternateScanDirection, globeStyle);
+    }
+
+    public ExtraParams withAlternateScanDirection(boolean alternateScanDirection) {
+        return new ExtraParams(generateDebugImages, autosave, fileNamePattern, datetimeFormat, dateFormat, reviewImagesAfterBatch, alternateScanDirection, globeStyle);
     }
 
     public ExtraParams withGlobeStyle(GlobeStyle globeStyle) {
-        return new ExtraParams(generateDebugImages, autosave, fileNamePattern, datetimeFormat, dateFormat, reviewImagesAfterBatch, globeStyle);
+        return new ExtraParams(generateDebugImages, autosave, fileNamePattern, datetimeFormat, dateFormat, reviewImagesAfterBatch, alternateScanDirection, globeStyle);
     }
 }
