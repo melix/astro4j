@@ -50,6 +50,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * @param dataLock lock for thread-safe data access
  * @param batchStartNanos the batch start time in nanoseconds (from System.nanoTime)
  * @param batchScriptsRunning flag set while batch outputs scripts are executing
+ * @param batchPostProcessing flag set from the moment all files are processed until the end of batch handling (review, scripts) is done
  */
 public record BatchProcessingContext(
     List<BatchItem> items,
@@ -69,6 +70,7 @@ public record BatchProcessingContext(
     Map<Integer, ProcessParams> processParamsByIndex,
     ReentrantReadWriteLock dataLock,
     long batchStartNanos,
-    AtomicBoolean batchScriptsRunning
+    AtomicBoolean batchScriptsRunning,
+    AtomicBoolean batchPostProcessing
 ) {
 }

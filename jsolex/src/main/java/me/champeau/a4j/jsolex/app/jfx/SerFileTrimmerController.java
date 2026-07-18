@@ -328,4 +328,16 @@ public class SerFileTrimmerController {
         var trimmedName = baseName + "-trimmed" + ext;
         return new File(parent, trimmedName);
     }
+
+    /**
+     * Determines if a file name matches the one which would be produced by trimming.
+     *
+     * @param file the file to test
+     * @return true if the file looks like the result of a trimming operation
+     */
+    public static boolean isTrimmedFile(File file) {
+        var name = file.getName();
+        var dot = name.lastIndexOf('.');
+        return dot > 0 && name.substring(0, dot).endsWith("-trimmed");
+    }
 }

@@ -3,6 +3,7 @@
 ## Nouveautés de la version 5.3.5
 
 - Vous pouvez désormais ajouter des fichiers à un lot terminé sans retraiter ceux déjà traités.
+- Un lot peut désormais surveiller un dossier et y ajouter automatiquement les nouveaux fichiers SER qui y apparaissent.
 - Correction du dernier fichier d'un lot qui affichait tous les autres fichiers après la revue des images.
 - Une nouvelle option de renforcement du contraste « Meilleure méthode » choisit automatiquement la meilleure technique selon la raie spectrale détectée : CLAHE pour le calcium et Autostretch pour les autres raies.
 - Les images empilées conservent désormais la raie spectrale des images source au lieu de revenir à une longueur d'onde incorrecte.

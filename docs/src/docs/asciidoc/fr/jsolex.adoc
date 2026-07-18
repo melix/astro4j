@@ -1332,6 +1332,22 @@ La liste des fichiers comprend le _fichier de log_ du traitement de ce fichier, 
 
 NOTE: En mode batch, nous recommendons d'utiliser un <<#modele-noms-fichier,modèle de nom de fichier>> qui met toutes les images dans le même dossier, ce qui rendra plus simple leur exploitation dans un programme tiers.
 
+[[ajout-fichiers-lot]]
+=== Ajouter des fichiers à un lot
+
+Une fois qu'un lot est terminé, vous pouvez y ajouter des fichiers sans avoir à retraiter ceux qui sont déjà traités.
+Les nouveaux fichiers sont traités avec les mêmes paramètres que le reste du lot, puis, si votre script comporte une section `\[[batch]]`, les résultats du lot sont recalculés sur l'ensemble des fichiers, anciens et nouveaux.
+Ils apparaissent dans leur propre section horodatée, ce qui permet de les comparer avec les précédents.
+
+Pour cela, cliquez sur le bouton "Ajouter des fichiers...", en haut du tableau du lot, et sélectionnez les fichiers à ajouter.
+
+Vous pouvez également cliquer sur le bouton "Surveiller un dossier..." et choisir un dossier.
+JSol'Ex surveille alors ce dossier : chaque nouveau fichier SER qui y apparaît est automatiquement ajouté au lot.
+C'est particulièrement pratique pendant une session d'observation : lancez un lot avec les premiers scans, puis laissez JSol'Ex ajouter les suivants au fur et à mesure que votre logiciel d'acquisition les enregistre.
+
+Les fichiers ne sont ajoutés au lot que lorsque le traitement en cours est terminé : les fichiers détectés pendant que le lot tourne sont mis en attente et seront ajoutés dès que celui-ci sera fini.
+Cliquez sur "Arrêter la surveillance" pour cesser de surveiller le dossier.
+
 === Passage en revue des images traitées en lot
 
 Une fois qu'un lot a été traité, il est possible de passer en revue les images générées.

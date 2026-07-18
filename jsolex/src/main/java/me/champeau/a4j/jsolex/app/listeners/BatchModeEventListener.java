@@ -131,6 +131,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     private final BatchImageCollector imageCollector;
     private final AtomicInteger liveUploadCount = new AtomicInteger(0);
     private final AtomicBoolean batchScriptsRunning;
+    private final AtomicBoolean batchPostProcessing;
 
     /**
      * Creates a new batch mode event listener.
@@ -165,6 +166,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         this.dataLock = context.dataLock();
         this.sd = context.batchStartNanos();
         this.batchScriptsRunning = context.batchScriptsRunning();
+        this.batchPostProcessing = context.batchPostProcessing();
     }
     
     private SolarParameters computeAverageSolarParameters() {
@@ -395,6 +397,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         int success = progressTracker.getSuccessCount();
         var totalItems = progressTracker.getTotalItems();
         if (shouldExecute && progressTracker.tryMarkBatchFinished()) {
+            batchPostProcessing.set(true);
             boolean hasErrors = progressTracker.hasErrors();
             if (success > 0 && hasErrors && hasBatchScriptExpressions()) {
                 FxUtils.runLater(() -> {
@@ -424,6 +427,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     }
 
     private void batchFinished() {
+        batchPostProcessing.set(false);
         owner.enableSpectroSolHubSubmission(detectedSpectralLines.stream().findFirst().orElse(null));
         if (owner.isLiveSessionActive() && liveUploadCount.get() == 0) {
             LOGGER.warn(message("live.batch.no.uploads"));

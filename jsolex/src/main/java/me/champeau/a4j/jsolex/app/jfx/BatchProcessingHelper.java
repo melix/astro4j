@@ -47,6 +47,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.stream.Collectors;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
 import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.LOGGER;
@@ -96,6 +97,8 @@ public final class BatchProcessingHelper {
 
         List<File> chooseAdditionalBatchFiles();
 
+        File chooseBatchWatchDirectory();
+
         void startBatchComplementRun();
     }
 
@@ -127,7 +130,17 @@ public final class BatchProcessingHelper {
                 complementBatch(context, batchContext, params, progressOperation, header, autoTrimSerFile, additionalFiles);
             }
         };
-        var dashboard = BatchDashboard.create(batchItems, batchContext.batchScriptsRunning(), onAddFiles);
+        var watcher = new BatchDirectoryWatcher(
+                Configuration.getInstance().getWatchModeWaitTimeMilis(),
+                () -> isBatchIdle(batchContext),
+                detectedFiles -> {
+                    var additionalFiles = removeFilesAlreadyInBatch(batchContext, detectedFiles);
+                    if (!additionalFiles.isEmpty()) {
+                        LOGGER.info(message("batch.watch.adding.files"), additionalFiles.size());
+                        complementBatch(context, batchContext, params, progressOperation, header, autoTrimSerFile, additionalFiles);
+                    }
+                });
+        var dashboard = BatchDashboard.create(batchItems, batchContext.batchScriptsRunning(), onAddFiles, watcher, context::chooseBatchWatchDirectory);
         var drawer = new BatchDetailDrawer(params);
         table.getSelectionModel().selectedItemProperty().addListener(
                 (obs, oldItem, newItem) -> drawer.setItem(newItem));
@@ -202,6 +215,24 @@ public final class BatchProcessingHelper {
     }
 
     /**
+     * A batch is idle once all its files are processed and the end of batch handling
+     * (images review, batch scripts) is done. Files must only be added to an idle batch.
+     */
+    private static boolean isBatchIdle(BatchProcessingContext batchContext) {
+        return batchContext.batchFinished().get() && !batchContext.batchPostProcessing().get();
+    }
+
+    private static List<File> removeFilesAlreadyInBatch(BatchProcessingContext batchContext, List<File> files) {
+        var known = batchContext.items()
+                .stream()
+                .map(item -> item.file().getAbsoluteFile())
+                .collect(Collectors.toSet());
+        return files.stream()
+                .filter(file -> !known.contains(file.getAbsoluteFile()))
+                .toList();
+    }
+
+    /**
      * Adds more files to an already-completed batch without reprocessing the
      * files already processed. The new files are processed with the original
      * batch's parameters into the same batch context, then the end-of-batch
@@ -273,6 +304,7 @@ public final class BatchProcessingHelper {
                 new HashMap<>(),
                 new ReentrantReadWriteLock(),
                 System.nanoTime(),
+                new AtomicBoolean(),
                 new AtomicBoolean()
         );
     }
