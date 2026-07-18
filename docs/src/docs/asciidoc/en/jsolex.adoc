@@ -1394,6 +1394,22 @@ The file list for each SER file will include the log file for each video, as wel
 
 NOTE: In batch mode, we recommend that you pick a custom <<#filename-templates,file name template>> which will output all images in a single directory: using the sequence number, this will make it easier to import into 3rd party software.
 
+[[batch-add-files]]
+=== Adding files to a batch
+
+Once a batch is finished, you can add more files to it without having to process the files which are already done.
+The new files are processed with the same parameters as the rest of the batch, then, if your script has a `\[[batch]]` section, the batch outputs are computed again over all the files, old and new.
+The results appear in their own timestamped section, so that you can compare them with the previous ones.
+
+To do this, click on the "Add files..." button, at the top of the batch table, and select the files you want to add.
+
+Alternatively, you can click on the "Watch a directory..." button and select a directory.
+JSol'Ex then monitors that directory: each new SER file which appears in it is automatically added to the batch.
+This is particularly convenient during an observation session: start a batch with the first scans, then let JSol'Ex add the following ones as your capture software writes them.
+
+Files are only added to the batch once the current processing is done, which means that new files detected while the batch is running are put on hold and will be added as soon as it is finished.
+Click on "Stop watching" to stop monitoring the directory.
+
 === Reviewing batch processed images
 
 Once a batch has been processed, it is possible to review the generated images.

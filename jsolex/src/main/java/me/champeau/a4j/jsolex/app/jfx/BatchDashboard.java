@@ -26,6 +26,7 @@ import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -33,8 +34,10 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 
+import java.io.File;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
 
@@ -53,9 +56,15 @@ public final class BatchDashboard {
      * @param items the batch items
      * @param batchScriptsRunning flag set while the post-processing batch outputs scripts are running
      * @param onAddFiles action triggered to add more files to the finished batch
+     * @param watcher the directory watcher which automatically adds new files to the batch
+     * @param chooseWatchDirectory asks the user for the directory to watch, returns null if cancelled
      * @return the dashboard node, ready to be inserted at the top of the batch view
      */
-    public static Node create(List<BatchItem> items, AtomicBoolean batchScriptsRunning, Runnable onAddFiles) {
+    public static Node create(List<BatchItem> items,
+                              AtomicBoolean batchScriptsRunning,
+                              Runnable onAddFiles,
+                              BatchDirectoryWatcher watcher,
+                              Supplier<File> chooseWatchDirectory) {
         var headerLabel = new Label(message("batch.dashboard.progress"));
         headerLabel.setStyle("-fx-font-weight: bold;");
         headerLabel.setMinWidth(Region.USE_PREF_SIZE);
@@ -86,12 +95,28 @@ public final class BatchDashboard {
             onAddFiles.run();
         });
 
+        var watchButton = new Button(message("batch.watch.directory"));
+        watchButton.getStyleClass().add("default-button");
+        watchButton.setMinWidth(Region.USE_PREF_SIZE);
+        watchButton.setTooltip(new Tooltip(message("batch.watch.directory.tooltip")));
+        watchButton.setOnAction(e -> {
+            if (watcher.isWatching()) {
+                watcher.stop();
+                watchButton.setText(message("batch.watch.directory"));
+            } else {
+                var directory = chooseWatchDirectory.get();
+                if (directory != null && watcher.start(directory.toPath())) {
+                    watchButton.setText(message("batch.stop.watching"));
+                }
+            }
+        });
+
         var doneChip = createChip("✓", "-fx-background-color: #d6f5d6; -fx-text-fill: #2c662c;");
         var runningChip = createChip("▶", "-fx-background-color: #d6e4f5; -fx-text-fill: #2c4d80;");
         var queuedChip = createChip("⏳", "-fx-background-color: #ececec; -fx-text-fill: #555;");
         var errorChip = createChip("✗", "-fx-background-color: #f5d6d6; -fx-text-fill: #802c2c;");
 
-        var topRow = new HBox(12, headerLabel, progressStack, summaryLabel, addFilesButton);
+        var topRow = new HBox(12, headerLabel, progressStack, summaryLabel, addFilesButton, watchButton);
         topRow.setAlignment(Pos.CENTER_LEFT);
         HBox.setHgrow(progressStack, Priority.ALWAYS);
 
@@ -119,6 +144,7 @@ public final class BatchDashboard {
                 timeline.play();
             } else {
                 timeline.stop();
+                watcher.stop();
             }
         });
 

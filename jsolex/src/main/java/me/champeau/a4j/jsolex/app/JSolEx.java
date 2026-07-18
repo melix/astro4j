@@ -2925,6 +2925,13 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     }
 
     @Override
+    public File chooseBatchWatchDirectory() {
+        var directoryChooser = new DirectoryChooser();
+        config.findLastOpenDirectory().ifPresent(dir -> directoryChooser.setInitialDirectory(dir.toFile()));
+        return directoryChooser.showDialog(rootStage);
+    }
+
+    @Override
     public void startBatchComplementRun() {
         scriptRunNumber++;
         scriptRunStartTime = LocalDateTime.now();
