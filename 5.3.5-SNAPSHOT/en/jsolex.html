@@ -2918,6 +2918,8 @@ This is particularly convenient during an observation session: start a batch wit
 </div>
 <div class="paragraph">
 <p>Files are only added to the batch once the current processing is done, which means that new files detected while the batch is running are put on hold and will be added as soon as it is finished.
+Only the files which appear after you start watching are taken into account: the files which are already in the directory are ignored.
+In any case, whether you add files by hand or through the watched directory, a file which is already in the batch is never added a second time.
 Click on "Stop watching" to stop monitoring the directory.</p>
 </div>
 </div>
