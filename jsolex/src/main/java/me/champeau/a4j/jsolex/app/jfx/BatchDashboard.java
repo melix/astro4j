@@ -144,7 +144,6 @@ public final class BatchDashboard {
                 timeline.play();
             } else {
                 timeline.stop();
-                watcher.stop();
             }
         });
 

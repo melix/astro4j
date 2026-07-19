@@ -39,6 +39,7 @@ import me.champeau.a4j.ser.Header;
 import me.champeau.a4j.ser.SerFileReader;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -46,9 +47,11 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
@@ -61,6 +64,8 @@ import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.LOGGER;
  * thread management, and progress tracking.
  */
 public final class BatchProcessingHelper {
+
+    private final AtomicReference<BatchDirectoryWatcher> activeWatcher = new AtomicReference<>();
 
     /**
      * Context interface for batch processing operations.
@@ -137,13 +142,12 @@ public final class BatchProcessingHelper {
         var watcher = new BatchDirectoryWatcher(
                 Configuration.getInstance().getWatchModeWaitTimeMilis(),
                 () -> isBatchIdle(batchContext),
-                detectedFiles -> {
-                    var additionalFiles = removeFilesAlreadyInBatch(batchContext, detectedFiles);
-                    if (!additionalFiles.isEmpty()) {
-                        LOGGER.info(message("batch.watch.adding.files"), additionalFiles.size());
-                        complementBatch(context, batchContext, params, progressOperation, header, autoTrimSerFile, additionalFiles);
-                    }
+                () -> batchFilePaths(batchContext),
+                additionalFiles -> {
+                    LOGGER.info(message("batch.watch.adding.files"), additionalFiles.size());
+                    complementBatch(context, batchContext, params, progressOperation, header, autoTrimSerFile, additionalFiles);
                 });
+        replaceActiveWatcher(watcher);
         var dashboard = BatchDashboard.create(batchItems, batchContext.batchScriptsRunning(), onAddFiles, watcher, context::chooseBatchWatchDirectory);
         var drawer = new BatchDetailDrawer(params);
         table.getSelectionModel().selectedItemProperty().addListener(
@@ -261,14 +265,33 @@ public final class BatchProcessingHelper {
         return batchContext.batchFinished().get() && !batchContext.batchPostProcessing().get();
     }
 
-    private static List<File> removeFilesAlreadyInBatch(BatchProcessingContext batchContext, List<File> files) {
-        var known = batchContext.items()
+    private static Set<Path> batchFilePaths(BatchProcessingContext batchContext) {
+        return batchContext.items()
                 .stream()
-                .map(item -> item.file().getAbsoluteFile())
+                .map(item -> item.file().toPath().toAbsolutePath().normalize())
                 .collect(Collectors.toSet());
+    }
+
+    /**
+     * Removes the files which are already part of the batch, as well as the duplicates
+     * within the supplied list itself, so that a file is never processed twice.
+     */
+    private static List<File> removeFilesAlreadyInBatch(BatchProcessingContext batchContext, List<File> files) {
+        var known = new HashSet<>(batchFilePaths(batchContext));
         return files.stream()
-                .filter(file -> !known.contains(file.getAbsoluteFile()))
+                .filter(file -> known.add(file.toPath().toAbsolutePath().normalize()))
                 .toList();
+    }
+
+    /**
+     * Only one batch can be watched at a time: arming a watcher on a new batch releases
+     * the one which was watching for the previous batch.
+     */
+    private void replaceActiveWatcher(BatchDirectoryWatcher watcher) {
+        var previous = activeWatcher.getAndSet(watcher);
+        if (previous != null) {
+            previous.stop();
+        }
     }
 
     /**
@@ -284,8 +307,16 @@ public final class BatchProcessingHelper {
                                  Header header,
                                  boolean autoTrimSerFile,
                                  List<File> additionalFiles) {
+        var newFiles = removeFilesAlreadyInBatch(batchContext, additionalFiles);
+        if (newFiles.isEmpty()) {
+            LOGGER.warn(message("batch.no.new.files"));
+            return;
+        }
+        if (newFiles.size() < additionalFiles.size()) {
+            LOGGER.warn(message("batch.skipped.duplicate.files"), additionalFiles.size() - newFiles.size());
+        }
         var base = batchContext.items().size();
-        var orderedFiles = maybeSortByCaptureDate(additionalFiles, params);
+        var orderedFiles = maybeSortByCaptureDate(newFiles, params);
         var newItems = new ArrayList<BatchItem>(orderedFiles.size());
         for (int i = 0; i < orderedFiles.size(); i++) {
             newItems.add(createBatchItem(base + i, orderedFiles.get(i)));

@@ -1359,6 +1359,8 @@ JSol'Ex surveille alors ce dossier : chaque nouveau fichier SER qui y apparaît 
 C'est particulièrement pratique pendant une session d'observation : lancez un lot avec les premiers scans, puis laissez JSol'Ex ajouter les suivants au fur et à mesure que votre logiciel d'acquisition les enregistre.
 
 Les fichiers ne sont ajoutés au lot que lorsque le traitement en cours est terminé : les fichiers détectés pendant que le lot tourne sont mis en attente et seront ajoutés dès que celui-ci sera fini.
+Seuls les fichiers qui apparaissent après le début de la surveillance sont pris en compte : ceux qui sont déjà présents dans le dossier sont ignorés.
+Dans tous les cas, que vous ajoutiez les fichiers à la main ou via le dossier surveillé, un fichier déjà présent dans le lot n'est jamais ajouté une seconde fois.
 Cliquez sur "Arrêter la surveillance" pour cesser de surveiller le dossier.
 
 === Passage en revue des images traitées en lot

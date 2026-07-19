@@ -26,14 +26,16 @@ import java.nio.file.Path;
 import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchService;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
 import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.LOGGER;
@@ -41,26 +43,32 @@ import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.LOGGER;
 /**
  * Watches a directory for new SER files and hands them over so that they can be added
  * to a batch. A file is only considered ready once its size stopped changing, and files
- * are only handed over when the batch is idle, so that files are never added to a batch
- * which is still running.
+ * are only handed over when no batch processing is in progress, so that files are never
+ * added to a batch which is still running. Files detected while the batch is running are
+ * kept on hold and added as soon as it is finished.
  * The start and stop methods, as well as the ready files consumer, are called on the FX thread.
  */
 public final class BatchDirectoryWatcher {
     private final int waitTimeMillis;
     private final BooleanSupplier batchIdle;
+    private final Supplier<Set<Path>> batchFiles;
     private final Consumer<List<File>> onFilesReady;
 
     private final Map<Path, Long> growingFiles = new HashMap<>();
-    private final Set<Path> detectedFiles = new HashSet<>();
+    private final Set<Path> knownFiles = ConcurrentHashMap.newKeySet();
     private final Set<Path> readyFiles = new LinkedHashSet<>();
 
     private WatchService watchService;
     private Thread watcherThread;
     private Path directory;
 
-    public BatchDirectoryWatcher(int waitTimeMillis, BooleanSupplier batchIdle, Consumer<List<File>> onFilesReady) {
+    public BatchDirectoryWatcher(int waitTimeMillis,
+                                 BooleanSupplier batchIdle,
+                                 Supplier<Set<Path>> batchFiles,
+                                 Consumer<List<File>> onFilesReady) {
         this.waitTimeMillis = waitTimeMillis;
         this.batchIdle = batchIdle;
+        this.batchFiles = batchFiles;
         this.onFilesReady = onFilesReady;
     }
 
@@ -70,12 +78,15 @@ public final class BatchDirectoryWatcher {
 
     /**
      * Starts watching the given directory. Any previously watched directory is released.
+     * Files which are already present when watching starts, as well as the files which are
+     * already part of the batch, are recorded as known so that they are never added again.
      *
-     * @param dir the directory to watch
+     * @param directoryToWatch the directory to watch
      * @return true if watching started
      */
-    public boolean start(Path dir) {
+    public boolean start(Path directoryToWatch) {
         stop();
+        var dir = directoryToWatch.toAbsolutePath().normalize();
         WatchService service;
         try {
             service = FileSystems.getDefault().newWatchService();
@@ -83,6 +94,14 @@ public final class BatchDirectoryWatcher {
         } catch (IOException e) {
             LOGGER.error(message("error.cannot.create.watch.service"), e);
             return false;
+        }
+        knownFiles.clear();
+        growingFiles.clear();
+        knownFiles.addAll(batchFiles.get());
+        try (Stream<Path> existing = Files.list(dir)) {
+            existing.filter(BatchDirectoryWatcher::isCandidate).forEach(knownFiles::add);
+        } catch (IOException e) {
+            LOGGER.error(message("error.cannot.create.watch.service"), e);
         }
         directory = dir;
         watchService = service;
@@ -169,14 +188,14 @@ public final class BatchDirectoryWatcher {
                     continue;
                 }
                 var path = dir.resolve(relative);
-                if (!isCandidate(path) || !detectedFiles.add(path)) {
+                if (!isCandidate(path) || !knownFiles.add(path)) {
                     continue;
                 }
                 try {
                     growingFiles.put(path, Files.size(path));
                     LOGGER.info(message("file.added.wait.list"), path.getFileName());
                 } catch (IOException e) {
-                    detectedFiles.remove(path);
+                    knownFiles.remove(path);
                     LOGGER.error(message("error.unable.determine.size"), path);
                 }
             }
