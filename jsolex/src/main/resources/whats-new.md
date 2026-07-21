@@ -10,6 +10,7 @@
 - A new "Best method" contrast enhancement option automatically picks the best technique for the detected spectral line: CLAHE for calcium and Autostretch for everything else.
 - Stacked images now keep the spectral line of the source images instead of falling back to the wrong wavelength.
 - Images produced by the Stacking tool can now be shared to SpectroSolHub.
+- The `mtf_autostretch` scripting function can now compute its statistics over a ring around the solar disk, so that the result no longer depends on the cropping factor.
 
 ## What's New in Version 5.3.4
 

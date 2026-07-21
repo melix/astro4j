@@ -19,8 +19,20 @@ arguments:
     description:
       fr: "Niveau de luminosité cible du fond (plage [0, 1])"
       en: "Target background brightness level (range [0, 1])"
+  - name: stats_rmin
+    optional: true
+    default: 1.0
+    description:
+      fr: "Rayon intérieur de l'anneau utilisé pour le calcul des statistiques, en unités de rayon solaire. Si stats_rmin ou stats_rmax est spécifié, les statistiques sont calculées uniquement sur les pixels de l'anneau, ce qui rend l'étirement indépendant du recadrage. L'étirement est toujours appliqué à l'image entière. Nécessite un disque solaire détecté."
+      en: "Inner radius of the annulus used for statistics computation, in solar radius units. If either stats_rmin or stats_rmax is specified, statistics are computed only over pixels within the annulus, which makes the stretch independent of the cropping. The stretch is still applied to the whole image. Requires a detected solar disk."
+  - name: stats_rmax
+    optional: true
+    description:
+      fr: "Rayon extérieur de l'anneau utilisé pour le calcul des statistiques, en unités de rayon solaire (illimité par défaut)."
+      en: "Outer radius of the annulus used for statistics computation, in solar radius units (unbounded by default)."
 examples:
   - "mtf_autostretch(img: img(0))"
   - "mtf_autostretch(img(0))"
   - "mtf_autostretch(img: img(0), shadows_clip: -3.0, target_bg: 0.3)"
   - "mtf_autostretch(img(0), -2.5, 0.2)"
+  - "mtf_autostretch(img: img(0), stats_rmin: 1.05, stats_rmax: 1.4)"
