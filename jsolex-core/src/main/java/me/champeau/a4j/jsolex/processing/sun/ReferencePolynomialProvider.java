@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.sun;
 
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
+import me.champeau.a4j.jsolex.processing.params.ConditionalFlip;
 import me.champeau.a4j.math.tuples.DoubleQuadruplet;
 import me.champeau.a4j.ser.ColorMode;
 import me.champeau.a4j.ser.SerFileReader;
@@ -67,6 +68,8 @@ public class ReferencePolynomialProvider {
      * @param colorMode          the color mode used to convert frames
      * @param vflip              whether the spectrum is vertically flipped
      * @param trustBitDepth      whether the SER declared bit depth should be trusted
+     * @param flipConditions     the active conditional flips; references on the other side of a pivot
+     *                           date are excluded because a pier flip changes the flexions
      * @param rootOperation      the root progress operation
      * @return the polynomial to use, or empty if no usable reference could be found
      */
@@ -76,6 +79,7 @@ public class ReferencePolynomialProvider {
                                                      ColorMode colorMode,
                                                      boolean vflip,
                                                      boolean trustBitDepth,
+                                                     List<ConditionalFlip> flipConditions,
                                                      ProgressOperation rootOperation) {
         if (referenceDirectory == null || !referenceDirectory.isDirectory()) {
             LOGGER.warn(message("saturated.disk.invalid.directory"), referenceDirectory);
@@ -83,10 +87,41 @@ public class ReferencePolynomialProvider {
         }
         var entries = directoryCache.computeIfAbsent(directoryKey(referenceDirectory), key -> scanDirectory(referenceDirectory, trustBitDepth));
         var currentPath = currentFile != null ? currentFile.getAbsolutePath() : null;
+        var selection = selectReference(entries, observationDate, currentPath, flipConditions);
+        if (selection.nearest() == null) {
+            if (selection.excludedByPivot() > 0) {
+                LOGGER.warn(message("saturated.disk.no.reference.same.side"), referenceDirectory);
+            } else {
+                LOGGER.warn(message("saturated.disk.no.reference"), referenceDirectory);
+            }
+            return Optional.empty();
+        }
+        var nearestGap = selection.nearestGap();
+        if (nearestGap.compareTo(MAX_RECOMMENDED_GAP) > 0) {
+            LOGGER.warn(message("saturated.disk.reference.far"), new File(selection.nearest().path()).getName(), formatGap(nearestGap));
+        }
+        var reference = selection.nearest();
+        var polynomial = polynomialCache.computeIfAbsent(fileKey(new File(reference.path())),
+                key -> computePolynomial(new File(reference.path()), colorMode, vflip, trustBitDepth, rootOperation));
+        polynomial.ifPresent(p -> LOGGER.info(message("saturated.disk.using.reference"), new File(reference.path()).getName()));
+        return polynomial;
+    }
+
+    static Selection selectReference(List<ReferenceEntry> entries,
+                                     ZonedDateTime observationDate,
+                                     String currentPath,
+                                     List<ConditionalFlip> flipConditions) {
+        var observationLocalDate = observationDate.toLocalDateTime();
         ReferenceEntry nearest = null;
         Duration nearestGap = null;
+        var excludedByPivot = 0;
         for (var entry : entries) {
             if (entry.path().equals(currentPath)) {
+                continue;
+            }
+            var entryLocalDate = entry.date().toLocalDateTime();
+            if (flipConditions.stream().anyMatch(condition -> !condition.isSameSide(observationLocalDate, entryLocalDate))) {
+                excludedByPivot++;
                 continue;
             }
             var gap = Duration.between(observationDate, entry.date()).abs();
@@ -95,18 +130,7 @@ public class ReferencePolynomialProvider {
                 nearestGap = gap;
             }
         }
-        if (nearest == null) {
-            LOGGER.warn(message("saturated.disk.no.reference"), referenceDirectory);
-            return Optional.empty();
-        }
-        if (nearestGap.compareTo(MAX_RECOMMENDED_GAP) > 0) {
-            LOGGER.warn(message("saturated.disk.reference.far"), new File(nearest.path()).getName(), formatGap(nearestGap));
-        }
-        var reference = nearest;
-        var polynomial = polynomialCache.computeIfAbsent(fileKey(new File(reference.path())),
-                key -> computePolynomial(new File(reference.path()), colorMode, vflip, trustBitDepth, rootOperation));
-        polynomial.ifPresent(p -> LOGGER.info(message("saturated.disk.using.reference"), new File(reference.path()).getName()));
-        return polynomial;
+        return new Selection(nearest, nearestGap, excludedByPivot);
     }
 
     private List<ReferenceEntry> scanDirectory(File referenceDirectory, boolean trustBitDepth) {
@@ -168,6 +192,9 @@ public class ReferencePolynomialProvider {
         return String.format(Locale.US, "%dh%02dm", minutes / 60, minutes % 60);
     }
 
-    private record ReferenceEntry(String path, ZonedDateTime date) {
+    record ReferenceEntry(String path, ZonedDateTime date) {
+    }
+
+    record Selection(ReferenceEntry nearest, Duration nearestGap, int excludedByPivot) {
     }
 }

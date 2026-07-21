@@ -46,6 +46,7 @@ import me.champeau.a4j.jsolex.processing.expr.ScriptExecutionContext;
 import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
 import me.champeau.a4j.jsolex.processing.expr.impl.Loader;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
+import me.champeau.a4j.jsolex.processing.params.ConditionalFlip;
 import me.champeau.a4j.jsolex.processing.params.EllipseFittingMode;
 import me.champeau.a4j.jsolex.processing.params.EnhancementParams;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
@@ -148,6 +149,7 @@ import java.util.function.BiFunction;
 import java.util.function.DoubleUnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static me.champeau.a4j.jsolex.processing.spectrum.FlatCreator.prepareFlatFromAverage;
 import static me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval.removeZeroPixels;
@@ -185,6 +187,7 @@ public class SolexVideoProcessor implements Broadcaster {
     private PixelShiftRange pixelShiftRange;
     private boolean ignoreIncompleteShifts;
     private boolean forceDetectActiveRegions;
+    private List<ConditionalFlip> flipConditions = List.of();
     private Runnable onReconstructionComplete = () -> {
     };
     private EllipseFittingTask.Result cachedEllipse;
@@ -354,6 +357,14 @@ public class SolexVideoProcessor implements Broadcaster {
         if (batchMode) {
             processParams = processParams.withExtraParams(processParams.extraParams().withAutosave(true)).withObservationDetails(processParams.observationDetails().withDate(header.metadata().utcDateTime()));
         }
+        var geometry = processParams.geometryParams();
+        flipConditions = Stream.of(geometry.horizontalFlipCondition(), geometry.verticalFlipCondition())
+                .flatMap(Optional::stream)
+                .toList();
+        var resolved = geometry.resolveFlipConditions(header.metadata().utcDateTime().toLocalDateTime());
+        if (resolved != geometry) {
+            processParams = processParams.withGeometryParams(resolved);
+        }
     }
 
     private void broadcastError(Throwable ex) {
@@ -398,6 +409,7 @@ public class SolexVideoProcessor implements Broadcaster {
                         processParams.videoParams().colorMode(),
                         processParams.geometryParams().isSpectrumVFlip(),
                         processParams.videoParams().trustSerFileBitDepth(),
+                        flipConditions,
                         rootOperation);
                 referencePolynomial.ifPresent(doubleQuadruplet -> {
                     polynomial = doubleQuadruplet.asPolynomial();

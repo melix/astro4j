@@ -1882,6 +1882,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         if (spectralRay != null && !SpectralRay.AUTO.equals(spectralRay)) {
             owner.updateSpectralLineIndicator(spectralRay, false);
         }
+        var geometryParams = params.geometryParams();
+        owner.updatePolynomialIndicator(geometryParams.isSaturatedDiskMode(), geometryParams.isForcePolynomial() && geometryParams.forcedPolynomial().isPresent());
         FxUtils.runLater(() -> {
             owner.getRedshiftTab().setDisable(true);
             owner.revealConsole();

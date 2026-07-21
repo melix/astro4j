@@ -24,6 +24,7 @@ import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 
 import java.lang.reflect.Type;
+import java.time.LocalDateTime;
 import java.util.Locale;
 
 class GeometryParamsSerializer implements JsonSerializer<GeometryParams>, JsonDeserializer<GeometryParams> {
@@ -49,6 +50,8 @@ class GeometryParamsSerializer implements JsonSerializer<GeometryParams>, JsonDe
         var spectrumVFlip = o.get("spectrumVFlip") != null ? o.get("spectrumVFlip").getAsBoolean() : false;
         var ellipseFittingMode = o.get("ellipseFittingMode") != null ? EllipseFittingMode.valueOf(o.get("ellipseFittingMode").getAsString()) : EllipseFittingMode.AUTOMATIC;
         var fixedWidth = o.get("fixedWidth") != null ? o.get("fixedWidth").getAsInt() : null;
+        var horizontalFlipCondition = readConditionalFlip(o.get("horizontalFlipCondition"));
+        var verticalFlipCondition = readConditionalFlip(o.get("verticalFlipCondition"));
         return new GeometryParams(
             tilt == null ? null : tilt.getAsDouble(),
             ratio == null ? null : ratio.getAsDouble(),
@@ -66,7 +69,25 @@ class GeometryParamsSerializer implements JsonSerializer<GeometryParams>, JsonDe
             saturatedDiskMode,
             referencePolynomialDirectory,
             spectrumVFlip,
-            ellipseFittingMode);
+            ellipseFittingMode,
+            horizontalFlipCondition,
+            verticalFlipCondition);
+    }
+
+    private static ConditionalFlip readConditionalFlip(JsonElement element) {
+        if (element instanceof JsonObject obj) {
+            var pivotUtc = LocalDateTime.parse(obj.get("pivotUtc").getAsString());
+            var mode = ConditionalFlip.Mode.valueOf(obj.get("mode").getAsString());
+            return new ConditionalFlip(pivotUtc, mode);
+        }
+        return null;
+    }
+
+    private static JsonObject writeConditionalFlip(ConditionalFlip flip) {
+        var obj = new JsonObject();
+        obj.addProperty("pivotUtc", flip.pivotUtc().toString());
+        obj.addProperty("mode", flip.mode().name());
+        return obj;
     }
 
     private RichardsonLucyDeconvolutionParams readRichardsonLucyDeconvolutionParams(JsonElement params) {
@@ -104,6 +125,8 @@ class GeometryParamsSerializer implements JsonSerializer<GeometryParams>, JsonDe
         src.referencePolynomialDirectory().ifPresent(referencePolynomialDirectory -> jsonObject.addProperty("referencePolynomialDirectory", referencePolynomialDirectory));
         jsonObject.addProperty("spectrumVFlip", src.isSpectrumVFlip());
         jsonObject.addProperty("ellipseFittingMode", src.ellipseFittingMode().toString());
+        src.horizontalFlipCondition().ifPresent(flip -> jsonObject.add("horizontalFlipCondition", writeConditionalFlip(flip)));
+        src.verticalFlipCondition().ifPresent(flip -> jsonObject.add("verticalFlipCondition", writeConditionalFlip(flip)));
         return jsonObject;
     }
 }
