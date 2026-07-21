@@ -516,6 +516,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#batch-mode">Traitement par lots</a>
 <ul class="sectlevel2">
 <li><a href="#balayage-aller-retour">Balayage aller-retour</a></li>
+<li><a href="#inversion-conditionnelle">Inversions conditionnelles</a></li>
 <li><a href="#ajout-fichiers-lot">Ajouter des fichiers à un lot</a></li>
 <li><a href="#_passage_en_revue_des_images_traitées_en_lot">Passage en revue des images traitées en lot</a></li>
 <li><a href="#script-batch">Extensions d&#8217;ImageMath disponibles en mode batch</a></li>
@@ -2758,6 +2759,36 @@ Si le retournement s&#8217;applique aux mauvais scans, par exemple parce que vot
 </td>
 </tr>
 </table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="inversion-conditionnelle">Inversions conditionnelles</h3>
+<div class="paragraph">
+<p>Lorsque l&#8217;orientation des images change en cours de session, par exemple après un retournement au méridien, une simple case « inverser » ne peut pas décrire un lot où certains fichiers doivent être retournés et d&#8217;autres non.</p>
+</div>
+<div class="paragraph">
+<p>Les options « Inversion horizontale conditionnelle » et « Inversion verticale conditionnelle », dans la section « Options de traitement par lot » des paramètres de traitement, résolvent ce problème.
+Lorsque vous activez l&#8217;une d&#8217;elles, vous définissez une date pivot, en UTC, et choisissez si ce sont les fichiers capturés avant la date pivot, ou ceux capturés à cette date ou après, qui doivent être retournés.
+Les autres fichiers ne sont pas retournés.</p>
+</div>
+<div class="paragraph">
+<p>Plutôt que de saisir la date pivot à la main, vous pouvez cliquer sur « Depuis un fichier SER&#8230;&#8203; » et sélectionner la première vidéo capturée après le changement d&#8217;orientation : sa date de capture est alors utilisée comme date pivot.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+Lorsqu&#8217;une inversion conditionnelle est activée, elle remplace la case « Inverser l&#8217;axe horizontal » ou « Inverser l&#8217;axe vertical » correspondante, qui est ignorée pour cet axe.
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>Lorsque le mode disque saturé est également activé, seuls les scans de référence capturés du même côté de la date pivot que le fichier en cours de traitement sont pris en compte : un retournement au méridien modifie les flexions mécaniques, et un scan de référence de l&#8217;autre côté donnerait un polynôme biaisé.
+Dans ce cas, veillez à ce que la date pivot corresponde à la première capture après le retournement, scans de référence compris : un scan de référence capturé entre le retournement et le fichier choisi comme pivot serait sinon considéré à tort comme capturé avant le retournement.</p>
 </div>
 </div>
 <div class="sect2">

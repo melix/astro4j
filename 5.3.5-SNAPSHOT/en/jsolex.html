@@ -525,6 +525,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#batch-mode">Batch processing</a>
 <ul class="sectlevel2">
 <li><a href="#batch-back-and-forth">Back-and-forth scanning</a></li>
+<li><a href="#batch-conditional-flip">Conditional flips</a></li>
 <li><a href="#batch-add-files">Adding files to a batch</a></li>
 <li><a href="#_reviewing_batch_processed_images">Reviewing batch processed images</a></li>
 <li><a href="#script-batch">ImageMath extensions available in batch mode</a></li>
@@ -2899,6 +2900,36 @@ If the flip is applied to the wrong scans, for example because your first file h
 </td>
 </tr>
 </table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="batch-conditional-flip">Conditional flips</h3>
+<div class="paragraph">
+<p>When the image orientation changes during a session, for example after a meridian flip, a single "flip" checkbox cannot describe a batch where some files must be flipped and others not.</p>
+</div>
+<div class="paragraph">
+<p>The "Conditional horizontal flip" and "Conditional vertical flip" options, in the "Batch Options" section of the processing parameters, solve this.
+When you enable one of them, you define a pivot date, in UTC, and choose whether the files captured before the pivot date, or those captured at or after it, must be flipped.
+The other files are not flipped.</p>
+</div>
+<div class="paragraph">
+<p>Instead of typing the pivot date by hand, you can click on "From SER file&#8230;&#8203;" and select the first video captured after the orientation change: its capture date is then used as the pivot date.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+When a conditional flip is enabled, it replaces the corresponding "Flip horizontal axis" or "Flip vertical axis" checkbox, which is ignored for that axis.
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>When the saturated disk mode is also enabled, only reference scans captured on the same side of the pivot date as the file being processed are considered: a meridian flip changes the mechanical flexions, so a reference from the other side would give a biased polynomial.
+In this case, make sure the pivot corresponds to the first capture after the flip, reference scans included: if a reference scan was captured between the flip and the file you select as the pivot, it would incorrectly count as captured before the flip.</p>
 </div>
 </div>
 <div class="sect2">
