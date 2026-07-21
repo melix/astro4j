@@ -231,7 +231,12 @@ public final class BatchProcessingHelper {
             return params;
         }
         var geometry = params.geometryParams();
-        return params.withGeometryParams(geometry.withHorizontalMirror(!geometry.isHorizontalMirror()));
+        geometry = geometry.withHorizontalMirror(!geometry.isHorizontalMirror());
+        var condition = geometry.horizontalFlipCondition();
+        if (condition.isPresent()) {
+            geometry = geometry.withHorizontalFlipCondition(condition.get().inverted());
+        }
+        return params.withGeometryParams(geometry);
     }
 
     private ObservableList<BatchItem> createBatchItems(List<File> selectedFiles) {

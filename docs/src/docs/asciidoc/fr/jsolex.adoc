@@ -1345,6 +1345,22 @@ Les fichiers du lot sont alors triés par heure de capture, et un scan sur deux,
 
 NOTE: Si le retournement s'applique aux mauvais scans, par exemple parce que votre premier fichier est un scan dans le sens inverse, cochez simplement l'option « Inverser l'axe horizontal » en plus : cela inverse les scans qui sont retournés.
 
+[[inversion-conditionnelle]]
+=== Inversions conditionnelles
+
+Lorsque l'orientation des images change en cours de session, par exemple après un retournement au méridien, une simple case « inverser » ne peut pas décrire un lot où certains fichiers doivent être retournés et d'autres non.
+
+Les options « Inversion horizontale conditionnelle » et « Inversion verticale conditionnelle », dans la section « Options de traitement par lot » des paramètres de traitement, résolvent ce problème.
+Lorsque vous activez l'une d'elles, vous définissez une date pivot, en UTC, et choisissez si ce sont les fichiers capturés avant la date pivot, ou ceux capturés à cette date ou après, qui doivent être retournés.
+Les autres fichiers ne sont pas retournés.
+
+Plutôt que de saisir la date pivot à la main, vous pouvez cliquer sur « Depuis un fichier SER... » et sélectionner la première vidéo capturée après le changement d'orientation : sa date de capture est alors utilisée comme date pivot.
+
+NOTE: Lorsqu'une inversion conditionnelle est activée, elle remplace la case « Inverser l'axe horizontal » ou « Inverser l'axe vertical » correspondante, qui est ignorée pour cet axe.
+
+Lorsque le mode disque saturé est également activé, seuls les scans de référence capturés du même côté de la date pivot que le fichier en cours de traitement sont pris en compte : un retournement au méridien modifie les flexions mécaniques, et un scan de référence de l'autre côté donnerait un polynôme biaisé.
+Dans ce cas, veillez à ce que la date pivot corresponde à la première capture après le retournement, scans de référence compris : un scan de référence capturé entre le retournement et le fichier choisi comme pivot serait sinon considéré à tort comme capturé avant le retournement.
+
 [[ajout-fichiers-lot]]
 === Ajouter des fichiers à un lot
 

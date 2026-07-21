@@ -314,6 +314,8 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     public void onProcessingStart(ProcessingStartEvent e) {
         item.status().set(message("batch.started"));
         updateProgressStatus(false);
+        var geometryParams = processParams.geometryParams();
+        owner.updatePolynomialIndicator(geometryParams.isSaturatedDiskMode(), geometryParams.isForcePolynomial() && geometryParams.forcedPolynomial().isPresent());
         dataLock.writeLock().lock();
         try {
             serFilesByIndex.put(sequenceNumber, item.file());

@@ -24,10 +24,14 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
+import javafx.stage.FileChooser;
 import javafx.util.StringConverter;
 import me.champeau.a4j.jsolex.app.AlertFactory;
+import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.params.AutocropMode;
+import me.champeau.a4j.jsolex.processing.params.ConditionalFlip;
 import me.champeau.a4j.jsolex.processing.params.GeometryParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.RotationKind;
@@ -36,7 +40,11 @@ import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
 import me.champeau.a4j.jsolex.processing.params.SpectrumParams;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
 import me.champeau.a4j.jsolex.processing.util.Dispersion;
+import me.champeau.a4j.ser.SerFileReader;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -65,6 +73,8 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
     private CheckBox switchRedBlueChannelsCheck;
     private CheckBox reviewImagesAfterBatch;
     private CheckBox alternateScanDirection;
+    private ConditionalFlipControl horizontalFlipCondition;
+    private ConditionalFlipControl verticalFlipCondition;
     private ProcessParamsController controller;
     private boolean batchMode;
 
@@ -139,6 +149,8 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
         switchRedBlueChannelsCheck = new CheckBox();
 
         reviewImagesAfterBatch = new CheckBox();
+        horizontalFlipCondition = new ConditionalFlipControl(horizontalMirrorCheck);
+        verticalFlipCondition = new ConditionalFlipControl(verticalMirrorCheck);
         alternateScanDirection = new CheckBox();
         alternateScanDirection.setOnAction(e -> {
             if (alternateScanDirection.isSelected()) {
@@ -260,6 +272,10 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
             var batchGrid = createGrid();
             addGridRow(batchGrid, 0, I18N.string(JSolEx.class, "process-params", "review.images.after.batch") + ":", reviewImagesAfterBatch, "review.images.after.batch.tooltip");
             addGridRow(batchGrid, 1, I18N.string(JSolEx.class, "process-params", "alternate.scan.direction") + ":", alternateScanDirection, "alternate.scan.direction.tooltip");
+            addGridRow(batchGrid, 2, I18N.string(JSolEx.class, "process-params", "conditional.hflip") + ":", horizontalFlipCondition.enabledCheck, "conditional.flip.tooltip");
+            addGridRow(batchGrid, 3, horizontalFlipCondition.details);
+            addGridRow(batchGrid, 4, I18N.string(JSolEx.class, "process-params", "conditional.vflip") + ":", verticalFlipCondition.enabledCheck, "conditional.flip.tooltip");
+            addGridRow(batchGrid, 5, verticalFlipCondition.details);
             batchSection.getChildren().add(batchGrid);
             getChildren().add(batchSection);
         }
@@ -302,6 +318,8 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
         if (batchMode) {
             reviewImagesAfterBatch.setSelected(false);
             alternateScanDirection.setSelected(false);
+            horizontalFlipCondition.load(null);
+            verticalFlipCondition.load(null);
         }
     }
 
@@ -337,6 +355,11 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
         if (batchMode) {
             reviewImagesAfterBatch.setSelected(extraParams.reviewImagesAfterBatch());
             alternateScanDirection.setSelected(extraParams.alternateScanDirection());
+            horizontalFlipCondition.load(geometry.horizontalFlipCondition().orElse(null));
+            verticalFlipCondition.load(geometry.verticalFlipCondition().orElse(null));
+        } else {
+            horizontalFlipCondition.load(null);
+            verticalFlipCondition.load(null);
         }
 
         var savedRay = spectrum.ray();
@@ -411,6 +434,8 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
                 .withFixedWidth(fixedWidth)
                 .withHorizontalMirror(horizontalMirrorCheck.isSelected())
                 .withVerticalMirror(verticalMirrorCheck.isSelected())
+                .withHorizontalFlipCondition(batchMode ? horizontalFlipCondition.toConditionalFlip() : null)
+                .withVerticalFlipCondition(batchMode ? verticalFlipCondition.toConditionalFlip() : null)
                 .withAutocorrectAngleP(autocorrectAnglePCheck.isSelected());
     }
 
@@ -432,6 +457,9 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
                 if (width <= 0) {
                     return false;
                 }
+            }
+            if (batchMode && (!horizontalFlipCondition.isValid() || !verticalFlipCondition.isValid())) {
+                return false;
             }
             return wavelengthChoice.getValue() != null;
         } catch (NumberFormatException e) {
@@ -634,5 +662,99 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
      */
     public void onObservationDetailsChanged() {
         updateAngstromLabels();
+    }
+
+    /**
+     * Controls for a flip which depends on the capture date of each file of a batch:
+     * a pivot date, which can be read from a SER file, and the choice of which side
+     * of the pivot date must be flipped. When enabled, it replaces the corresponding
+     * unconditional flip checkbox.
+     */
+    private class ConditionalFlipControl {
+        private static final DateTimeFormatter PIVOT_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+        private final CheckBox enabledCheck;
+        private final TextField pivotField;
+        private final ChoiceBox<ConditionalFlip.Mode> modeChoice;
+        private final VBox details;
+
+        private ConditionalFlipControl(CheckBox mirrorCheck) {
+            enabledCheck = new CheckBox();
+            enabledCheck.selectedProperty().addListener((obs, oldVal, selected) -> mirrorCheck.setDisable(selected));
+            pivotField = createTextField("", I18N.string(JSolEx.class, "process-params", "conditional.flip.pivot.tooltip"));
+            modeChoice = createChoiceBox();
+            modeChoice.setItems(FXCollections.observableArrayList(ConditionalFlip.Mode.values()));
+            modeChoice.setConverter(new StringConverter<>() {
+                @Override
+                public String toString(ConditionalFlip.Mode mode) {
+                    return mode == null ? "" : I18N.string(JSolEx.class, "process-params", "conditional.flip." + mode.name());
+                }
+
+                @Override
+                public ConditionalFlip.Mode fromString(String string) {
+                    return ConditionalFlip.Mode.valueOf(string);
+                }
+            });
+            modeChoice.setValue(ConditionalFlip.Mode.FLIP_AFTER);
+            var fromSerButton = new Button(I18N.string(JSolEx.class, "process-params", "conditional.flip.from.ser"));
+            fromSerButton.getStyleClass().add("default-button");
+            fromSerButton.setOnAction(ignored -> readPivotFromSerFile());
+            var grid = createGrid();
+            addGridRow(grid, 0, I18N.string(JSolEx.class, "process-params", "conditional.flip.pivot"), new HBox(8, pivotField, fromSerButton), "conditional.flip.pivot.tooltip");
+            addGridRow(grid, 1, modeChoice);
+            details = new VBox(grid);
+            details.visibleProperty().bind(enabledCheck.selectedProperty());
+            details.managedProperty().bind(enabledCheck.selectedProperty());
+        }
+
+        private void readPivotFromSerFile() {
+            var fileChooser = new FileChooser();
+            fileChooser.setTitle(I18N.string(JSolEx.class, "process-params", "conditional.flip.from.ser"));
+            fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("SER files", "*.ser", "*.SER"));
+            Configuration.getInstance().findLastOpenDirectory().ifPresent(dir -> fileChooser.setInitialDirectory(dir.toFile()));
+            var file = fileChooser.showOpenDialog(getScene().getWindow());
+            if (file != null) {
+                try (var reader = SerFileReader.of(file, true)) {
+                    pivotField.setText(PIVOT_FORMAT.format(reader.header().metadata().utcDateTime().toLocalDateTime()));
+                } catch (Exception e) {
+                    AlertFactory.error(I18N.string(JSolEx.class, "process-params", "conditional.flip.unreadable")).showAndWait();
+                }
+            }
+        }
+
+        private void load(ConditionalFlip flip) {
+            if (flip == null) {
+                enabledCheck.setSelected(false);
+            } else {
+                enabledCheck.setSelected(true);
+                pivotField.setText(PIVOT_FORMAT.format(flip.pivotUtc()));
+                modeChoice.setValue(flip.mode());
+            }
+        }
+
+        private ConditionalFlip toConditionalFlip() {
+            if (!enabledCheck.isSelected()) {
+                return null;
+            }
+            var pivot = parsePivot();
+            return pivot == null ? null : new ConditionalFlip(pivot, modeChoice.getValue());
+        }
+
+        private boolean isValid() {
+            return !enabledCheck.isSelected() || parsePivot() != null;
+        }
+
+        private LocalDateTime parsePivot() {
+            var text = pivotField.getText().trim();
+            try {
+                return LocalDateTime.parse(text, PIVOT_FORMAT);
+            } catch (DateTimeParseException e) {
+                try {
+                    return LocalDateTime.parse(text);
+                } catch (DateTimeParseException e2) {
+                    return null;
+                }
+            }
+        }
     }
 }

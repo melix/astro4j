@@ -246,6 +246,15 @@ public interface JSolExInterface {
      */
     void hideGeometryIndicators();
 
+    /**
+     * Shows or hides the indicator which reminds that the distortion polynomial
+     * does not come from the automatic detection on the file being processed.
+     *
+     * @param saturatedDiskMode whether the saturated disk mode is enabled
+     * @param forcedPolynomial whether a forced polynomial is used
+     */
+    void updatePolynomialIndicator(boolean saturatedDiskMode, boolean forcedPolynomial);
+
     void enableSpectroSolHubSubmission(SpectralRay detectedSpectralRay);
 
     /**

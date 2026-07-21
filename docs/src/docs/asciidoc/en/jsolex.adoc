@@ -1407,6 +1407,22 @@ The files of the batch are then sorted by capture time, and every other scan, st
 
 NOTE: If the flip is applied to the wrong scans, for example because your first file happens to be a scan in the reverse direction, simply check the "Flip horizontal axis" option in addition: this reverses which scans are flipped.
 
+[[batch-conditional-flip]]
+=== Conditional flips
+
+When the image orientation changes during a session, for example after a meridian flip, a single "flip" checkbox cannot describe a batch where some files must be flipped and others not.
+
+The "Conditional horizontal flip" and "Conditional vertical flip" options, in the "Batch Options" section of the processing parameters, solve this.
+When you enable one of them, you define a pivot date, in UTC, and choose whether the files captured before the pivot date, or those captured at or after it, must be flipped.
+The other files are not flipped.
+
+Instead of typing the pivot date by hand, you can click on "From SER file..." and select the first video captured after the orientation change: its capture date is then used as the pivot date.
+
+NOTE: When a conditional flip is enabled, it replaces the corresponding "Flip horizontal axis" or "Flip vertical axis" checkbox, which is ignored for that axis.
+
+When the saturated disk mode is also enabled, only reference scans captured on the same side of the pivot date as the file being processed are considered: a meridian flip changes the mechanical flexions, so a reference from the other side would give a biased polynomial.
+In this case, make sure the pivot corresponds to the first capture after the flip, reference scans included: if a reference scan was captured between the flip and the file you select as the pivot, it would incorrectly count as captured before the flip.
+
 [[batch-add-files]]
 === Adding files to a batch
 

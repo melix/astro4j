@@ -70,7 +70,9 @@ public record ProcessParams(
                 geometryParams().isSaturatedDiskMode(),
                 geometryParams().referencePolynomialDirectory().orElse(null),
                 geometryParams().isSpectrumVFlip(),
-                geometryParams().ellipseFittingMode()
+                geometryParams().ellipseFittingMode(),
+                geometryParams().horizontalFlipCondition().orElse(null),
+                geometryParams().verticalFlipCondition().orElse(null)
             ),
             bandingCorrectionParams,
             requestedImages,

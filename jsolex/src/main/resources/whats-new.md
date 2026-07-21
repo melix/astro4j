@@ -3,6 +3,7 @@
 ## What's New in Version 5.3.5
 
 - Batch mode can now handle back-and-forth scanning: files are sorted by capture time and every other scan is flipped automatically.
+- Batch mode can now apply a flip only to files captured before or after a given date, useful when the orientation changed during the session, for example after a meridian flip.
 - You can now add more files to a finished batch without reprocessing the ones already done.
 - A batch can now watch a directory and automatically add the new SER files which appear in it.
 - Fixed the last file of a batch showing all the other files after reviewing images.

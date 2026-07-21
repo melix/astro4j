@@ -399,6 +399,9 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     private Label xyRatioIndicator;
 
     @FXML
+    private Label polynomialIndicator;
+
+    @FXML
     private ChoiceBox<Integer> redshiftBoxSize;
 
     @FXML
@@ -1398,6 +1401,18 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             tiltIndicator.setManaged(false);
             xyRatioIndicator.setVisible(false);
             xyRatioIndicator.setManaged(false);
+        });
+    }
+
+    @Override
+    public void updatePolynomialIndicator(boolean saturatedDiskMode, boolean forcedPolynomial) {
+        FxUtils.runLater(() -> {
+            if (saturatedDiskMode || forcedPolynomial) {
+                polynomialIndicator.setText(message(saturatedDiskMode ? "saturated.disk.indicator" : "forced.polynomial.indicator"));
+                polynomialIndicator.setStyle("-fx-background-color: #6f42c1;");
+            }
+            polynomialIndicator.setVisible(saturatedDiskMode || forcedPolynomial);
+            polynomialIndicator.setManaged(saturatedDiskMode || forcedPolynomial);
         });
     }
 
