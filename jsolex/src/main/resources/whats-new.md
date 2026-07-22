@@ -3,14 +3,15 @@
 ## What's New in Version 5.3.5
 
 - Batch mode can now handle back-and-forth scanning: files are sorted by capture time and every other scan is flipped automatically.
-- Batch mode can now apply a flip only to files captured before or after a given date, useful when the orientation changed during the session, for example after a meridian flip.
-- You can now add more files to a finished batch without reprocessing the ones already done.
 - A batch can now watch a directory and automatically add the new SER files which appear in it.
-- Fixed the last file of a batch showing all the other files after reviewing images.
+- You can now add more files to a finished batch without reprocessing the ones already done.
+- Batch mode can now apply a flip only to files captured before or after a given date, useful when the orientation changed during the session, for example after a meridian flip.
 - A new "Best method" contrast enhancement option automatically picks the best technique for the detected spectral line: CLAHE for calcium and Autostretch for everything else.
-- Stacked images now keep the spectral line of the source images instead of falling back to the wrong wavelength.
-- Images produced by the Stacking tool can now be shared to SpectroSolHub.
+- The `deghost` function can now remove several reflections at once, wherever they are around the disk.
 - The `mtf_autostretch` scripting function can now compute its statistics over a ring around the solar disk, so that the result no longer depends on the cropping factor.
+- Images produced by the Stacking tool can now be shared to SpectroSolHub.
+- Stacked images now keep the spectral line of the source images instead of falling back to the wrong wavelength.
+- Fixed the last file of a batch showing all the other files after reviewing images.
 
 ## What's New in Version 5.3.4
 

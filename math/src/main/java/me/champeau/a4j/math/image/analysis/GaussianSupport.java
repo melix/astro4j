@@ -102,4 +102,25 @@ public class GaussianSupport {
     public static double gaussian(double x, double y, double sigma) {
         return (1.0f / (2.0f * Math.PI * sigma * sigma)) * Math.exp(-(x * x + y * y) / (2.0f * sigma * sigma));
     }
+
+    /**
+     * Generates a normalized 1D Gaussian kernel covering three standard deviations on each side.
+     *
+     * @param sigma the standard deviation of the Gaussian
+     * @return a normalized kernel of odd length
+     */
+    public static double[] gaussianKernel1D(double sigma) {
+        var radius = Math.max(1, (int) Math.ceil(3 * sigma));
+        var kernel = new double[2 * radius + 1];
+        var sum = 0.0;
+        for (int i = -radius; i <= radius; i++) {
+            var v = Math.exp(-(i * i) / (2 * sigma * sigma));
+            kernel[i + radius] = v;
+            sum += v;
+        }
+        for (int i = 0; i < kernel.length; i++) {
+            kernel[i] /= sum;
+        }
+        return kernel;
+    }
 }
