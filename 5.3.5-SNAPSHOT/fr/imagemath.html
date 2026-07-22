@@ -4372,6 +4372,18 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <td class="tableblock halign-left valign-top"><p class="tableblock">0.25</p></td>
 </tr>
 <tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>stats_rmin</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Rayon intérieur de l&#8217;anneau utilisé pour le calcul des statistiques, en unités de rayon solaire. Si stats_rmin ou stats_rmax est spécifié, les statistiques sont calculées uniquement sur les pixels de l&#8217;anneau, ce qui rend l&#8217;étirement indépendant du recadrage. L&#8217;étirement est toujours appliqué à l&#8217;image entière. Nécessite un disque solaire détecté.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">1.0</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>stats_rmax</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Rayon extérieur de l&#8217;anneau utilisé pour le calcul des statistiques, en unités de rayon solaire (illimité par défaut).</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
 <td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
 </tr>
 </tbody>
@@ -4397,6 +4409,11 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <div class="listingblock">
 <div class="content">
 <pre>mtf_autostretch(img(0), -2.5, 0.2)</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>mtf_autostretch(img: img(0), stats_rmin: 1.05, stats_rmax: 1.4)</pre>
 </div>
 </div>
 </div>
