@@ -10,6 +10,7 @@
 - Une nouvelle option de renforcement du contraste « Meilleure méthode » choisit automatiquement la meilleure technique selon la raie spectrale détectée : CLAHE pour le calcium et Autostretch pour les autres raies.
 - Les images empilées conservent désormais la raie spectrale des images source au lieu de revenir à une longueur d'onde incorrecte.
 - Les images produites par l'outil d'empilement peuvent désormais être partagées vers SpectroSolHub.
+- La fonction de script `mtf_autostretch` peut désormais calculer ses statistiques sur un anneau autour du disque solaire, afin que le résultat ne dépende plus du facteur de rognage.
 
 ## Nouveautés de la version 5.3.4
 

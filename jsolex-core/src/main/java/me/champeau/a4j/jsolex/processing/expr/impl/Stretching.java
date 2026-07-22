@@ -25,8 +25,11 @@ import me.champeau.a4j.jsolex.processing.stretching.PercentileStretchStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.SigmoidStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.Constants;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
+import me.champeau.a4j.math.regression.Ellipse;
 
 import java.util.Map;
+import java.util.function.BiPredicate;
 
 public class Stretching extends AbstractFunctionImpl {
 
@@ -81,7 +84,25 @@ public class Stretching extends AbstractFunctionImpl {
         BuiltinFunction.MTF_AUTOSTRETCH.validateArgs(arguments);
         double shadowsClip = doubleArg(arguments, "shadows_clip", MidtoneTransferFunctionAutostretchStrategy.DEFAULT_SHADOWS_CLIP);
         double targetBg = doubleArg(arguments, "target_bg", MidtoneTransferFunctionAutostretchStrategy.DEFAULT_TARGET_BG);
-        return monoToMonoImageTransformer("mtf_autostretch", "img", arguments, image -> new MidtoneTransferFunctionAutostretchStrategy(shadowsClip, targetBg).stretch(image));
+        var statsAnnulus = arguments.containsKey("stats_rmin") || arguments.containsKey("stats_rmax");
+        double statsRmin = doubleArg(arguments, "stats_rmin", 1.0);
+        double statsRmax = doubleArg(arguments, "stats_rmax", Double.POSITIVE_INFINITY);
+        if (statsAnnulus && (statsRmin < 0 || statsRmax <= statsRmin)) {
+            throw new IllegalArgumentException("mtf_autostretch requires 0 <= stats_rmin < stats_rmax");
+        }
+        return monoToMonoImageTransformer("mtf_autostretch", "img", arguments, image -> {
+            var pixelMask = statsAnnulus ? annulusStatsMask(image, statsRmin, statsRmax) : null;
+            new MidtoneTransferFunctionAutostretchStrategy(shadowsClip, targetBg, pixelMask).stretch(image);
+        });
+    }
+
+    private BiPredicate<Integer, Integer> annulusStatsMask(ImageWrapper image, double rmin, double rmax) {
+        var ellipse = image.findMetadata(Ellipse.class)
+                .or(() -> getFromContext(Ellipse.class))
+                .orElseThrow(() -> new IllegalArgumentException("mtf_autostretch with stats_rmin/stats_rmax requires an image with a detected solar disk"));
+        var inner = rmin == 0 ? null : ellipse.rescale(rmin, rmin);
+        var outer = Double.isInfinite(rmax) ? null : ellipse.rescale(rmax, rmax);
+        return (x, y) -> (inner == null || !inner.isWithin(x, y)) && (outer == null || outer.isWithin(x, y));
     }
 
     public Object percentileStretch(Map<String, Object> arguments) {
