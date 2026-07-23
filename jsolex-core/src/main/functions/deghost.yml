@@ -1,8 +1,8 @@
 name: DEGHOST
 category: ENHANCEMENT
 description:
-  fr: "Atténue le reflet unilatéral (fantôme) du disque solaire en soustrayant une estimation lisse de son excès de luminosité, sans supprimer les détails sous-jacents. Tout est déduit de l'image, sans paramètre de position."
-  en: "Attenuates a one-sided reflection (ghost) of the solar disk by subtracting a smooth estimate of its excess brightness, without removing the underlying detail. Everything is derived from the image, with no position parameter."
+  fr: "Atténue les reflets (fantômes) du disque solaire, y compris plusieurs à la fois, en soustrayant une estimation lisse de leur excès de luminosité, sans supprimer les détails sous-jacents. Tout est déduit de l'image, sans paramètre de position."
+  en: "Attenuates reflections (ghosts) of the solar disk, including several at once, by subtracting a smooth estimate of their excess brightness, without removing the underlying detail. Everything is derived from the image, with no position parameter."
 arguments:
   - name: img
     description: Image(s)

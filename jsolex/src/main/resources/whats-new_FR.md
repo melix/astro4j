@@ -3,14 +3,15 @@
 ## Nouveautés de la version 5.3.5
 
 - Le mode lot gère désormais les balayages aller-retour : les fichiers sont triés par heure de capture et un scan sur deux est retourné automatiquement.
-- Le mode lot peut désormais n'appliquer une inversion qu'aux fichiers capturés avant ou après une date donnée, utile lorsque l'orientation a changé pendant la session, par exemple après un retournement au méridien.
-- Vous pouvez désormais ajouter des fichiers à un lot terminé sans retraiter ceux déjà traités.
 - Un lot peut désormais surveiller un dossier et y ajouter automatiquement les nouveaux fichiers SER qui y apparaissent.
-- Correction du dernier fichier d'un lot qui affichait tous les autres fichiers après la revue des images.
+- Vous pouvez désormais ajouter des fichiers à un lot terminé sans retraiter ceux déjà traités.
+- Le mode lot peut désormais n'appliquer une inversion qu'aux fichiers capturés avant ou après une date donnée, utile lorsque l'orientation a changé pendant la session, par exemple après un retournement au méridien.
 - Une nouvelle option de renforcement du contraste « Meilleure méthode » choisit automatiquement la meilleure technique selon la raie spectrale détectée : CLAHE pour le calcium et Autostretch pour les autres raies.
-- Les images empilées conservent désormais la raie spectrale des images source au lieu de revenir à une longueur d'onde incorrecte.
-- Les images produites par l'outil d'empilement peuvent désormais être partagées vers SpectroSolHub.
+- La fonction `deghost` peut désormais supprimer plusieurs reflets à la fois, où qu'ils soient autour du disque.
 - La fonction de script `mtf_autostretch` peut désormais calculer ses statistiques sur un anneau autour du disque solaire, afin que le résultat ne dépende plus du facteur de rognage.
+- Les images produites par l'outil d'empilement peuvent désormais être partagées vers SpectroSolHub.
+- Les images empilées conservent désormais la raie spectrale des images source au lieu de revenir à une longueur d'onde incorrecte.
+- Correction du dernier fichier d'un lot qui affichait tous les autres fichiers après la revue des images.
 
 ## Nouveautés de la version 5.3.4
 
