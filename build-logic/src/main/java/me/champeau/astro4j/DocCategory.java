@@ -12,5 +12,6 @@ public enum DocCategory {
     DRAW,
     ANIMATION,
     STACKING,
+    MASKING,
     CONTROL_STRUCTURE
 }

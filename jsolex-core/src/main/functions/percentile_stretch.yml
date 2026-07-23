@@ -17,7 +17,13 @@ arguments:
     description:
       fr: "Percentile haut (0-100), les valeurs au dessus deviennent blanches (defaut: 99.9)"
       en: "High percentile (0-100), values above become white (default: 99.9)"
+  - name: mask
+    required: false
+    description:
+      fr: "Masque restreignant les pixels utilisés pour le calcul des percentiles (créé avec annulus_mask ou range_mask). L'étirement est toujours appliqué à l'image entière."
+      en: "Mask restricting the pixels used for percentile computation (created with annulus_mask or range_mask). The stretch is still applied to the whole image."
 examples:
   - "percentile_stretch(img(0))"
   - "percentile_stretch(img: img(0), lo: 0.5, hi: 99.5)"
   - "percentile_stretch(img(0), 1, 99)"
+  - "percentile_stretch(img: img(0), mask: annulus_mask(1.05, 1.4))"

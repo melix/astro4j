@@ -1,5 +1,5 @@
 name: DISK_MASK
-category: ENHANCEMENT
+category: MASKING
 description:
   fr: "Crée un masque du disque solaire, où les pixels à l’intérieur du disque auront la valeur 1, contre 0 pour ceux à l’extérieur du disque.
   Il est possible d’inverser (0 à l’intérieur, 1 à l’extérieur) en passant 1 comme 2d paramètre de la fonction."

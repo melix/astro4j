@@ -47,6 +47,7 @@ import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
 import me.champeau.a4j.jsolex.processing.expr.impl.ImageStatistics;
 import me.champeau.a4j.jsolex.processing.expr.impl.Inverse;
 import me.champeau.a4j.jsolex.processing.expr.impl.Loader;
+import me.champeau.a4j.jsolex.processing.expr.impl.Masking;
 import me.champeau.a4j.jsolex.processing.expr.impl.MathFunctions;
 import me.champeau.a4j.jsolex.processing.expr.impl.MosaicComposition;
 import me.champeau.a4j.jsolex.processing.expr.impl.PolyFit2D;
@@ -148,6 +149,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     private final ImageStatistics imageStatistics;
     private final Inverse inverse;
     private final Loader loader;
+    private final Masking masking;
     private final MathFunctions math;
     private final MosaicComposition mosaicComposition;
     private final PolyFit2D polyFit2D;
@@ -192,6 +194,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         this.imageStatistics = new ImageStatistics(context, broadcaster);
         this.inverse = new Inverse(context, broadcaster);
         this.loader = new Loader(context, broadcaster);
+        this.masking = new Masking(context, broadcaster);
         this.math = new MathFunctions(context, broadcaster);
         this.polyFit2D = new PolyFit2D(context, broadcaster);
         this.pythonScript = new PythonScript(this, context, broadcaster);
@@ -343,6 +346,9 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case COLORIZE2 -> colorize.colorize2(arguments);
             case CONCAT -> utilities.concat(arguments);
             case CONTINUUM -> createContinuumImage();
+            case ANNULUS_MASK -> masking.annulusMask(arguments);
+            case RANGE_MASK -> masking.rangeMask(arguments);
+            case INVERT_MASK -> masking.invertMask(arguments);
             case COPY_METADATA -> utilities.copyMetadata(arguments);
             case CROP -> crop.crop(arguments);
             case CROP_RECT -> crop.cropToRect(arguments);

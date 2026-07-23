@@ -1,0 +1,23 @@
+name: RANGE_MASK
+category: MASKING
+description:
+  fr: "Crée un masque sélectionnant les pixels dont la valeur est comprise entre lo et hi (bornes incluses).
+  Le masque peut être passé aux fonctions qui acceptent un paramètre mask (percentile_stretch, mtf_autostretch, ...)
+  pour restreindre les pixels pris en compte dans le calcul de leurs statistiques, tout en transformant l'image entière."
+  en: "Creates a mask selecting the pixels whose value lies between lo and hi (bounds included).
+  The mask can be passed to the functions which accept a mask parameter (percentile_stretch, mtf_autostretch, ...)
+  to restrict the pixels taken into account when computing their statistics, while still transforming the entire image."
+arguments:
+  - name: lo
+    required: false
+    description:
+      fr: "Valeur minimale des pixels sélectionnés (défaut: 0)"
+      en: "Lowest selected pixel value (default: 0)"
+  - name: hi
+    required: false
+    description:
+      fr: "Valeur maximale des pixels sélectionnés (défaut: infini)"
+      en: "Highest selected pixel value (default: infinite)"
+examples:
+  - "range_mask(lo: 1000, hi: 30000)"
+  - "range_mask(0, 5000)"

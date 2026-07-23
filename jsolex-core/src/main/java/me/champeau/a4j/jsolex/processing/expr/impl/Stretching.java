@@ -24,7 +24,9 @@ import me.champeau.a4j.jsolex.processing.stretching.MidtoneTransferFunctionStrat
 import me.champeau.a4j.jsolex.processing.stretching.PercentileStretchStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.SigmoidStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
+import me.champeau.a4j.jsolex.processing.util.AnnulusMask;
 import me.champeau.a4j.jsolex.processing.util.Constants;
+import me.champeau.a4j.jsolex.processing.util.ImageMask;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.math.regression.Ellipse;
 
@@ -84,32 +86,36 @@ public class Stretching extends AbstractFunctionImpl {
         BuiltinFunction.MTF_AUTOSTRETCH.validateArgs(arguments);
         double shadowsClip = doubleArg(arguments, "shadows_clip", MidtoneTransferFunctionAutostretchStrategy.DEFAULT_SHADOWS_CLIP);
         double targetBg = doubleArg(arguments, "target_bg", MidtoneTransferFunctionAutostretchStrategy.DEFAULT_TARGET_BG);
-        var statsAnnulus = arguments.containsKey("stats_rmin") || arguments.containsKey("stats_rmax");
-        double statsRmin = doubleArg(arguments, "stats_rmin", 1.0);
-        double statsRmax = doubleArg(arguments, "stats_rmax", Double.POSITIVE_INFINITY);
-        if (statsAnnulus && (statsRmin < 0 || statsRmax <= statsRmin)) {
-            throw new IllegalArgumentException("mtf_autostretch requires 0 <= stats_rmin < stats_rmax");
-        }
-        return monoToMonoImageTransformer("mtf_autostretch", "img", arguments, image -> {
-            var pixelMask = statsAnnulus ? annulusStatsMask(image, statsRmin, statsRmax) : null;
-            new MidtoneTransferFunctionAutostretchStrategy(shadowsClip, targetBg, pixelMask).stretch(image);
-        });
-    }
-
-    private BiPredicate<Integer, Integer> annulusStatsMask(ImageWrapper image, double rmin, double rmax) {
-        var ellipse = image.findMetadata(Ellipse.class)
-                .or(() -> getFromContext(Ellipse.class))
-                .orElseThrow(() -> new IllegalArgumentException("mtf_autostretch with stats_rmin/stats_rmax requires an image with a detected solar disk"));
-        var inner = rmin == 0 ? null : ellipse.rescale(rmin, rmin);
-        var outer = Double.isInfinite(rmax) ? null : ellipse.rescale(rmax, rmax);
-        return (x, y) -> (inner == null || !inner.isWithin(x, y)) && (outer == null || outer.isWithin(x, y));
+        return monoToMonoImageTransformer("mtf_autostretch", "img", arguments,
+                image -> new MidtoneTransferFunctionAutostretchStrategy(shadowsClip, targetBg, statsMask(arguments, image)).stretch(image));
     }
 
     public Object percentileStretch(Map<String, Object> arguments) {
         BuiltinFunction.PERCENTILE_STRETCH.validateArgs(arguments);
         double lo = doubleArg(arguments, "lo", 0.1);
         double hi = doubleArg(arguments, "hi", 99.9);
-        return monoToMonoImageTransformer("percentile_stretch", "img", arguments, image -> new PercentileStretchStrategy(lo, hi).stretch(image));
+        return monoToMonoImageTransformer("percentile_stretch", "img", arguments,
+                image -> new PercentileStretchStrategy(lo, hi, statsMask(arguments, image)).stretch(image));
+    }
+
+    /**
+     * Resolves the optional {@code mask} argument against the image; annulus masks fall back
+     * to the ellipse from the processing context when the image does not carry one.
+     */
+    private BiPredicate<Integer, Integer> statsMask(Map<String, Object> arguments, ImageWrapper image) {
+        var mask = arguments.get("mask");
+        if (mask == null) {
+            return null;
+        }
+        if (!(mask instanceof ImageMask imageMask)) {
+            throw new IllegalArgumentException("The mask argument must be created with annulus_mask or range_mask");
+        }
+        if (imageMask instanceof AnnulusMask annulus && image.findMetadata(Ellipse.class).isEmpty()) {
+            var ellipse = getFromContext(Ellipse.class)
+                    .orElseThrow(() -> new IllegalArgumentException("An annulus mask requires an image with a detected solar disk"));
+            return annulus.resolve(ellipse);
+        }
+        return imageMask.resolve(image);
     }
 
     public Object sigmoidStretch(Map<String, Object> arguments) {

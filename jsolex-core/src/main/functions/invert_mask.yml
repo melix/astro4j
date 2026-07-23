@@ -1,0 +1,13 @@
+name: INVERT_MASK
+category: MASKING
+description:
+  fr: "Inverse un masque créé par annulus_mask ou range_mask : les pixels exclus deviennent inclus et réciproquement. Inverser deux fois redonne le masque d'origine."
+  en: "Inverts a mask created by annulus_mask or range_mask: excluded pixels become included and conversely. Inverting twice returns the original mask."
+arguments:
+  - name: mask
+    required: true
+    description:
+      fr: "Masque à inverser"
+      en: "Mask to invert"
+examples:
+  - "invert_mask(annulus_mask(0, 1))"

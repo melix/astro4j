@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2023 the original author or authors.
+ * Copyright 2023-2026 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,8 @@ package me.champeau.a4j.jsolex.processing.stretching;
 import me.champeau.a4j.jsolex.processing.util.Histogram;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
+import java.util.function.BiPredicate;
+
 import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
 
 /**
@@ -28,6 +30,7 @@ import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
 public final class PercentileStretchStrategy implements StretchingStrategy {
     private final double lowPercentile;
     private final double highPercentile;
+    private final BiPredicate<Integer, Integer> pixelMask;
 
     /**
      * Creates a percentile stretch strategy.
@@ -36,6 +39,19 @@ public final class PercentileStretchStrategy implements StretchingStrategy {
      * @param highPercentile the high percentile (0-100), values above this become white
      */
     public PercentileStretchStrategy(double lowPercentile, double highPercentile) {
+        this(lowPercentile, highPercentile, null);
+    }
+
+    /**
+     * Creates a percentile stretch strategy.
+     *
+     * @param lowPercentile the low percentile (0-100), values below this become black
+     * @param highPercentile the high percentile (0-100), values above this become white
+     * @param pixelMask optional predicate (x, y) -&gt; boolean indicating which pixels to include
+     *                  in the histogram. If null, all pixels are included. The stretch itself
+     *                  is always applied to the entire image.
+     */
+    public PercentileStretchStrategy(double lowPercentile, double highPercentile, BiPredicate<Integer, Integer> pixelMask) {
         if (lowPercentile < 0 || lowPercentile > 100) {
             throw new IllegalArgumentException("Low percentile must be in range [0, 100], found: " + lowPercentile);
         }
@@ -47,6 +63,7 @@ public final class PercentileStretchStrategy implements StretchingStrategy {
         }
         this.lowPercentile = lowPercentile;
         this.highPercentile = highPercentile;
+        this.pixelMask = pixelMask;
     }
 
     @Override
@@ -59,7 +76,11 @@ public final class PercentileStretchStrategy implements StretchingStrategy {
             return;
         }
 
-        var cumulative = Histogram.of(data, 65536).cumulative();
+        var histogram = histogram(image);
+        if (histogram == null) {
+            return;
+        }
+        var cumulative = histogram.cumulative();
         float lowValue = cumulative.percentile(lowPercentile / 100.0);
         float highValue = cumulative.percentile(highPercentile / 100.0);
 
@@ -81,5 +102,27 @@ public final class PercentileStretchStrategy implements StretchingStrategy {
                 }
             }
         }
+    }
+
+    /**
+     * Histogram of the pixels selected by the mask, or {@code null} when the mask selects
+     * no pixel at all, in which case no stretch is applied.
+     */
+    private Histogram histogram(ImageWrapper32 image) {
+        var data = image.data();
+        if (pixelMask == null) {
+            return Histogram.of(data, 65536);
+        }
+        var builder = Histogram.builder(65536);
+        var recorded = false;
+        for (int y = 0; y < image.height(); y++) {
+            for (int x = 0; x < image.width(); x++) {
+                if (pixelMask.test(x, y)) {
+                    builder.record(data[y][x]);
+                    recorded = true;
+                }
+            }
+        }
+        return recorded ? builder.build() : null;
     }
 }

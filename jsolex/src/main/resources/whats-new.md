@@ -8,7 +8,7 @@
 - Batch mode can now apply a flip only to files captured before or after a given date, useful when the orientation changed during the session, for example after a meridian flip.
 - A new "Best method" contrast enhancement option automatically picks the best technique for the detected spectral line: CLAHE for calcium and Autostretch for everything else.
 - The `deghost` function can now remove several reflections at once, wherever they are around the disk.
-- The `mtf_autostretch` scripting function can now compute its statistics over a ring around the solar disk, so that the result no longer depends on the cropping factor.
+- The `mtf_autostretch` and `percentile_stretch` scripting functions can now compute their statistics over a mask, for example a ring around the solar disk, which makes the result independent of the cropping factor.
 - Images produced by the Stacking tool can now be shared to SpectroSolHub.
 - Stacked images now keep the spectral line of the source images instead of falling back to the wrong wavelength.
 - Fixed the last file of a batch showing all the other files after reviewing images.
