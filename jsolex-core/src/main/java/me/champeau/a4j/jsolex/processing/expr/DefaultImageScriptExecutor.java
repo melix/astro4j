@@ -40,6 +40,7 @@ import me.champeau.a4j.jsolex.processing.util.CancellationSupport;
 import me.champeau.a4j.jsolex.processing.util.DurationFormatter;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
+import me.champeau.a4j.jsolex.processing.util.ImageLabel;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.LoggingSupport;
@@ -457,6 +458,16 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         );
     }
 
+    private static String labelOf(Map<String, ImageWrapper> producedImages, String variableName, ImageWrapper image, int index) {
+        var label = image.findMetadata(ImageLabel.class)
+                .map(imageLabel -> variableName + "_" + imageLabel.label())
+                .orElse(null);
+        if (label == null || producedImages.containsKey(label)) {
+            return variableName + "_" + index;
+        }
+        return label;
+    }
+
     private void extractResults(Map<String, ImageWrapper> producedImages, Map<String, FileOutputResult> producedFiles, Map<String, Object> producedValues, String variableName, Object result) {
         switch (result) {
             case ImageWrapper image -> producedImages.put(variableName, image);
@@ -477,7 +488,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                 if (allImages || allFiles) {
                     for (Object o : items) {
                         if (o instanceof ImageWrapper image) {
-                            producedImages.put(variableName + "_" + idx++, image);
+                            producedImages.put(labelOf(producedImages, variableName, image, idx++), image);
                         } else if (o instanceof SingleFileOutput singleFile) {
                             producedFiles.put(variableName + "_" + idx++, singleFile);
                         }

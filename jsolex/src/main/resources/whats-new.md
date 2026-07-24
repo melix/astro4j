@@ -9,6 +9,7 @@
 - A new "Best method" contrast enhancement option automatically picks the best technique for the detected spectral line: CLAHE for calcium and Autostretch for everything else.
 - The `deghost` function can now remove several reflections at once, wherever they are around the disk.
 - The `mtf_autostretch` and `percentile_stretch` scripting functions can now compute their statistics over a mask, for example a ring around the solar disk, which makes the result independent of the cropping factor.
+- Images produced by `crop_ar` are now named after the active region they show.
 - The `percentile_stretch` scripting function now handles images containing negative values, such as differences computed with `signed_diff`, and can preserve the full dynamic range with `clip: 0`.
 - Images produced by the Stacking tool can now be shared to SpectroSolHub.
 - Stacked images now keep the spectral line of the source images instead of falling back to the wrong wavelength.
