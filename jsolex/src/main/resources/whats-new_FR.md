@@ -18,6 +18,7 @@
 - Correction des images entièrement noires lorsque la correction des bandes était désactivée.
 - Les erreurs de script survenant pendant le traitement des fichiers individuels d'un lot sont désormais rapportées dans la boîte de dialogue d'erreur finale, au lieu du seul journal par fichier.
 - Correction du dernier fichier d'un lot qui affichait tous les autres fichiers après la revue des images.
+- Correction de la liste des fichiers du lot qui disparaissait lors de l'exécution d'un script avec l'option « Fermer images existantes » cochée.
 
 ## Nouveautés de la version 5.3.4
 
