@@ -70,7 +70,8 @@ public final class MetadataIO {
             ActiveRegions.class,
             OutputMetadata.class,
             Ellipse.class,
-            ImageMetadata.class
+            ImageMetadata.class,
+            ImageLabel.class
     );
 
     private static final Map<String, Class<?>> BY_NAME = buildIndex();

@@ -1,8 +1,8 @@
 name: CROP_AR
 category: CROP
 description:
-  fr: "Génère une liste d’images correspondant aux taches solaires détectées."
-  en: "Generates a list of images corresponding to the detected sunspots."
+  fr: "Génère une liste d’images correspondant aux taches solaires détectées. Chaque image porte le nom de la région active NOAA qu’elle montre, lorsque celle-ci peut être identifiée, et les différentes parties d’une même région sont regroupées dans une seule image."
+  en: "Generates a list of images corresponding to the detected sunspots. Each image is named after the NOAA active region it shows, when it can be identified, and the separate parts of a single region are grouped into a single image."
 arguments:
   - name: img
     description: Image(s)

@@ -29,6 +29,7 @@ import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.GeoCoordinates;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.ActiveRegionMatcher;
 import me.champeau.a4j.jsolex.processing.util.NOAAActiveRegion;
 import me.champeau.a4j.jsolex.processing.util.NOAARegions;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
@@ -864,21 +865,14 @@ public class ImageDraw extends AbstractFunctionImpl {
         var layouts = new ArrayList<ArLabelLayout>();
         for (var activeRegion : regions) {
             var regionId = activeRegion.id();
-            double latitude = Math.toRadians(activeRegion.latitudeDeg()) + Math.PI / 2;
-            double longitude = Math.toRadians(activeRegion.longitudeDeg());
-            var regionCoords = ofSpherical(longitude, latitude, radius).rotateX(-b0).rotateZ(-effectiveP);
-            if (regionCoords.z <= 0) {
+            var anchor = ActiveRegionMatcher.project(activeRegion, centerX, centerY, radius, effectiveP, b0).orElse(null);
+            if (anchor == null) {
                 continue;
             }
-            double anchorX = centerX + regionCoords.x;
-            double anchorY = centerY + regionCoords.y;
+            double anchorX = anchor.x();
+            double anchorY = anchor.y();
             boolean detected = detectedRegions.stream()
-                    .anyMatch(s -> {
-                        var cx = s.topLeft().x() + s.width() / 2;
-                        var cy = s.topLeft().y() + s.height() / 2;
-                        // the label matches a detected region if the center is within 10% of the sun radius
-                        return Math.hypot(cx - anchorX, cy - anchorY) < 0.1 * radius;
-                    });
+                    .anyMatch(s -> ActiveRegionMatcher.matches(s, anchor, radius));
             double boxHalf = drawBoxes
                     ? Math.max(3, activeRegion.extentDeg() > 0 ? activeRegion.extentDeg() : 5) * pxPerDeg / 2
                     : 0;
@@ -1351,10 +1345,6 @@ public class ImageDraw extends AbstractFunctionImpl {
         return rgb;
     }
 
-    private static Coordinates ofSpherical(double ascension, double declination, double radius) {
-        return new Coordinates(sin(ascension) * sin(declination) * radius, cos(declination) * radius, cos(ascension) * sin(declination) * radius);
-    }
-
     private static double[] rotate(double a, double b, double angle) {
         return new double[]{cos(angle) * a - sin(angle) * b, sin(angle) * a + cos(angle) * b};
     }
@@ -1478,24 +1468,6 @@ public class ImageDraw extends AbstractFunctionImpl {
 
     private static String emptyIfNull(String value) {
         return value == null ? "" : value;
-    }
-
-    private record Coordinates(double x, double y, double z) {
-
-        public Coordinates rotateX(double angle) {
-            var rot = rotate(y, z, angle);
-            return new Coordinates(x, rot[0], rot[1]);
-        }
-
-        public Coordinates rotateY(double angle) {
-            var rot = rotate(x, z, angle);
-            return new Coordinates(rot[0], y, rot[1]);
-        }
-
-        public Coordinates rotateZ(double angle) {
-            var rot = rotate(x, y, angle);
-            return new Coordinates(rot[0], rot[1], z);
-        }
     }
 
     private static class Earth {

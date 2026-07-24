@@ -21,22 +21,32 @@ import me.champeau.a4j.jsolex.processing.sun.crop.Cropper;
 import me.champeau.a4j.jsolex.processing.sun.detection.Flares;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
+import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegion;
 import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegions;
 import me.champeau.a4j.jsolex.processing.sun.workflow.AnalysisUtils;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
+import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.jsolex.processing.util.ActiveRegionMatcher;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.Histogram;
+import me.champeau.a4j.jsolex.processing.util.ImageLabel;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.NOAAActiveRegion;
+import me.champeau.a4j.jsolex.processing.util.NOAARegions;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
+import me.champeau.a4j.jsolex.processing.util.SolarParameters;
+import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.regression.Ellipse;
 import me.champeau.a4j.math.tuples.DoublePair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -274,21 +284,23 @@ public class Crop extends AbstractFunctionImpl {
             if (activeRegions == null) {
                 return List.of();
             }
-            var list = activeRegions.regionList().stream()
-                    .map(activeRegion -> {
-                        var left = (int) activeRegion.topLeft().x();
-                        var top = (int) activeRegion.topLeft().y();
-                        var width = (int) activeRegion.width();
-                        var height = (int) activeRegion.height();
-                        if (width >= minSize && height >= minSize) {
-                            // expand the crop area by 10%
-                            var cropWidth = (int) (width * (1 + margin));
-                            var cropHeight = (int) (height * (1 + margin));
-                            var cropLeft = left - (cropWidth - width) / 2;
-                            var cropTop = top - (cropHeight - height) / 2;
-                            return crop(Map.of("img", img, "left", cropLeft, "top", cropTop, "width", cropWidth, "height", cropHeight));
+            var list = groupRegions(img, activeRegions).stream()
+                    .filter(group -> group.width() >= minSize && group.height() >= minSize)
+                    .map(group -> {
+                        var left = (int) group.topLeft().x();
+                        var top = (int) group.topLeft().y();
+                        var width = (int) group.width();
+                        var height = (int) group.height();
+                        // expand the crop area by 10%
+                        var cropWidth = (int) (width * (1 + margin));
+                        var cropHeight = (int) (height * (1 + margin));
+                        var cropLeft = left - (cropWidth - width) / 2;
+                        var cropTop = top - (cropHeight - height) / 2;
+                        var cropped = crop(Map.of("img", img, "left", cropLeft, "top", cropTop, "width", cropWidth, "height", cropHeight));
+                        if (group.name() != null && cropped instanceof ImageWrapper croppedImage) {
+                            croppedImage.metadata().put(ImageLabel.class, new ImageLabel(group.name()));
                         }
-                        return null;
+                        return cropped;
                     })
                     .filter(Objects::nonNull)
                     .toList();
@@ -298,5 +310,68 @@ public class Crop extends AbstractFunctionImpl {
             return list;
         }
         return List.of();
+    }
+
+    /**
+     * Groups the detected active regions: those which belong to the same NOAA region are
+     * merged into a single bounding box, since detection often splits a region into
+     * several parts. Regions which couldn't be identified are kept separate and unnamed.
+     */
+    private List<RegionGroup> groupRegions(ImageWrapper img, ActiveRegions activeRegions) {
+        var regions = activeRegions.regionList();
+        var noaaRegions = identifyRegions(img, regions);
+        var groupsByName = new LinkedHashMap<String, RegionGroup>();
+        var groups = new ArrayList<RegionGroup>();
+        for (var region : regions) {
+            var noaaRegion = noaaRegions.get(region);
+            if (noaaRegion == null) {
+                groups.add(new RegionGroup(null, region.topLeft(), region.bottomRight()));
+            } else {
+                groupsByName.merge("AR" + noaaRegion.id(), new RegionGroup("AR" + noaaRegion.id(), region.topLeft(), region.bottomRight()), RegionGroup::merge);
+            }
+        }
+        groups.addAll(groupsByName.values());
+        return groups;
+    }
+
+    private record RegionGroup(String name, Point2D topLeft, Point2D bottomRight) {
+        double width() {
+            return bottomRight.x() - topLeft.x();
+        }
+
+        double height() {
+            return bottomRight.y() - topLeft.y();
+        }
+
+        RegionGroup merge(RegionGroup other) {
+            return new RegionGroup(name,
+                    new Point2D(Math.min(topLeft.x(), other.topLeft.x()), Math.min(topLeft.y(), other.topLeft.y())),
+                    new Point2D(Math.max(bottomRight.x(), other.bottomRight.x()), Math.max(bottomRight.y(), other.bottomRight.y())));
+        }
+    }
+
+    private Map<ActiveRegion, NOAAActiveRegion> identifyRegions(ImageWrapper img, List<ActiveRegion> activeRegions) {
+        if (activeRegions.isEmpty()) {
+            return Map.of();
+        }
+        var processParams = img.findMetadata(ProcessParams.class).orElse(null);
+        var solarParams = img.findMetadata(SolarParameters.class).orElse(null);
+        var ellipse = img.findMetadata(Ellipse.class).orElse(null);
+        if (processParams == null || solarParams == null || ellipse == null || processParams.observationDetails().date() == null) {
+            return Map.of();
+        }
+        var noaaRegions = NOAARegions.findActiveRegions(processParams.observationDetails().date(), broadcaster);
+        if (noaaRegions.isEmpty()) {
+            return Map.of();
+        }
+        var radius = (ellipse.semiAxis().a() + ellipse.semiAxis().b()) / 2d;
+        var angleP = processParams.geometryParams().isAutocorrectAngleP() ? 0 : solarParams.p();
+        return ActiveRegionMatcher.match(activeRegions,
+                noaaRegions,
+                ellipse.center().a(),
+                ellipse.center().b(),
+                radius,
+                angleP,
+                solarParams.b0());
     }
 }

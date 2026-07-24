@@ -9,6 +9,7 @@
 - Une nouvelle option de renforcement du contraste « Meilleure méthode » choisit automatiquement la meilleure technique selon la raie spectrale détectée : CLAHE pour le calcium et Autostretch pour les autres raies.
 - La fonction `deghost` peut désormais supprimer plusieurs reflets à la fois, où qu'ils soient autour du disque.
 - Les fonctions de script `mtf_autostretch` et `percentile_stretch` peuvent désormais calculer leurs statistiques sur un masque, par exemple un anneau autour du disque solaire, ce qui rend le résultat indépendant du facteur de rognage.
+- Les images produites par `crop_ar` portent désormais le nom de la région active qu'elles montrent.
 - La fonction de script `percentile_stretch` gère désormais les images contenant des valeurs négatives, comme les différences calculées avec `signed_diff`, et peut préserver toute la dynamique avec `clip: 0`.
 - Les images produites par l'outil d'empilement peuvent désormais être partagées vers SpectroSolHub.
 - Les images empilées conservent désormais la raie spectrale des images source au lieu de revenir à une longueur d'onde incorrecte.
