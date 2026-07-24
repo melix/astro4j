@@ -24,7 +24,6 @@ import javafx.collections.ObservableList;
 import javafx.scene.control.Button;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
-import javafx.scene.control.TabPane;
 import javafx.scene.layout.BorderPane;
 import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.listeners.BatchProcessingContext;
@@ -75,7 +74,7 @@ public final class BatchProcessingHelper {
     public interface BatchContext {
         void newSession();
 
-        TabPane getMainPane();
+        void showBatchTab(Tab tab);
 
         Button addInterruptButton();
 
@@ -165,11 +164,7 @@ public final class BatchProcessingHelper {
         var tab = new Tab(message("batch.process"));
         tab.setContent(content);
 
-        var mainPane = context.getMainPane();
-        var tabs = mainPane.getTabs();
-        tabs.clear();
-        tabs.add(tab);
-        mainPane.getSelectionModel().select(0);
+        context.showBatchTab(tab);
 
         var interruptButton = context.addInterruptButton();
         var interrupted = new AtomicBoolean();

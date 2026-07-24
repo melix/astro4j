@@ -18,6 +18,7 @@
 - Fixed images coming out entirely black when the banding correction was disabled.
 - Script errors occurring while processing individual files of a batch are now reported in the final error dialog, instead of only in the per-file log.
 - Fixed the last file of a batch showing all the other files after reviewing images.
+- Fixed the batch file list disappearing when running a script with the "Close previous images" option checked.
 
 ## What's New in Version 5.3.4
 

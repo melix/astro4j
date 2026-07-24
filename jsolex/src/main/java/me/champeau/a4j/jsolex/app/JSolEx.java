@@ -452,6 +452,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     private TrimmingParameters trimmingParameters;
     private HostServices hostServices;
     private Tab imagesViewerTab;
+    private Tab batchTab;
     private ImageMathScriptExecutor scriptExecutor;
     private BatchProcessingContext lastBatchProcessingContext;
     private Path outputDirectory;
@@ -1871,10 +1872,23 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
 
     private void ensureImagesViewerTab() {
         if (imagesViewerTab == null || !mainPane.getTabs().contains(imagesViewerTab)) {
-            mainPane.getTabs().clear();
-            imagesViewerTab = new Tab(message("images"), multipleImagesViewer);
-            mainPane.getTabs().add(imagesViewerTab);
+            recreateImagesViewerTab();
         }
+    }
+
+    /**
+     * Rebuilds the main pane around a fresh images tab. The batch tab, if any, is kept:
+     * it hosts the batch file list and the actions to add files or watch a directory.
+     */
+    private void recreateImagesViewerTab() {
+        var tabs = mainPane.getTabs();
+        tabs.clear();
+        imagesViewerTab = new Tab(message("images"), multipleImagesViewer);
+        if (batchTab != null) {
+            tabs.add(batchTab);
+        }
+        tabs.add(imagesViewerTab);
+        mainPane.getSelectionModel().select(imagesViewerTab);
     }
 
     private File sessionBaseDirectory() {
@@ -2593,6 +2607,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     public void newSession() {
         scriptRunNumber = 0;
         scriptRunStartTime = null;
+        batchTab = null;
         clearDisplayedImages();
         FileBackedImage.clearCache();
     }
@@ -2603,9 +2618,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
      * where the active script executor (and its loaded images) must be preserved.
      */
     private void clearDisplayedImages() {
-        mainPane.getTabs().clear();
-        imagesViewerTab = new Tab(message("images"), multipleImagesViewer);
-        mainPane.getTabs().add(imagesViewerTab);
+        recreateImagesViewerTab();
         multipleImagesViewer.clear();
         multipleImagesViewer.setCollageContext(this, lastExecutionProcessParams, outputDirectory);
         resetInspectorTabs();
@@ -2907,8 +2920,12 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     }
 
     @Override
-    public TabPane getMainPane() {
-        return mainPane;
+    public void showBatchTab(Tab tab) {
+        batchTab = tab;
+        var tabs = mainPane.getTabs();
+        tabs.clear();
+        tabs.add(tab);
+        mainPane.getSelectionModel().select(tab);
     }
 
     @Override
@@ -3166,6 +3183,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         multipleImagesViewer.setTrimSerEnabled(false);
         multipleImagesViewer.clear();
         console.clear();
+        batchTab = null;
         mainPane.getTabs().clear();
         resetInspectorTabs();
         trimmingParameters = null;
