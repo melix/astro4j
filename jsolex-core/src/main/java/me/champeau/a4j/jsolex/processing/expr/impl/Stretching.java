@@ -94,8 +94,15 @@ public class Stretching extends AbstractFunctionImpl {
         BuiltinFunction.PERCENTILE_STRETCH.validateArgs(arguments);
         double lo = doubleArg(arguments, "lo", 0.1);
         double hi = doubleArg(arguments, "hi", 99.9);
+        var clip = intArg(arguments, "clip", 1);
+        var clipMode = switch (clip) {
+            case 0 -> PercentileStretchStrategy.ClipMode.NONE;
+            case 1 -> PercentileStretchStrategy.ClipMode.CLAMP;
+            case 2 -> PercentileStretchStrategy.ClipMode.EXTEND;
+            default -> throw new IllegalArgumentException("percentile_stretch clip must be 0 (no clipping), 1 (clip to black/white points) or 2 (extend the white point to the image maximum)");
+        };
         return monoToMonoImageTransformer("percentile_stretch", "img", arguments,
-                image -> new PercentileStretchStrategy(lo, hi, statsMask(arguments, image)).stretch(image));
+                image -> new PercentileStretchStrategy(lo, hi, statsMask(arguments, image), clipMode).stretch(image));
     }
 
     /**

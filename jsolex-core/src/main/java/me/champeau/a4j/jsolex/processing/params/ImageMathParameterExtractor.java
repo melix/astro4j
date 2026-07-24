@@ -15,7 +15,9 @@
  */
 package me.champeau.a4j.jsolex.processing.params;
 
+import com.google.gson.JsonObject;
 import me.champeau.a4j.jsolex.expr.ImageMathParser;
+import me.champeau.a4j.jsolex.expr.Node;
 import me.champeau.a4j.jsolex.expr.ast.Identifier;
 import me.champeau.a4j.jsolex.expr.ast.ImageMathScript;
 import me.champeau.a4j.jsolex.expr.ast.MetaBlock;
@@ -26,9 +28,13 @@ import me.champeau.a4j.jsolex.expr.ast.ParameterArray;
 import me.champeau.a4j.jsolex.expr.ast.ParameterDef;
 import me.champeau.a4j.jsolex.expr.ast.ParameterObject;
 import me.champeau.a4j.jsolex.expr.ast.ParameterProperty;
+import me.champeau.a4j.jsolex.expr.ast.ParameterPropertyValue;
+import me.champeau.a4j.jsolex.expr.ast.SignedNumericalLiteral;
 import me.champeau.a4j.jsolex.expr.ast.StringLiteral;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.VersionUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -41,6 +47,8 @@ import java.util.Optional;
 import java.util.Set;
 
 public class ImageMathParameterExtractor {
+    public static final String OVERRIDES_PROPERTY = "overrides";
+    private static final Logger LOGGER = LoggerFactory.getLogger(ImageMathParameterExtractor.class);
 
     public static class ParameterExtractionResult {
         private final List<ScriptParameter> parameters;
@@ -53,6 +61,7 @@ public class ImageMathParameterExtractor {
         private final String version;
         private final Map<String, OutputMetadata> outputsMetadata;
         private final Set<GeneratedImageKind> requiredImages;
+        private final JsonObject processParamsOverrides;
 
         public ParameterExtractionResult(List<ScriptParameter> parameters,
                                          boolean hasParametersSection,
@@ -76,6 +85,21 @@ public class ImageMathParameterExtractor {
                                          String version,
                                          Map<String, OutputMetadata> outputsMetadata,
                                          Set<GeneratedImageKind> requiredImages) {
+            this(parameters, hasParametersSection, title, description, scriptFileName, requiredVersion, author, version, outputsMetadata, requiredImages, new JsonObject());
+        }
+
+        public ParameterExtractionResult(List<ScriptParameter> parameters,
+                                         boolean hasParametersSection,
+                                         Map<String, String> title,
+                                         Map<String, String> description,
+                                         String scriptFileName,
+                                         String requiredVersion,
+                                         String author,
+                                         String version,
+                                         Map<String, OutputMetadata> outputsMetadata,
+                                         Set<GeneratedImageKind> requiredImages,
+                                         JsonObject processParamsOverrides) {
+            this.processParamsOverrides = processParamsOverrides == null ? new JsonObject() : processParamsOverrides;
             this.parameters = List.copyOf(parameters);
             this.hasParametersSection = hasParametersSection;
             this.title = Map.copyOf(title != null ? title : Map.of());
@@ -132,6 +156,10 @@ public class ImageMathParameterExtractor {
 
         public Set<GeneratedImageKind> getRequiredImages() {
             return requiredImages;
+        }
+
+        public JsonObject getProcessParamsOverrides() {
+            return processParamsOverrides;
         }
 
         public boolean isVersionSupported() {
@@ -224,6 +252,7 @@ public class ImageMathParameterExtractor {
         String version = null;
         Map<String, OutputMetadata> outputsMetadata = new HashMap<>();
         Set<GeneratedImageKind> requiredImages = EnumSet.noneOf(GeneratedImageKind.class);
+        var overrides = new JsonObject();
 
         var metaBlocks = script.childrenOfType(MetaBlock.class);
         for (var metaBlock : metaBlocks) {
@@ -255,6 +284,11 @@ public class ImageMathParameterExtractor {
                         }
                     } else if ("requirements".equals(name)) {
                         requiredImages.addAll(extractRequiredImages(property));
+                    } else if (OVERRIDES_PROPERTY.equals(name)) {
+                        var paramObj = property.firstChildOfType(ParameterObject.class);
+                        if (paramObj != null) {
+                            readOverrides(paramObj, overrides);
+                        }
                     }
                 }
             }
@@ -281,7 +315,39 @@ public class ImageMathParameterExtractor {
             }
         }
 
-        return new ParameterExtractionResult(parameters, hasParametersSection, title, description, fileName, requiredVersion, author, version, outputsMetadata, requiredImages);
+        return new ParameterExtractionResult(parameters, hasParametersSection, title, description, fileName, requiredVersion, author, version, outputsMetadata, requiredImages, overrides);
+    }
+
+    private static void readOverrides(ParameterObject source, JsonObject target) {
+        for (var property : source.getProperties()) {
+            var nested = findNested(property, ParameterObject.class);
+            if (nested != null) {
+                var child = new JsonObject();
+                readOverrides(nested, child);
+                target.add(property.getName(), child);
+                continue;
+            }
+            var text = findNested(property, StringLiteral.class);
+            if (text != null) {
+                target.add(property.getName(), ScriptProcessParamsOverrides.toJsonValue(text.toString()));
+                continue;
+            }
+            var number = findNested(property, SignedNumericalLiteral.class);
+            if (number != null) {
+                target.add(property.getName(), ScriptProcessParamsOverrides.toJsonValue(number.numberValue().toString()));
+            } else {
+                LOGGER.warn("Ignoring override '{}': only single values can be overridden", property.getName());
+            }
+        }
+    }
+
+    private static <T extends Node> T findNested(ParameterProperty property, Class<T> type) {
+        var direct = property.firstChildOfType(type);
+        if (direct != null) {
+            return direct;
+        }
+        var wrapper = property.firstChildOfType(ParameterPropertyValue.class);
+        return wrapper == null ? null : wrapper.firstChildOfType(type);
     }
 
     private Set<GeneratedImageKind> extractRequiredImages(MetaProperty property) {

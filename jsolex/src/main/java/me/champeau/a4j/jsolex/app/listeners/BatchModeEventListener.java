@@ -47,6 +47,7 @@ import me.champeau.a4j.jsolex.processing.expr.BestImages;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
+import me.champeau.a4j.jsolex.processing.expr.InvalidExpression;
 import me.champeau.a4j.jsolex.processing.expr.ScriptExecutionContext;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.AutocropMode;
@@ -132,6 +133,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     private final AtomicInteger liveUploadCount = new AtomicInteger(0);
     private final AtomicBoolean batchScriptsRunning;
     private final AtomicBoolean batchPostProcessing;
+    private final List<InvalidExpression> perImageScriptErrors;
 
     /**
      * Creates a new batch mode event listener.
@@ -167,6 +169,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         this.sd = context.batchStartNanos();
         this.batchScriptsRunning = context.batchScriptsRunning();
         this.batchPostProcessing = context.batchPostProcessing();
+        this.perImageScriptErrors = context.perImageScriptErrors();
     }
     
     private SolarParameters computeAverageSolarParameters() {
@@ -569,7 +572,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             throw new ProcessingException(e);
         }
         try {
-            ScriptExecutionHelper.processScriptErrors(result);
+            processScriptErrors(result);
             var outputsMetadata = ScriptExecutionHelper.extractOutputsMetadata(scriptFile);
             renderBatchOutputs(namingStrategy, result, outputsMetadata);
         } finally {
@@ -645,6 +648,27 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         for (Map.Entry<String, Object> entry : values.entrySet()) {
             imageCollector.addValueByLabel(entry.getKey(), entry.getValue());
         }
+        perImageScriptErrors.addAll(e.getPayload().invalidExpressions());
+    }
+
+    /**
+     * Reports the batch script errors together with the errors collected while processing
+     * individual files: a failed per-image expression means its output is missing from the
+     * batch variables, and the resulting cascade of undefined variables would otherwise
+     * hide the root cause. Per-image errors, typically repeated for every file, are
+     * deduplicated and drained so that they are only shown once.
+     */
+    private void processScriptErrors(ImageMathScriptResult result) {
+        var combined = new ArrayList<InvalidExpression>();
+        var seen = new HashSet<String>();
+        for (var error : perImageScriptErrors) {
+            if (seen.add(error.label() + '|' + error.error().getMessage())) {
+                combined.add(error);
+            }
+        }
+        perImageScriptErrors.clear();
+        combined.addAll(result.invalidExpressions());
+        ScriptExecutionHelper.processScriptErrors(combined);
     }
 
     private void maybeWriteLogs() {
@@ -722,7 +746,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     @Override
     public ImageMathScriptResult execute(String script, SectionKind kind) {
         var result = batchScriptExecutor.execute(script, SectionKind.BATCH);
-        ScriptExecutionHelper.processScriptErrors(result);
+        processScriptErrors(result);
         var outputsMetadata = ScriptExecutionHelper.extractOutputsMetadata(script);
         renderBatchOutputs(createNamingStrategy(), result, outputsMetadata);
         return result;
@@ -731,7 +755,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     @Override
     public ImageMathScriptResult executePythonScript(String script, SectionKind kind) {
         var result = batchScriptExecutor.executePythonScript(script, SectionKind.BATCH);
-        ScriptExecutionHelper.processScriptErrors(result);
+        processScriptErrors(result);
         var outputsMetadata = ScriptExecutionHelper.extractOutputsMetadata(script, "script.py");
         renderBatchOutputs(createNamingStrategy(), result, outputsMetadata);
         return result;

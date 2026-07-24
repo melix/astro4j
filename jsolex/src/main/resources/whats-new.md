@@ -9,8 +9,13 @@
 - A new "Best method" contrast enhancement option automatically picks the best technique for the detected spectral line: CLAHE for calcium and Autostretch for everything else.
 - The `deghost` function can now remove several reflections at once, wherever they are around the disk.
 - The `mtf_autostretch` and `percentile_stretch` scripting functions can now compute their statistics over a mask, for example a ring around the solar disk, which makes the result independent of the cropping factor.
+- The `percentile_stretch` scripting function now handles images containing negative values, such as differences computed with `signed_diff`, and can preserve the full dynamic range with `clip: 0`.
 - Images produced by the Stacking tool can now be shared to SpectroSolHub.
 - Stacked images now keep the spectral line of the source images instead of falling back to the wrong wavelength.
+- Added a `destripe` scripting function that removes horizontal banding from any image, including images whose background is close to zero such as continuum-subtracted images.
+- Scripts can now force processing parameters they need, such as disabling banding correction or widening the crop, whatever is selected in the processing parameters.
+- Fixed images coming out entirely black when the banding correction was disabled.
+- Script errors occurring while processing individual files of a batch are now reported in the final error dialog, instead of only in the per-file log.
 - Fixed the last file of a batch showing all the other files after reviewing images.
 
 ## What's New in Version 5.3.4

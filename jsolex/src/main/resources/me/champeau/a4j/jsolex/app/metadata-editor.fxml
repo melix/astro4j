@@ -217,6 +217,16 @@
                     <Label text="%requirements.description" wrapText="true"/>
                     <VBox fx:id="requirementsContainer" spacing="12"/>
                 </VBox>
+
+                <!-- Overrides Section -->
+                <VBox styleClass="panel-section" spacing="12">
+                    <Label text="%overrides" styleClass="panel-section-title"/>
+                    <Label text="%overrides.description" wrapText="true"/>
+                    <VBox fx:id="overridesContainer" spacing="8"/>
+                    <HBox spacing="8">
+                        <Button fx:id="addOverrideButton" text="%overrides.add" onAction="#handleAddOverride"/>
+                    </HBox>
+                </VBox>
             </VBox>
         </ScrollPane>
     </center>

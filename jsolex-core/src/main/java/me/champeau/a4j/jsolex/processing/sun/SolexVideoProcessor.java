@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.sun;
 
+import com.google.gson.JsonObject;
 import me.champeau.a4j.jsolex.processing.event.AverageImageComputedEvent;
 import me.champeau.a4j.jsolex.processing.event.EllipseFittingRequestEvent;
 import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
@@ -54,6 +55,7 @@ import me.champeau.a4j.jsolex.processing.params.OutputMetadata;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.RotationKind;
 import me.champeau.a4j.jsolex.processing.params.ScriptParameterExtractor;
+import me.champeau.a4j.jsolex.processing.params.ScriptProcessParamsOverrides;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
 import me.champeau.a4j.jsolex.processing.spectrum.FlatCreator;
@@ -277,7 +279,7 @@ public class SolexVideoProcessor implements Broadcaster {
         if (tryReadMetadata()) {
             binningIsReliable = true;
         }
-        mergeScriptRequirements();
+        applyScriptMetadata();
         if (processParams.extraParams().autosave()) {
             File configFile = outputDirectory.resolve("config.json").toFile();
             processParams.saveTo(configFile);
@@ -309,20 +311,42 @@ public class SolexVideoProcessor implements Broadcaster {
         }
     }
 
-    private void mergeScriptRequirements() {
+    private void applyScriptMetadata() {
         var mathImages = processParams.combinedImageMathParams();
         if (mathImages.scriptFiles().isEmpty()) {
             return;
         }
         var required = EnumSet.noneOf(GeneratedImageKind.class);
+        var overrides = new ArrayList<JsonObject>();
         for (var scriptFile : mathImages.scriptFiles()) {
             try {
                 var result = ScriptParameterExtractor.extractParameters(scriptFile.toPath());
                 required.addAll(result.getRequiredImages());
+                var scriptOverrides = result.getProcessParamsOverrides();
+                if (!scriptOverrides.isEmpty()) {
+                    overrides.add(scriptOverrides);
+                }
             } catch (Exception e) {
                 LOGGER.warn("Could not extract requirements from script {}: {}", scriptFile, e.getMessage());
             }
         }
+        applyScriptOverrides(overrides);
+        mergeScriptRequirements(required);
+    }
+
+    private void applyScriptOverrides(List<JsonObject> overrides) {
+        if (overrides.isEmpty()) {
+            return;
+        }
+        var merged = ScriptProcessParamsOverrides.merge(overrides);
+        var updated = ScriptProcessParamsOverrides.apply(processParams, merged);
+        if (updated != processParams) {
+            LOGGER.info(message("script.overrides.applied"), merged);
+            processParams = updated;
+        }
+    }
+
+    private void mergeScriptRequirements(Set<GeneratedImageKind> required) {
         if (required.isEmpty()) {
             return;
         }

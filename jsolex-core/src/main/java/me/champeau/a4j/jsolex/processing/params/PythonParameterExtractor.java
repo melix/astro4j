@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.params;
 
+import com.google.gson.JsonObject;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParameterExtractor.ParameterExtractionResult;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 
@@ -64,6 +65,10 @@ public class PythonParameterExtractor {
         "^\\s*#\\s*output:([a-zA-Z_][a-zA-Z0-9_]*):([a-zA-Z_][a-zA-Z0-9_]*)(?::([a-z]{2}))?\\s*=\\s*(.+)$"
     );
 
+    private static final Pattern OVERRIDE_PATTERN = Pattern.compile(
+        "^\\s*#\\s*meta:" + ImageMathParameterExtractor.OVERRIDES_PROPERTY + ":([a-zA-Z_][a-zA-Z0-9_]*(?:\\.[a-zA-Z_][a-zA-Z0-9_]*)*)\\s*=\\s*(.+)$"
+    );
+
     public ParameterExtractionResult extractParameters(Path scriptFile) throws IOException {
         var content = Files.readString(scriptFile);
         var fileName = scriptFile.getFileName().toString();
@@ -77,6 +82,7 @@ public class PythonParameterExtractor {
         String version = null;
         String requiredVersion = null;
         Set<GeneratedImageKind> requiredImages = EnumSet.noneOf(GeneratedImageKind.class);
+        var overrides = new JsonObject();
 
         // Collect parameter properties by parameter name, preserving declaration order
         Map<String, Map<String, Object>> paramProperties = new LinkedHashMap<>();
@@ -84,6 +90,14 @@ public class PythonParameterExtractor {
         Map<String, Map<String, Object>> outputProperties = new LinkedHashMap<>();
 
         for (var line : scriptContent.lines().toList()) {
+            var overrideMatcher = OVERRIDE_PATTERN.matcher(line);
+            if (overrideMatcher.matches()) {
+                var path = overrideMatcher.group(1);
+                var value = unquote(overrideMatcher.group(2).trim());
+                ScriptProcessParamsOverrides.putAtPath(overrides, path, ScriptProcessParamsOverrides.toJsonValue(value));
+                continue;
+            }
+
             // Try meta pattern
             var metaMatcher = META_PATTERN.matcher(line);
             if (metaMatcher.matches()) {
@@ -201,7 +215,8 @@ public class PythonParameterExtractor {
             author,
             version,
             outputsMetadata,
-            requiredImages
+            requiredImages,
+            overrides
         );
     }
 

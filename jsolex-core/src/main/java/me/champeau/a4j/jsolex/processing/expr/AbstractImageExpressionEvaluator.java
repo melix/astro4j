@@ -37,6 +37,7 @@ import me.champeau.a4j.jsolex.processing.expr.impl.Conditionals;
 import me.champeau.a4j.jsolex.processing.expr.impl.Convolution;
 import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
 import me.champeau.a4j.jsolex.processing.expr.impl.Dedistort;
+import me.champeau.a4j.jsolex.processing.expr.impl.Destripe;
 import me.champeau.a4j.jsolex.processing.expr.impl.DiskFill;
 import me.champeau.a4j.jsolex.processing.expr.impl.EllipseFit;
 import me.champeau.a4j.jsolex.processing.expr.impl.Filtering;
@@ -142,6 +143,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     private final EllipseFit ellipseFit;
     private final Filtering filtering;
     private final FixBanding fixBanding;
+    private final Destripe destripe;
     private final ArtifificialFlatCorrector flatCorrector;
     private final GeometryCorrection geometryCorrection;
     private final ImageCombination imageCombination;
@@ -187,6 +189,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         this.ellipseFit = new EllipseFit(context, broadcaster);
         this.filtering = new Filtering(context, broadcaster);
         this.fixBanding = new FixBanding(context, broadcaster);
+        this.destripe = new Destripe(context, broadcaster);
         this.flatCorrector = new ArtifificialFlatCorrector(context, broadcaster);
         this.geometryCorrection = new GeometryCorrection(context, broadcaster, ellipseFit);
         this.imageCombination = new ImageCombination(context, broadcaster);
@@ -370,6 +373,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case EXP -> math.exp(arguments);
             case FILTER -> filtering.filter(arguments);
             case FIX_BANDING -> fixBanding.fixBanding(arguments);
+            case DESTRIPE -> destripe.destripe(arguments);
             case FIX_GEOMETRY -> geometryCorrection.fixGeometry(arguments);
             case FLAT_CORRECTION -> flatCorrector.performFlatCorrection(arguments);
             case HFLIP -> rotate.hflip(arguments);

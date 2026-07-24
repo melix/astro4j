@@ -1,0 +1,36 @@
+name: DESTRIPE
+category: ENHANCEMENT
+description:
+  fr: "Supprime les bandes horizontales (stries) d'une image"
+  en: "Removes horizontal banding (stripes) from an image"
+arguments:
+  - name: img
+    description: Image(s)
+  - name: bs
+    optional: true
+    default: 48
+    description:
+      fr: "Échelle la plus grande, en pixels, du lissage vertical : augmentez-la pour supprimer des bandes plus larges. Les structures verticales plus larges que bs sont préservées."
+      en: "Coarsest scale, in pixels, of the vertical smoothing: increase it to remove broader banding. Vertical structures wider than bs are preserved."
+  - name: passes
+    optional: true
+    default: 2
+    description:
+      fr: "Nombre de passes"
+      en: "Number of passes"
+  - name: strips
+    optional: true
+    default: 0
+    description:
+      fr: "Nombre de bandes verticales corrigées indépendamment, ou 0 pour le déduire de la largeur. Utilisez 1 pour appliquer une correction constante sur toute la ligne : la correction ne suit plus les variations horizontales des bandes, mais elle ne présente aucune transition visible, ce qui est préférable lorsque l'image contient une grande zone inutilisable comme le disque solaire."
+      en: "Number of vertical strips corrected independently, or 0 to derive it from the width. Use 1 to apply a constant correction over the whole line: the correction no longer follows the horizontal variations of the banding, but it has no visible transition, which is preferable when the image contains a large unusable area such as the solar disk."
+  - name: ellipseMode
+    optional: true
+    default: 1
+    description:
+      fr: "Utilisation du disque solaire : 0 = ignoré (tous les pixels de la ligne), 1 = pixels du disque (défaut), 2 = pixels hors du disque uniquement."
+      en: "Solar disk usage: 0 = ignored (all pixels in the line), 1 = pixels inside the disk (default), 2 = pixels outside the disk only."
+examples:
+  - "destripe(img(0))"
+  - "destripe(img: someImage; bs: 192; passes: 2; ellipseMode: 2)"
+  - "destripe(img: someImage; bs: 192; strips: 1; ellipseMode: 2)"

@@ -48,6 +48,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -381,7 +382,8 @@ public final class BatchProcessingHelper {
                 new ReentrantReadWriteLock(),
                 System.nanoTime(),
                 new AtomicBoolean(),
-                new AtomicBoolean()
+                new AtomicBoolean(),
+                new CopyOnWriteArrayList<>()
         );
     }
 

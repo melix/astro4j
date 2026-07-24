@@ -268,6 +268,8 @@ result = jsolex.funcs.sharpen(img, 1.5)
 |`# meta:version = "..."`|Version du script (requis pour les dépôts)
 |`# meta:requires = "..."`|Version minimale de JSol'Ex requise
 |`# meta:description = "..."`|Description du script
+|`# meta:requires_images = "..."`|Types d'images requis par le script, séparés par des virgules
+|`# meta:overrides:<paramètre> = "..."`|Force un paramètre de traitement, quels que soient les choix de l'utilisateur
 |===
 
 === Paramètres du script

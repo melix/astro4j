@@ -15,11 +15,11 @@
  */
 package me.champeau.a4j.jsolex.processing.stretching;
 
-import me.champeau.a4j.jsolex.processing.util.Histogram;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
 import java.util.function.BiPredicate;
 
+import static java.util.Arrays.sort;
 import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
 
 /**
@@ -28,9 +28,32 @@ import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
  * become white, and values in between are linearly stretched.
  */
 public final class PercentileStretchStrategy implements StretchingStrategy {
+
+    /**
+     * How pixels outside the percentile range are mapped.
+     */
+    public enum ClipMode {
+        /**
+         * No clipping: pure affine mapping, pixels outside the percentile range may end up
+         * outside the displayable range. Preserves the full dynamic range with a gain which
+         * only depends on the percentiles, making it suitable for normalizing images before
+         * stacking.
+         */
+        NONE,
+        /** Pixels below the low percentile become black, pixels above the high percentile become white. */
+        CLAMP,
+        /**
+         * The white point is extended to the brightest pixel of the entire image, so that
+         * regions brighter than the high percentile, for example excluded by a mask, are
+         * not clipped.
+         */
+        EXTEND
+    }
+
     private final double lowPercentile;
     private final double highPercentile;
     private final BiPredicate<Integer, Integer> pixelMask;
+    private final ClipMode clipMode;
 
     /**
      * Creates a percentile stretch strategy.
@@ -48,10 +71,24 @@ public final class PercentileStretchStrategy implements StretchingStrategy {
      * @param lowPercentile the low percentile (0-100), values below this become black
      * @param highPercentile the high percentile (0-100), values above this become white
      * @param pixelMask optional predicate (x, y) -&gt; boolean indicating which pixels to include
-     *                  in the histogram. If null, all pixels are included. The stretch itself
-     *                  is always applied to the entire image.
+     *                  in the percentile computation. If null, all pixels are included. The
+     *                  stretch itself is always applied to the entire image.
      */
     public PercentileStretchStrategy(double lowPercentile, double highPercentile, BiPredicate<Integer, Integer> pixelMask) {
+        this(lowPercentile, highPercentile, pixelMask, ClipMode.CLAMP);
+    }
+
+    /**
+     * Creates a percentile stretch strategy.
+     *
+     * @param lowPercentile the low percentile (0-100)
+     * @param highPercentile the high percentile (0-100)
+     * @param pixelMask optional predicate (x, y) -&gt; boolean indicating which pixels to include
+     *                  in the percentile computation. If null, all pixels are included. The
+     *                  stretch itself is always applied to the entire image.
+     * @param clipMode how pixels outside the percentile range are mapped
+     */
+    public PercentileStretchStrategy(double lowPercentile, double highPercentile, BiPredicate<Integer, Integer> pixelMask, ClipMode clipMode) {
         if (lowPercentile < 0 || lowPercentile > 100) {
             throw new IllegalArgumentException("Low percentile must be in range [0, 100], found: " + lowPercentile);
         }
@@ -64,6 +101,7 @@ public final class PercentileStretchStrategy implements StretchingStrategy {
         this.lowPercentile = lowPercentile;
         this.highPercentile = highPercentile;
         this.pixelMask = pixelMask;
+        this.clipMode = clipMode;
     }
 
     @Override
@@ -76,13 +114,20 @@ public final class PercentileStretchStrategy implements StretchingStrategy {
             return;
         }
 
-        var histogram = histogram(image);
-        if (histogram == null) {
+        var pixels = PixelCollection.collect(data, width, height, pixelMask);
+        if (pixels.length == 0) {
             return;
         }
-        var cumulative = histogram.cumulative();
-        float lowValue = cumulative.percentile(lowPercentile / 100.0);
-        float highValue = cumulative.percentile(highPercentile / 100.0);
+        sort(pixels);
+        float lowValue = percentileValue(pixels, lowPercentile);
+        float highValue = percentileValue(pixels, highPercentile);
+        if (clipMode == ClipMode.EXTEND) {
+            for (var line : data) {
+                for (var v : line) {
+                    highValue = Math.max(highValue, v);
+                }
+            }
+        }
 
         if (highValue <= lowValue) {
             return;
@@ -93,7 +138,9 @@ public final class PercentileStretchStrategy implements StretchingStrategy {
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 float v = data[y][x];
-                if (v <= lowValue) {
+                if (clipMode == ClipMode.NONE) {
+                    data[y][x] = ((v - lowValue) / range) * MAX_PIXEL_VALUE;
+                } else if (v <= lowValue) {
                     data[y][x] = 0;
                 } else if (v >= highValue) {
                     data[y][x] = MAX_PIXEL_VALUE;
@@ -104,25 +151,7 @@ public final class PercentileStretchStrategy implements StretchingStrategy {
         }
     }
 
-    /**
-     * Histogram of the pixels selected by the mask, or {@code null} when the mask selects
-     * no pixel at all, in which case no stretch is applied.
-     */
-    private Histogram histogram(ImageWrapper32 image) {
-        var data = image.data();
-        if (pixelMask == null) {
-            return Histogram.of(data, 65536);
-        }
-        var builder = Histogram.builder(65536);
-        var recorded = false;
-        for (int y = 0; y < image.height(); y++) {
-            for (int x = 0; x < image.width(); x++) {
-                if (pixelMask.test(x, y)) {
-                    builder.record(data[y][x]);
-                    recorded = true;
-                }
-            }
-        }
-        return recorded ? builder.build() : null;
+    private static float percentileValue(float[] sorted, double percentile) {
+        return sorted[(int) Math.round(percentile / 100.0 * (sorted.length - 1))];
     }
 }
