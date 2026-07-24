@@ -11,8 +11,8 @@ arguments:
   - name: bp
     optional: true
     description:
-      fr: "Valeur de remplissage pour les pixels en dehors de l'image."
-      en: "Fill value for pixels outside of the image."
+      fr: "Valeur de remplissage pour les pixels en dehors de l'image. Par défaut, le niveau du fond de l'image est utilisé, afin que les coins créés par la rotation se fondent dans l'arrière-plan."
+      en: "Fill value for pixels outside of the image. By default the background level of the image is used, so that the corners created by the rotation blend into the background."
   - name: resize
     optional: true
     description:

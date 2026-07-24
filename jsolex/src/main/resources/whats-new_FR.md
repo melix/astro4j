@@ -14,6 +14,7 @@
 - Les images empilées conservent désormais la raie spectrale des images source au lieu de revenir à une longueur d'onde incorrecte.
 - Ajout d'une fonction de script `destripe` qui supprime les bandes horizontales de n'importe quelle image, y compris celles dont le fond est proche de zéro comme les images après soustraction du continuum.
 - Les scripts peuvent désormais forcer les paramètres de traitement dont ils ont besoin, comme désactiver la correction des bandes ou élargir le rognage, quels que soient les paramètres de traitement sélectionnés.
+- La rotation d'une image remplit désormais les coins créés avec le niveau du fond de l'image au lieu du noir, sauf si une valeur de remplissage est précisée.
 - Correction des images entièrement noires lorsque la correction des bandes était désactivée.
 - Les erreurs de script survenant pendant le traitement des fichiers individuels d'un lot sont désormais rapportées dans la boîte de dialogue d'erreur finale, au lieu du seul journal par fichier.
 - Correction du dernier fichier d'un lot qui affichait tous les autres fichiers après la revue des images.

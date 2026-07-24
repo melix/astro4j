@@ -14,6 +14,7 @@
 - Stacked images now keep the spectral line of the source images instead of falling back to the wrong wavelength.
 - Added a `destripe` scripting function that removes horizontal banding from any image, including images whose background is close to zero such as continuum-subtracted images.
 - Scripts can now force processing parameters they need, such as disabling banding correction or widening the crop, whatever is selected in the processing parameters.
+- Rotating an image now fills the corners it creates with the background level of the image instead of black, unless a fill value is given.
 - Fixed images coming out entirely black when the banding correction was disabled.
 - Script errors occurring while processing individual files of a batch are now reported in the final error dialog, instead of only in the per-file log.
 - Fixed the last file of a batch showing all the other files after reviewing images.
