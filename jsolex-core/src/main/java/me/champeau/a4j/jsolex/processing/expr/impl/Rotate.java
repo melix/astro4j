@@ -21,7 +21,6 @@ import me.champeau.a4j.jsolex.processing.sun.detection.Flares;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegions;
-import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
@@ -32,6 +31,7 @@ import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.math.regression.Ellipse;
 
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -108,13 +108,43 @@ public class Rotate extends AbstractFunctionImpl {
     private Image arbitraryRotation(Map<String, Object> arguments, Image image, double angle) {
         var blackpoint = getArgument(Number.class, arguments, "bp")
                 .map(Number::floatValue)
-                .or(() -> getFromContext(ImageStats.class).map(ImageStats::blackpoint))
-                .orElse(0f);
+                .orElseGet(() -> estimateBorderLevel(image));
         var resize = getArgument(Number.class, arguments, "resize")
                 .map(Number::intValue)
                 .map(i -> i == 1)
                 .orElse(false);
         return imageMath.rotate(image, angle, blackpoint, resize);
+    }
+
+    /**
+     * Estimates the value to give to the pixels which the rotation leaves outside of the source
+     * image, as the median of the pixels of its border. Those pixels are the ones the fill will be
+     * adjacent to, so the corners it creates blend into the background instead of showing up as
+     * black triangles, which is what filling with zero produces on any image whose background is
+     * not black.
+     *
+     * @param image the image being rotated
+     * @return the estimated background level of the border
+     */
+    private static float estimateBorderLevel(Image image) {
+        var width = image.width();
+        var height = image.height();
+        if (width == 0 || height == 0) {
+            return 0;
+        }
+        var data = image.data();
+        var samples = new float[2 * width + 2 * height];
+        var count = 0;
+        for (var x = 0; x < width; x++) {
+            samples[count++] = data[0][x];
+            samples[count++] = data[height - 1][x];
+        }
+        for (var y = 0; y < height; y++) {
+            samples[count++] = data[y][0];
+            samples[count++] = data[y][width - 1];
+        }
+        Arrays.sort(samples, 0, count);
+        return samples[count / 2];
     }
 
     private Object doRotate(String functionName, Map<String, Object> arguments, double angle) {
