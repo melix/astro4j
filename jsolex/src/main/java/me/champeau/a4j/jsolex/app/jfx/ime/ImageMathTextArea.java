@@ -51,6 +51,7 @@ import me.champeau.a4j.jsolex.expr.ast.Identifier;
 import me.champeau.a4j.jsolex.expr.ast.IncludeDef;
 import me.champeau.a4j.jsolex.expr.ast.Keyword;
 import me.champeau.a4j.jsolex.expr.ast.MetaBlock;
+import me.champeau.a4j.jsolex.expr.ast.MetaProperty;
 import me.champeau.a4j.jsolex.expr.ast.NamedArgument;
 import me.champeau.a4j.jsolex.expr.ast.NumericalLiteral;
 import me.champeau.a4j.jsolex.expr.ast.ParameterDef;
@@ -62,6 +63,7 @@ import me.champeau.a4j.jsolex.expr.ast.SectionHeader;
 import me.champeau.a4j.jsolex.expr.ast.StringLiteral;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.python.PythonSyntaxHighlighter;
+import me.champeau.a4j.jsolex.processing.params.ImageMathParameterExtractor;
 import me.champeau.a4j.jsolex.processing.util.LocaleUtils;
 import org.fxmisc.richtext.CodeArea;
 import org.fxmisc.richtext.model.StyleSpans;
@@ -1133,7 +1135,7 @@ public class ImageMathTextArea extends BorderPane {
         var knownProperties = Set.of("type", "name", "description", "default", "min", "max", "choices", "step", "image_type", "images");
 
         // Known meta properties
-        var knownMetaProperties = Set.of("author", "title", "description", "version", "requires", "requirements");
+        var knownMetaProperties = Set.of("author", "title", "description", "version", "requires", "requirements", ImageMathParameterExtractor.OVERRIDES_PROPERTY);
 
         // Language codes (extend as needed)
         var languageCodes = Set.of("en", "fr", "de", "es", "it", "pt", "nl", "sv", "da", "no", "fi", "pl", "cs", "sk", "hu", "ro", "bg", "hr", "sl", "et", "lv", "lt", "mt", "ga", "cy");
@@ -1148,6 +1150,11 @@ public class ImageMathTextArea extends BorderPane {
         // Check if this is a known meta property
         if (knownMetaProperties.contains(tokenText)) {
             return "parameter_property"; // Use same styling as parameter properties
+        }
+
+        // Process parameter names inside the overrides block are free form
+        if (isInsideOverridesBlock(token)) {
+            return "parameter_property";
         }
 
         // Check if this is a language code inside a name or description object
@@ -1181,6 +1188,17 @@ public class ImageMathTextArea extends BorderPane {
         }
 
         return null;
+    }
+
+    private boolean isInsideOverridesBlock(Node token) {
+        var parent = token.getParent();
+        while (parent != null) {
+            if (parent instanceof MetaProperty) {
+                return ImageMathParameterExtractor.OVERRIDES_PROPERTY.equals(getMetaPropertyName(parent));
+            }
+            parent = parent.getParent();
+        }
+        return false;
     }
 
     private String getMetaPropertyName(Node node) {

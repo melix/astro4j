@@ -18,10 +18,12 @@ package me.champeau.a4j.jsolex.app.listeners;
 import me.champeau.a4j.jsolex.app.util.FxUtils;
 import me.champeau.a4j.jsolex.app.jfx.ScriptErrorDialog;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
+import me.champeau.a4j.jsolex.processing.expr.InvalidExpression;
 import me.champeau.a4j.jsolex.processing.params.OutputMetadata;
 import me.champeau.a4j.jsolex.processing.params.ScriptParameterExtractor;
 
 import java.io.File;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -40,7 +42,15 @@ final class ScriptExecutionHelper {
      * @param result the script execution result containing any invalid expressions
      */
     static void processScriptErrors(ImageMathScriptResult result) {
-        var invalidExpressions = result.invalidExpressions();
+        processScriptErrors(result.invalidExpressions());
+    }
+
+    /**
+     * Processes script errors by displaying them in a dialog on the FX thread.
+     *
+     * @param invalidExpressions the invalid expressions to display
+     */
+    static void processScriptErrors(List<InvalidExpression> invalidExpressions) {
         if (!invalidExpressions.isEmpty()) {
             FxUtils.runLater(() -> ScriptErrorDialog.showErrors(invalidExpressions));
         }

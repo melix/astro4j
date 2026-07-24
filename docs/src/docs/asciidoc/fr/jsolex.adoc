@@ -882,6 +882,7 @@ JSol'Ex supporte trois types de paramètres :
 * **requires** : Version minimale de JSol'Ex requise (affiche un avertissement si non satisfaite)
 * **params** : Conteneur pour les définitions de paramètres
 * **requirements** : Conteneur pour déclarer les types d'images que le script a besoin pour fonctionner (voir <<#script-requirements,Prérequis de script>>)
+* **overrides** : Conteneur pour les paramètres de traitement que le script force, quels que soient les choix de l'utilisateur (voir <<#script-overrides,Forcer des paramètres de traitement>>)
 
 [[script-requirements]]
 ==== Prérequis de script
@@ -899,6 +900,54 @@ meta {
 ----
 
 Les types d'images inconnus sont ignorés silencieusement. Les types induits sont automatiquement inclus (par exemple, `ELLERMAN_BOMBS` implique `FLARES`).
+
+[[script-overrides]]
+==== Forcer des paramètres de traitement
+
+Certains scripts n'ont de sens qu'avec des paramètres de traitement particuliers : par exemple, un script qui effectue sa propre suppression des bandes a besoin que la correction des bandes intégrée soit désactivée, et un script qui travaille sur la couronne a besoin d'un recadrage suffisamment large.
+Un tel script peut déclarer un bloc `overrides`, qui force des paramètres de traitement quels que soient les choix de l'utilisateur :
+
+[source]
+----
+meta {
+    title = "Couronne"
+    overrides {
+        bandingCorrectionParams {
+            passes = 0
+        }
+        geometryParams {
+            autocropMode = "RADIUS_1_5"
+        }
+    }
+}
+----
+
+Les noms des paramètres sont ceux du fichier `config.json` que JSol'Ex enregistre à côté des images générées : n'importe quel paramètre de traitement peut donc être forcé, et il suffit d'ouvrir ce fichier pour trouver le nom du paramètre recherché.
+Les plus utiles sont :
+
+[%header,cols="35%,65%"]
+|===
+|Paramètre|Description
+|`bandingCorrectionParams.passes`|Nombre de passes de correction des bandes. Utilisez `0` pour désactiver la correction.
+|`bandingCorrectionParams.width`|Taille des bandes, en pixels, pour la correction des bandes.
+|`geometryParams.autocropMode`|Recadrage : `OFF`, `RADIUS_1_1`, `RADIUS_1_2`, `RADIUS_1_5`, `SOURCE_WIDTH` ou `FIXED_WIDTH`.
+|`geometryParams.fixedWidth`|Largeur utilisée lorsque `autocropMode` vaut `FIXED_WIDTH`.
+|===
+
+Les nombres s'écrivent tels quels, tout le reste entre guillemets, y compris les booléens : `spectrumVFlip = "true"`.
+Seules des valeurs simples peuvent être forcées, pas des listes.
+Les paramètres inconnus et les valeurs invalides sont ignorés, avec un avertissement dans les journaux.
+Lorsque plusieurs scripts forcent le même paramètre avec des valeurs différentes, c'est le premier qui l'emporte.
+
+Les paramètres sont forcés avant le traitement de la vidéo, et le fichier `config.json` enregistré à côté des images reflète les valeurs réellement utilisées.
+
+Ces paramètres peuvent aussi être modifiés depuis l'éditeur de métadonnées, et sont supportés par les scripts Python, avec un commentaire par paramètre :
+
+[source,python]
+----
+# meta:overrides:bandingCorrectionParams.passes = 0
+# meta:overrides:geometryParams.autocropMode = "RADIUS_1_5"
+----
 
 ==== Localisation
 

@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - 'cc/conditional-flip'
+      - 'cc/masking'
     tags:
       - '*'
   workflow_dispatch:

@@ -1,0 +1,25 @@
+name: ANNULUS_MASK
+category: MASKING
+description:
+  fr: "Crée un masque en forme d'anneau autour du disque solaire, avec des rayons exprimés en rayons solaires.
+  Le masque peut être passé aux fonctions qui acceptent un paramètre mask (percentile_stretch, mtf_autostretch, ...)
+  pour restreindre les pixels pris en compte dans le calcul de leurs statistiques, tout en transformant l'image entière.
+  Utilisez rmin=0 pour un masque du disque. Nécessite un disque solaire détecté."
+  en: "Creates an annulus-shaped mask around the solar disk, with radii expressed in solar radii.
+  The mask can be passed to the functions which accept a mask parameter (percentile_stretch, mtf_autostretch, ...)
+  to restrict the pixels taken into account when computing their statistics, while still transforming the entire image.
+  Use rmin=0 for a disk mask. Requires a detected solar disk."
+arguments:
+  - name: rmin
+    required: false
+    description:
+      fr: "Rayon intérieur de l'anneau, en rayons solaires (défaut: 0)"
+      en: "Inner radius of the annulus, in solar radii (default: 0)"
+  - name: rmax
+    required: false
+    description:
+      fr: "Rayon extérieur de l'anneau, en rayons solaires (défaut: infini)"
+      en: "Outer radius of the annulus, in solar radii (default: infinite)"
+examples:
+  - "annulus_mask(rmin: 1.05, rmax: 1.2)"
+  - "annulus_mask(0, 1)"

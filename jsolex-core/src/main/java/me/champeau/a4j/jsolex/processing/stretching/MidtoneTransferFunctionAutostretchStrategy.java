@@ -84,40 +84,8 @@ public final class MidtoneTransferFunctionAutostretchStrategy implements Stretch
         return Math.clamp(value / 256, 0, 255);
     }
 
-    private float[] collectPixels(float[][] data, int width, int height) {
-        if (pixelMask == null) {
-            var totalPixels = width * height;
-            var pixels = new float[totalPixels];
-            var index = 0;
-            for (int y = 0; y < height; y++) {
-                for (int x = 0; x < width; x++) {
-                    pixels[index++] = data[y][x];
-                }
-            }
-            return pixels;
-        }
-        int count = 0;
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                if (pixelMask.test(x, y)) {
-                    count++;
-                }
-            }
-        }
-        var pixels = new float[count];
-        int index = 0;
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                if (pixelMask.test(x, y)) {
-                    pixels[index++] = data[y][x];
-                }
-            }
-        }
-        return pixels;
-    }
-
     private MTFParams calculateMTFParams(float[][] data, int width, int height) {
-        var pixels = collectPixels(data, width, height);
+        var pixels = PixelCollection.collect(data, width, height, pixelMask);
         var totalPixels = pixels.length;
 
         if (totalPixels == 0) {

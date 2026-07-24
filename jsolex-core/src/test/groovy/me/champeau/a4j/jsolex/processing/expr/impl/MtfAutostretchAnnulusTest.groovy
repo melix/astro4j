@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.expr.impl
 
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster
+import me.champeau.a4j.jsolex.processing.util.AnnulusMask
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32
 import me.champeau.a4j.math.regression.Ellipse
 import me.champeau.a4j.math.tuples.DoubleSextuplet
@@ -83,8 +84,8 @@ class MtfAutostretchAnnulusTest extends Specification {
         def wide = croppedScene(120)
 
         when:
-        def stretchedTight = stretching().mtfAutostretch(img: tight, stats_rmin: 1.02, stats_rmax: 1.25) as ImageWrapper32
-        def stretchedWide = stretching().mtfAutostretch(img: wide, stats_rmin: 1.02, stats_rmax: 1.25) as ImageWrapper32
+        def stretchedTight = stretching().mtfAutostretch(img: tight, mask: new AnnulusMask(1.02, 1.25)) as ImageWrapper32
+        def stretchedWide = stretching().mtfAutostretch(img: wide, mask: new AnnulusMask(1.02, 1.25)) as ImageWrapper32
 
         then:
         relativeDifference(limbValue(stretchedTight), limbValue(stretchedWide)) < 0.001
@@ -102,7 +103,7 @@ class MtfAutostretchAnnulusTest extends Specification {
         def image = new ImageWrapper32(64, 64, new float[64][64], [:])
 
         when:
-        stretching().mtfAutostretch(img: image, stats_rmin: 1.02, stats_rmax: 1.25)
+        stretching().mtfAutostretch(img: image, mask: new AnnulusMask(1.02, 1.25))
 
         then:
         thrown(IllegalArgumentException)
@@ -110,7 +111,7 @@ class MtfAutostretchAnnulusTest extends Specification {
 
     def "rejects invalid annulus bounds"() {
         when:
-        stretching().mtfAutostretch(img: croppedScene(30), stats_rmin: 1.5, stats_rmax: 1.2)
+        new AnnulusMask(1.5, 1.2)
 
         then:
         thrown(IllegalArgumentException)

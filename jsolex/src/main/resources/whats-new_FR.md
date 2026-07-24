@@ -8,9 +8,14 @@
 - Le mode lot peut désormais n'appliquer une inversion qu'aux fichiers capturés avant ou après une date donnée, utile lorsque l'orientation a changé pendant la session, par exemple après un retournement au méridien.
 - Une nouvelle option de renforcement du contraste « Meilleure méthode » choisit automatiquement la meilleure technique selon la raie spectrale détectée : CLAHE pour le calcium et Autostretch pour les autres raies.
 - La fonction `deghost` peut désormais supprimer plusieurs reflets à la fois, où qu'ils soient autour du disque.
-- La fonction de script `mtf_autostretch` peut désormais calculer ses statistiques sur un anneau autour du disque solaire, afin que le résultat ne dépende plus du facteur de rognage.
+- Les fonctions de script `mtf_autostretch` et `percentile_stretch` peuvent désormais calculer leurs statistiques sur un masque, par exemple un anneau autour du disque solaire, ce qui rend le résultat indépendant du facteur de rognage.
+- La fonction de script `percentile_stretch` gère désormais les images contenant des valeurs négatives, comme les différences calculées avec `signed_diff`, et peut préserver toute la dynamique avec `clip: 0`.
 - Les images produites par l'outil d'empilement peuvent désormais être partagées vers SpectroSolHub.
 - Les images empilées conservent désormais la raie spectrale des images source au lieu de revenir à une longueur d'onde incorrecte.
+- Ajout d'une fonction de script `destripe` qui supprime les bandes horizontales de n'importe quelle image, y compris celles dont le fond est proche de zéro comme les images après soustraction du continuum.
+- Les scripts peuvent désormais forcer les paramètres de traitement dont ils ont besoin, comme désactiver la correction des bandes ou élargir le rognage, quels que soient les paramètres de traitement sélectionnés.
+- Correction des images entièrement noires lorsque la correction des bandes était désactivée.
+- Les erreurs de script survenant pendant le traitement des fichiers individuels d'un lot sont désormais rapportées dans la boîte de dialogue d'erreur finale, au lieu du seul journal par fichier.
 - Correction du dernier fichier d'un lot qui affichait tous les autres fichiers après la revue des images.
 
 ## Nouveautés de la version 5.3.4

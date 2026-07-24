@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.app.listeners;
 
 import me.champeau.a4j.jsolex.app.jfx.BatchItem;
 import me.champeau.a4j.jsolex.app.jfx.CandidateImageDescriptor;
+import me.champeau.a4j.jsolex.processing.expr.InvalidExpression;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.SolarParameters;
@@ -51,6 +52,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * @param batchStartNanos the batch start time in nanoseconds (from System.nanoTime)
  * @param batchScriptsRunning flag set while batch outputs scripts are executing
  * @param batchPostProcessing flag set from the moment all files are processed until the end of batch handling (review, scripts) is done
+ * @param perImageScriptErrors script errors collected while processing individual files, reported together with the batch script errors
  */
 public record BatchProcessingContext(
     List<BatchItem> items,
@@ -71,6 +73,7 @@ public record BatchProcessingContext(
     ReentrantReadWriteLock dataLock,
     long batchStartNanos,
     AtomicBoolean batchScriptsRunning,
-    AtomicBoolean batchPostProcessing
+    AtomicBoolean batchPostProcessing,
+    List<InvalidExpression> perImageScriptErrors
 ) {
 }

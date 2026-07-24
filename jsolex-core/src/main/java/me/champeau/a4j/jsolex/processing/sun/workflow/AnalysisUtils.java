@@ -45,14 +45,14 @@ public class AnalysisUtils {
             for (int y = 0; y < height; y++) {
                 if (!ellipse.isWithin(x, y)) {
                     var v = buffer[y][x];
-                    if (v > 0) {
+                    if (v > 0 && Float.isFinite(v)) {
                         var offcenter = 2 * Math.sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy)) / (width + height);
                         blackEstimate = blackEstimate + (offcenter * v - blackEstimate) / (++cpt);
                     }
                 }
             }
         }
-        return blackEstimate;
+        return cpt == 0 ? 0 : blackEstimate;
     }
 
     /**
@@ -72,13 +72,13 @@ public class AnalysisUtils {
             for (int y = 0; y < height; y++) {
                 if (!ellipse.isWithin(x, y)) {
                     var v = buffer[y][x];
-                    if (v > 0) {
+                    if (v > 0 && Float.isFinite(v)) {
                         avg = avg + (v - avg) / (++cpt);
                     }
                 }
             }
         }
-        return avg;
+        return cpt == 0 ? 0 : avg;
     }
 
     /**

@@ -733,6 +733,7 @@ JSol'Ex supports three parameter types:
 * **requires**: Minimum JSol'Ex version needed (displays warning if not met)
 * **params**: Container for parameter definitions
 * **requirements**: Container for declaring image kinds that must be generated for the script to work (see <<#script-requirements,Script Requirements>>)
+* **overrides**: Container for processing parameters which the script forces, whatever the user selected (see <<#script-overrides,Overriding processing parameters>>)
 
 [[script-requirements]]
 ==== Script Requirements
@@ -750,6 +751,54 @@ meta {
 ----
 
 Unknown image kinds are silently ignored. Implied kinds are automatically included (for example `ELLERMAN_BOMBS` implies `FLARES`).
+
+[[script-overrides]]
+==== Overriding processing parameters
+
+Some scripts only make sense with particular processing parameters: for example a script which performs its own banding removal needs the built-in banding correction to be disabled, and a script which works on the corona needs a wide enough crop.
+Such a script can declare an `overrides` block, which forces processing parameters regardless of what the user selected:
+
+[source]
+----
+meta {
+    title = "Corona"
+    overrides {
+        bandingCorrectionParams {
+            passes = 0
+        }
+        geometryParams {
+            autocropMode = "RADIUS_1_5"
+        }
+    }
+}
+----
+
+The parameter names are those of the `config.json` file which JSol'Ex writes next to the generated images, so any processing parameter can be overridden: open that file to find the name of the parameter you are looking for.
+The most useful ones are:
+
+[%header,cols="35%,65%"]
+|===
+|Parameter|Description
+|`bandingCorrectionParams.passes`|Number of banding correction passes. Use `0` to disable the correction.
+|`bandingCorrectionParams.width`|Band size, in pixels, of the banding correction.
+|`geometryParams.autocropMode`|Cropping: `OFF`, `RADIUS_1_1`, `RADIUS_1_2`, `RADIUS_1_5`, `SOURCE_WIDTH` or `FIXED_WIDTH`.
+|`geometryParams.fixedWidth`|Width used when `autocropMode` is `FIXED_WIDTH`.
+|===
+
+Numbers are written as is, everything else between quotes, including booleans: `spectrumVFlip = "true"`.
+Only single values can be overridden, not lists.
+Unknown parameters and invalid values are ignored, with a warning in the logs.
+When several scripts override the same parameter with different values, the first one wins.
+
+The overrides are applied before the video is processed, and the `config.json` saved next to the images reflects the values which were actually used.
+
+Overrides can also be edited from the metadata editor, and are supported by Python scripts, using one comment per parameter:
+
+[source,python]
+----
+# meta:overrides:bandingCorrectionParams.passes = 0
+# meta:overrides:geometryParams.autocropMode = "RADIUS_1_5"
+----
 
 ==== Localization
 

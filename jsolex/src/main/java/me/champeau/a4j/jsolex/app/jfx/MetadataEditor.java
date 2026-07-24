@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.app.jfx;
 
+import com.google.gson.JsonObject;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -23,6 +24,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -30,6 +32,7 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
@@ -39,6 +42,7 @@ import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
@@ -53,14 +57,18 @@ import me.champeau.a4j.jsolex.processing.params.ImageMathParameterExtractor.Para
 import me.champeau.a4j.jsolex.processing.params.NumberParameter;
 import me.champeau.a4j.jsolex.processing.params.OutputMetadata;
 import me.champeau.a4j.jsolex.processing.params.ParameterType;
+import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.PythonParameterExtractor;
 import me.champeau.a4j.jsolex.processing.params.ScriptParameter;
+import me.champeau.a4j.jsolex.processing.params.ScriptProcessParamsOverrides;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.VersionUtil;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.EnumSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -137,6 +145,10 @@ public class MetadataEditor {
     @FXML
     private VBox requirementsContainer;
     @FXML
+    private VBox overridesContainer;
+    @FXML
+    private Button addOverrideButton;
+    @FXML
     private ListView<OutputModel> outputsList;
     @FXML
     private Button addOutputButton;
@@ -164,6 +176,8 @@ public class MetadataEditor {
     private final ObservableList<ParameterModel> parameters = FXCollections.observableArrayList();
     private final ObservableList<OutputModel> outputs = FXCollections.observableArrayList();
     private final Map<GeneratedImageKind, CheckBox> requirementCheckBoxes = new EnumMap<>(GeneratedImageKind.class);
+    private final List<OverrideRow> overrideRows = new ArrayList<>();
+    private List<String> overridablePaths = List.of();
     private ParameterModel selectedParameter;
     private OutputModel selectedOutput;
 
@@ -239,6 +253,7 @@ public class MetadataEditor {
         });
 
         buildRequirementsSection();
+        buildOverridesSection();
 
         setupValidationListeners();
         setupHelpIcons();
@@ -459,6 +474,9 @@ public class MetadataEditor {
         for (var entry : requirementCheckBoxes.entrySet()) {
             entry.getValue().setSelected(requiredKinds.contains(entry.getKey()));
         }
+
+        ScriptProcessParamsOverrides.flatten(extractionResult.getProcessParamsOverrides())
+                .forEach(this::addOverrideRow);
     }
 
     private MetaBlock findMetaBlock(Object node) {
@@ -953,6 +971,7 @@ public class MetadataEditor {
         writeStringProperty(writer, "requires", requiresField.getText());
 
         writeRequirementsBlock(writer);
+        writeOverridesBlock(writer);
 
         if (!parameters.isEmpty()) {
             writer.writeLine("params {");
@@ -1058,6 +1077,35 @@ public class MetadataEditor {
         writer.writeLine("}");
     }
 
+    private void writeOverridesBlock(IndentedWriter writer) {
+        var overrides = collectOverrides();
+        if (overrides.isEmpty()) {
+            return;
+        }
+        writer.writeLine(ImageMathParameterExtractor.OVERRIDES_PROPERTY + " {");
+        writer.indent();
+        writeOverrideProperties(writer, ScriptProcessParamsOverrides.fromFlattened(overrides));
+        writer.dedent();
+        writer.writeLine("}");
+    }
+
+    private void writeOverrideProperties(IndentedWriter writer, JsonObject overrides) {
+        for (var entry : overrides.entrySet()) {
+            var value = entry.getValue();
+            if (value.isJsonObject()) {
+                writer.writeLine(entry.getKey() + " {");
+                writer.indent();
+                writeOverrideProperties(writer, value.getAsJsonObject());
+                writer.dedent();
+                writer.writeLine("}");
+            } else if (value.getAsJsonPrimitive().isNumber()) {
+                writer.writeRawProperty(entry.getKey(), value.getAsString());
+            } else {
+                writer.writeProperty(entry.getKey(), value.getAsString());
+            }
+        }
+    }
+
     private Set<GeneratedImageKind> selectedRequiredKinds() {
         var result = EnumSet.noneOf(GeneratedImageKind.class);
         for (var entry : requirementCheckBoxes.entrySet()) {
@@ -1088,6 +1136,56 @@ public class MetadataEditor {
             GeneratedImageKind.ACTIVE_REGIONS,
             GeneratedImageKind.ELLERMAN_BOMBS
     );
+
+    private record OverrideRow(ComboBox<String> path, TextField value) {
+    }
+
+    private void buildOverridesSection() {
+        addOverrideButton.setTooltip(new Tooltip(I18N.string(JSolEx.class, "metadata-editor", "overrides.add.tooltip")));
+        overridablePaths = ScriptProcessParamsOverrides.overridablePaths(ProcessParams.loadDefaults());
+        overridesContainer.getChildren().clear();
+        overrideRows.clear();
+    }
+
+    @FXML
+    private void handleAddOverride() {
+        addOverrideRow("", "");
+    }
+
+    private void addOverrideRow(String path, String value) {
+        var pathBox = new ComboBox<String>();
+        pathBox.setEditable(true);
+        pathBox.getItems().setAll(overridablePaths);
+        pathBox.setPromptText(I18N.string(JSolEx.class, "metadata-editor", "overrides.parameter"));
+        pathBox.getEditor().setText(path);
+        pathBox.setPrefWidth(360);
+        var valueField = new TextField(value);
+        valueField.setPromptText(I18N.string(JSolEx.class, "metadata-editor", "overrides.value"));
+        valueField.getStyleClass().add("modern-text-field");
+        HBox.setHgrow(valueField, Priority.ALWAYS);
+        var removeButton = new Button(I18N.string(JSolEx.class, "metadata-editor", "overrides.remove"));
+        var row = new HBox(8, pathBox, valueField, removeButton);
+        row.setAlignment(Pos.CENTER_LEFT);
+        var overrideRow = new OverrideRow(pathBox, valueField);
+        removeButton.setOnAction(_ -> {
+            overrideRows.remove(overrideRow);
+            overridesContainer.getChildren().remove(row);
+        });
+        overrideRows.add(overrideRow);
+        overridesContainer.getChildren().add(row);
+    }
+
+    private Map<String, String> collectOverrides() {
+        var result = new LinkedHashMap<String, String>();
+        for (var row : overrideRows) {
+            var path = row.path().getEditor().getText().trim();
+            var value = row.value().getText().trim();
+            if (!path.isEmpty() && !value.isEmpty()) {
+                result.put(path, value);
+            }
+        }
+        return result;
+    }
 
     private void buildRequirementsSection() {
         requirementsContainer.getChildren().clear();
@@ -1268,6 +1366,14 @@ public class MetadataEditor {
                     .collect(Collectors.joining(","));
             sb.append("# meta:requires_images = \"").append(joined).append("\"\n");
         }
+
+        collectOverrides().forEach((path, value) -> sb.append("# meta:")
+                .append(ImageMathParameterExtractor.OVERRIDES_PROPERTY)
+                .append(":")
+                .append(path)
+                .append(" = \"")
+                .append(escapePythonString(value))
+                .append("\"\n"));
 
         var descEn = descriptionEnField.getText().trim();
         var descFr = descriptionFrField.getText().trim();
