@@ -1750,20 +1750,24 @@
     -fx-text-fill: #b00020;
 }
 
-/* GONG observatory picker overlay on top of the reference image */
-.gong-site-button {
+/* Pickers overlaid on top of the compared images */
+.gong-site-button,
+.image-picker-button {
     -fx-background-color: #1e1e1e;
     -fx-background-radius: 3;
     -fx-padding: 3 6 3 6;
     -fx-font-size: 11px;
 }
-.gong-site-button > .label {
+.gong-site-button > .label,
+.image-picker-button > .label {
     -fx-text-fill: white;
 }
-.gong-site-button > .arrow-button > .arrow {
+.gong-site-button > .arrow-button > .arrow,
+.image-picker-button > .arrow-button > .arrow {
     -fx-background-color: white;
 }
-.gong-site-button:hover {
+.gong-site-button:hover,
+.image-picker-button:hover {
     -fx-background-color: #333333;
 }
 

@@ -25,8 +25,10 @@ import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ProgressIndicator;
+import javafx.scene.control.RadioMenuItem;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Slider;
+import javafx.scene.control.ToggleGroup;
 import javafx.scene.image.Image;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -96,6 +98,10 @@ class Step3OrientationHandler implements StepHandler {
     private final Scaling scaling = new Scaling(Map.of(), Broadcaster.NO_OP, new Crop(Map.of(), Broadcaster.NO_OP));
     private ZoomableImageView userImageView;
     private VBox userImageLoadingOverlay;
+    private Label userImageLoadingLabel;
+    private MenuButton userImageMenuButton;
+    private List<MultipleImagesViewer.ImageInfo> userImages = List.of();
+    private boolean userImageManuallySelected;
     private ZoomableImageView gongImageView;
     private VBox gongImageContainer;
     private StackPane gongImageStack;
@@ -152,8 +158,15 @@ class Step3OrientationHandler implements StepHandler {
         userImageView.getScrollPane().setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         userImageView.getScrollPane().setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         userImageView.setStyle("-fx-border-color: gray; -fx-border-width: 1;");
-        userImageLoadingOverlay = createLoadingIndicator(message("orientation.your.image.loading"));
-        var userImageStack = new StackPane(userImageView, userImageLoadingOverlay);
+        userImageLoadingLabel = createLoadingLabel(message("orientation.your.image.loading"));
+        userImageLoadingOverlay = createLoadingIndicator(userImageLoadingLabel);
+        userImageMenuButton = new MenuButton(message("orientation.your.image.pick"));
+        userImageMenuButton.getStyleClass().add("image-picker-button");
+        userImageMenuButton.setMinWidth(170);
+        userImageMenuButton.setDisable(true);
+        var userImageStack = new StackPane(userImageView, userImageMenuButton, userImageLoadingOverlay);
+        StackPane.setAlignment(userImageMenuButton, Pos.TOP_LEFT);
+        StackPane.setMargin(userImageMenuButton, new Insets(6, 6, 6, 10));
         VBox.setVgrow(userImageStack, Priority.ALWAYS);
         HBox.setHgrow(userImageStack, Priority.ALWAYS);
         userImageContainer.getChildren().addAll(userImageLabel, userImageStack);
@@ -227,7 +240,52 @@ class Step3OrientationHandler implements StepHandler {
 
     @Override
     public void load() {
+        userImages = imagesSupplier.get();
+        populateUserImageMenu();
         loadGongReferenceImage();
+    }
+
+    private void populateUserImageMenu() {
+        if (userImageMenuButton == null) {
+            return;
+        }
+        var selectable = userImages.stream()
+                .filter(image -> !NON_DISK_KINDS.contains(image.kind()))
+                .toList();
+        if (selectable.isEmpty()) {
+            selectable = userImages;
+        }
+        var toggleGroup = new ToggleGroup();
+        userImageMenuButton.getItems().clear();
+        for (var image : selectable) {
+            var item = new RadioMenuItem(image.title());
+            item.setToggleGroup(toggleGroup);
+            item.setUserData(image);
+            item.setOnAction(e -> selectUserImage(image));
+            userImageMenuButton.getItems().add(item);
+        }
+        userImageMenuButton.setDisable(selectable.size() <= 1);
+    }
+
+    private void selectUserImage(MultipleImagesViewer.ImageInfo image) {
+        userImageManuallySelected = true;
+        userImageDisplayed = true;
+        userImageLoadingLabel.setText(message("orientation.your.image.loading.selected"));
+        userImageLoadingOverlay.setVisible(true);
+        userImageLoadingOverlay.setManaged(true);
+        BackgroundOperations.async(() -> displayUserImage(image));
+    }
+
+    private void markSelectedUserImage(MultipleImagesViewer.ImageInfo image) {
+        if (userImageMenuButton == null) {
+            return;
+        }
+        for (var item : userImageMenuButton.getItems()) {
+            if (item instanceof RadioMenuItem radio && radio.getUserData() == image) {
+                radio.setSelected(true);
+                return;
+            }
+        }
     }
 
     @Override
@@ -244,7 +302,7 @@ class Step3OrientationHandler implements StepHandler {
         if (userImageDisplayed) {
             return;
         }
-        var representative = findRepresentativeImage(imagesSupplier.get());
+        var representative = findRepresentativeImage(userImages);
         if (representative == null) {
             hideUserImageLoadingOverlay();
             return;
@@ -256,17 +314,16 @@ class Step3OrientationHandler implements StepHandler {
         if (userImageDisplayed) {
             return;
         }
-        var allImages = imagesSupplier.get();
-        if (allImages.isEmpty()) {
+        if (userImages.isEmpty()) {
             hideUserImageLoadingOverlay();
             return;
         }
         BackgroundOperations.async(() -> {
-            var representative = findClosestImageToGong(allImages, gongImage);
+            var representative = findClosestImageToGong(userImages, gongImage);
             if (representative == null) {
-                representative = findRepresentativeImage(allImages);
+                representative = findRepresentativeImage(userImages);
             }
-            if (representative != null) {
+            if (representative != null && !userImageManuallySelected) {
                 displayUserImage(representative);
             }
         });
@@ -289,6 +346,7 @@ class Step3OrientationHandler implements StepHandler {
             FxUtils.runLater(() -> {
                 userImageDisplayed = true;
                 hideUserImageLoadingOverlay();
+                markSelectedUserImage(representative);
                 userImageView.setImage(writableImage);
                 userImageView.resetZoom();
                 if (gongReferenceImage != null) {
@@ -397,7 +455,7 @@ class Step3OrientationHandler implements StepHandler {
     }
 
     private void showGongLoadingLabel() {
-        swapGongContent(createLoadingIndicator(message("orientation.gong.loading")));
+        swapGongContent(createLoadingIndicator(createLoadingLabel(message("orientation.gong.loading"))));
     }
 
     private void showGongUnavailableLabel() {
@@ -416,14 +474,18 @@ class Step3OrientationHandler implements StepHandler {
         gongImageStack.getChildren().set(0, content);
     }
 
-    private static VBox createLoadingIndicator(String text) {
-        var spinner = new ProgressIndicator();
-        spinner.setMinSize(48, 48);
-        spinner.setMaxSize(48, 48);
+    private static Label createLoadingLabel(String text) {
         var label = new Label(text);
         label.setStyle("-fx-font-size: 14px; -fx-text-fill: gray;");
         label.setWrapText(true);
         label.setMaxWidth(IMAGE_VIEW_SIZE * 0.8);
+        return label;
+    }
+
+    private static VBox createLoadingIndicator(Label label) {
+        var spinner = new ProgressIndicator();
+        spinner.setMinSize(48, 48);
+        spinner.setMaxSize(48, 48);
         var box = new VBox(12, spinner, label);
         box.setAlignment(Pos.CENTER);
         return box;
