@@ -539,8 +539,8 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_colorize2">COLORIZE2</a></li>
 <li><a href="#_curve_transform">CURVE_TRANSFORM</a></li>
 <li><a href="#_deghost">DEGHOST</a></li>
+<li><a href="#_destripe">DESTRIPE</a></li>
 <li><a href="#_disk_fill">DISK_FILL</a></li>
-<li><a href="#_disk_mask">DISK_MASK</a></li>
 <li><a href="#_equalize">EQUALIZE</a></li>
 <li><a href="#_fix_banding">FIX_BANDING</a></li>
 <li><a href="#_fix_geometry">FIX_GEOMETRY</a></li>
@@ -622,6 +622,14 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_stack">STACK</a></li>
 <li><a href="#_stack_dedis">STACK_DEDIS</a></li>
 <li><a href="#_stack_ref">STACK_REF</a></li>
+</ul>
+</li>
+<li><a href="#_masquage">Masquage</a>
+<ul class="sectlevel2">
+<li><a href="#_annulus_mask">ANNULUS_MASK</a></li>
+<li><a href="#_disk_mask">DISK_MASK</a></li>
+<li><a href="#_invert_mask">INVERT_MASK</a></li>
+<li><a href="#_range_mask">RANGE_MASK</a></li>
 </ul>
 </li>
 <li><a href="#_structures_de_contrôle">Structures de contrôle</a>
@@ -3784,7 +3792,7 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <div class="sect2">
 <h3 id="_deghost">DEGHOST</h3>
 <div class="paragraph">
-<p>Atténue le reflet unilatéral (fantôme) du disque solaire en soustrayant une estimation lisse de son excès de luminosité, sans supprimer les détails sous-jacents. Tout est déduit de l&#8217;image, sans paramètre de position.</p>
+<p>Atténue les reflets (fantômes) du disque solaire, y compris plusieurs à la fois, en soustrayant une estimation lisse de leur excès de luminosité, sans supprimer les détails sous-jacents. Tout est déduit de l&#8217;image, sans paramètre de position.</p>
 </div>
 <table class="tableblock frame-all grid-all stretch">
 <colgroup>
@@ -3844,6 +3852,79 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 </div>
 </div>
 <div class="sect2">
+<h3 id="_destripe">DESTRIPE</h3>
+<div class="paragraph">
+<p>Supprime les bandes horizontales (stries) d&#8217;une image</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 13.6363%;">
+<col style="width: 13.6363%;">
+<col style="width: 59.0909%;">
+<col style="width: 13.6365%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Argument</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Requis ?</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Description</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Valeur par défaut</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>img</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Image(s)</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>bs</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Échelle la plus grande, en pixels, du lissage vertical : augmentez-la pour supprimer des bandes plus larges. Les structures verticales plus larges que bs sont préservées.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">48</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>passes</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Nombre de passes</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">2</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>strips</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Nombre de bandes verticales corrigées indépendamment, ou 0 pour le déduire de la largeur. Utilisez 1 pour appliquer une correction constante sur toute la ligne : la correction ne suit plus les variations horizontales des bandes, mais elle ne présente aucune transition visible, ce qui est préférable lorsque l&#8217;image contient une grande zone inutilisable comme le disque solaire.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">0</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>ellipseMode</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Utilisation du disque solaire : 0 = ignoré (tous les pixels de la ligne), 1 = pixels du disque (défaut), 2 = pixels hors du disque uniquement.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">1</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p><strong>Exemples</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>destripe(img(0))</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>destripe(img: someImage; bs: 192; passes: 2; ellipseMode: 2)</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>destripe(img: someImage; bs: 192; strips: 1; ellipseMode: 2)</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
 <h3 id="_disk_fill">DISK_FILL</h3>
 <div class="paragraph">
 <p>Remplit le disque solaire détecté avec une valeur donnée (par défault, celle du point noir détecté).</p>
@@ -3890,56 +3971,6 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <div class="listingblock">
 <div class="content">
 <pre>disk_fill(img: img(0), fill: 200)</pre>
-</div>
-</div>
-</div>
-<div class="sect2">
-<h3 id="_disk_mask">DISK_MASK</h3>
-<div class="paragraph">
-<p>Crée un masque du disque solaire, où les pixels à l’intérieur du disque auront la valeur 1, contre 0 pour ceux à l’extérieur du disque. Il est possible d’inverser (0 à l’intérieur, 1 à l’extérieur) en passant 1 comme 2d paramètre de la fonction.</p>
-</div>
-<table class="tableblock frame-all grid-all stretch">
-<colgroup>
-<col style="width: 13.6363%;">
-<col style="width: 13.6363%;">
-<col style="width: 59.0909%;">
-<col style="width: 13.6365%;">
-</colgroup>
-<tbody>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Argument</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Requis ?</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Description</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Valeur par défaut</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>img</code></p></td>
-<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Image(s)</p></td>
-<td class="tableblock halign-left valign-top"></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>invert</code></p></td>
-<td class="tableblock halign-center valign-top"></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Inversion du masque (1 signifie valeur 0 à l’intérieur, 1 à l’extérieur)</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">0</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
-</tr>
-</tbody>
-</table>
-<div class="paragraph">
-<p><strong>Exemples</strong></p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre>disk_mask(img(0))</pre>
-</div>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre>disk_mask(img: img(0), invert: 1)</pre>
 </div>
 </div>
 </div>
@@ -4372,15 +4403,9 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <td class="tableblock halign-left valign-top"><p class="tableblock">0.25</p></td>
 </tr>
 <tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>stats_rmin</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>mask</code></p></td>
 <td class="tableblock halign-center valign-top"></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Rayon intérieur de l&#8217;anneau utilisé pour le calcul des statistiques, en unités de rayon solaire. Si stats_rmin ou stats_rmax est spécifié, les statistiques sont calculées uniquement sur les pixels de l&#8217;anneau, ce qui rend l&#8217;étirement indépendant du recadrage. L&#8217;étirement est toujours appliqué à l&#8217;image entière. Nécessite un disque solaire détecté.</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">1.0</p></td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>stats_rmax</code></p></td>
-<td class="tableblock halign-center valign-top"></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Rayon extérieur de l&#8217;anneau utilisé pour le calcul des statistiques, en unités de rayon solaire (illimité par défaut).</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Masque restreignant les pixels utilisés pour le calcul des statistiques (créé avec annulus_mask ou range_mask). Par exemple, un masque en anneau autour du disque rend l&#8217;étirement indépendant du recadrage. L&#8217;étirement est toujours appliqué à l&#8217;image entière.</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>
@@ -4413,7 +4438,7 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre>mtf_autostretch(img: img(0), stats_rmin: 1.05, stats_rmax: 1.4)</pre>
+<pre>mtf_autostretch(img: img(0), mask: annulus_mask(1.05, 1.4))</pre>
 </div>
 </div>
 </div>
@@ -4455,6 +4480,18 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>mask</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Masque restreignant les pixels utilisés pour le calcul des percentiles (créé avec annulus_mask ou range_mask). L&#8217;étirement est toujours appliqué à l&#8217;image entière.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>clip</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Stratégie d&#8217;écrêtage (défaut: 1). 0 : aucun écrêtage, transformation affine pure dont le gain ne dépend que des percentiles, les pixels hors de la plage peuvent sortir de la plage affichable — adapté à la normalisation d&#8217;images avant empilement. 1 : les pixels sous le percentile bas deviennent noirs, ceux au-dessus du percentile haut deviennent blancs. 2 : le point blanc est étendu jusqu&#8217;au pixel le plus brillant de l&#8217;image, ce qui évite d&#8217;écrêter les régions brillantes situées hors du masque.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
 <td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
 </tr>
 </tbody>
@@ -4475,6 +4512,11 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <div class="listingblock">
 <div class="content">
 <pre>percentile_stretch(img(0), 1, 99)</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>percentile_stretch(img: img(0), mask: annulus_mask(1.05, 1.4), clip: 0)</pre>
 </div>
 </div>
 </div>
@@ -7082,6 +7124,200 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <div class="listingblock">
 <div class="content">
 <pre>stack_Ref(images: some_images, select: "sharpness")</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_masquage">Masquage</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="_annulus_mask">ANNULUS_MASK</h3>
+<div class="paragraph">
+<p>Crée un masque en forme d&#8217;anneau autour du disque solaire, avec des rayons exprimés en rayons solaires. Le masque peut être passé aux fonctions qui acceptent un paramètre mask (percentile_stretch, mtf_autostretch, &#8230;&#8203;) pour restreindre les pixels pris en compte dans le calcul de leurs statistiques, tout en transformant l&#8217;image entière. Utilisez rmin=0 pour un masque du disque. Nécessite un disque solaire détecté.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 13.6363%;">
+<col style="width: 13.6363%;">
+<col style="width: 59.0909%;">
+<col style="width: 13.6365%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Argument</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Requis ?</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Description</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Valeur par défaut</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>rmin</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Rayon intérieur de l&#8217;anneau, en rayons solaires (défaut: 0)</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>rmax</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Rayon extérieur de l&#8217;anneau, en rayons solaires (défaut: infini)</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p><strong>Exemples</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>annulus_mask(rmin: 1.05, rmax: 1.2)</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>annulus_mask(0, 1)</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_disk_mask">DISK_MASK</h3>
+<div class="paragraph">
+<p>Crée un masque du disque solaire, où les pixels à l’intérieur du disque auront la valeur 1, contre 0 pour ceux à l’extérieur du disque. Il est possible d’inverser (0 à l’intérieur, 1 à l’extérieur) en passant 1 comme 2d paramètre de la fonction.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 13.6363%;">
+<col style="width: 13.6363%;">
+<col style="width: 59.0909%;">
+<col style="width: 13.6365%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Argument</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Requis ?</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Description</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Valeur par défaut</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>img</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Image(s)</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>invert</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Inversion du masque (1 signifie valeur 0 à l’intérieur, 1 à l’extérieur)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">0</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p><strong>Exemples</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>disk_mask(img(0))</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>disk_mask(img: img(0), invert: 1)</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_invert_mask">INVERT_MASK</h3>
+<div class="paragraph">
+<p>Inverse un masque créé par annulus_mask ou range_mask : les pixels exclus deviennent inclus et réciproquement. Inverser deux fois redonne le masque d&#8217;origine.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 13.6363%;">
+<col style="width: 13.6363%;">
+<col style="width: 59.0909%;">
+<col style="width: 13.6365%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Argument</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Requis ?</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Description</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Valeur par défaut</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>mask</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Masque à inverser</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p><strong>Exemples</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>invert_mask(annulus_mask(0, 1))</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_range_mask">RANGE_MASK</h3>
+<div class="paragraph">
+<p>Crée un masque sélectionnant les pixels dont la valeur est comprise entre lo et hi (bornes incluses). Le masque peut être passé aux fonctions qui acceptent un paramètre mask (percentile_stretch, mtf_autostretch, &#8230;&#8203;) pour restreindre les pixels pris en compte dans le calcul de leurs statistiques, tout en transformant l&#8217;image entière.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 13.6363%;">
+<col style="width: 13.6363%;">
+<col style="width: 59.0909%;">
+<col style="width: 13.6365%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Argument</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Requis ?</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Description</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Valeur par défaut</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>lo</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Valeur minimale des pixels sélectionnés (défaut: 0)</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>hi</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Valeur maximale des pixels sélectionnés (défaut: infini)</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p><strong>Exemples</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>range_mask(lo: 1000, hi: 30000)</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>range_mask(0, 5000)</pre>
 </div>
 </div>
 </div>
