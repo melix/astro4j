@@ -189,6 +189,13 @@ public final class ScriptExecutionContext {
             return this;
         }
 
+        public Builder fileCounts(FileCounts fileCounts) {
+            if (fileCounts != null) {
+                entries.put(FileCounts.class, fileCounts);
+            }
+            return this;
+        }
+
         public Builder animationFormats(Set<AnimationFormat> animationFormats) {
             if (animationFormats != null) {
                 entries.put(AnimationFormat.class, animationFormats);

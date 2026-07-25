@@ -82,6 +82,8 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     public static final String CARROT_VAR = "carrot";
     public static final String DETECTED_WAVELEN = "detectedWavelen";
     public static final String DETECTED_DISPERSION = "detectedDispersion";
+    public static final String INPUT_FILES_COUNT_VAR = "inputFilesCount";
+    public static final String KEPT_FILES_COUNT_VAR = "keptFilesCount";
 
     public static final String OUTPUTS_SECTION_NAME = "outputs";
 
@@ -812,6 +814,13 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         var processParams = context.get(ProcessParams.class);
         evaluator.putVariable(DETECTED_WAVELEN, processParams == null ? 0 : processParams.spectrumParams().ray().wavelength().angstroms());
         evaluator.putVariable(DETECTED_DISPERSION, processParams == null ? 0 : computeDispersion(processParams, processParams.spectrumParams().ray().wavelength()).angstromsPerPixel());
+        var fileCounts = context.get(FileCounts.class);
+        if (fileCounts == null) {
+            fileCounts = FileCounts.SINGLE_FILE;
+        }
+        evaluator.putVariable(INPUT_FILES_COUNT_VAR, fileCounts.inputFilesCount());
+        evaluator.putVariable(KEPT_FILES_COUNT_VAR, fileCounts.keptFilesCount());
+        evaluator.putInContext(FileCounts.class, fileCounts);
         for (var entry : variables.entrySet()) {
             evaluator.putVariable(entry.getKey(), entry.getValue());
         }

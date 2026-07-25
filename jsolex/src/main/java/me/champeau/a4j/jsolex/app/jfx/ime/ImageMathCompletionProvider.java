@@ -91,7 +91,9 @@ public class ImageMathCompletionProvider implements CompletionProvider {
             DefaultImageScriptExecutor.L0_VAR,
             DefaultImageScriptExecutor.CARROT_VAR,
             DefaultImageScriptExecutor.DETECTED_WAVELEN,
-            DefaultImageScriptExecutor.DETECTED_DISPERSION
+            DefaultImageScriptExecutor.DETECTED_DISPERSION,
+            DefaultImageScriptExecutor.INPUT_FILES_COUNT_VAR,
+            DefaultImageScriptExecutor.KEPT_FILES_COUNT_VAR
         ).filter(name -> name.toLowerCase().startsWith(partial))
         .map(name -> new CompletionItem(name, CompletionType.VARIABLE));
 

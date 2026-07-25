@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.scene.image.Image;
+import me.champeau.a4j.jsolex.processing.expr.FileCounts;
 import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
 import me.champeau.a4j.jsolex.processing.expr.impl.Loader;
 import me.champeau.a4j.jsolex.processing.params.GlobeStyle;
@@ -174,12 +175,12 @@ final class OverlayRenderer {
         return Loader.toImageWrapper(bi, prepared.metadata());
     }
 
-    static ImageWrapper bakeObsDetails(ImageWrapper source, ImageOverlayState state, int x, int y, ProcessParams processParams) {
+    static ImageWrapper bakeObsDetails(ImageWrapper source, ImageOverlayState state, int x, int y, ProcessParams processParams, FileCounts fileCounts) {
         if (source == null || state == null || !state.drawObservationDetails()) {
             return source;
         }
         var prepared = prepareForColorAt(source, state.obsDetailsColor());
-        var draw = newDraw(processParams);
+        var draw = newDraw(processParams, fileCounts);
         var bi = ImageDraw.drawOnImageAsBuffered(prepared,
                 (g, image) -> draw.drawObservationDetailsOn(g, image, x, y, -1, state.obsDetailsColor(), state.obsDetailsTemplate()));
         return Loader.toImageWrapper(bi, prepared.metadata());
@@ -197,8 +198,15 @@ final class OverlayRenderer {
     }
 
     private static ImageDraw newDraw(ProcessParams processParams) {
+        return newDraw(processParams, null);
+    }
+
+    private static ImageDraw newDraw(ProcessParams processParams, FileCounts fileCounts) {
         var ctx = new HashMap<Class<?>, Object>();
         ctx.put(ProcessParams.class, processParams);
+        if (fileCounts != null) {
+            ctx.put(FileCounts.class, fileCounts);
+        }
         return new ImageDraw(ctx, Broadcaster.NO_OP);
     }
 

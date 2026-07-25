@@ -22,7 +22,10 @@ description:
      * `%B0_ANGLE%` : l'angle B0 en degrés\n
      * `%L0_ANGLE%` : l'angle L0 en degrés\n
      * `%CARRINGTON_ROT%` : le numéro de rotation de Carrington\n
-     * `%FILENAME%` : le nom du fichier SER source\n"
+     * `%FILENAME%` : le nom du fichier SER source\n
+     * `%INPUT_FILES%` : le nombre de fichiers traités\n
+     * `%KEPT_FILES%` : le nombre de fichiers conservés après la revue des images\n
+     * `%VAR_xxx%` : la valeur de la variable `xxx` du script, par exemple `%VAR_inputFilesCount%`\n"
   en: "Draws text on the image. The text can include the following variables:\n
 \n
      * `%WAVELEN%` : wavelength of the image in Angström (includes the shift from the reference wavelength)\n
@@ -44,7 +47,10 @@ description:
      * `%B0_ANGLE%` : B0 angle in degrees\n
      * `%L0_ANGLE%` : L0 angle in degrees\n
      * `%CARRINGTON_ROT%` : Carrington rotation number\n
-     * `%FILENAME%` : source SER file name\n"
+     * `%FILENAME%` : source SER file name\n
+     * `%INPUT_FILES%` : the number of processed files\n
+     * `%KEPT_FILES%` : the number of files kept after the image review\n
+     * `%VAR_xxx%` : the value of the script variable `xxx`, for example `%VAR_inputFilesCount%`\n"
 arguments:
   - name: img
     description: Image(s)

@@ -11,6 +11,9 @@
 - Les fonctions de script `mtf_autostretch` et `percentile_stretch` peuvent désormais calculer leurs statistiques sur un masque, par exemple un anneau autour du disque solaire, ce qui rend le résultat indépendant du facteur de rognage.
 - Les images produites par `crop_ar` portent désormais le nom de la région active qu'elles montrent.
 - La fonction de script `percentile_stretch` gère désormais les images contenant des valeurs négatives, comme les différences calculées avec `signed_diff`, et peut préserver toute la dynamique avec `clip: 0`.
+- Les scripts peuvent désormais utiliser les variables `inputFilesCount` et `keptFilesCount` pour connaître le nombre de fichiers traités et le nombre de fichiers conservés après la revue des images.
+- Les détails d'observation et la fonction `draw_text` peuvent désormais afficher le nombre de fichiers traités avec `%INPUT_FILES%` et `%KEPT_FILES%`.
+- La fonction `draw_text` peut désormais afficher la valeur de n'importe quelle variable du script avec `%VAR_nom%`.
 - Les images produites par l'outil d'empilement peuvent désormais être partagées vers SpectroSolHub.
 - Les images empilées conservent désormais la raie spectrale des images source au lieu de revenir à une longueur d'onde incorrecte.
 - Ajout d'une fonction de script `destripe` qui supprime les bandes horizontales de n'importe quelle image, y compris celles dont le fond est proche de zéro comme les images après soustraction du continuum.

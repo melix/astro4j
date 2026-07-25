@@ -24,6 +24,7 @@ import me.champeau.a4j.jsolex.app.jfx.ApplyUserRotation;
 import me.champeau.a4j.jsolex.app.jfx.MultipleImagesViewer;
 import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
+import me.champeau.a4j.jsolex.processing.expr.FileCounts;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
@@ -157,6 +158,13 @@ public interface JSolExInterface {
      * Starts a new processing session.
      */
     void newSession();
+
+    /**
+     * Sets the number of files which are processed by the current run, so that image
+     * overlays can display them.
+     * @param fileCounts the file counts
+     */
+    void setFileCounts(FileCounts fileCounts);
 
     /**
      * Closes all images and resets the UI to its initial state.

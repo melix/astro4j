@@ -28,6 +28,7 @@ import javafx.scene.layout.BorderPane;
 import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.listeners.BatchProcessingContext;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
+import me.champeau.a4j.jsolex.processing.expr.FileCounts;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.spectrum.ReferenceIntensities;
 import me.champeau.a4j.jsolex.processing.spectrum.SerFileTrimmer;
@@ -108,6 +109,8 @@ public final class BatchProcessingHelper {
         File chooseBatchWatchDirectory();
 
         void startBatchComplementRun();
+
+        void setFileCounts(FileCounts fileCounts);
     }
 
     /**
@@ -131,6 +134,7 @@ public final class BatchProcessingHelper {
 
         var orderedFiles = maybeSortByCaptureDate(selectedFiles, params);
         var batchItems = createBatchItems(orderedFiles);
+        context.setFileCounts(new FileCounts(batchItems.size(), batchItems.size()));
         var batchContext = createBatchContext(batchItems, orderedFiles.getFirst().getParentFile(), header);
         var table = BatchTableFactory.createBatchTable(batchItems, params);
         Runnable onAddFiles = () -> {
@@ -324,6 +328,8 @@ public final class BatchProcessingHelper {
         }
         batchContext.items().addAll(newItems);
         batchContext.batchFinished().set(false);
+        var totalItems = batchContext.items().size();
+        context.setFileCounts(new FileCounts(totalItems, totalItems));
         context.startBatchComplementRun();
 
         var interruptButton = context.addInterruptButton();

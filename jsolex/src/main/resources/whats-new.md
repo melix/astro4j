@@ -11,6 +11,9 @@
 - The `mtf_autostretch` and `percentile_stretch` scripting functions can now compute their statistics over a mask, for example a ring around the solar disk, which makes the result independent of the cropping factor.
 - Images produced by `crop_ar` are now named after the active region they show.
 - The `percentile_stretch` scripting function now handles images containing negative values, such as differences computed with `signed_diff`, and can preserve the full dynamic range with `clip: 0`.
+- Scripts can now use the `inputFilesCount` and `keptFilesCount` variables to know how many files are processed and how many were kept after review.
+- The observation details and the `draw_text` function can now display the number of processed files with `%INPUT_FILES%` and `%KEPT_FILES%`.
+- The `draw_text` function can now display the value of any script variable with `%VAR_name%`.
 - Images produced by the Stacking tool can now be shared to SpectroSolHub.
 - Stacked images now keep the spectral line of the source images instead of falling back to the wrong wavelength.
 - Added a `destripe` scripting function that removes horizontal banding from any image, including images whose background is close to zero such as continuum-subtracted images.

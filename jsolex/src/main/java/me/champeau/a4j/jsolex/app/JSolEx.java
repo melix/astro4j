@@ -132,6 +132,7 @@ import me.champeau.a4j.jsolex.processing.event.LivePushEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
+import me.champeau.a4j.jsolex.processing.expr.FileCounts;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
 import me.champeau.a4j.jsolex.processing.expr.InvalidExpression;
@@ -2612,6 +2613,11 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         FileBackedImage.clearCache();
     }
 
+    @Override
+    public void setFileCounts(FileCounts fileCounts) {
+        multipleImagesViewer.setFileCounts(fileCounts);
+    }
+
     /**
      * Clears the images currently displayed in the UI without otherwise resetting
      * the session. Used when re-running a script with the "clear images" option,
@@ -2998,6 +3004,9 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         var outputDirectory = selectedFile.getParentFile();
         this.outputDirectory = outputDirectory.toPath();
         multipleImagesViewer.setCollageContext(this, lastExecutionProcessParams, this.outputDirectory);
+        if (!batchMode) {
+            setFileCounts(FileCounts.SINGLE_FILE);
+        }
         var baseName = selectedFile.getName().substring(0, selectedFile.getName().lastIndexOf("."));
         var logFileName = namingStrategy.render(sequenceNumber, null, "log", "log", baseName, null) + LOG_EXTENSION;
         var logFile = new File(outputDirectory, logFileName);
