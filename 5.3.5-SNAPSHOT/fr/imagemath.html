@@ -4980,7 +4980,7 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <div class="sect2">
 <h3 id="_crop_ar">CROP_AR</h3>
 <div class="paragraph">
-<p>Génère une liste d’images correspondant aux taches solaires détectées.</p>
+<p>Génère une liste d’images correspondant aux taches solaires détectées. Chaque image porte le nom de la région active NOAA qu’elle montre, lorsque celle-ci peut être identifiée, et les différentes parties d’une même région sont regroupées dans une seule image.</p>
 </div>
 <table class="tableblock frame-all grid-all stretch">
 <colgroup>
@@ -5595,7 +5595,7 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>bp</code></p></td>
 <td class="tableblock halign-center valign-top"></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Valeur de remplissage pour les pixels en dehors de l&#8217;image.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Valeur de remplissage pour les pixels en dehors de l&#8217;image. Par défaut, le niveau du fond de l&#8217;image est utilisé, afin que les coins créés par la rotation se fondent dans l&#8217;arrière-plan.</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>
@@ -5701,7 +5701,7 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>bp</code></p></td>
 <td class="tableblock halign-center valign-top"></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Valeur de remplissage pour les pixels en dehors de l&#8217;image.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Valeur de remplissage pour les pixels en dehors de l&#8217;image. Par défaut, le niveau du fond de l&#8217;image est utilisé, afin que les coins créés par la rotation se fondent dans l&#8217;arrière-plan.</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>
@@ -6596,6 +6596,15 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 </li>
 <li>
 <p><code>%FILENAME%</code> : le nom du fichier SER source</p>
+</li>
+<li>
+<p><code>%INPUT_FILES%</code> : le nombre de fichiers traités</p>
+</li>
+<li>
+<p><code>%KEPT_FILES%</code> : le nombre de fichiers conservés après la revue des images</p>
+</li>
+<li>
+<p><code>%VAR_xxx%</code> : la valeur de la variable <code>xxx</code> du script, par exemple <code>%VAR_inputFilesCount%</code></p>
 </li>
 </ul>
 </div>

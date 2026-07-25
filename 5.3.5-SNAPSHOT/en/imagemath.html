@@ -4982,7 +4982,7 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <div class="sect2">
 <h3 id="_crop_ar">CROP_AR</h3>
 <div class="paragraph">
-<p>Generates a list of images corresponding to the detected sunspots.</p>
+<p>Generates a list of images corresponding to the detected sunspots. Each image is named after the NOAA active region it shows, when it can be identified, and the separate parts of a single region are grouped into a single image.</p>
 </div>
 <table class="tableblock frame-all grid-all stretch">
 <colgroup>
@@ -5597,7 +5597,7 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>bp</code></p></td>
 <td class="tableblock halign-center valign-top"></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Fill value for pixels outside of the image.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Fill value for pixels outside of the image. By default the background level of the image is used, so that the corners created by the rotation blend into the background.</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>
@@ -5703,7 +5703,7 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>bp</code></p></td>
 <td class="tableblock halign-center valign-top"></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Fill value for pixels outside of the image.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Fill value for pixels outside of the image. By default the background level of the image is used, so that the corners created by the rotation blend into the background.</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>
@@ -6598,6 +6598,15 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 </li>
 <li>
 <p><code>%FILENAME%</code> : source SER file name</p>
+</li>
+<li>
+<p><code>%INPUT_FILES%</code> : the number of processed files</p>
+</li>
+<li>
+<p><code>%KEPT_FILES%</code> : the number of files kept after the image review</p>
+</li>
+<li>
+<p><code>%VAR_xxx%</code> : the value of the script variable <code>xxx</code>, for example <code>%VAR_inputFilesCount%</code></p>
 </li>
 </ul>
 </div>
