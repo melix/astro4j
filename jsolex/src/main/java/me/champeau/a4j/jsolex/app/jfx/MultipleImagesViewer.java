@@ -46,6 +46,7 @@ import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.app.listeners.JSolExInterface;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
+import me.champeau.a4j.jsolex.processing.expr.FileCounts;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.session.SessionData;
 import me.champeau.a4j.jsolex.processing.session.SessionImage;
@@ -125,6 +126,7 @@ public class MultipleImagesViewer extends Pane {
     private ProcessParams processParams;
     private Path outputDirectory;
     private Runnable onImageSelected;
+    private FileCounts fileCounts = FileCounts.SINGLE_FILE;
 
     private final BooleanProperty closeAllEnabled = new SimpleBooleanProperty(false);
     private final BooleanProperty deleteSerEnabled = new SimpleBooleanProperty(false);
@@ -452,6 +454,7 @@ public class MultipleImagesViewer extends Pane {
                 badgeTooltip = scope.badgeTooltip();
             }
             var viewer = newImageViewer();
+            viewer.setFileCounts(fileCounts);
             var transformed = transformer.apply(viewer);
             viewerTitles.put(viewer, title);
             viewerKinds.put(viewer, kind);
@@ -909,6 +912,20 @@ public class MultipleImagesViewer extends Pane {
         this.owner = owner;
         this.processParams = processParams;
         this.outputDirectory = outputDirectory;
+    }
+
+    /**
+     * Sets the number of files processed by the current run, which image overlays can display.
+     * @param fileCounts the file counts
+     */
+    public void setFileCounts(FileCounts fileCounts) {
+        lock.lock();
+        try {
+            this.fileCounts = fileCounts;
+            imageViews.forEach(viewer -> viewer.setFileCounts(fileCounts));
+        } finally {
+            lock.unlock();
+        }
     }
 
     /**

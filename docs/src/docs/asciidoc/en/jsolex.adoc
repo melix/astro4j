@@ -841,6 +841,8 @@ This table summarizes the special variables which are exposed to ImageMath scrip
 |`l0`|The computed L0 angle (in radians)
 |`carrot`|The Carrington rotation number
 |`detectedWavelen`|The detected wavelength of the image (in Angström), corresponding to the image `img(0)`
+|`inputFilesCount`|The number of files which are processed: 1 when processing a single file, the number of files of the batch in a `[[batch]]` section
+|`keptFilesCount`|The number of files which are kept after the image review, identical to `inputFilesCount` when no image was discarded
 |===
 
 [[custom-functions]]

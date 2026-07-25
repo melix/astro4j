@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.expr.AbstractImageExpressionEvaluator;
+import me.champeau.a4j.jsolex.processing.expr.FileCounts;
 import me.champeau.a4j.jsolex.processing.params.GlobeStyle;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
@@ -56,6 +57,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
+import java.util.function.Supplier;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static java.lang.Math.*;
@@ -64,6 +67,7 @@ import static me.champeau.a4j.jsolex.processing.expr.AbstractImageExpressionEval
 
 public class ImageDraw extends AbstractFunctionImpl {
     private static final Pattern HEXA_COLOR = Pattern.compile("[0-9a-fA-F]{6}");
+    private static final Pattern SCRIPT_VARIABLE = Pattern.compile("%VAR_(\\w+)%");
     private static final int DIVISIONS = 18;
     private static final double SUN_DIAMETER_KM = 1_391_400;
     private static final double SUN_RADIUS_KM = SUN_DIAMETER_KM / 2;
@@ -87,8 +91,15 @@ public class ImageDraw extends AbstractFunctionImpl {
             %COORDINATES_LINE%
             %VERSION_LINE%""";
 
+    private final Supplier<Map<String, Object>> scriptVariables;
+
     public ImageDraw(Map<Class<?>, Object> context, Broadcaster broadcaster) {
+        this(context, broadcaster, Map::of);
+    }
+
+    public ImageDraw(Map<Class<?>, Object> context, Broadcaster broadcaster, Supplier<Map<String, Object>> scriptVariables) {
         super(context, broadcaster);
+        this.scriptVariables = scriptVariables;
     }
 
     private static StringBuilder appendLine(String element, StringBuilder sb) {
@@ -242,7 +253,7 @@ public class ImageDraw extends AbstractFunctionImpl {
                 message = text.substring(1, text.length() - 1);
                 g.setFont(g.getFont().deriveFont(Font.ITALIC));
             }
-            message = performSubstitutions(message, img);
+            message = performSubstitutions(substituteScriptVariables(message), img);
             var lines = message.split("\n");
             double lineHeight = g.getFontMetrics().getHeight();
             double curY = y;
@@ -346,6 +357,14 @@ public class ImageDraw extends AbstractFunctionImpl {
             var solarParams = findSolarParams(image);
             message = message.replace("%CARRINGTON_ROT%", solarParams.map(sp -> String.valueOf(sp.carringtonRotation())).orElse(""));
         }
+        if (message.contains("%INPUT_FILES%")) {
+            var fileCounts = getFromContext(FileCounts.class);
+            message = message.replace("%INPUT_FILES%", fileCounts.map(fc -> String.valueOf(fc.inputFilesCount())).orElse(""));
+        }
+        if (message.contains("%KEPT_FILES%")) {
+            var fileCounts = getFromContext(FileCounts.class);
+            message = message.replace("%KEPT_FILES%", fileCounts.map(fc -> String.valueOf(fc.keptFilesCount())).orElse(""));
+        }
         if (message.contains("%FILENAME%")) {
             var sourceInfo = image.findMetadata(SourceInfo.class);
             message = message.replace("%FILENAME%", sourceInfo.map(SourceInfo::serFileName).orElse(""));
@@ -398,6 +417,39 @@ public class ImageDraw extends AbstractFunctionImpl {
             message = message.replace("%COORDINATES_LINE%", value);
         }
         return message;
+    }
+
+    String substituteScriptVariables(String message) {
+        var variables = scriptVariables.get();
+        if (variables.isEmpty()) {
+            return message;
+        }
+        return SCRIPT_VARIABLE.matcher(message).replaceAll(match -> {
+            var value = findScriptVariable(variables, match.group(1));
+            if (value == null || value instanceof ImageWrapper || value instanceof List<?>) {
+                return Matcher.quoteReplacement(match.group());
+            }
+            return Matcher.quoteReplacement(formatScriptVariable(value));
+        });
+    }
+
+    private static Object findScriptVariable(Map<String, Object> variables, String name) {
+        if (variables.containsKey(name)) {
+            return variables.get(name);
+        }
+        return variables.entrySet()
+                .stream()
+                .filter(entry -> entry.getKey().equalsIgnoreCase(name))
+                .map(Map.Entry::getValue)
+                .findFirst()
+                .orElse(null);
+    }
+
+    private static String formatScriptVariable(Object value) {
+        if (value instanceof Double || value instanceof Float) {
+            return String.format(Locale.US, "%.2f", value);
+        }
+        return String.valueOf(value);
     }
 
     private static void configureColor(String color, Graphics2D g) {

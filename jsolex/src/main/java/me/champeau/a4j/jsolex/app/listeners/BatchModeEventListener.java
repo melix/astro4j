@@ -45,6 +45,7 @@ import me.champeau.a4j.jsolex.processing.event.TrimmingParametersDeterminedEvent
 import me.champeau.a4j.jsolex.processing.event.VideoMetadataEvent;
 import me.champeau.a4j.jsolex.processing.expr.BestImages;
 import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
+import me.champeau.a4j.jsolex.processing.expr.FileCounts;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
 import me.champeau.a4j.jsolex.processing.expr.InvalidExpression;
@@ -412,7 +413,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                     alert.getButtonTypes().addAll(ButtonType.CANCEL, ButtonType.YES);
                     alert.showAndWait().ifPresent(response -> {
                         if (response == ButtonType.YES) {
-                            maybeFilterImages(r -> executeBatchScriptExpressions(r, rootOperation));
+                            maybeFilterImages(r -> onImagesFiltered(r, rootOperation));
                         } else {
                             batchFinished();
                         }
@@ -426,7 +427,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                     batchFinished();
                 });
             } else {
-                maybeFilterImages(r -> executeBatchScriptExpressions(r, rootOperation));
+                maybeFilterImages(r -> onImagesFiltered(r, rootOperation));
             }
         }
     }
@@ -454,7 +455,14 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         });
     }
 
-    private void executeBatchScriptExpressions(FilteringResult result, ProgressOperation rootOperation) {
+    private void onImagesFiltered(FilteringResult result, ProgressOperation rootOperation) {
+        var inputFilesCount = progressTracker.getTotalItems();
+        var fileCounts = new FileCounts(inputFilesCount, inputFilesCount - result.discarded().size());
+        owner.setFileCounts(fileCounts);
+        executeBatchScriptExpressions(result, rootOperation, fileCounts);
+    }
+
+    private void executeBatchScriptExpressions(FilteringResult result, ProgressOperation rootOperation, FileCounts fileCounts) {
         try {
             var configuredScriptFiles = processParams.combinedImageMathParams().scriptFiles();
             
@@ -479,6 +487,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             var imageEmitter = new NamingStrategyAwareImageEmitter(new RenamingImageEmitter(new DefaultImageEmitter(delegate, rootOperation, outputDirectory), name -> name, name -> name), createNamingStrategy(), sequenceNumber, computeSerFileBasename(item.file()));
             var ctxBuilder = ScriptExecutionContext.builder()
                 .imageEmitter(imageEmitter)
+                .fileCounts(fileCounts)
                 .animationFormats(Configuration.getInstance().getAnimationFormats());
 
             dataLock.readLock().lock();

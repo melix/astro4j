@@ -193,7 +193,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         this.flatCorrector = new ArtifificialFlatCorrector(context, broadcaster);
         this.geometryCorrection = new GeometryCorrection(context, broadcaster, ellipseFit);
         this.imageCombination = new ImageCombination(context, broadcaster);
-        this.imageDraw = new ImageDraw(context, broadcaster);
+        this.imageDraw = new ImageDraw(context, broadcaster, this::getVariables);
         this.imageStatistics = new ImageStatistics(context, broadcaster);
         this.inverse = new Inverse(context, broadcaster);
         this.loader = new Loader(context, broadcaster);
@@ -1060,6 +1060,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
                 case "PixelShiftRange" -> exportedContext.put("pixelShiftRange", v);
                 case "SourceInfo" -> exportedContext.put("sourceInfo", v);
                 case "SolarParameters" -> exportedContext.put("solarParams", v);
+                case "FileCounts" -> exportedContext.put("fileCounts", v);
             }
         });
         root.put("context", exportedContext);

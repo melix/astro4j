@@ -65,6 +65,7 @@ import me.champeau.a4j.jsolex.processing.event.GenericMessage;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
+import me.champeau.a4j.jsolex.processing.expr.FileCounts;
 import me.champeau.a4j.jsolex.processing.expr.impl.Colorize;
 import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
 import me.champeau.a4j.jsolex.processing.params.AutocropMode;
@@ -134,6 +135,7 @@ public class ImageViewer implements WithRootNode {
     private ProcessingEventListener broadcaster;
     private ProgressOperation operation;
     private ProcessParams processParams;
+    private FileCounts fileCounts = FileCounts.SINGLE_FILE;
     private StretchingMode stretchingMode = StretchingMode.LINEAR;
 
     private Label dimensions;
@@ -1313,6 +1315,13 @@ public class ImageViewer implements WithRootNode {
         setLayersInteractive(isOverlayPanelShown());
     }
 
+    public void setFileCounts(FileCounts fileCounts) {
+        this.fileCounts = fileCounts;
+        if (overlays != null && overlays.drawObservationDetails()) {
+            FxUtils.runLater(this::syncObsDetailsLayer);
+        }
+    }
+
     private void syncObsDetailsLayer() {
         var pane = imageView.getImagePane();
         if (overlays == null || !overlays.drawObservationDetails() || processParams == null) {
@@ -1332,7 +1341,7 @@ public class ImageViewer implements WithRootNode {
             });
             pane.getChildren().add(obsDetailsLayer);
         }
-        var draw = new ImageDraw(Map.of(ProcessParams.class, processParams), Broadcaster.NO_OP);
+        var draw = new ImageDraw(Map.of(ProcessParams.class, processParams, FileCounts.class, fileCounts), Broadcaster.NO_OP);
         var content = draw.computeObservationDetailsContent(stretchedImage != null ? stretchedImage : image, overlays.obsDetailsTemplate());
         obsDetailsLayer.update(content, null, autoFontSize(), overlays.obsDetailsColor());
         if (overlays.obsDetailsX() == null || overlays.obsDetailsY() == null) {
@@ -1616,7 +1625,7 @@ public class ImageViewer implements WithRootNode {
             baked = OverlayRenderer.bakeSignature(baked, overlays, overlays.signatureX(), overlays.signatureY(), processParams);
         }
         if (overlays.drawObservationDetails() && overlays.obsDetailsX() != null && overlays.obsDetailsY() != null) {
-            baked = OverlayRenderer.bakeObsDetails(baked, overlays, overlays.obsDetailsX(), overlays.obsDetailsY(), processParams);
+            baked = OverlayRenderer.bakeObsDetails(baked, overlays, overlays.obsDetailsX(), overlays.obsDetailsY(), processParams, fileCounts);
         }
         if (overlays.drawSolarParameters() && overlays.solarParamsX() != null && overlays.solarParamsY() != null) {
             baked = OverlayRenderer.bakeSolarParameters(baked, overlays, overlays.solarParamsX(), overlays.solarParamsY(), processParams);
