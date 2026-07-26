@@ -670,26 +670,6 @@ public class Configuration {
         return repository.name() + ":::" + repository.url() + ":::" + lastCheckStr + ":::" + repository.enabled();
     }
 
-    /**
-     * Returns the last repository check time.
-     * @return the last check time
-     */
-    public Instant getLastRepositoryCheckTime() {
-        var lastCheckMillis = prefs.getLong("repository.last.check", 0);
-        if (lastCheckMillis == 0) {
-            return Instant.EPOCH;
-        }
-        return Instant.ofEpochMilli(lastCheckMillis);
-    }
-
-    /**
-     * Sets the last repository check time.
-     * @param instant the check time
-     */
-    public void setLastRepositoryCheckTime(Instant instant) {
-        prefs.putLong("repository.last.check", instant.toEpochMilli());
-    }
-
     private ScriptRepository parseRepository(String encoded) {
         try {
             var parts = encoded.split(":::");

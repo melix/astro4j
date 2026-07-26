@@ -19,9 +19,6 @@ import me.champeau.a4j.jsolex.processing.expr.repository.ScriptRepositoryManager
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.Duration;
-import java.time.Instant;
-
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
 /**
@@ -30,7 +27,6 @@ import static me.champeau.a4j.jsolex.processing.util.Constants.message;
  */
 public class RepositoryUpdateService {
     private static final Logger LOGGER = LoggerFactory.getLogger(RepositoryUpdateService.class);
-    private static final Duration CHECK_INTERVAL = Duration.ofHours(24);
 
     private final Configuration configuration;
     private final ScriptRepositoryManager repositoryManager;
@@ -44,51 +40,38 @@ public class RepositoryUpdateService {
     }
 
     /**
-     * Checks if repository updates are needed at application startup.
-     * Updates are performed in a background thread if the check interval has elapsed.
+     * Checks for repository updates at application startup, in a background thread.
+     * Each repository is refreshed independently, if it wasn't successfully refreshed recently.
      */
     public void checkAtStartup() {
-        var lastCheck = configuration.getLastRepositoryCheckTime();
-        var now = Instant.now();
-        var timeSinceLastCheck = Duration.between(lastCheck, now);
-
-        if (timeSinceLastCheck.compareTo(CHECK_INTERVAL) >= 0) {
-            LOGGER.debug(message("repository.update.last.check.refreshing"), timeSinceLastCheck);
-            new Thread(this::checkForUpdates, "repository-startup-check").start();
-        } else {
-            LOGGER.debug(message("repository.update.last.check.skipping"), timeSinceLastCheck);
-        }
+        new Thread(this::checkForUpdates, "repository-startup-check").start();
     }
 
     /**
      * Performs the actual check and update of all enabled repositories.
-     * This method runs in a background thread and updates repository metadata.
+     * This method runs in a background thread.
      */
     private void checkForUpdates() {
         try {
             LOGGER.debug(message("repository.update.checking"));
-            var repositories = configuration.getScriptRepositories();
-
-            for (var repository : repositories) {
+            for (var repository : configuration.getScriptRepositories()) {
                 if (!repository.enabled()) {
+                    continue;
+                }
+                if (!repositoryManager.shouldCheckForUpdates(repository)) {
+                    LOGGER.debug(message("repository.update.skipping"), repository.name());
                     continue;
                 }
                 try {
                     repositoryManager.refreshRepository(repository);
-                    var updated = repository.withLastCheck(Instant.now());
-                    var allRepos = configuration.getScriptRepositories();
-                    var index = allRepos.indexOf(repository);
-                    if (index >= 0) {
-                        allRepos.set(index, updated);
-                        configuration.setScriptRepositories(allRepos);
-                    }
                     LOGGER.debug(message("repository.updated"), repository.name());
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return;
                 } catch (Exception e) {
                     LOGGER.warn(message("repository.update.failed"), repository.name(), e);
                 }
             }
-
-            configuration.setLastRepositoryCheckTime(Instant.now());
         } catch (Exception e) {
             LOGGER.error(message("repository.update.error"), e);
         }

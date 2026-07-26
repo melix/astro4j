@@ -27,10 +27,6 @@ public record ScriptRepository(
         this(name, url, lastCheck, true);
     }
 
-    public ScriptRepository withLastCheck(Instant lastCheck) {
-        return new ScriptRepository(name, url, lastCheck, enabled);
-    }
-
     public ScriptRepository withEnabled(boolean enabled) {
         return new ScriptRepository(name, url, lastCheck, enabled);
     }

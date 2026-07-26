@@ -46,10 +46,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.file.Files;
-import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.List;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.newScene;
 import static me.champeau.a4j.jsolex.app.jfx.FXUtils.*;
@@ -176,10 +176,10 @@ public class ScriptRepositoriesController {
                 }
             }
         });
-        lastCheckColumn.setCellValueFactory(cellData -> {
-            var lastCheck = cellData.getValue().lastCheck();
-            return new SimpleStringProperty(lastCheck != null ? DATE_FORMATTER.format(lastCheck) : "-");
-        });
+        lastCheckColumn.setCellValueFactory(cellData -> new SimpleStringProperty(
+            repositoryManager.lastSuccessfulCheck(cellData.getValue())
+                .map(DATE_FORMATTER::format)
+                .orElse("-")));
 
         repositories = FXCollections.observableArrayList(configuration.getScriptRepositories());
         repositoriesTable.setItems(repositories);
@@ -204,7 +204,7 @@ public class ScriptRepositoriesController {
                 var repository = new ScriptRepository(pair.getKey(), pair.getValue(), null);
                 repositories.add(repository);
                 saveRepositories();
-                refreshRepositoryInBackground(repository, repositories.indexOf(repository));
+                refreshRepositoriesInBackground(List.of(repository));
             });
             var scene = newScene(node);
             dialogStage.setTitle(I18N.string(JSolEx.class, "script-repositories", "repository.add.title"));
@@ -234,7 +234,7 @@ public class ScriptRepositoriesController {
                 var repository = new ScriptRepository(name, url, null);
                 repositories.add(repository);
                 saveRepositories();
-                refreshRepositoryInBackground(repository, repositories.indexOf(repository));
+                refreshRepositoriesInBackground(List.of(repository));
             });
             var scene = newScene(node);
             dialogStage.setTitle(I18N.string(JSolEx.class, "script-repositories", "repository.browse.spectrosolhub.title"));
@@ -304,72 +304,38 @@ public class ScriptRepositoriesController {
         refreshButton.setText(I18N.string(JSolEx.class, "script-repositories", "repository.refreshing"));
 
         if (selected == null) {
-            refreshAllRepositories();
+            refreshRepositoriesInBackground(repositories.stream().filter(ScriptRepository::enabled).toList());
         } else {
-            var index = repositories.indexOf(selected);
-            refreshRepositoryInBackground(selected, index);
+            refreshRepositoriesInBackground(List.of(selected));
         }
     }
 
-    private void refreshAllRepositories() {
+    private void refreshRepositoriesInBackground(List<ScriptRepository> targets) {
         new Thread(() -> {
-            for (int i = 0; i < repositories.size(); i++) {
-                var repository = repositories.get(i);
-                if (!repository.enabled()) {
-                    continue;
-                }
+            for (var repository : targets) {
                 try {
                     repositoryManager.refreshRepository(repository);
-                    var updated = repository.withLastCheck(Instant.now());
-                    final int index = i;
-                    FxUtils.runLater(() -> {
-                        repositories.set(index, updated);
-                        saveRepositories();
-                        repositoriesTable.refresh();
-                    });
+                    FxUtils.runLater(() -> repositoriesTable.refresh());
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
                 } catch (Exception e) {
                     LOGGER.error("Failed to refresh repository {}", repository.name(), e);
-                    final int index = i;
                     FxUtils.runLater(() -> {
-                        var alert = AlertFactory.error(I18N.string(JSolEx.class, "script-repositories", "repository.refresh.error") + " (" + repositories.get(index).name() + "): " + extractMessage(e));
+                        var alert = AlertFactory.error(I18N.string(JSolEx.class, "script-repositories", "repository.refresh.error") + " (" + repository.name() + "): " + extractMessage(e));
                         alert.showAndWait();
                     });
                 }
             }
-            FxUtils.runLater(() -> {
-                refreshButton.setDisable(false);
-                refreshButton.setText(I18N.string(JSolEx.class, "script-repositories", "repository.refresh"));
-            });
+            FxUtils.runLater(this::resetRefreshButton);
         }).start();
     }
 
-    private void refreshRepositoryInBackground(ScriptRepository repository, int index) {
-        new Thread(() -> {
-            try {
-                repositoryManager.refreshRepository(repository);
-                var updated = repository.withLastCheck(Instant.now());
-                FxUtils.runLater(() -> {
-                    repositories.set(index, updated);
-                    saveRepositories();
-                    repositoriesTable.refresh();
-                    if (refreshButton != null) {
-                        refreshButton.setDisable(false);
-                        refreshButton.setText(I18N.string(JSolEx.class, "script-repositories", "repository.refresh"));
-                    }
-                });
-            } catch (Exception e) {
-                LOGGER.error("Failed to refresh repository {}", repository.name(), e);
-                FxUtils.runLater(() -> {
-                    if (refreshButton != null) {
-                        refreshButton.setDisable(false);
-                        refreshButton.setText(I18N.string(JSolEx.class, "script-repositories", "repository.refresh"));
-                    }
-
-                    var alert = AlertFactory.error(I18N.string(JSolEx.class, "script-repositories", "repository.refresh.error") + ": " + extractMessage(e));
-                    alert.showAndWait();
-                });
-            }
-        }).start();
+    private void resetRefreshButton() {
+        if (refreshButton != null) {
+            refreshButton.setDisable(false);
+            refreshButton.setText(I18N.string(JSolEx.class, "script-repositories", "repository.refresh"));
+        }
     }
 
     @FXML

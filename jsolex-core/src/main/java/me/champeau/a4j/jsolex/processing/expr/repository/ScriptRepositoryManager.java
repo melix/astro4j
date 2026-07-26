@@ -39,9 +39,9 @@ import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectoriesIfNeeded;
@@ -49,46 +49,57 @@ import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectorie
 public class ScriptRepositoryManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(ScriptRepositoryManager.class);
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
+    private static final Duration CHECK_INTERVAL = Duration.ofHours(24);
     private static final String SCRIPTS_TXT = "scripts.txt";
     private static final String ZIP_DESCRIPTOR = "main.txt";
+    private static final String LAST_CHECK_MARKER = ".last-check";
 
     private final HttpClient httpClient;
     private final DirectoryListingParser parser;
     private final Path cacheRoot;
 
     public ScriptRepositoryManager() {
+        this(VersionUtil.getJsolexDir().resolve("repository-scripts"));
+    }
+
+    ScriptRepositoryManager(Path cacheRoot) {
         this.httpClient = HttpClient.newBuilder()
             .connectTimeout(TIMEOUT)
             .build();
         this.parser = new DirectoryListingParser();
-        this.cacheRoot = VersionUtil.getJsolexDir().resolve("repository-scripts");
+        this.cacheRoot = cacheRoot;
     }
 
-    public List<RemoteScript> refreshRepository(ScriptRepository repository) {
-        try {
-            var scripts = new ArrayList<RemoteScript>();
-            var scriptFiles = discoverScripts(repository);
+    /**
+     * Downloads the scripts of a repository into the local cache. The last successful check
+     * time is recorded in the cache directory, so that it reflects what this installation
+     * actually has on disk.
+     *
+     * @param repository the repository to refresh
+     * @return the scripts which are available locally after the refresh
+     * @throws IOException if the repository contents cannot be discovered
+     */
+    public List<RemoteScript> refreshRepository(ScriptRepository repository) throws IOException, InterruptedException {
+        var scripts = new ArrayList<RemoteScript>();
+        var scriptFiles = discoverScripts(repository);
 
-            var repoDir = getCacheDirectory(repository);
-            createDirectoriesIfNeeded(repoDir);
+        var repoDir = getCacheDirectory(repository);
+        createDirectoriesIfNeeded(repoDir);
 
-            for (var filename : scriptFiles) {
-                try {
-                    var script = downloadScript(repository, filename, repoDir);
-                    if (script != null) {
-                        scripts.add(script);
-                    }
-                } catch (Exception e) {
-                    LOGGER.warn(message("repository.script.download.failed"), filename, e);
+        for (var filename : scriptFiles) {
+            try {
+                var script = downloadScript(repository, filename, repoDir);
+                if (script != null) {
+                    scripts.add(script);
                 }
+            } catch (Exception e) {
+                LOGGER.warn(message("repository.script.download.failed"), filename, e);
             }
-
-            LOGGER.info(message("repository.refreshed"), repository.name(), scripts.size());
-            return scripts;
-        } catch (Exception e) {
-            LOGGER.error(message("repository.refresh.failed"), repository.name(), e);
-            return Collections.emptyList();
         }
+
+        recordSuccessfulCheck(repoDir);
+        LOGGER.info(message("repository.refreshed"), repository.name(), scripts.size());
+        return scripts;
     }
 
     public List<RemoteScript> getLocalScripts(ScriptRepository repository) {
@@ -412,11 +423,37 @@ public class ScriptRepositoryManager {
         return cacheRoot.resolve(safeName);
     }
 
-    public boolean shouldCheckForUpdates(ScriptRepository repository) {
-        if (repository.lastCheck() == null) {
-            return true;
+    /**
+     * Returns the time of the last successful refresh of a repository, for this installation.
+     *
+     * @param repository the repository
+     * @return the last successful check time, or empty if the repository was never refreshed
+     */
+    public Optional<Instant> lastSuccessfulCheck(ScriptRepository repository) {
+        var marker = getCacheDirectory(repository).resolve(LAST_CHECK_MARKER);
+        if (!Files.exists(marker)) {
+            return Optional.empty();
         }
-        var daysSinceLastCheck = Duration.between(repository.lastCheck(), Instant.now()).toDays();
-        return daysSinceLastCheck >= 1;
+        try {
+            return Optional.of(Instant.ofEpochMilli(Long.parseLong(Files.readString(marker).trim())));
+        } catch (IOException | NumberFormatException e) {
+            return Optional.empty();
+        }
+    }
+
+    public boolean shouldCheckForUpdates(ScriptRepository repository) {
+        return lastSuccessfulCheck(repository)
+            .map(lastCheck -> Duration.between(lastCheck, Instant.now()).compareTo(CHECK_INTERVAL) >= 0)
+            .orElse(true);
+    }
+
+    private void recordSuccessfulCheck(Path repoDir) {
+        try {
+            Files.writeString(repoDir.resolve(LAST_CHECK_MARKER),
+                String.valueOf(Instant.now().toEpochMilli()),
+                StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+        } catch (IOException e) {
+            LOGGER.warn(message("repository.last.check.write.failed"), repoDir, e);
+        }
     }
 }
