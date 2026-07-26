@@ -1,8 +1,8 @@
 name: SIGNED_DIFF
 category: MATHS
 description:
-  fr: "Calcule la différence signée entre deux images ou scalaires (a - b), sans normalisation."
-  en: "Computes the signed difference between two images or scalars (a - b), without normalization."
+  fr: "Déprécié : utilisez la soustraction `a - b`, qui fait désormais exactement la même chose. Calcule la différence signée entre deux images ou scalaires (a - b), sans normalisation."
+  en: "Deprecated: use the `a - b` subtraction, which now does exactly the same. Computes the signed difference between two images or scalars (a - b), without normalization."
 arguments:
   - name: a
     description:

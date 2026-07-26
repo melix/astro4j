@@ -31,6 +31,16 @@ public class BuiltinFunctionsRenderer implements Renderer<List<BuiltinFunctionMo
         }
         if (fun.isSpreadList()) {
             sb.append("Parameter.SPREAD_LIST");
+            // positional arguments are all consumed by the spread list, so any extra parameter
+            // can only be supplied by name and must therefore be optional
+            var named = fun.getArguments().stream()
+                    .filter(arg -> !"list".equals(arg.getName()))
+                    .filter(arg -> !arg.isRequired())
+                    .map(arg -> "opt(\"" + arg.getName() + "\")")
+                    .collect(Collectors.joining(", "));
+            if (!named.isEmpty()) {
+                sb.append(", ").append(named);
+            }
         } else {
             sb.append(fun.getArguments().stream().map(arg -> (arg.isRequired() ? "req(" : "opt(") + '"' + arg.getName() + "\")").collect(Collectors.joining(", ")));
         }

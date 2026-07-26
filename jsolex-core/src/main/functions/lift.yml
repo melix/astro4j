@@ -1,0 +1,12 @@
+name: LIFT
+category: ENHANCEMENT
+description:
+  fr: "Décale l'image vers le haut pour qu'elle ne contienne plus de valeurs négatives, en ajoutant la même quantité à tous les pixels. Une image qui ne contient aucune valeur négative n'est pas modifiée. Utile après une soustraction, qui conserve les valeurs négatives, lorsqu'on souhaite les préserver plutôt que les écrêter avec CLAMP."
+  en: "Shifts the image up so that it no longer contains negative values, by adding the same amount to every pixel. An image which contains no negative value is left unchanged. Useful after a subtraction, which preserves negative values, when you want to keep them rather than discard them with CLAMP."
+arguments:
+  - name: img
+    description: Image(s)
+    required: true
+examples:
+  - "lift(img(0))"
+  - "lift(img(0) - continuum())"

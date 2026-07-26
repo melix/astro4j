@@ -267,49 +267,132 @@ public class Utilities extends AbstractFunctionImpl {
 
     public Object weightedAverage(Map<String ,Object> arguments) {
         BuiltinFunction.WEIGHTED_AVG.validateArgs(arguments);
+        var inputs = weightedInputs("weighted_avg", arguments);
+        if (inputs == null) {
+            return List.of();
+        }
+        return inputs.combine((values, weights) -> {
+            double sum = 0;
+            double totalWeight = 0;
+            for (int i = 0; i < values.length; i++) {
+                sum += weights[i] * values[i];
+                totalWeight += weights[i];
+            }
+            return totalWeight == 0 ? 0 : sum / totalWeight;
+        });
+    }
+
+    public Object weightedAverage2(Map<String ,Object> arguments) {
+        BuiltinFunction.WEIGHTED_AVG2.validateArgs(arguments);
+        var sigma = doubleArg(arguments, "sigma", 2.5);
+        var inputs = weightedInputs("weighted_avg2", arguments);
+        if (inputs == null) {
+            return List.of();
+        }
+        return inputs.combine((values, weights) -> {
+            double sum = 0;
+            double totalWeight = 0;
+            for (int i = 0; i < values.length; i++) {
+                sum += weights[i] * values[i];
+                totalWeight += weights[i];
+            }
+            if (totalWeight == 0) {
+                return 0;
+            }
+            var mean = sum / totalWeight;
+            double variance = 0;
+            for (int i = 0; i < values.length; i++) {
+                var delta = values[i] - mean;
+                variance += weights[i] * delta * delta;
+            }
+            var threshold = sigma * Math.sqrt(variance / totalWeight);
+            if (threshold == 0) {
+                return mean;
+            }
+            double keptSum = 0;
+            double keptWeight = 0;
+            for (int i = 0; i < values.length; i++) {
+                if (Math.abs(values[i] - mean) <= threshold) {
+                    keptSum += weights[i] * values[i];
+                    keptWeight += weights[i];
+                }
+            }
+            return keptWeight == 0 ? mean : keptSum / keptWeight;
+        });
+    }
+
+    private WeightedInputs weightedInputs(String name, Map<String, Object> arguments) {
         if (!(tryGetList(arguments, "images") instanceof List<?> images)) {
-            throw new IllegalArgumentException("weighted_average expects a list of images as first argument");
+            throw new IllegalArgumentException(name + " expects a list of images as first argument");
         }
         if (!(tryGetList(arguments, "weights") instanceof List<?> weights)) {
-            throw new IllegalArgumentException("weighted_average expects a list of weights as second argument");
+            throw new IllegalArgumentException(name + " expects a list of weights as second argument");
         }
         if (images.size() != weights.size()) {
-            throw new IllegalArgumentException("weighted_average expects the same number of images and weights");
+            throw new IllegalArgumentException(name + " expects the same number of images and weights");
         }
         if (images.isEmpty()) {
-            return List.of();
+            return null;
         }
         var firstImage = (ImageWrapper) images.getFirst();
         var width = firstImage.width();
         var height = firstImage.height();
-        var data = new float[height][width];
         var monoImages = new ArrayList<ImageWrapper32>();
         for (Object image : images) {
             if (!(image instanceof ImageWrapper wrapper)) {
-                throw new IllegalArgumentException("weighted_average expects a list of images as first argument");
+                throw new IllegalArgumentException(name + " expects a list of images as first argument");
             }
             if (wrapper.width() != width || wrapper.height() != height) {
                 throw new IllegalArgumentException("All images must have the same dimensions");
             }
             if (!(wrapper.unwrapToMemory() instanceof ImageWrapper32 mono)) {
-                throw new IllegalArgumentException("weighted_average only supports mono images");
+                throw new IllegalArgumentException(name + " only supports mono images");
             }
             monoImages.add(mono);
-            var pixels = mono.data();
-            var weight = ((Number) weights.get(images.indexOf(image))).doubleValue();
+        }
+        var weightValues = new double[weights.size()];
+        for (int i = 0; i < weights.size(); i++) {
+            if (!(weights.get(i) instanceof Number number)) {
+                throw new IllegalArgumentException(name + " expects numeric weights");
+            }
+            var weight = number.doubleValue();
+            if (weight < 0) {
+                throw new IllegalArgumentException(name + " expects positive weights");
+            }
+            weightValues[i] = weight;
+        }
+        return new WeightedInputs(monoImages, weightValues, width, height);
+    }
+
+    /**
+     * A set of images to combine and their respective weights. The combination is performed
+     * in floating point, so images normalized before being combined keep their full dynamic
+     * range.
+     */
+    private record WeightedInputs(
+            List<ImageWrapper32> images,
+            double[] weights,
+            int width,
+            int height
+    ) {
+        ImageWrapper32 combine(WeightedCombiner combiner) {
+            var data = new float[height][width];
+            var values = new double[images.size()];
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
-                    data[y][x] += weight * pixels[y][x];
+                    for (int i = 0; i < images.size(); i++) {
+                        values[i] = images.get(i).data()[y][x];
+                    }
+                    data[y][x] = (float) combiner.combine(values, weights);
                 }
             }
+            var metadata = MetadataMerger.merge(images);
+            return new ImageWrapper32(width, height, data, metadata);
         }
-        var totalWeight = weights.stream().mapToDouble(o -> ((Number)o).doubleValue()).sum();
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                data[y][x] /= totalWeight;
-            }
-        }
-        var metadata = MetadataMerger.merge(monoImages);
-        return new ImageWrapper32(width, height, data, metadata);
+    }
+
+    @FunctionalInterface
+    private interface WeightedCombiner {
+        double combine(double[] values, double[] weights);
     }
 }

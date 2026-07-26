@@ -17,7 +17,9 @@ AutoCropFactor=1.1
 
 ## Temporary variables
 [tmp]
-helium_raw = img(HeliumShift) - continuum()
+# The subtraction keeps the values below the continuum negative, where the helium
+# signal is, so the result is brought back into the displayable range as a whole
+helium_raw = lift(img(HeliumShift) - continuum())
 helium_fixed = fix_banding(helium_raw;BandWidth;BandIterations)
 cropped = autocrop2(auto_contrast(helium_fixed;Gamma);AutoCropFactor)
 

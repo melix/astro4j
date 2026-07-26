@@ -20,6 +20,8 @@ import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.AnnulusMask;
+import me.champeau.a4j.jsolex.processing.util.ImageMask;
 import me.champeau.a4j.jsolex.processing.util.MemoryAwareStreams;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.math.regression.Ellipse;
@@ -32,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiPredicate;
 import java.util.function.DoubleBinaryOperator;
 import java.util.function.DoubleUnaryOperator;
 import java.util.function.Function;
@@ -197,6 +200,30 @@ class AbstractFunctionImpl {
             return defaultValue;
         }
         return getAsNumber(arguments, key).intValue();
+    }
+
+    /**
+     * Resolves the optional {@code mask} argument against the image; annulus masks fall back
+     * to the ellipse from the processing context when the image does not carry one.
+     *
+     * @param arguments the arguments map
+     * @param image     the image the mask applies to
+     * @return a predicate selecting the pixels to include, or null when no mask is given
+     */
+    protected BiPredicate<Integer, Integer> statsMask(Map<String, Object> arguments, ImageWrapper image) {
+        var mask = arguments.get("mask");
+        if (mask == null) {
+            return null;
+        }
+        if (!(mask instanceof ImageMask imageMask)) {
+            throw new IllegalArgumentException("The mask argument must be created with annulus_mask or range_mask");
+        }
+        if (imageMask instanceof AnnulusMask annulus && image.findMetadata(Ellipse.class).isEmpty()) {
+            var ellipse = getFromContext(Ellipse.class)
+                    .orElseThrow(() -> new IllegalArgumentException("An annulus mask requires an image with a detected solar disk"));
+            return annulus.resolve(ellipse);
+        }
+        return imageMask.resolve(image);
     }
 
     /**

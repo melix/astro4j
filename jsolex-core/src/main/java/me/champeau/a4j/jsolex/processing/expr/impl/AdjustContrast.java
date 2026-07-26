@@ -103,13 +103,15 @@ public class AdjustContrast extends AbstractFunctionImpl {
      */
     public Object equalize(Map<String, Object> arguments) {
         BuiltinFunction.EQUALIZE.validateArgs(arguments);
-        if (!(arguments.get("list") instanceof List<?> topLevel) || topLevel.size() != 1) {
+        if (!(arguments.get("list") instanceof List<?> topLevel) || topLevel.isEmpty()) {
             throw new IllegalArgumentException("equalize requires a list of images");
         }
-        if (topLevel.getFirst() instanceof Map<?, ?> map && map.size()==1 && map.containsKey("list")) {
+        if (topLevel.size() == 1 && topLevel.getFirst() instanceof Map<?, ?> map && map.size() == 1 && map.containsKey("list")) {
             topLevel = List.of(map.get("list"));
         }
-        if (!(topLevel.getFirst() instanceof List<?> list)) {
+        // the images are either wrapped in a single list argument, or passed directly
+        var list = topLevel.size() == 1 && topLevel.getFirst() instanceof List<?> nested ? nested : topLevel;
+        if (list.isEmpty() || !(list.getFirst() instanceof ImageWrapper)) {
             throw new IllegalArgumentException("equalize requires a list of images");
         }
         if (list.size() < 2) {

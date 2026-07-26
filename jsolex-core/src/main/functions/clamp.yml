@@ -1,0 +1,22 @@
+name: CLAMP
+category: ENHANCEMENT
+description:
+  fr: "Limite les valeurs d'une image à une plage. Les valeurs inférieures au minimum prennent la valeur du minimum, celles supérieures au maximum prennent celle du maximum. Les opérations entre images conservent les valeurs hors plage, par exemple les valeurs négatives produites par une soustraction : cette fonction permet de les ramener explicitement dans la plage affichable lorsque c'est ce que l'on souhaite."
+  en: "Limits the values of an image to a range. Values below the minimum are set to the minimum, values above the maximum are set to the maximum. Operations between images preserve out of range values, for example the negative values produced by a subtraction: this function brings them back into the displayable range when that is what you want."
+arguments:
+  - name: img
+    description: Image(s)
+    required: true
+  - name: lo
+    required: false
+    description:
+      fr: "Valeur minimale (défaut : 0)"
+      en: "Minimum value (default: 0)"
+  - name: hi
+    required: false
+    description:
+      fr: "Valeur maximale (défaut : 65535)"
+      en: "Maximum value (default: 65535)"
+examples:
+  - "clamp(img(0))"
+  - "clamp(img: some_image; lo: 0; hi: 65535)"

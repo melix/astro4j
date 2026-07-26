@@ -15,7 +15,6 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
-import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -96,7 +95,6 @@ public class SimpleFunctionCall extends AbstractFunctionImpl {
             }
             var metadata = MetadataMerger.merge(images, MetadataMerger.averagingMergers());
             var output = new ImageWrapper32(width, height, result, metadata);
-            CutoffStretchingStrategy.DEFAULT.stretch(output);
             return output;
         }
         throw new IllegalArgumentException("Unexpected argument type '" + type + "'");

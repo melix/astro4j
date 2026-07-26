@@ -1,28 +1,55 @@
 # Welcome to JSol'Ex {{version}}!
 
-## What's New in Version 5.3.5
+## What's New in Version 5.4.0
+
+- **Important change for scripts**: operations between images no longer modify their result to keep it in the displayable range. A subtraction keeps negative values, instead of shifting the whole image to make it positive, and averaging images keeps values brighter than white. Scripts which subtract the continuum may therefore look different, and can use the new `lift` function to restore the previous result.
+
+### Batch mode
+
 
 - Batch mode can now handle back-and-forth scanning: files are sorted by capture time and every other scan is flipped automatically.
 - A batch can now watch a directory and automatically add the new SER files which appear in it.
 - You can now add more files to a finished batch without reprocessing the ones already done.
 - Batch mode can now apply a flip only to files captured before or after a given date, useful when the orientation changed during the session, for example after a meridian flip.
+- Script errors occurring while processing individual files of a batch are now reported in the final error dialog, instead of only in the per-file log.
+
+### Processing and images
+
+
 - A new "Best method" contrast enhancement option automatically picks the best technique for the detected spectral line: CLAHE for calcium and Autostretch for everything else.
-- The `deghost` function can now remove several reflections at once, wherever they are around the disk.
-- The `mtf_autostretch` and `percentile_stretch` scripting functions can now compute their statistics over a mask, for example a ring around the solar disk, which makes the result independent of the cropping factor.
-- Images produced by `crop_ar` are now named after the active region they show.
-- The `percentile_stretch` scripting function now handles images containing negative values, such as differences computed with `signed_diff`, and can preserve the full dynamic range with `clip: 0`.
-- Scripts can now use the `inputFilesCount` and `keptFilesCount` variables to know how many files are processed and how many were kept after review.
-- The observation details and the `draw_text` function can now display the number of processed files with `%INPUT_FILES%` and `%KEPT_FILES%`.
-- The `draw_text` function can now display the value of any script variable with `%VAR_name%`.
 - Images produced by the Stacking tool can now be shared to SpectroSolHub.
 - Stacked images now keep the spectral line of the source images instead of falling back to the wrong wavelength.
-- Added a `destripe` scripting function that removes horizontal banding from any image, including images whose background is close to zero such as continuum-subtracted images.
-- Scripts can now force processing parameters they need, such as disabling banding correction or widening the crop, whatever is selected in the processing parameters.
 - Rotating an image now fills the corners it creates with the background level of the image instead of black, unless a fill value is given.
-- Fixed images coming out entirely black when the banding correction was disabled.
-- Script errors occurring while processing individual files of a batch are now reported in the final error dialog, instead of only in the per-file log.
+
+### ImageMath scripts
+
+
+- The `unsharp_mask` function no longer brightens the whole image on top of sharpening it, so its result is darker and more contrasted than before for the same strength.
+- A new `noise_sigma` scripting function measures the noise of an image, which lets a script rate the quality of each file of a batch instead of judging it by eye.
+- The `deghost` function can now remove several reflections at once, wherever they are around the disk.
+- A new `clamp` scripting function limits an image to a range of values, by default the displayable one, and a new `lift` function shifts an image up so that it no longer contains negative values.
+- The `signed_diff` scripting function is deprecated: a plain `a - b` subtraction now does exactly the same.
+- A new `weighted_avg2` scripting function combines images with both a weight per image and outlier rejection, so that the best images can contribute more to a stack.
+- The `mtf_autostretch` and `percentile_stretch` scripting functions can now compute their statistics over a mask, for example a ring around the solar disk, which makes the result independent of the cropping factor.
+- The `mtf` and `mtf_autostretch` scripting functions now use the whole displayable range: the darkest parts reach black instead of staying grey, so images are more contrasted, and the requested background level is now the one you get.
+- The `bg_model` scripting function can now be restricted to a mask, so that the background is measured on a ring far from the disk instead of following the signal which surrounds it.
+- The `img_avg` and `img_median` scripting functions can now be restricted to a mask too.
+- A new `log_stats` scripting function writes the statistics of an image to the log without changing it, which helps to see how a value evolves from one file of a batch to the next.
+- The `percentile_stretch` scripting function now handles images containing negative values, such as differences computed with `signed_diff`, and can preserve the full dynamic range with `clip: 0`.
+- Added a `destripe` scripting function that removes horizontal banding from any image, including images whose background is close to zero such as continuum-subtracted images.
+- Scripts can now use the `inputFilesCount` and `keptFilesCount` variables to know how many files are processed and how many were kept after review.
+- The `draw_text` function can now display the value of any script variable with `%VAR_name%`.
+- Multiplying or dividing a list of values by a single number now applies it to every element of the list.
+- Images produced by `crop_ar` are now named after the active region they show.
+- The observation details and the `draw_text` function can now display the number of processed files with `%INPUT_FILES%` and `%KEPT_FILES%`.
+- Scripts can now force processing parameters they need, such as disabling banding correction or widening the crop, whatever is selected in the processing parameters.
+
+### Fixes
+
+
 - Fixed the last file of a batch showing all the other files after reviewing images.
 - Fixed the batch file list disappearing when running a script with the "Close previous images" option checked.
+- Fixed images coming out entirely black when the banding correction was disabled.
 
 ## What's New in Version 5.3.4
 

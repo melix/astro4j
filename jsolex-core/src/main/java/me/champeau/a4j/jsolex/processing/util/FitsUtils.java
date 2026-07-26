@@ -959,8 +959,9 @@ public class FitsUtils {
                 int value = Math.round(data[rowCount - y - 1][x]);
                 if (value < 0) {
                     value = 0;
-                } else if (value > 65536) {
-                    value = 65536;
+                } else if (value > 65535) {
+                    // 65536 would wrap around to black once the BZERO offset is applied
+                    value = 65535;
                 }
                 result[x + y * width] = (short) ((value - 32768) & 0xFFFF);
             }

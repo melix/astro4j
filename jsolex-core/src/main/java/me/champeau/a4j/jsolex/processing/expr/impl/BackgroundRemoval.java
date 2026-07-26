@@ -137,14 +137,16 @@ public class BackgroundRemoval extends AbstractFunctionImpl {
         }
         if (arg instanceof ImageWrapper target) {
             Optional<Ellipse> ellipse = target.findMetadata(Ellipse.class);
-            if (ellipse.isEmpty()) {
+            if (ellipse.isEmpty() && !arguments.containsKey("mask")) {
                 throw new IllegalArgumentException("Cannot perform background neutralization because ellipse isn't found");
             }
             int order = intArg(arguments, "order", 2);
             double sigma = doubleArg(arguments, "sigma", 2.5);
             return monoToMonoImageTransformer("backgroundModel", "img", arguments, src -> {
                 if (src instanceof ImageWrapper32 image) {
-                    Optional<ImageWrapper32> optionalModel = me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval.backgroundModel(image, order, sigma);
+                    var mask = statsMask(arguments, image);
+                    var buffer = new float[image.height()][image.width()];
+                    Optional<ImageWrapper32> optionalModel = me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval.backgroundModel(image, order, sigma, buffer, mask);
                     optionalModel.ifPresent(model -> {
                         var data = model.data();
                         for (int y = 0; y < image.height(); y++) {

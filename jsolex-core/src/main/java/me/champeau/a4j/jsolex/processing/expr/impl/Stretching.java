@@ -18,20 +18,17 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.CurveTransformStrategy;
+import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.MidtoneTransferFunctionAutostretchStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.MidtoneTransferFunctionStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.PercentileStretchStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.SigmoidStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
-import me.champeau.a4j.jsolex.processing.util.AnnulusMask;
 import me.champeau.a4j.jsolex.processing.util.Constants;
-import me.champeau.a4j.jsolex.processing.util.ImageMask;
-import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
-import me.champeau.a4j.math.regression.Ellipse;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
 import java.util.Map;
-import java.util.function.BiPredicate;
 
 public class Stretching extends AbstractFunctionImpl {
 
@@ -105,24 +102,41 @@ public class Stretching extends AbstractFunctionImpl {
                 image -> new PercentileStretchStrategy(lo, hi, statsMask(arguments, image), clipMode).stretch(image));
     }
 
-    /**
-     * Resolves the optional {@code mask} argument against the image; annulus masks fall back
-     * to the ellipse from the processing context when the image does not carry one.
-     */
-    private BiPredicate<Integer, Integer> statsMask(Map<String, Object> arguments, ImageWrapper image) {
-        var mask = arguments.get("mask");
-        if (mask == null) {
-            return null;
+    public Object clamp(Map<String, Object> arguments) {
+        BuiltinFunction.CLAMP.validateArgs(arguments);
+        var lo = doubleArg(arguments, "lo", 0);
+        var hi = doubleArg(arguments, "hi", Constants.MAX_PIXEL_VALUE);
+        if (lo >= hi) {
+            throw new IllegalArgumentException("clamp lo must be less than hi. Found: lo=" + lo + ", hi=" + hi);
         }
-        if (!(mask instanceof ImageMask imageMask)) {
-            throw new IllegalArgumentException("The mask argument must be created with annulus_mask or range_mask");
-        }
-        if (imageMask instanceof AnnulusMask annulus && image.findMetadata(Ellipse.class).isEmpty()) {
-            var ellipse = getFromContext(Ellipse.class)
-                    .orElseThrow(() -> new IllegalArgumentException("An annulus mask requires an image with a detected solar disk"));
-            return annulus.resolve(ellipse);
-        }
-        return imageMask.resolve(image);
+        return monoToMonoImageTransformer("clamp", "img", arguments,
+                image -> new CutoffStretchingStrategy((float) lo, (float) hi).stretch(image));
+    }
+
+    public Object lift(Map<String, Object> arguments) {
+        BuiltinFunction.LIFT.validateArgs(arguments);
+        return monoToMonoImageTransformer("lift", "img", arguments, image -> {
+            if (!(image instanceof ImageWrapper32 mono)) {
+                throw new IllegalArgumentException("lift only supports mono images");
+            }
+            var data = mono.data();
+            float min = 0;
+            for (var line : data) {
+                for (var v : line) {
+                    if (v < min) {
+                        min = v;
+                    }
+                }
+            }
+            if (min < 0) {
+                var shift = -min;
+                for (var line : data) {
+                    for (int i = 0; i < line.length; i++) {
+                        line[i] += shift;
+                    }
+                }
+            }
+        });
     }
 
     public Object sigmoidStretch(Map<String, Object> arguments) {
