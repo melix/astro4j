@@ -24,6 +24,7 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
+import me.champeau.a4j.jsolex.processing.util.RawImageIO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,7 +51,8 @@ public class Loader extends AbstractFunctionImpl {
             "tif",
             "tiff",
             "fits",
-            "fit"
+            "fit",
+            RawImageIO.EXTENSION
     );
 
     public Loader(Map<Class<?>, Object> context, Broadcaster broadcaster) {
@@ -72,6 +74,32 @@ public class Loader extends AbstractFunctionImpl {
         throw new IllegalArgumentException("Unsupported argument '" + arg + "' to load()");
     }
 
+    /**
+     * Saves an image and its metadata as raw {@code float[][]} data, without any rescaling
+     * to a display range, so that the exact values can be reloaded later with {@code load}.
+     * The image is returned unchanged, so the call can be inserted in a processing chain.
+     *
+     * @param arguments function arguments containing:
+     *                  - img: the image to save
+     *                  - file: the destination file, relative to the working directory; the
+     *                  raw extension is appended if missing
+     * @return the image
+     */
+    public Object saveRaw(Map<String, Object> arguments) {
+        BuiltinFunction.SAVE_RAW.validateArgs(arguments);
+        var arg = arguments.get("img");
+        if (arg instanceof ImageWrapper image && arguments.get("file") instanceof String path) {
+            if (!path.toLowerCase(Locale.US).endsWith("." + RawImageIO.EXTENSION)) {
+                path = path + "." + RawImageIO.EXTENSION;
+            }
+            var target = workingDirectory.resolve(path);
+            RawImageIO.write(image, target);
+            LOGGER.info("Saved raw image to {}", target);
+            return image;
+        }
+        throw new IllegalArgumentException("save_raw requires an image and a file name");
+    }
+
     public static ImageWrapper loadImage(File file) {
         var imageWrapper = doLoad(file);
         imageWrapper.findMetadata(MetadataTable.class).ifPresentOrElse(metadata -> {
@@ -88,6 +116,9 @@ public class Loader extends AbstractFunctionImpl {
         var extension = file.getName().toLowerCase(Locale.US);
         if (extension.endsWith(".fits")) {
             return FitsUtils.readFitsFile(file);
+        }
+        if (extension.endsWith("." + RawImageIO.EXTENSION)) {
+            return RawImageIO.read(file.toPath());
         }
         BufferedImage image;
         try {

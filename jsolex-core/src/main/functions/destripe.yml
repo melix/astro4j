@@ -1,23 +1,23 @@
 name: DESTRIPE
 category: ENHANCEMENT
 description:
-  fr: "Supprime les bandes horizontales (stries) d'une image"
-  en: "Removes horizontal banding (stripes) from an image"
+  fr: "Supprime les bandes horizontales (stries) d'une image. Avec ellipseMode 2, une étape fine supplémentaire supprime aussi les stries locales du ciel, comme les traînées courtes dessinées près du limbe par le halo d'une région brillante, tout en préservant les protubérances et les structures coronales, plus étendues verticalement."
+  en: "Removes horizontal banding (stripes) from an image. With ellipseMode 2, an additional fine stage also removes localized streaks from the sky, such as the short trails drawn next to the limb by the halo of a bright region, while preserving prominences and coronal structures, which are taller."
 arguments:
   - name: img
     description: Image(s)
   - name: bs
     optional: true
-    default: 48
+    default: -1
     description:
-      fr: "Échelle la plus grande, en pixels, du lissage vertical : augmentez-la pour supprimer des bandes plus larges. Les structures verticales plus larges que bs sont préservées."
-      en: "Coarsest scale, in pixels, of the vertical smoothing: increase it to remove broader banding. Vertical structures wider than bs are preserved."
+      fr: "Échelle la plus grande, en pixels, du lissage vertical, ou -1 pour la déduire de la hauteur de l'image. Les structures verticales plus larges que bs sont préservées ; augmentez la valeur pour supprimer des bandes plus larges."
+      en: "Coarsest scale, in pixels, of the vertical smoothing, or -1 to derive it from the image height. Vertical structures wider than bs are preserved; increase the value to remove broader banding."
   - name: passes
     optional: true
-    default: 2
+    default: -1
     description:
-      fr: "Nombre de passes"
-      en: "Number of passes"
+      fr: "Nombre de passes, ou -1 pour répéter la correction jusqu'à convergence."
+      en: "Number of passes, or -1 to repeat the correction until it converges."
   - name: strips
     optional: true
     default: 0

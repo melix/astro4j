@@ -351,6 +351,8 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             });
             case BINNING -> getBinning();
             case BG_MODEL -> bgRemoval.backgroundModel(arguments);
+            case COLUMN_BG_MODEL -> bgRemoval.columnBackgroundModel(arguments);
+            case SAVE_RAW -> loader.saveRaw(arguments);
             case BLUR -> convolution.blur(arguments);
             case CLAHE -> clahe.clahe(arguments);
             case CLAMP -> stretching.clamp(arguments);

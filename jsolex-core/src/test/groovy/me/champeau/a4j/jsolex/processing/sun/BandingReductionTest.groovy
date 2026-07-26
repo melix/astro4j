@@ -220,6 +220,139 @@ class BandingReductionTest extends Specification {
         bandSize << [8, 16, 24, 32, 48]
     }
 
+    def "the automatic band size grows with the image height within bounds"() {
+        expect:
+        BandingReduction.autoBandSize(height) == expected
+
+        where:
+        height | expected
+        256    | 16
+        1024   | 32
+        2048   | 64
+        8192   | 128
+    }
+
+    def "converging passes remove banding and stop once the corrections stall"() {
+        given: "a noisy background with banding at several scales"
+        def width = 256
+        def height = 256
+        def data = new float[height][width]
+        def random = new Random(42)
+        for (int y = 0; y < height; y++) {
+            float band = (float) (150 * Math.sin(y / 3.0) + 100 * Math.sin(y / 11.0))
+            for (int x = 0; x < width; x++) {
+                data[y][x] = (float) (1000f + band + 20 * random.nextGaussian())
+            }
+        }
+
+        when:
+        def passes = BandingReduction.removeStripesUntilConvergence(width, height, data, BandingReduction.autoBandSize(height), null, BandingReduction.Mode.WHOLE_LINE, 0)
+
+        then: "the banding is gone and the iteration stopped on its own"
+        passes >= 2
+        passes <= 4
+        stripeAmplitude(data, 0, width, height) < 15
+        !hasNaN(data, width, height)
+    }
+
+    def "converging passes leave an image without banding essentially untouched"() {
+        given: "pure noise"
+        def width = 256
+        def height = 256
+        def data = new float[height][width]
+        def before = new float[height][width]
+        def random = new Random(42)
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                data[y][x] = (float) (1000f + 20 * random.nextGaussian())
+                before[y][x] = data[y][x]
+            }
+        }
+
+        when:
+        BandingReduction.removeStripesUntilConvergence(width, height, data, BandingReduction.autoBandSize(height), null, BandingReduction.Mode.WHOLE_LINE, 0)
+
+        then: "only the random per-line offsets were touched, a small fraction of the pixel noise"
+        double maxChange = 0
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                maxChange = Math.max(maxChange, Math.abs(data[y][x] - before[y][x]))
+            }
+        }
+        maxChange < 10
+        !hasNaN(data, width, height)
+    }
+
+    def "the local stage removes short streaks while preserving a smooth feature"() {
+        given: "a sky with thin streaks anchored near the disk and a smooth prominence-like feature"
+        def width = 1024
+        def height = 1024
+        def ellipse = Ellipse.ofCartesian(new DoubleSextuplet(1, 0, 1, -1024, -1024, 1024 * 1024 / 2 - 300 * 300))
+        def data = new float[height][width]
+        def random = new Random(42)
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                data[y][x] = (float) (30000 + 300 * random.nextGaussian())
+            }
+        }
+        def streakRows = [200, 240, 700, 760]
+        for (int row in streakRows) {
+            for (int y = row; y < row + 8; y++) {
+                for (int x = 830; x < 1010; x++) {
+                    if (!ellipse.isWithin(x, y)) {
+                        data[y][x] += 250f
+                    }
+                }
+            }
+        }
+        int fx = 850
+        int fy = 512
+        def featureTotal = 0d
+        for (int y = fy - 90; y < fy + 90; y++) {
+            for (int x = fx - 60; x < fx + 60; x++) {
+                if (!ellipse.isWithin(x, y)) {
+                    def g = 6000 * Math.exp(-((x - fx) * (x - fx)) / (2.0 * 20 * 20) - ((y - fy) * (y - fy)) / (2.0 * 30 * 30))
+                    data[y][x] += (float) g
+                    featureTotal += g
+                }
+            }
+        }
+        def before = new float[height][width]
+        for (int y = 0; y < height; y++) {
+            System.arraycopy(data[y], 0, before[y], 0, width)
+        }
+
+        when:
+        BandingReduction.removeLocalStripes(width, height, data, 16, ellipse, BandingReduction.Mode.OUTSIDE_DISK)
+
+        then: "the streaks lose most of their amplitude"
+        for (int row in streakRows) {
+            double residual = 0
+            int n = 0
+            for (int y = row; y < row + 8; y++) {
+                for (int x = 840; x < 1000; x++) {
+                    if (!ellipse.isWithin(x, y)) {
+                        residual += data[y][x] - 30000
+                        n++
+                    }
+                }
+            }
+            assert Math.abs(residual / n) < 100
+        }
+
+        and: "the smooth feature keeps its flux"
+        double lost = 0
+        for (int y = fy - 90; y < fy + 90; y++) {
+            for (int x = fx - 60; x < fx + 60; x++) {
+                if (!ellipse.isWithin(x, y)) {
+                    lost += before[y][x] - data[y][x]
+                }
+            }
+        }
+        Math.abs(lost / featureTotal) < 0.02
+        !hasNaN(data, width, height)
+    }
+
     private static float[][] createTestImage(int width, int height) {
         var data = new float[height][width]
         var random = new Random(42)

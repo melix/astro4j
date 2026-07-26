@@ -18,6 +18,7 @@
 
 - Une nouvelle option de renforcement du contraste « Meilleure méthode » choisit automatiquement la meilleure technique selon la raie spectrale détectée : CLAHE pour le calcium et Autostretch pour les autres raies.
 - Les images produites par l'outil d'empilement peuvent désormais être partagées vers SpectroSolHub.
+- Lors du partage vers SpectroSolHub, vous pouvez désormais choisir quelle image sert de référence pour l'orientation.
 - Les images empilées conservent désormais la raie spectrale des images source au lieu de revenir à une longueur d'onde incorrecte.
 - La rotation d'une image remplit désormais les coins créés avec le niveau du fond de l'image au lieu du noir, sauf si une valeur de remplissage est précisée.
 
@@ -30,19 +31,21 @@
 - Une nouvelle fonction de script `clamp` limite une image à une plage de valeurs, par défaut la plage affichable, et une nouvelle fonction `lift` décale une image vers le haut pour qu'elle ne contienne plus de valeurs négatives.
 - La fonction de script `signed_diff` est dépréciée : une simple soustraction `a - b` fait désormais exactement la même chose.
 - Une nouvelle fonction de script `weighted_avg2` combine des images avec à la fois un poids par image et un rejet des valeurs aberrantes, afin que les meilleures images contribuent davantage à l'empilement.
-- La fonction de script `percentile_stretch` gère désormais les images contenant des valeurs négatives, comme les différences calculées avec `signed_diff`, et peut préserver toute la dynamique avec `clip: 0`.
-- Les scripts peuvent désormais forcer les paramètres de traitement dont ils ont besoin, comme désactiver la correction des bandes ou élargir le rognage, quels que soient les paramètres de traitement sélectionnés.
-- Ajout d'une fonction de script `destripe` qui supprime les bandes horizontales de n'importe quelle image, y compris celles dont le fond est proche de zéro comme les images après soustraction du continuum.
 - Les fonctions de script `mtf_autostretch` et `percentile_stretch` peuvent désormais calculer leurs statistiques sur un masque, par exemple un anneau autour du disque solaire, ce qui rend le résultat indépendant du facteur de rognage.
 - Les fonctions de script `mtf` et `mtf_autostretch` utilisent désormais toute la plage affichable : les parties les plus sombres atteignent le noir au lieu de rester grises, les images sont donc plus contrastées, et le niveau de fond demandé est bien celui obtenu.
 - La fonction de script `bg_model` peut désormais être restreinte à un masque, afin que le fond soit mesuré sur un anneau éloigné du disque au lieu de suivre le signal qui l'entoure.
 - Les fonctions de script `img_avg` et `img_median` peuvent elles aussi être restreintes à un masque.
 - Une nouvelle fonction de script `log_stats` écrit les statistiques d'une image dans le journal sans la modifier, ce qui permet de voir comment une valeur évolue d'un fichier d'un lot au suivant.
+- La fonction de script `percentile_stretch` gère désormais les images contenant des valeurs négatives, comme les images après soustraction du continuum, et peut préserver toute la dynamique avec `clip: 0`.
+- Ajout d'une fonction de script `destripe` qui supprime les bandes horizontales de n'importe quelle image, y compris celles dont le fond est proche de zéro comme les images après soustraction du continuum.
+- Une nouvelle fonction de script `column_bg_model` modélise l'excès de fond des colonnes balayées devant le disque solaire, causé par la lumière diffusée dans l'instrument, afin de pouvoir le supprimer.
+- Une nouvelle fonction de script `save_raw` enregistre une image avec ses valeurs exactes et ses métadonnées, pour pouvoir la recharger avec `load` sans la perte de précision du FITS ou du PNG.
 - Les scripts peuvent désormais utiliser les variables `inputFilesCount` et `keptFilesCount` pour connaître le nombre de fichiers traités et le nombre de fichiers conservés après la revue des images.
 - La fonction `draw_text` peut désormais afficher la valeur de n'importe quelle variable du script avec `%VAR_nom%`.
 - Multiplier ou diviser une liste de valeurs par un nombre unique l'applique désormais à chaque élément de la liste.
 - Les images produites par `crop_ar` portent désormais le nom de la région active qu'elles montrent.
 - Les détails d'observation et la fonction `draw_text` peuvent désormais afficher le nombre de fichiers traités avec `%INPUT_FILES%` et `%KEPT_FILES%`.
+- Les scripts peuvent désormais forcer les paramètres de traitement dont ils ont besoin, comme désactiver la correction des bandes ou élargir le rognage, quels que soient les paramètres de traitement sélectionnés.
 
 ### Corrections
 

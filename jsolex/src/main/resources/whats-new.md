@@ -18,6 +18,7 @@
 
 - A new "Best method" contrast enhancement option automatically picks the best technique for the detected spectral line: CLAHE for calcium and Autostretch for everything else.
 - Images produced by the Stacking tool can now be shared to SpectroSolHub.
+- When sharing to SpectroSolHub, you can now choose which image is used as the reference for orientation.
 - Stacked images now keep the spectral line of the source images instead of falling back to the wrong wavelength.
 - Rotating an image now fills the corners it creates with the background level of the image instead of black, unless a fill value is given.
 
@@ -35,8 +36,10 @@
 - The `bg_model` scripting function can now be restricted to a mask, so that the background is measured on a ring far from the disk instead of following the signal which surrounds it.
 - The `img_avg` and `img_median` scripting functions can now be restricted to a mask too.
 - A new `log_stats` scripting function writes the statistics of an image to the log without changing it, which helps to see how a value evolves from one file of a batch to the next.
-- The `percentile_stretch` scripting function now handles images containing negative values, such as differences computed with `signed_diff`, and can preserve the full dynamic range with `clip: 0`.
+- The `percentile_stretch` scripting function now handles images containing negative values, such as continuum-subtracted images, and can preserve the full dynamic range with `clip: 0`.
 - Added a `destripe` scripting function that removes horizontal banding from any image, including images whose background is close to zero such as continuum-subtracted images.
+- A new `column_bg_model` scripting function models the extra background of the columns scanned across the solar disk, caused by light scattered inside the instrument, so that it can be removed.
+- A new `save_raw` scripting function saves an image with its exact values and metadata, so it can be reloaded with `load` without the precision loss of FITS or PNG.
 - Scripts can now use the `inputFilesCount` and `keptFilesCount` variables to know how many files are processed and how many were kept after review.
 - The `draw_text` function can now display the value of any script variable with `%VAR_name%`.
 - Multiplying or dividing a list of values by a single number now applies it to every element of the list.

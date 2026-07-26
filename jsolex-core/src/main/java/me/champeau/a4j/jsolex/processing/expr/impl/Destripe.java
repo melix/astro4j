@@ -38,16 +38,24 @@ public class Destripe extends AbstractFunctionImpl {
             default -> BandingReduction.Mode.INSIDE_DISK;
         };
         var ellipse = mode == BandingReduction.Mode.WHOLE_LINE ? Optional.<Ellipse>empty() : getEllipse(arguments, "ellipse");
-        int bandSize = intArg(arguments, "bs", 48);
-        int passes = intArg(arguments, "passes", 2);
+        int bandSize = intArg(arguments, "bs", -1);
+        int passes = intArg(arguments, "passes", -1);
         int strips = intArg(arguments, "strips", 0);
         return monoToMonoImageTransformer("destripe", "img", arguments, src -> {
             if (src instanceof ImageWrapper32 image) {
                 var width = image.width();
                 var height = image.height();
                 var data = image.data();
-                for (int i = 0; i < passes; i++) {
-                    BandingReduction.removeStripes(width, height, data, bandSize, ellipse.orElse(null), mode, strips);
+                var bs = bandSize > 0 ? bandSize : BandingReduction.autoBandSize(height);
+                if (passes < 0) {
+                    BandingReduction.removeStripesUntilConvergence(width, height, data, bs, ellipse.orElse(null), mode, strips);
+                } else {
+                    for (int i = 0; i < passes; i++) {
+                        BandingReduction.removeStripes(width, height, data, bs, ellipse.orElse(null), mode, strips);
+                    }
+                }
+                if (mode == BandingReduction.Mode.OUTSIDE_DISK && passes != 0) {
+                    BandingReduction.removeLocalStripes(width, height, data, Math.max(4, bs / 4), ellipse.orElse(null), mode);
                 }
             } else {
                 throw new ProcessingException("destripe can only be applied to mono images");
