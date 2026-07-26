@@ -1,0 +1,22 @@
+name: LOG_STATS
+category: MATHS
+description:
+  fr: "Écrit les statistiques d'une image dans le journal, puis retourne l'image inchangée. Utile pour comprendre comment une valeur évolue d'une image à l'autre lors d'un traitement par lot, en encadrant une expression sans en modifier le résultat."
+  en: "Writes the statistics of an image to the log, then returns the image unchanged. Useful to understand how a value evolves from one image to the next in a batch, by wrapping an expression without changing its result."
+arguments:
+  - name: img
+    description: Image(s)
+    required: true
+  - name: mask
+    required: false
+    description:
+      fr: "Masque restreignant les pixels pris en compte (créé avec annulus_mask ou range_mask)."
+      en: "Mask restricting the pixels taken into account (created with annulus_mask or range_mask)."
+  - name: label
+    required: false
+    description:
+      fr: "Texte ajouté à chaque ligne du journal, pour distinguer plusieurs mesures."
+      en: "Text added to each log line, to tell several measurements apart."
+examples:
+  - "log_stats(img: some_images; mask: annulus_mask(1.05; 1.2))"
+  - "log_stats(img: some_images; mask: stats; label: \"before\")"

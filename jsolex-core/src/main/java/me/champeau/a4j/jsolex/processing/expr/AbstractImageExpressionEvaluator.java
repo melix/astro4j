@@ -297,6 +297,12 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
                         .toList();
             }
         }
+        if (left instanceof List<?> list && asScalar(right) != null) {
+            return list.stream().map(item -> mul(item, right)).toList();
+        }
+        if (right instanceof List<?> list && asScalar(left) != null) {
+            return list.stream().map(item -> mul(left, item)).toList();
+        }
         var leftImage = asImage(left);
         var rightImage = asImage(right);
         var leftScalar = asScalar(left);
@@ -312,6 +318,12 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
                         .mapToObj(i -> div(leftList.get(i), rightList.get(i)))
                         .toList();
             }
+        }
+        if (left instanceof List<?> list && asScalar(right) != null) {
+            return list.stream().map(item -> div(item, right)).toList();
+        }
+        if (right instanceof List<?> list && asScalar(left) != null) {
+            return list.stream().map(item -> div(left, item)).toList();
         }
         var leftImage = asImage(left);
         var rightImage = asImage(right);
@@ -341,6 +353,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case BG_MODEL -> bgRemoval.backgroundModel(arguments);
             case BLUR -> convolution.blur(arguments);
             case CLAHE -> clahe.clahe(arguments);
+            case CLAMP -> stretching.clamp(arguments);
             case CLAHE2 -> clahe.clahe2(arguments);
             case COLLAGE -> collageComposition.collage(arguments);
             case CHOOSE_FILE -> loader.chooseFile(arguments);
@@ -404,11 +417,13 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case IMG_MEDIAN2 -> imageStatistics.imgMedian2(arguments);
             case IMG_MIN -> imageStatistics.imgMin(arguments);
             case INVERT -> inverse.invert(arguments);
+            case LIFT -> stretching.lift(arguments);
             case LINEAR_STRETCH -> stretching.linearStretch(arguments);
             case LIST -> arguments.get("list");
             case LOAD -> loader.load(arguments);
             case LOAD_MANY -> loader.loadMany(arguments);
             case LOG -> math.log(arguments);
+            case LOG_STATS -> imageStatistics.logStats(arguments);
             case MAX -> simpleFunctionCall.applyFunction("max", arguments, DoubleStream::max);
             case MEDIAN ->
                     simpleFunctionCall.applyFunction("median", arguments, AbstractImageExpressionEvaluator::median);
@@ -420,6 +435,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case MONO -> utilities.toMono(arguments);
             case MOSAIC -> mosaicComposition.mosaic(arguments);
             case NEUTRALIZE_BG -> bgRemoval.neutralizeBackground(arguments);
+            case NOISE_SIGMA -> imageStatistics.noiseSigma(arguments);
             case PERCENTILE_STRETCH -> stretching.percentileStretch(arguments);
             case POLY_FIT_2D -> polyFit2D.polyFit2D(arguments);
             case POW -> math.pow(arguments);
@@ -463,6 +479,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case VIDEO_DATETIME -> utilities.videoDateTime(arguments);
             case WAVELEN -> wavelenthOfImage(arguments);
             case WEIGHTED_AVG -> utilities.weightedAverage(arguments);
+            case WEIGHTED_AVG2 -> utilities.weightedAverage2(arguments);
             case WORKDIR -> setWorkDir(arguments);
         };
     }
@@ -896,17 +913,11 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
                 throw new IllegalArgumentException("Both images must have the same dimensions");
             }
             var result = new float[height][width];
-            float min = 0;
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
-                    var v = (float) operator.applyAsDouble(leftData[y][x], rightData[y][x]);
-                    if (v < min) {
-                        min = v;
-                    }
-                    result[y][x] = v;
+                    result[y][x] = (float) operator.applyAsDouble(leftData[y][x], rightData[y][x]);
                 }
             }
-            normalize(result, min);
             var metadata = MetadataMerger.merge(List.of(leftImage, rightImage));
             return new ImageWrapper32(width, height, result, metadata);
         }
@@ -916,17 +927,11 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             var width = leftImage.width();
             var height = leftImage.height();
             var result = new float[height][width];
-            float min = 0;
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
-                    var v = (float) operator.applyAsDouble(leftData[y][x], scalar);
-                    if (v < min) {
-                        min = v;
-                    }
-                    result[y][x] = v;
+                    result[y][x] = (float) operator.applyAsDouble(leftData[y][x], scalar);
                 }
             }
-            normalize(result, min);
             return new ImageWrapper32(width, height, result, leftImage.metadata());
         }
         if (rightImage != null && leftScalar != null) {
@@ -935,35 +940,17 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             var width = rightImage.width();
             var height = rightImage.height();
             var result = new float[height][width];
-            float min = 0;
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
-                    var v = (float) operator.applyAsDouble(rightData[y][x], scalar);
-                    if (v < min) {
-                        min = v;
-                    }
-                    result[y][x] = v;
+                    result[y][x] = (float) operator.applyAsDouble(rightData[y][x], scalar);
                 }
             }
-            normalize(result, min);
             return new ImageWrapper32(width, height, result, rightImage.metadata());
         }
         if (leftScalar != null && rightScalar != null) {
             return operator.applyAsDouble(leftScalar.doubleValue(), rightScalar.doubleValue());
         }
         throw new IllegalArgumentException("Unexpected operand types");
-    }
-
-    private static void normalize(float[][] result, float min) {
-        if (min < 0) {
-            // shift all values so that they are positive
-            var abs = Math.abs(min);
-            for (float[] line : result) {
-                for (int i = 0; i < line.length; i++) {
-                    line[i] += abs;
-                }
-            }
-        }
     }
 
     private static ImageWrapper32 asImage(Object source) {

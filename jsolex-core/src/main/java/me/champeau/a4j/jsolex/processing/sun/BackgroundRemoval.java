@@ -30,6 +30,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.BiPredicate;
 
 import static me.champeau.a4j.jsolex.processing.sun.ImageUtils.bilinearSmoothing;
 import static me.champeau.a4j.jsolex.processing.sun.workflow.AnalysisUtils.estimateBackground;
@@ -234,25 +235,49 @@ public class BackgroundRemoval {
      * per-call {@code float[h][w]} allocation.
      */
     public static Optional<ImageWrapper32> backgroundModel(ImageWrapper32 image, int degree, double sigma, float[][] background) {
+        return backgroundModel(image, degree, sigma, background, null);
+    }
+
+    /**
+     * Computes the background model, restricting the samples to the pixels selected by the given
+     * mask. Without a mask the samples are taken everywhere outside the solar disk, which makes
+     * the model follow whatever surrounds it; a mask lets the caller fit the background on a
+     * region which is known to be free of the signal of interest.
+     *
+     * @param image      the image to process
+     * @param degree     the polynomial degree for the model
+     * @param sigma      the sigma threshold for outlier filtering
+     * @param background the output buffer, of dimensions {@code [image.height()][image.width()]}
+     * @param mask       selects the pixels to sample, or {@code null} to sample outside the disk
+     * @return the background model if sufficient samples are available, empty otherwise
+     */
+    public static Optional<ImageWrapper32> backgroundModel(ImageWrapper32 image, int degree, double sigma, float[][] background, BiPredicate<Integer, Integer> mask) {
         var data = image.data();
         int height = image.height();
         int width = image.width();
         var ellipse = image.findMetadata(Ellipse.class).orElse(null);
 
         int numTerms = (degree + 1) * (degree + 2) / 2;
-        var step = Math.max(width, height) / 32;
+        // A mask usually selects a small fraction of the image, so the grid is refined to keep
+        // enough samples within it
+        var step = Math.max(1, Math.max(width, height) / (mask == null ? 32 : 128));
         int estimatedSamples = ((width / step) + 1) * ((height / step) + 1);
         List<double[]> xMatrix = new ArrayList<>(estimatedSamples);
         List<Double> yVector = new ArrayList<>(estimatedSamples);
         for (int y = 0; y < height; y += step) {
             for (int x = 0; x < width; x += step) {
-                if (ellipse == null || !ellipse.isWithin(x, y)) {
+                var sampled = mask != null ? mask.test(x, y) : (ellipse == null || !ellipse.isWithin(x, y));
+                if (sampled) {
                     double z = data[y][x];
                     var terms = generatePolynomialTerms(x, y, width, height, degree);
                     xMatrix.add(terms);
                     yVector.add(z);
                 }
             }
+        }
+        if (yVector.isEmpty()) {
+            LOGGER.debug("No sample selected for background model");
+            return Optional.empty();
         }
 
         // Filter samples using sigma
@@ -266,7 +291,11 @@ public class BackgroundRemoval {
         List<Double> filteredY = new ArrayList<>(yVector.size());
         for (int i = 0; i < yVector.size(); i++) {
             var v = yVector.get(i);
-            if (v > 0 && v < hiThreshold && v > loThreshold) {
+            // Negative samples are rejected when sampling blindly outside the disk, where they can
+            // only be artifacts. Under a mask the caller vouches for the region, and a background
+            // which sits around zero, as after a continuum subtraction, is legitimately negative
+            // over half of it
+            if ((mask != null || v > 0) && v < hiThreshold && v > loThreshold) {
                 filteredX.add(xMatrix.get(i));
                 filteredY.add(yVector.get(i));
             }

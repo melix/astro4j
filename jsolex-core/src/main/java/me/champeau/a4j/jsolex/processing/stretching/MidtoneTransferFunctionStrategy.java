@@ -23,6 +23,8 @@ import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
  * This strategy implements the midtone transfer function (MTF) stretching algorithm.
  * It applies a transformation based on shadows, midtones, and highlights to stretch the image.
  * The shadows and highlights are specified in 8-bit values (0-255), while midtones is a floating-point value.
+ * The range between shadows and highlights is mapped onto the whole displayable range, so that the
+ * shadows reach black and the highlights reach white.
  * Inspired from the SIRIL MTF algorithm, see <a href="https://siril.readthedocs.io/en/stable/processing/stretching.html#midtone-transfer-function-transformation-mtf">MTF</a>
  */
 public final class MidtoneTransferFunctionStrategy implements StretchingStrategy {
@@ -73,15 +75,15 @@ public final class MidtoneTransferFunctionStrategy implements StretchingStrategy
     // MTF transformation: MTF(x, m, lo, hi)
     private double mtfTransform(double x, double m, double lo, double hi) {
         if (x <= lo) {
-            return lo;
+            return 0;
         }
         if (x >= hi) {
-            return hi;
+            return MAX_PIXEL_VALUE;
         }
-        
+
         var xp = (x - lo) / (hi - lo);
         var result = ((m - 1.0) * xp) / (((2.0 * m - 1.0) * xp) - m);
-        
-        return lo + result * (hi - lo);
+
+        return result * MAX_PIXEL_VALUE;
     }
 }

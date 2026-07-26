@@ -1,0 +1,22 @@
+name: WEIGHTED_AVG2
+category: MATHS
+description:
+  fr: "Calcule une moyenne pondérée d'images avec écrêtage sigma. Combine le rejet des valeurs aberrantes de AVG2 avec la pondération de WEIGHTED_AVG : les images de meilleure qualité peuvent recevoir un poids plus élevé tout en excluant les pixels aberrants. Le résultat n'est pas écrêté, afin de préserver toute la dynamique des images normalisées avant empilement."
+  en: "Computes a weighted average of images with sigma clipping. Combines the outlier rejection of AVG2 with the weighting of WEIGHTED_AVG: better images can be given a higher weight while aberrant pixels are still excluded. The result is not clamped, so that images normalized before stacking keep their full dynamic range."
+arguments:
+  - name: images
+    description: Images
+    required: true
+  - name: weights
+    required: true
+    description:
+      fr: Poids
+      en: Weights
+  - name: sigma
+    required: false
+    description:
+      fr: "Facteur de multiplication pour l'écart-type définissant le seuil d'écrêtage (défaut : 2.5)"
+      en: "Multiplication factor for standard deviation defining the clipping threshold (default: 2.5)"
+examples:
+  - "weighted_avg2(images: my_list; weights: my_weights)"
+  - "weighted_avg2(images: my_list; weights: my_weights; sigma: 3)"

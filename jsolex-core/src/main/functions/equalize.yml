@@ -3,6 +3,7 @@ category: ENHANCEMENT
 description:
   fr: "Egalise l'histogramme des images en paramètre pour qu'elles aient toutes à peu près la même luminosité."
   en: "Equalizes the histogram of the images in parameter so that they all have about the same brightness."
+spreadList: true
 arguments:
   - name: list
     description:

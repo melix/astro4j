@@ -129,7 +129,9 @@ public final class MidtoneTransferFunctionAutostretchStrategy implements Stretch
             c0 = 0.0;
         }
 
-        var m2 = normalizedMedian - c0;
+        // Position of the background within the range which is about to be mapped onto the whole
+        // displayable range, so that the midtone below is solved on the same scale as the transform
+        var m2 = c0 < 1.0 ? (normalizedMedian - c0) / (1.0 - c0) : 0.0;
 
         // Calculate midtones parameter using MTF function
         var midtones = calculateMTF(m2, targetBg, 0.0, 1.0);

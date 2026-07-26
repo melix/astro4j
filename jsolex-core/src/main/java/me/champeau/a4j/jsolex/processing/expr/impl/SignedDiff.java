@@ -22,17 +22,27 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MetadataMerger;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class SignedDiff extends AbstractFunctionImpl {
+    private static final Logger LOGGER = LoggerFactory.getLogger(SignedDiff.class);
+    private static final AtomicBoolean DEPRECATION_WARNED = new AtomicBoolean();
+
     public SignedDiff(Map<Class<?>, Object> context, Broadcaster broadcaster) {
         super(context, broadcaster);
     }
 
     public Object signedDiff(Map<String, Object> arguments) {
         BuiltinFunction.SIGNED_DIFF.validateArgs(arguments);
+        if (DEPRECATION_WARNED.compareAndSet(false, true)) {
+            LOGGER.warn("signed_diff is deprecated: the subtraction operator now preserves negative values, so 'a - b' is equivalent");
+        }
         var a = unwrap(arguments.get("a"));
         var b = unwrap(arguments.get("b"));
         if (a instanceof ImageWrapper32 imgA && b instanceof ImageWrapper32 imgB) {

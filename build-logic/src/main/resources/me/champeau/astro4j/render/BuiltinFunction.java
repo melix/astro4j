@@ -34,11 +34,11 @@ public enum BuiltinFunction {
 
 
     private static Parameter req(String name) {
-        return new Parameter(name, true);
+        return new Parameter(name, true, false);
     }
 
     private static Parameter opt(String name) {
-        return new Parameter(name, false);
+        return new Parameter(name, false, false);
     }
 
     BuiltinFunction() {
@@ -56,7 +56,7 @@ public enum BuiltinFunction {
     }
 
     BuiltinFunction(String... parameters) {
-        this(false, true, Arrays.stream(parameters).map(s -> new Parameter(s, true)).toList());
+        this(false, true, Arrays.stream(parameters).map(BuiltinFunction::req).toList());
     }
 
     public String lowerCaseName() {
@@ -76,7 +76,7 @@ public enum BuiltinFunction {
     }
 
     public void validateArgs(Map<String, Object> args) {
-        if (this.parameters.size() == 1 && Parameter.SPREAD_LIST.equals(this.parameters.getFirst())) {
+        if (this.parameters.size() == 1 && this.parameters.getFirst().spread()) {
             return;
         }
         var keys = args.keySet();
@@ -113,7 +113,7 @@ public enum BuiltinFunction {
      * @return a map of named arguments
      */
     public Map<String, Object> mapPositionalArguments(List<Object> args) {
-        if (this.parameters.size() == 1 && Parameter.SPREAD_LIST.equals(this.parameters.getFirst())) {
+        if (!this.parameters.isEmpty() && this.parameters.getFirst().spread()) {
             return Map.of("list", args);
         }
         var minArgs = parameters.stream().filter(p -> p.required).count();
@@ -171,8 +171,9 @@ public enum BuiltinFunction {
 
     private record Parameter(
             String name,
-            boolean required
+            boolean required,
+            boolean spread
     ) {
-        private static final Parameter SPREAD_LIST = new Parameter("list",  true);
+        private static final Parameter SPREAD_LIST = new Parameter("list",  true, true);
     }
 }

@@ -135,7 +135,8 @@ public class BandingReduction {
      * correction never fades away next to the disk. {@link #rejectStripOutliers} then discards the
      * corrections caused by a compact bright feature, so it is not mistaken for banding and carved
      * out. The correction is additive, so it works on a background close to zero (unlike a ratio),
-     * and it makes no assumption about the image content.
+     * and it makes no assumption about the image content. Values brighter than white are kept, so
+     * that a later stretch sees the real dynamic range of the image.
      *
      * @param width the image width in pixels
      * @param height the image height in pixels
@@ -177,7 +178,6 @@ public class BandingReduction {
             total += matchLineLevels(width, height, data, scale, effectiveEllipse, outsideDisk, stripCount);
             scales++;
         }
-        clampToMax(width, height, data);
         return scales > 0 ? total / scales : 0;
     }
 
