@@ -1,0 +1,45 @@
+name: LOAD_SDO
+category: UTILS
+description:
+  fr: "Télécharge une image du Solar Dynamics Observatory (SDO) prise au plus près d'une date donnée,
+  afin de comparer une observation avec une image spatiale du même moment.
+  L'image est mise en cache sur le disque : elle n'est téléchargée qu'une seule fois.
+  Le disque solaire détecté est renseigné automatiquement, ce qui permet d'utiliser directement
+  les fonctions qui en dépendent (autocrop2, disk_fill, annulus_mask, radius_rescale2, ...).
+  Les images SDO sont orientées avec le nord solaire en haut : pensez à faire pivoter votre image
+  de l'angle P (rotate_rad(img; angleP)) avant de les comparer."
+  en: "Downloads an image from the Solar Dynamics Observatory (SDO) taken as close as possible to a given date,
+  in order to compare an observation with a space based image of the same moment.
+  The image is cached on disk, so that it is only downloaded once.
+  The solar disk is filled in automatically, so that the functions which rely on it can be used
+  directly (autocrop2, disk_fill, annulus_mask, radius_rescale2, ...).
+  SDO images are oriented with solar north up: remember to rotate your own image by the P angle
+  (rotate_rad(img; angleP)) before comparing them."
+arguments:
+  - name: resolution
+    description:
+      fr: "Taille de l'image, en pixels : 512, 1024, 2048 ou 4096"
+      en: "Size of the image, in pixels: 512, 1024, 2048 or 4096"
+  - name: channel
+    optional: true
+    default: "0094"
+    description:
+      fr: "Canal : 0094, 0131, 0171, 0193, 0211, 0304, 0335, 1600, 1700, 4500,
+      les magnétogrammes HMIB, HMIBC, HMII, HMIIC, HMIIF, HMID,
+      ou les composites HMI171, 211193171, 304211171, 094335193"
+      en: "Channel: 0094, 0131, 0171, 0193, 0211, 0304, 0335, 1600, 1700, 4500,
+      the HMIB, HMIBC, HMII, HMIIC, HMIIF, HMID magnetograms,
+      or the HMI171, 211193171, 304211171, 094335193 composites"
+  - name: date
+    optional: true
+    default: date of the observation
+    description:
+      fr: "Date recherchée, soit au format ISO (par exemple 2026-07-25T10:30:00), soit une image dont la date de capture sera utilisée.
+      Par défaut, la date de l'observation en cours."
+      en: "Requested date, either in ISO format (for example 2026-07-25T10:30:00), or an image whose capture date will be used.
+      Defaults to the date of the current observation."
+examples:
+  - "load_sdo(1024)"
+  - 'load_sdo(resolution: 2048, channel: "0193")'
+  - 'load_sdo(resolution: 1024, channel: "HMIIC", date: "2026-07-25T10:30:00")'
+  - 'load_sdo(resolution: 1024, channel: "0171", date: img(0))'

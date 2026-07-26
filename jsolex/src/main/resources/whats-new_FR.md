@@ -21,10 +21,14 @@
 - Lors du partage vers SpectroSolHub, vous pouvez désormais choisir quelle image sert de référence pour l'orientation.
 - Les images empilées conservent désormais la raie spectrale des images source au lieu de revenir à une longueur d'onde incorrecte.
 - La rotation d'une image remplit désormais les coins créés avec le niveau du fond de l'image au lieu du noir, sauf si une valeur de remplissage est précisée.
+- La taille apparente du Soleil, enregistrée dans les fichiers FITS et accessible aux scripts Python, ne reste plus identique toute l'année et grossit à nouveau en janvier pour diminuer en juillet.
 
 ### Scripts ImageMath
 
 
+- Une nouvelle fonction de script `load_sdo` télécharge l'image du Solar Dynamics Observatory la plus proche de votre observation, avec son disque solaire déjà positionné, afin de la placer côte à côte avec votre propre image.
+- La fonction de script `radius_rescale2` accepte désormais une image de référence, et redimensionne son argument à la même taille de disque solaire, ce qui évite d'avoir à calculer les valeurs soi-même.
+- La fonction de script `draw_text` accepte désormais des coordonnées négatives, comptées depuis les bords droit et bas, ce qui permet de placer une légende dans les coins inférieurs quelle que soit la taille de l'image.
 - La fonction `unsharp_mask` n'éclaircit plus toute l'image en plus de l'accentuer, son résultat est donc plus sombre et plus contrasté qu'avant pour une même force.
 - Une nouvelle fonction de script `noise_sigma` mesure le bruit d'une image, ce qui permet à un script d'évaluer la qualité de chaque fichier d'un lot au lieu de la juger à l'œil.
 - La fonction `deghost` peut désormais supprimer plusieurs reflets à la fois, où qu'ils soient autour du disque.

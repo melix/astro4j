@@ -115,12 +115,24 @@ public class Scaling extends AbstractFunctionImpl {
         int targetRadius = intArg(arguments, "radius", 0);
         int width = intArg(arguments, "width", 0);
         int height = intArg(arguments, "height", 0);
+        if (arguments.get("ref") instanceof ImageWrapper reference) {
+            if (width <= 0) {
+                width = reference.width();
+            }
+            if (height <= 0) {
+                height = reference.height();
+            }
+            if (targetRadius <= 0) {
+                var referenceEllipse = withSolarDisk(reference).findMetadata(Ellipse.class).orElseThrow();
+                targetRadius = (int) Math.round(radiusOf(referenceEllipse));
+            }
+        }
 
         if (targetRadius <= 0) {
-            throw new IllegalArgumentException("Target radius must be > 0");
+            throw new IllegalArgumentException("radius_rescale2 requires a target radius, either directly or through a reference image");
         }
         if (width <= 0 || height <= 0) {
-            throw new IllegalArgumentException("Width and height must be > 0");
+            throw new IllegalArgumentException("radius_rescale2 requires a width and a height, either directly or through a reference image");
         }
 
         if (arg instanceof ImageWrapper img) {
@@ -129,17 +141,23 @@ public class Scaling extends AbstractFunctionImpl {
         throw new IllegalArgumentException("Unsupported image type");
     }
 
-    ImageWrapper performRadiusRescale2(ImageWrapper img, int targetRadius, int width, int height) {
-        ImageWrapper withEllipse = img;
-        var ellipse = img.findMetadata(Ellipse.class).orElse(null);
-        if (ellipse == null) {
-            withEllipse = (ImageWrapper) ellipseFit.fit(Map.of("img", img));
-            ellipse = withEllipse.findMetadata(Ellipse.class).orElse(null);
+    /**
+     * Returns the image along with its solar disk, detecting it if it is not already known.
+     */
+    private ImageWrapper withSolarDisk(ImageWrapper img) {
+        if (img.findMetadata(Ellipse.class).isPresent()) {
+            return img;
         }
-
-        if (ellipse == null) {
+        var fitted = (ImageWrapper) ellipseFit.fit(Map.of("img", img));
+        if (fitted.findMetadata(Ellipse.class).isEmpty()) {
             throw new IllegalArgumentException("Unable to determine ellipse fitting for the image");
         }
+        return fitted;
+    }
+
+    ImageWrapper performRadiusRescale2(ImageWrapper img, int targetRadius, int width, int height) {
+        var withEllipse = withSolarDisk(img);
+        var ellipse = withEllipse.findMetadata(Ellipse.class).orElseThrow();
 
         var currentRadius = radiusOf(ellipse);
         var scale = targetRadius / currentRadius;

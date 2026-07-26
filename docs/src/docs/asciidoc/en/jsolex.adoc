@@ -859,6 +859,58 @@ This table summarizes the special variables which are exposed to ImageMath scrip
 |`keptFilesCount`|The number of files which are kept after the image review, identical to `inputFilesCount` when no image was discarded
 |===
 
+[[sdo-comparison]]
+=== Comparing with SDO images
+
+The `load_sdo` function downloads an image taken by the Solar Dynamics Observatory at the moment of your observation, which is convenient to check your own image against a space based one.
+The frame whose timestamp is the closest to the date of your observation is selected, and it is stored on your disk, so that it is only downloaded once.
+
+You have to choose the size of the frame (512, 1024, 2048 or 4096 pixels) and, optionally, the channel: `0094`, `0131`, `0171`, `0193`, `0211`, `0304`, `0335`, `1600`, `1700` and `4500` for the extreme ultraviolet and white light channels, `HMIB`, `HMIBC`, `HMII`, `HMIIC`, `HMIIF` and `HMID` for the magnetograms.
+For example, the 0094 channel shows the very hot coronal plasma, which makes it a good companion for a coronal image taken in the Fe XIV line.
+
+The position and the size of the solar disk are computed for you, so you can directly use the functions which need one, like `autocrop2`, `disk_fill`, `annulus_mask` or `radius_rescale2`.
+
+TIP: SDO images are oriented with solar north up. Your own image must therefore be rotated by the P angle, using `rotate_rad(img: your_image; angle: angleP; resize: 0)`, before the two can be compared.
+
+Here is how to lay your image and the SDO one side by side, both brought to the same disk size:
+
+[source]
+----
+[tmp]
+sdo=load_sdo(resolution: 1024; channel: "0094")
+mine=rotate_rad(img: autocrop2(img(0); 1.5); angle: angleP; resize: 0)
+
+[outputs]
+comparison=side_by_side(
+   radius_rescale2(mono(sdo); 300; 800; 800);
+   radius_rescale2(mine; 300; 800; 800)
+)
+----
+
+If you are comparing structures outside the disk, like the corona, you can hide the solar disk of the SDO image with `disk_fill(sdo; 0)`.
+
+SDO images carry their own caption in the lower left corner. To put a matching one on your own image, give `draw_text` a negative coordinate: it is then counted from the bottom, or from the right for `x`, whatever the size of the image.
+
+[source]
+----
+mine=draw_text(img: mine; x: 32; y: -32; text: "%OBSERVER% %DATETIME%"; color: "FFFFFF")
+----
+
+By default the date of your observation is used, but you can also request a particular moment, which is useful when you want to compare several observations with the same reference:
+
+[source]
+----
+sdo=load_sdo(resolution: 2048; channel: "0193"; date: "2026-07-25T10:30:00")
+----
+
+You can also pass an image instead of a date, in which case the moment it was captured is used.
+This is handy in batch mode, where each file has its own capture time:
+
+[source]
+----
+sdo=load_sdo(resolution: 1024; channel: "0171"; date: img(0))
+----
+
 [[custom-functions]]
 === Custom functions
 

@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
+import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.MetadataTable;
 import me.champeau.a4j.jsolex.processing.util.FitsUtils;
@@ -25,6 +26,9 @@ import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.jsolex.processing.util.RawImageIO;
+import me.champeau.a4j.jsolex.processing.util.SDO;
+import me.champeau.a4j.math.regression.Ellipse;
+import me.champeau.a4j.math.tuples.DoubleSextuplet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,6 +39,11 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -44,6 +53,9 @@ import java.util.regex.Pattern;
 
 public class Loader extends AbstractFunctionImpl {
     private static final Logger LOGGER = LoggerFactory.getLogger(Loader.class);
+    private static final String DEFAULT_SDO_CHANNEL = "0094";
+    private static final String SDO_CHANNEL = "sdoChannel";
+    private static final String SDO_DATE = "sdoDate";
     private static final Set<String> RECOGNIZED_IMAGE_FORMATS = Set.of(
             "png",
             "jpg",
@@ -72,6 +84,83 @@ public class Loader extends AbstractFunctionImpl {
             return loadImage(file);
         }
         throw new IllegalArgumentException("Unsupported argument '" + arg + "' to load()");
+    }
+
+    /**
+     * Downloads the SDO browse image which is the closest in time to the requested date.
+     * The solar disk is computed from the plate scale of the instrument and the apparent
+     * size of the Sun at that date, and attached to the image, so that all the functions
+     * which need a solar disk can be used on the result.
+     *
+     * @param arguments function arguments containing:
+     *                  - resolution: the width of the frame, in pixels
+     *                  - channel: the channel code, defaults to 0094
+     *                  - date: the requested date, defaults to the date of the observation
+     * @return the SDO image
+     */
+    public Object loadSdo(Map<String, Object> arguments) {
+        BuiltinFunction.LOAD_SDO.validateArgs(arguments);
+        var resolution = intArg(arguments, "resolution", 0);
+        if (resolution <= 0) {
+            throw new IllegalArgumentException("load_sdo requires a resolution in pixels (512, 1024, 2048 or 4096)");
+        }
+        var channel = stringArg(arguments, "channel", DEFAULT_SDO_CHANNEL);
+        var date = sdoDate(arguments);
+        var candidate = SDO.findClosest(date, channel, resolution)
+                .orElseThrow(() -> new ProcessingException("No SDO image found for channel '" + channel + "' at resolution " + resolution + " around " + date));
+        var url = SDO.fetchCandidateImage(candidate)
+                .orElseThrow(() -> new ProcessingException("Unable to download SDO image " + candidate.fileName()));
+        BufferedImage image;
+        try (var stream = url.openStream()) {
+            image = ImageIO.read(stream);
+        } catch (IOException e) {
+            throw new ProcessingException("Unable to read SDO image " + candidate.fileName(), e);
+        }
+        if (image == null) {
+            throw new ProcessingException("Unable to decode SDO image " + candidate.fileName());
+        }
+        var properties = MutableMap.<String, String>of();
+        properties.put(MetadataTable.FILE_NAME, candidate.fileName());
+        properties.put(SDO_CHANNEL, candidate.channel());
+        properties.put(SDO_DATE, candidate.timestamp().format(DateTimeFormatter.ISO_INSTANT));
+        var metadata = MutableMap.<Class<?>, Object>of();
+        metadata.put(MetadataTable.class, new MetadataTable(properties));
+        metadata.put(Ellipse.class, solarDisk(image.getWidth(), image.getHeight(), candidate.solarDiskRadius()));
+        LOGGER.info("Using SDO {} image taken at {}", candidate.channel(), candidate.timestamp());
+        return toImageWrapper(image, metadata);
+    }
+
+    private ZonedDateTime sdoDate(Map<String, Object> arguments) {
+        var date = arguments.get("date");
+        if (date instanceof ImageWrapper image) {
+            return observationDate(image.findMetadata(ProcessParams.class).orElse(null));
+        }
+        if (date instanceof String text && !text.isBlank()) {
+            try {
+                return ZonedDateTime.parse(text);
+            } catch (DateTimeParseException e) {
+                return LocalDateTime.parse(text).atZone(ZoneId.of("UTC"));
+            }
+        }
+        return observationDate(null);
+    }
+
+    private ZonedDateTime observationDate(ProcessParams params) {
+        var resolved = params != null ? params : getFromContext(ProcessParams.class).orElse(null);
+        if (resolved == null) {
+            throw new ProcessingException("load_sdo requires a date, which could not be determined from the observation");
+        }
+        return resolved.observationDetails().date();
+    }
+
+    /**
+     * Builds the conic of a circle of the given radius, centered in an image of the
+     * given dimensions.
+     */
+    private static Ellipse solarDisk(int width, int height, double radius) {
+        var cx = (width - 1) / 2d;
+        var cy = (height - 1) / 2d;
+        return Ellipse.ofCartesian(new DoubleSextuplet(1, 0, 1, -2 * cx, -2 * cy, cx * cx + cy * cy - radius * radius));
     }
 
     /**

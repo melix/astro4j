@@ -1,17 +1,37 @@
 name: RADIUS_RESCALE2
 category: ROTATION
 description:
-  fr: "Redimensionne une image pour avoir un rayon solaire spécifique (en pixels) tout en conservant les dimensions finales spécifiées. Le disque solaire est centré dans l'image résultante."
-  en: "Rescales an image to have a specific solar radius (in pixels) while maintaining the specified final dimensions. The solar disk is centered in the resulting image."
+  fr: "Redimensionne une image pour avoir un rayon solaire spécifique (en pixels) tout en conservant les dimensions finales spécifiées. Le disque solaire est centré dans l'image résultante.
+  Au lieu de donner ces valeurs, vous pouvez fournir une image de référence avec `ref` : l'image sera alors redimensionnée pour avoir le même rayon solaire et les mêmes dimensions qu'elle, sans que l'image de référence ne soit modifiée."
+  en: "Rescales an image to have a specific solar radius (in pixels) while maintaining the specified final dimensions. The solar disk is centered in the resulting image.
+  Instead of giving these values, you can supply a reference image with `ref`: the image will then be rescaled to have the same solar radius and the same dimensions as it, leaving the reference image untouched."
 arguments:
   - name: img
     description: Image to rescale
   - name: radius
-    description: Target radius in pixels
+    optional: true
+    default: radius of the reference image
+    description:
+      fr: "Rayon cible en pixels"
+      en: "Target radius in pixels"
   - name: width
-    description: Final image width
+    optional: true
+    default: width of the reference image
+    description:
+      fr: "Largeur de l'image finale"
+      en: "Final image width"
   - name: height
-    description: Final image height
+    optional: true
+    default: height of the reference image
+    description:
+      fr: "Hauteur de l'image finale"
+      en: "Final image height"
+  - name: ref
+    optional: true
+    description:
+      fr: "Image de référence dont le rayon solaire et les dimensions doivent être repris"
+      en: "Reference image whose solar radius and dimensions must be matched"
 examples:
   - "radius_rescale2(img, 500, 1024, 1024)"
   - "radius_rescale2(img: my_image, radius: 400, width: 800, height: 600)"
+  - "radius_rescale2(img: sdo_image, ref: my_image)"
