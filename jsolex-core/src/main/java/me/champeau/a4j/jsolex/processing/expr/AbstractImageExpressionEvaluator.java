@@ -424,6 +424,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case LIST -> arguments.get("list");
             case LOAD -> loader.load(arguments);
             case LOAD_MANY -> loader.loadMany(arguments);
+            case LOAD_SDO -> loader.loadSdo(arguments);
             case LOG -> math.log(arguments);
             case LOG_STATS -> imageStatistics.logStats(arguments);
             case MAX -> simpleFunctionCall.applyFunction("max", arguments, DoubleStream::max);

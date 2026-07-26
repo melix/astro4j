@@ -255,10 +255,14 @@ public class ImageDraw extends AbstractFunctionImpl {
             }
             message = performSubstitutions(substituteScriptVariables(message), img);
             var lines = message.split("\n");
-            double lineHeight = g.getFontMetrics().getHeight();
-            double curY = y;
+            var fontMetrics = g.getFontMetrics();
+            double lineHeight = fontMetrics.getHeight();
+            // a negative coordinate is measured from the opposite edge, and the text is
+            // aligned against it, so that it stays inside the image
+            double curY = y >= 0 ? y : image.height() + y - fontMetrics.getDescent() - lineHeight * (lines.length - 1);
             for (var line : lines) {
-                g.drawString(line, x, (int) curY);
+                var lineX = x >= 0 ? x : image.width() + x - fontMetrics.stringWidth(line);
+                g.drawString(line, lineX, (int) curY);
                 curY += lineHeight;
             }
         });

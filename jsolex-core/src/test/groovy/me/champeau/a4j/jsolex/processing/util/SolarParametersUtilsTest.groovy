@@ -92,6 +92,35 @@ class SolarParametersUtilsTest extends Specification {
         ]
     }
 
+    def "apparent solar radius follows the Earth-Sun distance over the year"() {
+        given:
+        def radiusArcsec = { LocalDateTime date ->
+            Math.toDegrees(SolarParametersUtils.computeSolarParams(date).apparentSize()) * 1800
+        }
+
+        when:
+        def atPerihelion = radiusArcsec(LocalDateTime.of(2026, 1, 3, 0, 0))
+        def atAphelion = radiusArcsec(LocalDateTime.of(2026, 7, 6, 0, 0))
+
+        then: "the Sun is largest at perihelion and smallest at aphelion"
+        Math.abs(atPerihelion - 975.9) < 1.0
+        Math.abs(atAphelion - 944.0) < 1.0
+
+        and: "the peak to peak variation is about 3.4%"
+        Math.abs((atPerihelion / atAphelion - 1) * 100 - 3.4) < 0.2
+    }
+
+    def "apparent solar radius stays within the physical bounds all year long"() {
+        when:
+        def radii = (0..364).collect {
+            Math.toDegrees(SolarParametersUtils.computeSolarParams(LocalDateTime.of(2026, 1, 1, 0, 0).plusDays(it)).apparentSize()) * 1800
+        }
+
+        then:
+        radii.min() > 943.0
+        radii.max() < 977.0
+    }
+
     def "Carrington rotation increments correctly"() {
         given:
         def startOfRotation = SolarParametersUtils.CARRINGTON_ROTATION_1_START + (2303 * SolarParametersUtils.CARRINGTON_ROTATION_PERIOD)

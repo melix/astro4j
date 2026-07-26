@@ -21,10 +21,14 @@
 - When sharing to SpectroSolHub, you can now choose which image is used as the reference for orientation.
 - Stacked images now keep the spectral line of the source images instead of falling back to the wrong wavelength.
 - Rotating an image now fills the corners it creates with the background level of the image instead of black, unless a fill value is given.
+- The apparent size of the Sun, stored in FITS files and available to Python scripts, no longer stays the same all year long and again grows in January and shrinks in July.
 
 ### ImageMath scripts
 
 
+- A new `load_sdo` scripting function downloads the Solar Dynamics Observatory image taken closest to your observation, with its solar disk already positioned, so that you can place it side by side with your own image.
+- The `radius_rescale2` scripting function now accepts a reference image, and resizes its argument to the same solar disk size, which avoids having to work out the numbers yourself.
+- The `draw_text` scripting function now accepts negative coordinates, counted from the right and bottom edges, which makes it possible to place a caption in the lower corners whatever the size of the image.
 - The `unsharp_mask` function no longer brightens the whole image on top of sharpening it, so its result is darker and more contrasted than before for the same strength.
 - A new `noise_sigma` scripting function measures the noise of an image, which lets a script rate the quality of each file of a batch instead of judging it by eye.
 - The `deghost` function can now remove several reflections at once, wherever they are around the disk.

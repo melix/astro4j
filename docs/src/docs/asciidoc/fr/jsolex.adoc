@@ -506,6 +506,58 @@ Nous avons utilisé ici une seule fonction, `range`, qui a permis de générer e
 
 Veuillez vous référer à link:imagemath.html[cette page] pour une liste complète des fonctions disponibles.
 
+[[sdo-comparison]]
+=== Comparaison avec les images de SDO
+
+La fonction `load_sdo` télécharge une image prise par le Solar Dynamics Observatory au moment de votre observation, ce qui est pratique pour confronter votre propre image à une image spatiale.
+L'image dont la date est la plus proche de celle de votre observation est sélectionnée, et elle est conservée sur votre disque, afin de n'être téléchargée qu'une seule fois.
+
+Vous devez choisir la taille de l'image (512, 1024, 2048 ou 4096 pixels) et, éventuellement, le canal : `0094`, `0131`, `0171`, `0193`, `0211`, `0304`, `0335`, `1600`, `1700` et `4500` pour les canaux en ultraviolet extrême et en lumière blanche, `HMIB`, `HMIBC`, `HMII`, `HMIIC`, `HMIIF` et `HMID` pour les magnétogrammes.
+Par exemple, le canal 0094 montre le plasma coronal très chaud, ce qui en fait un bon compagnon pour une image de la couronne prise dans la raie Fe XIV.
+
+La position et la taille du disque solaire sont calculées pour vous, vous pouvez donc utiliser directement les fonctions qui en ont besoin, comme `autocrop2`, `disk_fill`, `annulus_mask` ou `radius_rescale2`.
+
+TIP: Les images de SDO sont orientées avec le nord solaire en haut. Votre propre image doit donc être tournée de l'angle P, avec `rotate_rad(img: votre_image; angle: angleP; resize: 0)`, avant de pouvoir les comparer.
+
+Voici comment placer votre image et celle de SDO côte à côte, toutes deux ramenées à la même taille de disque :
+
+[source]
+----
+[tmp]
+sdo=load_sdo(resolution: 1024; channel: "0094")
+mienne=rotate_rad(img: autocrop2(img(0); 1.5); angle: angleP; resize: 0)
+
+[outputs]
+comparaison=side_by_side(
+   radius_rescale2(mono(sdo); 300; 800; 800);
+   radius_rescale2(mienne; 300; 800; 800)
+)
+----
+
+Si vous comparez des structures situées hors du disque, comme la couronne, vous pouvez masquer le disque solaire de l'image SDO avec `disk_fill(sdo; 0)`.
+
+Les images SDO portent leur propre légende dans le coin inférieur gauche. Pour en placer une semblable sur votre propre image, donnez une coordonnée négative à `draw_text` : elle est alors comptée depuis le bas, ou depuis la droite pour `x`, quelle que soit la taille de l'image.
+
+[source]
+----
+mienne=draw_text(img: mienne; x: 32; y: -32; text: "%OBSERVER% %DATETIME%"; color: "FFFFFF")
+----
+
+Par défaut, la date de votre observation est utilisée, mais vous pouvez aussi demander un moment particulier, ce qui est utile lorsque vous souhaitez comparer plusieurs observations à une même référence :
+
+[source]
+----
+sdo=load_sdo(resolution: 2048; channel: "0193"; date: "2026-07-25T10:30:00")
+----
+
+Vous pouvez également passer une image à la place d'une date, auquel cas le moment de sa capture est utilisé.
+C'est pratique en mode lot, où chaque fichier a sa propre heure de capture :
+
+[source]
+----
+sdo=load_sdo(resolution: 1024; channel: "0171"; date: img(0))
+----
+
 [[custom-functions]]
 === Fonctions personnalisées
 

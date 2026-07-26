@@ -56,12 +56,12 @@ arguments:
     description: Image(s)
   - name: x
     description:
-      fr: "Coordonnéee X"
-      en: "X coordinate"
+      fr: "Coordonnée X, depuis la gauche. Une valeur négative est comptée depuis le bord droit, et le texte est aligné à droite."
+      en: "X coordinate, from the left. A negative value is counted from the right edge, and the text is right aligned."
   - name: y
     description:
-      fr: "Coordonnée Y"
-      en: "Y coordinate"
+      fr: "Coordonnée Y, depuis le haut. Une valeur négative est comptée depuis le bord bas, et le texte est aligné en bas."
+      en: "Y coordinate, from the top. A negative value is counted from the bottom edge, and the text is aligned to the bottom."
   - name:  text
     description:
       fr: "Texte à écrire"
@@ -80,3 +80,5 @@ arguments:
 examples:
   - 'draw_text(img(0), 100, 100, "Hello %OBSERVER%!")'
   - 'draw_text(img:img(0), x:100, y:100, text:"Hello %OBSERVER%!", fs: 20)'
+  - 'draw_text(img:img(0), x:20, y:-20, text:"%DATE%", fs: 24)'
+  - 'draw_text(img:img(0), x:-20, y:-20, text:"%OBSERVER%", fs: 24)'
