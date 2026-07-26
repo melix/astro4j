@@ -1807,6 +1807,21 @@ Comments can be added either with the <code>#</code> or <code>//</code> prefix.
 </tr>
 </table>
 </div>
+<div class="sect3">
+<h4 id="internal-outputs">Hiding an intermediate result</h4>
+<div class="paragraph">
+<p>Sometimes an intermediate result is only needed by the <code>[outputs]</code> section itself, and moving it to another section would make the script harder to read.
+In that case, prefix its name with <code>__</code>: such a variable is computed and can be used by the other expressions, but it is not considered an output, so it is neither displayed nor saved.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">[outputs]
+# not an output: only used below
+__stretched = asinh_stretch(cropped;1000;10)
+helium_mono = sharpen(__stretched)</code></pre>
+</div>
+</div>
+</div>
 </div>
 <div class="sect2">
 <h3 id="script-parameters">Script Parameters</h3>

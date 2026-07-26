@@ -521,6 +521,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_python_file">PYTHON_FILE</a></li>
 <li><a href="#_remote_scriptgen">REMOTE_SCRIPTGEN</a></li>
 <li><a href="#_rgb">RGB</a></li>
+<li><a href="#_save_raw">SAVE_RAW</a></li>
 <li><a href="#_side_by_side">SIDE_BY_SIDE</a></li>
 <li><a href="#_sort">SORT</a></li>
 <li><a href="#_top_bottom">TOP_BOTTOM</a></li>
@@ -574,6 +575,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_extraction_de_fond">Extraction de fond</a>
 <ul class="sectlevel2">
 <li><a href="#_bg_model">BG_MODEL</a></li>
+<li><a href="#_column_bg_model">COLUMN_BG_MODEL</a></li>
 <li><a href="#_neutralize_bg">NEUTRALIZE_BG</a></li>
 <li><a href="#_remove_bg">REMOVE_BG</a></li>
 </ul>
@@ -3072,6 +3074,56 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 </div>
 </div>
 <div class="sect2">
+<h3 id="_save_raw">SAVE_RAW</h3>
+<div class="paragraph">
+<p>Enregistre une image et ses métadonnées sous forme de données brutes (float), sans conversion vers la plage affichable. Contrairement aux formats comme FITS ou PNG, qui requantifient les pixels sur 16 bits, les valeurs exactes sont conservées, ce qui permet de recharger l&#8217;image avec <code>load</code> pour déboguer une étape de traitement isolément. L&#8217;image est renvoyée telle quelle, l&#8217;appel peut donc s&#8217;insérer dans une chaîne de traitement.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 13.6363%;">
+<col style="width: 13.6363%;">
+<col style="width: 59.0909%;">
+<col style="width: 13.6365%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Argument</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Requis ?</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Description</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Valeur par défaut</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>img</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Image</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>file</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Fichier de destination, relatif au dossier de travail. L&#8217;extension <code>.jraw</code> est ajoutée si elle manque.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p><strong>Exemples</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>save_raw(someImage; "/tmp/debug/stacked")</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>save_raw(img: someImage; file: "stacked.jraw")</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
 <h3 id="_side_by_side">SIDE_BY_SIDE</h3>
 <div class="paragraph">
 <p>Combine deux images cote a cote (gauche et droite).</p>
@@ -4089,7 +4141,7 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <div class="sect2">
 <h3 id="_destripe">DESTRIPE</h3>
 <div class="paragraph">
-<p>Supprime les bandes horizontales (stries) d&#8217;une image</p>
+<p>Supprime les bandes horizontales (stries) d&#8217;une image. Avec ellipseMode 2, une étape fine supplémentaire supprime aussi les stries locales du ciel, comme les traînées courtes dessinées près du limbe par le halo d&#8217;une région brillante, tout en préservant les protubérances et les structures coronales, plus étendues verticalement.</p>
 </div>
 <table class="tableblock frame-all grid-all stretch">
 <colgroup>
@@ -4114,14 +4166,14 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>bs</code></p></td>
 <td class="tableblock halign-center valign-top"></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Échelle la plus grande, en pixels, du lissage vertical : augmentez-la pour supprimer des bandes plus larges. Les structures verticales plus larges que bs sont préservées.</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">48</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Échelle la plus grande, en pixels, du lissage vertical, ou -1 pour la déduire de la hauteur de l&#8217;image. Les structures verticales plus larges que bs sont préservées ; augmentez la valeur pour supprimer des bandes plus larges.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">-1</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>passes</code></p></td>
 <td class="tableblock halign-center valign-top"></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Nombre de passes</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">2</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Nombre de passes, ou -1 pour répéter la correction jusqu&#8217;à convergence.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">-1</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>strips</code></p></td>
@@ -5437,6 +5489,84 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <div class="listingblock">
 <div class="content">
 <pre>bg_model(img: img(0); order: 1; mask: annulus_mask(1.3; 1.45))</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_column_bg_model">COLUMN_BG_MODEL</h3>
+<div class="paragraph">
+<p>Crée le modèle d&#8217;illumination des colonnes d&#8217;une image : un niveau de fond qui change d&#8217;une colonne à l&#8217;autre mais reste constant le long d&#8217;une colonne. En spectrohéliographie, une colonne de l&#8217;image correspond à une image de la vidéo, donc la lumière diffusée dans l&#8217;instrument lorsque la fente traverse le disque solaire relève le fond de toutes ces colonnes, ce qui produit un dôme de fond excédentaire culminant au milieu du disque et retombant abruptement juste après ses bords. Aucune correction ligne par ligne, comme <code>destripe</code>, ne peut le voir. Le niveau de chaque colonne est la médiane de ses pixels de ciel, légèrement lissée le long de l&#8217;image : aucune forme n&#8217;est imposée, donc la chute abrupte aux bords du disque est suivie fidèlement au lieu d&#8217;être arrondie. Le modèle peut ensuite être soustrait de l&#8217;image, ou utilisé comme diviseur après normalisation.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 13.6363%;">
+<col style="width: 13.6363%;">
+<col style="width: 59.0909%;">
+<col style="width: 13.6365%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Argument</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Requis ?</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Description</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Valeur par défaut</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>img</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Image(s)</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>mask</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Masque restreignant les pixels sur lesquels le modèle est calculé (créé avec annulus_mask ou range_mask). Sans masque, le modèle est calculé sur tout ce qui entoure le disque solaire.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>smoothing</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Lissage horizontal du modèle, en pixels. Augmentez-le si le modèle suit le bruit, diminuez-le si les bords du dôme sont arrondis.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">8</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>sigma</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Nombre de sigmas au-delà duquel une colonne est écartée de l&#8217;ajustement, pour qu&#8217;une protubérance ou un jet coronal ne déforme pas le modèle.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">2.5</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>normalize</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Avec 1, le modèle est mis à l&#8217;échelle pour que les colonnes à côté du disque valent 1 : il peut alors diviser une image sans en changer l&#8217;échelle, seules les colonnes sous le dôme étant réduites.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">0</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p><strong>Exemples</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>column_bg_model(img(0))</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>someImage - column_bg_model(someImage)</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>column_bg_model(img: someImage; smoothing: 12; mask: annulus_mask(1.1; 1.45))</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>destripe(img: someImage/column_bg_model(img: cont; normalize: 1); ellipseMode: 2)</pre>
 </div>
 </div>
 </div>
