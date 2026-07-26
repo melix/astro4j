@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
+import me.champeau.a4j.jsolex.processing.sun.ColumnBackground;
 import me.champeau.a4j.jsolex.processing.sun.workflow.AnalysisUtils;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
@@ -26,6 +27,7 @@ import me.champeau.a4j.math.regression.Ellipse;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.BiPredicate;
 
 /**
  * Implementation of background removal functions for the image math language.
@@ -160,5 +162,59 @@ public class BackgroundRemoval extends AbstractFunctionImpl {
         }
 
         throw new IllegalArgumentException("backgroundModel only supports mono images");
+    }
+
+    /**
+     * Computes the column illumination model of an image: a background level which changes from one
+     * column to the next but stays constant along a column, typically produced by the light which
+     * the instrument scatters while the slit crosses the solar disk. The level of each column is
+     * the median of its usable pixels, and the model is that profile lightly smoothed, so the steep
+     * fall right past the edges of the disk is followed instead of being rounded off.
+     *
+     * @param arguments function arguments containing:
+     *                  - img: the input image or list of images
+     *                  - mask: the pixels the model is computed from (optional, defaults to the
+     *                  pixels outside the solar disk)
+     *                  - smoothing: horizontal smoothing of the model, in pixels (default: 8)
+     *                  - sigma: sigma threshold for discarding outlier columns (default: 2.5)
+     *                  - normalize: when 1, scale the model so the columns beside the disk sit
+     *                  at 1, so it can divide an image without changing its scale (default: 0)
+     * @return the computed model image or list of images
+     */
+    public Object columnBackgroundModel(Map<String, Object> arguments) {
+        BuiltinFunction.COLUMN_BG_MODEL.validateArgs(arguments);
+        var arg = arguments.get("img");
+        if (arg instanceof List<?>) {
+            return expandToImageList("column_bg_model", "img", arguments, this::columnBackgroundModel);
+        }
+        if (arg instanceof ImageWrapper target) {
+            Optional<Ellipse> ellipse = target.findMetadata(Ellipse.class);
+            if (ellipse.isEmpty() && !arguments.containsKey("mask")) {
+                throw new IllegalArgumentException("Cannot compute the column illumination model because ellipse isn't found");
+            }
+            var smoothing = doubleArg(arguments, "smoothing", 8);
+            var sigma = doubleArg(arguments, "sigma", 2.5);
+            var normalize = intArg(arguments, "normalize", 0) != 0;
+            return monoToMonoImageTransformer("column_bg_model", "img", arguments, src -> {
+                if (src instanceof ImageWrapper32 image) {
+                    var mask = statsMask(arguments, image);
+                    var width = image.width();
+                    var height = image.height();
+                    var usable = mask != null ? mask : ellipse.<BiPredicate<Integer, Integer>>map(e -> (x, y) -> !e.isWithin(x, y)).orElse(null);
+                    var levels = ColumnBackground.estimate(width, height, image.data(), usable, smoothing, sigma);
+                    if (normalize) {
+                        ColumnBackground.normalizeLevels(levels, ellipse.orElse(null));
+                    }
+                    var model = ColumnBackground.toImage(width, height, levels);
+                    for (int y = 0; y < height; y++) {
+                        System.arraycopy(model[y], 0, image.data()[y], 0, width);
+                    }
+                } else {
+                    throw new IllegalArgumentException("column_bg_model only supports mono images");
+                }
+            });
+        }
+
+        throw new IllegalArgumentException("column_bg_model only supports mono images");
     }
 }

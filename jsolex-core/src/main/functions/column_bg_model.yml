@@ -1,0 +1,36 @@
+name: COLUMN_BG_MODEL
+category: BACKGROUND
+description:
+  fr: "Crée le modèle d'illumination des colonnes d'une image : un niveau de fond qui change d'une colonne à l'autre mais reste constant le long d'une colonne. En spectrohéliographie, une colonne de l'image correspond à une image de la vidéo, donc la lumière diffusée dans l'instrument lorsque la fente traverse le disque solaire relève le fond de toutes ces colonnes, ce qui produit un dôme de fond excédentaire culminant au milieu du disque et retombant abruptement juste après ses bords. Aucune correction ligne par ligne, comme `destripe`, ne peut le voir. Le niveau de chaque colonne est la médiane de ses pixels de ciel, légèrement lissée le long de l'image : aucune forme n'est imposée, donc la chute abrupte aux bords du disque est suivie fidèlement au lieu d'être arrondie. Le modèle peut ensuite être soustrait de l'image, ou utilisé comme diviseur après normalisation."
+  en: "Creates the column illumination model of an image: a background level which changes from one column to the next but stays constant along a column. In spectroheliography one column of the image comes from one frame of the video, so the light scattered inside the instrument while the slit crosses the solar disk raises the background of all those columns, which produces a dome of excess background peaking at the middle of the disk and falling steeply just past its edges. No line by line correction, such as `destripe`, can see it. The level of each column is the median of its sky pixels, lightly smoothed along the image: no shape is imposed, so the steep fall at the edges of the disk is followed faithfully instead of being rounded off. The model can then be subtracted from the image, or used as a divisor after normalization."
+arguments:
+  - name: img
+    description: Image(s)
+  - name: mask
+    optional: true
+    description:
+      fr: "Masque restreignant les pixels sur lesquels le modèle est calculé (créé avec annulus_mask ou range_mask). Sans masque, le modèle est calculé sur tout ce qui entoure le disque solaire."
+      en: "Mask restricting the pixels the model is computed from (created with annulus_mask or range_mask). Without a mask the model is computed from everything surrounding the solar disk."
+  - name: smoothing
+    optional: true
+    default: 8
+    description:
+      fr: "Lissage horizontal du modèle, en pixels. Augmentez-le si le modèle suit le bruit, diminuez-le si les bords du dôme sont arrondis."
+      en: "Horizontal smoothing of the model, in pixels. Increase it if the model follows the noise, decrease it if the edges of the dome are rounded off."
+  - name: sigma
+    optional: true
+    default: 2.5
+    description:
+      fr: "Nombre de sigmas au-delà duquel une colonne est écartée de l'ajustement, pour qu'une protubérance ou un jet coronal ne déforme pas le modèle."
+      en: "Number of sigmas beyond which a column is discarded from the fit, so that a prominence or a coronal streamer does not bend the model."
+  - name: normalize
+    optional: true
+    default: 0
+    description:
+      fr: "Avec 1, le modèle est mis à l'échelle pour que les colonnes à côté du disque valent 1 : il peut alors diviser une image sans en changer l'échelle, seules les colonnes sous le dôme étant réduites."
+      en: "With 1, the model is scaled so that the columns beside the disk sit at 1: it can then divide an image without changing its scale, only the columns under the dome being reduced."
+examples:
+  - "column_bg_model(img(0))"
+  - "someImage - column_bg_model(someImage)"
+  - "column_bg_model(img: someImage; smoothing: 12; mask: annulus_mask(1.1; 1.45))"
+  - "destripe(img: someImage/column_bg_model(img: cont; normalize: 1); ellipseMode: 2)"

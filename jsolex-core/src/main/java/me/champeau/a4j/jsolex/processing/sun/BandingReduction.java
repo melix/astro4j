@@ -151,6 +151,73 @@ public class BandingReduction {
     }
 
     /**
+     * Share of the image height used as the automatic coarsest scale: stripes up to this fraction
+     * of the height are treated as banding, wider structures as signal.
+     */
+    private static final int AUTO_BAND_DIVIDER = 32;
+
+    /**
+     * Bounds of the automatic band size, so tiny images still get a workable scale and huge ones
+     * do not treat broad sky structures as banding.
+     */
+    private static final int MIN_AUTO_BAND_SIZE = 16;
+    private static final int MAX_AUTO_BAND_SIZE = 128;
+
+    /**
+     * Upper bound on the number of automatic passes, as a safety net if the corrections never
+     * stall.
+     */
+    private static final int MAX_AUTO_PASSES = 4;
+
+    /**
+     * Ratio of one pass's correction to the previous one above which the passes are considered to
+     * have stalled: what is still being corrected at that point is the noise of the estimation,
+     * not banding.
+     */
+    private static final double STALL_RATIO = 0.6;
+
+    /**
+     * The coarsest correction scale suited to an image, derived from its height: banding is an
+     * instrumental defect whose width grows with the resolution of the scan, while structures much
+     * broader than this are real signal which must be preserved.
+     *
+     * @param height the image height in pixels
+     * @return the band size, in pixels
+     */
+    public static int autoBandSize(int height) {
+        return Math.clamp(height / AUTO_BAND_DIVIDER, MIN_AUTO_BAND_SIZE, MAX_AUTO_BAND_SIZE);
+    }
+
+    /**
+     * Removes horizontal banding, repeating the correction until it converges. A single pass
+     * under-corrects, because the robust per-line levels are themselves biased by the banding they
+     * measure; each pass therefore starts from a cleaner image and refines the previous one. The
+     * corrections shrink quickly while real banding remains, then stall at the level of the
+     * estimation noise, which is when the iteration stops.
+     *
+     * @param width the image width in pixels
+     * @param height the image height in pixels
+     * @param data the image data as a 2D array (modified in place)
+     * @param bandSize the coarsest scale, in pixels, of the vertical smoothing
+     * @param ellipse optional ellipse defining the region to correct, or null for full image
+     * @param mode which pixels of each line feed the correction
+     * @param strips how many vertical strips to correct independently, or 0 to choose from the
+     * image width
+     * @return the number of passes which were applied
+     */
+    public static int removeStripesUntilConvergence(int width, int height, float[][] data, int bandSize, Ellipse ellipse, Mode mode, int strips) {
+        var previous = Double.MAX_VALUE;
+        for (var pass = 1; pass <= MAX_AUTO_PASSES; pass++) {
+            var correction = removeStripes(width, height, data, bandSize, ellipse, mode, strips);
+            if (correction >= STALL_RATIO * previous) {
+                return pass;
+            }
+            previous = correction;
+        }
+        return MAX_AUTO_PASSES;
+    }
+
+    /**
      * Removes horizontal banding, using the requested number of vertical strips.
      *
      * @param width the image width in pixels
@@ -179,6 +246,152 @@ public class BandingReduction {
             scales++;
         }
         return scales > 0 ? total / scales : 0;
+    }
+
+    /**
+     * Width, in pixels, of the sliding windows of the fine correction stage. Narrower than the
+     * strips, so stripes which only span part of the field, such as the streaks drawn next to the
+     * limb by the halo of a bright feature, are corrected where they are instead of being diluted
+     * over a whole strip.
+     */
+    private static final int LOCAL_WINDOW = 64;
+
+    /**
+     * How many times the robust noise of a line a local correction may reach before being
+     * discarded. Stripes are subtle, below the pixel noise, while the edge of a bright feature
+     * produces a residual many times above it: refusing the large corrections leaves prominences
+     * and corona features untouched without any absolute threshold.
+     */
+    private static final double LOCAL_NOISE_FACTOR = 2.0;
+
+    /**
+     * Removes localized stripes: structures much thinner than the band size along y, but coherent
+     * over at least a window along x. The coarse correction of {@link #removeStripes} works at the
+     * strip scale and rejects localized deviations as features, which protects prominences but
+     * also preserves short streaks. This stage separates the two by scale instead: each column is
+     * detrended along y by a local linear fit at the requested scale, so anything taller than the
+     * scale, such as a prominence or a corona ray, stays in the trend and is untouched, while the
+     * thin residual is estimated by medians over windows and subtracted where it is coherent
+     * across a window.
+     *
+     * @param width the image width in pixels
+     * @param height the image height in pixels
+     * @param data the image data as a 2D array (modified in place)
+     * @param scale the vertical scale, in pixels, below which structure is treated as stripes
+     * @param ellipse optional ellipse defining the region to correct, or null for full image
+     * @param mode which pixels of each line feed the correction
+     * @return the mean absolute correction that was applied
+     */
+    public static double removeLocalStripes(int width, int height, float[][] data, int scale, Ellipse ellipse, Mode mode) {
+        var effectiveEllipse = mode == Mode.WHOLE_LINE ? null : ellipse;
+        var outsideDisk = mode == Mode.OUTSIDE_DISK;
+        var residual = new float[height][width];
+        var valid = new boolean[height][width];
+        IntStream.range(0, width).parallel().forEach(x -> computeColumnResidual(data, x, height, scale, effectiveEllipse, outsideDisk, residual, valid));
+        var windowCount = Math.max(1, (int) Math.round(width / (double) LOCAL_WINDOW));
+        var edges = new int[windowCount + 1];
+        for (var i = 0; i <= windowCount; i++) {
+            edges[i] = (int) Math.round(i * (double) width / windowCount);
+        }
+        var centers = new double[windowCount];
+        for (var s = 0; s < windowCount; s++) {
+            centers[s] = (edges[s] + edges[s + 1]) / 2.0;
+        }
+        var rowNoise = new double[height];
+        IntStream.range(0, height).parallel().forEach(y -> {
+            var magnitudes = new double[width];
+            var n = 0;
+            for (var x = 0; x < width; x++) {
+                if (valid[y][x]) {
+                    magnitudes[n++] = Math.abs(residual[y][x]);
+                }
+            }
+            rowNoise[y] = n >= MIN_FIT_PIXELS ? 1.4826 * median(magnitudes, n) : 0;
+        });
+        var correction = new double[windowCount][height];
+        IntStream.range(0, windowCount).parallel().forEach(s -> {
+            var values = new double[edges[s + 1] - edges[s]];
+            for (var y = 0; y < height; y++) {
+                var n = 0;
+                for (var x = edges[s]; x < edges[s + 1]; x++) {
+                    if (valid[y][x]) {
+                        values[n++] = residual[y][x];
+                    }
+                }
+                if (n < MIN_FIT_PIXELS) {
+                    continue;
+                }
+                var estimate = -median(values, n);
+                if (Math.abs(estimate) <= LOCAL_NOISE_FACTOR * rowNoise[y]) {
+                    correction[s][y] = estimate;
+                }
+            }
+        });
+        var totals = IntStream.range(0, height).parallel().mapToObj(y -> {
+            var sum = 0.0;
+            var count = 0;
+            for (var x = 0; x < width; x++) {
+                if (effectiveEllipse == null || outsideDisk != effectiveEllipse.isWithin(x, y)) {
+                    var corr = interpolateAcrossStrips(correction, centers, windowCount, x, y);
+                    data[y][x] += (float) corr;
+                    sum += Math.abs(corr);
+                    count++;
+                }
+            }
+            return new double[]{sum, count};
+        }).toList();
+        var total = totals.stream().mapToDouble(a -> a[0]).sum();
+        var count = totals.stream().mapToDouble(a -> a[1]).sum();
+        return count > 0 ? total / count : 0;
+    }
+
+    /**
+     * Detrends one column along y: each usable pixel is compared to a local linear fit of its
+     * vertical neighbourhood, weighted by a Gaussian of the requested scale and evaluated at the
+     * pixel itself, so a one-sided neighbourhood, as happens against the disk or the image bounds,
+     * does not pull the trend towards the interior the way a weighted mean would.
+     */
+    private static void computeColumnResidual(float[][] data, int x, int height, int scale, Ellipse ellipse, boolean outsideDisk, float[][] residual, boolean[][] valid) {
+        var kernel = GaussianSupport.gaussianKernel1D(scale);
+        var half = kernel.length / 2;
+        var usable = new boolean[height];
+        for (var y = 0; y < height; y++) {
+            usable[y] = ellipse == null || outsideDisk != ellipse.isWithin(x, y);
+        }
+        for (var y = 0; y < height; y++) {
+            if (!usable[y]) {
+                continue;
+            }
+            double sw = 0;
+            double swt = 0;
+            double swt2 = 0;
+            double swv = 0;
+            double swtv = 0;
+            var n = 0;
+            for (var k = -half; k <= half; k++) {
+                var idx = y + k;
+                if (idx >= 0 && idx < height && usable[idx]) {
+                    var w = kernel[k + half];
+                    double v = data[idx][x];
+                    sw += w;
+                    swt += w * k;
+                    swt2 += w * (double) k * k;
+                    swv += w * v;
+                    swtv += w * k * v;
+                    n++;
+                }
+            }
+            if (n < MIN_FIT_PIXELS) {
+                continue;
+            }
+            var det = sw * swt2 - swt * swt;
+            if (Math.abs(det) < 1e-9) {
+                continue;
+            }
+            var trend = (swt2 * swv - swt * swtv) / det;
+            residual[y][x] = (float) (data[y][x] - trend);
+            valid[y][x] = true;
+        }
     }
 
     private static void clampToMax(int width, int height, float[][] data) {
@@ -269,7 +482,7 @@ public class BandingReduction {
                 present[y] = true;
             }
         }
-        interpolateMissing(level, present, height);
+        interpolateMissing(level, present);
         var reference = smoothProfile(level, scale, height);
         for (var y = 0; y < height; y++) {
             correction[y] = reference[y] - level[y];
@@ -380,7 +593,7 @@ public class BandingReduction {
         return correction[s][y] * (1 - t) + correction[s + 1][y] * t;
     }
 
-    private static double median(double[] values, int n) {
+    static double median(double[] values, int n) {
         Arrays.sort(values, 0, n);
         var mid = n / 2;
         if ((n & 1) == 0) {
@@ -389,9 +602,10 @@ public class BandingReduction {
         return values[mid];
     }
 
-    private static void interpolateMissing(double[] values, boolean[] present, int height) {
+    static void interpolateMissing(double[] values, boolean[] present) {
+        var length = values.length;
         var first = -1;
-        for (var y = 0; y < height; y++) {
+        for (var y = 0; y < length; y++) {
             if (present[y]) {
                 first = y;
                 break;
@@ -404,7 +618,7 @@ public class BandingReduction {
             values[y] = values[first];
         }
         var prev = first;
-        for (var y = first + 1; y < height; y++) {
+        for (var y = first + 1; y < length; y++) {
             if (present[y]) {
                 for (var k = prev + 1; k < y; k++) {
                     var t = (double) (k - prev) / (y - prev);
@@ -413,7 +627,7 @@ public class BandingReduction {
                 prev = y;
             }
         }
-        for (var y = prev + 1; y < height; y++) {
+        for (var y = prev + 1; y < length; y++) {
             values[y] = values[prev];
         }
     }
