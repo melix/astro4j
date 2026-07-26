@@ -256,6 +256,9 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         for (var entry : outputs.entrySet()) {
             var key = entry.getKey();
             var value = entry.getValue();
+            if (ImageMathScriptExecutor.isInternalOutput(key)) {
+                continue;
+            }
 
             if (value instanceof ImageWrapper image) {
                 imagesByLabel.put(key, image);
@@ -471,6 +474,9 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     }
 
     private void extractResults(Map<String, ImageWrapper> producedImages, Map<String, FileOutputResult> producedFiles, Map<String, Object> producedValues, String variableName, Object result) {
+        if (ImageMathScriptExecutor.isInternalOutput(variableName)) {
+            return;
+        }
         switch (result) {
             case ImageWrapper image -> producedImages.put(variableName, image);
             case SingleFileOutput singleFile -> producedFiles.put(variableName, singleFile);

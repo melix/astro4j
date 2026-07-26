@@ -32,9 +32,20 @@ import java.util.Map;
 import java.util.Optional;
 
 public interface ImageMathScriptExecutor {
+    /**
+     * Prefix which marks a variable of the outputs section as internal: such variables
+     * are computed, and can be used by other expressions, but are not exposed as outputs
+     * of the script.
+     */
+    String INTERNAL_OUTPUT_PREFIX = "__";
+
     @FunctionalInterface
     interface FileOutputHandler {
         void handle(String label, FileOutputResult fileOutput);
+    }
+
+    static boolean isInternalOutput(String label) {
+        return label.startsWith(INTERNAL_OUTPUT_PREFIX);
     }
 
     static void render(ImageMathScriptResult result, ImageEmitter emitter) {
@@ -48,8 +59,7 @@ public interface ImageMathScriptExecutor {
     static void render(ImageMathScriptResult result, ImageEmitter emitter, FileOutputHandler fileHandler, Map<String, OutputMetadata> outputsMetadata, String language) {
         for (Map.Entry<String, ImageWrapper> entry : result.imagesByLabel().entrySet()) {
             var label = entry.getKey();
-            if (label.startsWith("__")) {
-                // internal variable
+            if (isInternalOutput(label)) {
                 continue;
             }
             var image = entry.getValue();
@@ -82,6 +92,9 @@ public interface ImageMathScriptExecutor {
         }
         for (Map.Entry<String, FileOutputResult> entry : result.filesByLabel().entrySet()) {
             var label = entry.getKey();
+            if (isInternalOutput(label)) {
+                continue;
+            }
             var fileOutput = entry.getValue();
             var metadata = outputsMetadata.get(label);
             var displayTitle = metadata != null ? metadata.getDisplayTitle(language) : label;

@@ -347,6 +347,8 @@ Si vous ne définissez que `single()`, chaque fichier est traité indépendammen
 Si vous ne définissez que `batch()`, le script s'exécute une seule fois après tous les fichiers.
 Si aucune n'est définie, le code de niveau supérieur s'exécute pour chaque fichier en utilisant la variable `result`.
 
+Comme dans les scripts ImageMath, une sortie dont le nom commence par `__` n'est pas considérée comme une sortie : elle n'est ni affichée ni sauvegardée.
+
 === Publication dans les dépôts
 
 Les scripts Python peuvent être publiés dans les dépôts de scripts aux côtés des scripts ImageMath.

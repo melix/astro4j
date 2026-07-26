@@ -40,6 +40,7 @@
 - Added a `destripe` scripting function that removes horizontal banding from any image, including images whose background is close to zero such as continuum-subtracted images.
 - A new `column_bg_model` scripting function models the extra background of the columns scanned across the solar disk, caused by light scattered inside the instrument, so that it can be removed.
 - A new `save_raw` scripting function saves an image with its exact values and metadata, so it can be reloaded with `load` without the precision loss of FITS or PNG.
+- In the `[outputs]` section, a variable whose name starts with `__` is no longer considered an output: it is computed and usable by the other expressions, but neither displayed nor saved.
 - Scripts can now use the `inputFilesCount` and `keptFilesCount` variables to know how many files are processed and how many were kept after review.
 - The `draw_text` function can now display the value of any script variable with `%VAR_name%`.
 - Multiplying or dividing a list of values by a single number now applies it to every element of the list.

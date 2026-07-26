@@ -40,6 +40,7 @@
 - Ajout d'une fonction de script `destripe` qui supprime les bandes horizontales de n'importe quelle image, y compris celles dont le fond est proche de zéro comme les images après soustraction du continuum.
 - Une nouvelle fonction de script `column_bg_model` modélise l'excès de fond des colonnes balayées devant le disque solaire, causé par la lumière diffusée dans l'instrument, afin de pouvoir le supprimer.
 - Une nouvelle fonction de script `save_raw` enregistre une image avec ses valeurs exactes et ses métadonnées, pour pouvoir la recharger avec `load` sans la perte de précision du FITS ou du PNG.
+- Dans la section `[outputs]`, une variable dont le nom commence par `__` n'est plus considérée comme une sortie : elle est calculée et utilisable par les autres expressions, mais n'est ni affichée ni sauvegardée.
 - Les scripts peuvent désormais utiliser les variables `inputFilesCount` et `keptFilesCount` pour connaître le nombre de fichiers traités et le nombre de fichiers conservés après la revue des images.
 - La fonction `draw_text` peut désormais afficher la valeur de n'importe quelle variable du script avec `%VAR_nom%`.
 - Multiplier ou diviser une liste de valeurs par un nombre unique l'applique désormais à chaque élément de la liste.

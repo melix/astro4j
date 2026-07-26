@@ -811,6 +811,20 @@ Au final, la section `[outputs]` déclare les images qui nous intéressent :
 
 NOTE: Vous pouvez mettre des commentaires sur une ligne commençant par `#` ou `//`
 
+[[internal-outputs]]
+==== Masquer un résultat intermédiaire
+
+Il arrive qu'un résultat intermédiaire ne serve qu'à la section `[outputs]` elle-même, et que le déplacer dans une autre section rende le script moins lisible.
+Dans ce cas, préfixez son nom par `__` : une telle variable est calculée et peut être utilisée par les autres expressions, mais elle n'est pas considérée comme une sortie, elle n'est donc ni affichée ni sauvegardée.
+
+[source]
+----
+[outputs]
+# pas une sortie : uniquement utilisée ci-dessous
+__stretched = asinh_stretch(cropped;1000;10)
+helium_mono = sharpen(__stretched)
+----
+
 [[script-parameters]]
 === Paramètres de scripts
 

@@ -347,6 +347,8 @@ If you only define `single()`, each file is processed independently.
 If you only define `batch()`, the script runs once after all files.
 If neither is defined, top-level code runs for each file using the `result` variable.
 
+As in ImageMath scripts, an output whose name starts with `__` is not considered an output: it is neither displayed nor saved.
+
 === Publishing to Repositories
 
 Python scripts can be published to script repositories alongside ImageMath scripts.

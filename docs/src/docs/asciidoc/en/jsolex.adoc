@@ -662,6 +662,20 @@ Last but not least, the `[outputs]` section declares the images we want to gener
 
 NOTE: Comments can be added either with the `#` or `//` prefix.
 
+[[internal-outputs]]
+==== Hiding an intermediate result
+
+Sometimes an intermediate result is only needed by the `[outputs]` section itself, and moving it to another section would make the script harder to read.
+In that case, prefix its name with `__`: such a variable is computed and can be used by the other expressions, but it is not considered an output, so it is neither displayed nor saved.
+
+[source]
+----
+[outputs]
+# not an output: only used below
+__stretched = asinh_stretch(cropped;1000;10)
+helium_mono = sharpen(__stretched)
+----
+
 [[script-parameters]]
 === Script Parameters
 
