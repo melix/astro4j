@@ -511,6 +511,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_imagemath_scripts">ImageMath scripts</a></li>
 <li><a href="#script-parameters">Script Parameters</a></li>
 <li><a href="#special-variables">Special variables</a></li>
+<li><a href="#sdo-comparison">Comparing with SDO images</a></li>
 <li><a href="#custom-functions">Custom functions</a></li>
 <li><a href="#includes">Including other scripts</a></li>
 <li><a href="#remote-scriptgen">Remote script generation</a></li>
@@ -2101,6 +2102,76 @@ name = "Default Name"</code></pre>
 </tr>
 </tbody>
 </table>
+</div>
+<div class="sect2">
+<h3 id="sdo-comparison">Comparing with SDO images</h3>
+<div class="paragraph">
+<p>The <code>load_sdo</code> function downloads an image taken by the Solar Dynamics Observatory at the moment of your observation, which is convenient to check your own image against a space based one.
+The frame whose timestamp is the closest to the date of your observation is selected, and it is stored on your disk, so that it is only downloaded once.</p>
+</div>
+<div class="paragraph">
+<p>You have to choose the size of the frame (512, 1024, 2048 or 4096 pixels) and, optionally, the channel: <code>0094</code>, <code>0131</code>, <code>0171</code>, <code>0193</code>, <code>0211</code>, <code>0304</code>, <code>0335</code>, <code>1600</code>, <code>1700</code> and <code>4500</code> for the extreme ultraviolet and white light channels, <code>HMIB</code>, <code>HMIBC</code>, <code>HMII</code>, <code>HMIIC</code>, <code>HMIIF</code> and <code>HMID</code> for the magnetograms.
+For example, the 0094 channel shows the very hot coronal plasma, which makes it a good companion for a coronal image taken in the Fe XIV line.</p>
+</div>
+<div class="paragraph">
+<p>The position and the size of the solar disk are computed for you, so you can directly use the functions which need one, like <code>autocrop2</code>, <code>disk_fill</code>, <code>annulus_mask</code> or <code>radius_rescale2</code>.</p>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+SDO images are oriented with solar north up. Your own image must therefore be rotated by the P angle, using <code>rotate_rad(img: your_image; angle: angleP; resize: 0)</code>, before the two can be compared.
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>Here is how to lay your image and the SDO one side by side, both brought to the same disk size:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">[tmp]
+sdo=load_sdo(resolution: 1024; channel: "0094")
+mine=rotate_rad(img: autocrop2(img(0); 1.5); angle: angleP; resize: 0)
+
+[outputs]
+comparison=side_by_side(
+   radius_rescale2(mono(sdo); 300; 800; 800);
+   radius_rescale2(mine; 300; 800; 800)
+)</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>If you are comparing structures outside the disk, like the corona, you can hide the solar disk of the SDO image with <code>disk_fill(sdo; 0)</code>.</p>
+</div>
+<div class="paragraph">
+<p>SDO images carry their own caption in the lower left corner. To put a matching one on your own image, give <code>draw_text</code> a negative coordinate: it is then counted from the bottom, or from the right for <code>x</code>, whatever the size of the image.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">mine=draw_text(img: mine; x: 32; y: -32; text: "%OBSERVER% %DATETIME%"; color: "FFFFFF")</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>By default the date of your observation is used, but you can also request a particular moment, which is useful when you want to compare several observations with the same reference:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">sdo=load_sdo(resolution: 2048; channel: "0193"; date: "2026-07-25T10:30:00")</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>You can also pass an image instead of a date, in which case the moment it was captured is used.
+This is handy in batch mode, where each file has its own capture time:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">sdo=load_sdo(resolution: 1024; channel: "0171"; date: img(0))</code></pre>
+</div>
+</div>
 </div>
 <div class="sect2">
 <h3 id="custom-functions">Custom functions</h3>

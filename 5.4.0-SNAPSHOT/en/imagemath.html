@@ -516,6 +516,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_list">LIST</a></li>
 <li><a href="#_load">LOAD</a></li>
 <li><a href="#_load_many">LOAD_MANY</a></li>
+<li><a href="#_load_sdo">LOAD_SDO</a></li>
 <li><a href="#_mono">MONO</a></li>
 <li><a href="#_python">PYTHON</a></li>
 <li><a href="#_python_file">PYTHON_FILE</a></li>
@@ -2788,6 +2789,72 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <div class="listingblock">
 <div class="content">
 <pre>load_many(dir: "/chemin/vers/dossier", pattern:".*cropped.*")</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_load_sdo">LOAD_SDO</h3>
+<div class="paragraph">
+<p>Downloads an image from the Solar Dynamics Observatory (SDO) taken as close as possible to a given date, in order to compare an observation with a space based image of the same moment. The image is cached on disk, so that it is only downloaded once. The solar disk is filled in automatically, so that the functions which rely on it can be used directly (autocrop2, disk_fill, annulus_mask, radius_rescale2, &#8230;&#8203;). SDO images are oriented with solar north up: remember to rotate your own image by the P angle (rotate_rad(img; angleP)) before comparing them.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 13.6363%;">
+<col style="width: 13.6363%;">
+<col style="width: 59.0909%;">
+<col style="width: 13.6365%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Argument</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Required?</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Description</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Default value</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>resolution</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Size of the image, in pixels: 512, 1024, 2048 or 4096</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>channel</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Channel: 0094, 0131, 0171, 0193, 0211, 0304, 0335, 1600, 1700, 4500, the HMIB, HMIBC, HMII, HMIIC, HMIIF, HMID magnetograms, or the HMI171, 211193171, 304211171, 094335193 composites</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">0094</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>date</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Requested date, either in ISO format (for example 2026-07-25T10:30:00), or an image whose capture date will be used. Defaults to the date of the current observation.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">date of the observation</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p><strong>Examples</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>load_sdo(1024)</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>load_sdo(resolution: 2048, channel: "0193")</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>load_sdo(resolution: 1024, channel: "HMIIC", date: "2026-07-25T10:30:00")</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>load_sdo(resolution: 1024, channel: "0171", date: img(0))</pre>
 </div>
 </div>
 </div>
@@ -5812,7 +5879,7 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <div class="sect2">
 <h3 id="_radius_rescale2">RADIUS_RESCALE2</h3>
 <div class="paragraph">
-<p>Rescales an image to have a specific solar radius (in pixels) while maintaining the specified final dimensions. The solar disk is centered in the resulting image.</p>
+<p>Rescales an image to have a specific solar radius (in pixels) while maintaining the specified final dimensions. The solar disk is centered in the resulting image. Instead of giving these values, you can supply a reference image with <code>ref</code>: the image will then be rescaled to have the same solar radius and the same dimensions as it, leaving the reference image untouched.</p>
 </div>
 <table class="tableblock frame-all grid-all stretch">
 <colgroup>
@@ -5836,20 +5903,26 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>radius</code></p></td>
-<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-center valign-top"></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Target radius in pixels</p></td>
-<td class="tableblock halign-left valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">radius of the reference image</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>width</code></p></td>
-<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-center valign-top"></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Final image width</p></td>
-<td class="tableblock halign-left valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">width of the reference image</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>height</code></p></td>
-<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-center valign-top"></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Final image height</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">height of the reference image</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>ref</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Reference image whose solar radius and dimensions must be matched</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>
@@ -5868,6 +5941,11 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <div class="listingblock">
 <div class="content">
 <pre>radius_rescale2(img: my_image, radius: 400, width: 800, height: 600)</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>radius_rescale2(img: sdo_image, ref: my_image)</pre>
 </div>
 </div>
 </div>
@@ -7053,13 +7131,13 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>x</code></p></td>
 <td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">X coordinate</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">X coordinate, from the left. A negative value is counted from the right edge, and the text is right aligned.</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>y</code></p></td>
 <td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Y coordinate</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Y coordinate, from the top. A negative value is counted from the bottom edge, and the text is aligned to the bottom.</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>
@@ -7096,6 +7174,16 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <div class="listingblock">
 <div class="content">
 <pre>draw_text(img:img(0), x:100, y:100, text:"Hello %OBSERVER%!", fs: 20)</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>draw_text(img:img(0), x:20, y:-20, text:"%DATE%", fs: 24)</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>draw_text(img:img(0), x:-20, y:-20, text:"%OBSERVER%", fs: 24)</pre>
 </div>
 </div>
 </div>
