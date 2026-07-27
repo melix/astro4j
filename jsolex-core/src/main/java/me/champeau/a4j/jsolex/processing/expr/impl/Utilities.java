@@ -265,6 +265,27 @@ public class Utilities extends AbstractFunctionImpl {
         return null;
     }
 
+    /**
+     * Reads an argument which is expected to be a list, but which functions producing a single
+     * element collapse to that element, for example when a batch consists of a single file.
+     *
+     * @param arguments the function arguments
+     * @param key the argument name
+     * @param elementType the type of a single element
+     * @return the list, or null if the argument is neither a list nor a single element
+     */
+    private static List<?> asElementList(Map<String, Object> arguments, String key, Class<?> elementType) {
+        var list = tryGetList(arguments, key);
+        if (list != null) {
+            return list;
+        }
+        var value = arguments.get(key);
+        if (elementType.isInstance(value)) {
+            return List.of(value);
+        }
+        return null;
+    }
+
     public Object weightedAverage(Map<String ,Object> arguments) {
         BuiltinFunction.WEIGHTED_AVG.validateArgs(arguments);
         var inputs = weightedInputs("weighted_avg", arguments);
@@ -322,10 +343,10 @@ public class Utilities extends AbstractFunctionImpl {
     }
 
     private WeightedInputs weightedInputs(String name, Map<String, Object> arguments) {
-        if (!(tryGetList(arguments, "images") instanceof List<?> images)) {
+        if (!(asElementList(arguments, "images", ImageWrapper.class) instanceof List<?> images)) {
             throw new IllegalArgumentException(name + " expects a list of images as first argument");
         }
-        if (!(tryGetList(arguments, "weights") instanceof List<?> weights)) {
+        if (!(asElementList(arguments, "weights", Number.class) instanceof List<?> weights)) {
             throw new IllegalArgumentException(name + " expects a list of weights as second argument");
         }
         if (images.size() != weights.size()) {

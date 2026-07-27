@@ -1,5 +1,9 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+## Nouveautés de la version 5.4.1
+
+- Correction des fonctions de script `weighted_avg` et `weighted_avg2` qui échouaient lorsqu'un lot ne contenait qu'un seul fichier.
+
 ## Nouveautés de la version 5.4.0
 
 - **Changement important pour les scripts** : les opérations entre images ne modifient plus leur résultat pour le maintenir dans la plage affichable. Une soustraction conserve les valeurs négatives, au lieu de décaler toute l'image pour la rendre positive, et la moyenne d'images conserve les valeurs plus brillantes que le blanc. Les scripts qui soustraient le continuum peuvent donc donner un résultat différent, et peuvent utiliser la nouvelle fonction `lift` pour retrouver le résultat précédent.
