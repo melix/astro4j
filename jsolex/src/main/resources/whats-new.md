@@ -1,5 +1,9 @@
 # Welcome to JSol'Ex {{version}}!
 
+## What's New in Version 5.4.1
+
+- Fixed the `weighted_avg` and `weighted_avg2` scripting functions failing when a batch consists of a single file.
+
 ## What's New in Version 5.4.0
 
 - **Important change for scripts**: operations between images no longer modify their result to keep it in the displayable range. A subtraction keeps negative values, instead of shifting the whole image to make it positive, and averaging images keeps values brighter than white. Scripts which subtract the continuum may therefore look different, and can use the new `lift` function to restore the previous result.
