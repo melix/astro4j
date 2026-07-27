@@ -100,7 +100,8 @@ final class OverlayRenderer {
                 var promColor = parseColor(state.promScaleColor());
                 int circles = state.promCircles() != null ? state.promCircles() : ImageDraw.PROMS_CIRCLES;
                 int stepKm = state.promStepKm() != null ? state.promStepKm() : ImageDraw.PROMINENCE_SCALE_STEP_KM;
-                draw.drawProminenceScaleOn(g, ellipse, promColor, circles, stepKm, promThickness);
+                int angle = state.promScaleAngle() != null ? state.promScaleAngle() : ImageDraw.PROMINENCE_SCALE_ANGLE_DEGREES;
+                draw.drawProminenceScaleOn(g, ellipse, promColor, circles, stepKm, promThickness, angle);
             }
             if (state.drawActiveRegions() && ellipse != null && solarParams != null) {
                 boolean correctP = effectivePCorrected(state, kind, baseImageIsPCorrected);

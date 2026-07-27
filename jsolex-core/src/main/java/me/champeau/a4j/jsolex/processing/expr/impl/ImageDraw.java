@@ -74,6 +74,7 @@ public class ImageDraw extends AbstractFunctionImpl {
     private static final double EARTH_DIAMETER_KM = 12_742;
     public static final int PROMINENCE_SCALE_STEP_KM = 50000;
     public static final int PROMS_CIRCLES = 5;
+    public static final int PROMINENCE_SCALE_ANGLE_DEGREES = 45;
     public static final float DEFAULT_LINE_THICKNESS = 1.0f;
     public static final String DEFAULT_SIGNATURE_FONT = "SansSerif";
     public static final int DEFAULT_SIGNATURE_SIZE = 24;
@@ -768,7 +769,8 @@ public class ImageDraw extends AbstractFunctionImpl {
             }
             var correctAngleP = getArgument(Number.class, arguments, "correctAngleP").map(Number::intValue).orElse(0) != 0;
             var drawPromScale = getArgument(Number.class, arguments, "drawPromScale").map(Number::intValue).orElse(0) != 0;
-            return doDrawGlobe(image, ellipse, angleP, b0, null, true, correctAngleP, GlobeStyle.valueOf(style.toUpperCase(Locale.US)), drawPromScale);
+            var promScaleAngle = getArgument(Number.class, arguments, "promScaleAngle").map(Number::doubleValue).orElse((double) PROMINENCE_SCALE_ANGLE_DEGREES);
+            return doDrawGlobe(image, ellipse, angleP, b0, null, true, correctAngleP, GlobeStyle.valueOf(style.toUpperCase(Locale.US)), drawPromScale, promScaleAngle);
         }
         throw new IllegalArgumentException("Unexpected image type: " + img);
     }
@@ -877,8 +879,22 @@ public class ImageDraw extends AbstractFunctionImpl {
                                     boolean correctAngleP,
                                     GlobeStyle style,
                                     boolean drawProminenceScale) {
+        return doDrawGlobe(wrapper, ellipse, angleP, b0, color, maybeDrawSunspots, correctAngleP, style,
+                drawProminenceScale, PROMINENCE_SCALE_ANGLE_DEGREES);
+    }
+
+    public ImageWrapper doDrawGlobe(ImageWrapper wrapper,
+                                    Ellipse ellipse,
+                                    double angleP,
+                                    double b0,
+                                    Color color,
+                                    boolean maybeDrawSunspots,
+                                    boolean correctAngleP,
+                                    GlobeStyle style,
+                                    boolean drawProminenceScale,
+                                    double prominenceScaleAngleDegrees) {
         return drawOnImage(wrapper, (g, image) -> drawGlobeOn(g, image, ellipse, angleP, b0, color,
-                maybeDrawSunspots, correctAngleP, style, drawProminenceScale));
+                maybeDrawSunspots, correctAngleP, style, drawProminenceScale, prominenceScaleAngleDegrees));
     }
 
     public void drawGlobeOn(Graphics2D g,
@@ -890,10 +906,11 @@ public class ImageDraw extends AbstractFunctionImpl {
                             boolean maybeDrawSunspots,
                             boolean correctAngleP,
                             GlobeStyle style,
-                            boolean drawProminenceScale) {
+                            boolean drawProminenceScale,
+                            double prominenceScaleAngleDegrees) {
         plotGlobeGrid(g, ellipse, angleP, b0, color, correctAngleP);
         drawGlobeAdornmentsOn(g, image, ellipse, angleP, b0, color,
-                maybeDrawSunspots, correctAngleP, style, drawProminenceScale);
+                maybeDrawSunspots, correctAngleP, style, drawProminenceScale, DEFAULT_LINE_THICKNESS, prominenceScaleAngleDegrees);
     }
 
     private static void drawActiveRegionsLabels(
@@ -1219,7 +1236,7 @@ public class ImageDraw extends AbstractFunctionImpl {
         }
     }
 
-    public void drawProminenceScaleOn(Graphics2D g, Ellipse ellipse, Color color, int circles, int stepKm, float lineThickness) {
+    public void drawProminenceScaleOn(Graphics2D g, Ellipse ellipse, Color color, int circles, int stepKm, float lineThickness, double angleDegrees) {
         var savedColor = g.getColor();
         var savedFont = g.getFont();
         var savedStroke = g.getStroke();
@@ -1231,7 +1248,7 @@ public class ImageDraw extends AbstractFunctionImpl {
             double centerX = ellipse.center().a();
             double centerY = ellipse.center().b();
             double radius = (ellipse.semiAxis().a() + ellipse.semiAxis().b()) / 2d;
-            drawProminenceDistanceScale(g, centerX, centerY, radius, Math.PI / 4, circles, stepKm, lineThickness);
+            drawProminenceDistanceScale(g, centerX, centerY, radius, Math.toRadians(angleDegrees), circles, stepKm, lineThickness);
         } finally {
             g.setColor(savedColor);
             g.setFont(savedFont);
@@ -1243,15 +1260,17 @@ public class ImageDraw extends AbstractFunctionImpl {
     public void drawGlobeAdornmentsOn(Graphics2D g, ImageWrapper image, Ellipse ellipse,
                                       double angleP, double b0, Color color,
                                       boolean maybeDrawSunspots, boolean correctAngleP,
-                                      GlobeStyle style, boolean drawProminenceScale) {
-        drawGlobeAdornmentsOn(g, image, ellipse, angleP, b0, color, maybeDrawSunspots, correctAngleP, style, drawProminenceScale, DEFAULT_LINE_THICKNESS);
+                                      GlobeStyle style, boolean drawProminenceScale,
+                                      float lineThickness) {
+        drawGlobeAdornmentsOn(g, image, ellipse, angleP, b0, color, maybeDrawSunspots, correctAngleP, style,
+                drawProminenceScale, lineThickness, PROMINENCE_SCALE_ANGLE_DEGREES);
     }
 
     public void drawGlobeAdornmentsOn(Graphics2D g, ImageWrapper image, Ellipse ellipse,
                                       double angleP, double b0, Color color,
                                       boolean maybeDrawSunspots, boolean correctAngleP,
                                       GlobeStyle style, boolean drawProminenceScale,
-                                      float lineThickness) {
+                                      float lineThickness, double prominenceScaleAngleDegrees) {
         var savedColor = g.getColor();
         var savedFont = g.getFont();
         var savedStroke = g.getStroke();
@@ -1301,7 +1320,7 @@ public class ImageDraw extends AbstractFunctionImpl {
                 drawActiveRegionsLabels(detectedRegions, angleP, b0, g, radius, regions, centerX, centerY, correctAngleP, null, false);
             }
             if (drawProminenceScale) {
-                drawProminenceDistanceScale(g, centerX, centerY, radius, Math.PI / 4, PROMS_CIRCLES, PROMINENCE_SCALE_STEP_KM, lineThickness);
+                drawProminenceDistanceScale(g, centerX, centerY, radius, Math.toRadians(prominenceScaleAngleDegrees), PROMS_CIRCLES, PROMINENCE_SCALE_STEP_KM, lineThickness);
             }
         } finally {
             g.setColor(savedColor);
