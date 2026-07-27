@@ -1042,6 +1042,17 @@ final class OverlayPanel {
             }
             mutate(s -> s.withPromStepKm(nv.equals(ImageDraw.PROMINENCE_SCALE_STEP_KM) ? null : nv));
         });
+        var initialAngle = state.promScaleAngle() != null ? state.promScaleAngle() : ImageDraw.PROMINENCE_SCALE_ANGLE_DEGREES;
+        var angleLabel = new Label(message("overlay.prom.angle") + ":");
+        var angleSpinner = new Spinner<Integer>(0, 355, initialAngle, 5);
+        angleSpinner.setEditable(true);
+        angleSpinner.setPrefWidth(80);
+        angleSpinner.valueProperty().addListener((o, ov, nv) -> {
+            if (ignoreChanges || nv == null) {
+                return;
+            }
+            mutate(s -> s.withPromScaleAngle(nv.equals(ImageDraw.PROMINENCE_SCALE_ANGLE_DEGREES) ? null : nv));
+        });
         var grid = new GridPane();
         grid.setHgap(8);
         grid.setVgap(6);
@@ -1049,7 +1060,9 @@ final class OverlayPanel {
         grid.add(circlesSpinner, 1, 0);
         grid.add(stepLabel, 0, 1);
         grid.add(stepSpinner, 1, 1);
-        addPromThicknessSpinner(grid, 2);
+        grid.add(angleLabel, 0, 2);
+        grid.add(angleSpinner, 1, 2);
+        addPromThicknessSpinner(grid, 3);
         var content = new VBox(8, grid, buildColorRow(state.promScaleColor(), hex -> mutate(s -> s.withPromScaleColor(hex))));
         content.getStyleClass().add("overlay-subpopup");
         var sub = new Popup();

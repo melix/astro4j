@@ -36,6 +36,12 @@ arguments:
     description:
       fr: "1 pour dessiner l’échelle de distance des protubérances, 0 sinon"
       en: "1 to draw the prominences measurement scale, 0 otherwise"
+  - name: promScaleAngle
+    default: 45
+    optional: true
+    description:
+      fr: "Angle, en degrés, auquel sont placées les étiquettes de l’échelle de distance"
+      en: "Angle, in degrees, at which the distance scale labels are placed"
 examples:
   - "draw_globe(img(0))"
   - "draw_globe(img:img(0), angleP: 0)"

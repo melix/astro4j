@@ -3,6 +3,7 @@
 ## What's New in Version 5.4.1
 
 - Fixed the `weighted_avg` and `weighted_avg2` scripting functions failing when a batch consists of a single file.
+- The labels of the prominence scale can now be rotated, so that they don't overlap prominences.
 
 ## What's New in Version 5.4.0
 
