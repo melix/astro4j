@@ -3,6 +3,9 @@
 ## What's New in Version 5.4.1
 
 - Fixed the process parameters forced by a script being all ignored as soon as one of them was invalid.
+- Fixed `weighted_avg` and `weighted_avg2` taking the solar disk position of the last stacked image instead of averaging it over all of them, which could misplace the cropping and the final stretch.
+- Fixed `noise_sigma` collapsing on images with large clipped or saturated areas, which could give a single image an overwhelming weight when stacking with `weighted_avg` or `weighted_avg2`.
+- Reduced the memory needed to combine many images with `avg`, `min`, `max`, `weighted_avg` and `weighted_avg2`, so that large stacks can be processed on machines with less memory.
 - Fixed the `weighted_avg` and `weighted_avg2` scripting functions failing when a batch consists of a single file.
 - The labels of the prominence scale can now be rotated, so that they don't overlap prominences.
 

@@ -177,16 +177,38 @@ public class Loader extends AbstractFunctionImpl {
     public Object saveRaw(Map<String, Object> arguments) {
         BuiltinFunction.SAVE_RAW.validateArgs(arguments);
         var arg = arguments.get("img");
-        if (arg instanceof ImageWrapper image && arguments.get("file") instanceof String path) {
-            if (!path.toLowerCase(Locale.US).endsWith("." + RawImageIO.EXTENSION)) {
-                path = path + "." + RawImageIO.EXTENSION;
+        if (!(arguments.get("file") instanceof String path)) {
+            throw new IllegalArgumentException("save_raw requires an image and a file name");
+        }
+        if (arg instanceof List<?> list) {
+            for (int i = 0; i < list.size(); i++) {
+                if (!(list.get(i) instanceof ImageWrapper image)) {
+                    throw new IllegalArgumentException("save_raw requires an image and a file name");
+                }
+                writeRaw(image, indexedPath(path, i));
             }
-            var target = workingDirectory.resolve(path);
-            RawImageIO.write(image, target);
-            LOGGER.info("Saved raw image to {}", target);
+            return arg;
+        }
+        if (arg instanceof ImageWrapper image) {
+            writeRaw(image, path);
             return image;
         }
         throw new IllegalArgumentException("save_raw requires an image and a file name");
+    }
+
+    private void writeRaw(ImageWrapper image, String path) {
+        var name = path.toLowerCase(Locale.US).endsWith("." + RawImageIO.EXTENSION) ? path : path + "." + RawImageIO.EXTENSION;
+        var target = workingDirectory.resolve(name);
+        RawImageIO.write(image, target);
+        LOGGER.info("Saved raw image to {}", target);
+    }
+
+    private static String indexedPath(String path, int index) {
+        var suffix = "." + RawImageIO.EXTENSION;
+        if (path.toLowerCase(Locale.US).endsWith(suffix)) {
+            return path.substring(0, path.length() - suffix.length()) + "_" + index + suffix;
+        }
+        return path + "_" + index;
     }
 
     public static ImageWrapper loadImage(File file) {

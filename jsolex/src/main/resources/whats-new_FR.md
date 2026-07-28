@@ -3,6 +3,9 @@
 ## Nouveautés de la version 5.4.1
 
 - Correction des paramètres de traitement imposés par un script qui étaient tous ignorés dès que l'un d'entre eux était invalide.
+- Correction des fonctions `weighted_avg` et `weighted_avg2` qui retenaient la position du disque solaire de la dernière image empilée au lieu de la moyenner sur toutes, ce qui pouvait décaler le rognage et l'étirement final.
+- Correction de la fonction `noise_sigma` sur les images comportant de grandes zones écrêtées ou saturées, qui pouvait donner un poids démesuré à une seule image lors d'un empilement avec `weighted_avg` ou `weighted_avg2`.
+- Réduction de la mémoire nécessaire pour combiner de nombreuses images avec `avg`, `min`, `max`, `weighted_avg` et `weighted_avg2`, ce qui permet de traiter de grandes piles d'images sur des machines disposant de moins de mémoire.
 - Correction des fonctions de script `weighted_avg` et `weighted_avg2` qui échouaient lorsqu'un lot ne contenait qu'un seul fichier.
 - Les étiquettes de l'échelle des protubérances peuvent désormais être pivotées, afin qu'elles ne se superposent pas aux protubérances.
 

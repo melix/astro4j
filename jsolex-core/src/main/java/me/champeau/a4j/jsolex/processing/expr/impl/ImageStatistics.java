@@ -106,6 +106,13 @@ public class ImageStatistics extends AbstractFunctionImpl {
      * of a Laplacian high pass filter. The filter cancels any locally linear component, so
      * smooth structures do not contribute to the estimate, and the median of the absolute
      * responses keeps it robust against isolated outliers.
+     * <p>
+     * Neighbourhoods which are perfectly flat or which contain a non-finite value are left
+     * out of the estimate: a null response denotes a clipped or saturated area and a
+     * non-finite one a defective pixel, and neither carries any information about noise.
+     * Counting them would make the median collapse to zero as soon as they became the
+     * majority of the measured area, which in turn makes weights derived from the estimate
+     * diverge.
      */
     private double computeNoiseSigma(ImageWrapper32 image, Map<String, Object> arguments) {
         var mask = statsMask(arguments, image);
@@ -125,6 +132,9 @@ public class ImageStatistics extends AbstractFunctionImpl {
                 var response = 4 * data[y][x]
                         - 2 * (data[y - 1][x] + data[y + 1][x] + data[y][x - 1] + data[y][x + 1])
                         + data[y - 1][x - 1] + data[y - 1][x + 1] + data[y + 1][x - 1] + data[y + 1][x + 1];
+                if (response == 0 || !Double.isFinite(response)) {
+                    continue;
+                }
                 responses[count++] = Math.abs(response);
             }
         }

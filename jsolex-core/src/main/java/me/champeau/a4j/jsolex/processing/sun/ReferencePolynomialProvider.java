@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
@@ -39,16 +40,18 @@ import static me.champeau.a4j.jsolex.processing.util.Constants.message;
  * When the solar disk is saturated, the spectral line cannot be reliably detected, so the polynomial
  * of the reference scan which is the closest in time is used instead.
  * <p>
- * Results are cached both at the directory level (list of reference files and their dates) and at the
- * file level (computed polynomial), so that in batch mode several saturated scans sharing the same
- * reference file only trigger a single computation.
+ * The directory is listed on every lookup, so that reference scans captured while a batch is running
+ * are taken into account as soon as they appear. Only the per file results are cached: the observation
+ * date, which requires opening the scan, and the computed polynomial. Both are immutable for a given
+ * file, so in batch mode several saturated scans sharing the same reference only trigger a single
+ * computation.
  */
 public class ReferencePolynomialProvider {
     private static final Logger LOGGER = LoggerFactory.getLogger(ReferencePolynomialProvider.class);
     private static final ReferencePolynomialProvider INSTANCE = new ReferencePolynomialProvider();
     private static final Duration MAX_RECOMMENDED_GAP = Duration.ofMinutes(30);
 
-    private final ConcurrentHashMap<String, List<ReferenceEntry>> directoryCache = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Optional<ZonedDateTime>> dateCache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Optional<DoubleQuadruplet>> polynomialCache = new ConcurrentHashMap<>();
 
     private ReferencePolynomialProvider() {
@@ -85,7 +88,7 @@ public class ReferencePolynomialProvider {
             LOGGER.warn(message("saturated.disk.invalid.directory"), referenceDirectory);
             return Optional.empty();
         }
-        var entries = directoryCache.computeIfAbsent(directoryKey(referenceDirectory), key -> scanDirectory(referenceDirectory, trustBitDepth));
+        var entries = listReferences(referenceDirectory, trustBitDepth);
         var currentPath = currentFile != null ? currentFile.getAbsolutePath() : null;
         var selection = selectReference(entries, observationDate, currentPath, flipConditions);
         if (selection.nearest() == null) {
@@ -103,7 +106,7 @@ public class ReferencePolynomialProvider {
         var reference = selection.nearest();
         var polynomial = polynomialCache.computeIfAbsent(fileKey(new File(reference.path())),
                 key -> computePolynomial(new File(reference.path()), colorMode, vflip, trustBitDepth, rootOperation));
-        polynomial.ifPresent(p -> LOGGER.info(message("saturated.disk.using.reference"), new File(reference.path()).getName()));
+        polynomial.ifPresent(p -> LOGGER.info(message("saturated.disk.using.reference"), new File(reference.path()).getName(), formatGap(nearestGap)));
         return polynomial;
     }
 
@@ -133,21 +136,38 @@ public class ReferencePolynomialProvider {
         return new Selection(nearest, nearestGap, excludedByPivot);
     }
 
-    private List<ReferenceEntry> scanDirectory(File referenceDirectory, boolean trustBitDepth) {
+    private List<ReferenceEntry> listReferences(File referenceDirectory, boolean trustBitDepth) {
+        return listReferences(referenceDirectory,
+                file -> dateCache.computeIfAbsent(fileKey(file), key -> readDate(file, trustBitDepth)));
+    }
+
+    /**
+     * Lists the reference scans of a directory. The directory is listed on every call, so that scans
+     * appearing while a batch is running are taken into account.
+     *
+     * @param referenceDirectory the directory to list
+     * @param dateResolver       resolves the observation date of a scan, empty if it cannot be read
+     * @return the readable reference scans and their dates
+     */
+    static List<ReferenceEntry> listReferences(File referenceDirectory, Function<File, Optional<ZonedDateTime>> dateResolver) {
         var files = referenceDirectory.listFiles((dir, name) -> name.toLowerCase(Locale.US).endsWith(".ser"));
         var entries = new ArrayList<ReferenceEntry>();
         if (files == null) {
             return entries;
         }
         for (var file : files) {
-            try (var reader = SerFileReader.of(file, trustBitDepth)) {
-                var date = reader.header().metadata().utcDateTime();
-                entries.add(new ReferenceEntry(file.getAbsolutePath(), date));
-            } catch (Exception e) {
-                LOGGER.warn(message("saturated.disk.unreadable.reference"), file.getName(), e.getMessage());
-            }
+            dateResolver.apply(file).ifPresent(date -> entries.add(new ReferenceEntry(file.getAbsolutePath(), date)));
         }
         return entries;
+    }
+
+    private static Optional<ZonedDateTime> readDate(File file, boolean trustBitDepth) {
+        try (var reader = SerFileReader.of(file, trustBitDepth)) {
+            return Optional.of(reader.header().metadata().utcDateTime());
+        } catch (Exception e) {
+            LOGGER.warn(message("saturated.disk.unreadable.reference"), file.getName(), e.getMessage());
+            return Optional.empty();
+        }
     }
 
     private Optional<DoubleQuadruplet> computePolynomial(File referenceFile,
@@ -176,16 +196,15 @@ public class ReferencePolynomialProvider {
         }
     }
 
-    private static String directoryKey(File directory) {
-        return directory.getAbsolutePath() + "@" + directory.lastModified();
-    }
-
     private static String fileKey(File file) {
         return file.getAbsolutePath() + "@" + file.lastModified();
     }
 
-    private static String formatGap(Duration gap) {
+    static String formatGap(Duration gap) {
         var minutes = gap.toMinutes();
+        if (minutes < 1) {
+            return gap.toSeconds() + " s";
+        }
         if (minutes < 60) {
             return minutes + " min";
         }

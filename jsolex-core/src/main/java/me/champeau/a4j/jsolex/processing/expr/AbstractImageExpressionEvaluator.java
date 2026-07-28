@@ -61,6 +61,7 @@ import me.champeau.a4j.jsolex.processing.expr.impl.Saturation;
 import me.champeau.a4j.jsolex.processing.expr.impl.Scaling;
 import me.champeau.a4j.jsolex.processing.expr.impl.SignedDiff;
 import me.champeau.a4j.jsolex.processing.expr.impl.SimpleFunctionCall;
+import me.champeau.a4j.jsolex.processing.expr.impl.SimpleFunctionCall.StreamingReduction;
 import me.champeau.a4j.jsolex.processing.expr.impl.Stacking;
 import me.champeau.a4j.jsolex.processing.expr.impl.Stretching;
 import me.champeau.a4j.jsolex.processing.expr.impl.Utilities;
@@ -344,7 +345,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case AUTOCROP -> crop.autocrop(arguments);
             case AUTOCROP2 -> crop.autocrop2(arguments);
             case AVERAGE_IMAGE -> createAverageImage(arguments);
-            case AVG -> simpleFunctionCall.applyFunction("avg", arguments, DoubleStream::average);
+            case AVG -> simpleFunctionCall.applyFunction("avg", arguments, DoubleStream::average, StreamingReduction.AVERAGE);
             case AVG2 -> simpleFunctionCall.applyFunction("avg2", arguments, stream -> {
                 var sigma = ((Number) arguments.get("sigma")).doubleValue();
                 return applySigmaClippedAverage(stream, sigma);
@@ -427,14 +428,14 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case LOAD_SDO -> loader.loadSdo(arguments);
             case LOG -> math.log(arguments);
             case LOG_STATS -> imageStatistics.logStats(arguments);
-            case MAX -> simpleFunctionCall.applyFunction("max", arguments, DoubleStream::max);
+            case MAX -> simpleFunctionCall.applyFunction("max", arguments, DoubleStream::max, StreamingReduction.MAX);
             case MEDIAN ->
                     simpleFunctionCall.applyFunction("median", arguments, AbstractImageExpressionEvaluator::median);
             case MEDIAN2 -> simpleFunctionCall.applyFunction("median2", arguments, stream -> {
                 var sigma = ((Number) arguments.get("sigma")).doubleValue();
                 return applySigmaClippedMedian(stream, sigma);
             });
-            case MIN -> simpleFunctionCall.applyFunction("min", arguments, DoubleStream::min);
+            case MIN -> simpleFunctionCall.applyFunction("min", arguments, DoubleStream::min, StreamingReduction.MIN);
             case MONO -> utilities.toMono(arguments);
             case MOSAIC -> mosaicComposition.mosaic(arguments);
             case NEUTRALIZE_BG -> bgRemoval.neutralizeBackground(arguments);
