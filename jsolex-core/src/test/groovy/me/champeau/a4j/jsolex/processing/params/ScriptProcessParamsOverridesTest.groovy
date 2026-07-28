@@ -125,8 +125,47 @@ result = img(0)
         where:
         declaration << [
                 'notAParamsGroup { passes = 0 }',
-                'geometryParams { autocropMode = "NOT_A_MODE" }'
+                'geometryParams { autocropMode = "NOT_A_MODE" }',
+                'geometryParams { notAParameter = 0 }',
+                'enhancementParams { jaggingCorrectionParams = "false" }'
         ]
+    }
+
+    def "an override which cannot be applied doesn't discard the others"() {
+        given:
+        var params = ProcessParamsIO.createNewDefaults()
+        var overrides = new ImageMathParameterExtractor().extractParameters("""
+meta {
+    overrides {
+        bandingCorrectionParams {
+            passes = 0
+        }
+        geometryParams {
+            autocropMode = "RADIUS_1_5"
+        }
+        enhancementParams {
+            artificialFlatCorrection = "false"
+            jaggingCorrectionParams = "false"
+            oscillationCorrectionParams = "false"
+        }
+    }
+}
+
+[outputs]
+result = img(0)
+""", "script.math").processParamsOverrides
+
+        when: "the nested parameter groups are overridden with a scalar"
+        var updated = ScriptProcessParamsOverrides.apply(params, overrides)
+
+        then: "the valid overrides are still applied"
+        updated.bandingCorrectionParams().passes() == 0
+        updated.geometryParams().autocropMode() == AutocropMode.RADIUS_1_5
+        !updated.enhancementParams().artificialFlatCorrection()
+
+        and: "the invalid ones are left untouched"
+        updated.enhancementParams().jaggingCorrectionParams() == params.enhancementParams().jaggingCorrectionParams()
+        updated.enhancementParams().oscillationCorrectionParams() == params.enhancementParams().oscillationCorrectionParams()
     }
 
     def "boolean parameters can be overridden"() {

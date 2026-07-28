@@ -2,6 +2,7 @@
 
 ## Nouveautés de la version 5.4.1
 
+- Correction des paramètres de traitement imposés par un script qui étaient tous ignorés dès que l'un d'entre eux était invalide.
 - Correction des fonctions de script `weighted_avg` et `weighted_avg2` qui échouaient lorsqu'un lot ne contenait qu'un seul fichier.
 - Les étiquettes de l'échelle des protubérances peuvent désormais être pivotées, afin qu'elles ne se superposent pas aux protubérances.
 

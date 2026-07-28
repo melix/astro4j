@@ -95,7 +95,9 @@ public final class ScriptProcessParamsOverrides {
      */
     public static Map<String, String> flatten(JsonObject overrides) {
         var result = new LinkedHashMap<String, String>();
-        flattenInto(overrides, "", result);
+        for (var entry : flattenValues(overrides).entrySet()) {
+            result.put(entry.getKey(), entry.getValue().getAsString());
+        }
         return result;
     }
 
@@ -122,19 +124,23 @@ public final class ScriptProcessParamsOverrides {
      */
     public static List<String> overridablePaths(ProcessParams params) {
         var gson = ProcessParamsIO.newGsonBuilder().create();
-        var flattened = new LinkedHashMap<String, String>();
-        flattenInto(gson.toJsonTree(params).getAsJsonObject(), "", flattened);
-        return List.copyOf(flattened.keySet());
+        return List.copyOf(flattenValues(gson.toJsonTree(params).getAsJsonObject()).keySet());
     }
 
-    private static void flattenInto(JsonObject source, String prefix, Map<String, String> target) {
+    private static Map<String, JsonElement> flattenValues(JsonObject source) {
+        var result = new LinkedHashMap<String, JsonElement>();
+        flattenValuesInto(source, "", result);
+        return result;
+    }
+
+    private static void flattenValuesInto(JsonObject source, String prefix, Map<String, JsonElement> target) {
         for (var entry : source.entrySet()) {
             var path = prefix.isEmpty() ? entry.getKey() : prefix + "." + entry.getKey();
             var value = entry.getValue();
             if (value.isJsonObject()) {
-                flattenInto(value.getAsJsonObject(), path, target);
+                flattenValuesInto(value.getAsJsonObject(), path, target);
             } else if (value.isJsonPrimitive()) {
-                target.put(path, value.getAsString());
+                target.put(path, value);
             }
         }
     }
@@ -149,13 +155,15 @@ public final class ScriptProcessParamsOverrides {
     public static JsonObject merge(Iterable<JsonObject> overrides) {
         var merged = new JsonObject();
         for (var override : overrides) {
-            mergeInto(merged, override.deepCopy(), "", false);
+            mergeInto(merged, override.deepCopy(), "");
         }
         return merged;
     }
 
     /**
-     * Applies the overrides to the supplied process parameters.
+     * Applies the overrides to the supplied process parameters. Each override is applied
+     * and validated independently, so that a single one which cannot be applied doesn't
+     * discard the others.
      *
      * @param params the process parameters
      * @param overrides the overrides declared by scripts
@@ -167,35 +175,46 @@ public final class ScriptProcessParamsOverrides {
         }
         var gson = ProcessParamsIO.newGsonBuilder().create();
         var tree = gson.toJsonTree(params).getAsJsonObject();
-        var applicable = new JsonObject();
-        for (var entry : overrides.entrySet()) {
-            if (tree.has(entry.getKey())) {
-                applicable.add(entry.getKey(), entry.getValue());
-            } else {
-                LOGGER.warn("Ignoring unknown process parameter override '{}'", entry.getKey());
+        var result = params;
+        for (var entry : flattenValues(overrides).entrySet()) {
+            var path = entry.getKey();
+            var candidate = tree.deepCopy();
+            putAtPath(candidate, path, entry.getValue());
+            try {
+                var updated = gson.fromJson(candidate, ProcessParams.class);
+                if (getAtPath(gson.toJsonTree(updated).getAsJsonObject(), path) == null) {
+                    LOGGER.warn("Ignoring unknown process parameter override '{}'", path);
+                    continue;
+                }
+                result = updated;
+                tree = candidate;
+            } catch (RuntimeException e) {
+                LOGGER.warn("Ignoring process parameter override '{}': {}", path, e.getMessage());
             }
         }
-        if (applicable.isEmpty()) {
-            return params;
-        }
-        mergeInto(tree, applicable, "", true);
-        try {
-            return gson.fromJson(tree, ProcessParams.class);
-        } catch (RuntimeException e) {
-            LOGGER.warn("Ignoring process parameter overrides, they could not be applied: {}", e.getMessage());
-            return params;
-        }
+        return result;
     }
 
-    private static void mergeInto(JsonObject target, JsonObject source, String prefix, boolean overwrite) {
+    private static JsonElement getAtPath(JsonObject source, String path) {
+        JsonElement current = source;
+        for (var segment : path.split("\\.")) {
+            if (current == null || !current.isJsonObject()) {
+                return null;
+            }
+            current = current.getAsJsonObject().get(segment);
+        }
+        return current;
+    }
+
+    private static void mergeInto(JsonObject target, JsonObject source, String prefix) {
         for (var entry : source.entrySet()) {
             var key = entry.getKey();
             var value = entry.getValue();
             var existing = target.get(key);
             var path = prefix.isEmpty() ? key : prefix + "." + key;
             if (existing != null && existing.isJsonObject() && value.isJsonObject()) {
-                mergeInto(existing.getAsJsonObject(), value.getAsJsonObject(), path, overwrite);
-            } else if (existing == null || overwrite) {
+                mergeInto(existing.getAsJsonObject(), value.getAsJsonObject(), path);
+            } else if (existing == null) {
                 target.add(key, value);
             } else if (!existing.equals(value)) {
                 LOGGER.warn("Conflicting override for '{}': keeping {} and ignoring {}", path, existing, value);
