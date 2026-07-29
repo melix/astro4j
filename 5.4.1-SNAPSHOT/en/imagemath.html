@@ -1550,7 +1550,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <div class="sect2">
 <h3 id="_noise_sigma">NOISE_SIGMA</h3>
 <div class="paragraph">
-<p>Estimates the standard deviation of the noise of an image, by measuring the response of a Laplacian high pass filter. Smooth structures do not contribute to the measurement, unlike a percentile span, and the value remains reliable in the presence of a few aberrant pixels. Useful to assess the quality of each image of a batch, or to weight images before combining them. If multiple images are passed, returns a list of values.</p>
+<p>Estimates the standard deviation of the noise of an image, by measuring the response of a Laplacian high pass filter. Smooth structures do not contribute to the measurement, unlike a percentile span, and the value remains reliable in the presence of a few aberrant pixels. Clipped or saturated areas, as well as defective pixels, are excluded from the measurement. Useful to assess the quality of each image of a batch, or to weight images before combining them. If multiple images are passed, returns a list of values.</p>
 </div>
 <table class="tableblock frame-all grid-all stretch">
 <colgroup>
@@ -3145,7 +3145,7 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <div class="sect2">
 <h3 id="_save_raw">SAVE_RAW</h3>
 <div class="paragraph">
-<p>Saves an image and its metadata as raw (float) data, without any conversion to the displayable range. Unlike formats such as FITS or PNG, which requantize the pixels to 16 bits, the exact values are kept, so the image can be reloaded with <code>load</code> to debug a processing step in isolation. The image is returned unchanged, so the call can be inserted in a processing chain.</p>
+<p>Saves an image and its metadata as raw (float) data, without any conversion to the displayable range. Unlike formats such as FITS or PNG, which requantize the pixels to 16 bits, the exact values are kept, so the image can be reloaded with <code>load</code> to debug a processing step in isolation. The image is returned unchanged, so the call can be inserted in a processing chain. If a list of images is given, each one is saved with its index appended to the file name.</p>
 </div>
 <table class="tableblock frame-all grid-all stretch">
 <colgroup>
@@ -3164,7 +3164,7 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>img</code></p></td>
 <td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Image</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Image(s)</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>
@@ -3189,6 +3189,11 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <div class="listingblock">
 <div class="content">
 <pre>save_raw(img: someImage; file: "stacked.jraw")</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>save_raw(img: someImages; file: "frames")</pre>
 </div>
 </div>
 </div>

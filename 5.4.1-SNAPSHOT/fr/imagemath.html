@@ -1550,7 +1550,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <div class="sect2">
 <h3 id="_noise_sigma">NOISE_SIGMA</h3>
 <div class="paragraph">
-<p>Estime l&#8217;écart-type du bruit d&#8217;une image, en mesurant la réponse d&#8217;un filtre passe-haut laplacien. Les structures douces ne contribuent pas à la mesure, contrairement à un écart entre percentiles, et la valeur reste fiable en présence de quelques pixels aberrants. Utile pour évaluer la qualité de chaque image d&#8217;un lot, ou pour pondérer les images avant de les combiner. Si plusieurs images sont passées en paramètre, retourne une liste de valeurs.</p>
+<p>Estime l&#8217;écart-type du bruit d&#8217;une image, en mesurant la réponse d&#8217;un filtre passe-haut laplacien. Les structures douces ne contribuent pas à la mesure, contrairement à un écart entre percentiles, et la valeur reste fiable en présence de quelques pixels aberrants. Les zones écrêtées ou saturées, ainsi que les pixels défectueux, sont exclus de la mesure. Utile pour évaluer la qualité de chaque image d&#8217;un lot, ou pour pondérer les images avant de les combiner. Si plusieurs images sont passées en paramètre, retourne une liste de valeurs.</p>
 </div>
 <table class="tableblock frame-all grid-all stretch">
 <colgroup>
@@ -3143,7 +3143,7 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <div class="sect2">
 <h3 id="_save_raw">SAVE_RAW</h3>
 <div class="paragraph">
-<p>Enregistre une image et ses métadonnées sous forme de données brutes (float), sans conversion vers la plage affichable. Contrairement aux formats comme FITS ou PNG, qui requantifient les pixels sur 16 bits, les valeurs exactes sont conservées, ce qui permet de recharger l&#8217;image avec <code>load</code> pour déboguer une étape de traitement isolément. L&#8217;image est renvoyée telle quelle, l&#8217;appel peut donc s&#8217;insérer dans une chaîne de traitement.</p>
+<p>Enregistre une image et ses métadonnées sous forme de données brutes (float), sans conversion vers la plage affichable. Contrairement aux formats comme FITS ou PNG, qui requantifient les pixels sur 16 bits, les valeurs exactes sont conservées, ce qui permet de recharger l&#8217;image avec <code>load</code> pour déboguer une étape de traitement isolément. L&#8217;image est renvoyée telle quelle, l&#8217;appel peut donc s&#8217;insérer dans une chaîne de traitement. Si une liste d&#8217;images est fournie, chacune est enregistrée avec son indice ajouté au nom du fichier.</p>
 </div>
 <table class="tableblock frame-all grid-all stretch">
 <colgroup>
@@ -3162,7 +3162,7 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>img</code></p></td>
 <td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Image</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Image(s)</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>
@@ -3187,6 +3187,11 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <div class="listingblock">
 <div class="content">
 <pre>save_raw(img: someImage; file: "stacked.jraw")</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>save_raw(img: someImages; file: "frames")</pre>
 </div>
 </div>
 </div>

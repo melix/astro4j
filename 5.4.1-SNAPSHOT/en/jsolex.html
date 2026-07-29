@@ -726,7 +726,15 @@ A configuration window opens, with several sections:</p>
 <div class="ulist">
 <ul>
 <li>
-<p>the observation bandwidth: while it&#8217;s not mandatory to select that field, doing so will enable automatic colorization of the images and advanced functionalities such as velocity calculations. By clicking on the "&#8230;&#8203;" you have the possibility to add your own lines if they are not listed. This is the wavelength of the darkest line in your capture window. The "Autodetect" mode will try to find the line among those listed automatically.</p>
+<p>the observation bandwidth: while it&#8217;s not mandatory to select that field, doing so will enable automatic colorization of the images and advanced functionalities such as velocity calculations. By clicking on the "&#8230;&#8203;" you have the possibility to add your own lines if they are not listed. Selecting "Other" lets you type the wavelength directly, for a line you do not want to keep in the list. This is the wavelength of the darkest line in your capture window.</p>
+</li>
+<li>
+<p>Line detection: how the observed line is determined.
+"Manual selection" uses the wavelength you selected above.
+"Automatic search on known lines" looks for it among the lines listed above.
+"Automatic search on full spectrum", which is the default, identifies it among all the deep lines of the solar spectrum, so it can process a line which is not listed at all.
+When the search recognises a line you already have, that line is used, so its colorization and its scripts still apply; otherwise the line is created for this scan only, named after the spectral line catalog when it is known.
+The search only answers when the identification is certain: a narrow capture window may not contain enough spectrum to identify a line, in which case the software falls back on the listed lines.</p>
 </li>
 <li>
 <p>Pixel shift : by default, the software will identify the darkest line in the image and model it as a second order polynomial. Then the image is reconstructed by picking the center of the line, which corresponds to a shift of 0. By using a different shift value, you can produce an image which is "off center", for example to produce images of the solar continuum or to select a different wavelength which isn&#8217;t the darkest, such as when observing in helium for example</p>
@@ -1019,6 +1027,11 @@ In order to fix this, you must check the "Alt-Az" box and enter your observation
 <p>Generate debug images: allows generating images such as edge recognition, ellipse/tilt recognition, average image. Useful to verify if the software is not behaving correctly on your video and you want to check where it goes wrong</p>
 </li>
 </ul>
+</div>
+<div class="paragraph">
+<p>On the average image, the detected spectral line is drawn in red.
+When you select a specific wavelength, JSol&#8217;Ex checks that the detected line really is the one you asked for: a neighbouring line is sometimes darker, in particular on narrow cropping windows selected around a faint reference line.
+When it has to correct itself, the line which is actually used for the reconstruction is drawn in green, and the red one shows what had been detected.</p>
 </div>
 </div>
 <div class="sect2">
