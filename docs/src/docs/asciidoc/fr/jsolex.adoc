@@ -100,7 +100,13 @@ La première section est la plus importante pour vos premiers scans, les autres 
 
 image::params-1-fr.jpg[]
 
-- la longueur d'onde d'observation: s'il n'est pas obligatoire de remplir ce champ, le faire vous permettra de bénéficier de la coloration automatique et de fonctionnalités avancées telles que les calculs de vitesse. En cliquant sur les "..." vous disposez de la possibilité d'ajouter vos propres raies si elles ne sont pas listées. Il s'agit ici de la longueur d'onde de la raie la plus sombre de votre fenêtre de capture. Le mode "Autodetect" tentera de trouver la raie parmi celles listées automatiquement.
+- la longueur d'onde d'observation: s'il n'est pas obligatoire de remplir ce champ, le faire vous permettra de bénéficier de la coloration automatique et de fonctionnalités avancées telles que les calculs de vitesse. En cliquant sur les "..." vous disposez de la possibilité d'ajouter vos propres raies si elles ne sont pas listées. En choisissant "Other" vous pouvez saisir directement la longueur d'onde, pour une raie que vous ne souhaitez pas conserver dans la liste. Il s'agit ici de la longueur d'onde de la raie la plus sombre de votre fenêtre de capture.
+- Détection de la raie : la manière dont la raie observée est déterminée.
+« Sélection manuelle » utilise la longueur d'onde sélectionnée ci-dessus.
+« Recherche automatique sur les raies connues » la cherche parmi les raies listées.
+« Recherche automatique sur tout le spectre », qui est le mode par défaut, l'identifie parmi toutes les raies profondes du spectre solaire, ce qui permet de traiter une raie qui n'est pas listée du tout.
+Lorsque la recherche reconnaît une raie que vous possédez déjà, c'est celle-ci qui est utilisée, afin que sa coloration et ses scripts s'appliquent toujours ; sinon la raie est créée pour ce scan uniquement, nommée d'après le catalogue de raies spectrales lorsqu'elle y figure.
+La recherche ne répond que lorsque l'identification est certaine : une fenêtre de capture étroite peut ne pas contenir assez de spectre pour identifier une raie, auquel cas le logiciel se rabat sur les raies listées.
 - décalage en pixels : par défaut, le logiciel trouve la raie la plus sombre dans l'image et calcule un polynôme de second degré pour modéliser cette raie. L'image est reconstituée en prenant les pixels au centre de la raie (décalage = 0). Il vous est possible d'entrer un décalage en pixels pour aller par exemple vers le continuum, ou trouver une raie plus difficile à identifier (ex. Hélium) à partir de la raie la plus sombre.
 - le décalage Doppler est utilisé uniquement lorsque vous observez en raie h-alpha pour générer une image Doppler. Par défaut, le logiciel utilise 2 images décalées de 3 pixels pour reconstituer une image en couleur.
 - le décalage continuum est utilisé pour générer une image du continuum, proche de la lumière blanche en H-alpha.
@@ -236,6 +242,10 @@ Dans cette section vous pouvez choisir individuellement les images qui vous int�
 Vous pouvez aussi choisir d'ajouter des scripts ImageMath pour générer des images personnalisées (voir la <<#imagemath,section sur ImageMath>>).
 
 - Générer des images de debug : permet de générer des images telles que la reconnaissance de contours, la reconnaissance d'ellipse/tilt, l'image moyenne. Utile pour vérifier si le logiciel ne se comporte pas correctement sur votre vidéo et que vous souhaitez vérifier là où il se trompe
+
+Sur l'image moyenne, la raie spectrale détectée est tracée en rouge.
+Lorsque vous sélectionnez une longueur d'onde précise, JSol'Ex vérifie que la raie détectée est bien celle que vous avez demandée : une raie voisine est parfois plus sombre, en particulier sur les fenêtres de découpe étroites choisies autour d'une raie de référence peu marquée.
+Lorsqu'il doit se corriger, la raie réellement utilisée pour la reconstruction est tracée en vert, et la rouge montre ce qui avait été détecté.
 
 === Paramètres de traitement avancés
 

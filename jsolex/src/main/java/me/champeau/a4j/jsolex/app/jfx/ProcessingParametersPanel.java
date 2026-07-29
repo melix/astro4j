@@ -34,12 +34,15 @@ import me.champeau.a4j.jsolex.processing.params.AutocropMode;
 import me.champeau.a4j.jsolex.processing.params.ConditionalFlip;
 import me.champeau.a4j.jsolex.processing.params.GeometryParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.jsolex.processing.params.LineDetectionMode;
 import me.champeau.a4j.jsolex.processing.params.RotationKind;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
 import me.champeau.a4j.jsolex.processing.params.SpectrumParams;
+import me.champeau.a4j.jsolex.processing.spectrum.IdentifiedLineResolver;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
 import me.champeau.a4j.jsolex.processing.util.Dispersion;
+import me.champeau.a4j.jsolex.processing.util.Wavelen;
 import me.champeau.a4j.ser.SerFileReader;
 
 import java.time.LocalDateTime;
@@ -48,13 +51,18 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.OptionalDouble;
+import java.util.stream.Stream;
 
 /**
  * Panel for configuring processing parameters including spectrum and geometry settings.
  */
 public class ProcessingParametersPanel extends BaseParameterPanel {
 
+    private ChoiceBox<LineDetectionMode> detectionModeChoice;
     private ChoiceBox<SpectralRay> wavelengthChoice;
+    private TextField customWavelengthField;
+    private HBox customWavelengthBox;
     private TextField pixelShiftingField;
     private TextField dopplerShiftingField;
     private TextField continuumShiftingField;
@@ -88,6 +96,22 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
     }
 
     private void initializeComponents() {
+        detectionModeChoice = createChoiceBox();
+        detectionModeChoice.setItems(FXCollections.observableArrayList(LineDetectionMode.values()));
+        detectionModeChoice.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(LineDetectionMode mode) {
+                return mode == null ? "" : I18N.string(JSolEx.class, "process-params", "line.detection." + mode.name().toLowerCase(Locale.US));
+            }
+
+            @Override
+            public LineDetectionMode fromString(String string) {
+                return detectionModeChoice.getItems().stream()
+                        .filter(mode -> toString(mode).equals(string))
+                        .findFirst()
+                        .orElse(null);
+            }
+        });
         wavelengthChoice = createChoiceBox();
         wavelengthChoice.setItems(FXCollections.observableArrayList(loadAbsorptionLines()));
         wavelengthChoice.setConverter(new StringConverter<>() {
@@ -108,6 +132,15 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
             }
         });
 
+        customWavelengthField = createTextField("", I18N.string(JSolEx.class, "process-params", "wavelength.custom.tooltip"));
+        customWavelengthField.setStyle("-fx-min-width: 90px; -fx-pref-width: 90px;");
+        var angstromLabel = new Label("Å");
+        angstromLabel.getStyleClass().add("field-description");
+        customWavelengthBox = createHBox();
+        customWavelengthBox.getChildren().addAll(customWavelengthField, angstromLabel);
+        customWavelengthBox.setVisible(false);
+        customWavelengthBox.setManaged(false);
+
         pixelShiftingField = createTextField("0", I18N.string(JSolEx.class, "process-params", "pixel.shifting.tooltip"));
         dopplerShiftingField = createTextField("3.0", I18N.string(JSolEx.class, "process-params", "doppler.tooltip"));
         continuumShiftingField = createTextField("0", null);
@@ -127,7 +160,16 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
         pixelShiftingField.textProperty().addListener((obs, oldVal, newVal) -> updateAngstromLabels());
         dopplerShiftingField.textProperty().addListener((obs, oldVal, newVal) -> updateAngstromLabels());
         continuumShiftingField.textProperty().addListener((obs, oldVal, newVal) -> updateAngstromLabels());
-        wavelengthChoice.valueProperty().addListener((obs, oldVal, newVal) -> updateAngstromLabels());
+        customWavelengthField.textProperty().addListener((obs, oldVal, newVal) -> updateAngstromLabels());
+        wavelengthChoice.valueProperty().addListener((obs, oldVal, newVal) -> {
+            prefillCustomWavelength(oldVal, newVal);
+            updateWavelengthEnabledState();
+            updateAngstromLabels();
+        });
+        detectionModeChoice.valueProperty().addListener((obs, oldVal, newVal) -> {
+            updateWavelengthEnabledState();
+            updateAngstromLabels();
+        });
 
         rotationChoice = createChoiceBox();
         rotationChoice.setItems(FXCollections.observableArrayList(RotationKind.values()));
@@ -199,8 +241,16 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
         });
     }
 
+    /**
+     * The lines which can be selected by hand, followed by the entry which lets a wavelength
+     * be typed in. Entries without a wavelength are dropped: they are the detection modes of
+     * earlier versions, and the stored copy of that same entry.
+     */
     private static List<SpectralRay> loadAbsorptionLines() {
-        return SpectralRayIO.loadDefaults().stream().filter(s -> !s.emission()).toList();
+        return Stream.concat(
+                SpectralRayIO.loadDefaults().stream().filter(ray -> !ray.emission() && ray.wavelength().angstroms() > 0),
+                Stream.of(SpectralRay.OTHER)
+        ).toList();
     }
 
     private void updateFixedWidthWarning() {
@@ -238,11 +288,12 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
         var spectrumSection = createSection("spectrum.configuration");
         var spectrumGrid = createGrid();
 
-        addGridRow(spectrumGrid, 0, I18N.string(JSolEx.class, "process-params", "wavelength"), createWavelengthBox(), "wavelength.tooltip");
-        addGridRow(spectrumGrid, 1, I18N.string(JSolEx.class, "process-params", "pixel.shifting"), createFieldWithAngstromLabel(pixelShiftingField, pixelShiftAngstromLabel), "pixel.shifting.tooltip");
-        addGridRow(spectrumGrid, 2, I18N.string(JSolEx.class, "process-params", "doppler.shifting"), createFieldWithAngstromLabel(dopplerShiftingField, dopplerShiftAngstromLabel), "doppler.tooltip");
-        addGridRow(spectrumGrid, 3, I18N.string(JSolEx.class, "process-params", "continuum.shift"), createFieldWithAngstromLabel(continuumShiftingField, continuumShiftAngstromLabel), "continuum.shift.desc");
-        addGridRow(spectrumGrid, 4, I18N.string(JSolEx.class, "process-params", "doppler.switch.red.blue.channels") + ":", switchRedBlueChannelsCheck, "doppler.switch.red.blue.channels.tooltip");
+        addGridRow(spectrumGrid, 0, I18N.string(JSolEx.class, "process-params", "line.detection"), detectionModeChoice, "line.detection.tooltip");
+        addGridRow(spectrumGrid, 1, I18N.string(JSolEx.class, "process-params", "wavelength"), createWavelengthBox(), "wavelength.tooltip");
+        addGridRow(spectrumGrid, 2, I18N.string(JSolEx.class, "process-params", "pixel.shifting"), createFieldWithAngstromLabel(pixelShiftingField, pixelShiftAngstromLabel), "pixel.shifting.tooltip");
+        addGridRow(spectrumGrid, 3, I18N.string(JSolEx.class, "process-params", "doppler.shifting"), createFieldWithAngstromLabel(dopplerShiftingField, dopplerShiftAngstromLabel), "doppler.tooltip");
+        addGridRow(spectrumGrid, 4, I18N.string(JSolEx.class, "process-params", "continuum.shift"), createFieldWithAngstromLabel(continuumShiftingField, continuumShiftAngstromLabel), "continuum.shift.desc");
+        addGridRow(spectrumGrid, 5, I18N.string(JSolEx.class, "process-params", "doppler.switch.red.blue.channels") + ":", switchRedBlueChannelsCheck, "doppler.switch.red.blue.channels.tooltip");
 
         spectrumSection.getChildren().add(spectrumGrid);
 
@@ -295,7 +346,9 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
         editButton.getStyleClass().add("default-button");
         editButton.setOnAction(ignored -> openWavelengthEditor());
 
-        return createChoiceBoxWithButton(wavelengthChoice, editButton);
+        var box = createChoiceBoxWithButton(wavelengthChoice, editButton);
+        box.getChildren().add(customWavelengthBox);
+        return box;
     }
 
 
@@ -362,11 +415,86 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
             verticalFlipCondition.load(null);
         }
 
-        var savedRay = spectrum.ray();
-        if (savedRay != null && wavelengthChoice.getItems().contains(savedRay)) {
-            wavelengthChoice.getSelectionModel().select(savedRay);
+        detectionModeChoice.getSelectionModel().select(
+                spectrum.detectionMode() == null ? LineDetectionMode.FREE_SEARCH : spectrum.detectionMode());
+        selectRay(spectrum.ray());
+    }
+
+    /**
+     * Selects a line in the list, falling back on the entry which lets a wavelength be typed
+     * in when the line is not one of the known ones. A line found by the automatic search is
+     * typically not in the list, and has to remain selectable when the search is turned off.
+     */
+    private void selectRay(SpectralRay ray) {
+        if (ray != null && wavelengthChoice.getItems().contains(ray)) {
+            wavelengthChoice.getSelectionModel().select(ray);
+            customWavelengthField.clear();
+        } else if (ray != null && ray.wavelength().angstroms() > 0) {
+            wavelengthChoice.getSelectionModel().select(SpectralRay.OTHER);
+            customWavelengthField.setText(String.format(Locale.US, "%.2f", ray.wavelength().angstroms()));
         } else if (!wavelengthChoice.getItems().isEmpty()) {
             wavelengthChoice.getSelectionModel().selectFirst();
+        }
+        updateWavelengthEnabledState();
+    }
+
+    /**
+     * The line can only be picked by hand when the detection is not going to find it, and its
+     * wavelength only has to be typed in when it is not one of the known lines.
+     */
+    private void updateWavelengthEnabledState() {
+        var manual = detectionModeChoice.getValue() == LineDetectionMode.MANUAL;
+        wavelengthChoice.setDisable(!manual);
+        var custom = manual && isCustomWavelengthSelected();
+        customWavelengthBox.setVisible(custom);
+        customWavelengthBox.setManaged(custom);
+    }
+
+    /**
+     * Starts the typed wavelength from the line which was selected until then, so that the
+     * field is never left empty, which would mean processing without a wavelength.
+     */
+    private void prefillCustomWavelength(SpectralRay previous, SpectralRay selected) {
+        var text = customWavelengthField.getText();
+        if (selected != null && selected.wavelength().angstroms() <= 0
+                && (text == null || text.isBlank())
+                && previous != null && previous.wavelength().angstroms() > 0) {
+            customWavelengthField.setText(String.format(Locale.US, "%.2f", previous.wavelength().angstroms()));
+        }
+    }
+
+    private boolean isCustomWavelengthSelected() {
+        var selected = wavelengthChoice.getValue();
+        return selected != null && selected.wavelength().angstroms() <= 0;
+    }
+
+    /**
+     * The line to process with: the one picked in the list, or the one built from the typed
+     * wavelength. A typed wavelength which turns out to be a known line resolves to that line,
+     * so that its color curve and everything configured for it keep applying.
+     */
+    private SpectralRay selectedRay() {
+        var selected = wavelengthChoice.getValue();
+        if (!isCustomWavelengthSelected()) {
+            return selected;
+        }
+        var typed = customWavelength();
+        if (typed.isEmpty()) {
+            return selected;
+        }
+        return IdentifiedLineResolver.resolveEntered(Wavelen.ofAngstroms(typed.getAsDouble()), wavelengthChoice.getItems());
+    }
+
+    private OptionalDouble customWavelength() {
+        var text = customWavelengthField.getText();
+        if (text == null || text.isBlank()) {
+            return OptionalDouble.empty();
+        }
+        try {
+            var angstroms = parseDoubleLocaleIndependent(text);
+            return angstroms > 0 ? OptionalDouble.of(angstroms) : OptionalDouble.empty();
+        } catch (NumberFormatException e) {
+            return OptionalDouble.empty();
         }
     }
 
@@ -386,13 +514,8 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
      */
     public void updateWavelength(SpectralRay ray) {
         wavelengthChoice.getItems().clear();
-        var candidates = loadAbsorptionLines();
-        wavelengthChoice.getItems().addAll(candidates);
-        if (candidates.contains(ray)) {
-            wavelengthChoice.getSelectionModel().select(ray);
-        } else {
-            wavelengthChoice.getSelectionModel().selectFirst();
-        }
+        wavelengthChoice.getItems().addAll(loadAbsorptionLines());
+        selectRay(ray);
     }
 
     /**
@@ -401,11 +524,12 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
      * @return the spectrum parameters
      */
     public SpectrumParams getSpectrumParams() {
-        var selectedRay = wavelengthChoice.getValue();
         var pixelShifts = parsePixelShifts(pixelShiftingField.getText());
-        var firstPixelShift = pixelShifts.isEmpty() ? 0.0 : pixelShifts.get(0);
+        var firstPixelShift = pixelShifts.isEmpty() ? 0.0 : pixelShifts.getFirst();
+        var detectionMode = detectionModeChoice.getValue();
         return new SpectrumParams(
-                selectedRay,
+                selectedRay(),
+                detectionMode == null ? LineDetectionMode.FREE_SEARCH : detectionMode,
                 firstPixelShift,
                 parseDoubleLocaleIndependent(dopplerShiftingField.getText()),
                 parseDoubleLocaleIndependent(continuumShiftingField.getText()),
@@ -459,6 +583,10 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
                 }
             }
             if (batchMode && (!horizontalFlipCondition.isValid() || !verticalFlipCondition.isValid())) {
+                return false;
+            }
+            if (detectionModeChoice.getValue() == LineDetectionMode.MANUAL
+                    && isCustomWavelengthSelected() && customWavelength().isEmpty()) {
                 return false;
             }
             return wavelengthChoice.getValue() != null;
@@ -577,9 +705,8 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
         try {
             var dispersion = computeCurrentDispersion();
             if (dispersion != null && !Double.isNaN(dispersion.angstromsPerPixel())) {
-                var selectedRay = wavelengthChoice.getValue();
-                var isAutodetect = selectedRay.equals(SpectralRay.AUTO);
-                var suffix = isAutodetect ? ", " + I18N.string(JSolEx.class, "process-params", "angstrom.for.halpha") : "";
+                var lineUnknown = detectionModeChoice.getValue() != LineDetectionMode.MANUAL;
+                var suffix = lineUnknown ? ", " + I18N.string(JSolEx.class, "process-params", "angstrom.for.halpha") : "";
 
                 try {
                     var pixelShifts = parsePixelShifts(pixelShiftingField.getText());
@@ -638,12 +765,17 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
                 return null;
             }
 
-            var selectedRay = wavelengthChoice.getValue();
+            var selectedRay = selectedRay();
             if (selectedRay == null) {
                 return null;
             }
 
-            var lambda0 = selectedRay.equals(SpectralRay.AUTO) ? SpectralRay.H_ALPHA.wavelength() : selectedRay.wavelength();
+            var lambda0 = detectionModeChoice.getValue() == LineDetectionMode.MANUAL
+                    ? selectedRay.wavelength()
+                    : SpectralRay.H_ALPHA.wavelength();
+            if (lambda0.angstroms() <= 0) {
+                return null;
+            }
             var pixelSize = obsDetails.pixelSize();
             var binning = obsDetails.binning() != null ? obsDetails.binning() : 1;
 

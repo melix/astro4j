@@ -29,13 +29,21 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 
 import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectoriesIfNeeded;
 
 public abstract class SpectralRayIO {
     private static final Logger LOGGER = LoggerFactory.getLogger(SpectralRayIO.class);
     private static final String SCHEMA_KEY = "spectral-ray";
-    private static final int SCHEMA_VERSION = 2;
+    private static final int SCHEMA_VERSION = 3;
+    /**
+     * Lines shipped in earlier versions which have to be dropped from existing user
+     * files, since rays which are no longer predefined are otherwise kept as user
+     * defined ones. "Mercury (e)" is a lamp reference wavelength rather than a solar
+     * absorption line; the two others were detection modes disguised as lines.
+     */
+    private static final Set<String> OBSOLETE_LABELS = Set.of("Mercury (e)", "Autodetect", "Free search");
 
     private SpectralRayIO() {
 
@@ -75,36 +83,48 @@ public abstract class SpectralRayIO {
         }
         if (version == null || (int) version < SCHEMA_VERSION) {
             LOGGER.info("Updating spectral rays file using latest data");
-            List<SpectralRay> newRays = new ArrayList<>();
-            var foundRays = new ArrayList<SpectralRay>();
-            for (SpectralRay ray : SpectralRay.predefined()) {
-                var found = rays.stream().filter(r -> r.equals(ray)).findFirst();
-                if (found.isPresent()) {
-                    var current = found.get();
-                    foundRays.add(current);
-                    if (current.label().equals(SpectralRay.HELIUM_D3.label())) {
-                        current = new SpectralRay(current.label(), SpectralRay.HELIUM_D3.colorCurve(), SpectralRay.HELIUM_D3.wavelength(), true, current.automaticScripts());
-                    }
-                    if (current.colorCurve() == null && !current.label().equals(SpectralRay.H_ALPHA.label())) {
-                        current = new SpectralRay(current.label(), ray.colorCurve(), current.wavelength(), current.emission(), current.automaticScripts());
-                    }
-                    newRays.add(current);
-                } else {
-                    newRays.add(ray);
-                }
-            }
-            for (var ray : rays) {
-                if (!foundRays.contains(ray)) {
-                    newRays.add(ray);
-                }
-            }
+            var newRays = mergeWithPredefined(rays);
             schemas.put(SCHEMA_KEY, String.valueOf(SCHEMA_VERSION));
             VersionUtil.writeSchemaVersions(schemas);
-            newRays = newRays.stream().sorted(Comparator.comparingDouble(r -> r.wavelength().angstroms())).toList();
             saveDefaults(newRays);
             return newRays;
         }
         return rays;
+    }
+
+    /**
+     * Merges the rays of a user file with the predefined ones: predefined lines
+     * are added or refreshed, user defined ones are kept, and lines which are no
+     * longer shipped are dropped.
+     *
+     * @param rays the rays read from the user file
+     * @return the merged rays, sorted by wavelength
+     */
+    static List<SpectralRay> mergeWithPredefined(List<SpectralRay> rays) {
+        List<SpectralRay> newRays = new ArrayList<>();
+        var foundRays = new ArrayList<SpectralRay>();
+        for (SpectralRay ray : SpectralRay.predefined()) {
+            var found = rays.stream().filter(r -> r.equals(ray)).findFirst();
+            if (found.isPresent()) {
+                var current = found.get();
+                foundRays.add(current);
+                if (current.label().equals(SpectralRay.HELIUM_D3.label())) {
+                    current = new SpectralRay(current.label(), SpectralRay.HELIUM_D3.colorCurve(), SpectralRay.HELIUM_D3.wavelength(), true, current.automaticScripts());
+                }
+                if (current.colorCurve() == null && !current.label().equals(SpectralRay.H_ALPHA.label())) {
+                    current = new SpectralRay(current.label(), ray.colorCurve(), current.wavelength(), current.emission(), current.automaticScripts());
+                }
+                newRays.add(current);
+            } else {
+                newRays.add(ray);
+            }
+        }
+        for (var ray : rays) {
+            if (!foundRays.contains(ray) && !OBSOLETE_LABELS.contains(ray.label())) {
+                newRays.add(ray);
+            }
+        }
+        return newRays.stream().sorted(Comparator.comparingDouble(r -> r.wavelength().angstroms())).toList();
     }
 
     @SuppressWarnings("unchecked")

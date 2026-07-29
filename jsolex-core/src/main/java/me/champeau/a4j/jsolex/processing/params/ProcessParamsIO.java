@@ -99,7 +99,7 @@ public abstract class ProcessParamsIO {
 
     public static ProcessParams createNewDefaults() {
         return new ProcessParams(
-                new SpectrumParams(SpectralRay.AUTO, 0, 3, Constants.DEFAULT_CONTINUUM_SHIFT, false),
+                new SpectrumParams(SpectralRay.H_ALPHA, LineDetectionMode.FREE_SEARCH, 0, 3, Constants.DEFAULT_CONTINUUM_SHIFT, false),
                 new ObservationDetails(
                         null,
                         null,
@@ -130,6 +130,24 @@ public abstract class ProcessParamsIO {
         );
     }
 
+    /**
+     * Older configurations had no detection mode: the mode was disguised as a spectral
+     * line of wavelength zero, named after the mode. A configuration which selected a
+     * line keeps it, and one which relied on detection moves to the free search, which
+     * supersedes the former autodetection and falls back to it anyway.
+     */
+    private static ProcessParams migrateDetectionMode(ProcessParams params) {
+        var spectrum = params.spectrumParams();
+        if (spectrum == null || spectrum.detectionMode() != null) {
+            return params;
+        }
+        var ray = spectrum.ray();
+        if (ray != null && ray.wavelength().angstroms() > 0) {
+            return params.withSpectrumParams(spectrum.withDetectionMode(LineDetectionMode.MANUAL));
+        }
+        return params.withSpectrumParams(spectrum.withRay(SpectralRay.H_ALPHA).withDetectionMode(LineDetectionMode.FREE_SEARCH));
+    }
+
     public static ProcessParams readFrom(Path configFile) {
         if (Files.exists(configFile)) {
             try (var reader = FilesUtils.newTextReader(configFile)) {
@@ -148,6 +166,7 @@ public abstract class ProcessParamsIO {
         Gson gson = newGson();
         var params = gson.fromJson(reader, ProcessParams.class);
         if (params != null) {
+            params = migrateDetectionMode(params);
             if (params.videoParams() == null) {
                 // happens if loading an old config file
                 params = new ProcessParams(

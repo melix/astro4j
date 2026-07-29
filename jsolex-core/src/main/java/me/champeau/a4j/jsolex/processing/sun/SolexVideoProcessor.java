@@ -51,6 +51,7 @@ import me.champeau.a4j.jsolex.processing.params.ConditionalFlip;
 import me.champeau.a4j.jsolex.processing.params.EllipseFittingMode;
 import me.champeau.a4j.jsolex.processing.params.EnhancementParams;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
+import me.champeau.a4j.jsolex.processing.params.LineDetectionMode;
 import me.champeau.a4j.jsolex.processing.params.OutputMetadata;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.RotationKind;
@@ -58,7 +59,9 @@ import me.champeau.a4j.jsolex.processing.params.ScriptParameterExtractor;
 import me.champeau.a4j.jsolex.processing.params.ScriptProcessParamsOverrides;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
+import me.champeau.a4j.jsolex.processing.spectrum.DeepLineIdentifier;
 import me.champeau.a4j.jsolex.processing.spectrum.FlatCreator;
+import me.champeau.a4j.jsolex.processing.spectrum.IdentifiedLineResolver;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectralLineCatalog;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
 import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegions;
@@ -163,6 +166,7 @@ import static me.champeau.a4j.ser.SerFileReader.JSOLEX_RECORDER;
 public class SolexVideoProcessor implements Broadcaster {
     private static final Logger LOGGER = LoggerFactory.getLogger(SolexVideoProcessor.class);
     public static final int INMEMORY_BUFFERS_PER_CORE = 4;
+    private static final double SAME_POLYNOMIAL_TOLERANCE = 0.5;
 
     private static final ExecutorService CONVERSION_POOL = Executors.newFixedThreadPool(
             Math.max(2, Runtime.getRuntime().availableProcessors()),
@@ -422,7 +426,8 @@ public class SolexVideoProcessor implements Broadcaster {
         long maxMemory = Runtime.getRuntime().maxMemory();
         int batchSize = (int) (Math.ceil(maxMemory / (4d * imageSizeInBytes * memoryRestrictionMultiplier)));
         checkAvailableDiskSpace(imageList, imageSizeInBytes);
-        var analysis = analyzeAverageImage(width, height, averageImage, imageNamingStrategy, header);
+        var detected = analyzeAverageImage(width, height, averageImage, header);
+        var analysis = detected.result();
         if (polynomial == null && processParams.geometryParams().isSaturatedDiskMode()) {
             var referenceDirectory = processParams.geometryParams().referencePolynomialDirectory().orElse(null);
             if (referenceDirectory != null) {
@@ -434,7 +439,8 @@ public class SolexVideoProcessor implements Broadcaster {
                         processParams.geometryParams().isSpectrumVFlip(),
                         processParams.videoParams().trustSerFileBitDepth(),
                         flipConditions,
-                        rootOperation);
+                        rootOperation,
+                        requestedLineDetails());
                 referencePolynomial.ifPresent(doubleQuadruplet -> {
                     polynomial = doubleQuadruplet.asPolynomial();
                     polynomialCoefficients = doubleQuadruplet;
@@ -453,10 +459,15 @@ public class SolexVideoProcessor implements Broadcaster {
                         () -> LOGGER.error(message("invalid.forced.polynomial"), forcedPolynomialString.get()));
             }
         }
+        if (polynomial == null) {
+            // In saturated disk mode the realignment is carried by the reference scan.
+            analysis = SpectralLineRealigner.realign(averageImage, width, height, header.isJSolexTrimmedSer(), analysis, requestedLineDetails());
+        }
         var maybePolynomial = Optional.ofNullable(polynomial).or(analysis::distortionPolynomial);
         if (polynomialCoefficients == null) {
             polynomialCoefficients = analysis.distortionQuadruplet().orElse(null);
         }
+        emitAverageDebugImage(width, height, averageImage, imageNamingStrategy, detected, maybePolynomial.orElse(null));
         if (maybePolynomial.isPresent()) {
             var polynomial = maybePolynomial.get();
             var analyzer = new SpectrumFrameAnalyzer(width, height, header.isJSolexTrimmedSer(), null);
@@ -481,29 +492,27 @@ public class SolexVideoProcessor implements Broadcaster {
             }
             var avgImage = new Image(width, height, averageImage);
             var pixelSize = processParams.observationDetails().pixelSize();
-            if (processParams.spectrumParams().ray().equals(SpectralRay.AUTO) && pixelSize != null && pixelSize > 0) {
-                var instrument = processParams.observationDetails().instrument();
-                var candidates = new ArrayList<SpectrumAnalyzer.QueryDetails>();
-                for (var line : SpectralRayIO.loadDefaults()) {
-                    if (line.wavelength().nanos() > 0 && !line.emission()) {
-                        if (binningIsReliable) {
-                            candidates.add(new SpectrumAnalyzer.QueryDetails(line, pixelSize, processParams.observationDetails().binning(), instrument));
-                        } else {
-                            candidates.add(new SpectrumAnalyzer.QueryDetails(line, pixelSize, 1, instrument));
-                            candidates.add(new SpectrumAnalyzer.QueryDetails(line, pixelSize, 2, instrument));
-                        }
+            var detectionMode = processParams.spectrumParams().detectionMode();
+            if (detectionMode.requiresDetection() && pixelSize != null && pixelSize > 0) {
+                SpectrumAnalyzer.QueryDetails identifiedLine = null;
+                if (detectionMode == LineDetectionMode.FREE_SEARCH) {
+                    identifiedLine = freeSearchSpectralLine(width, height, averageImage, polynomial, pixelSize).orElse(null);
+                    if (identifiedLine == null) {
+                        LOGGER.info(message("free.search.inconclusive"));
                     }
                 }
-                var map = candidates
-                        .stream()
-                        .collect(Collectors.toMap(d -> d, details -> SpectrumAnalyzer.computeDataPoints(details, polynomial, 0, width, width, height, averageImage), (e1, _) -> e1, LinkedHashMap::new));
-                var bestMatch = SpectrumAnalyzer.findBestMatch(map);
-                LOGGER.info(String.format(Locale.US, message("auto.detected.spectral.line"), bestMatch.line(), bestMatch.binning(), bestMatch.pixelSize()));
-                var spectrumParams = processParams.spectrumParams();
-                processParams = processParams.withSpectrumParams(spectrumParams.withRay(bestMatch.line()));
-                var obsDetails = processParams.observationDetails();
-                processParams = processParams.withObservationDetails(obsDetails.withBinning(bestMatch.binning()));
-                broadcast(SpectralLineDetectedEvent.of(bestMatch.line()));
+                if (identifiedLine == null) {
+                    identifiedLine = autoDetectSpectralLine(width, height, averageImage, polynomial, pixelSize);
+                }
+                if (identifiedLine != null) {
+                    LOGGER.info(String.format(Locale.US, message("auto.detected.spectral.line"), identifiedLine.line(), identifiedLine.binning(), identifiedLine.pixelSize()));
+                    // The line is now known, so downstream stages treat it as if it had been selected
+                    processParams = processParams.withSpectrumParams(processParams.spectrumParams()
+                            .withRay(identifiedLine.line())
+                            .withDetectionMode(LineDetectionMode.MANUAL));
+                    processParams = processParams.withObservationDetails(processParams.observationDetails().withBinning(identifiedLine.binning()));
+                    broadcast(SpectralLineDetectedEvent.of(identifiedLine.line()));
+                }
             }
             var heliumLineShift = computeHeliumLineShift();
             var canGenerateHeliumD3Images = heliumLineVisible(pixelShiftRange, heliumLineShift) && processParams.requestedImages().isEnabled(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED);
@@ -1910,17 +1919,125 @@ public class SolexVideoProcessor implements Broadcaster {
     }
 
 
-    private SpectrumFrameAnalyzer.Result analyzeAverageImage(int width, int height, float[][] averageImage, FileNamingStrategy imageNamingStrategy, Header header) {
-        SpectrumFrameAnalyzer analyzer = new SpectrumFrameAnalyzer(width, height, header.isJSolexTrimmedSer(), null);
-        var result = analyzer.analyze(averageImage);
-        if (processParams.extraParams().generateDebugImages()) {
-            var emitter = createDefaultImageEmitter(imageNamingStrategy);
-            emitter.newColorImage(GeneratedImageKind.DEBUG, null, message("average"), "average", message("average.image.description"), width, 2 * height + SpectralLineFrameImageCreator.SPACING, MutableMap.of(), () -> {
-                var rgb = new SpectralLineFrameImageCreator(analyzer, averageImage, width, height).generateDebugImage();
-                return new float[][][]{rgb.r(), rgb.g(), rgb.b()};
-            });
+    private AverageImageAnalysis analyzeAverageImage(int width, int height, float[][] averageImage, Header header) {
+        var analyzer = new SpectrumFrameAnalyzer(width, height, header.isJSolexTrimmedSer(), null);
+        return new AverageImageAnalysis(analyzer, analyzer.analyze(averageImage));
+    }
+
+    /**
+     * Emits the average image debug picture, once the polynomial to use is known:
+     * it is not necessarily the one detected on this scan, since it may have been
+     * realigned on the requested line or taken from a reference scan.
+     */
+    private void emitAverageDebugImage(int width,
+                                       int height,
+                                       float[][] averageImage,
+                                       FileNamingStrategy imageNamingStrategy,
+                                       AverageImageAnalysis detected,
+                                       DoubleUnaryOperator usedPolynomial) {
+        if (!processParams.extraParams().generateDebugImages()) {
+            return;
         }
-        return result;
+        var detectedPolynomial = detected.result().distortionPolynomial().orElse(null);
+        var superseded = usedPolynomial != null && detectedPolynomial != null
+                         && differ(detectedPolynomial, usedPolynomial, width) ? detectedPolynomial : null;
+        var emitter = createDefaultImageEmitter(imageNamingStrategy);
+        emitter.newColorImage(GeneratedImageKind.DEBUG, null, message("average"), "average", message("average.image.description"), width, 2 * height + SpectralLineFrameImageCreator.SPACING, MutableMap.of(), () -> {
+            var rgb = new SpectralLineFrameImageCreator(detected.analyzer(), averageImage, width, height)
+                    .generateDebugImage(usedPolynomial, superseded);
+            return new float[][][]{rgb.r(), rgb.g(), rgb.b()};
+        });
+    }
+
+    private static boolean differ(DoubleUnaryOperator first, DoubleUnaryOperator second, int width) {
+        var step = Math.max(1, width / 16);
+        for (var x = 0; x < width; x += step) {
+            if (Math.abs(first.applyAsDouble(x) - second.applyAsDouble(x)) > SAME_POLYNOMIAL_TOLERANCE) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Identifies the observed line among the ones the user configured, by scoring each
+     * of them against the reference spectrum.
+     */
+    private SpectrumAnalyzer.QueryDetails autoDetectSpectralLine(int width,
+                                                                 int height,
+                                                                 float[][] averageImage,
+                                                                 DoubleUnaryOperator polynomial,
+                                                                 double pixelSize) {
+        var instrument = processParams.observationDetails().instrument();
+        var candidates = new ArrayList<SpectrumAnalyzer.QueryDetails>();
+        for (var line : SpectralRayIO.loadDefaults()) {
+            if (line.wavelength().nanos() > 0 && !line.emission()) {
+                for (var binning : detectionBinnings()) {
+                    candidates.add(new SpectrumAnalyzer.QueryDetails(line, pixelSize, binning, instrument));
+                }
+            }
+        }
+        var map = candidates
+                .stream()
+                .collect(Collectors.toMap(d -> d, details -> SpectrumAnalyzer.computeDataPoints(details, polynomial, 0, width, width, height, averageImage), (e1, _) -> e1, LinkedHashMap::new));
+        return SpectrumAnalyzer.findBestMatch(map);
+    }
+
+    /**
+     * Identifies the observed line among the deep lines of the solar spectrum, without
+     * being restricted to the configured ones. A line which is already known is reused,
+     * so that its colour curve and its scripts keep applying; otherwise a ray is created
+     * for this observation only.
+     */
+    private Optional<SpectrumAnalyzer.QueryDetails> freeSearchSpectralLine(int width,
+                                                                           int height,
+                                                                           float[][] averageImage,
+                                                                           DoubleUnaryOperator polynomial,
+                                                                           double pixelSize) {
+        var instrument = processParams.observationDetails().instrument();
+        var binnings = detectionBinnings();
+        // The pixel shifts do not depend on the wavelength, so any line will do to extract the profile
+        var probe = new SpectrumAnalyzer.QueryDetails(SpectralRay.H_ALPHA, pixelSize, binnings[0], instrument);
+        var profile = SpectrumAnalyzer.computeDataPoints(probe, polynomial, 0, width, width, height, averageImage);
+        return DeepLineIdentifier.identify(profile, instrument, pixelSize, binnings)
+                .map(result -> {
+                    var ray = IdentifiedLineResolver.resolve(result.wavelength(), SpectralRayIO.loadDefaults());
+                    LOGGER.info(String.format(Locale.US, message("free.search.identified"),
+                            ray.label(), result.wavelength().angstroms(), result.score(), result.margin()));
+                    return new SpectrumAnalyzer.QueryDetails(ray, pixelSize, result.binning(), instrument);
+                });
+    }
+
+    /**
+     * The binnings to consider while identifying the line: the declared one when the
+     * capture software reported it, both plausible ones otherwise.
+     */
+    private int[] detectionBinnings() {
+        var binning = processParams.observationDetails().binning();
+        if (binningIsReliable && binning != null) {
+            return new int[]{binning};
+        }
+        return new int[]{1, 2};
+    }
+
+    /**
+     * The requested line and instrument configuration, or null when no explicit
+     * line was selected or the instrument is not configured well enough.
+     */
+    private SpectrumAnalyzer.QueryDetails requestedLineDetails() {
+        var spectrumParams = processParams.spectrumParams();
+        var ray = spectrumParams.ray();
+        var pixelSize = processParams.observationDetails().pixelSize();
+        var instrument = processParams.observationDetails().instrument();
+        if (spectrumParams.detectionMode().requiresDetection()
+            || ray == null || pixelSize == null || pixelSize <= 0 || instrument == null) {
+            return null;
+        }
+        var binning = binningIsReliable ? processParams.observationDetails().binning() : 1;
+        return new SpectrumAnalyzer.QueryDetails(ray, pixelSize, binning, instrument);
+    }
+
+    private record AverageImageAnalysis(SpectrumFrameAnalyzer analyzer, SpectrumFrameAnalyzer.Result result) {
     }
 
     private DiscardNonRequiredImages createDefaultImageEmitter(FileNamingStrategy imageNamingStrategy) {

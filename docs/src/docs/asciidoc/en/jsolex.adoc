@@ -102,7 +102,13 @@ The first section is the most important for your first scans, the other sections
 image::params-1-en.jpg[]
 
 
-- the observation bandwidth: while it's not mandatory to select that field, doing so will enable automatic colorization of the images and advanced functionalities such as velocity calculations. By clicking on the "..." you have the possibility to add your own lines if they are not listed. This is the wavelength of the darkest line in your capture window. The "Autodetect" mode will try to find the line among those listed automatically.
+- the observation bandwidth: while it's not mandatory to select that field, doing so will enable automatic colorization of the images and advanced functionalities such as velocity calculations. By clicking on the "..." you have the possibility to add your own lines if they are not listed. Selecting "Other" lets you type the wavelength directly, for a line you do not want to keep in the list. This is the wavelength of the darkest line in your capture window.
+- Line detection: how the observed line is determined.
+"Manual selection" uses the wavelength you selected above.
+"Automatic search on known lines" looks for it among the lines listed above.
+"Automatic search on full spectrum", which is the default, identifies it among all the deep lines of the solar spectrum, so it can process a line which is not listed at all.
+When the search recognises a line you already have, that line is used, so its colorization and its scripts still apply; otherwise the line is created for this scan only, named after the spectral line catalog when it is known.
+The search only answers when the identification is certain: a narrow capture window may not contain enough spectrum to identify a line, in which case the software falls back on the listed lines.
 - Pixel shift : by default, the software will identify the darkest line in the image and model it as a second order polynomial. Then the image is reconstructed by picking the center of the line, which corresponds to a shift of 0. By using a different shift value, you can produce an image which is "off center", for example to produce images of the solar continuum or to select a different wavelength which isn't the darkest, such as when observing in helium for example
 - the Doppler shift is only used when you are observing in h-alpha line to generate a Doppler image. By default, the software uses 2 images shifted by 3 pixels to reconstruct a color image.
 - the continuum shift is used to generate a continuum image, close to white light in H-alpha.
@@ -236,6 +242,10 @@ In this section you can individually choose the images that interest you, or cho
 You can also choose to add ImageMath scripts to generate custom images (see the <<#imagemath,section on ImageMath>>).
 
 - Generate debug images: allows generating images such as edge recognition, ellipse/tilt recognition, average image. Useful to verify if the software is not behaving correctly on your video and you want to check where it goes wrong
+
+On the average image, the detected spectral line is drawn in red.
+When you select a specific wavelength, JSol'Ex checks that the detected line really is the one you asked for: a neighbouring line is sometimes darker, in particular on narrow cropping windows selected around a faint reference line.
+When it has to correct itself, the line which is actually used for the reconstruction is drawn in green, and the red one shows what had been detected.
 
 === Advanced processing parameters
 
