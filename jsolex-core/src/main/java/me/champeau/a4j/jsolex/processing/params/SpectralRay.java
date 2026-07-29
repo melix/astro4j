@@ -43,6 +43,7 @@ public record SpectralRay(String label, ColorCurve colorCurve, Wavelen wavelengt
     public static final SpectralRay H_BETA = new SpectralRay("H-beta", null, Wavelen.ofNanos(486.134), false, List.of());
     public static final SpectralRay MAGNESIUM_b1 = new SpectralRay("Magnesium (b1)", null, Wavelen.ofNanos(518.362), false, List.of());
     public static final SpectralRay IRON_E2 = new SpectralRay("Iron (E2)", null, Wavelen.ofNanos(527.039), false, List.of());
+    public static final SpectralRay IRON_FE1_5302 = new SpectralRay("Iron (Fe I 5302)", null, Wavelen.ofNanos(530.229), false, List.of());
     public static final SpectralRay MERCURY_e = new SpectralRay("Mercury (e)", null, Wavelen.ofNanos(546.073), false, List.of());
     public static final SpectralRay HELIUM_D3 = new SpectralRay("Helium (D3)", null, Wavelen.ofNanos(587.562), true, List.of());
     public static final SpectralRay IRON_FE1 = new SpectralRay("Iron (Fe I)", null, Wavelen.ofNanos(588.38166), false, List.of());
@@ -57,6 +58,7 @@ public record SpectralRay(String label, ColorCurve colorCurve, Wavelen wavelengt
         CA_IRON_G,
         H_BETA,
         IRON_E2,
+        IRON_FE1_5302,
         H_ALPHA,
         IRON_FE1,
         SODIUM_D1,

@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.sun;
 
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.params.ConditionalFlip;
+import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
 import me.champeau.a4j.math.tuples.DoubleQuadruplet;
 import me.champeau.a4j.ser.ColorMode;
 import me.champeau.a4j.ser.SerFileReader;
@@ -74,6 +75,9 @@ public class ReferencePolynomialProvider {
      * @param flipConditions     the active conditional flips; references on the other side of a pivot
      *                           date are excluded because a pier flip changes the flexions
      * @param rootOperation      the root progress operation
+     * @param details            the requested line and instrument configuration, used to make sure the
+     *                           reference polynomial describes the requested line and not simply the
+     *                           darkest one; may be null
      * @return the polynomial to use, or empty if no usable reference could be found
      */
     public Optional<DoubleQuadruplet> findPolynomial(File referenceDirectory,
@@ -83,7 +87,8 @@ public class ReferencePolynomialProvider {
                                                      boolean vflip,
                                                      boolean trustBitDepth,
                                                      List<ConditionalFlip> flipConditions,
-                                                     ProgressOperation rootOperation) {
+                                                     ProgressOperation rootOperation,
+                                                     SpectrumAnalyzer.QueryDetails details) {
         if (referenceDirectory == null || !referenceDirectory.isDirectory()) {
             LOGGER.warn(message("saturated.disk.invalid.directory"), referenceDirectory);
             return Optional.empty();
@@ -104,8 +109,8 @@ public class ReferencePolynomialProvider {
             LOGGER.warn(message("saturated.disk.reference.far"), new File(selection.nearest().path()).getName(), formatGap(nearestGap));
         }
         var reference = selection.nearest();
-        var polynomial = polynomialCache.computeIfAbsent(fileKey(new File(reference.path())),
-                key -> computePolynomial(new File(reference.path()), colorMode, vflip, trustBitDepth, rootOperation));
+        var polynomial = polynomialCache.computeIfAbsent(fileKey(new File(reference.path()), details),
+                key -> computePolynomial(new File(reference.path()), colorMode, vflip, trustBitDepth, rootOperation, details));
         polynomial.ifPresent(p -> LOGGER.info(message("saturated.disk.using.reference"), new File(reference.path()).getName(), formatGap(nearestGap)));
         return polynomial;
     }
@@ -174,7 +179,8 @@ public class ReferencePolynomialProvider {
                                                          ColorMode colorMode,
                                                          boolean vflip,
                                                          boolean trustBitDepth,
-                                                         ProgressOperation rootOperation) {
+                                                         ProgressOperation rootOperation,
+                                                         SpectrumAnalyzer.QueryDetails details) {
         LOGGER.info(message("saturated.disk.computing.reference"), referenceFile.getName());
         try (var reader = SerFileReader.of(referenceFile, trustBitDepth)) {
             var header = reader.header();
@@ -185,6 +191,13 @@ public class ReferencePolynomialProvider {
             var averageImage = creator.getAverageImage();
             var analyzer = new SpectrumFrameAnalyzer(geometry.width(), geometry.height(), header.isJSolexTrimmedSer(), null);
             var result = analyzer.analyze(averageImage);
+            // Reused by every saturated scan, so it must describe the requested line
+            result = SpectralLineRealigner.realign(averageImage,
+                    geometry.width(),
+                    geometry.height(),
+                    header.isJSolexTrimmedSer(),
+                    result,
+                    details);
             var polynomial = result.distortionQuadruplet();
             if (polynomial.isEmpty()) {
                 LOGGER.warn(message("saturated.disk.reference.no.polynomial"), referenceFile.getName());
@@ -198,6 +211,18 @@ public class ReferencePolynomialProvider {
 
     private static String fileKey(File file) {
         return file.getAbsolutePath() + "@" + file.lastModified();
+    }
+
+    /**
+     * The realigned polynomial depends on the requested line and on the instrument
+     * configuration, so those have to take part in the cache key.
+     */
+    private static String fileKey(File file, SpectrumAnalyzer.QueryDetails details) {
+        if (details == null || details.line() == null || details.instrument() == null) {
+            return fileKey(file);
+        }
+        return fileKey(file) + "#" + details.line().label() + "/" + details.pixelSize() + "/" + details.binning()
+               + "/" + details.instrument().label();
     }
 
     static String formatGap(Duration gap) {

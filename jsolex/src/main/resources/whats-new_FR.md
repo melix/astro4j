@@ -2,6 +2,8 @@
 
 ## Nouveautés de la version 5.4.1
 
+- Lorsqu'une raie spectrale précise est sélectionnée, JSol'Ex vérifie maintenant que la raie détectée est bien celle-ci, et se corrige lorsqu'une raie voisine se trouve être plus sombre.
+- Ajout de la raie du fer (Fe I 5302), utilisée comme référence pour l'imagerie de la couronne, à la liste des raies spectrales connues.
 - Correction des paramètres de traitement imposés par un script qui étaient tous ignorés dès que l'un d'entre eux était invalide.
 - Correction des fonctions `weighted_avg` et `weighted_avg2` qui retenaient la position du disque solaire de la dernière image empilée au lieu de la moyenner sur toutes, ce qui pouvait décaler le rognage et l'étirement final.
 - Correction de la fonction `noise_sigma` sur les images comportant de grandes zones écrêtées ou saturées, qui pouvait donner un poids démesuré à une seule image lors d'un empilement avec `weighted_avg` ou `weighted_avg2`.

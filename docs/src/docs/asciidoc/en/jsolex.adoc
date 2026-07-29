@@ -237,6 +237,10 @@ You can also choose to add ImageMath scripts to generate custom images (see the 
 
 - Generate debug images: allows generating images such as edge recognition, ellipse/tilt recognition, average image. Useful to verify if the software is not behaving correctly on your video and you want to check where it goes wrong
 
+On the average image, the detected spectral line is drawn in red.
+When you select a specific wavelength, JSol'Ex checks that the detected line really is the one you asked for: a neighbouring line is sometimes darker, in particular on narrow cropping windows selected around a faint reference line.
+When it has to correct itself, the line which is actually used for the reconstruction is drawn in green, and the red one shows what had been detected.
+
 === Advanced processing parameters
 
 These parameters are intended for special cases, to correct detection problems or for advanced work.

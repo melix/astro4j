@@ -83,15 +83,20 @@ public class SpectrumFrameAnalyzer {
                     List.of()
             );
         }
-        var distortionPolynomial = findDistortionPolynomial(leftBorder, rightBorder);
-        this.result = distortionPolynomial;
-        if (isReducedSerFile) {
-            var doubleQuadruplet = distortionPolynomial.distortionQuadruplet();
-            if (doubleQuadruplet.isPresent()) {
-                var polynomial = doubleQuadruplet.get();
-                this.result = new Result(leftBorder, rightBorder, new DoubleQuadruplet(0, 0, 0, Math.round(polynomial.d())), result.samplePoints);
-            }
+        this.result = flattenIfReducedSerFile(findDistortionPolynomial(leftBorder, rightBorder), leftBorder, rightBorder);
+    }
+
+    /**
+     * A trimmed SER file has already been resampled along the line, so the
+     * remaining geometry is a constant offset.
+     */
+    private Result flattenIfReducedSerFile(Result result, Integer leftBorder, Integer rightBorder) {
+        if (!isReducedSerFile) {
+            return result;
         }
+        return result.distortionQuadruplet()
+                .map(quadruplet -> new Result(leftBorder, rightBorder, new DoubleQuadruplet(0, 0, 0, Math.round(quadruplet.d())), result.getSamplePoints()))
+                .orElse(result);
     }
 
     private Borders findBordersAuto(float[][] data) {
@@ -310,6 +315,29 @@ public class SpectrumFrameAnalyzer {
 
     public void forcePolynomial(DoubleUnaryOperator polynomial) {
         this.polynomial = polynomial;
+    }
+
+    /**
+     * Analyzes the frame by tracking the line which passes through the given
+     * ordinate at mid-width, instead of the darkest one.
+     *
+     * @param data the image data
+     * @param centerY the ordinate of the target line at mid-width
+     * @return the result of the analysis
+     */
+    public Result analyzeAround(float[][] data, double centerY) {
+        reset();
+        this.data = data;
+        var borders = sunDetectionThreshold != null ? findBordersExplicit(data) : findBordersAuto(data);
+        var leftBorder = borders.left();
+        var rightBorder = borders.right();
+        int l = leftBorder != null ? leftBorder : 0;
+        int r = rightBorder != null ? rightBorder + 1 : width;
+        int mid = (l + r) / 2;
+        var seed = findLocalMinimumClosestTo(mid, data, centerY);
+        var polynomialAround = findPolynomialAround(leftBorder, rightBorder, seed > 0 ? seed : centerY, mid, -1, l, r);
+        this.result = flattenIfReducedSerFile(polynomialAround, leftBorder, rightBorder);
+        return result;
     }
 
     public static class Result {

@@ -20,6 +20,7 @@ import me.champeau.a4j.jsolex.processing.sun.DistortionCorrection;
 import me.champeau.a4j.jsolex.processing.sun.SpectrumFrameAnalyzer;
 import me.champeau.a4j.math.Point2D;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -42,10 +43,25 @@ public class SpectralLineFrameImageCreator {
     }
 
     public RGBImage generateDebugImage() {
-        return generateDebugImage(null);
+        return generateDebugImage(null, null);
     }
 
     public RGBImage generateDebugImage(DoubleUnaryOperator forcedPolynomial) {
+        return generateDebugImage(forcedPolynomial, null);
+    }
+
+    /**
+     * Generates the debug image of a spectrum frame.
+     * <p>
+     * The detected line is drawn in red. When it was replaced, the line which is
+     * actually used is drawn in green, so that both are visible and it is obvious
+     * which one the reconstruction relies on.
+     *
+     * @param forcedPolynomial the polynomial to use instead of the detected one, may be null
+     * @param supersededPolynomial the detected polynomial when it was replaced, may be null
+     * @return the debug image
+     */
+    public RGBImage generateDebugImage(DoubleUnaryOperator forcedPolynomial, DoubleUnaryOperator supersededPolynomial) {
         var lastResult = analyzer.result();
         Optional<DoubleUnaryOperator> polynomial = Optional.ofNullable(forcedPolynomial).or(lastResult::distortionPolynomial);
         float[][] corrected;
@@ -55,7 +71,8 @@ public class SpectralLineFrameImageCreator {
         } else {
             corrected = new float[height][width];
         }
-        var samples = lastResult.getSamplePoints();
+        // Sample points belong to the detected line, so they are meaningless once it is superseded
+        var samples = supersededPolynomial == null ? lastResult.getSamplePoints() : List.<Point2D>of();
         // We create RGB images for debugging, which contain the original image at top
         // and the corrected one at the bottom
         int spacing = SPACING;
@@ -89,18 +106,15 @@ public class SpectralLineFrameImageCreator {
                 bb[y + spacing + height][bx] = 0;
             }
         });
+        // The superseded curve is drawn first, so that the retained one wins where they cross
+        if (supersededPolynomial != null) {
+            drawCurve(rr, gg, bb, supersededPolynomial, MAX_PIXEL_VALUE, 0);
+        }
         polynomial.ifPresent(poly -> {
-            int size = height * width;
-            // Draw a line on the top graph corresponding to the detected curvature
-            for (int x = 0; x < width; x++) {
-                int y = (int) Math.round(poly.applyAsDouble(x));
-                int idx = x + y * width;
-                if (idx < 0 || idx >= size) {
-                    continue;
-                }
-                rr[y][x] = MAX_PIXEL_VALUE;
-                gg[y][x] = 0;
-                bb[y][x] = 0;
+            if (supersededPolynomial != null) {
+                drawCurve(rr, gg, bb, poly, 0, MAX_PIXEL_VALUE);
+            } else {
+                drawCurve(rr, gg, bb, poly, MAX_PIXEL_VALUE, 0);
             }
         });
         for (Point2D sample : samples) {
@@ -127,6 +141,18 @@ public class SpectralLineFrameImageCreator {
             bb[y + height + spacing][x] = 0;
         }
         return new RGBImage(width, 2 * height + spacing, rr, gg, bb, MutableMap.of());
+    }
+
+    private void drawCurve(float[][] rr, float[][] gg, float[][] bb, DoubleUnaryOperator polynomial, float red, float green) {
+        for (int x = 0; x < width; x++) {
+            int y = (int) Math.round(polynomial.applyAsDouble(x));
+            if (y < 0 || y >= height) {
+                continue;
+            }
+            rr[y][x] = red;
+            gg[y][x] = green;
+            bb[y][x] = 0;
+        }
     }
 
     public RGBImage generateSpectrumImage(DoubleUnaryOperator forcedPolynomial,

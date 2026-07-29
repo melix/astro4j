@@ -237,6 +237,10 @@ Vous pouvez aussi choisir d'ajouter des scripts ImageMath pour générer des ima
 
 - Générer des images de debug : permet de générer des images telles que la reconnaissance de contours, la reconnaissance d'ellipse/tilt, l'image moyenne. Utile pour vérifier si le logiciel ne se comporte pas correctement sur votre vidéo et que vous souhaitez vérifier là où il se trompe
 
+Sur l'image moyenne, la raie spectrale détectée est tracée en rouge.
+Lorsque vous sélectionnez une longueur d'onde précise, JSol'Ex vérifie que la raie détectée est bien celle que vous avez demandée : une raie voisine est parfois plus sombre, en particulier sur les fenêtres de découpe étroites choisies autour d'une raie de référence peu marquée.
+Lorsqu'il doit se corriger, la raie réellement utilisée pour la reconstruction est tracée en vert, et la rouge montre ce qui avait été détecté.
+
 === Paramètres de traitement avancés
 
 Ces paramètres sont destinés à des cas particuliers, pour corriger des problèmes de détection ou pour des travaux avancés.

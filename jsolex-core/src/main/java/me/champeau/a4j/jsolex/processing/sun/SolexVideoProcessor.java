@@ -163,6 +163,7 @@ import static me.champeau.a4j.ser.SerFileReader.JSOLEX_RECORDER;
 public class SolexVideoProcessor implements Broadcaster {
     private static final Logger LOGGER = LoggerFactory.getLogger(SolexVideoProcessor.class);
     public static final int INMEMORY_BUFFERS_PER_CORE = 4;
+    private static final double SAME_POLYNOMIAL_TOLERANCE = 0.5;
 
     private static final ExecutorService CONVERSION_POOL = Executors.newFixedThreadPool(
             Math.max(2, Runtime.getRuntime().availableProcessors()),
@@ -422,7 +423,8 @@ public class SolexVideoProcessor implements Broadcaster {
         long maxMemory = Runtime.getRuntime().maxMemory();
         int batchSize = (int) (Math.ceil(maxMemory / (4d * imageSizeInBytes * memoryRestrictionMultiplier)));
         checkAvailableDiskSpace(imageList, imageSizeInBytes);
-        var analysis = analyzeAverageImage(width, height, averageImage, imageNamingStrategy, header);
+        var detected = analyzeAverageImage(width, height, averageImage, header);
+        var analysis = detected.result();
         if (polynomial == null && processParams.geometryParams().isSaturatedDiskMode()) {
             var referenceDirectory = processParams.geometryParams().referencePolynomialDirectory().orElse(null);
             if (referenceDirectory != null) {
@@ -434,7 +436,8 @@ public class SolexVideoProcessor implements Broadcaster {
                         processParams.geometryParams().isSpectrumVFlip(),
                         processParams.videoParams().trustSerFileBitDepth(),
                         flipConditions,
-                        rootOperation);
+                        rootOperation,
+                        requestedLineDetails());
                 referencePolynomial.ifPresent(doubleQuadruplet -> {
                     polynomial = doubleQuadruplet.asPolynomial();
                     polynomialCoefficients = doubleQuadruplet;
@@ -453,10 +456,15 @@ public class SolexVideoProcessor implements Broadcaster {
                         () -> LOGGER.error(message("invalid.forced.polynomial"), forcedPolynomialString.get()));
             }
         }
+        if (polynomial == null) {
+            // In saturated disk mode the realignment is carried by the reference scan.
+            analysis = SpectralLineRealigner.realign(averageImage, width, height, header.isJSolexTrimmedSer(), analysis, requestedLineDetails());
+        }
         var maybePolynomial = Optional.ofNullable(polynomial).or(analysis::distortionPolynomial);
         if (polynomialCoefficients == null) {
             polynomialCoefficients = analysis.distortionQuadruplet().orElse(null);
         }
+        emitAverageDebugImage(width, height, averageImage, imageNamingStrategy, detected, maybePolynomial.orElse(null));
         if (maybePolynomial.isPresent()) {
             var polynomial = maybePolynomial.get();
             var analyzer = new SpectrumFrameAnalyzer(width, height, header.isJSolexTrimmedSer(), null);
@@ -1910,17 +1918,62 @@ public class SolexVideoProcessor implements Broadcaster {
     }
 
 
-    private SpectrumFrameAnalyzer.Result analyzeAverageImage(int width, int height, float[][] averageImage, FileNamingStrategy imageNamingStrategy, Header header) {
-        SpectrumFrameAnalyzer analyzer = new SpectrumFrameAnalyzer(width, height, header.isJSolexTrimmedSer(), null);
-        var result = analyzer.analyze(averageImage);
-        if (processParams.extraParams().generateDebugImages()) {
-            var emitter = createDefaultImageEmitter(imageNamingStrategy);
-            emitter.newColorImage(GeneratedImageKind.DEBUG, null, message("average"), "average", message("average.image.description"), width, 2 * height + SpectralLineFrameImageCreator.SPACING, MutableMap.of(), () -> {
-                var rgb = new SpectralLineFrameImageCreator(analyzer, averageImage, width, height).generateDebugImage();
-                return new float[][][]{rgb.r(), rgb.g(), rgb.b()};
-            });
+    private AverageImageAnalysis analyzeAverageImage(int width, int height, float[][] averageImage, Header header) {
+        var analyzer = new SpectrumFrameAnalyzer(width, height, header.isJSolexTrimmedSer(), null);
+        return new AverageImageAnalysis(analyzer, analyzer.analyze(averageImage));
+    }
+
+    /**
+     * Emits the average image debug picture, once the polynomial to use is known:
+     * it is not necessarily the one detected on this scan, since it may have been
+     * realigned on the requested line or taken from a reference scan.
+     */
+    private void emitAverageDebugImage(int width,
+                                       int height,
+                                       float[][] averageImage,
+                                       FileNamingStrategy imageNamingStrategy,
+                                       AverageImageAnalysis detected,
+                                       DoubleUnaryOperator usedPolynomial) {
+        if (!processParams.extraParams().generateDebugImages()) {
+            return;
         }
-        return result;
+        var detectedPolynomial = detected.result().distortionPolynomial().orElse(null);
+        var superseded = usedPolynomial != null && detectedPolynomial != null
+                         && differ(detectedPolynomial, usedPolynomial, width) ? detectedPolynomial : null;
+        var emitter = createDefaultImageEmitter(imageNamingStrategy);
+        emitter.newColorImage(GeneratedImageKind.DEBUG, null, message("average"), "average", message("average.image.description"), width, 2 * height + SpectralLineFrameImageCreator.SPACING, MutableMap.of(), () -> {
+            var rgb = new SpectralLineFrameImageCreator(detected.analyzer(), averageImage, width, height)
+                    .generateDebugImage(usedPolynomial, superseded);
+            return new float[][][]{rgb.r(), rgb.g(), rgb.b()};
+        });
+    }
+
+    private static boolean differ(DoubleUnaryOperator first, DoubleUnaryOperator second, int width) {
+        var step = Math.max(1, width / 16);
+        for (var x = 0; x < width; x += step) {
+            if (Math.abs(first.applyAsDouble(x) - second.applyAsDouble(x)) > SAME_POLYNOMIAL_TOLERANCE) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * The requested line and instrument configuration, or null when no explicit
+     * line was selected or the instrument is not configured well enough.
+     */
+    private SpectrumAnalyzer.QueryDetails requestedLineDetails() {
+        var ray = processParams.spectrumParams().ray();
+        var pixelSize = processParams.observationDetails().pixelSize();
+        var instrument = processParams.observationDetails().instrument();
+        if (ray == null || SpectralRay.AUTO.equals(ray) || pixelSize == null || pixelSize <= 0 || instrument == null) {
+            return null;
+        }
+        var binning = binningIsReliable ? processParams.observationDetails().binning() : 1;
+        return new SpectrumAnalyzer.QueryDetails(ray, pixelSize, binning, instrument);
+    }
+
+    private record AverageImageAnalysis(SpectrumFrameAnalyzer analyzer, SpectrumFrameAnalyzer.Result result) {
     }
 
     private DiscardNonRequiredImages createDefaultImageEmitter(FileNamingStrategy imageNamingStrategy) {
