@@ -1,12 +1,12 @@
 name: SAVE_RAW
 category: UTILS
 description:
-  fr: "Enregistre une image et ses métadonnées sous forme de données brutes (float), sans conversion vers la plage affichable. Contrairement aux formats comme FITS ou PNG, qui requantifient les pixels sur 16 bits, les valeurs exactes sont conservées, ce qui permet de recharger l'image avec `load` pour déboguer une étape de traitement isolément. L'image est renvoyée telle quelle, l'appel peut donc s'insérer dans une chaîne de traitement."
-  en: "Saves an image and its metadata as raw (float) data, without any conversion to the displayable range. Unlike formats such as FITS or PNG, which requantize the pixels to 16 bits, the exact values are kept, so the image can be reloaded with `load` to debug a processing step in isolation. The image is returned unchanged, so the call can be inserted in a processing chain."
+  fr: "Enregistre une image et ses métadonnées sous forme de données brutes (float), sans conversion vers la plage affichable. Contrairement aux formats comme FITS ou PNG, qui requantifient les pixels sur 16 bits, les valeurs exactes sont conservées, ce qui permet de recharger l'image avec `load` pour déboguer une étape de traitement isolément. L'image est renvoyée telle quelle, l'appel peut donc s'insérer dans une chaîne de traitement. Si une liste d'images est fournie, chacune est enregistrée avec son indice ajouté au nom du fichier."
+  en: "Saves an image and its metadata as raw (float) data, without any conversion to the displayable range. Unlike formats such as FITS or PNG, which requantize the pixels to 16 bits, the exact values are kept, so the image can be reloaded with `load` to debug a processing step in isolation. The image is returned unchanged, so the call can be inserted in a processing chain. If a list of images is given, each one is saved with its index appended to the file name."
 hasSideEffect: true
 arguments:
   - name: img
-    description: Image
+    description: Image(s)
   - name: file
     description:
       fr: "Fichier de destination, relatif au dossier de travail. L'extension `.jraw` est ajoutée si elle manque."
@@ -14,3 +14,4 @@ arguments:
 examples:
   - "save_raw(someImage; \"/tmp/debug/stacked\")"
   - "save_raw(img: someImage; file: \"stacked.jraw\")"
+  - "save_raw(img: someImages; file: \"frames\")"

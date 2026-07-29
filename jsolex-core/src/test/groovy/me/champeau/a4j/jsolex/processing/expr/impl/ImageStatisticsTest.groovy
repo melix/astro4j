@@ -336,4 +336,54 @@ class ImageStatisticsTest extends Specification {
         min == 42.0d
         max == 42.0d
     }
+
+    private static ImageWrapper32 clippedImage(Random random, double flatFraction, float clipped) {
+        int size = 60
+        float[][] data = new float[size][size]
+        var flatRows = (int) Math.round(size * flatFraction)
+        for (int y = 0; y < size; y++) {
+            for (int x = 0; x < size; x++) {
+                data[y][x] = y < flatRows ? clipped : (float) (3000 + random.nextGaussian() * 400)
+            }
+        }
+        new ImageWrapper32(size, size, data, [:])
+    }
+
+    def "noise_sigma stays stable when clipped pixels become the majority"() {
+        given:
+        var fractions = [0.40d, 0.45d, 0.49d, 0.50d, 0.51d, 0.55d, 0.60d, 0.80d]
+
+        when:
+        var sigmas = fractions.collect { imageStatistics.noiseSigma([img: clippedImage(new Random(1), it, 0f)]) }
+
+        then: "no estimate collapses, so weights derived as 1/sigma² cannot diverge"
+        sigmas.every { it > 0 && Double.isFinite(it) }
+
+        and: "crossing the halfway point does not make the estimate jump"
+        var min = sigmas.min()
+        var max = sigmas.max()
+        max / min < 2
+    }
+
+    def "noise_sigma ignores non finite pixels"() {
+        given:
+        var random = new Random(2)
+        var clean = clippedImage(random, 0d, 0f)
+        var polluted = clippedImage(new Random(2), 0d, 0f)
+        for (int i = 0; i < 2000; i++) {
+            polluted.data()[(int) (i / 60)][(int) (i % 60)] = i % 2 == 0 ? Float.NaN : Float.POSITIVE_INFINITY
+        }
+
+        when:
+        var sigma = imageStatistics.noiseSigma([img: polluted])
+
+        then:
+        Double.isFinite(sigma)
+        sigma > 0
+    }
+
+    def "noise_sigma of a fully flat image reports that it cannot measure noise"() {
+        expect:
+        imageStatistics.noiseSigma([img: createImage(20, 20, 1000f)]) == 0d
+    }
 }

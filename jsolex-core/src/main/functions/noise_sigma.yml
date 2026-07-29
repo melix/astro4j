@@ -1,8 +1,8 @@
 name: NOISE_SIGMA
 category: MATHS
 description:
-  fr: "Estime l'écart-type du bruit d'une image, en mesurant la réponse d'un filtre passe-haut laplacien. Les structures douces ne contribuent pas à la mesure, contrairement à un écart entre percentiles, et la valeur reste fiable en présence de quelques pixels aberrants. Utile pour évaluer la qualité de chaque image d'un lot, ou pour pondérer les images avant de les combiner. Si plusieurs images sont passées en paramètre, retourne une liste de valeurs."
-  en: "Estimates the standard deviation of the noise of an image, by measuring the response of a Laplacian high pass filter. Smooth structures do not contribute to the measurement, unlike a percentile span, and the value remains reliable in the presence of a few aberrant pixels. Useful to assess the quality of each image of a batch, or to weight images before combining them. If multiple images are passed, returns a list of values."
+  fr: "Estime l'écart-type du bruit d'une image, en mesurant la réponse d'un filtre passe-haut laplacien. Les structures douces ne contribuent pas à la mesure, contrairement à un écart entre percentiles, et la valeur reste fiable en présence de quelques pixels aberrants. Les zones écrêtées ou saturées, ainsi que les pixels défectueux, sont exclus de la mesure. Utile pour évaluer la qualité de chaque image d'un lot, ou pour pondérer les images avant de les combiner. Si plusieurs images sont passées en paramètre, retourne une liste de valeurs."
+  en: "Estimates the standard deviation of the noise of an image, by measuring the response of a Laplacian high pass filter. Smooth structures do not contribute to the measurement, unlike a percentile span, and the value remains reliable in the presence of a few aberrant pixels. Clipped or saturated areas, as well as defective pixels, are excluded from the measurement. Useful to assess the quality of each image of a batch, or to weight images before combining them. If multiple images are passed, returns a list of values."
 arguments:
   - name: img
     description: Image(s)

@@ -179,7 +179,7 @@ public class MosaicComposition extends AbstractFunctionImpl {
             var tileOverlap = placeMostOverlappingImagesFirst(corrected, imageToTilesOverbackground, imageCount);
             if (tileOverlap != null && tileOverlap.overlappingTiles() == 0) {
                 LOGGER.warn("Cannot find overlapping tiles between images, falling back to addition");
-                return (ImageWrapper32) new SimpleFunctionCall(Map.of(), broadcaster).applyFunction("max", Map.of("list", corrected), DoubleStream::max);
+                return (ImageWrapper32) new SimpleFunctionCall(Map.of(), broadcaster).applyFunction("max", Map.of("list", corrected), DoubleStream::max, SimpleFunctionCall.StreamingReduction.MAX);
             }
             var maxSteps = 2 * (height / distorsionGridSize);
             var step = 0;

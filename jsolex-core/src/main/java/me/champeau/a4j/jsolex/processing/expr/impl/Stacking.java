@@ -617,7 +617,7 @@ public class Stacking extends AbstractFunctionImpl {
         return switch (referenceSelection) {
             case FIRST -> images.getFirst();
             case AVERAGE ->
-                    (ImageWrapper32) simpleFunctionCall.applyFunction("avg", Map.of("list", images), DoubleStream::average);
+                    (ImageWrapper32) simpleFunctionCall.applyFunction("avg", Map.of("list", images), DoubleStream::average, SimpleFunctionCall.StreamingReduction.AVERAGE);
             case MEDIAN ->
                     (ImageWrapper32) simpleFunctionCall.applyFunction("median", Map.of("list", images), AbstractImageExpressionEvaluator::median);
             case ECCENTRICITY -> images.stream()
