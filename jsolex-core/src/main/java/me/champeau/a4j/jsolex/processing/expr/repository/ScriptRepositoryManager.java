@@ -49,7 +49,6 @@ import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectorie
 public class ScriptRepositoryManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(ScriptRepositoryManager.class);
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
-    private static final Duration CHECK_INTERVAL = Duration.ofHours(24);
     private static final String SCRIPTS_TXT = "scripts.txt";
     private static final String ZIP_DESCRIPTOR = "main.txt";
     private static final String LAST_CHECK_MARKER = ".last-check";
@@ -439,12 +438,6 @@ public class ScriptRepositoryManager {
         } catch (IOException | NumberFormatException e) {
             return Optional.empty();
         }
-    }
-
-    public boolean shouldCheckForUpdates(ScriptRepository repository) {
-        return lastSuccessfulCheck(repository)
-            .map(lastCheck -> Duration.between(lastCheck, Instant.now()).compareTo(CHECK_INTERVAL) >= 0)
-            .orElse(true);
     }
 
     private void recordSuccessfulCheck(Path repoDir) {

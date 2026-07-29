@@ -33,32 +33,28 @@ class ScriptRepositoryUpdateCheckTest extends Specification {
         manager = new ScriptRepositoryManager(cacheRoot)
     }
 
-    def "checks for updates when repository was never refreshed"() {
+    def "has no recorded check time when repository was never refreshed"() {
         given:
         def repository = new ScriptRepository("My scripts", "https://example.com/scripts/", null)
 
         expect:
-        manager.shouldCheckForUpdates(repository)
         manager.lastSuccessfulCheck(repository).empty
     }
 
-    def "checks for updates when the recorded check is older than a day"() {
+    def "reads back the recorded check time"() {
         given:
+        def recorded = Instant.now() - Duration.ofHours(hoursAgo)
         def repository = new ScriptRepository("My scripts", "https://example.com/scripts/", null)
-        writeMarker(repository, Instant.now() - Duration.ofHours(hoursAgo))
+        writeMarker(repository, recorded)
 
         expect:
-        manager.shouldCheckForUpdates(repository) == shouldCheck
+        manager.lastSuccessfulCheck(repository).get().toEpochMilli() == recorded.toEpochMilli()
 
         where:
-        hoursAgo | shouldCheck
-        1        | false
-        23       | false
-        25       | true
-        240      | true
+        hoursAgo << [1, 23, 25, 240]
     }
 
-    def "checks for updates when the recorded check cannot be read"() {
+    def "has no recorded check time when the marker cannot be read"() {
         given:
         def repository = new ScriptRepository("My scripts", "https://example.com/scripts/", null)
         def repoDir = cacheRoot.resolve("My_scripts")
@@ -66,7 +62,6 @@ class ScriptRepositoryUpdateCheckTest extends Specification {
         Files.writeString(repoDir.resolve(".last-check"), "not a timestamp")
 
         expect:
-        manager.shouldCheckForUpdates(repository)
         manager.lastSuccessfulCheck(repository).empty
     }
 
