@@ -15,30 +15,45 @@
  */
 package me.champeau.a4j.jsolex.processing.params;
 
+/**
+ * @param ray the line being observed. When the detection mode is not
+ * {@link LineDetectionMode#MANUAL} this is only a fallback until the line has been
+ * identified from the scan, after which it holds the identified line.
+ * @param detectionMode how the observed line is determined
+ * @param pixelShift the pixel shift
+ * @param dopplerShift the Doppler shift
+ * @param continuumShift the continuum shift
+ * @param switchRedBlueChannels whether to switch the red and blue channels of Doppler images
+ */
 public record SpectrumParams(
         SpectralRay ray,
+        LineDetectionMode detectionMode,
         double pixelShift,
         double dopplerShift,
         double continuumShift,
         boolean switchRedBlueChannels
 ) {
     public SpectrumParams withRay(SpectralRay ray) {
-        return new SpectrumParams(ray, pixelShift, dopplerShift, continuumShift, switchRedBlueChannels);
+        return new SpectrumParams(ray, detectionMode, pixelShift, dopplerShift, continuumShift, switchRedBlueChannels);
+    }
+
+    public SpectrumParams withDetectionMode(LineDetectionMode detectionMode) {
+        return new SpectrumParams(ray, detectionMode, pixelShift, dopplerShift, continuumShift, switchRedBlueChannels);
     }
 
     public SpectrumParams withPixelShift(double pixelShift) {
-        return new SpectrumParams(ray, pixelShift, dopplerShift, continuumShift, switchRedBlueChannels);
+        return new SpectrumParams(ray, detectionMode, pixelShift, dopplerShift, continuumShift, switchRedBlueChannels);
     }
 
     public SpectrumParams withDopplerShift(double dopplerShift) {
-        return new SpectrumParams(ray, pixelShift, dopplerShift, continuumShift, switchRedBlueChannels);
+        return new SpectrumParams(ray, detectionMode, pixelShift, dopplerShift, continuumShift, switchRedBlueChannels);
     }
 
     public SpectrumParams withSwitchRedBlueChannels(boolean switchRedBlueChannels) {
-        return new SpectrumParams(ray, pixelShift, dopplerShift, continuumShift, switchRedBlueChannels);
+        return new SpectrumParams(ray, detectionMode, pixelShift, dopplerShift, continuumShift, switchRedBlueChannels);
     }
 
     public SpectrumParams withContinuumShift(double continuumShift) {
-        return new SpectrumParams(ray, pixelShift, dopplerShift, continuumShift, switchRedBlueChannels);
+        return new SpectrumParams(ray, detectionMode, pixelShift, dopplerShift, continuumShift, switchRedBlueChannels);
     }
 }

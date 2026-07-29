@@ -2,8 +2,11 @@
 
 ## What's New in Version 5.4.1
 
-- When a specific spectral line is selected, JSol'Ex now checks that the detected line really is that one, and corrects itself when a neighbouring line happens to be darker.
-- Added the Iron (Fe I 5302) line, used as a reference for corona imaging, to the list of known spectral lines.
+- New "Automatic search on full spectrum" line detection, used by default, which recognizes lines that are not in your list.
+- When you select a spectral line, JSol'Ex now checks that the line it detected really is that one, and corrects itself when a neighbouring line is darker.
+- Added the Iron (Fe I 5302) line, used as a reference for corona imaging.
+- Selecting "Other" in the wavelength list now lets you type the wavelength of the observed line, instead of having to add it to your lines.
+- Removed the Mercury (e) line, which is a lamp wavelength and not a solar line.
 - Fixed the process parameters forced by a script being all ignored as soon as one of them was invalid.
 - Fixed `weighted_avg` and `weighted_avg2` taking the solar disk position of the last stacked image instead of averaging it over all of them, which could misplace the cropping and the final stretch.
 - Fixed `noise_sigma` collapsing on images with large clipped or saturated areas, which could give a single image an overwhelming weight when stacking with `weighted_avg` or `weighted_avg2`.

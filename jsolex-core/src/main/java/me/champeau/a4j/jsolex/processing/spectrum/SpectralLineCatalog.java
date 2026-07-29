@@ -26,6 +26,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Catalog of known "interesting" spectral lines, used to identify which lines other than the one
@@ -69,6 +70,27 @@ public final class SpectralLineCatalog {
             result.add(new LineInWindow(line.shortName(), line.wavelength(), pixelShift));
         }
         return result;
+    }
+
+    /**
+     * Finds the catalog line closest to a wavelength, when there is one near enough to
+     * be that line. Used to name a wavelength which was measured rather than chosen.
+     *
+     * @param wavelength the wavelength to name
+     * @param toleranceAngstroms how far a catalog line may be to still be a match
+     * @return the closest line within the tolerance, if any
+     */
+    public static Optional<CatalogLine> findClosest(Wavelen wavelength, double toleranceAngstroms) {
+        CatalogLine closest = null;
+        var closestDistance = Double.MAX_VALUE;
+        for (var line : DEFAULTS) {
+            var distance = Math.abs(line.wavelength().angstroms() - wavelength.angstroms());
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closest = line;
+            }
+        }
+        return closestDistance <= toleranceAngstroms ? Optional.of(closest) : Optional.empty();
     }
 
     private static List<CatalogLine> loadDefaults() {

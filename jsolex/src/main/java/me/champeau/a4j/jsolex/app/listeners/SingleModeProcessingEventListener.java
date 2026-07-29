@@ -1879,7 +1879,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         scriptImagesByLabel.clear();
         scriptValuesByLabel.clear();
         var spectralRay = params.spectrumParams().ray();
-        if (spectralRay != null && !SpectralRay.AUTO.equals(spectralRay)) {
+        if (spectralRay != null && !params.spectrumParams().detectionMode().requiresDetection()) {
             owner.updateSpectralLineIndicator(spectralRay, false);
         }
         var geometryParams = params.geometryParams();

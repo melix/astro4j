@@ -88,8 +88,8 @@ class SpectralLineLocatorTest extends Specification {
         where:
         autoDetectDetails << [
                 null,
-                new SpectrumAnalyzer.QueryDetails(SpectralRay.AUTO, PIXEL_SIZE, 1, INSTRUMENT),
-                new SpectrumAnalyzer.QueryDetails(FE_5302_RAY, 0d, 1, INSTRUMENT)
+                new SpectrumAnalyzer.QueryDetails(FE_5302_RAY, 0d, 1, INSTRUMENT),
+                new SpectrumAnalyzer.QueryDetails(FE_5302_RAY, PIXEL_SIZE, 0, INSTRUMENT)
         ]
     }
 

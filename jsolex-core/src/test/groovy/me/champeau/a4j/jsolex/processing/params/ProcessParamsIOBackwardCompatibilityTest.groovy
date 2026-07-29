@@ -163,4 +163,103 @@ class ProcessParamsIOBackwardCompatibilityTest extends Specification {
                 '["PNG", "JPG", "TIF", "FITS"]'
         ]
     }
+
+    /**
+     * The detection mode used to be disguised as a spectral line of wavelength zero.
+     * A configuration saved that way must keep meaning the same thing.
+     */
+    def "migrates the detection mode of a configuration which had none (#label)"() {
+        given:
+        def json = """
+        {
+          "spectrumParams": {
+            "ray": { "label": "${label}", "wavelength": ${wavelength}, "emission": false },
+            "pixelShift": 0.0,
+            "dopplerShift": 3.0,
+            "continuumShift": 12.0,
+            "switchRedBlueChannels": false
+          },
+          "observationDetails": { "instrument": "SOLEX", "pixelSize": 2.4 }
+        }
+        """
+        def tempFile = Files.createTempFile("detection-mode", ".json")
+        tempFile.toFile().deleteOnExit()
+        tempFile.toFile().text = json
+
+        when:
+        def params = ProcessParamsIO.readFrom(tempFile)
+
+        then:
+        params.spectrumParams().detectionMode() == expectedMode
+
+        and: "the other spectrum settings are untouched"
+        params.spectrumParams().dopplerShift() == 3.0d
+        params.spectrumParams().continuumShift() == 12.0d
+
+        and: "a line is always available, even while the detection has not run yet"
+        params.spectrumParams().ray() != null
+        params.spectrumParams().ray().wavelength().angstroms() > 0
+
+        where:
+        label        | wavelength | expectedMode
+        'Autodetect' | 0.0        | LineDetectionMode.FREE_SEARCH
+        'Free search'| 0.0        | LineDetectionMode.FREE_SEARCH
+        'H-alpha'    | 656.281    | LineDetectionMode.MANUAL
+    }
+
+    def "moves configurations which relied on autodetection to the free search"() {
+        given: "a configuration saved when autodetection was the default"
+        def json = '''
+        {
+          "spectrumParams": {
+            "ray": { "label": "Autodetect", "wavelength": 0.0, "emission": false },
+            "pixelShift": 0.0,
+            "dopplerShift": 3.0,
+            "continuumShift": 12.0,
+            "switchRedBlueChannels": false
+          },
+          "observationDetails": { "instrument": "SOLEX", "pixelSize": 2.4 }
+        }
+        '''
+        def tempFile = Files.createTempFile("autodetect-migration", ".json")
+        tempFile.toFile().deleteOnExit()
+        tempFile.toFile().text = json
+
+        when:
+        def params = ProcessParamsIO.readFrom(tempFile)
+
+        then: "the free search supersedes it, and falls back to it when inconclusive"
+        params.spectrumParams().detectionMode() == LineDetectionMode.FREE_SEARCH
+    }
+
+    def "keeps the line a user had selected by hand"() {
+        given:
+        def json = '''
+        {
+          "spectrumParams": {
+            "ray": { "label": "Calcium (K)", "wavelength": 393.366, "emission": false },
+            "pixelShift": 0.0,
+            "dopplerShift": 3.0,
+            "continuumShift": 12.0,
+            "switchRedBlueChannels": false
+          },
+          "observationDetails": { "instrument": "SOLEX", "pixelSize": 2.4 }
+        }
+        '''
+        def tempFile = Files.createTempFile("manual-line", ".json")
+        tempFile.toFile().deleteOnExit()
+        tempFile.toFile().text = json
+
+        when:
+        def params = ProcessParamsIO.readFrom(tempFile)
+
+        then:
+        params.spectrumParams().detectionMode() == LineDetectionMode.MANUAL
+        params.spectrumParams().ray().label() == 'Calcium (K)'
+    }
+
+    def "new configurations look for the line among all deep solar lines"() {
+        expect:
+        ProcessParamsIO.createNewDefaults().spectrumParams().detectionMode() == LineDetectionMode.FREE_SEARCH
+    }
 }

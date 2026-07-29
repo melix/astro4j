@@ -334,4 +334,48 @@ class SpectralRayIOTest extends Specification {
         expect:
         System.getProperty("tmp.home") != null
     }
+
+    def "the mercury lamp line is no longer offered"() {
+        expect: "it is a lamp reference wavelength, not a solar absorption line"
+        SpectralRay.predefined().every { it.label() != "Mercury (e)" }
+    }
+
+    def "schema upgrade drops the mercury line and adds the corona reference line"() {
+        given: "a user file from a version which shipped Mercury but not Fe 5302"
+        def mercury = new SpectralRay("Mercury (e)", null, Wavelen.ofNanos(546.073), false, List.of())
+        def items = new ArrayList<SpectralRay>()
+        items.add(SpectralRay.H_ALPHA)
+        items.add(SpectralRay.CALCIUM_K)
+        items.add(mercury)
+
+        and: "a custom line of the user's own, which must be preserved"
+        def custom = new SpectralRay("My line", null, Wavelen.ofAngstroms(5000), false, List.of())
+        items.add(custom)
+
+        and: "a fake jsolex home with an outdated schema version"
+        System.setProperty("tmp.home", "true")
+        def jsolexDir = me.champeau.a4j.jsolex.processing.util.VersionUtil.getJsolexDir()
+        Files.createDirectories(jsolexDir)
+        def raysFile = jsolexDir.resolve("spectral-rays.json")
+        SpectralRayIO.saveTo(items, raysFile.toFile())
+        def schemasFile = jsolexDir.resolve("schemas.txt")
+        Files.deleteIfExists(schemasFile)
+        Files.writeString(schemasFile, "spectral-ray=2\n")
+
+        when:
+        def loaded = SpectralRayIO.loadDefaults()
+
+        then: "the mercury line is gone, and stays gone since it is no longer predefined"
+        loaded.every { it.label() != "Mercury (e)" }
+
+        and: "the corona reference line is now available"
+        loaded.any { it.label() == SpectralRay.IRON_FE1_5302.label() }
+
+        and: "lines the user added themselves are untouched"
+        loaded.any { it.label() == "My line" }
+
+        cleanup:
+        Files.deleteIfExists(raysFile)
+        Files.deleteIfExists(schemasFile)
+    }
 }

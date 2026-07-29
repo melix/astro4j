@@ -109,7 +109,6 @@ public class SpectralLineRealigner {
     private static boolean isUsable(SpectrumAnalyzer.QueryDetails details) {
         return details != null
                && details.line() != null
-               && !SpectralRay.AUTO.equals(details.line())
                && details.line().wavelength().angstroms() > 0
                && details.pixelSize() > 0
                && details.binning() > 0
