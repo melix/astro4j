@@ -41,7 +41,7 @@ public class RepositoryUpdateService {
 
     /**
      * Checks for repository updates at application startup, in a background thread.
-     * Each repository is refreshed independently, if it wasn't successfully refreshed recently.
+     * Each enabled repository is refreshed independently.
      */
     public void checkAtStartup() {
         new Thread(this::checkForUpdates, "repository-startup-check").start();
@@ -56,10 +56,6 @@ public class RepositoryUpdateService {
             LOGGER.debug(message("repository.update.checking"));
             for (var repository : configuration.getScriptRepositories()) {
                 if (!repository.enabled()) {
-                    continue;
-                }
-                if (!repositoryManager.shouldCheckForUpdates(repository)) {
-                    LOGGER.debug(message("repository.update.skipping"), repository.name());
                     continue;
                 }
                 try {

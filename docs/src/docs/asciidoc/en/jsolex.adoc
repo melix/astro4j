@@ -1221,7 +1221,7 @@ If a script declares parameters in its metadata block, you'll be able to configu
 
 JSol'Ex checks repositories for updates:
 
-- Once per day at startup
+- At every startup
 - When you click the Refresh button in the Script Repositories dialog
 
 Scripts are automatically updated when a newer version is detected based on the version field in the script metadata.

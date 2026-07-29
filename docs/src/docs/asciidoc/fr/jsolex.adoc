@@ -1155,7 +1155,7 @@ Si un script déclare des paramètres dans son bloc de métadonnées, vous pourr
 
 JSol'Ex vérifie les dépôts pour les mises à jour :
 
-- Une fois par jour au démarrage
+- À chaque démarrage
 - Lorsque vous cliquez sur le bouton Actualiser dans la boîte de dialogue des dépôts de scripts
 
 Les scripts sont automatiquement mis à jour lorsqu'une version plus récente est détectée en fonction du champ version dans les métadonnées du script.
