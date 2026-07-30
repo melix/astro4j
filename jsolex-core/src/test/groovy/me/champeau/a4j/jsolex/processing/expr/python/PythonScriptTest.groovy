@@ -1895,6 +1895,60 @@ def single():
 
     // ==================== Helper Methods ====================
 
+    // ==================== Image Arithmetic Operator Tests ====================
+
+    def "can subtract two images with the minus operator"() {
+        given:
+        def a = createImage(4, 4, 100.0f)
+        def b = createImage(4, 4, 30.0f)
+
+        when:
+        def result = executor.executeInline("result = a - b", [a: a, b: b])
+
+        then: "the subtraction keeps negative values, like the ImageMath operator"
+        result instanceof ImageWrapper32
+        result.data()[0][0] == 70.0f
+    }
+
+    def "subtraction of images keeps negative values"() {
+        given:
+        def a = createImage(4, 4, 30.0f)
+        def b = createImage(4, 4, 100.0f)
+
+        when:
+        def result = executor.executeInline("result = a - b", [a: a, b: b])
+
+        then:
+        result.data()[0][0] == -70.0f
+    }
+
+    def "supports the four arithmetic operators between images"() {
+        given:
+        def a = createImage(4, 4, 100.0f)
+        def b = createImage(4, 4, 4.0f)
+
+        expect:
+        executor.executeInline("result = a ${op} b", [a: a, b: b]).data()[0][0] == expected
+
+        where:
+        op  || expected
+        '+' || 104.0f
+        '-' || 96.0f
+        '*' || 400.0f
+        '/' || 25.0f
+    }
+
+    def "supports arithmetic between an image and a scalar, in both orders"() {
+        given:
+        def img = createImage(4, 4, 10.0f)
+
+        expect:
+        executor.executeInline("result = img * 3", [img: img]).data()[0][0] == 30.0f
+        executor.executeInline("result = 3 * img", [img: img]).data()[0][0] == 30.0f
+        executor.executeInline("result = img - 4", [img: img]).data()[0][0] == 6.0f
+        executor.executeInline("result = 40 - img", [img: img]).data()[0][0] == 30.0f
+    }
+
     private static ImageWrapper32 createImage(int width, int height, float value) {
         float[][] data = new float[height][width]
         for (int y = 0; y < height; y++) {

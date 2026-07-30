@@ -175,6 +175,37 @@ public class PythonImageMathBridge implements AutoCloseable {
     }
 
     /**
+     * Applies an ImageMath arithmetic operator to two operands, which may be images, scalars
+     * or lists. This backs the Python arithmetic operators, so that {@code a - b} in Python
+     * means exactly what it means in an ImageMath script.
+     *
+     * @param operator one of {@code +}, {@code -}, {@code *} or {@code /}
+     * @param left     the left operand
+     * @param right    the right operand
+     * @return the result of the operation
+     */
+    @HostAccess.Export
+    public Object arithmetic(String operator, Object left, Object right) {
+        return switch (operator) {
+            case "+" -> evaluator.plus(left, right);
+            case "-" -> evaluator.minus(left, right);
+            case "*" -> evaluator.mul(left, right);
+            case "/" -> evaluator.div(left, right);
+            default -> throw new IllegalArgumentException("Unsupported operator: " + operator);
+        };
+    }
+
+    /**
+     * Returns the image classes the Python arithmetic operators are registered on.
+     *
+     * @return the image classes
+     */
+    @HostAccess.Export
+    public List<Class<?>> imageTypes() {
+        return List.of(ImageWrapper32.class, RGBImage.class, FileBackedImage.class);
+    }
+
+    /**
      * Generic function call - invokes any ImageMath builtin function by name.
      *
      * @param functionName the function name (case-insensitive)

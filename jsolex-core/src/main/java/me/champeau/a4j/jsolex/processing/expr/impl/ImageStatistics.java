@@ -87,6 +87,36 @@ public class ImageStatistics extends AbstractFunctionImpl {
         return applyImageStatistic("IMG_MAX", arguments, DoubleStream::max);
     }
 
+    public Object imgPercentile(Map<String, Object> arguments) {
+        BuiltinFunction.IMG_PERCENTILE.validateArgs(arguments);
+        var p = getAsNumber(arguments, "p").doubleValue();
+        if (p < 0 || p > 100) {
+            throw new IllegalArgumentException("img_percentile p must be between 0 and 100. Found: " + p);
+        }
+        return applyImageStatistic("IMG_PERCENTILE", arguments, stream -> percentile(stream, p));
+    }
+
+    /**
+     * Computes a percentile, interpolating linearly between the two samples the requested rank
+     * falls between. With this convention percentiles 0, 50 and 100 return exactly the same
+     * values as {@code IMG_MIN}, {@code IMG_MEDIAN} and {@code IMG_MAX}.
+     */
+    private static OptionalDouble percentile(DoubleStream doubleStream, double p) {
+        var array = doubleStream.toArray();
+        if (array.length == 0) {
+            return OptionalDouble.empty();
+        }
+        Arrays.sort(array);
+        var rank = p / 100 * (array.length - 1);
+        var lower = (int) Math.floor(rank);
+        var upper = (int) Math.ceil(rank);
+        if (lower == upper) {
+            return OptionalDouble.of(array[lower]);
+        }
+        var weight = rank - lower;
+        return OptionalDouble.of(array[lower] * (1 - weight) + array[upper] * weight);
+    }
+
     public Object noiseSigma(Map<String, Object> arguments) {
         BuiltinFunction.NOISE_SIGMA.validateArgs(arguments);
         var list = flattenToImageList(arguments.get("img"));

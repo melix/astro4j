@@ -13,6 +13,11 @@
 - Réduction de la mémoire nécessaire pour combiner de nombreuses images avec `avg`, `min`, `max`, `weighted_avg` et `weighted_avg2`, ce qui permet de traiter de grandes piles d'images sur des machines disposant de moins de mémoire.
 - Correction des fonctions de script `weighted_avg` et `weighted_avg2` qui échouaient lorsqu'un lot ne contenait qu'un seul fichier.
 - Les étiquettes de l'échelle des protubérances peuvent désormais être pivotées, afin qu'elles ne se superposent pas aux protubérances.
+- Les scripts Python peuvent désormais utiliser `+`, `-`, `*` et `/` directement entre images, comme les scripts ImageMath.
+- Correction d'une soustraction ou d'une division écrite avec le nombre en premier, comme `1000 - image`, qui calculait le résultat dans l'autre sens.
+- Nouvelle fonction de script `img_percentile`, qui mesure un niveau de référence sur une région de l'image sans qu'une poignée de pixels aberrants ne le faussent.
+- Les fonctions `img_min` et `img_max` acceptent désormais un masque, comme les autres fonctions de mesure, afin de les restreindre à une région de l'image.
+- Les erreurs de scripts sont désormais rapportées en détail, au lieu d'afficher parfois un message vide qui rendait la cause introuvable.
 
 ## Nouveautés de la version 5.4.0
 

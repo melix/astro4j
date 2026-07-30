@@ -671,7 +671,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         var combined = new ArrayList<InvalidExpression>();
         var seen = new HashSet<String>();
         for (var error : perImageScriptErrors) {
-            if (seen.add(error.label() + '|' + error.error().getMessage())) {
+            if (seen.add(error.label() + '|' + error.errorDescription())) {
                 combined.add(error);
             }
         }

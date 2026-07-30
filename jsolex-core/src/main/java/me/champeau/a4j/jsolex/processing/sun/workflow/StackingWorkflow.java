@@ -110,7 +110,7 @@ public class StackingWorkflow {
         var errorCount = invalidExpressions.size();
         if (errorCount > 0) {
             String message = invalidExpressions.stream()
-                    .map(invalidExpression -> "Expression '" + invalidExpression.label() + "' (" + invalidExpression.expression() + ") : " + invalidExpression.error().getMessage())
+                    .map(invalidExpression -> "Expression '" + invalidExpression.label() + "' (" + invalidExpression.expression() + ") : " + invalidExpression.errorDescription())
                     .collect(Collectors.joining(System.lineSeparator()));
             broadcaster.broadcast(new NotificationEvent(new Notification(
                     Notification.AlertType.ERROR,
