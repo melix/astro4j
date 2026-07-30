@@ -738,7 +738,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
             if (LoggingSupport.isProcessingCancelled(ex)) {
                 throw new CancellationException("Script execution was interrupted");
             }
-            LOGGER.warn("Parallel execution failed: " + ex.getMessage());
+            LOGGER.warn("Parallel execution failed", ex);
         }
     }
 

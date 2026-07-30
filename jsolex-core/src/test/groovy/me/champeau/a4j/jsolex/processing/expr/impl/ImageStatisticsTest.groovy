@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.expr.impl
 
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32
+import me.champeau.a4j.jsolex.processing.util.RangeMask
 import spock.lang.Specification
 import spock.lang.Subject
 
@@ -385,5 +386,86 @@ class ImageStatisticsTest extends Specification {
     def "noise_sigma of a fully flat image reports that it cannot measure noise"() {
         expect:
         imageStatistics.noiseSigma([img: createImage(20, 20, 1000f)]) == 0d
+    }
+
+    // ==================== IMG_PERCENTILE Tests ====================
+
+    def "imgPercentile agrees with imgMin, imgMedian and imgMax at 0, 50 and 100"() {
+        given:
+        def img = createImageWithPattern(width, height)
+
+        expect:
+        imageStatistics.imgPercentile([list: [img], p: 0d]) == imageStatistics.imgMin([list: [img]])
+        imageStatistics.imgPercentile([list: [img], p: 50d]) == imageStatistics.imgMedian([list: [img]])
+        imageStatistics.imgPercentile([list: [img], p: 100d]) == imageStatistics.imgMax([list: [img]])
+
+        where: "both an odd and an even number of pixels, since the median differs between the two"
+        width | height
+        3     | 3
+        2     | 2
+    }
+
+    def "imgPercentile interpolates between the two surrounding pixels"() {
+        given: "values 0, 1, 2, 3, so ranks 0 to 3"
+        def img = createImageWithPattern(2, 2)
+
+        expect: "rank = p/100 * 3, interpolated linearly"
+        imageStatistics.imgPercentile([list: [img], p: 25d]) == 0.75d
+        Math.abs(imageStatistics.imgPercentile([list: [img], p: 10d]) - 0.3d) < 1e-9
+    }
+
+    def "imgPercentile returns list for multiple images"() {
+        given:
+        def img1 = createImageWithPattern(2, 2)
+        def img2 = createImage(2, 2, 50.0f)
+
+        when:
+        def result = imageStatistics.imgPercentile([list: [img1, img2], p: 100d])
+
+        then:
+        result instanceof List
+        result.size() == 2
+        result[0] == 3.0d
+        result[1] == 50.0d
+    }
+
+    def "imgPercentile only considers the pixels selected by the mask"() {
+        given:
+        def img = createImageWithPattern(4, 1)  // Values: 0, 1, 2, 3
+
+        when: "the two highest pixels are masked out"
+        def result = imageStatistics.imgPercentile([list: [img], p: 100d, mask: new RangeMask(0d, 1d)])
+
+        then:
+        result == 1.0d
+    }
+
+    def "imgMin and imgMax only consider the pixels selected by the mask"() {
+        given:
+        def img = createImageWithPattern(4, 1)  // Values: 0, 1, 2, 3
+        def mask = new RangeMask(1d, 2d)
+
+        expect:
+        imageStatistics.imgMin([list: [img], mask: mask]) == 1.0d
+        imageStatistics.imgMax([list: [img], mask: mask]) == 2.0d
+    }
+
+    def "imgPercentile requires the percentile to compute"() {
+        when:
+        imageStatistics.imgPercentile([list: [createImage(2, 2, 1f)]])
+
+        then:
+        thrown(IllegalArgumentException)
+    }
+
+    def "imgPercentile rejects a percentile outside 0 to 100"() {
+        when:
+        imageStatistics.imgPercentile([list: [createImage(2, 2, 1f)], p: value])
+
+        then:
+        thrown(IllegalArgumentException)
+
+        where:
+        value << [-1d, 101d]
     }
 }

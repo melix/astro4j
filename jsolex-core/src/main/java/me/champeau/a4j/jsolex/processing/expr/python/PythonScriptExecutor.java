@@ -247,6 +247,41 @@ public class PythonScriptExecutor {
                         def __repr__(self):
                             return f"Outputs({self._data})"
 
+                    # Arithmetic operators on images, so that "a - b" in Python means the same
+                    # as in an ImageMath script. Registered on the image classes themselves,
+                    # which arrive in Python as foreign objects with no operators of their own.
+                    class ImageArithmetic:
+                        def __add__(self, other):
+                            return _java_bridge.arithmetic('+', self, other)
+
+                        def __radd__(self, other):
+                            return _java_bridge.arithmetic('+', other, self)
+
+                        def __sub__(self, other):
+                            return _java_bridge.arithmetic('-', self, other)
+
+                        def __rsub__(self, other):
+                            return _java_bridge.arithmetic('-', other, self)
+
+                        def __mul__(self, other):
+                            return _java_bridge.arithmetic('*', self, other)
+
+                        def __rmul__(self, other):
+                            return _java_bridge.arithmetic('*', other, self)
+
+                        def __truediv__(self, other):
+                            return _java_bridge.arithmetic('/', self, other)
+
+                        def __rtruediv__(self, other):
+                            return _java_bridge.arithmetic('/', other, self)
+
+                    try:
+                        import polyglot
+                        for _image_type in _java_bridge.imageTypes():
+                            polyglot.register_interop_type(_image_type, ImageArithmetic, allow_method_overwrites=True)
+                    except Exception as _e:
+                        print(f"Arithmetic operators on images are not available: {_e}")
+
                     # Create jsolex module
                     _jsolex_module = ModuleType('jsolex')
                     _jsolex_module.__dict__['_bridge'] = _java_bridge
@@ -476,7 +511,8 @@ public class PythonScriptExecutor {
                         del sys.modules[name]
                 # Clear user-defined global variables
                 _keep = {'__builtins__', '__name__', '__doc__', '__package__', '__loader__', '__spec__',
-                         'sys', 'os', 'jsolex', '_jsolex_module', '_java_bridge', 'VariableAccessor', 'FunctionAccessor', 'Outputs'}
+                         'sys', 'os', 'jsolex', '_jsolex_module', '_java_bridge', 'VariableAccessor', 'FunctionAccessor', 'Outputs',
+                         'ImageArithmetic', 'polyglot'}
                 _to_delete = [name for name in list(globals().keys()) if name not in _keep and not name.startswith('_')]
                 for name in _to_delete:
                     try:

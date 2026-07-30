@@ -13,6 +13,11 @@
 - Reduced the memory needed to combine many images with `avg`, `min`, `max`, `weighted_avg` and `weighted_avg2`, so that large stacks can be processed on machines with less memory.
 - Fixed the `weighted_avg` and `weighted_avg2` scripting functions failing when a batch consists of a single file.
 - The labels of the prominence scale can now be rotated, so that they don't overlap prominences.
+- Python scripts can now use `+`, `-`, `*` and `/` directly between images, like ImageMath scripts do.
+- Fixed a subtraction or a division written with the number first, like `1000 - image`, computing the result the other way round.
+- New `img_percentile` scripting function, which measures a reference level over a region of an image without a handful of aberrant pixels throwing it off.
+- `img_min` and `img_max` now accept a mask, like the other measurement functions, to restrict them to a region of the image.
+- Script errors are now reported in full detail, instead of sometimes showing an empty message which made the cause impossible to find.
 
 ## What's New in Version 5.4.0
 

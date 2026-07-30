@@ -1,0 +1,22 @@
+name: IMG_PERCENTILE
+category: MATHS
+description:
+  fr: "Retourne le percentile demandé de tous les pixels de chaque image. Généralise IMG_MIN, IMG_MEDIAN et IMG_MAX, qui correspondent aux percentiles 0, 50 et 100. Lorsque le percentile tombe entre deux pixels, la valeur est interpolée linéairement entre les deux. Combiné à un masque, c'est le moyen de mesurer un niveau de référence dans une région donnée sans qu'une poignée de pixels aberrants ne le fausse. Si plusieurs images sont passées en paramètre, retourne une liste de valeurs. Si une seule image est passée, retourne un nombre."
+  en: "Returns the requested percentile of all pixels in each image. Generalizes IMG_MIN, IMG_MEDIAN and IMG_MAX, which correspond to percentiles 0, 50 and 100. When the percentile falls between two pixels, the value is linearly interpolated between them. Combined with a mask, this is the way to measure a reference level over a given region without a handful of aberrant pixels throwing it off. If multiple images are passed, returns a list of values. If a single image is passed, returns a number."
+arguments:
+  - name: list
+    description: Arguments
+    required: true
+  - name: p
+    required: true
+    description:
+      fr: "Percentile à calculer, entre 0 et 100."
+      en: "Percentile to compute, between 0 and 100."
+  - name: mask
+    required: false
+    description:
+      fr: "Masque restreignant les pixels pris en compte (créé avec annulus_mask ou range_mask)."
+      en: "Mask restricting the pixels taken into account (created with annulus_mask or range_mask)."
+examples:
+  - "img_percentile(img(0); 2)"
+  - "img_percentile(list: img(0); p: 2; mask: annulus_mask(1.05; 1.2))"

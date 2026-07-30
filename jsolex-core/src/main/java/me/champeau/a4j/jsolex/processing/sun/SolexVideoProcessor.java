@@ -1366,8 +1366,8 @@ public class SolexVideoProcessor implements Broadcaster {
                         if (!result.invalidExpressions().isEmpty()) {
                             var sb = new StringBuilder();
                             for (InvalidExpression expression : result.invalidExpressions()) {
-                                LOGGER.error("Found invalid expression {} ({}): {}", expression.label(), expression.expression(), expression.error().getMessage());
-                                sb.append("Found invalid expression %s (%s): %s%n".formatted(expression.label(), expression.expression(), expression.error())).append("\n");
+                                LOGGER.error("Found invalid expression {} ({}): {}", expression.label(), expression.expression(), expression.errorDescription(), expression.error());
+                                sb.append("Found invalid expression %s (%s): %s%n".formatted(expression.label(), expression.expression(), expression.errorDescription())).append("\n");
                             }
                             broadcast(new NotificationEvent(new Notification(Notification.AlertType.ERROR, message("invalid.expressions"), message("invalid.expressions"), sb.toString())));
                         }

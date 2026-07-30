@@ -268,7 +268,7 @@ public class ScriptingEntryPoint implements Runnable {
             }
         });
         result.invalidExpressions().forEach(error -> {
-            System.err.println("Error when evaluating '" + error.expression() + "' : " + error.error().getMessage());
+            System.err.println("Error when evaluating '" + error.expression() + "' : " + error.errorDescription());
             error.error().printStackTrace();
             propapateErrorIfNeeded(error.error());
         });

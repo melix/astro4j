@@ -8,6 +8,11 @@ arguments:
   - name: list
     description: Arguments
     required: true
+  - name: mask
+    required: false
+    description:
+      fr: "Masque restreignant les pixels pris en compte (créé avec annulus_mask ou range_mask)."
+      en: "Mask restricting the pixels taken into account (created with annulus_mask or range_mask)."
 examples:
   - "img_min(img(0))"
   - "img_min(img(0); img(1); img(2))"

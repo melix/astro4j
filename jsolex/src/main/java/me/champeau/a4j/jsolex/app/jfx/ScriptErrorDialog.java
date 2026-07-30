@@ -30,8 +30,6 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import me.champeau.a4j.jsolex.processing.expr.InvalidExpression;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -138,11 +136,10 @@ public class ScriptErrorDialog {
         return invalidExpressions.stream()
                 .map(expr -> {
                     var expression = truncateExpression(expr.expression());
-                    var errorMessage = expr.error().getMessage();
                     return String.format("• %s%n  Expression: %s%n  Error: %s",
                             expr.label(),
                             expression,
-                            errorMessage != null ? errorMessage : "Unknown error");
+                            expr.errorDescription());
                 })
                 .collect(Collectors.joining(System.lineSeparator() + System.lineSeparator()));
     }
@@ -174,9 +171,7 @@ public class ScriptErrorDialog {
             sb.append("=".repeat(80)).append(System.lineSeparator());
             sb.append(System.lineSeparator());
 
-            var sw = new StringWriter();
-            expr.error().printStackTrace(new PrintWriter(sw));
-            sb.append(sw.toString());
+            sb.append(expr.stackTrace());
             sb.append(System.lineSeparator());
             sb.append(System.lineSeparator());
         }

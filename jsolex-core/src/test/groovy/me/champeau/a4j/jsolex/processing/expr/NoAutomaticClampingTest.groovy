@@ -119,6 +119,20 @@ class NoAutomaticClampingTest extends Specification {
         result.data()[0][1] == 3000f
     }
 
+    def "a scalar on the left of a non commutative operator keeps its side"() {
+        expect: "1000 - image, not image - 1000"
+        pixel(evaluator.minus(1000f, image(400f))) == 600f
+
+        and: "1000 / image, not image / 1000"
+        pixel(evaluator.div(1000f, image(4f))) == 250f
+    }
+
+    def "a scalar on the right of a non commutative operator keeps its side"() {
+        expect:
+        pixel(evaluator.minus(image(1000f), 400f)) == 600f
+        pixel(evaluator.div(image(1000f), 4f)) == 250f
+    }
+
     private static ImageWrapper32 image(float value) {
         float[][] data = new float[1][1]
         data[0][0] = value

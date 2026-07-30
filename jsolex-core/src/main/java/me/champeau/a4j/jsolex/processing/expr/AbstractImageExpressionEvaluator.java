@@ -419,6 +419,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case IMG_MEDIAN -> imageStatistics.imgMedian(arguments);
             case IMG_MEDIAN2 -> imageStatistics.imgMedian2(arguments);
             case IMG_MIN -> imageStatistics.imgMin(arguments);
+            case IMG_PERCENTILE -> imageStatistics.imgPercentile(arguments);
             case INVERT -> inverse.invert(arguments);
             case LIFT -> stretching.lift(arguments);
             case LINEAR_STRETCH -> stretching.linearStretch(arguments);
@@ -946,7 +947,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             var result = new float[height][width];
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
-                    result[y][x] = (float) operator.applyAsDouble(rightData[y][x], scalar);
+                    result[y][x] = (float) operator.applyAsDouble(scalar, rightData[y][x]);
                 }
             }
             return new ImageWrapper32(width, height, result, rightImage.metadata());

@@ -2408,7 +2408,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
                     }
                 });
                 for (InvalidExpression expression : result.invalidExpressions()) {
-                    LOGGER.error(message("error.invalid.expression"), expression.label(), expression.expression(), expression.error().getMessage());
+                    LOGGER.error(message("error.invalid.expression"), expression.label(), expression.expression(), expression.errorDescription(), expression.error());
                 }
             }
         };
