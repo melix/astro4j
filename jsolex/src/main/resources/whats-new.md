@@ -18,6 +18,7 @@
 - New `img_percentile` scripting function, which measures a reference level over a region of an image without a handful of aberrant pixels throwing it off.
 - `img_min` and `img_max` now accept a mask, like the other measurement functions, to restrict them to a region of the image.
 - Script errors are now reported in full detail, instead of sometimes showing an empty message which made the cause impossible to find.
+- Geometry correction is now done in a single, higher quality pass, which preserves noticeably more fine detail, especially horizontally.
 
 ## What's New in Version 5.4.0
 
