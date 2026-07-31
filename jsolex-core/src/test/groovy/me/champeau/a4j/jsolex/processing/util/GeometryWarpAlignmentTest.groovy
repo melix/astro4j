@@ -46,18 +46,9 @@ class GeometryWarpAlignmentTest extends Specification {
         }
 
         when:
-        def corrected = GeometryUtils.applyGeometryCorrection(new ImageWrapper32(width, height, data, [:]), ellipse, null, null, 0f, !allowDownsampling)
-        def m = Math.tan(-theta)
-        def cos = Math.cos(theta)
-        def sin = Math.sin(theta)
-        def shear = (m * cos * a * a + sin * b * b) / (b * b * cos - a * a * m * sin)
-        def maxDx = height * shear
-        def shift = maxDx < 0 ? maxDx : 0
-        def ratio = Math.abs((a * b * Math.sqrt((a * a * m * m + b * b) / (a * a * sin * sin + b * b * cos * cos)) / (b * b * cos - a * a * m * sin)))
-        // ratio > 1 here, so allowing downsampling shrinks x, otherwise y is stretched
-        def sx = allowDownsampling ? 1 / ratio : 1.0d
-        def sy = allowDownsampling ? 1.0d : ratio
-        def circle = GeometryUtils.computeCorrectedCircle(ellipse, shear, shift, sx, sy)
+        def transform = GeometryTransform.of(ellipse, null, null, height, !allowDownsampling)
+        def corrected = GeometryUtils.applyGeometryCorrection(new ImageWrapper32(width, height, data, [:]), transform, 0f)
+        def circle = GeometryUtils.computeCorrectedCircle(ellipse, transform)
         def semi = circle.semiAxis()
         def measured = centroid(corrected)
         def measuredRadius = Math.sqrt(brightArea(corrected) / Math.PI)
@@ -90,7 +81,8 @@ class GeometryWarpAlignmentTest extends Specification {
         }
 
         when: "downsampling is allowed, which widens the horizontal kernel"
-        def corrected = GeometryUtils.applyGeometryCorrection(new ImageWrapper32(width, height, data, [:]), ellipse, null, null, 0f, false)
+        def transform = GeometryTransform.of(ellipse, null, null, height, false)
+        def corrected = GeometryUtils.applyGeometryCorrection(new ImageWrapper32(width, height, data, [:]), transform, 0f)
 
         then: "the interior is unchanged, no ripple and no level shift"
         def d = corrected.data()
@@ -98,6 +90,20 @@ class GeometryWarpAlignmentTest extends Specification {
         def samples = (100..<(corrected.width() - 100)).collect { d[cy][it] as double }
         samples.min() > 29999
         samples.max() < 30001
+    }
+
+    def "a transform computed for another height is rejected"() {
+        given: "a transform whose shift was computed for a taller image"
+        def ellipse = ellipseOf(200d, 200d, 120d, 80d, Math.toRadians(20))
+        def transform = GeometryTransform.of(ellipse, null, null, 800, true)
+
+        when:
+        GeometryUtils.applyGeometryCorrection(new ImageWrapper32(400, 400, new float[400][400], [:]), transform, 0f)
+
+        then:
+        def ex = thrown(IllegalArgumentException)
+        ex.message.contains("800")
+        ex.message.contains("400")
     }
 
     private static Ellipse ellipseOf(double cx, double cy, double a, double b, double theta) {

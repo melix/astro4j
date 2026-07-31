@@ -31,52 +31,29 @@ public final class GeometryUtils {
     }
 
     /**
-     * Applies geometry correction to an image using the provided ellipse.
-     * This is the core geometry correction algorithm that can be used independently.
+     * Applies a geometry correction to an image. The transformation must have been computed for
+     * the height of that image, since the horizontal shift it carries depends on it.
      *
      * @param image the input image
-     * @param ellipse the ellipse to use for correction
-     * @param forcedTilt optional forced tilt angle (null to use ellipse rotation)
-     * @param xyRatio optional forced X/Y ratio (null to calculate from ellipse)
+     * @param transform the transformation to apply
      * @param blackPoint black point value for the transformation
-     * @param disallowDownsampling whether to disallow downsampling
      * @return the geometry-corrected image
      */
     public static ImageWrapper32 applyGeometryCorrection(ImageWrapper32 image,
-                                                         Ellipse ellipse,
-                                                         Double forcedTilt,
-                                                         Double xyRatio,
-                                                         float blackPoint,
-                                                         boolean disallowDownsampling) {
-        var theta = forcedTilt == null ? ellipse.rotationAngle() : forcedTilt;
-        var m = Math.tan(-theta);
-        var semiAxis = ellipse.semiAxis();
-        var a = semiAxis.a();
-        var b = semiAxis.b();
-        var cos = Math.cos(theta);
-        var sin = Math.sin(theta);
-        var shear = (m * cos * a * a + sin * b * b) / (b * b * cos - a * a * m * sin);
+                                                         GeometryTransform transform,
+                                                         float blackPoint) {
+        var height = transform.height();
+        if (image.height() != height) {
+            throw new IllegalArgumentException("Geometry transform was computed for a height of " + height + " but the image is " + image.height() + " pixels high");
+        }
+        var shear = transform.shear();
+        var shift = transform.shift();
+        var sx = transform.sx();
+        var sy = transform.sy();
 
         var width = image.width();
-        var height = image.height();
         var buffer = image.data();
-
-        var maxDx = height * shear;
-        var shift = maxDx < 0 ? maxDx : 0;
-        var extendedWidth = width + (int) Math.ceil(Math.abs(maxDx));
-
-        double sx;
-        double sy = Math.abs((a * b * Math.sqrt((a * a * m * m + b * b) / (a * a * sin * sin + b * b * cos * cos)) / (b * b * cos - a * a * m * sin)));
-
-        if (xyRatio != null) {
-            sy = xyRatio;
-        }
-        if (sy < 1 || !disallowDownsampling) {
-            sx = 1 / sy;
-            sy = 1.0d;
-        } else {
-            sx = 1.0d;
-        }
+        var extendedWidth = width + (int) Math.ceil(Math.abs(height * shear));
 
         var newWidth = (int) (extendedWidth * sx);
         var newHeight = (int) (height * sy);
@@ -225,13 +202,14 @@ public final class GeometryUtils {
      * the image correction: translation, shear, and scaling.
      *
      * @param ellipse the original ellipse to correct
-     * @param shear the shear value
-     * @param shift pixel shifting to avoid negative number overflow
-     * @param sx    the x correction ratio
-     * @param sy    the y correction ratio
+     * @param transform the transformation applied to the image
      * @return the transformed ellipse
      */
-    public static Ellipse computeCorrectedCircle(Ellipse ellipse, double shear, double shift, double sx, double sy) {
+    public static Ellipse computeCorrectedCircle(Ellipse ellipse, GeometryTransform transform) {
+        var shear = transform.shear();
+        var shift = transform.shift();
+        var sx = transform.sx();
+        var sy = transform.sy();
         var coeffs = ellipse.getCartesianCoefficients();
         var a = coeffs.a();
         var b = coeffs.b();

@@ -29,6 +29,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
 import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
+import me.champeau.a4j.jsolex.processing.util.GeometryTransform;
 import me.champeau.a4j.jsolex.processing.util.GeometryUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -87,101 +88,47 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
     public Result doCall() throws Exception {
         broadcaster.broadcast(operation.update(0, message("correcting.geometry")));
         
-        var theta = forcedTilt == null ? ellipse.rotationAngle() : forcedTilt;
+        var transform = GeometryTransform.of(ellipse, forcedTilt, xyRatio, height, processParams.geometryParams().isDisallowDownsampling());
         var semiAxis = ellipse.semiAxis();
-        var a = semiAxis.a();
-        var b = semiAxis.b();
-        LOGGER.debug("a = {}, b={}, theta={}", a, b, theta);
-        
+        LOGGER.debug("a = {}, b={}, theta={}", semiAxis.a(), semiAxis.b(), transform.theta());
         if (xyRatio == null) {
-            var m = Math.tan(-theta);
-            var cos = Math.cos(theta);
-            var sin = Math.sin(theta);
-            var sy = Math.abs((a * b * Math.sqrt((a * a * m * m + b * b) / (a * a * sin * sin + b * b * cos * cos)) / (b * b * cos - a * a * m * sin)));
-            LOGGER.info(message("detected.xy.ratio"), String.format("%.2f", sy));
+            LOGGER.info(message("detected.xy.ratio"), String.format("%.2f", transform.detectedRatio()));
         }
-        
-        // Apply core geometry correction using the utility method
-        var corrected = GeometryUtils.applyGeometryCorrection(
-            workImage,
-            ellipse,
-            forcedTilt,
-            xyRatio,
-            blackPoint,
-            processParams.geometryParams().isDisallowDownsampling()
-        );
-        
-        // Calculate transformation parameters for metadata correction
-        var m = Math.tan(-theta);
-        var cos = Math.cos(theta);
-        var sin = Math.sin(theta);
-        var shear = (m * cos * a * a + sin * b * b) / (b * b * cos - a * a * m * sin);
-        var maxDx = height * shear;
-        var shift = maxDx < 0 ? maxDx : 0;
-        
-        double sx;
-        double sy = Math.abs((a * b * Math.sqrt((a * a * m * m + b * b) / (a * a * sin * sin + b * b * cos * cos)) / (b * b * cos - a * a * m * sin)));
-        if (xyRatio != null) {
-            sy = xyRatio;
-        }
-        if (sy < 1 || !processParams.geometryParams().isDisallowDownsampling()) {
-            sx = 1 / sy;
-            sy = 1.0d;
-        } else {
-            sx = 1.0d;
-        }
-        double finalSy = sy;
-        
-        var circle = GeometryUtils.computeCorrectedCircle(ellipse, shear, shift, sx, finalSy);
+
+        var corrected = GeometryUtils.applyGeometryCorrection(workImage, transform, blackPoint);
+
+        var circle = GeometryUtils.computeCorrectedCircle(ellipse, transform);
         var metadata = new HashMap<>(getMetadata());
         metadata.put(Ellipse.class, circle);
-        
+
         Redshifts redshifts = (Redshifts) metadata.get(Redshifts.class);
         if (redshifts != null) {
-            // correct redshifts
             redshifts = new Redshifts(redshifts.redshifts().stream()
-                    .map(r -> {
-                        var x1 = r.x1() - shift + r.y1() * shear;
-                        var y1 = r.y1();
-                        var x2 = r.x2() - shift + r.y2() * shear;
-                        var y2 = r.y2();
-                        var maxX = r.maxX() - shift + r.maxY() * shear;
-                        var maxY = r.maxY();
-                        return new RedshiftArea(r.id(), r.pixelShift(), r.relPixelShift(), r.kmPerSec(), r.kmPerSecError(), (int) (x1 * sx), (int) (y1 * finalSy), (int) (x2 * sx), (int) (y2 * finalSy), (int) (maxX * sx), (int) (maxY * finalSy));
-                    })
+                    .map(r -> new RedshiftArea(r.id(), r.pixelShift(), r.relPixelShift(), r.kmPerSec(), r.kmPerSecError(),
+                            (int) transform.transformX(r.x1(), r.y1()), (int) transform.transformY(r.y1()),
+                            (int) transform.transformX(r.x2(), r.y2()), (int) transform.transformY(r.y2()),
+                            (int) transform.transformX(r.maxX(), r.maxY()), (int) transform.transformY(r.maxY())))
                     .toList());
             metadata.put(Redshifts.class, redshifts);
         }
         var activeRegions = (ActiveRegions) metadata.get(ActiveRegions.class);
         if (activeRegions != null) {
-            activeRegions = activeRegions.transform(p -> {
-                var x = p.x() - shift + p.y() * shear;
-                var y = p.y();
-                return new Point2D(x * sx, y * finalSy);
-            });
+            activeRegions = activeRegions.transform(p -> new Point2D(transform.transformX(p.x(), p.y()), transform.transformY(p.y())));
             metadata.put(ActiveRegions.class, activeRegions);
         }
         var flares = (Flares) metadata.get(Flares.class);
         if (flares != null) {
-            flares = flares.transform(p -> {
-                var x = p.x() - shift + p.y() * shear;
-                var y = p.y();
-                return new Point2D(x * sx, y * finalSy);
-            });
+            flares = flares.transform(p -> new Point2D(transform.transformX(p.x(), p.y()), transform.transformY(p.y())));
             metadata.put(Flares.class, flares);
         }
         corrected = new ImageWrapper32(corrected.width(), corrected.height(), corrected.data(), metadata);
-        
-        // Record the geometry correction transformations in ReferenceCoords
-        final var finalShear = shear;
-        final var finalShift = shift;
-        final var finalSx = sx;
-        corrected.transformMetadata(ReferenceCoords.class, coords -> 
-            coords.addShearShiftCombined(finalShear, finalShift)
-                  .addScaleX(finalSx)
-                  .addScaleY(finalSy)
+
+        corrected.transformMetadata(ReferenceCoords.class, coords ->
+            coords.addShearShiftCombined(transform.shear(), transform.shift())
+                  .addScaleX(transform.sx())
+                  .addScaleY(transform.sy())
         );
-        
+
         TransformationHistory.recordTransform(corrected, message("geometry.correction"));
         if (processParams.observationDetails().altAzMode()) {
             var coordinates = processParams.observationDetails().coordinates();
