@@ -26,10 +26,12 @@ import me.champeau.a4j.jsolex.processing.expr.impl.Crop;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.jsolex.processing.util.GeometryTransform;
 import me.champeau.a4j.jsolex.processing.util.GeometryUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.regression.Ellipse;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -145,52 +147,15 @@ public class GeometryPreviewPane extends BorderPane {
                     .map(params -> params.geometryParams().isDisallowDownsampling())
                     .orElse(false);
 
-            var corrected = GeometryUtils.applyGeometryCorrection(
-                    image,
-                    ellipse,
-                    null,
-                    null,
-                    0.0f,
-                    disallowDownsampling
-            );
+            var transform = GeometryTransform.of(ellipse, null, null, image.width(), image.height(), disallowDownsampling);
+            var corrected = GeometryUtils.applyGeometryCorrection(image, transform, 0.0f);
 
-            var correctedEllipse = computeCorrectedEllipse(ellipse, disallowDownsampling);
-
-            corrected.metadata().put(Ellipse.class, correctedEllipse);
-            return performAutocrop(corrected);
+            var metadata = new HashMap<>(corrected.metadata());
+            metadata.put(Ellipse.class, GeometryUtils.computeCorrectedCircle(ellipse, transform));
+            return performAutocrop(new ImageWrapper32(corrected.width(), corrected.height(), corrected.data(), metadata));
         } catch (Exception e) {
             throw new RuntimeException("Failed to apply geometry correction", e);
         }
-    }
-
-    /**
-     * Computes the corrected ellipse after geometry transformation
-     */
-    private Ellipse computeCorrectedEllipse(Ellipse originalEllipse, boolean disallowDownsampling) {
-        var theta = originalEllipse.rotationAngle();
-        var m = Math.tan(-theta);
-        var semiAxis = originalEllipse.semiAxis();
-        var a = semiAxis.a();
-        var b = semiAxis.b();
-        var cos = Math.cos(theta);
-        var sin = Math.sin(theta);
-        var shear = (m * cos * a * a + sin * b * b) / (b * b * cos - a * a * m * sin);
-
-        var height = originalImage.height();
-        var maxDx = height * shear;
-        var shift = maxDx < 0 ? maxDx : 0;
-
-        double sx;
-        double sy = Math.abs((a * b * Math.sqrt((a * a * m * m + b * b) / (a * a * sin * sin + b * b * cos * cos)) / (b * b * cos - a * a * m * sin)));
-
-        if (sy < 1 || !disallowDownsampling) {
-            sx = 1 / sy;
-            sy = 1.0d;
-        } else {
-            sx = 1.0d;
-        }
-
-        return GeometryUtils.computeCorrectedCircle(originalEllipse, shear, shift, sx, sy);
     }
 
     private ImageWrapper32 performAutocrop(ImageWrapper32 image) {

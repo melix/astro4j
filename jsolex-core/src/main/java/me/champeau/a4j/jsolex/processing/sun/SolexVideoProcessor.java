@@ -816,7 +816,7 @@ public class SolexVideoProcessor implements Broadcaster {
                         var state = o.state;
                         var step = o.step;
                         var ief = new ProcessAwareImageEmitterFactory(state, imageNamingStrategy, baseName);
-                        var workflow = new ProcessingWorkflow(generationOperation, this, outputDirectory, imageList, step, processParams, fps, ief, serFile.toPath(), header, batchMode);
+                        var workflow = new ProcessingWorkflow(generationOperation, this, outputDirectory, imageList, step, processParams, ief, serFile.toPath(), header, batchMode);
                         workflow.start();
                         broadcast(generationOperation.update(((double) progress.incrementAndGet()) / imageList.size()));
                     };

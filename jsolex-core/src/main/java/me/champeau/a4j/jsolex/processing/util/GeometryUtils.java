@@ -15,140 +15,243 @@
  */
 package me.champeau.a4j.jsolex.processing.util;
 
-import me.champeau.a4j.math.image.Image;
-import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.math.regression.Ellipse;
 import me.champeau.a4j.math.tuples.DoubleSextuplet;
+
+import java.util.Arrays;
 
 /**
  * Utility class for geometry-related operations on images
  */
 public final class GeometryUtils {
-    private static final ImageMath IMAGE_MATH = ImageMath.newInstance();
+    private static final double KERNEL_RADIUS = 2;
 
     private GeometryUtils() {
         // Utility class
     }
 
     /**
-     * Applies geometry correction to an image using the provided ellipse.
-     * This is the core geometry correction algorithm that can be used independently.
+     * Applies a geometry correction to an image. The transformation must have been computed for
+     * the dimensions of that image, since the horizontal shift it carries depends on the height
+     * and the output dimensions derive from both.
      *
      * @param image the input image
-     * @param ellipse the ellipse to use for correction
-     * @param forcedTilt optional forced tilt angle (null to use ellipse rotation)
-     * @param xyRatio optional forced X/Y ratio (null to calculate from ellipse)
+     * @param transform the transformation to apply
      * @param blackPoint black point value for the transformation
-     * @param disallowDownsampling whether to disallow downsampling
      * @return the geometry-corrected image
      */
     public static ImageWrapper32 applyGeometryCorrection(ImageWrapper32 image,
-                                                         Ellipse ellipse,
-                                                         Double forcedTilt,
-                                                         Double xyRatio,
-                                                         float blackPoint,
-                                                         boolean disallowDownsampling) {
-        var theta = forcedTilt == null ? ellipse.rotationAngle() : forcedTilt;
-        var m = Math.tan(-theta);
-        var semiAxis = ellipse.semiAxis();
-        var a = semiAxis.a();
-        var b = semiAxis.b();
-        var cos = Math.cos(theta);
-        var sin = Math.sin(theta);
-        var shear = (m * cos * a * a + sin * b * b) / (b * b * cos - a * a * m * sin);
+                                                         GeometryTransform transform,
+                                                         float blackPoint) {
+        var width = transform.width();
+        var height = transform.height();
+        if (image.width() != width || image.height() != height) {
+            throw new IllegalArgumentException("Geometry transform was computed for an image of " + width + "x" + height + " but the image is " + image.width() + "x" + image.height());
+        }
+        var shear = transform.shear();
+        var shift = transform.shift();
+        var sx = transform.sx();
+        var sy = transform.sy();
+        var offsetX = transform.offsetX();
+        var offsetY = transform.offsetY();
 
-        var width = image.width();
-        var height = image.height();
         var buffer = image.data();
+        var extendedWidth = transform.extendedWidth();
+        var newWidth = transform.outputWidth();
+        var newHeight = transform.outputHeight();
+        var newBuffer = new float[newHeight][newWidth];
+        // on a downscale one output pixel covers several input ones: widen the kernel
+        // to the source footprint so the redundant samples are averaged instead of dropped
+        var xSupport = sx < 1 ? 1 / sx : 1;
+        var ySupport = sy < 1 ? 1 / sy : 1;
 
-        var maxDx = height * shear;
-        var shift = maxDx < 0 ? maxDx : 0;
-        var extendedWidth = width + (int) Math.ceil(Math.abs(maxDx));
-        var newBuffer = new float[height][extendedWidth];
-
-        for (int y = 0; y < height; y++) {
-            var dx = y * shear;
-            for (int x = 0; x < width; x++) {
-                var nx = x - shift + dx;
-                var x1 = (int) Math.floor(nx);
-                var x2 = x1 + 1;
-                var factor = nx - x1;
-                if (x1 >= 0 && x2 < extendedWidth) {
-                    newBuffer[y][x1] += (1 - factor) * buffer[y][x];
-                    newBuffer[y][x2] += factor * buffer[y][x];
-                }
-                // reduce transform artifacts by filling with same border color
-                if (x == 0) {
-                    for (int k = 0; k < nx; k++) {
-                        newBuffer[y][k] = buffer[y][x];
-                    }
-                } else if (x == width - 1) {
-                    for (int k = (int) nx; k < extendedWidth; k++) {
-                        newBuffer[y][k] = buffer[y][x];
-                    }
-                }
+        for (int y = 0; y < newHeight; y++) {
+            var v = (y - offsetY) / sy;
+            var targetRow = newBuffer[y];
+            if (v < 0 || v > height - 1) {
+                Arrays.fill(targetRow, blackPoint);
+                continue;
+            }
+            var sheared = shift - v * shear;
+            for (int x = 0; x < newWidth; x++) {
+                var u = (x - offsetX) / sx;
+                targetRow[x] = u < 0 || u > extendedWidth - 1
+                        ? blackPoint
+                        : sampleCatmullRom(buffer, u + sheared, v, width, height, xSupport, ySupport);
             }
         }
 
-        double sx;
-        double sy = Math.abs((a * b * Math.sqrt((a * a * m * m + b * b) / (a * a * sin * sin + b * b * cos * cos)) / (b * b * cos - a * a * m * sin)));
-
-        if (xyRatio != null) {
-            sy = xyRatio;
-        }
-        if (sy < 1 || !disallowDownsampling) {
-            sx = 1 / sy;
-            sy = 1.0d;
-        } else {
-            sx = 1.0d;
-        }
-
-        var rescaled = IMAGE_MATH.rotateAndScale(new Image(extendedWidth, height, newBuffer), 0, blackPoint, sx, sy);
-
-        return ImageWrapper32.fromImage(rescaled, image.metadata());
+        return new ImageWrapper32(newWidth, newHeight, newBuffer, image.metadata());
     }
 
     /**
-     * Computes the corrected ellipse using direct mathematical transformation
-     * instead of sampling and regression. Applies the same transformations as
-     * the image correction: translation, shear, and scaling.
+     * Samples an image at fractional coordinates using a separable Catmull-Rom
+     * cubic kernel. Coordinates outside the image are handled by edge replication.
+     * A support greater than one widens the kernel along that axis, which is the
+     * anti-aliasing footprint required when the axis is being downscaled.
+     *
+     * @param data the source pixels
+     * @param x the fractional source column
+     * @param y the fractional source row
+     * @param width the image width
+     * @param height the image height
+     * @param xSupport the horizontal kernel widening factor
+     * @param ySupport the vertical kernel widening factor
+     * @return the interpolated value
+     */
+    private static float sampleCatmullRom(float[][] data, double x, double y, int width, int height, double xSupport, double ySupport) {
+        double value;
+        if (ySupport == 1) {
+            var j = (int) Math.floor(y);
+            var t = y - j;
+            if (t == 0) {
+                value = sampleRow(data[clamp(j, height)], x, width, xSupport);
+            } else {
+                var weights = CubicWeights.of(t);
+                value = weights.apply(
+                        sampleRow(data[clamp(j - 1, height)], x, width, xSupport),
+                        sampleRow(data[clamp(j, height)], x, width, xSupport),
+                        sampleRow(data[clamp(j + 1, height)], x, width, xSupport),
+                        sampleRow(data[clamp(j + 2, height)], x, width, xSupport)
+                );
+            }
+        } else {
+            double sum = 0;
+            double weightSum = 0;
+            var from = (int) Math.ceil(y - KERNEL_RADIUS * ySupport);
+            var to = (int) Math.floor(y + KERNEL_RADIUS * ySupport);
+            for (int j = from; j <= to; j++) {
+                var w = catmullRom((j - y) / ySupport);
+                if (w != 0) {
+                    sum += w * sampleRow(data[clamp(j, height)], x, width, xSupport);
+                    weightSum += w;
+                }
+            }
+            value = weightSum == 0 ? 0 : sum / weightSum;
+        }
+        if (value < 0) {
+            return 0;
+        }
+        if (value > Constants.MAX_PIXEL_VALUE) {
+            return Constants.MAX_PIXEL_VALUE;
+        }
+        return (float) value;
+    }
+
+    private static double sampleRow(float[] row, double x, int width, double support) {
+        if (support == 1) {
+            var i = (int) Math.floor(x);
+            var weights = CubicWeights.of(x - i);
+            return weights.apply(
+                    row[clamp(i - 1, width)],
+                    row[clamp(i, width)],
+                    row[clamp(i + 1, width)],
+                    row[clamp(i + 2, width)]
+            );
+        }
+        double sum = 0;
+        double weightSum = 0;
+        var from = (int) Math.ceil(x - KERNEL_RADIUS * support);
+        var to = (int) Math.floor(x + KERNEL_RADIUS * support);
+        for (int i = from; i <= to; i++) {
+            var w = catmullRom((i - x) / support);
+            if (w != 0) {
+                sum += w * row[clamp(i, width)];
+                weightSum += w;
+            }
+        }
+        return weightSum == 0 ? 0 : sum / weightSum;
+    }
+
+    private static double catmullRom(double t) {
+        var abs = Math.abs(t);
+        if (abs < 1) {
+            return (1.5 * abs - 2.5) * abs * abs + 1;
+        }
+        if (abs < KERNEL_RADIUS) {
+            return ((-0.5 * abs + 2.5) * abs - 4) * abs + 2;
+        }
+        return 0;
+    }
+
+    private static int clamp(int index, int length) {
+        if (index < 0) {
+            return 0;
+        }
+        if (index >= length) {
+            return length - 1;
+        }
+        return index;
+    }
+
+    private record CubicWeights(double wm1, double w0, double w1, double w2) {
+        static CubicWeights of(double t) {
+            return new CubicWeights(catmullRom(t + 1), catmullRom(t), catmullRom(1 - t), catmullRom(2 - t));
+        }
+
+        double apply(double vm1, double v0, double v1, double v2) {
+            return wm1 * vm1 + w0 * v0 + w1 * v1 + w2 * v2;
+        }
+    }
+
+    /**
+     * Computes the corrected ellipse analytically instead of by sampling and regression, by
+     * applying to the conic the very transformation the warp applies to the pixels.
      *
      * @param ellipse the original ellipse to correct
-     * @param shear the shear value
-     * @param shift pixel shifting to avoid negative number overflow
-     * @param sx    the x correction ratio
-     * @param sy    the y correction ratio
+     * @param transform the transformation applied to the image
      * @return the transformed ellipse
      */
-    public static Ellipse computeCorrectedCircle(Ellipse ellipse, double shear, double shift, double sx, double sy) {
+    public static Ellipse computeCorrectedCircle(Ellipse ellipse, GeometryTransform transform) {
         var coeffs = ellipse.getCartesianCoefficients();
-        var a = coeffs.a();
-        var b = coeffs.b();
-        var c = coeffs.c();
-        var d = coeffs.d();
-        var e = coeffs.e();
-        var f = coeffs.f();
+        var conic = new double[][]{
+                {coeffs.a(), coeffs.b() / 2, coeffs.d() / 2},
+                {coeffs.b() / 2, coeffs.c(), coeffs.e() / 2},
+                {coeffs.d() / 2, coeffs.e() / 2, coeffs.f()}
+        };
+        var shear = transform.shear();
+        var sx = transform.sx();
+        var sy = transform.sy();
+        var tx = transform.offsetX() - sx * transform.shift();
+        var ty = transform.offsetY();
+        // source coordinates as a function of the corrected ones, in homogeneous form
+        var inverse = new double[][]{
+                {1 / sx, -shear / sy, shear * ty / sy - tx / sx},
+                {0, 1 / sy, -ty / sy},
+                {0, 0, 1}
+        };
+        var transformed = multiply(transpose(inverse), multiply(conic, inverse));
+        return Ellipse.ofCartesian(new DoubleSextuplet(
+                transformed[0][0],
+                2 * transformed[0][1],
+                transformed[1][1],
+                2 * transformed[0][2],
+                2 * transformed[1][2],
+                transformed[2][2]
+        ));
+    }
 
-        var u = -shift;
-        var v = 0.0;
-        var d1 = d - 2 * a * u - b * v;
-        var e1 = e - 2 * c * v - b * u;
-        var f1 = a * u * u + b * u * v + c * v * v - d * u - e * v + f;
+    private static double[][] multiply(double[][] left, double[][] right) {
+        var result = new double[3][3];
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                double sum = 0;
+                for (int k = 0; k < 3; k++) {
+                    sum += left[i][k] * right[k][j];
+                }
+                result[i][j] = sum;
+            }
+        }
+        return result;
+    }
 
-        var b2 = b - 2 * a * shear;
-        var c2 = c + a * shear * shear - b * shear;
-        var e2 = e1 - d1 * shear;
-
-        var sx2 = sx * sx;
-        var sy2 = sy * sy;
-        var sxsy = sx * sy;
-        var a3 = a * sy2;
-        var b3 = b2 * sxsy;
-        var c3 = c2 * sx2;
-        var d3 = d1 * sy2 * sx;
-        var e3 = e2 * sx2 * sy;
-        var f3 = f1 * sx2 * sy2;
-
-        return Ellipse.ofCartesian(new DoubleSextuplet(a3, b3, c3, d3, e3, f3));
+    private static double[][] transpose(double[][] matrix) {
+        var result = new double[3][3];
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                result[i][j] = matrix[j][i];
+            }
+        }
+        return result;
     }
 }

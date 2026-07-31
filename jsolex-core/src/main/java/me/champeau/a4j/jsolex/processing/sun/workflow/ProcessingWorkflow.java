@@ -95,7 +95,6 @@ public class ProcessingWorkflow {
     private final Header header;
     private final ProcessParams processParams;
     private final WorkflowState state;
-    private final Double fps;
     private final ImageEmitter imagesEmitter;
     private final ProgressOperation rootOperation;
     private final Broadcaster broadcaster;
@@ -110,7 +109,6 @@ public class ProcessingWorkflow {
             List<WorkflowState> states,
             int currentStep,
             ProcessParams processParams,
-            Double fps,
             ImageEmitterFactory imageEmitterFactory,
             Path serFile,
             Header header,
@@ -120,7 +118,6 @@ public class ProcessingWorkflow {
         this.header = header;
         this.state = states.get(currentStep);
         this.processParams = processParams;
-        this.fps = fps;
         this.imagesEmitter = imageEmitterFactory.newEmitter(broadcaster, outputDirectory);
         this.currentStep = currentStep;
         this.serFile = serFile;
@@ -216,7 +213,7 @@ public class ProcessingWorkflow {
         if (isMainShift()) {
             broadcaster.broadcast(GeometryDetectedEvent.of(tiltDegrees, detectedXYRatio));
         }
-        var g = new GeometryCorrector(broadcaster, newOperation(message("geometry.correction")), imageSupplier(WorkflowResults.ROTATED), ellipse, forcedTilt, fps, ratio, blackPoint, processParams, imagesEmitter, state, header).get();
+        var g = new GeometryCorrector(broadcaster, newOperation(message("geometry.correction")), imageSupplier(WorkflowResults.ROTATED), ellipse, forcedTilt, ratio, blackPoint, processParams, imagesEmitter, state, header).get();
         var kind = GeneratedImageKind.GEOMETRY_CORRECTED;
         var geometryFixed = (ImageWrapper32) g.corrected().unwrapToMemory();
         if (state.pixelShift() == processParams.spectrumParams().continuumShift()) {

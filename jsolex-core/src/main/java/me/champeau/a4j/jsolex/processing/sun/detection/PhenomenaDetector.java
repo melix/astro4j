@@ -160,7 +160,7 @@ public class PhenomenaDetector {
         }
         if (findBorders) {
             new SpectrumFrameAnalyzer(width, height, header.isJSolexTrimmedSer(), null)
-                    .findBorders(original)
+                    .findSubPixelBorders(original)
                     .ifPresent(borders -> {
                         borderDetection.left()[frameId] = borders.a();
                         borderDetection.right()[frameId] = borders.b();
@@ -1179,12 +1179,12 @@ public class PhenomenaDetector {
     }
 
     public record BorderDetection(
-            int[] left,
-            int[] right
+            double[] left,
+            double[] right
     ) {
         private static BorderDetection create(int height) {
-            var left = new int[height];
-            var right = new int[height];
+            var left = new double[height];
+            var right = new double[height];
             Arrays.fill(left, -1);
             Arrays.fill(right, -1);
             return new BorderDetection(left, right);
