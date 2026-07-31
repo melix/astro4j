@@ -57,14 +57,16 @@ public class Cropper {
         }
         LOGGER.info(message("diameter"), String.format("%.2f", diameter));
         var half = square / 2;
+        var originX = cropOrigin(cx, half);
+        var originY = cropOrigin(cy, half);
         var cropped = new float[square][square];
         for (float[] floats : cropped) {
             Arrays.fill(floats, blackPoint);
         }
         for (int yy = 0; yy < square; yy++) {
             for (int xx = 0; xx < square; xx++) {
-                int sourceX = (int) cx - half + xx;
-                int sourceY = (int) cy - half + yy;
+                int sourceX = originX + xx;
+                int sourceY = originY + yy;
                 if (sourceX >= 0 && sourceY >= 0 && sourceX < width && sourceY < height) {
                     cropped[yy][xx] = source[sourceY][sourceX];
                 }
@@ -72,8 +74,12 @@ public class Cropper {
         }
         return new CropResult(
                 new Image(square, square, cropped),
-                new DoublePair(cx - half, cy - half)
+                new DoublePair(originX, originY)
         );
+    }
+
+    private static int cropOrigin(double center, int halfSize) {
+        return (int) Math.round(center) - halfSize;
     }
 
     public static CropResult cropToRectangle(Image image, Ellipse sunDisk, float blackPoint, int width, int height) {
@@ -83,16 +89,16 @@ public class Cropper {
         var center = sunDisk.center();
         var cx = center.a();
         var cy = center.b();
-        var offsetX = width / 2;
-        var offsetY = height / 2;
+        var originX = cropOrigin(cx, width / 2);
+        var originY = cropOrigin(cy, height / 2);
         var cropped = new float[height][width];
         for (float[] line : cropped) {
             Arrays.fill(line, blackPoint);
         }
         for (int yy = 0; yy < height; yy++) {
             for (int xx = 0; xx < width; xx++) {
-                int sourceX = (int) cx - offsetX + xx;
-                int sourceY = (int) cy - offsetY + yy;
+                int sourceX = originX + xx;
+                int sourceY = originY + yy;
                 if (sourceX >= 0 && sourceY >= 0 && sourceX < sourceWidth && sourceY < sourceHeight) {
                     cropped[yy][xx] = source[sourceY][sourceX];
                 }
@@ -101,7 +107,7 @@ public class Cropper {
 
         return new CropResult(
                 new Image(width, height, cropped),
-                new DoublePair(cx - offsetX, cy - offsetY)
+                new DoublePair(originX, originY)
         );
     }
 

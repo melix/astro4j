@@ -324,21 +324,35 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
     }
 
     private void scan(Collection<Point2D> samples, double minLimit, int width, int height, float[][] magnitudes, boolean scanInYDirection, int minX, int maxX, int minY, int maxY) {
+        var first = scanInYDirection ? minX : minY;
+        var last = scanInYDirection ? maxX : maxY;
         for (int i = scanInYDirection ? minY : minX; i < (scanInYDirection ? maxY : maxX); i++) {
-            int min = -1;
-            int max = -1;
-            for (int j = scanInYDirection ? minX : minY; j < (scanInYDirection ? maxX : maxY); j++) {
+            double min = -1;
+            double max = -1;
+            for (int j = first; j < last; j++) {
                 int x = scanInYDirection ? j : i;
                 int y = scanInYDirection ? i : j;
                 var mag = magnitudes[y][x];
-                if (min == -1 && mag > minLimit) {
-                    min = scanInYDirection ? x : y;
+                if (min < 0 && mag > minLimit) {
+                    var index = scanInYDirection ? x : y;
+                    if (j > first) {
+                        var previous = scanInYDirection ? magnitudes[y][x - 1] : magnitudes[y - 1][x];
+                        min = interpolateCrossing(index - 1, previous, index, mag, minLimit);
+                    } else {
+                        min = index;
+                    }
                 }
                 mag = scanInYDirection ? magnitudes[y][(width - x - 1)] : magnitudes[(height - y - 1)][x];
-                if (max == -1 && mag > minLimit) {
-                    max = scanInYDirection ? (width - x - 1) : (height - y - 1);
+                if (max < 0 && mag > minLimit) {
+                    var index = scanInYDirection ? (width - x - 1) : (height - y - 1);
+                    if (j > first) {
+                        var previous = scanInYDirection ? magnitudes[y][index + 1] : magnitudes[index + 1][x];
+                        max = interpolateCrossing(index + 1, previous, index, mag, minLimit);
+                    } else {
+                        max = index;
+                    }
                 }
-                if (min != -1 && max != -1) {
+                if (min >= 0 && max >= 0) {
                     break;
                 }
             }
@@ -351,6 +365,18 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
                 samples.add(candidate);
             }
         }
+    }
+
+    /**
+     * Interpolates the position at which the magnitude crosses the given limit,
+     * between the last sample below the limit and the first sample above it.
+     */
+    private static double interpolateCrossing(int previousIndex, float previousMagnitude, int index, float magnitude, double minLimit) {
+        var delta = magnitude - previousMagnitude;
+        if (delta <= 0) {
+            return index;
+        }
+        return previousIndex + (minLimit - previousMagnitude) * (index - previousIndex) / delta;
     }
 
     private boolean notEnoughSamples(List<Point2D> filteredSamples) {

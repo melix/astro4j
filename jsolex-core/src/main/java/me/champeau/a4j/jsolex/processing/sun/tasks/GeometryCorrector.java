@@ -53,7 +53,6 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
     private final Ellipse ellipse;
     private final Double forcedTilt;
     private final Double xyRatio;
-    private final Double frameRate;
     private final float blackPoint;
     private final ProcessParams processParams;
     private final ImageEmitter imageEmitter;
@@ -65,7 +64,6 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
                              Supplier<ImageWrapper32> image,
                              Ellipse ellipse,
                              Double forcedTilt,
-                             Double frameRate,
                              Double xyRatio,
                              float blackPoint,
                              ProcessParams processParams,
@@ -75,7 +73,6 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
         super(broadcaster, operation, image);
         this.ellipse = ellipse;
         this.forcedTilt = forcedTilt;
-        this.frameRate = frameRate;
         this.xyRatio = xyRatio;
         this.blackPoint = blackPoint;
         this.processParams = processParams;
@@ -88,7 +85,7 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
     public Result doCall() throws Exception {
         broadcaster.broadcast(operation.update(0, message("correcting.geometry")));
         
-        var transform = GeometryTransform.of(ellipse, forcedTilt, xyRatio, height, processParams.geometryParams().isDisallowDownsampling());
+        var transform = GeometryTransform.of(ellipse, forcedTilt, xyRatio, width, height, processParams.geometryParams().isDisallowDownsampling());
         var semiAxis = ellipse.semiAxis();
         LOGGER.debug("a = {}, b={}, theta={}", semiAxis.a(), semiAxis.b(), transform.theta());
         if (xyRatio == null) {
@@ -105,9 +102,9 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
         if (redshifts != null) {
             redshifts = new Redshifts(redshifts.redshifts().stream()
                     .map(r -> new RedshiftArea(r.id(), r.pixelShift(), r.relPixelShift(), r.kmPerSec(), r.kmPerSecError(),
-                            (int) transform.transformX(r.x1(), r.y1()), (int) transform.transformY(r.y1()),
-                            (int) transform.transformX(r.x2(), r.y2()), (int) transform.transformY(r.y2()),
-                            (int) transform.transformX(r.maxX(), r.maxY()), (int) transform.transformY(r.maxY())))
+                            round(transform.transformX(r.x1(), r.y1())), round(transform.transformY(r.y1())),
+                            round(transform.transformX(r.x2(), r.y2())), round(transform.transformY(r.y2())),
+                            round(transform.transformX(r.maxX(), r.maxY())), round(transform.transformY(r.maxY()))))
                     .toList());
             metadata.put(Redshifts.class, redshifts);
         }
@@ -127,6 +124,7 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
             coords.addShearShiftCombined(transform.shear(), transform.shift())
                   .addScaleX(transform.sx())
                   .addScaleY(transform.sy())
+                  .addOffset2D(-transform.offsetX(), -transform.offsetY())
         );
 
         TransformationHistory.recordTransform(corrected, message("geometry.correction"));
@@ -177,6 +175,10 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
         broadcaster.broadcast(operation.complete());
         var wrapped = FileBackedImage.wrap(corrected);
         return new Result(wrapped, wrapped, ellipse, corrected.findMetadata(Ellipse.class).orElse(circle), blackPoint);
+    }
+
+    private static int round(double value) {
+        return Math.toIntExact(Math.round(value));
     }
 
     public record Result(

@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.util
 
+import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords
 import me.champeau.a4j.math.Point2D
 import me.champeau.a4j.math.regression.Ellipse
 import me.champeau.a4j.math.regression.EllipseRegression
@@ -27,7 +28,7 @@ class GeometryTransformTest extends Specification {
         def ellipse = ellipseOf(120d, 80d, Math.toRadians(10))
 
         when:
-        def transform = GeometryTransform.of(ellipse, null, null, 400, true)
+        def transform = GeometryTransform.of(ellipse, null, null, 400, 400, true)
 
         then: "the detected ratio is above one, so the image is stretched instead of shrunk"
         transform.detectedRatio() > 1
@@ -40,7 +41,7 @@ class GeometryTransformTest extends Specification {
         def ellipse = ellipseOf(120d, 80d, Math.toRadians(10))
 
         when:
-        def transform = GeometryTransform.of(ellipse, null, null, 400, false)
+        def transform = GeometryTransform.of(ellipse, null, null, 400, 400, false)
 
         then:
         transform.sy() == 1.0d
@@ -52,7 +53,7 @@ class GeometryTransformTest extends Specification {
         def ellipse = ellipseOf(120d, 80d, Math.toRadians(10))
 
         when:
-        def transform = GeometryTransform.of(ellipse, null, 2.0d, 400, true)
+        def transform = GeometryTransform.of(ellipse, null, 2.0d, 400, 400, true)
 
         then:
         transform.sy() == 2.0d
@@ -65,10 +66,10 @@ class GeometryTransformTest extends Specification {
         def ellipse = ellipseOf(120d, 80d, Math.toRadians(10))
 
         expect:
-        GeometryTransform.of(ellipse, 0d, null, 400, true).theta() == 0d
-        GeometryTransform.of(ellipse, 0d, null, 400, true).shear() == 0d
-        GeometryTransform.of(ellipse, null, null, 400, true).theta() == ellipse.rotationAngle()
-        GeometryTransform.of(ellipse, null, null, 400, true).shear() != 0d
+        GeometryTransform.of(ellipse, 0d, null, 400, 400, true).theta() == 0d
+        GeometryTransform.of(ellipse, 0d, null, 400, 400, true).shear() == 0d
+        GeometryTransform.of(ellipse, null, null, 400, 400, true).theta() == ellipse.rotationAngle()
+        GeometryTransform.of(ellipse, null, null, 400, 400, true).shear() != 0d
     }
 
     def "the shift keeps the sheared image within positive coordinates"() {
@@ -77,14 +78,53 @@ class GeometryTransformTest extends Specification {
         def ellipse = ellipseOf(120d, 80d, Math.toRadians(tiltDegrees))
 
         when:
-        def transform = GeometryTransform.of(ellipse, null, null, height, true)
+        def transform = GeometryTransform.of(ellipse, null, null, 400, height, true)
 
-        then: "the leftmost corner of the sheared image lands at abscissa zero or above"
+        then: "the leftmost corner of the sheared image lands at abscissa zero or above, up to the centring offset"
         def corners = [transform.transformX(0, 0), transform.transformX(0, height)]
-        corners.min() > -1e-9
+        corners.min() - transform.offsetX() > -1e-9
 
         where:
         tiltDegrees << [-20, -5, 5, 20]
+    }
+
+    def "owns the dimensions of the corrected image (downsampling allowed: #allowDownsampling)"() {
+        given:
+        def ellipse = ellipseOf(120d, 80d, Math.toRadians(15))
+
+        when:
+        def transform = GeometryTransform.of(ellipse, null, null, 400, 400, !allowDownsampling)
+        def corrected = GeometryUtils.applyGeometryCorrection(new ImageWrapper32(400, 400, new float[400][400], [:]), transform, 0f)
+
+        then:
+        corrected.width() == transform.outputWidth()
+        corrected.height() == transform.outputHeight()
+
+        where:
+        allowDownsampling << [true, false]
+    }
+
+    def "the reference coordinates recorded for the correction invert it exactly (downsampling allowed: #allowDownsampling)"() {
+        given:
+        def ellipse = ellipseOf(120d, 80d, Math.toRadians(15))
+        def transform = GeometryTransform.of(ellipse, null, null, 400, 400, !allowDownsampling)
+        def coords = new ReferenceCoords([])
+                .addShearShiftCombined(transform.shear(), transform.shift())
+                .addScaleX(transform.sx())
+                .addScaleY(transform.sy())
+                .addOffset2D(-transform.offsetX(), -transform.offsetY())
+
+        when:
+        def source = new Point2D(x, y)
+        def corrected = new Point2D(transform.transformX(x, y), transform.transformY(y))
+        def back = coords.determineOriginalCoordinates(corrected, ReferenceCoords.NO_LIMIT)
+
+        then:
+        Math.abs(back.x() - source.x()) < 1e-6
+        Math.abs(back.y() - source.y()) < 1e-6
+
+        where:
+        [x, y, allowDownsampling] << [[0d, 137d, 399d], [0d, 42d, 399d], [true, false]].combinations()
     }
 
     private static Ellipse ellipseOf(double a, double b, double theta) {

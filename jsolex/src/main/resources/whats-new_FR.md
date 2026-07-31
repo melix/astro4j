@@ -19,6 +19,7 @@
 - Les fonctions `img_min` et `img_max` acceptent désormais un masque, comme les autres fonctions de mesure, afin de les restreindre à une région de l'image.
 - Les erreurs de scripts sont désormais rapportées en détail, au lieu d'afficher parfois un message vide qui rendait la cause introuvable.
 - La correction géométrique est désormais réalisée en une seule passe de meilleure qualité, qui préserve nettement plus de détails fins, en particulier horizontalement.
+- Le limbe solaire et la raie spectrale sont désormais localisés avec une précision inférieure au pixel.
 
 ## Nouveautés de la version 5.4.0
 

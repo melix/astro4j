@@ -32,7 +32,8 @@ public final class GeometryUtils {
 
     /**
      * Applies a geometry correction to an image. The transformation must have been computed for
-     * the height of that image, since the horizontal shift it carries depends on it.
+     * the dimensions of that image, since the horizontal shift it carries depends on the height
+     * and the output dimensions derive from both.
      *
      * @param image the input image
      * @param transform the transformation to apply
@@ -42,25 +43,22 @@ public final class GeometryUtils {
     public static ImageWrapper32 applyGeometryCorrection(ImageWrapper32 image,
                                                          GeometryTransform transform,
                                                          float blackPoint) {
+        var width = transform.width();
         var height = transform.height();
-        if (image.height() != height) {
-            throw new IllegalArgumentException("Geometry transform was computed for a height of " + height + " but the image is " + image.height() + " pixels high");
+        if (image.width() != width || image.height() != height) {
+            throw new IllegalArgumentException("Geometry transform was computed for an image of " + width + "x" + height + " but the image is " + image.width() + "x" + image.height());
         }
         var shear = transform.shear();
         var shift = transform.shift();
         var sx = transform.sx();
         var sy = transform.sy();
+        var offsetX = transform.offsetX();
+        var offsetY = transform.offsetY();
 
-        var width = image.width();
         var buffer = image.data();
-        var extendedWidth = width + (int) Math.ceil(Math.abs(height * shear));
-
-        var newWidth = (int) (extendedWidth * sx);
-        var newHeight = (int) (height * sy);
-        var centerX = extendedWidth / 2;
-        var centerY = height / 2;
-        var newCenterX = newWidth / 2;
-        var newCenterY = newHeight / 2;
+        var extendedWidth = transform.extendedWidth();
+        var newWidth = transform.outputWidth();
+        var newHeight = transform.outputHeight();
         var newBuffer = new float[newHeight][newWidth];
         // on a downscale one output pixel covers several input ones: widen the kernel
         // to the source footprint so the redundant samples are averaged instead of dropped
@@ -68,7 +66,7 @@ public final class GeometryUtils {
         var ySupport = sy < 1 ? 1 / sy : 1;
 
         for (int y = 0; y < newHeight; y++) {
-            var v = (y - newCenterY) / sy + centerY;
+            var v = (y - offsetY) / sy;
             var targetRow = newBuffer[y];
             if (v < 0 || v > height - 1) {
                 Arrays.fill(targetRow, blackPoint);
@@ -76,7 +74,7 @@ public final class GeometryUtils {
             }
             var sheared = shift - v * shear;
             for (int x = 0; x < newWidth; x++) {
-                var u = (x - newCenterX) / sx + centerX;
+                var u = (x - offsetX) / sx;
                 targetRow[x] = u < 0 || u > extendedWidth - 1
                         ? blackPoint
                         : sampleCatmullRom(buffer, u + sheared, v, width, height, xSupport, ySupport);
@@ -197,47 +195,63 @@ public final class GeometryUtils {
     }
 
     /**
-     * Computes the corrected ellipse using direct mathematical transformation
-     * instead of sampling and regression. Applies the same transformations as
-     * the image correction: translation, shear, and scaling.
+     * Computes the corrected ellipse analytically instead of by sampling and regression, by
+     * applying to the conic the very transformation the warp applies to the pixels.
      *
      * @param ellipse the original ellipse to correct
      * @param transform the transformation applied to the image
      * @return the transformed ellipse
      */
     public static Ellipse computeCorrectedCircle(Ellipse ellipse, GeometryTransform transform) {
+        var coeffs = ellipse.getCartesianCoefficients();
+        var conic = new double[][]{
+                {coeffs.a(), coeffs.b() / 2, coeffs.d() / 2},
+                {coeffs.b() / 2, coeffs.c(), coeffs.e() / 2},
+                {coeffs.d() / 2, coeffs.e() / 2, coeffs.f()}
+        };
         var shear = transform.shear();
-        var shift = transform.shift();
         var sx = transform.sx();
         var sy = transform.sy();
-        var coeffs = ellipse.getCartesianCoefficients();
-        var a = coeffs.a();
-        var b = coeffs.b();
-        var c = coeffs.c();
-        var d = coeffs.d();
-        var e = coeffs.e();
-        var f = coeffs.f();
+        var tx = transform.offsetX() - sx * transform.shift();
+        var ty = transform.offsetY();
+        // source coordinates as a function of the corrected ones, in homogeneous form
+        var inverse = new double[][]{
+                {1 / sx, -shear / sy, shear * ty / sy - tx / sx},
+                {0, 1 / sy, -ty / sy},
+                {0, 0, 1}
+        };
+        var transformed = multiply(transpose(inverse), multiply(conic, inverse));
+        return Ellipse.ofCartesian(new DoubleSextuplet(
+                transformed[0][0],
+                2 * transformed[0][1],
+                transformed[1][1],
+                2 * transformed[0][2],
+                2 * transformed[1][2],
+                transformed[2][2]
+        ));
+    }
 
-        var u = -shift;
-        var v = 0.0;
-        var d1 = d - 2 * a * u - b * v;
-        var e1 = e - 2 * c * v - b * u;
-        var f1 = a * u * u + b * u * v + c * v * v - d * u - e * v + f;
+    private static double[][] multiply(double[][] left, double[][] right) {
+        var result = new double[3][3];
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                double sum = 0;
+                for (int k = 0; k < 3; k++) {
+                    sum += left[i][k] * right[k][j];
+                }
+                result[i][j] = sum;
+            }
+        }
+        return result;
+    }
 
-        var b2 = b - 2 * a * shear;
-        var c2 = c + a * shear * shear - b * shear;
-        var e2 = e1 - d1 * shear;
-
-        var sx2 = sx * sx;
-        var sy2 = sy * sy;
-        var sxsy = sx * sy;
-        var a3 = a * sy2;
-        var b3 = b2 * sxsy;
-        var c3 = c2 * sx2;
-        var d3 = d1 * sy2 * sx;
-        var e3 = e2 * sx2 * sy;
-        var f3 = f1 * sx2 * sy2;
-
-        return Ellipse.ofCartesian(new DoubleSextuplet(a3, b3, c3, d3, e3, f3));
+    private static double[][] transpose(double[][] matrix) {
+        var result = new double[3][3];
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                result[i][j] = matrix[j][i];
+            }
+        }
+        return result;
     }
 }

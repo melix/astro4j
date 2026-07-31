@@ -74,7 +74,6 @@ public class GeometryCorrection extends AbstractFunctionImpl {
                 image.findMetadata(Ellipse.class).orElse(null),
                 null,
                 null,
-                null,
                 0,
                 getFromContext(ProcessParams.class).orElse(ProcessParams.loadDefaults()),
                 getFromContext(ImageEmitter.class).orElse(null),

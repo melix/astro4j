@@ -147,7 +147,7 @@ public class GeometryPreviewPane extends BorderPane {
                     .map(params -> params.geometryParams().isDisallowDownsampling())
                     .orElse(false);
 
-            var transform = GeometryTransform.of(ellipse, null, null, image.height(), disallowDownsampling);
+            var transform = GeometryTransform.of(ellipse, null, null, image.width(), image.height(), disallowDownsampling);
             var corrected = GeometryUtils.applyGeometryCorrection(image, transform, 0.0f);
 
             var metadata = new HashMap<>(corrected.metadata());

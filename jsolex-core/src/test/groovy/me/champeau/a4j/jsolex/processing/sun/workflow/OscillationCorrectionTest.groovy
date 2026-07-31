@@ -113,8 +113,8 @@ class OscillationCorrectionTest extends Specification {
         def period = 90.0
         def amplitude = 3.0
         def random = new Random(42)
-        def left = new int[height]
-        def right = new int[height]
+        def left = new double[height]
+        def right = new double[height]
         Arrays.fill(left, -1)
         Arrays.fill(right, -1)
         def data = new float[height][width]
@@ -127,7 +127,7 @@ class OscillationCorrectionTest extends Specification {
                 def shift = amplitude * Math.sin(2 * Math.PI * y / period)
                 left[y] = (int) Math.round(x1 + shift + 0.5 * random.nextGaussian())
                 right[y] = (int) Math.round(x2 + shift + 0.5 * random.nextGaussian())
-                for (int x = Math.max(0, left[y]); x <= Math.min(width - 1, right[y]); x++) {
+                for (int x = (int) Math.max(0, left[y]); x <= (int) Math.min(width - 1, right[y]); x++) {
                     data[y][x] = 30000f
                 }
             }

@@ -46,7 +46,7 @@ class GeometryWarpAlignmentTest extends Specification {
         }
 
         when:
-        def transform = GeometryTransform.of(ellipse, null, null, height, !allowDownsampling)
+        def transform = GeometryTransform.of(ellipse, null, null, width, height, !allowDownsampling)
         def corrected = GeometryUtils.applyGeometryCorrection(new ImageWrapper32(width, height, data, [:]), transform, 0f)
         def circle = GeometryUtils.computeCorrectedCircle(ellipse, transform)
         def semi = circle.semiAxis()
@@ -56,12 +56,46 @@ class GeometryWarpAlignmentTest extends Specification {
         then: "the predicted shape is a circle"
         Math.abs(semi.a() - semi.b()) < 1.0
 
-        and: "the actual bright blob is centred where predicted"
+        and: "the predicted centre is exactly the transform of the source centre"
+        Math.abs(circle.center().a() - transform.transformX(ellipse.center().a(), ellipse.center().b())) < 1e-6
+        Math.abs(circle.center().b() - transform.transformY(ellipse.center().b())) < 1e-6
+
+        and: "the actual bright blob is centred where predicted, up to the centroid estimator"
         Math.abs(measured[0] - circle.center().a()) < 1.0
         Math.abs(measured[1] - circle.center().b()) < 1.0
 
         and: "the actual blob radius matches the predicted radius"
         Math.abs(measuredRadius - semi.a()) < 1.5
+
+        where:
+        [tiltDegrees, allowDownsampling] << [[-20, -5, 5, 20], [true, false]].combinations()
+    }
+
+    def "the warp moves a spot exactly where transformX and transformY say (tilt #tiltDegrees deg, downsampling allowed: #allowDownsampling)"() {
+        given: "a small smooth spot, whose intensity centroid is preserved by the resampling kernel"
+        def width = 400
+        def height = 400
+        def spotX = 150.0d
+        def spotY = 260.0d
+        def sigma = 4.0d
+        def ellipse = ellipseOf(200d, 200d, 120d, 80d, Math.toRadians(tiltDegrees))
+        def data = new float[height][width]
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                def dx = x - spotX
+                def dy = y - spotY
+                data[y][x] = (float) (DISK_VALUE * Math.exp(-(dx * dx + dy * dy) / (2 * sigma * sigma)))
+            }
+        }
+
+        when:
+        def transform = GeometryTransform.of(ellipse, null, null, width, height, !allowDownsampling)
+        def corrected = GeometryUtils.applyGeometryCorrection(new ImageWrapper32(width, height, data, [:]), transform, 0f)
+        def measured = weightedCentroid(corrected)
+
+        then: "the spot lands within a small fraction of a pixel of the predicted position"
+        Math.abs(measured[0] - transform.transformX(spotX, spotY)) < 0.01
+        Math.abs(measured[1] - transform.transformY(spotY)) < 0.01
 
         where:
         [tiltDegrees, allowDownsampling] << [[-20, -5, 5, 20], [true, false]].combinations()
@@ -81,7 +115,7 @@ class GeometryWarpAlignmentTest extends Specification {
         }
 
         when: "downsampling is allowed, which widens the horizontal kernel"
-        def transform = GeometryTransform.of(ellipse, null, null, height, false)
+        def transform = GeometryTransform.of(ellipse, null, null, width, height, false)
         def corrected = GeometryUtils.applyGeometryCorrection(new ImageWrapper32(width, height, data, [:]), transform, 0f)
 
         then: "the interior is unchanged, no ripple and no level shift"
@@ -92,18 +126,31 @@ class GeometryWarpAlignmentTest extends Specification {
         samples.max() < 30001
     }
 
-    def "a transform computed for another height is rejected"() {
+    def "a transform computed for other dimensions is rejected"() {
         given: "a transform whose shift was computed for a taller image"
         def ellipse = ellipseOf(200d, 200d, 120d, 80d, Math.toRadians(20))
-        def transform = GeometryTransform.of(ellipse, null, null, 800, true)
+        def transform = GeometryTransform.of(ellipse, null, null, 400, 800, true)
 
         when:
         GeometryUtils.applyGeometryCorrection(new ImageWrapper32(400, 400, new float[400][400], [:]), transform, 0f)
 
         then:
         def ex = thrown(IllegalArgumentException)
-        ex.message.contains("800")
-        ex.message.contains("400")
+        ex.message.contains("400x800")
+        ex.message.contains("400x400")
+    }
+
+    def "a transform computed for another width is rejected"() {
+        given:
+        def ellipse = ellipseOf(200d, 200d, 120d, 80d, Math.toRadians(20))
+        def transform = GeometryTransform.of(ellipse, null, null, 500, 400, true)
+
+        when:
+        GeometryUtils.applyGeometryCorrection(new ImageWrapper32(400, 400, new float[400][400], [:]), transform, 0f)
+
+        then:
+        def ex = thrown(IllegalArgumentException)
+        ex.message.contains("500x400")
     }
 
     private static Ellipse ellipseOf(double cx, double cy, double a, double b, double theta) {
@@ -131,6 +178,22 @@ class GeometryWarpAlignmentTest extends Specification {
             }
         }
         [sx / count, sy / count] as double[]
+    }
+
+    private static double[] weightedCentroid(ImageWrapper32 image) {
+        double sx = 0
+        double sy = 0
+        double sum = 0
+        def data = image.data()
+        for (int y = 0; y < image.height(); y++) {
+            for (int x = 0; x < image.width(); x++) {
+                def v = data[y][x] as double
+                sx += v * x
+                sy += v * y
+                sum += v
+            }
+        }
+        [sx / sum, sy / sum] as double[]
     }
 
     private static double brightArea(ImageWrapper32 image) {

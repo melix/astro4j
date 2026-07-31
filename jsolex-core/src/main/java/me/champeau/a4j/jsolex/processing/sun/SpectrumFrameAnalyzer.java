@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.sun;
 
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.regression.LinearRegression;
+import me.champeau.a4j.math.tuples.DoublePair;
 import me.champeau.a4j.math.tuples.DoubleQuadruplet;
 import me.champeau.a4j.math.tuples.IntPair;
 
@@ -62,13 +63,31 @@ public class SpectrumFrameAnalyzer {
     }
 
     public Optional<IntPair> findBorders(float[][] data) {
-        var borders = sunDetectionThreshold != null ? findBordersExplicit(data) : findBordersAuto(data);
+        var borders = detectBorders(data);
         var leftBorder = borders.left();
         var rightBorder = borders.right();
         if (leftBorder == null || rightBorder == null) {
             return Optional.empty();
         }
         return Optional.of(new IntPair(leftBorder, rightBorder));
+    }
+
+    /**
+     * Same as {@link #findBorders(float[][])}, but the returned positions are
+     * interpolated at sub-pixel precision.
+     */
+    public Optional<DoublePair> findSubPixelBorders(float[][] data) {
+        var borders = detectBorders(data);
+        var leftBorder = borders.subPixelLeft();
+        var rightBorder = borders.subPixelRight();
+        if (leftBorder == null || rightBorder == null) {
+            return Optional.empty();
+        }
+        return Optional.of(new DoublePair(leftBorder, rightBorder));
+    }
+
+    private Borders detectBorders(float[][] data) {
+        return sunDetectionThreshold != null ? findBordersExplicit(data) : findBordersAuto(data);
     }
 
     private void performAutomaticDetection() {
@@ -131,7 +150,7 @@ public class SpectrumFrameAnalyzer {
                 rightBorder = x;
             }
         }
-        return new Borders(leftBorder, rightBorder);
+        return bordersOf(leftBorder, rightBorder, columnAverages, 0.05);
     }
 
     private void performDetectionUsingExplicitThreshold() {
@@ -142,25 +161,57 @@ public class SpectrumFrameAnalyzer {
     }
 
     private Borders findBordersExplicit(float[][] data) {
-        var columnSums = new double[width];
+        var columnAverages = new double[width];
         for (int y = 0; y < height; y++) {
             var row = data[y];
             for (int x = 0; x < width; x++) {
-                columnSums[x] += row[x];
+                columnAverages[x] += row[x];
             }
         }
         Integer leftBorder = null;
         Integer rightBorder = null;
         for (int x = 0; x < width; x++) {
-            double lineAvg = columnSums[x] / height;
-            if (lineAvg > sunDetectionThreshold) {
+            columnAverages[x] /= height;
+            if (columnAverages[x] > sunDetectionThreshold) {
                 if (leftBorder == null) {
                     leftBorder = x;
                 }
                 rightBorder = x;
             }
         }
-        return new Borders(leftBorder, rightBorder);
+        return bordersOf(leftBorder, rightBorder, columnAverages, sunDetectionThreshold);
+    }
+
+    /**
+     * Refines the integer border positions by interpolating, on each side, the
+     * position at which the column averages cross the detection threshold.
+     */
+    private static Borders bordersOf(Integer leftBorder, Integer rightBorder, double[] columnAverages, double threshold) {
+        Double subPixelLeft = null;
+        Double subPixelRight = null;
+        if (leftBorder != null && leftBorder > 0) {
+            subPixelLeft = interpolateCrossing(leftBorder - 1, columnAverages[leftBorder - 1], leftBorder, columnAverages[leftBorder], threshold);
+        } else if (leftBorder != null) {
+            subPixelLeft = (double) leftBorder;
+        }
+        if (rightBorder != null && rightBorder < columnAverages.length - 1) {
+            subPixelRight = interpolateCrossing(rightBorder + 1, columnAverages[rightBorder + 1], rightBorder, columnAverages[rightBorder], threshold);
+        } else if (rightBorder != null) {
+            subPixelRight = (double) rightBorder;
+        }
+        return new Borders(leftBorder, rightBorder, subPixelLeft, subPixelRight);
+    }
+
+    /**
+     * Interpolates the position at which the column averages cross the threshold,
+     * between the last column below the threshold and the first column above it.
+     */
+    private static double interpolateCrossing(int indexBelow, double valueBelow, int indexAbove, double valueAbove, double threshold) {
+        var delta = valueAbove - valueBelow;
+        if (delta <= 0) {
+            return indexAbove;
+        }
+        return indexBelow + (threshold - valueBelow) * (indexAbove - indexBelow) / delta;
     }
 
     private void reset() {
@@ -242,34 +293,7 @@ public class SpectrumFrameAnalyzer {
     }
 
     private double findLocalMinimumClosestTo(int column, float[][] data, double targetY) {
-        record Minimum(double y, float value) {
-        }
-        var minima = new ArrayList<Minimum>();
-
-        int height = data.length;
-        int y = 0;
-        while (y < height - 1) {
-            float v = data[y][column];
-
-            int start = y;
-            while (y + 1 < height && data[y + 1][column] == v) {
-                y++;
-            }
-            int end = y;
-
-            if (start > 0 && end < height - 1) {
-                float prev = data[start - 1][column];
-                float next = data[end + 1][column];
-                if (v < prev && v < next) {
-                    var center = (start + end) / 2d;
-                    minima.add(new Minimum(center, v));
-                }
-            }
-
-            y++;
-        }
-
-        return minima.stream()
+        return findMinima(column, data, 0, data.length - 1).stream()
                 .filter(m -> targetY < 0 || Math.abs(m.y() - targetY) <= MAX_DEVIATION)
                 .min(Comparator.comparingDouble(Minimum::value))
                 .map(Minimum::y)
@@ -278,14 +302,23 @@ public class SpectrumFrameAnalyzer {
 
 
     private double findLocalMinimum(int column, float[][] data, int skip) {
-        record Minimum(double y, float value) {
-        }
-        var minima = new ArrayList<Minimum>();
+        int margin = Math.max(1, data.length / 10);
+        return findMinima(column, data, margin + 1, data.length - margin - 1).stream()
+                .sorted(Comparator.comparingDouble(Minimum::value))
+                .skip(skip)
+                .findFirst()
+                .map(Minimum::y)
+                .orElse(-1d);
+    }
 
+    /**
+     * Collects the local minima of a column, between the given ordinates.
+     */
+    private static List<Minimum> findMinima(int column, float[][] data, int from, int to) {
+        var minima = new ArrayList<Minimum>();
         int height = data.length;
-        int margin = Math.max(1, height / 10);
-        int y = margin + 1;
-        while (y < height - margin - 1) {
+        int y = from;
+        while (y < to) {
             float v = data[y][column];
 
             int start = y;
@@ -298,19 +331,28 @@ public class SpectrumFrameAnalyzer {
                 float prev = data[start - 1][column];
                 float next = data[end + 1][column];
                 if (v < prev && v < next) {
-                    var center = (start + end) / 2d;
-                    minima.add(new Minimum(center, v));
+                    minima.add(new Minimum(refineMinimumPosition(start, end, v, prev, next), v));
                 }
             }
 
             y++;
         }
-        return minima.stream()
-                .sorted(Comparator.comparingDouble(Minimum::value))
-                .skip(skip)
-                .findFirst()
-                .map(Minimum::y)
-                .orElse(-1d);
+        return minima;
+    }
+
+    /**
+     * Refines the position of a single pixel minimum by fitting a parabola on the
+     * minimum and its two neighbours. Plateaus keep their midpoint.
+     */
+    private static double refineMinimumPosition(int start, int end, float v, float prev, float next) {
+        if (start < end) {
+            return (start + end) / 2d;
+        }
+        var denominator = (double) prev - 2 * (double) v + next;
+        if (denominator <= 0) {
+            return start;
+        }
+        return start + Math.clamp(0.5 * (prev - next) / denominator, -0.5, 0.5);
     }
 
     public void forcePolynomial(DoubleUnaryOperator polynomial) {
@@ -328,7 +370,7 @@ public class SpectrumFrameAnalyzer {
     public Result analyzeAround(float[][] data, double centerY) {
         reset();
         this.data = data;
-        var borders = sunDetectionThreshold != null ? findBordersExplicit(data) : findBordersAuto(data);
+        var borders = detectBorders(data);
         var leftBorder = borders.left();
         var rightBorder = borders.right();
         int l = leftBorder != null ? leftBorder : 0;
@@ -378,6 +420,9 @@ public class SpectrumFrameAnalyzer {
         }
     }
 
-    public record Borders(Integer left, Integer right) {
+    public record Borders(Integer left, Integer right, Double subPixelLeft, Double subPixelRight) {
+    }
+
+    private record Minimum(double y, float value) {
     }
 }
