@@ -134,7 +134,7 @@ tasks.named<JavaExec>("run") {
             listOf(
                 "--module-path",
                 classpath.asPath,
-                "-XX:StartFlightRecording=filename=/tmp/batch.jfr,settings=profile,duration=300s"
+                "-XX:StartFlightRecording=filename=/tmp/profile.jfr,settings=profile,duration=300s"
             )
 //            listOf("--module-path", classpath.asPath)
         )

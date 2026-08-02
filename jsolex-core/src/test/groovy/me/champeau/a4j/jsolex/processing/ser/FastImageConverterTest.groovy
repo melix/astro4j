@@ -86,6 +86,37 @@ class FastImageConverterTest extends Specification {
         out[2] == [100f, 200f] as float[]
     }
 
+    def "convertBPP2 matches the scalar formula for widths which are not lane multiples"() {
+        given:
+        def random = new Random(42)
+        def pixels = new int[width * height]
+        pixels.length.times { pixels[it] = random.nextInt(0x10000) }
+        def geometry = new ImageGeometry(ColorMode.MONO, width, height, depth, ByteOrder.LITTLE_ENDIAN)
+        def buffer = leShorts(pixels)
+        def out = new float[height][width]
+        def converter = new FastImageConverter(false)
+
+        when:
+        converter.convert(0, buffer, geometry, out)
+
+        then:
+        def shift = 16 - depth
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                assert out[y][x] == (float) ((pixels[y * width + x] << shift) & 0xFFFF)
+            }
+        }
+
+        where:
+        width | height | depth
+        1     | 3      | 16
+        7     | 2      | 16
+        33    | 4      | 16
+        64    | 2      | 16
+        129   | 3      | 12
+        1000  | 2      | 14
+    }
+
     def "convertBPP2 advances the caller's ByteBuffer position by 2 * width * height"() {
         given:
         def geometry = new ImageGeometry(ColorMode.MONO, 2, 1, 16, ByteOrder.LITTLE_ENDIAN)

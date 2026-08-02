@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.sun;
 
 import me.champeau.a4j.jsolex.processing.util.Histogram;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.math.RowStrips;
 import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.math.image.Kernel33;
 import me.champeau.a4j.math.regression.Ellipse;
@@ -26,7 +27,6 @@ import org.apache.commons.math3.fitting.WeightedObservedPoints;
 
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.concurrent.ForkJoinPool;
 import java.util.stream.IntStream;
 
 public class FlatCorrection {
@@ -78,11 +78,7 @@ public class FlatCorrection {
         var lo = diskHistogram.percentile(loPercentile);
         var hi = diskHistogram.percentile(hiPercentile);
         var avgValues = new double[height];
-        var chunkCount = Math.min(height, Math.max(1, ForkJoinPool.commonPool().getParallelism()));
-        var chunkSize = (height + chunkCount - 1) / chunkCount;
-        IntStream.range(0, chunkCount).parallel().forEach(chunk -> {
-            int yStart = chunk * chunkSize;
-            int yEnd = Math.min(yStart + chunkSize, height);
+        RowStrips.forEach(height, (yStart, yEnd) -> {
             for (int y = yStart; y < yEnd; y++) {
                 double total = 0;
                 double count = 0;

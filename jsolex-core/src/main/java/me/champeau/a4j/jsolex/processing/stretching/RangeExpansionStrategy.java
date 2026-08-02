@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.stretching;
 
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.math.RowStrips;
 
 // Not worth running on GPU: memory transfer overhead dominates the simple scaling operation
 public final class RangeExpansionStrategy implements StretchingStrategy {
@@ -30,22 +31,27 @@ public final class RangeExpansionStrategy implements StretchingStrategy {
     @Override
     public void stretch(ImageWrapper32 image) {
         var data = image.data();
-        double max = -Double.MAX_VALUE;
         var height = image.height();
         var width = image.width();
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                var v = data[y][x];
-                if (v > max) {
-                    max = v;
+        var max = RowStrips.max(height, (yStart, yEnd) -> {
+            double stripMax = -Double.MAX_VALUE;
+            for (int y = yStart; y < yEnd; y++) {
+                for (int x = 0; x < width; x++) {
+                    var v = data[y][x];
+                    if (v > stripMax) {
+                        stripMax = v;
+                    }
                 }
             }
-        }
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                data[y][x] = (float) ((MAX_VALUE / max) * data[y][x]);
+            return stripMax;
+        });
+        RowStrips.forEach(height, (yStart, yEnd) -> {
+            for (int y = yStart; y < yEnd; y++) {
+                for (int x = 0; x < width; x++) {
+                    data[y][x] = (float) ((MAX_VALUE / max) * data[y][x]);
+                }
             }
-        }
+        });
     }
 
 }

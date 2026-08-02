@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.util;
 
+import me.champeau.a4j.math.RowStrips;
 import me.champeau.a4j.math.image.Image;
 
 import java.util.Arrays;
@@ -36,13 +37,20 @@ public record Histogram(
     }
 
     public static Histogram of(float[][] image, int bins) {
-        var builder = builder(bins);
-        for (float[] line : image) {
-            for (float d : line) {
-                builder.record(d);
+        var builders = RowStrips.map(image.length, (yStart, yEnd) -> {
+            var builder = builder(bins);
+            for (int y = yStart; y < yEnd; y++) {
+                for (float d : image[y]) {
+                    builder.record(d);
+                }
             }
+            return builder;
+        });
+        var merged = builders.getFirst();
+        for (int i = 1; i < builders.size(); i++) {
+            merged.add(builders.get(i));
         }
-        return builder.build();
+        return merged.build();
     }
 
     /**
@@ -132,6 +140,14 @@ public record Histogram(
             if (i > maxValue) {
                 maxValue = i;
             }
+        }
+
+        public void add(Builder other) {
+            for (int i = 0; i < bins; i++) {
+                buckets[i] += other.buckets[i];
+            }
+            pixelCount += other.pixelCount;
+            maxValue = Math.max(maxValue, other.maxValue);
         }
 
         public Histogram build() {

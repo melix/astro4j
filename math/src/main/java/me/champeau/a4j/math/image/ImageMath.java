@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.math.image;
 
+import me.champeau.a4j.math.RowStrips;
 import me.champeau.a4j.math.VectorApiSupport;
 import me.champeau.a4j.math.opencl.OpenCLSupport;
 
@@ -75,11 +76,13 @@ public interface ImageMath {
         var newHeight = width;
         float[][] output = new float[newHeight][newWidth];
 
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                output[width - x - 1][y] = data[y][x];
+        RowStrips.forEach(height, (yStart, yEnd) -> {
+            for (int y = yStart; y < yEnd; y++) {
+                for (int x = 0; x < width; x++) {
+                    output[width - x - 1][y] = data[y][x];
+                }
             }
-        }
+        });
         return new Image(newWidth, newHeight, output);
     }
 
@@ -97,11 +100,13 @@ public interface ImageMath {
         var newHeight = width;
         float[][] output = new float[newHeight][newWidth];
 
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                output[x][height - y - 1] = data[y][x];
+        RowStrips.forEach(height, (yStart, yEnd) -> {
+            for (int y = yStart; y < yEnd; y++) {
+                for (int x = 0; x < width; x++) {
+                    output[x][height - y - 1] = data[y][x];
+                }
             }
-        }
+        });
         return new Image(newWidth, newHeight, output);
     }
 
