@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.ColumnBackground;
+import me.champeau.a4j.jsolex.processing.sun.ScatteredLight;
 import me.champeau.a4j.jsolex.processing.sun.workflow.AnalysisUtils;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
@@ -216,5 +217,45 @@ public class BackgroundRemoval extends AbstractFunctionImpl {
         }
 
         throw new IllegalArgumentException("column_bg_model only supports mono images");
+    }
+
+    /**
+     * Removes the background left by the light scattered inside the instrument while the slit
+     * crosses the solar disk. The shape of that background along the scan axis is the chord of the
+     * solar disk, so it is taken from the ellipse instead of being estimated from the background,
+     * and only its amplitude is fitted. The disk itself is left untouched.
+     *
+     * @param arguments function arguments containing:
+     *                  - img: the input image or list of images
+     *                  - strength: the fraction of the estimated background removed (default: 1)
+     *                  - iterations: the number of passes, 0 leaving the image untouched (default: 1)
+     * @return the corrected image or list of images
+     */
+    public Object descatter(Map<String, Object> arguments) {
+        BuiltinFunction.DESCATTER.validateArgs(arguments);
+        var arg = arguments.get("img");
+        if (arg instanceof List<?>) {
+            return expandToImageList("descatter", "img", arguments, this::descatter);
+        }
+        if (arg instanceof ImageWrapper target) {
+            var iterations = intArg(arguments, "iterations", 1);
+            if (iterations <= 0) {
+                return target;
+            }
+            var ellipse = target.findMetadata(Ellipse.class);
+            if (ellipse.isEmpty()) {
+                throw new IllegalArgumentException("Cannot remove scattered light because ellipse isn't found");
+            }
+            var strength = doubleArg(arguments, "strength", 1);
+            return monoToMonoImageTransformer("descatter", "img", arguments, src -> {
+                if (src instanceof ImageWrapper32 image) {
+                    ScatteredLight.remove(image.width(), image.height(), image.data(), ellipse.get(), strength, iterations);
+                } else {
+                    throw new IllegalArgumentException("descatter only supports mono images");
+                }
+            });
+        }
+
+        throw new IllegalArgumentException("descatter only supports mono images");
     }
 }

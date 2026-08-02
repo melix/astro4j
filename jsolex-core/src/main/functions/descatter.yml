@@ -1,0 +1,24 @@
+name: DESCATTER
+category: BACKGROUND
+description:
+  fr: "Retire le voile de fond autour du disque solaire, dû à la lumière diffusée dans l'instrument. Il apparaît comme une bande claire s'étendant au-dessus et au-dessous du disque, et s'arrêtant à gauche et à droite de celui-ci. Le disque lui-même n'est pas modifié, et les protubérances comme la couronne sont préservées. Fonctionne aussi sur les images déjà étirées."
+  en: "Removes the background veil around the solar disk, caused by light scattered inside the instrument. It shows up as a bright band extending above and below the disk, and stopping to its left and right. The disk itself is not modified, and prominences and corona are preserved. Also works on images which have already been stretched."
+arguments:
+  - name: img
+    description: Image(s)
+  - name: strength
+    optional: true
+    default: 1
+    description:
+      fr: "Fraction du fond estimé qui est retirée. Utilisez une valeur inférieure à 1 pour une correction partielle, 0 pour n'appliquer aucune correction."
+      en: "Fraction of the estimated background which is removed. Use a value below 1 for a partial correction, 0 to apply no correction at all."
+  - name: iterations
+    optional: true
+    default: 1
+    description:
+      fr: "Nombre de passes. Une seconde passe ne retire que ce que la première a laissé. Avec 0, l'image n'est pas modifiée."
+      en: "Number of passes. A second pass only removes what the first one left behind. With 0, the image is left untouched."
+examples:
+  - "descatter(img(0))"
+  - "descatter(img: someImage; strength: 0.8)"
+  - "autocrop2(descatter(img(0)); 1.5)"

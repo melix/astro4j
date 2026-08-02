@@ -2,6 +2,7 @@
 
 ## Nouveautés de la version 5.4.1
 
+- Nouvelle fonction ImageMath `descatter`, qui retire l'excès de fond laissé autour du disque par la lumière diffusée dans l'instrument.
 - Nouvelle détection « Recherche automatique sur tout le spectre », utilisée par défaut, qui reconnaît des raies qui ne figurent pas dans votre liste.
 - Lorsque vous sélectionnez une raie spectrale, JSol'Ex vérifie maintenant que la raie détectée est bien celle-ci, et se corrige lorsqu'une raie voisine est plus sombre.
 - Ajout de la raie du fer (Fe I 5302), utilisée comme référence pour l'imagerie de la couronne.
