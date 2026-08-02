@@ -483,6 +483,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_img_median">IMG_MEDIAN</a></li>
 <li><a href="#_img_median2">IMG_MEDIAN2</a></li>
 <li><a href="#_img_min">IMG_MIN</a></li>
+<li><a href="#_img_percentile">IMG_PERCENTILE</a></li>
 <li><a href="#_log">LOG</a></li>
 <li><a href="#_log_stats">LOG_STATS</a></li>
 <li><a href="#_max">MAX</a></li>
@@ -577,6 +578,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <ul class="sectlevel2">
 <li><a href="#_bg_model">BG_MODEL</a></li>
 <li><a href="#_column_bg_model">COLUMN_BG_MODEL</a></li>
+<li><a href="#_descatter">DESCATTER</a></li>
 <li><a href="#_neutralize_bg">NEUTRALIZE_BG</a></li>
 <li><a href="#_remove_bg">REMOVE_BG</a></li>
 </ul>
@@ -1087,6 +1089,12 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>mask</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Masque restreignant les pixels pris en compte (créé avec annulus_mask ou range_mask).</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
 <td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
 </tr>
 </tbody>
@@ -1231,6 +1239,12 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>mask</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Masque restreignant les pixels pris en compte (créé avec annulus_mask ou range_mask).</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
 <td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
 </tr>
 </tbody>
@@ -1246,6 +1260,62 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <div class="listingblock">
 <div class="content">
 <pre>img_min(img(0); img(1); img(2))</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_img_percentile">IMG_PERCENTILE</h3>
+<div class="paragraph">
+<p>Retourne le percentile demandé de tous les pixels de chaque image. Généralise IMG_MIN, IMG_MEDIAN et IMG_MAX, qui correspondent aux percentiles 0, 50 et 100. Lorsque le percentile tombe entre deux pixels, la valeur est interpolée linéairement entre les deux. Combiné à un masque, c&#8217;est le moyen de mesurer un niveau de référence dans une région donnée sans qu&#8217;une poignée de pixels aberrants ne le fausse. Si plusieurs images sont passées en paramètre, retourne une liste de valeurs. Si une seule image est passée, retourne un nombre.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 13.6363%;">
+<col style="width: 13.6363%;">
+<col style="width: 59.0909%;">
+<col style="width: 13.6365%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Argument</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Requis ?</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Description</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Valeur par défaut</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>list</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Arguments</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>p</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Percentile à calculer, entre 0 et 100.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>mask</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Masque restreignant les pixels pris en compte (créé avec annulus_mask ou range_mask).</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p><strong>Exemples</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>img_percentile(img(0); 2)</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>img_percentile(list: img(0); p: 2; mask: annulus_mask(1.05; 1.2))</pre>
 </div>
 </div>
 </div>
@@ -5639,6 +5709,67 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <div class="listingblock">
 <div class="content">
 <pre>destripe(img: someImage/column_bg_model(img: cont; normalize: 1); ellipseMode: 2)</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_descatter">DESCATTER</h3>
+<div class="paragraph">
+<p>Retire le voile de fond autour du disque solaire, dû à la lumière diffusée dans l&#8217;instrument. Il apparaît comme une bande claire s&#8217;étendant au-dessus et au-dessous du disque, et s&#8217;arrêtant à gauche et à droite de celui-ci. Le disque lui-même n&#8217;est pas modifié, et les protubérances comme la couronne sont préservées. Fonctionne aussi sur les images déjà étirées.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 13.6363%;">
+<col style="width: 13.6363%;">
+<col style="width: 59.0909%;">
+<col style="width: 13.6365%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Argument</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Requis ?</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Description</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Valeur par défaut</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>img</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Image(s)</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>strength</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Fraction du fond estimé qui est retirée. Utilisez une valeur inférieure à 1 pour une correction partielle, 0 pour n&#8217;appliquer aucune correction.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">1</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>iterations</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Nombre de passes. Une seconde passe ne retire que ce que la première a laissé. Avec 0, l&#8217;image n&#8217;est pas modifiée.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">1</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p><strong>Exemples</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>descatter(img(0))</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>descatter(img: someImage; strength: 0.8)</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>autocrop2(descatter(img(0)); 1.5)</pre>
 </div>
 </div>
 </div>
