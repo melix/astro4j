@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.sun;
 
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.math.RowStrips;
 import me.champeau.a4j.math.regression.Ellipse;
 import org.apache.commons.math3.linear.LUDecomposition;
 import org.apache.commons.math3.linear.MatrixUtils;
@@ -193,17 +194,20 @@ public class BackgroundRemoval {
             double[] coefficients = regression.estimateRegressionParameters();
 
             // Remove background using the regression model
-            for (int y = 0; y < height; y++) {
-                for (int x = 0; x < width; x++) {
-                    var value = data[y][x];
-                    var estimated = coefficients[0] + coefficients[1] * x + coefficients[2] * y
-                            + coefficients[3] * x * x + coefficients[4] * y * y
-                            + coefficients[5] * x * y;
-                    avgBackground += estimated;
-                    data[y][x] = (float) Math.max(0, value - estimated);
+            avgBackground = RowStrips.sum(height, (yStart, yEnd) -> {
+                double partial = 0;
+                for (int y = yStart; y < yEnd; y++) {
+                    for (int x = 0; x < width; x++) {
+                        var value = data[y][x];
+                        var estimated = coefficients[0] + coefficients[1] * x + coefficients[2] * y
+                                + coefficients[3] * x * x + coefficients[4] * y * y
+                                + coefficients[5] * x * y;
+                        partial += estimated;
+                        data[y][x] = (float) Math.max(0, value - estimated);
+                    }
                 }
-            }
-            avgBackground /= (width * height);
+                return partial;
+            }) / (width * height);
         } catch (Exception ex) {
             LOGGER.warn(message("cannot.perform.bg.neutralization"));
         }
@@ -394,15 +398,17 @@ public class BackgroundRemoval {
         double c1 = coeffs[1];
         double c2 = coeffs[2];
 
-        for (int y = 0; y < height; y++) {
-            double yNorm = y / heightNorm;
-            double c0_c2y = c0 + c2 * yNorm;
-            for (int x = 0; x < width; x++) {
-                double xNorm = x / widthNorm;
-                double bgValue = c0_c2y + c1 * xNorm;
-                background[y][x] = (float) Math.clamp(bgValue, 0, Constants.MAX_PIXEL_VALUE);
+        RowStrips.forEach(height, (yStart, yEnd) -> {
+            for (int y = yStart; y < yEnd; y++) {
+                double yNorm = y / heightNorm;
+                double c0_c2y = c0 + c2 * yNorm;
+                for (int x = 0; x < width; x++) {
+                    double xNorm = x / widthNorm;
+                    double bgValue = c0_c2y + c1 * xNorm;
+                    background[y][x] = (float) Math.clamp(bgValue, 0, Constants.MAX_PIXEL_VALUE);
+                }
             }
-        }
+        });
     }
 
     private static void generateBackgroundCPUDeg2(float[][] background, double[] coeffs, int width, int height) {
@@ -415,18 +421,20 @@ public class BackgroundRemoval {
         double c4 = coeffs[4];
         double c5 = coeffs[5];
 
-        for (int y = 0; y < height; y++) {
-            double yNorm = y / heightNorm;
-            double y2 = yNorm * yNorm;
-            double yTerms = c0 + c2 * yNorm + c5 * y2;
-            double c4y = c4 * yNorm;
-            for (int x = 0; x < width; x++) {
-                double xNorm = x / widthNorm;
-                double x2 = xNorm * xNorm;
-                double bgValue = yTerms + c1 * xNorm + c3 * x2 + c4y * xNorm;
-                background[y][x] = (float) Math.clamp(bgValue, 0, Constants.MAX_PIXEL_VALUE);
+        RowStrips.forEach(height, (yStart, yEnd) -> {
+            for (int y = yStart; y < yEnd; y++) {
+                double yNorm = y / heightNorm;
+                double y2 = yNorm * yNorm;
+                double yTerms = c0 + c2 * yNorm + c5 * y2;
+                double c4y = c4 * yNorm;
+                for (int x = 0; x < width; x++) {
+                    double xNorm = x / widthNorm;
+                    double x2 = xNorm * xNorm;
+                    double bgValue = yTerms + c1 * xNorm + c3 * x2 + c4y * xNorm;
+                    background[y][x] = (float) Math.clamp(bgValue, 0, Constants.MAX_PIXEL_VALUE);
+                }
             }
-        }
+        });
     }
 
     private static void generateBackgroundCPUDeg3(float[][] background, double[] coeffs, int width, int height) {
@@ -443,54 +451,58 @@ public class BackgroundRemoval {
         double c8 = coeffs[8];
         double c9 = coeffs[9];
 
-        for (int y = 0; y < height; y++) {
-            double yNorm = y / heightNorm;
-            double y2 = yNorm * yNorm;
-            double y3 = y2 * yNorm;
-            double yTerms = c0 + c2 * yNorm + c5 * y2 + c9 * y3;
-            double c4y = c4 * yNorm;
-            double c7y = c7 * yNorm;
-            double c8y2 = c8 * y2;
-            for (int x = 0; x < width; x++) {
-                double xNorm = x / widthNorm;
-                double x2 = xNorm * xNorm;
-                double x3 = x2 * xNorm;
-                double bgValue = yTerms + c1 * xNorm + c3 * x2 + c6 * x3
-                        + c4y * xNorm + c7y * x2 + c8y2 * xNorm;
-                background[y][x] = (float) Math.clamp(bgValue, 0, Constants.MAX_PIXEL_VALUE);
+        RowStrips.forEach(height, (yStart, yEnd) -> {
+            for (int y = yStart; y < yEnd; y++) {
+                double yNorm = y / heightNorm;
+                double y2 = yNorm * yNorm;
+                double y3 = y2 * yNorm;
+                double yTerms = c0 + c2 * yNorm + c5 * y2 + c9 * y3;
+                double c4y = c4 * yNorm;
+                double c7y = c7 * yNorm;
+                double c8y2 = c8 * y2;
+                for (int x = 0; x < width; x++) {
+                    double xNorm = x / widthNorm;
+                    double x2 = xNorm * xNorm;
+                    double x3 = x2 * xNorm;
+                    double bgValue = yTerms + c1 * xNorm + c3 * x2 + c6 * x3
+                            + c4y * xNorm + c7y * x2 + c8y2 * xNorm;
+                    background[y][x] = (float) Math.clamp(bgValue, 0, Constants.MAX_PIXEL_VALUE);
+                }
             }
-        }
+        });
     }
 
     private static void generateBackgroundCPUGeneric(float[][] background, double[] coeffs, int width, int height, int degree) {
         double widthNorm = width - 1;
         double heightNorm = height - 1;
 
-        for (int y = 0; y < height; y++) {
-            double yNorm = y / heightNorm;
-            double[] yPow = new double[degree + 1];
-            yPow[0] = 1.0;
-            for (int i = 1; i <= degree; i++) {
-                yPow[i] = yPow[i - 1] * yNorm;
-            }
-            for (int x = 0; x < width; x++) {
-                double xNorm = x / widthNorm;
-                double[] xPow = new double[degree + 1];
-                xPow[0] = 1.0;
+        RowStrips.forEach(height, (yStart, yEnd) -> {
+            for (int y = yStart; y < yEnd; y++) {
+                double yNorm = y / heightNorm;
+                double[] yPow = new double[degree + 1];
+                yPow[0] = 1.0;
                 for (int i = 1; i <= degree; i++) {
-                    xPow[i] = xPow[i - 1] * xNorm;
+                    yPow[i] = yPow[i - 1] * yNorm;
                 }
-                double bgValue = 0;
-                int termIdx = 0;
-                for (int s = 0; s <= degree; s++) {
-                    for (int i = s; i >= 0; i--) {
-                        int j = s - i;
-                        bgValue += coeffs[termIdx++] * xPow[i] * yPow[j];
+                for (int x = 0; x < width; x++) {
+                    double xNorm = x / widthNorm;
+                    double[] xPow = new double[degree + 1];
+                    xPow[0] = 1.0;
+                    for (int i = 1; i <= degree; i++) {
+                        xPow[i] = xPow[i - 1] * xNorm;
                     }
+                    double bgValue = 0;
+                    int termIdx = 0;
+                    for (int s = 0; s <= degree; s++) {
+                        for (int i = s; i >= 0; i--) {
+                            int j = s - i;
+                            bgValue += coeffs[termIdx++] * xPow[i] * yPow[j];
+                        }
+                    }
+                    background[y][x] = (float) Math.clamp(bgValue, 0, Constants.MAX_PIXEL_VALUE);
                 }
-                background[y][x] = (float) Math.clamp(bgValue, 0, Constants.MAX_PIXEL_VALUE);
             }
-        }
+        });
     }
 
     /**

@@ -19,6 +19,7 @@ import me.champeau.a4j.jsolex.processing.color.ColorCurve;
 import me.champeau.a4j.jsolex.processing.ser.FastImageConverter;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
+import me.champeau.a4j.math.RowStrips;
 import me.champeau.a4j.math.regression.Ellipse;
 import me.champeau.a4j.ser.ColorMode;
 import me.champeau.a4j.ser.bayer.BilinearDemosaicingStrategy;
@@ -272,34 +273,36 @@ public class ImageUtils {
         var sChannel = hsl[1];
         var lChannel = hsl[2];
         var exp = 1.0 / Math.max(1e-6f, boost);
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                var lOld = lChannel[y][x];
-                var sOld = sChannel[y][x];
-                var chroma = (1f - Math.abs(2f * lOld - 1f)) * sOld;
-                var lNew = mono[y][x] / MAX_VALUE;
-                if (lNew < 0) {
-                    lNew = 0;
-                } else if (lNew > 1f) {
-                    lNew = 1f;
-                }
-                if (boost != 1f) {
-                    lNew = (float) Math.pow(lNew, exp);
-                }
-                var denom = 1f - Math.abs(2f * lNew - 1f);
-                float sNew;
-                if (denom < 1e-6f) {
-                    sNew = 0f;
-                } else {
-                    sNew = chroma / denom;
-                    if (sNew > 1f) {
-                        sNew = 1f;
+        RowStrips.forEach(height, (yStart, yEnd) -> {
+            for (int y = yStart; y < yEnd; y++) {
+                for (int x = 0; x < width; x++) {
+                    var lOld = lChannel[y][x];
+                    var sOld = sChannel[y][x];
+                    var chroma = (1f - Math.abs(2f * lOld - 1f)) * sOld;
+                    var lNew = mono[y][x] / MAX_VALUE;
+                    if (lNew < 0) {
+                        lNew = 0;
+                    } else if (lNew > 1f) {
+                        lNew = 1f;
                     }
+                    if (boost != 1f) {
+                        lNew = (float) Math.pow(lNew, exp);
+                    }
+                    var denom = 1f - Math.abs(2f * lNew - 1f);
+                    float sNew;
+                    if (denom < 1e-6f) {
+                        sNew = 0f;
+                    } else {
+                        sNew = chroma / denom;
+                        if (sNew > 1f) {
+                            sNew = 1f;
+                        }
+                    }
+                    sChannel[y][x] = sNew;
+                    lChannel[y][x] = lNew;
                 }
-                sChannel[y][x] = sNew;
-                lChannel[y][x] = lNew;
             }
-        }
+        });
         return fromHSLtoRGB(hsl);
     }
 
@@ -320,52 +323,54 @@ public class ImageUtils {
         int height = rChannel.length;
         int width = rChannel[0].length;
 
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                float r = rChannel[y][x] / MAX_VALUE;
-                float g = gChannel[y][x] / MAX_VALUE;
-                float b = bChannel[y][x] / MAX_VALUE;
+        RowStrips.forEach(height, (yStart, yEnd) -> {
+            for (int y = yStart; y < yEnd; y++) {
+                for (int x = 0; x < width; x++) {
+                    float r = rChannel[y][x] / MAX_VALUE;
+                    float g = gChannel[y][x] / MAX_VALUE;
+                    float b = bChannel[y][x] / MAX_VALUE;
 
-                float max = Math.max(r, Math.max(g, b));
-                float min = Math.min(r, Math.min(g, b));
-                float delta = max - min;
+                    float max = Math.max(r, Math.max(g, b));
+                    float min = Math.min(r, Math.min(g, b));
+                    float delta = max - min;
 
-                // Calculate the hue
-                float hue = 0.0f;
-                if (delta == 0) {
-                    hue = 0.0f;
-                } else if (max == r) {
-                    hue = ((g - b) / delta) % 6;
-                } else if (max == g) {
-                    hue = (b - r) / delta + 2;
-                } else if (max == b) {
-                    hue = (r - g) / delta + 4;
-                }
-                hue *= 60.0f;
-                if (hue < 0) {
-                    hue += 360.0f;
-                }
+                    // Calculate the hue
+                    float hue = 0.0f;
+                    if (delta == 0) {
+                        hue = 0.0f;
+                    } else if (max == r) {
+                        hue = ((g - b) / delta) % 6;
+                    } else if (max == g) {
+                        hue = (b - r) / delta + 2;
+                    } else if (max == b) {
+                        hue = (r - g) / delta + 4;
+                    }
+                    hue *= 60.0f;
+                    if (hue < 0) {
+                        hue += 360.0f;
+                    }
 
-                // Calculate the lightness
-                float lightness = (max + min) / 2;
+                    // Calculate the lightness
+                    float lightness = (max + min) / 2;
 
-                // Calculate the saturation
-                float saturation;
-                if (delta == 0) {
-                    saturation = 0;
-                } else {
-                    saturation = delta / (1 - Math.abs(2 * lightness - 1));
+                    // Calculate the saturation
+                    float saturation;
+                    if (delta == 0) {
+                        saturation = 0;
+                    } else {
+                        saturation = delta / (1 - Math.abs(2 * lightness - 1));
+                    }
+                    // Handle the case when lightness is close to or equal to zero
+                    if (lightness <= 0.0001f) {
+                        saturation = 0;
+                    }
+                    // handle rounding errors
+                    output[0][y][x] = Math.max(0, Math.min(360, hue));
+                    output[1][y][x] = Math.max(0, Math.min(saturation, 1.0f));
+                    output[2][y][x] = Math.max(0, Math.min(lightness, 1.0f));
                 }
-                // Handle the case when lightness is close to or equal to zero
-                if (lightness <= 0.0001f) {
-                    saturation = 0;
-                }
-                // handle rounding errors
-                output[0][y][x] = Math.max(0, Math.min(360, hue));
-                output[1][y][x] = Math.max(0, Math.min(saturation, 1.0f));
-                output[2][y][x] = Math.max(0, Math.min(lightness, 1.0f));
             }
-        }
+        });
 
         return output;
     }
@@ -387,55 +392,57 @@ public class ImageUtils {
         int height = hChannel.length;
         int width = hChannel[0].length;
 
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                float h = hChannel[y][x];
-                float s = sChannel[y][x];
-                float l = lChannel[y][x];
+        RowStrips.forEach(height, (yStart, yEnd) -> {
+            for (int y = yStart; y < yEnd; y++) {
+                for (int x = 0; x < width; x++) {
+                    float h = hChannel[y][x];
+                    float s = sChannel[y][x];
+                    float l = lChannel[y][x];
 
-                // Calculate chroma
-                float chroma = (1 - Math.abs(2 * l - 1)) * s;
+                    // Calculate chroma
+                    float chroma = (1 - Math.abs(2 * l - 1)) * s;
 
-                // Calculate hue segment and offset within segment
-                float hueSegment = h / 60.0f;
+                    // Calculate hue segment and offset within segment
+                    float hueSegment = h / 60.0f;
 
-                // Calculate intermediate values
-                float k = chroma * (1 - Math.abs((hueSegment % 2) - 1));
-                float m = l - chroma / 2;
+                    // Calculate intermediate values
+                    float k = chroma * (1 - Math.abs((hueSegment % 2) - 1));
+                    float m = l - chroma / 2;
 
-                float r, g, b;
-                if (hueSegment < 1) {
-                    r = chroma;
-                    g = k;
-                    b = 0;
-                } else if (hueSegment < 2) {
-                    r = k;
-                    g = chroma;
-                    b = 0;
-                } else if (hueSegment < 3) {
-                    r = 0;
-                    g = chroma;
-                    b = k;
-                } else if (hueSegment < 4) {
-                    r = 0;
-                    g = k;
-                    b = chroma;
-                } else if (hueSegment < 5) {
-                    r = k;
-                    g = 0;
-                    b = chroma;
-                } else {
-                    r = chroma;
-                    g = 0;
-                    b = k;
+                    float r, g, b;
+                    if (hueSegment < 1) {
+                        r = chroma;
+                        g = k;
+                        b = 0;
+                    } else if (hueSegment < 2) {
+                        r = k;
+                        g = chroma;
+                        b = 0;
+                    } else if (hueSegment < 3) {
+                        r = 0;
+                        g = chroma;
+                        b = k;
+                    } else if (hueSegment < 4) {
+                        r = 0;
+                        g = k;
+                        b = chroma;
+                    } else if (hueSegment < 5) {
+                        r = k;
+                        g = 0;
+                        b = chroma;
+                    } else {
+                        r = chroma;
+                        g = 0;
+                        b = k;
+                    }
+
+                    // Adjust values by adding the lightness offset
+                    output[0][y][x] = (r + m) * MAX_VALUE;
+                    output[1][y][x] = (g + m) * MAX_VALUE;
+                    output[2][y][x] = (b + m) * MAX_VALUE;
                 }
-
-                // Adjust values by adding the lightness offset
-                output[0][y][x] = (r + m) * MAX_VALUE;
-                output[1][y][x] = (g + m) * MAX_VALUE;
-                output[2][y][x] = (b + m) * MAX_VALUE;
             }
-        }
+        });
 
         return output;
     }

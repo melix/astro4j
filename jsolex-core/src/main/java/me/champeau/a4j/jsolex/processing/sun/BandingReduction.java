@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.sun;
 
 import me.champeau.a4j.jsolex.processing.util.Constants;
+import me.champeau.a4j.math.RowStrips;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.math.image.analysis.GaussianSupport;
@@ -412,13 +413,20 @@ public class BandingReduction {
             if (!Double.isInfinite(correction) && !Double.isNaN(correction)) {
                 totalDeviation += Math.abs(correction - 1.0);
                 deviationCount++;
-                for (var x = 0; x < width; x++) {
-                    if (ellipse == null || outsideDisk != ellipse.isWithin(x, y)) {
-                        data[y][x] *= correction;
+            }
+        }
+        RowStrips.forEach(height, (yStart, yEnd) -> {
+            for (var y = yStart; y < yEnd; y++) {
+                var correction = corrections[y];
+                if (!Double.isInfinite(correction) && !Double.isNaN(correction)) {
+                    for (var x = 0; x < width; x++) {
+                        if (ellipse == null || outsideDisk != ellipse.isWithin(x, y)) {
+                            data[y][x] *= correction;
+                        }
                     }
                 }
             }
-        }
+        });
         return deviationCount > 0 ? totalDeviation / deviationCount : 0;
     }
 
@@ -662,10 +670,12 @@ public class BandingReduction {
         var allCorrections = new double[bandSizes.size()][height];
         for (var i = 0; i < bandSizes.size(); i++) {
             int bandSize = bandSizes.get(i);
-            var bandAverages = IntStream.range(0, height)
-                    .parallel()
-                    .mapToDouble(y -> computeAverageForBand(height, lineAverages, bandSize, y, ellipse))
-                    .toArray();
+            var bandAverages = new double[height];
+            RowStrips.forEach(height, (yStart, yEnd) -> {
+                for (var y = yStart; y < yEnd; y++) {
+                    bandAverages[y] = computeAverageForBand(height, lineAverages, bandSize, y, ellipse);
+                }
+            });
 
             for (var y = 0; y < height; y++) {
                 var bandAverage = bandAverages[y];
@@ -747,10 +757,13 @@ public class BandingReduction {
         if (ellipse == null) {
             return ImageMath.newInstance().lineAverages(new Image(width, height, data));
         }
-        return IntStream.range(0, height)
-                .parallel()
-                .mapToDouble(y -> lineAverage(width, y, data, ellipse, outsideDisk))
-                .toArray();
+        var result = new double[height];
+        RowStrips.forEach(height, (yStart, yEnd) -> {
+            for (var y = yStart; y < yEnd; y++) {
+                result[y] = lineAverage(width, y, data, ellipse, outsideDisk);
+            }
+        });
+        return result;
     }
 
     private static double lineAverage(int width, int y, float[][] data, Ellipse ellipse, boolean outsideDisk) {

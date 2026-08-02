@@ -20,6 +20,7 @@ import me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval;
 import me.champeau.a4j.jsolex.processing.util.Histogram;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.math.RowStrips;
 import me.champeau.a4j.math.regression.Ellipse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -394,19 +395,23 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         var optionalModel = BackgroundRemoval.backgroundModel(disk, degree, sigma, backgroundBuffer);
         if (optionalModel.isPresent()) {
             var data = optionalModel.get().data();
-            double avg = 0;
-            for (var y = 0; y < disk.height(); y++) {
-                for (var x = 0; x < disk.width(); x++) {
-                    var v = data[y][x];
-                    avg += v;
-                    if (e == null || !e.isWithin(x, y)) {
-                        var smoothed = smoothing * v;
-                        diskData[y][x] = Math.clamp(diskData[y][x] - smoothed, 0, MAX_PIXEL_VALUE);
+            var width = disk.width();
+            var height = disk.height();
+            var sum = RowStrips.sum(height, (yStart, yEnd) -> {
+                double partial = 0;
+                for (var y = yStart; y < yEnd; y++) {
+                    for (var x = 0; x < width; x++) {
+                        var v = data[y][x];
+                        partial += v;
+                        if (e == null || !e.isWithin(x, y)) {
+                            var smoothed = smoothing * v;
+                            diskData[y][x] = Math.clamp(diskData[y][x] - smoothed, 0, MAX_PIXEL_VALUE);
+                        }
                     }
                 }
-            }
-            avg = avg / (disk.width() * disk.height());
-            return avg;
+                return partial;
+            });
+            return sum / (width * height);
         }
         return 0;
     }
