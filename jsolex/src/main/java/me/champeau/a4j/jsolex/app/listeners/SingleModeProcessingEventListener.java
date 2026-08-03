@@ -465,13 +465,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         var line = payload.data();
         var lineWidth = line.length;
         var bufferHeight = totalLines;
-        var rgb = solarImageBuffers.computeIfAbsent(pixelShift, k -> {
-            var buf = new byte[4 * lineWidth * bufferHeight];
-            for (int i = 3; i < buf.length; i += 4) {
-                buf[i] = (byte) 0xFF;
-            }
-            return buf;
-        });
+        var rgb = solarImageBuffer(pixelShift, lineWidth, bufferHeight);
 
         // Update the current row in the BGRA buffer (alpha already 0xFF from initialization).
         for (var x = 0; x < lineWidth; x++) {
@@ -548,6 +542,20 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 }
             }
         }
+    }
+
+    private byte[] solarImageBuffer(Double pixelShift, int lineWidth, int bufferHeight) {
+        var rgb = solarImageBuffers.get(pixelShift);
+        if (rgb == null) {
+            // benign race: a losing thread's buffer only contains the alpha fill and can be discarded
+            var buf = new byte[4 * lineWidth * bufferHeight];
+            for (int i = 3; i < buf.length; i += 4) {
+                buf[i] = (byte) 0xFF;
+            }
+            var existing = solarImageBuffers.putIfAbsent(pixelShift, buf);
+            rgb = existing != null ? existing : buf;
+        }
+        return rgb;
     }
 
     private void forceFinalUIUpdate(ReconstructionView reconstructionView) {
