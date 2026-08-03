@@ -309,8 +309,6 @@ public class SerFileReader implements AutoCloseable {
             int numPlanes = geometry.colorMode().getNumberOfPlanes();
             int bitsToDiscard = 16 - geometry.pixelDepthPerPlane();
             int maxPixel = 0;
-            int minPixel = Integer.MAX_VALUE;
-            int pixelDepth = 0;
 
             outer:
             for (int i = 0; i < frameCount; i += sampling) {
@@ -319,18 +317,14 @@ public class SerFileReader implements AutoCloseable {
                 var dataLen = width * height * numPlanes;
 
                 for (int j = 0; j < dataLen; j++) {
-                    int pixelValue = readColor(data, bytesPerPixel, bitsToDiscard);
-                    maxPixel = Math.max(maxPixel, pixelValue);
-                    minPixel = Math.min(minPixel, pixelValue);
-                    pixelDepth = (int) Math.ceil(Math.log(maxPixel) / Math.log(2));
-
-                    if (pixelDepth == 16) {
+                    maxPixel = Math.max(maxPixel, readColor(data, bytesPerPixel, bitsToDiscard));
+                    if (maxPixel > 1 << 15) {
                         break outer;
                     }
                 }
             }
 
-            pixelDepth = (int) Math.ceil(Math.log(maxPixel) / Math.log(2));
+            int pixelDepth = maxPixel <= 1 ? 0 : 32 - Integer.numberOfLeadingZeros(maxPixel - 1);
             if (pixelDepth < 1) {
                 return tmpReader;
             }
