@@ -3,6 +3,7 @@
 ## What's New in Version 5.4.1
 
 - Faster image generation, thanks to better use of processor cores.
+- Fixed scripts failing or using wrong images because some pixel shifts were incorrectly considered out of range.
 - New `descatter` ImageMath function, which removes the excess background left around the disk by the light scattered inside the instrument.
 - New "Automatic search on full spectrum" line detection, used by default, which recognizes lines that are not in your list.
 - When you select a spectral line, JSol'Ex now checks that the line it detected really is that one, and corrects itself when a neighbouring line is darker.

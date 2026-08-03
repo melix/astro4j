@@ -991,16 +991,6 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         if (from != null && to != null) {
             double fromDouble = from.doubleValue();
             double toDouble = to.doubleValue();
-            var maxRange = (PixelShiftRange) context.get(PixelShiftRange.class);
-            if (maxRange != null) {
-                var fromDoubleFixed = Math.max(fromDouble, maxRange.minPixelShift());
-                var toDoubleFixed = Math.min(toDouble, maxRange.maxPixelShift());
-                if (fromDoubleFixed != fromDouble || toDoubleFixed != toDouble) {
-                    LOGGER.warn(String.format(message("restricting.range"), fromDoubleFixed, toDoubleFixed));
-                    fromDouble = fromDoubleFixed;
-                    toDouble = toDoubleFixed;
-                }
-            }
             double stepDouble = step.doubleValue();
             if (stepDouble > 0) {
                 for (double i = fromDouble; i <= toDouble; i += stepDouble) {

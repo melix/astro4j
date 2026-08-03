@@ -359,7 +359,6 @@ final class Spectral3DVisualizationHelper {
                             BatchOperations.submitOneOfAKind("progress", () -> owner.updateProgress(e.getPayload()));
                         }
                     });
-                    solexVideoProcessor.setIgnoreIncompleteShifts(true);
                     if (mainEllipse != null) {
                         solexVideoProcessor.setCachedEllipse(mainEllipse);
                     }

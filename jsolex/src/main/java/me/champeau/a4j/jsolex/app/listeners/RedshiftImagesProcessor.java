@@ -755,7 +755,6 @@ public class RedshiftImagesProcessor {
                 BatchOperations.submitOneOfAKind("progress", () -> owner.updateProgress(e.getPayload()));
             }
         });
-        solexVideoProcessor.setIgnoreIncompleteShifts(true);
         // Use the main ellipse from manual fitting (before any transformations)
         if (mainEllipse != null) {
             solexVideoProcessor.setCachedEllipse(mainEllipse);

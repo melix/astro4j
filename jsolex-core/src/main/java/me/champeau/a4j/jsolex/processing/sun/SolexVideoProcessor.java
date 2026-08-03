@@ -191,7 +191,6 @@ public class SolexVideoProcessor implements Broadcaster {
     private DoubleQuadruplet polynomialCoefficients;
     private float[][] averageImage;
     private PixelShiftRange pixelShiftRange;
-    private boolean ignoreIncompleteShifts;
     private boolean forceDetectActiveRegions;
     private List<ConditionalFlip> flipConditions = List.of();
     private Runnable onReconstructionComplete = () -> {
@@ -245,10 +244,6 @@ public class SolexVideoProcessor implements Broadcaster {
 
     public void setCachedEllipse(Ellipse cachedEllipse) {
         this.cachedEllipse = new EllipseFittingTask.Result(cachedEllipse, List.of());
-    }
-
-    public void setIgnoreIncompleteShifts(boolean ignoreIncompleteShifts) {
-        this.ignoreIncompleteShifts = ignoreIncompleteShifts;
     }
 
     public void setAverageImage(float[][] averageImage) {
@@ -485,9 +480,7 @@ public class SolexVideoProcessor implements Broadcaster {
             if (imageList.stream().noneMatch(s -> s.pixelShift() == continuumPixelShift)) {
                 imageList.add(new WorkflowState(width, newHeight, continuumPixelShift));
             }
-            if (!ignoreIncompleteShifts) {
-                imageList.removeIf(s -> s.pixelShift() < minShift || s.pixelShift() > maxShift);
-            } else if (imageList.stream().anyMatch(s -> s.pixelShift() < minShift || s.pixelShift() > maxShift)) {
+            if (imageList.stream().anyMatch(s -> s.pixelShift() < minShift || s.pixelShift() > maxShift)) {
                 LOGGER.warn(message("some.shifts.outside.range"));
             }
             var avgImage = new Image(width, height, averageImage);
@@ -600,7 +593,6 @@ public class SolexVideoProcessor implements Broadcaster {
                 var missingShiftLock = new ReentrantLock();
                 generateImageMaths(imageNamingStrategy, baseName, imageList, mathImages,
                         (sharedReader, shift) -> computeMissingImageShift(converter, header, fps, sharedReader, 0, end, shift, missingShiftLock, width, newHeight, geometry, height, polynomial, imageNamingStrategy, baseName, imageList),
-                        minShift, maxShift,
                         header);
             });
             var progress = new AtomicInteger();
@@ -1273,8 +1265,6 @@ public class SolexVideoProcessor implements Broadcaster {
                                     List<WorkflowState> imageList,
                                     ImageMathParams mathImages,
                                     BiFunction<SerFileReader, PixelShift, ImageWrapper> missingShiftSupplier,
-                                    double minShift,
-                                    double maxShift,
                                     Header header) {
         if (!mathImages.scriptFiles().isEmpty() && !imageList.isEmpty()) {
             var images = new HashMap<Double, ImageWrapper>();
@@ -1322,13 +1312,6 @@ public class SolexVideoProcessor implements Broadcaster {
                             .mergeAll(additionalContext);
                     var scriptRunner = new DefaultImageScriptExecutor(shift -> {
                         double lookup = shift.pixelShift();
-                        if (lookup < minShift) {
-                            LOGGER.warn("Cropping window doesn't allow use of shift {}, replacing with {}", lookup, minShift);
-                            lookup = minShift;
-                        } else if (lookup > maxShift) {
-                            LOGGER.warn("Cropping window doesn't allow use of shift {}, replacing with {}", lookup, maxShift);
-                            lookup = maxShift;
-                        }
                         var img = images.get(lookup);
                         if (img == null) {
                             // this can happen in situations where a shift is dynamic and cannot be computed
