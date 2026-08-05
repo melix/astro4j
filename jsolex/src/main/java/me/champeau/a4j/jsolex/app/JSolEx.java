@@ -1586,7 +1586,6 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
                     FilesUtils.writeString(imageMathScript.getText(), file.toPath());
                     imageMathScript.setIncludesDir(file.getParentFile().toPath());
                     imageMathSave.setDisable(true);
-                    scriptLanguageChoice.setDisable(true);
                     config.rememberDirectoryFor(file.toPath(), Configuration.DirectoryKind.IMAGE_MATH);
                 } catch (IOException e) {
                     // ignore
@@ -1608,7 +1607,6 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             FxUtils.runLater(() -> {
                 imageMathScript.setIncludesDir(file.getParentFile().toPath());
                 scriptLanguageChoice.setValue(language);
-                scriptLanguageChoice.setDisable(true);
                 imageMathScript.setHighlightingMode(language.getHighlightingMode());
                 imageMathScript.setText(script);
                 imageMathSave.setDisable(true);

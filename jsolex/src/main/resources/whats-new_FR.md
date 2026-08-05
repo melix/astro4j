@@ -1,5 +1,10 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+## Nouveautés de la version 5.4.2
+
+- Les scripts Python peuvent désormais émettre des animations avec `jsolex.emit`.
+- Correction du sélecteur de langage de script de la fenêtre principale qui restait bloqué une fois un script chargé ou enregistré.
+
 ## Nouveautés de la version 5.4.1
 
 - Détection plus précise de la courbure de la raie spectrale, pour une géométrie plus fidèle des images reconstruites.

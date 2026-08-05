@@ -211,7 +211,7 @@ jsolex.vars.my_result = processed_image
 |Function|Description
 |`load(path)`|Loads an image from a file
 |`save(img, path)`|Saves an image to a FITS file
-|`emit(img, title, ...)`|Emits an image to the JSol'Ex UI during execution
+|`emit(value, title, ...)`|Emits an image or a file output (e.g. an animation) to the JSol'Ex UI during execution
 |`getVariable(name)`|Gets a script parameter or variable by name
 |`getProcessParams()`|Gets the current processing parameters
 |`getSourceInfo()`|Returns `{fileName, parentDir, dateTime, width, height}` for the source SER file
@@ -233,6 +233,10 @@ jsolex.emit(img, "Enhanced",
             name="enhanced_v1",
             category="Processing",
             description="1.5x brightness")
+
+# Animations can be emitted too
+film = jsolex.funcs.anim([img0, img1, img2], 50)
+jsolex.emit(film, "My animation")
 ----
 
 == Standalone Python Scripts
