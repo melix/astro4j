@@ -290,9 +290,9 @@ public class PythonScriptExecutor {
                     _jsolex_module.load = _java_bridge.load
                     _jsolex_module.save = _java_bridge.save
                     
-                    def _emit(img, title, name=None, category=None, description=None):
-                        # Emit an image to the JSol'Ex UI during script execution
-                        _java_bridge.emit(img, title, name, category, description)
+                    def _emit(value, title, name=None, category=None, description=None):
+                        # Emit an image or file output (e.g. an animation) to the JSol'Ex UI during script execution
+                        _java_bridge.emit(value, title, name, category, description)
                     _jsolex_module.emit = _emit
                     
                     _jsolex_module.call = _java_bridge.call

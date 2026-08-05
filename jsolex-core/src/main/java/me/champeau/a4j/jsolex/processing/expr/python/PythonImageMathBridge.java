@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.expr.python;
 
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.expr.AbstractImageExpressionEvaluator;
+import me.champeau.a4j.jsolex.processing.expr.FileOutputResult;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
@@ -145,33 +146,45 @@ public class PythonImageMathBridge implements AutoCloseable {
     }
 
     /**
-     * Emits an image to the JSol'Ex UI during script execution.
-     * The image will be displayed in the image viewer as a script-generated image.
+     * Emits an image or a file output (e.g. an animation) to the JSol'Ex UI during script execution.
+     * Images are displayed in the image viewer as script-generated images, file outputs are saved
+     * to the output directory and displayed like ImageMath file outputs.
      *
-     * @param img         the image to emit
-     * @param title       the display title for the image
+     * @param value       the image or file output to emit
+     * @param title       the display title
      * @param name        the file name (optional, defaults to title)
      * @param category    the category (optional)
      * @param description the description (optional)
      */
     @HostAccess.Export
-    public void emit(ImageWrapper img, String title, String name, String category, String description) {
+    public void emit(Object value, String title, String name, String category, String description) {
         var imageEmitter = (ImageEmitter) context.get(ImageEmitter.class);
         if (imageEmitter == null) {
-            LOGGER.warn("No ImageEmitter in context, cannot emit image: {}", title);
+            LOGGER.warn("No ImageEmitter in context, cannot emit: {}", title);
             return;
         }
-        var unwrapped = unwrap(img);
         var effectiveName = name != null ? name : title;
-        if (unwrapped instanceof ImageWrapper32 mono) {
-            imageEmitter.newMonoImage(GeneratedImageKind.IMAGE_MATH, category, title, effectiveName, description, mono);
-        } else if (unwrapped instanceof RGBImage rgb) {
-            imageEmitter.newColorImage(GeneratedImageKind.IMAGE_MATH, category, title, effectiveName, description,
-                    rgb.width(), rgb.height(), rgb.metadata(), () -> new float[][][]{rgb.r(), rgb.g(), rgb.b()});
-        } else {
-            LOGGER.warn("Unsupported image type for emit: {}", unwrapped.getClass().getName());
+        switch (value) {
+            case ImageWrapper img -> {
+                var unwrapped = unwrap(img);
+                if (unwrapped instanceof ImageWrapper32 mono) {
+                    imageEmitter.newMonoImage(GeneratedImageKind.IMAGE_MATH, category, title, effectiveName, description, mono);
+                } else if (unwrapped instanceof RGBImage rgb) {
+                    imageEmitter.newColorImage(GeneratedImageKind.IMAGE_MATH, category, title, effectiveName, description,
+                            rgb.width(), rgb.height(), rgb.metadata(), () -> new float[][][]{rgb.r(), rgb.g(), rgb.b()});
+                } else {
+                    LOGGER.warn("Unsupported image type for emit: {}", unwrapped.getClass().getName());
+                }
+            }
+            case FileOutputResult fileOutput -> {
+                for (var file : fileOutput.allFiles()) {
+                    imageEmitter.newGenericFile(GeneratedImageKind.IMAGE_MATH, category, title, effectiveName, description, file);
+                }
+            }
+            case null, default ->
+                    LOGGER.warn("Unsupported type for emit: {}", value == null ? "null" : value.getClass().getName());
         }
-        LOGGER.debug("Emitted image: {}", title);
+        LOGGER.debug("Emitted: {}", title);
     }
 
     /**

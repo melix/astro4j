@@ -1,5 +1,10 @@
 # Welcome to JSol'Ex {{version}}!
 
+## What's New in Version 5.4.2
+
+- Python scripts can now emit animations with `jsolex.emit`.
+- Fixed the script language selector of the main window staying locked once a script had been loaded or saved.
+
 ## What's New in Version 5.4.1
 
 - More precise detection of the spectral line curvature, resulting in more accurate geometry of the reconstructed images.
