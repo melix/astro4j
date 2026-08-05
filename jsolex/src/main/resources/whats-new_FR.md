@@ -2,6 +2,7 @@
 
 ## Nouveautés de la version 5.4.1
 
+- Détection plus précise de la courbure de la raie spectrale, pour une géométrie plus fidèle des images reconstruites.
 - Génération des images plus rapide, grâce à une meilleure utilisation des cœurs du processeur.
 - Correction de scripts qui échouaient ou utilisaient de mauvaises images parce que certains décalages de pixels étaient considérés à tort comme hors limites.
 - Nouvelle fonction ImageMath `descatter`, qui retire l'excès de fond laissé autour du disque par la lumière diffusée dans l'instrument.

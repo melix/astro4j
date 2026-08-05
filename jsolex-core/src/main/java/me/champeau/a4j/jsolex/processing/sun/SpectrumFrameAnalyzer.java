@@ -19,9 +19,11 @@ import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.regression.LinearRegression;
 import me.champeau.a4j.math.tuples.DoublePair;
 import me.champeau.a4j.math.tuples.DoubleQuadruplet;
+import me.champeau.a4j.math.tuples.DoubleTriplet;
 import me.champeau.a4j.math.tuples.IntPair;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -29,6 +31,12 @@ import java.util.function.DoubleUnaryOperator;
 
 public class SpectrumFrameAnalyzer {
     public static final int MAX_DEVIATION = 4;
+    private static final int CONTINUUM_WINDOW = 16;
+    private static final int SIGMA_CLIPPING_ITERATIONS = 3;
+    private static final double SIGMA_CLIPPING_KAPPA = 3.0;
+    private static final double MIN_SIGMA = 0.01;
+    private static final double CENTROID_DEPTH_FRACTION = 0.25;
+    private static final int MIN_SAMPLES_FOR_REFINEMENT = 8;
     private final int width;
     private final int height;
     private final Double sunDetectionThreshold;
@@ -278,12 +286,14 @@ public class SpectrumFrameAnalyzer {
                 previousY = y;
             }
         }
-        var fallback = new ArrayList<>(samplePoints);
-        if (samplePoints.size() < 3) {
-            samplePoints = fallback;
-        }
-
         var regression = LinearRegression.secondOrderRegression(samplePoints.toArray(new Point2D[0]));
+        if (isFinite(regression) && samplePoints.size() >= MIN_SAMPLES_FOR_REFINEMENT) {
+            var refined = refineFit(regression, l, r);
+            if (refined != null) {
+                regression = refined.fit();
+                samplePoints = new ArrayList<>(refined.samplePoints());
+            }
+        }
         return new Result(leftBorder, rightBorder, new DoubleQuadruplet(
                 0,
                 regression.a(),
@@ -292,12 +302,150 @@ public class SpectrumFrameAnalyzer {
         ), samplePoints);
     }
 
+    /**
+     * Refines an initial fit by re-extracting the line center in each column around
+     * the position predicted by the initial polynomial, using a depth-weighted centroid,
+     * then performing a sigma-clipped regression weighted by line depth.
+     */
+    private RobustFit refineFit(DoubleTriplet initialFit, int l, int r) {
+        var poly = initialFit.asPolynomial();
+        var points = new ArrayList<Point2D>(r - l);
+        var weights = new double[r - l];
+        int count = 0;
+        for (int x = l; x < r; x++) {
+            var predicted = poly.applyAsDouble(x);
+            if (predicted < 0 || predicted >= height) {
+                continue;
+            }
+            var candidate = deepestMinimumNear(x, predicted);
+            if (candidate.isEmpty()) {
+                continue;
+            }
+            var sample = depthWeightedCenter(x, candidate.get());
+            if (sample.weight() > 0) {
+                points.add(new Point2D(x, sample.y()));
+                weights[count++] = sample.weight();
+            }
+        }
+        if (points.size() < MIN_SAMPLES_FOR_REFINEMENT) {
+            return null;
+        }
+        return sigmaClippedFit(points, Arrays.copyOf(weights, count));
+    }
+
+    /**
+     * Computes the sub-pixel center of the line in a column as the centroid of the
+     * contiguous pixels within {@link #CENTROID_DEPTH_FRACTION} of the line depth
+     * above the minimum, weighted by their darkness. The weight of the returned
+     * sample is the depth of the line relative to the local continuum.
+     */
+    private LineSample depthWeightedCenter(int column, Minimum minimum) {
+        var yMin = Math.clamp((int) Math.round(minimum.y()), 0, height - 1);
+        var lo = Math.max(0, yMin - CONTINUUM_WINDOW);
+        var hi = Math.min(height - 1, yMin + CONTINUUM_WINDOW);
+        double continuum = 0;
+        for (int y = lo; y <= hi; y++) {
+            continuum = Math.max(continuum, data[y][column]);
+        }
+        var depth = continuum - minimum.value();
+        if (depth <= 0) {
+            return new LineSample(minimum.y(), 0);
+        }
+        var threshold = minimum.value() + CENTROID_DEPTH_FRACTION * depth;
+        var runLo = yMin;
+        while (runLo > lo && data[runLo - 1][column] <= threshold) {
+            runLo--;
+        }
+        var runHi = yMin;
+        while (runHi < hi && data[runHi + 1][column] <= threshold) {
+            runHi++;
+        }
+        if (runHi - runLo < 2) {
+            return new LineSample(minimum.y(), depth);
+        }
+        double sumW = 0;
+        double sumWY = 0;
+        for (int y = runLo; y <= runHi; y++) {
+            double w = threshold - data[y][column];
+            if (w > 0) {
+                sumW += w;
+                sumWY += w * y;
+            }
+        }
+        if (sumW <= 0) {
+            return new LineSample(minimum.y(), depth);
+        }
+        return new LineSample(sumWY / sumW, depth);
+    }
+
+    private static RobustFit sigmaClippedFit(List<Point2D> points, double[] weights) {
+        var currentPoints = points;
+        var currentWeights = weights;
+        var fit = LinearRegression.secondOrderRegression(currentPoints.toArray(new Point2D[0]), currentWeights);
+        if (!isFinite(fit)) {
+            return null;
+        }
+        for (int iteration = 0; iteration < SIGMA_CLIPPING_ITERATIONS; iteration++) {
+            var poly = fit.asPolynomial();
+            var residuals = new double[currentPoints.size()];
+            for (int i = 0; i < residuals.length; i++) {
+                var point = currentPoints.get(i);
+                residuals[i] = point.y() - poly.applyAsDouble(point.x());
+            }
+            var center = median(residuals);
+            var absoluteDeviations = new double[residuals.length];
+            for (int i = 0; i < residuals.length; i++) {
+                absoluteDeviations[i] = Math.abs(residuals[i] - center);
+            }
+            var sigma = 1.4826 * median(absoluteDeviations);
+            if (sigma < MIN_SIGMA) {
+                break;
+            }
+            var cutoff = SIGMA_CLIPPING_KAPPA * sigma;
+            var keptPoints = new ArrayList<Point2D>(currentPoints.size());
+            var keptWeights = new double[currentPoints.size()];
+            int kept = 0;
+            for (int i = 0; i < residuals.length; i++) {
+                if (Math.abs(residuals[i] - center) <= cutoff) {
+                    keptPoints.add(currentPoints.get(i));
+                    keptWeights[kept++] = currentWeights[i];
+                }
+            }
+            if (kept == currentPoints.size() || kept < MIN_SAMPLES_FOR_REFINEMENT) {
+                break;
+            }
+            var newFit = LinearRegression.secondOrderRegression(keptPoints.toArray(new Point2D[0]), Arrays.copyOf(keptWeights, kept));
+            if (!isFinite(newFit)) {
+                break;
+            }
+            fit = newFit;
+            currentPoints = keptPoints;
+            currentWeights = Arrays.copyOf(keptWeights, kept);
+        }
+        return new RobustFit(fit, currentPoints);
+    }
+
+    private static boolean isFinite(DoubleTriplet fit) {
+        return Double.isFinite(fit.a()) && Double.isFinite(fit.b()) && Double.isFinite(fit.c());
+    }
+
+    private static double median(double[] values) {
+        var sorted = values.clone();
+        Arrays.sort(sorted);
+        var mid = sorted.length / 2;
+        return sorted.length % 2 == 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+    }
+
     private double findLocalMinimumClosestTo(int column, float[][] data, double targetY) {
-        return findMinima(column, data, 0, data.length - 1).stream()
-                .filter(m -> targetY < 0 || Math.abs(m.y() - targetY) <= MAX_DEVIATION)
-                .min(Comparator.comparingDouble(Minimum::value))
+        return deepestMinimumNear(column, targetY)
                 .map(Minimum::y)
                 .orElse(-1d);
+    }
+
+    private Optional<Minimum> deepestMinimumNear(int column, double targetY) {
+        return findMinima(column, data, 0, data.length - 1).stream()
+                .filter(m -> targetY < 0 || Math.abs(m.y() - targetY) <= MAX_DEVIATION)
+                .min(Comparator.comparingDouble(Minimum::value));
     }
 
 
@@ -424,5 +572,11 @@ public class SpectrumFrameAnalyzer {
     }
 
     private record Minimum(double y, float value) {
+    }
+
+    private record LineSample(double y, double weight) {
+    }
+
+    private record RobustFit(DoubleTriplet fit, List<Point2D> samplePoints) {
     }
 }

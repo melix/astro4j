@@ -2,6 +2,7 @@
 
 ## What's New in Version 5.4.1
 
+- More precise detection of the spectral line curvature, resulting in more accurate geometry of the reconstructed images.
 - Faster image generation, thanks to better use of processor cores.
 - Fixed scripts failing or using wrong images because some pixel shifts were incorrectly considered out of range.
 - New `descatter` ImageMath function, which removes the excess background left around the disk by the light scattered inside the instrument.
