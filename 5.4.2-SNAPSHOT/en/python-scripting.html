@@ -837,8 +837,8 @@ jsolex.vars.my_result = processed_image</code></pre>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Saves an image to a FITS file</p></td>
 </tr>
 <tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>emit(img, title, &#8230;&#8203;)</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Emits an image to the JSol&#8217;Ex UI during execution</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>emit(value, title, &#8230;&#8203;)</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Emits an image or a file output (e.g. an animation) to the JSol&#8217;Ex UI during execution</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>getVariable(name)</code></p></td>
@@ -880,7 +880,11 @@ jsolex.vars.my_result = processed_image</code></pre>
 jsolex.emit(img, "Enhanced",
             name="enhanced_v1",
             category="Processing",
-            description="1.5x brightness")</code></pre>
+            description="1.5x brightness")
+
+# Animations can be emitted too
+film = jsolex.funcs.anim([img0, img1, img2], 50)
+jsolex.emit(film, "My animation")</code></pre>
 </div>
 </div>
 </div>
