@@ -20,15 +20,15 @@ package me.champeau.a4j.jsolex.processing.params;
  */
 public enum LineDetectionMode {
     /**
-     * The line is looked for among the ones the user has configured.
-     */
-    AUTO,
-    /**
      * The line is looked for among all the deep lines of the solar spectrum, which
      * allows identifying a line the user has no entry for. Falls back to {@link #AUTO}
      * when no line can be identified with confidence.
      */
     FREE_SEARCH,
+    /**
+     * The line is looked for among the ones the user has configured.
+     */
+    AUTO,
     /**
      * The user selected the line themselves.
      */
