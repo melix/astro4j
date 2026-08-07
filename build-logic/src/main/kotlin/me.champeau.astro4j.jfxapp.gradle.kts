@@ -21,10 +21,11 @@ val jvmMemorySettings = listOf(
     "-Dpolyglotimpl.DisableMultiReleaseCheck=true"
 )
 
+@Suppress("UNCHECKED_CAST")
+val sharedJvmArgs = extra["astro4j.sharedJvmArgs"] as List<String>
+
 application {
-    applicationDefaultJvmArgs = jvmMemorySettings + listOf(
-        "--enable-preview",
-        "--enable-native-access=javafx.graphics",
+    applicationDefaultJvmArgs = jvmMemorySettings + sharedJvmArgs + listOf(
         // Required for Apache Arrow memory allocation
         "--add-opens=java.base/java.nio=org.apache.arrow.memory.core",
         "--add-opens=java.base/java.nio=ALL-UNNAMED"
