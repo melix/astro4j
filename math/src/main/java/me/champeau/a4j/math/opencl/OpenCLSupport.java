@@ -18,6 +18,10 @@ package me.champeau.a4j.math.opencl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -39,11 +43,48 @@ public class OpenCLSupport {
      */
     public static final String OPENCL_SYSTEM_PROPERTY = "opencl.enabled";
 
-    private static final boolean OPENCL_AVAILABLE;
+    private static final long PROBE_TIMEOUT_SECONDS = 15;
+
+    private static final AtomicReference<CompletableFuture<Boolean>> AVAILABILITY_PROBE = new AtomicReference<>();
     private static final AtomicReference<OpenCLContext> SHARED_CONTEXT = new AtomicReference<>();
 
-    static {
-        OPENCL_AVAILABLE = checkOpenCLAvailable();
+    private static boolean isExplicitlyEnabled() {
+        var propEnabled = System.getProperty(OPENCL_SYSTEM_PROPERTY);
+        var enabled = propEnabled != null ? propEnabled : System.getenv(OPENCL_ENV_VAR);
+        return Boolean.parseBoolean(enabled);
+    }
+
+    private static boolean probeAvailability() {
+        var probe = AVAILABILITY_PROBE.get();
+        if (probe == null) {
+            var newProbe = new CompletableFuture<Boolean>();
+            if (AVAILABILITY_PROBE.compareAndSet(null, newProbe)) {
+                var thread = new Thread(() -> {
+                    try {
+                        newProbe.complete(checkOpenCLAvailable());
+                    } catch (Throwable t) {
+                        newProbe.complete(false);
+                    }
+                }, "opencl-availability-probe");
+                thread.setDaemon(true);
+                thread.start();
+                probe = newProbe;
+            } else {
+                probe = AVAILABILITY_PROBE.get();
+            }
+        }
+        try {
+            return probe.get(PROBE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            LOGGER.warn("OpenCL initialization did not complete within {} seconds, disabling GPU acceleration", PROBE_TIMEOUT_SECONDS);
+            probe.complete(false);
+            return false;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        } catch (ExecutionException e) {
+            return false;
+        }
     }
 
     private static boolean checkOpenCLAvailable() {
@@ -89,16 +130,7 @@ public class OpenCLSupport {
      * @return true if OpenCL is available and enabled
      */
     public static boolean isEnabled() {
-        if (!OPENCL_AVAILABLE) {
-            return false;
-        }
-        var envEnabled = System.getenv(OPENCL_ENV_VAR);
-        var propEnabled = System.getProperty(OPENCL_SYSTEM_PROPERTY);
-        var enabled = propEnabled != null ? propEnabled : envEnabled;
-        if (enabled == null || !Boolean.parseBoolean(enabled)) {
-            return false;
-        }
-        return getContext() != null;
+        return isExplicitlyEnabled() && getContext() != null;
     }
 
     /**
@@ -107,7 +139,7 @@ public class OpenCLSupport {
      * @return true if LWJGL OpenCL bindings are present
      */
     public static boolean isAvailable() {
-        return OPENCL_AVAILABLE;
+        return probeAvailability();
     }
 
     /**
@@ -117,7 +149,7 @@ public class OpenCLSupport {
      * @return the shared context or null
      */
     public static OpenCLContext getContext() {
-        if (!OPENCL_AVAILABLE) {
+        if (!isExplicitlyEnabled() || !probeAvailability()) {
             return null;
         }
         var ctx = SHARED_CONTEXT.get();

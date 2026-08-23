@@ -708,6 +708,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             Thread.startVirtualThread(() -> {
                 // pre-load reference intensities in background to avoid blocking the UI later on when they're first needed
                 var _ = ReferenceIntensities.INSTANCE;
+                LOGGER.info(message("gpu.support"), OpenCLSupport.isEnabled() ? message("gpu.enabled") : message("gpu.disabled"));
                 UpdateChecker.findLatestRelease().ifPresent(this::maybeWarnAboutNewRelease);
             });
             LOGGER.info(message("java.runtime.version"), System.getProperty("java.version"));
@@ -716,7 +717,6 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             if (config.isAutoStartServer()) {
                 server.start(config.getAutoStartServerPort());
             }
-            LOGGER.info(message("gpu.support"), OpenCLSupport.isEnabled() ? message("gpu.enabled") : message("gpu.disabled"));
             OpenGLAvailability.checkAsync().thenAccept(available -> {
                 LOGGER.info(message("opengl.support"), available ? message("opengl.available") : message("opengl.unavailable"));
                 if (OpenGLAvailability.isPreviousCrashDetected()) {
