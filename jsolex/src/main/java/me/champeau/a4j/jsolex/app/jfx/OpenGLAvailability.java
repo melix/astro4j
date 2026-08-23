@@ -126,6 +126,33 @@ public final class OpenGLAvailability {
         }
     }
 
+    /**
+     * Returns whether the user has disabled OpenGL permanently.
+     *
+     * @return true if the disabled marker is present
+     */
+    public static boolean isDisabledByUser() {
+        var crashMarker = getCrashMarkerPath();
+        if (Files.exists(crashMarker)) {
+            try {
+                return MARKER_CONTENT_DISABLED.equals(Files.readString(crashMarker).strip());
+            } catch (IOException e) {
+                LOGGER.warn("Could not read OpenGL crash marker file: {}", e.getMessage());
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Re-enables OpenGL by deleting the disabled marker, so that
+     * availability is probed again at next startup.
+     */
+    public static void enableOpenGL() {
+        if (isDisabledByUser()) {
+            deleteCrashMarker();
+        }
+    }
+
     private static void performCheck() {
         LOGGER.debug("Checking OpenGL availability...");
 

@@ -61,6 +61,7 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
     private final CheckBox generateMp4;
     private final CheckBox generateGif;
     private final CheckBox gpuAcceleration;
+    private final CheckBox openGlSupport;
     private final Spinner<Integer> batchParallelism;
     private final TextField graalPyExecutable;
     private final Button browseGraalPy;
@@ -72,6 +73,7 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
     private int initialMemoryRestriction;
     private String initialLanguage;
     private boolean initialGpuAcceleration;
+    private boolean initialOpenGlEnabled;
     private String initialGraalPyExecutable;
     private String initialTemporaryDirectory;
 
@@ -94,6 +96,7 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
         generateMp4 = createCheckBox("MP4", I18N.string(JSolEx.class, "advanced-params", "generate.mp4.files"));
         generateGif = createCheckBox("GIF", I18N.string(JSolEx.class, "advanced-params", "generate.gif.files"));
         gpuAcceleration = createCheckBox("", I18N.string(JSolEx.class, "advanced-params", "gpu.acceleration.tooltip"));
+        openGlSupport = createCheckBox("", I18N.string(JSolEx.class, "advanced-params", "opengl.support.tooltip"));
         batchParallelism = new Spinner<>(new SpinnerValueFactory.IntegerSpinnerValueFactory(1, Runtime.getRuntime().availableProcessors(), 2));
         batchParallelism.setEditable(false);
         graalPyExecutable = createTextField("", I18N.string(JSolEx.class, "advanced-params", "graalpy.executable.tooltip"));
@@ -188,6 +191,11 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
                 "gpu.acceleration.tooltip");
 
         addGridRow(performanceGrid, 3,
+                I18N.string(JSolEx.class, "advanced-params", "opengl.support"),
+                openGlSupport,
+                "opengl.support.tooltip");
+
+        addGridRow(performanceGrid, 4,
                 I18N.string(JSolEx.class, "advanced-params", "batch.parallelism"),
                 batchParallelism,
                 "batch.parallelism.tooltip");
@@ -293,6 +301,9 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
         initialGpuAcceleration = config.isGpuAccelerationEnabled();
         gpuAcceleration.setSelected(initialGpuAcceleration);
 
+        initialOpenGlEnabled = !OpenGLAvailability.isDisabledByUser();
+        openGlSupport.setSelected(initialOpenGlEnabled);
+
         batchParallelism.getValueFactory().setValue(config.getBatchParallelism());
 
         initialGraalPyExecutable = config.getGraalPyExecutable()
@@ -347,6 +358,13 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
         config.setAnimationFormats(animationFormats);
 
         config.setGpuAccelerationEnabled(gpuAcceleration.isSelected());
+        if (openGlSupport.isSelected() != initialOpenGlEnabled) {
+            if (openGlSupport.isSelected()) {
+                OpenGLAvailability.enableOpenGL();
+            } else {
+                OpenGLAvailability.disableOpenGL();
+            }
+        }
         config.setBatchParallelism(batchParallelism.getValue());
 
         var execPath = graalPyExecutable.getText();
@@ -377,10 +395,11 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
         var memoryChanged = initialMemoryRestriction != newMemoryRestriction;
         var languageChanged = !newLanguage.equals(initialLanguage);
         var gpuChanged = initialGpuAcceleration != gpuAcceleration.isSelected();
+        var openGlChanged = initialOpenGlEnabled != openGlSupport.isSelected();
         var graalPyChanged = !graalPyExecutable.getText().equals(initialGraalPyExecutable);
         var tempDirChanged = !temporaryDirectory.getText().equals(initialTemporaryDirectory);
 
-        return memoryChanged || languageChanged || gpuChanged || graalPyChanged || tempDirChanged;
+        return memoryChanged || languageChanged || gpuChanged || openGlChanged || graalPyChanged || tempDirChanged;
     }
 
     private String computeMemoryUsageHelpLabel(Number value) {
