@@ -4,7 +4,11 @@
 
 - Les scripts Python peuvent désormais émettre des animations avec `jsolex.emit`.
 - Correction du sélecteur de langage de script de la fenêtre principale qui restait bloqué une fois un script chargé ou enregistré.
+<<<<<<< Updated upstream
 - La prise en charge d'OpenGL peut désormais être réactivée depuis les paramètres avancés si elle avait été désactivée.
+=======
+- Correction d'un blocage de l'application au démarrage sur certains ordinateurs dont les pilotes de carte graphique sont défectueux.
+>>>>>>> Stashed changes
 
 ## Nouveautés de la version 5.4.1
 
