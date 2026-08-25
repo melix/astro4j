@@ -16,11 +16,14 @@
 package me.champeau.a4j.jsolex.processing.util;
 
 import me.champeau.a4j.math.opencl.NativeLibraryLoader;
+import me.champeau.a4j.math.opencl.OpenCLSupport;
 
 public class NativeLibrariesUtils {
     public static void ensureNativesLoaded() {
         var version = VersionUtil.getVersion();
-        var nativeDir = VersionUtil.getJsolexDir().resolve("native").resolve(version);
+        var jsolexDir = VersionUtil.getJsolexDir();
+        var nativeDir = jsolexDir.resolve("native").resolve(version);
         NativeLibraryLoader.ensureNativesLoaded(nativeDir, version);
+        OpenCLSupport.setCrashMarkerDirectory(jsolexDir);
     }
 }

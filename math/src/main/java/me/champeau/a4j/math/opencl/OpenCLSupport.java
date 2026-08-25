@@ -18,6 +18,9 @@ package me.champeau.a4j.math.opencl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -44,8 +47,10 @@ public class OpenCLSupport {
     public static final String OPENCL_SYSTEM_PROPERTY = "opencl.enabled";
 
     private static final long PROBE_TIMEOUT_SECONDS = 15;
+    private static final String CRASH_MARKER_FILENAME = "opencl-init.marker";
 
     private static final AtomicReference<CompletableFuture<Boolean>> AVAILABILITY_PROBE = new AtomicReference<>();
+    private static final AtomicReference<Path> CRASH_MARKER_DIR = new AtomicReference<>();
     private static final AtomicReference<OpenCLContext> SHARED_CONTEXT = new AtomicReference<>();
 
     private static boolean isExplicitlyEnabled() {
@@ -88,6 +93,12 @@ public class OpenCLSupport {
     }
 
     private static boolean checkOpenCLAvailable() {
+        var marker = crashMarkerPath();
+        if (marker != null && Files.exists(marker)) {
+            LOGGER.warn("OpenCL initialization previously crashed the application, GPU acceleration is disabled. Re-enable GPU acceleration in the settings to retry");
+            return false;
+        }
+        writeCrashMarker(marker);
         try {
             // Try to access a class from the LWJGL OpenCL module
             // This will fail if LWJGL is not on the module path
@@ -98,6 +109,53 @@ public class OpenCLSupport {
         } catch (NoClassDefFoundError | UnsatisfiedLinkError e) {
             // LWJGL OpenCL not available
             return false;
+        } finally {
+            deleteCrashMarker();
+        }
+    }
+
+    private static Path crashMarkerPath() {
+        var dir = CRASH_MARKER_DIR.get();
+        return dir == null ? null : dir.resolve(CRASH_MARKER_FILENAME);
+    }
+
+    private static void writeCrashMarker(Path marker) {
+        if (marker == null) {
+            return;
+        }
+        try {
+            Files.createDirectories(marker.getParent());
+            Files.createFile(marker);
+        } catch (IOException e) {
+            LOGGER.warn("Could not create OpenCL crash marker file: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Sets the directory in which the crash marker file is written. The marker
+     * exists only while the OpenCL probe is running, so finding one at startup
+     * means the previous probe crashed the JVM and must not be retried.
+     * When no directory is set, no crash detection is performed.
+     *
+     * @param directory the directory for the marker file
+     */
+    public static void setCrashMarkerDirectory(Path directory) {
+        CRASH_MARKER_DIR.set(directory);
+    }
+
+    /**
+     * Removes the marker left behind by a crashed probe, allowing OpenCL
+     * to be probed again on next use.
+     */
+    public static void deleteCrashMarker() {
+        var marker = crashMarkerPath();
+        if (marker == null) {
+            return;
+        }
+        try {
+            Files.deleteIfExists(marker);
+        } catch (IOException e) {
+            LOGGER.warn("Could not delete OpenCL crash marker file: {}", e.getMessage());
         }
     }
 

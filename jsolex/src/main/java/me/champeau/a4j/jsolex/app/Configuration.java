@@ -22,6 +22,7 @@ import me.champeau.a4j.jsolex.processing.util.FitsUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
 import me.champeau.a4j.jsolex.processing.util.VersionUtil;
+import me.champeau.a4j.math.opencl.OpenCLSupport;
 import me.champeau.a4j.math.tuples.IntPair;
 
 import java.io.File;
@@ -463,6 +464,7 @@ public class Configuration {
     public void setGpuAccelerationEnabled(boolean enabled) {
         prefs.putBoolean(GPU_ACCELERATION, enabled);
         if (enabled) {
+            OpenCLSupport.deleteCrashMarker();
             System.setProperty("opencl.enabled", "true");
         } else {
             System.clearProperty("opencl.enabled");

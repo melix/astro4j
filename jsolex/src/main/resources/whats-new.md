@@ -4,11 +4,8 @@
 
 - Python scripts can now emit animations with `jsolex.emit`.
 - Fixed the script language selector of the main window staying locked once a script had been loaded or saved.
-<<<<<<< Updated upstream
 - OpenGL support can now be re-enabled from the advanced settings if it was previously disabled.
-=======
-- Fixed the application hanging at startup on some computers with faulty graphics card drivers.
->>>>>>> Stashed changes
+- Fixed the application hanging or crashing at startup on some computers with faulty graphics card drivers.
 
 ## What's New in Version 5.4.1
 
