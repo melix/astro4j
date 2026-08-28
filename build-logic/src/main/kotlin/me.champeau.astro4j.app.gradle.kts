@@ -16,7 +16,17 @@ plugins {
 // an application, so no consumers except for the final
 // deliverable
 
-val sharedJvmArgs = listOf("--enable-preview", "--enable-native-access=javafx.graphics", "--enable-native-access=org.lwjgl.opengl", "--enable-native-access=org.lwjgl")
+val sharedJvmArgs = listOf(
+    "--enable-preview",
+    "--enable-native-access=javafx.graphics",
+    "--enable-native-access=javafx.media",
+    "--enable-native-access=org.lwjgl",
+    "--enable-native-access=org.lwjgl.opengl",
+    "--enable-native-access=org.lwjgl.opencl",
+    "--enable-native-access=org.lwjgl.glfw"
+)
+
+extra["astro4j.sharedJvmArgs"] = sharedJvmArgs
 
 application {
     applicationDefaultJvmArgs = sharedJvmArgs
