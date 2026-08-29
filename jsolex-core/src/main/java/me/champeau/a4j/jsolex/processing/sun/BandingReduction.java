@@ -59,6 +59,22 @@ public class BandingReduction {
         OUTSIDE_DISK
     }
 
+    /**
+     * Converts the integer used by ImageMath and the process-parameter GUI to
+     * the shared reduction mode.  Unknown values deliberately retain the
+     * historical inside-disk behaviour.
+     *
+     * @param ellipseMode 0 for whole line, 1 for inside disk, 2 for outside disk
+     * @return the corresponding reduction mode
+     */
+    public static Mode modeForEllipseMode(int ellipseMode) {
+        return switch (ellipseMode) {
+            case 0 -> Mode.WHOLE_LINE;
+            case 2 -> Mode.OUTSIDE_DISK;
+            default -> Mode.INSIDE_DISK;
+        };
+    }
+
     private static final int MIN_FIT_PIXELS = 16;
 
     /**
@@ -216,6 +232,60 @@ public class BandingReduction {
             previous = correction;
         }
         return MAX_AUTO_PASSES;
+    }
+
+    /**
+     * Applies the exact operation implemented by ImageMath's {@code destripe}
+     * function.  Keeping the argument handling here makes the native and
+     * scripting paths share one implementation and prevents their defaults or
+     * outside-disk fine stage from drifting apart.
+     *
+     * @return the number of coarse passes applied (zero when explicitly disabled)
+     */
+    public static int applyDestripe(int width,
+                                    int height,
+                                    float[][] data,
+                                    int bandSize,
+                                    int passes,
+                                    int strips,
+                                    Ellipse ellipse,
+                                    Mode mode) {
+        var effectiveMode = mode == null ? Mode.INSIDE_DISK : mode;
+        var effectiveBandSize = bandSize > 0 ? bandSize : autoBandSize(height);
+        int appliedPasses;
+        if (passes < 0) {
+            appliedPasses = removeStripesUntilConvergence(width, height, data, effectiveBandSize, ellipse, effectiveMode, strips);
+        } else {
+            appliedPasses = Math.max(0, passes);
+            for (int i = 0; i < appliedPasses; i++) {
+                removeStripes(width, height, data, effectiveBandSize, ellipse, effectiveMode, strips);
+            }
+        }
+        if (effectiveMode == Mode.OUTSIDE_DISK && passes != 0) {
+            removeLocalStripes(width, height, data, Math.max(4, effectiveBandSize / 4), ellipse, effectiveMode);
+        }
+        return appliedPasses;
+    }
+
+    /**
+     * Applies the exact operation implemented by ImageMath's
+     * {@code fix_banding} function.
+     *
+     * @return the number of correction passes applied
+     */
+    public static int applyFixBanding(int width,
+                                      int height,
+                                      float[][] data,
+                                      int bandSize,
+                                      int passes,
+                                      Ellipse ellipse,
+                                      Mode mode) {
+        var effectiveMode = mode == null ? Mode.INSIDE_DISK : mode;
+        var appliedPasses = Math.max(0, passes);
+        for (int i = 0; i < appliedPasses; i++) {
+            reduceBanding(width, height, data, bandSize, ellipse, effectiveMode);
+        }
+        return appliedPasses;
     }
 
     /**

@@ -181,7 +181,7 @@ public final class ScriptProcessParamsOverrides {
             var candidate = tree.deepCopy();
             putAtPath(candidate, path, entry.getValue());
             try {
-                var updated = gson.fromJson(candidate, ProcessParams.class);
+                var updated = ProcessParamsIO.normalize(gson.fromJson(candidate, ProcessParams.class));
                 if (getAtPath(gson.toJsonTree(updated).getAsJsonObject(), path) == null) {
                     LOGGER.warn("Ignoring unknown process parameter override '{}'", path);
                     continue;

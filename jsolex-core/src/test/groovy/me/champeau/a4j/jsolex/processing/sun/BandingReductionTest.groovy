@@ -15,6 +15,10 @@
  */
 package me.champeau.a4j.jsolex.processing.sun
 
+import me.champeau.a4j.jsolex.processing.expr.impl.Destripe
+import me.champeau.a4j.jsolex.processing.expr.impl.FixBanding
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper32
+import me.champeau.a4j.math.image.ImageMath
 import me.champeau.a4j.math.regression.Ellipse
 import me.champeau.a4j.math.tuples.DoubleSextuplet
 import spock.lang.Specification
@@ -351,6 +355,56 @@ class BandingReductionTest extends Specification {
         }
         Math.abs(lost / featureTotal) < 0.02
         !hasNaN(data, width, height)
+    }
+
+    def "the native pre-processing chain matches ImageMath destripe followed by fix_banding"() {
+        given: "one reconstructed image and the same rotated ellipse used by the native path"
+        int width = 320
+        int height = 192
+        def ellipse = createTestEllipse(width, height)
+        def data = new float[height][width]
+        for (int y = 0; y < height; y++) {
+            double band = 600 * Math.sin(y / 5.0d) + 180 * Math.sin(y / 17.0d)
+            for (int x = 0; x < width; x++) {
+                data[y][x] = (float) (24000 + band + 500 * Math.sin(x / 23.0d))
+            }
+        }
+        def source = new ImageWrapper32(width, height, data, [(Ellipse): ellipse])
+        def imageMath = ImageMath.newCpuInstance()
+        def rotated = imageMath.rotateLeft(source.asImage())
+        def rotatedEllipse = ellipse.rotate(-Math.PI / 2, width, height, rotated.width(), rotated.height())
+        def context = [(Ellipse): rotatedEllipse] as Map<Class<?>, Object>
+
+        when: "ImageMath evaluates the two operations on the reconstructed stage"
+        def imageMathDestriped = new Destripe(context, Broadcaster.NO_OP).destripe([
+                img: ImageWrapper32.fromImage(rotated, [(Ellipse): rotatedEllipse]),
+                bs: 192,
+                passes: -1,
+                strips: 1,
+                ellipseMode: 1
+        ]) as ImageWrapper32
+        def imageMathResult = new FixBanding(context, Broadcaster.NO_OP).fixBanding([
+                img: imageMathDestriped,
+                bs: 32,
+                passes: 1,
+                ellipseMode: 1
+        ]) as ImageWrapper32
+        def expected = imageMath.rotateRight(imageMathResult.asImage())
+
+        and: "the native shared helpers execute the same chain"
+        def nativeRotated = ImageWrapper32.fromImage(rotated, [(Ellipse): rotatedEllipse])
+        BandingReduction.applyDestripe(nativeRotated.width(), nativeRotated.height(), nativeRotated.data(), 192, -1, 1, rotatedEllipse, BandingReduction.Mode.INSIDE_DISK)
+        BandingReduction.applyFixBanding(nativeRotated.width(), nativeRotated.height(), nativeRotated.data(), 32, 1, rotatedEllipse, BandingReduction.Mode.INSIDE_DISK)
+        def actual = imageMath.rotateRight(nativeRotated.asImage())
+
+        then: "both paths are numerically identical within float round-off"
+        double maxDifference = 0
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                maxDifference = Math.max(maxDifference, Math.abs(expected.data()[y][x] - actual.data()[y][x]))
+            }
+        }
+        maxDifference < 1e-4
     }
 
     private static float[][] createTestImage(int width, int height) {
