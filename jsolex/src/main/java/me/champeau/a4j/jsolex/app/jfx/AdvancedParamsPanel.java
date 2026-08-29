@@ -267,18 +267,20 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
 
         languageSelector.getItems().addAll(
                 I18N.string(JSolEx.class, "advanced-params", "language.english"),
-                I18N.string(JSolEx.class, "advanced-params", "language.french")
+                I18N.string(JSolEx.class, "advanced-params", "language.french"),
+                I18N.string(JSolEx.class, "advanced-params", "language.chinese")
         );
 
         initialLanguage = config.getSelectedLanguage();
         if (initialLanguage == null) {
             initialLanguage = LocaleUtils.getConfiguredLanguageCode();
         }
-        if ("fr".equals(initialLanguage)) {
-            languageSelector.setValue(I18N.string(JSolEx.class, "advanced-params", "language.french"));
-        } else {
-            languageSelector.setValue(I18N.string(JSolEx.class, "advanced-params", "language.english"));
-        }
+        var languageKey = switch (initialLanguage) {
+            case "fr" -> "language.french";
+            case "zh" -> "language.chinese";
+            default -> "language.english";
+        };
+        languageSelector.setValue(I18N.string(JSolEx.class, "advanced-params", languageKey));
 
         watchModeWaitTimeMillis.setText(String.valueOf(config.getWatchModeWaitTimeMilis()));
 
@@ -328,10 +330,7 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
         config.setBass2000FtpUrl(bass2000FtpUrl.getText());
         config.setWritePippCompatibleFits(pippCompatibleFits.isSelected());
 
-        var selectedLanguageDisplay = languageSelector.getValue();
-        var frenchDisplay = I18N.string(JSolEx.class, "advanced-params", "language.french");
-        var newLanguage = frenchDisplay.equals(selectedLanguageDisplay) ? "fr" : "en";
-        config.setSelectedLanguage(newLanguage);
+        config.setSelectedLanguage(selectedLanguageCode());
 
         var imageFormats = EnumSet.noneOf(ImageFormat.class);
         if (generatePng.isSelected()) {
@@ -388,9 +387,7 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
      */
     public boolean requiresRestart() {
         var newMemoryRestriction = (int) memoryRestrictionMultiplier.getValue();
-        var selectedLanguageDisplay = languageSelector.getValue();
-        var frenchDisplay = I18N.string(JSolEx.class, "advanced-params", "language.french");
-        var newLanguage = frenchDisplay.equals(selectedLanguageDisplay) ? "fr" : "en";
+        var newLanguage = selectedLanguageCode();
 
         var memoryChanged = initialMemoryRestriction != newMemoryRestriction;
         var languageChanged = !newLanguage.equals(initialLanguage);
@@ -400,6 +397,17 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
         var tempDirChanged = !temporaryDirectory.getText().equals(initialTemporaryDirectory);
 
         return memoryChanged || languageChanged || gpuChanged || openGlChanged || graalPyChanged || tempDirChanged;
+    }
+
+    private String selectedLanguageCode() {
+        var selectedLanguageDisplay = languageSelector.getValue();
+        if (I18N.string(JSolEx.class, "advanced-params", "language.chinese").equals(selectedLanguageDisplay)) {
+            return "zh";
+        }
+        if (I18N.string(JSolEx.class, "advanced-params", "language.french").equals(selectedLanguageDisplay)) {
+            return "fr";
+        }
+        return "en";
     }
 
     private String computeMemoryUsageHelpLabel(Number value) {
