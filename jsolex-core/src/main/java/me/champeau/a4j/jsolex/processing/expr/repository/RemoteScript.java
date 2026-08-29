@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.expr.repository;
 
 import java.nio.file.Path;
+import java.util.Optional;
 
 public record RemoteScript(
     ScriptRepository repository,
@@ -23,6 +24,16 @@ public record RemoteScript(
     Path localPath,
     String author,
     String title,
-    String version
+    String version,
+    Optional<PendingUpdate> pendingUpdate
 ) {
+    /**
+     * A newer version of the script which is available in the repository but was not installed
+     * because it requires a more recent version of JSol'Ex.
+     *
+     * @param version the version of the script available remotely
+     * @param requiredVersion the minimal JSol'Ex version required by that script
+     */
+    public record PendingUpdate(String version, String requiredVersion) {
+    }
 }

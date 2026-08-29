@@ -3,6 +3,7 @@
 ## Nouveautés de la version 5.4.2
 
 - Les scripts Python peuvent désormais émettre des animations avec `jsolex.emit`.
+- Le résumé des scripts d'un dépôt indique désormais quand une version plus récente d'un script est disponible mais nécessite une version plus récente de JSol'Ex.
 - Correction du sélecteur de langage de script de la fenêtre principale qui restait bloqué une fois un script chargé ou enregistré.
 - La prise en charge d'OpenGL peut désormais être réactivée depuis les paramètres avancés si elle avait été désactivée.
 - Correction d'un blocage ou d'un plantage de l'application au démarrage sur certains ordinateurs dont les pilotes de carte graphique sont défectueux.

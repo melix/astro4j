@@ -3,6 +3,7 @@
 ## What's New in Version 5.4.2
 
 - Python scripts can now emit animations with `jsolex.emit`.
+- The scripts summary of a repository now tells when a newer script version is available but requires a more recent JSol'Ex.
 - Fixed the script language selector of the main window staying locked once a script had been loaded or saved.
 - OpenGL support can now be re-enabled from the advanced settings if it was previously disabled.
 - Fixed the application hanging or crashing at startup on some computers with faulty graphics card drivers.

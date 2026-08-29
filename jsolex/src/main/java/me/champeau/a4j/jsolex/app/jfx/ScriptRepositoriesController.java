@@ -390,6 +390,13 @@ public class ScriptRepositoriesController {
             authorVersion.setStyle("-fx-text-fill: #666666;");
             scriptBox.getChildren().add(authorVersion);
 
+            script.pendingUpdate().ifPresent(update -> {
+                var pendingLabel = new Label(String.format(I18N.string(JSolEx.class, "script-repositories", "script.pending.update"), update.version(), update.requiredVersion()));
+                pendingLabel.setWrapText(true);
+                pendingLabel.setStyle("-fx-text-fill: #b35900;");
+                scriptBox.getChildren().add(pendingLabel);
+            });
+
             try {
                 if (Files.exists(script.localPath())) {
                     var extractionResult = ScriptParameterExtractor.extractParameters(script.localPath());
