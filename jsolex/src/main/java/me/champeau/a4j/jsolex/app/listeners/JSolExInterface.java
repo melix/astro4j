@@ -127,6 +127,14 @@ public interface JSolExInterface {
     void updateProgress(ProgressOperation operation);
 
     /**
+     * Creates a root progress operation which is tracked by the progress indicator
+     * until all of its children are finished.
+     * @param name the name of the operation
+     * @return the root operation
+     */
+    ProgressOperation createRootOperation(String name);
+
+    /**
      * Prepares the UI for script execution.
      * @param executor the script executor
      * @param params the processing parameters

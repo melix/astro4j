@@ -2,13 +2,15 @@
 
 ## What's New in Version 5.4.2
 
+- Animations and videos shown in the image viewer can now be cropped, flipped or rotated.
+- OpenGL support can now be re-enabled from the advanced settings if it was previously disabled.
 - Python scripts can now emit animations with `jsolex.emit`.
 - The scripts summary of a repository now tells when a newer script version is available but requires a more recent JSol'Ex.
+- Fixed the application hanging or crashing at startup on some computers with faulty graphics card drivers.
 - Fixed Python scripts in batch mode sometimes producing the images of another file when several files were processed at the same time.
 - Fixed the image reviewer sometimes showing a blank image when navigating between files.
 - Fixed the script language selector of the main window staying locked once a script had been loaded or saved.
-- OpenGL support can now be re-enabled from the advanced settings if it was previously disabled.
-- Fixed the application hanging or crashing at startup on some computers with faulty graphics card drivers.
+- Fixed MP4 animations being darker than the source images when ffmpeg is not installed.
 
 ## What's New in Version 5.4.1
 

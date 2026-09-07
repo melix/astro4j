@@ -2,13 +2,15 @@
 
 ## Nouveautés de la version 5.4.2
 
+- Les animations et vidéos affichées dans le visualiseur d'images peuvent désormais être rognées, retournées ou pivotées.
+- La prise en charge d'OpenGL peut désormais être réactivée depuis les paramètres avancés si elle avait été désactivée.
 - Les scripts Python peuvent désormais émettre des animations avec `jsolex.emit`.
 - Le résumé des scripts d'un dépôt indique désormais quand une version plus récente d'un script est disponible mais nécessite une version plus récente de JSol'Ex.
+- Correction d'un blocage ou d'un plantage de l'application au démarrage sur certains ordinateurs dont les pilotes de carte graphique sont défectueux.
 - Correction des scripts Python qui, en mode batch, produisaient parfois les images d'un autre fichier lorsque plusieurs fichiers étaient traités simultanément.
 - Correction de l'afficheur de revue d'images qui affichait parfois une image vide lors de la navigation entre les fichiers.
 - Correction du sélecteur de langage de script de la fenêtre principale qui restait bloqué une fois un script chargé ou enregistré.
-- La prise en charge d'OpenGL peut désormais être réactivée depuis les paramètres avancés si elle avait été désactivée.
-- Correction d'un blocage ou d'un plantage de l'application au démarrage sur certains ordinateurs dont les pilotes de carte graphique sont défectueux.
+- Correction des animations MP4 qui étaient plus sombres que les images d'origine lorsque ffmpeg n'est pas installé.
 
 ## Nouveautés de la version 5.4.1
 

@@ -15,11 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.util;
 
-import org.jcodec.api.SequenceEncoder;
 import org.jcodec.common.io.NIOUtils;
-import org.jcodec.common.model.ColorSpace;
-import org.jcodec.common.model.Picture;
-import org.jcodec.common.model.Rational;
 
 import javax.imageio.stream.FileImageOutputStream;
 import java.awt.image.BufferedImage;
@@ -38,21 +34,6 @@ import java.util.function.IntFunction;
 public final class VideoEncoder {
 
     private VideoEncoder() {
-    }
-
-    private static void encodeFrame(SequenceEncoder encoder, BufferedImage frame, int width, int height) throws IOException {
-        var rgb = new byte[3 * width * height];
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                int argb = frame.getRGB(x, y);
-                int idx = y * width + x;
-                rgb[3 * idx] = (byte) (((argb >> 16) & 0xFF) - 128);
-                rgb[3 * idx + 1] = (byte) (((argb >> 8) & 0xFF) - 128);
-                rgb[3 * idx + 2] = (byte) ((argb & 0xFF) - 128);
-            }
-        }
-        var pic = new Picture(width, height, new byte[][]{rgb}, null, ColorSpace.RGB, 0, null);
-        encoder.encodeNativeFrame(pic);
     }
 
     /**
@@ -80,7 +61,7 @@ public final class VideoEncoder {
         }
 
         var outputFiles = new ArrayList<File>();
-        SequenceEncoder mp4Encoder = null;
+        Mp4SequenceEncoder mp4Encoder = null;
         AnimatedGifWriter gifWriter = null;
         File mp4File;
         File gifFile;
@@ -106,7 +87,7 @@ public final class VideoEncoder {
 
                     if (formats.contains(AnimationFormat.MP4)) {
                         mp4File = new File(baseFileName + ".mp4");
-                        mp4Encoder = SequenceEncoder.createWithFps(NIOUtils.writableChannel(mp4File), new Rational(fps, 1));
+                        mp4Encoder = new Mp4SequenceEncoder(NIOUtils.writableChannel(mp4File), fps);
                         outputFiles.add(mp4File);
                     }
                     if (formats.contains(AnimationFormat.GIF)) {
@@ -118,7 +99,7 @@ public final class VideoEncoder {
                 }
 
                 if (mp4Encoder != null) {
-                    encodeFrame(mp4Encoder, frame, width, height);
+                    mp4Encoder.encodeFrame(frame.getRGB(0, 0, width, height, null, 0, width), width, height);
                 }
                 if (gifWriter != null) {
                     gifWriter.writeToSequence(frame);
@@ -131,7 +112,7 @@ public final class VideoEncoder {
         } finally {
             try {
                 if (mp4Encoder != null) {
-                    mp4Encoder.finish();
+                    mp4Encoder.close();
                 }
             } finally {
                 if (gifWriter != null) {

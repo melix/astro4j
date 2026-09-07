@@ -378,6 +378,9 @@ In addition, right-clicking the image will let you open it into your file explor
 
 You can also duplicate an image from the sidebar by right-clicking on its name and choosing "Duplicate", which is useful when you want to keep a clean original alongside an annotated version.
 
+Animations and videos have a "Crop / rotate..." button which opens a window showing a single frame (the current one for a video).
+You can rotate it, flip it or crop it, then click "Apply": the operations are applied to every frame and the result appears as a new animation next to the original one.
+
 === Other spectral lines in the capture window
 
 The captured window often contains known spectral lines other than the one you are studying. For example, when imaging in Calcium H, the H-epsilon line usually falls within the same window.
