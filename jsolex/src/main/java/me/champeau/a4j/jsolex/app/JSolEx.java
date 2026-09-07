@@ -2889,7 +2889,8 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
 
     }
 
-    private ProgressOperation createRootOperation(String name) {
+    @Override
+    public ProgressOperation createRootOperation(String name) {
         var root = ProgressOperation.root(name, op -> {
             // This callback is called when a child of 'op' is removed
             if (op.hasNoChild() && op.parent() == null) {
