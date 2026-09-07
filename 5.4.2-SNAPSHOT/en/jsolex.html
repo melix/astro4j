@@ -1137,6 +1137,10 @@ When processing a file, JSol&#8217;Ex looks up the reference scan which is the c
 <p>If the closest reference scan is far away in time, a warning is issued because the polynomial may no longer be accurate.
 If no usable reference scan is found, JSol&#8217;Ex falls back to the regular automatic detection.</p>
 </div>
+<div class="paragraph">
+<p>This mode also changes how the edge of the solar disk is detected: the glow surrounding a saturated disk is bright enough to be mistaken for the disk, so JSol&#8217;Ex looks for the edge of the saturated area instead.
+As a consequence, the detected disk is slightly smaller than the true photospheric limb, which is unavoidable with a saturated disk.</p>
+</div>
 <div class="admonitionblock note">
 <table>
 <tr>
