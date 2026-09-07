@@ -10,7 +10,7 @@
 - Correction des scripts Python qui, en mode batch, produisaient parfois les images d'un autre fichier lorsque plusieurs fichiers étaient traités simultanément.
 - Correction de l'afficheur de revue d'images qui affichait parfois une image vide lors de la navigation entre les fichiers.
 - Correction du sélecteur de langage de script de la fenêtre principale qui restait bloqué une fois un script chargé ou enregistré.
-- Correction des animations MP4 qui étaient plus sombres que les images d'origine lorsque ffmpeg n'est pas installé.
+- Correction de la détection du disque solaire, trop grand en mode disque saturé à cause du halo qui entoure le disque.
 
 ## Nouveautés de la version 5.4.1
 

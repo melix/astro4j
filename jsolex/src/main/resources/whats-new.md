@@ -10,7 +10,7 @@
 - Fixed Python scripts in batch mode sometimes producing the images of another file when several files were processed at the same time.
 - Fixed the image reviewer sometimes showing a blank image when navigating between files.
 - Fixed the script language selector of the main window staying locked once a script had been loaded or saved.
-- Fixed MP4 animations being darker than the source images when ffmpeg is not installed.
+- Fixed the solar disk being detected too large in saturated disk mode because of the glow surrounding the disk.
 
 ## What's New in Version 5.4.1
 
