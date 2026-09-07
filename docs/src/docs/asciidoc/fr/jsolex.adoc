@@ -299,6 +299,9 @@ Ce mode est particulièrement utile en traitement par lots : plusieurs scans sat
 Si le scan de référence le plus proche est éloigné dans le temps, un avertissement est émis car le polynôme peut ne plus être précis.
 Si aucun scan de référence utilisable n'est trouvé, JSol'Ex revient à la détection automatique habituelle.
 
+Ce mode modifie également la détection du bord du disque solaire : le halo qui entoure un disque saturé est suffisamment lumineux pour être confondu avec le disque, JSol'Ex recherche donc le bord de la zone saturée.
+Le disque détecté est par conséquent légèrement plus petit que le limbe réel, ce qui est inévitable avec un disque saturé.
+
 NOTE: "Mode disque saturé" et "Forcer le polynôme" sont mutuellement exclusifs.
 
 [[modele-noms-fichier]]

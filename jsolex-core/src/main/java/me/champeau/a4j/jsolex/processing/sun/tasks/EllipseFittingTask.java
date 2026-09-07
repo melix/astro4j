@@ -56,6 +56,7 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
     private static final Logger LOGGER = LoggerFactory.getLogger(EllipseFittingTask.class);
     private static final int MINIMUM_SAMPLES = 32;
     private static final Kernel BLUR_8 = BlurKernel.of(8);
+    private static final double SATURATED_DISK_SENSITIVITY = 0.9;
     private final ProcessParams processParams;
     private final ImageEmitter debugImagesEmitter;
     private Image image;
@@ -252,7 +253,7 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         Set<Point2D> samples = new LinkedHashSet<>();
         var stats = statsOf(magnitudes);
         var maxMagnitude = stats.max();
-        double sensitivity = 0.5 * (stats.min() + stats.stddev()) / Constants.MAX_PIXEL_VALUE;
+        double sensitivity = isSaturatedDiskMode() ? SATURATED_DISK_SENSITIVITY : 0.5 * (stats.min() + stats.stddev()) / Constants.MAX_PIXEL_VALUE;
         var minX = 0;
         var minY = 0;
         var maxX = width;
@@ -263,6 +264,10 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         scan(samples, minLimit, width, height, magnitudes, false, minX, maxX, minY, maxY);
         filterOutliersByDetectingLines(samples);
         return new ArrayList<>(samples.stream().toList());
+    }
+
+    private boolean isSaturatedDiskMode() {
+        return processParams != null && processParams.geometryParams().isSaturatedDiskMode();
     }
 
     private void filterOutliersByDetectingLines(Set<Point2D> samples) {
