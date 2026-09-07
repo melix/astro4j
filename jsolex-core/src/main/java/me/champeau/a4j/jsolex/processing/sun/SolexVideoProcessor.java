@@ -279,15 +279,12 @@ public class SolexVideoProcessor implements Broadcaster {
             binningIsReliable = true;
         }
         applyScriptMetadata();
-        if (processParams.extraParams().autosave()) {
-            File configFile = outputDirectory.resolve("config.json").toFile();
-            processParams.saveTo(configFile);
-        }
         broadcast(ProcessingStartEvent.of(System.nanoTime(), processParams));
         var converter = ImageUtils.createImageConverter(processParams.videoParams().colorMode(), processParams.geometryParams().isSpectrumVFlip());
         var detector = new AverageImageCreator(converter, rootOperation, this);
         try (SerFileReader reader = SerFileReader.of(serFile, processParams.videoParams().trustSerFileBitDepth())) {
             var header = reader.header();
+            saveConfigFile(header);
             broadcast(new VideoMetadataEvent(header));
             maybeUpdateProcessParams(header);
             ImageGeometry geometry = header.geometry();
@@ -398,10 +395,25 @@ public class SolexVideoProcessor implements Broadcaster {
         broadcast(new NotificationEvent(new Notification(Notification.AlertType.ERROR, message("unexpected.error"), message("error.during.processing"), trace)));
     }
 
+    private void saveConfigFile(Header header) {
+        if (processParams.extraParams().autosave()) {
+            var configDirectory = createNamingStrategy(header).logDirectory(outputDirectory, sequenceNumber, baseNameOf(serFile));
+            processParams.saveTo(configDirectory.resolve("config.json").toFile());
+        }
+    }
+
+    private FileNamingStrategy createNamingStrategy(Header header) {
+        return new FileNamingStrategy(processParams.extraParams().fileNamePattern(), processParams.extraParams().datetimeFormat(), processParams.extraParams().dateFormat(), processingDate, header);
+    }
+
+    private static String baseNameOf(File serFile) {
+        return serFile.getName().substring(0, serFile.getName().lastIndexOf("."));
+    }
+
     private void generateImages(ImageConverter<float[][]> converter, Header header, Double fps, File serFile, SerFileReader reader) {
         List<WorkflowState> imageList = new ArrayList<>();
-        var imageNamingStrategy = new FileNamingStrategy(processParams.extraParams().fileNamePattern(), processParams.extraParams().datetimeFormat(), processParams.extraParams().dateFormat(), processingDate, header);
-        var baseName = serFile.getName().substring(0, serFile.getName().lastIndexOf("."));
+        var imageNamingStrategy = createNamingStrategy(header);
+        var baseName = baseNameOf(serFile);
         var geometry = header.geometry();
         int width = geometry.width();
         int height = geometry.height();
