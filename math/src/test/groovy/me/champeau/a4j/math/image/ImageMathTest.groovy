@@ -189,6 +189,33 @@ class ImageMathTest extends Specification {
         'vectorized' | new VectorApiImageMath() | 100   | 80     | 31
     }
 
+    def "convolutions keep values outside the pixel range (#label)"() {
+        var size = 16
+        var mid = size.intdiv(2)
+        var data = new float[size][size]
+        for (int y = 0; y < size; y++) {
+            for (int x = 0; x < size; x++) {
+                data[y][x] = x < mid ? -1000f : 70000f
+            }
+        }
+        var image = new Image(size, size, data)
+
+        when:
+        def convolved = imageMath.convolve(image, BlurKernel.of(3)).data()
+        def box = imageMath.boxBlur(image, 3).data()
+        def gaussian = imageMath.gaussianBlur(image, new float[size][size])
+
+        then:
+        [convolved, box, gaussian].every { result ->
+            Math.abs(result[mid][2] + 1000f) < 0.01f && Math.abs(result[mid][size - 3] - 70000f) < 0.01f
+        }
+
+        where:
+        label        | imageMath
+        'fallback'   | new FallbackImageMath()
+        'vectorized' | new VectorApiImageMath()
+    }
+
     def "boxBlur with kernel size 1 returns original values (#label)"() {
         var image = newImage(32, 32)
 

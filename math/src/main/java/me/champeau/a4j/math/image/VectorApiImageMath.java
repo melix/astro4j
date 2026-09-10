@@ -232,16 +232,14 @@ class VectorApiImageMath implements ImageMath {
             }
         }
         var invN2Vec = FloatVector.broadcast(FLOAT_SPECIES, invN2);
-        var zeroVec = FloatVector.zero(FLOAT_SPECIES);
-        var maxVec = FloatVector.broadcast(FLOAT_SPECIES, MAX_VALUE);
         {
             int x = 0;
             for (; x < FLOAT_SPECIES.loopBound(width); x += FLOAT_LEN) {
                 var cs = FloatVector.fromArray(FLOAT_SPECIES, colSums, x);
-                cs.mul(invN2Vec).max(zeroVec).min(maxVec).intoArray(result[0], x);
+                cs.mul(invN2Vec).intoArray(result[0], x);
             }
             for (; x < width; x++) {
-                result[0][x] = Math.clamp(colSums[x] * invN2, 0, MAX_VALUE);
+                result[0][x] = colSums[x] * invN2;
             }
         }
         for (int y = 1; y < height; y++) {
@@ -255,11 +253,11 @@ class VectorApiImageMath implements ImageMath {
                 var rem = FloatVector.fromArray(FLOAT_SPECIES, removeRow, x);
                 cs = cs.add(add).sub(rem);
                 cs.intoArray(colSums, x);
-                cs.mul(invN2Vec).max(zeroVec).min(maxVec).intoArray(resultRow, x);
+                cs.mul(invN2Vec).intoArray(resultRow, x);
             }
             for (; x < width; x++) {
                 colSums[x] += addRow[x] - removeRow[x];
-                resultRow[x] = Math.clamp(colSums[x] * invN2, 0, MAX_VALUE);
+                resultRow[x] = colSums[x] * invN2;
             }
         }
 
@@ -301,8 +299,6 @@ class VectorApiImageMath implements ImageMath {
             }
         }
         var norm = FloatVector.broadcast(FLOAT_SPECIES, 1f / 16f);
-        var zeroVec = FloatVector.zero(FLOAT_SPECIES);
-        var maxVec = FloatVector.broadcast(FLOAT_SPECIES, MAX_VALUE);
         for (int y = 0; y < height; y++) {
             var up = tmp[y > 0 ? y - 1 : 0];
             var mid = tmp[y];
@@ -313,11 +309,11 @@ class VectorApiImageMath implements ImageMath {
                 var u = FloatVector.fromArray(FLOAT_SPECIES, up, x);
                 var m = FloatVector.fromArray(FLOAT_SPECIES, mid, x);
                 var d = FloatVector.fromArray(FLOAT_SPECIES, down, x);
-                u.add(m.mul(two)).add(d).mul(norm).max(zeroVec).min(maxVec).intoArray(outRow, x);
+                u.add(m.mul(two)).add(d).mul(norm).intoArray(outRow, x);
             }
             for (; x < toColumn; x++) {
                 var val = (up[x] + 2 * mid[x] + down[x]) * (1f / 16f);
-                outRow[x] = Math.clamp(val, 0, MAX_VALUE);
+                outRow[x] = val;
             }
         }
         return output;
