@@ -97,7 +97,7 @@ import java.util.function.DoubleUnaryOperator;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.DoubleStream;
 
-import static me.champeau.a4j.jsolex.app.JSolEx.IMAGE_FILES_EXTENSIONS;
+import static me.champeau.a4j.jsolex.app.JSolEx.imageFilesExtensionFilter;
 
 public class SpectrumBrowser extends BorderPane {
     private static final int SPECTRUM_OFFSET = 60;
@@ -492,7 +492,7 @@ public class SpectrumBrowser extends BorderPane {
     private void loadAndChooseAction() {
         var fileChooser = new FileChooser();
         configuration.findLastOpenDirectory(Configuration.DirectoryKind.SPECTRUM_IDENTIFICATION).ifPresent(dir -> fileChooser.setInitialDirectory(dir.toFile()));
-        fileChooser.getExtensionFilters().add(IMAGE_FILES_EXTENSIONS);
+        fileChooser.getExtensionFilters().add(imageFilesExtensionFilter());
         var file = fileChooser.showOpenDialog(null);
         if (file == null) {
             return;

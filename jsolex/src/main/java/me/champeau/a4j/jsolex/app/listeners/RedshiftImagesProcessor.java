@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.app.listeners;
 
 import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.JSolEx;
+import me.champeau.a4j.jsolex.app.jfx.I18N;
 import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
 import me.champeau.a4j.jsolex.processing.event.ProcessingDoneEvent;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
@@ -463,7 +464,8 @@ public class RedshiftImagesProcessor {
             }
             var fontSize = finalWidth / 16f;
             var progress = new AtomicInteger(0);
-            var progressOperation = parentOperation.createChild("Annotating frames");
+            var progressOperation = parentOperation.createChild(
+                    I18N.string(JSolEx.class, "common", "progress.annotating.frames"));
             broadcaster.broadcast(progressOperation);
             double totalImages = list.size();
             frames = ((List<Object>)list).stream()

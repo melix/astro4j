@@ -113,7 +113,8 @@ public class DistanceMeasurementPane extends BorderPane {
         help.setWrapText(true);
         topBar.getChildren().add(help);
         HBox distanceBar = new HBox();
-        distanceBar.getChildren().add(new Label("Distance: "));
+        distanceBar.getChildren().add(new Label(
+                I18N.string(JSolEx.class, "common", "distance.label") + " "));
         distanceLabel = new Label();
         distanceLabel.setStyle("-fx-text-fill: red; -fx-font-weight: bold;");
         distanceBar.getChildren().add(distanceLabel);
@@ -292,7 +293,8 @@ public class DistanceMeasurementPane extends BorderPane {
     private void saveImage(Pane pane) {
         var fileChooser = new FileChooser();
         fileChooser.setTitle(I18N.string(JSolEx.class, "measures", "measure.distance.save"));
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PNG File", "*.png"));
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter(
+                I18N.string(JSolEx.class, "common", "file.filter.png"), "*.png"));
         Configuration.getInstance().findLastOpenDirectory().ifPresent(f -> fileChooser.setInitialDirectory(f.toFile()));
         var outputFile = fileChooser.showSaveDialog(imageView.getScene().getWindow());
         if (outputFile != null) {

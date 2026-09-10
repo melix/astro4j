@@ -84,7 +84,7 @@ public class JSolExScriptExecutor extends DefaultImageScriptExecutor {
         private FileChooser createFileChooser(String id, String title) {
             var chooser = new FileChooser();
             chooser.setTitle(title);
-            chooser.getExtensionFilters().add(JSolEx.IMAGE_FILES_EXTENSIONS);
+            chooser.getExtensionFilters().add(JSolEx.imageFilesExtensionFilter());
             configuration.findLastOpenDirectory(id).ifPresent(path -> chooser.setInitialDirectory(path.toFile()));
             return chooser;
         }

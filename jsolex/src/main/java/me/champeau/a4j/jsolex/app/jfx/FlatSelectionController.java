@@ -51,7 +51,8 @@ public class FlatSelectionController {
      */
     public FlatSelectionController() {
     }
-    private static final FileChooser.ExtensionFilter FLAT_EXTENSIONS = new FileChooser.ExtensionFilter("Flats", "*.fits", "*.ser");
+    private static final FileChooser.ExtensionFilter FLAT_EXTENSIONS = new FileChooser.ExtensionFilter(
+            I18N.string(JSolEx.class, "common", "file.filter.flats"), "*.fits", "*.ser");
 
     @FXML
     private TextArea helpMessage;

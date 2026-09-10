@@ -118,7 +118,7 @@ final class ChartExportHelper {
             createDirectoriesIfNeeded(outputFile.getParent());
             ImageIO.write(bufferedImage, "png", outputFile.toFile());
             LOGGER.info(message("chart.saved"), outputFile);
-            showFileSavedAlert(message("chart.saved.title"), "Chart saved to: " + outputFile);
+            showFileSavedAlert(message("chart.saved.title"), message("chart.saved").replace("{}", outputFile.toString()));
         } catch (IOException ex) {
             throw new ProcessingException(ex);
         }
@@ -140,7 +140,7 @@ final class ChartExportHelper {
             try (var writer = new PrintWriter(new FileWriter(outputFile.toFile(), StandardCharsets.UTF_8))) {
                 csvWriter.accept(writer);
                 LOGGER.info(message("csv.saved"), outputFile);
-                showFileSavedAlert(message("csv.saved.title"), "CSV saved to: " + outputFile);
+                showFileSavedAlert(message("csv.saved.title"), message("csv.saved").replace("{}", outputFile.toString()));
             }
         } catch (IOException e) {
             throw new ProcessingException(e);

@@ -421,7 +421,7 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
         realFlatSection = new VBox(8);
         realFlatSection.getStyleClass().add("subsection");
         var realFlatGrid = createGrid();
-        addGridRow(realFlatGrid, 0, "Flat file:", createFlatFileBox());
+        addGridRow(realFlatGrid, 0, I18N.string(JSolEx.class, "common", "flat.file"), createFlatFileBox());
         addGridRow(realFlatGrid, 1, I18N.string(JSolEx.class, "process-params", "slit.detection.sigma") + ":", slitDetectionSigma, "slit.detection.sigma.tooltip");
         realFlatSection.getChildren().add(realFlatGrid);
         realFlatSection.setVisible(false);

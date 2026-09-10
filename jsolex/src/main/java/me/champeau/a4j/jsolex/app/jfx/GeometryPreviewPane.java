@@ -110,7 +110,8 @@ public class GeometryPreviewPane extends BorderPane {
             FxUtils.runLater(() -> {
                 previewView.setImage(null);
                 progressIndicator.setVisible(false);
-                statusLabel.setText("Insufficient points for ellipse fitting");
+                statusLabel.setText(I18N.string(
+                        JSolEx.class, "common", "ellipse.insufficient.points"));
             });
             return;
         }
