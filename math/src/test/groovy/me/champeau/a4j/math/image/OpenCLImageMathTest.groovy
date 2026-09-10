@@ -226,6 +226,26 @@ class OpenCLImageMathTest extends Specification {
 
     // ==================== CONVOLUTION TESTS ====================
 
+    def "convolution keeps values outside the pixel range"() {
+        given:
+        var size = 128
+        var mid = size.intdiv(2)
+        var data = new float[size][size]
+        for (int y = 0; y < size; y++) {
+            for (int x = 0; x < size; x++) {
+                data[y][x] = x < mid ? -1000f : 70000f
+            }
+        }
+        var image = new Image(size, size, data)
+
+        when:
+        def result = openclMath.convolve(image, Kernel33.GAUSSIAN_BLUR).data()
+
+        then:
+        Math.abs(result[mid][2] + 1000f) < 0.01f
+        Math.abs(result[mid][size - 3] - 70000f) < 0.01f
+    }
+
     def "convolution produces same results as CPU implementation"() {
         given:
         def image = createTestImage(width, height)

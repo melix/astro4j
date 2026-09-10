@@ -26,15 +26,12 @@ import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.AnimatedGifWriter;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.Mp4SequenceEncoder;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
 import me.champeau.a4j.ser.EightBitConversionSupport;
-import org.jcodec.api.SequenceEncoder;
 import org.jcodec.common.io.NIOUtils;
-import org.jcodec.common.model.ColorSpace;
-import org.jcodec.common.model.Picture;
-import org.jcodec.common.model.Rational;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,7 +49,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 import static me.champeau.a4j.ser.EightBitConversionSupport.to8BitImage;
 
@@ -129,23 +125,22 @@ public class Animate extends AbstractFunctionImpl {
                     return new SingleFileOutput(tempFile);
                 }
             }
-            var encoder = SequenceEncoder.createWithFps(NIOUtils.writableChannel(tempFile.toFile()),
-                    new Rational((int) (1000 / delay), 1));
             double progress = 0;
             var progressOperation = newOperation().createChild("Encoding frame");
-            for (Object argument : frames) {
-                broadcaster.broadcast(progressOperation.update(progress / frames.size(), "Encoding frame " + (int) progress + "/" + frames.size()));
-                if (argument instanceof FileBackedImage fileBackedImage) {
-                    argument = fileBackedImage.unwrapToMemory();
+            try (var encoder = new Mp4SequenceEncoder(NIOUtils.writableChannel(tempFile.toFile()), (int) (1000 / delay))) {
+                for (Object argument : frames) {
+                    broadcaster.broadcast(progressOperation.update(progress / frames.size(), "Encoding frame " + (int) progress + "/" + frames.size()));
+                    if (argument instanceof FileBackedImage fileBackedImage) {
+                        argument = fileBackedImage.unwrapToMemory();
+                    }
+                    if (argument instanceof ImageWrapper32 image) {
+                        addMonoFrame(encoder, image);
+                    } else if (argument instanceof RGBImage rgb) {
+                        addColorFrame(encoder, rgb);
+                    }
+                    progress++;
                 }
-                if (argument instanceof ImageWrapper32 image) {
-                    addMonoFrame(encoder, image);
-                } else if (argument instanceof RGBImage rgb) {
-                    addColorFrame(encoder, rgb);
-                }
-                progress++;
             }
-            encoder.finish();
             broadcaster.broadcast(progressOperation.complete());
             return new SingleFileOutput(tempFile);
         } catch (IOException e) {
@@ -229,76 +224,34 @@ public class Animate extends AbstractFunctionImpl {
         }
     }
 
-    private static void addMonoFrame(SequenceEncoder encoder, ImageWrapper32 image) {
-        int width = image.width();
-        int height = image.height();
-        if (width % 2 == 1) {
-            width--;
-        }
-        if (height % 2 == 1) {
-            height--;
-        }
+    private static void addMonoFrame(Mp4SequenceEncoder encoder, ImageWrapper32 image) throws IOException {
+        var width = image.width() & ~1;
+        var height = image.height() & ~1;
         var bytes = to8BitImage(image.data());
-        if (width != image.width() || height != image.height()) {
-            var data = new byte[width * height];
-            for (int y = 0; y < height; y++) {
-                System.arraycopy(bytes, y * image.width(), data, y * width, width);
+        var rgb = new int[width * height];
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                var v = bytes[y * image.width() + x] & 0xFF;
+                rgb[y * width + x] = (v << 16) | (v << 8) | v;
             }
-            bytes = data;
         }
-        var rgb = new byte[3 * bytes.length];
-        for (int i = 0; i < bytes.length; i++) {
-            var v = (byte) (bytes[i] - 128);
-            rgb[3 * i] = v;
-            rgb[3 * i + 1] = v;
-            rgb[3 * i + 2] = v;
-        }
-        try {
-            var pic = new Picture(width, height, new byte[][]{rgb}, null, ColorSpace.RGB, 0, null);
-            encoder.encodeNativeFrame(pic);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        encoder.encodeFrame(rgb, width, height);
     }
 
-    private static void addColorFrame(SequenceEncoder encoder, RGBImage image) {
-        int width = image.width();
-        int height = image.height();
-        if (width % 2 == 1) {
-            width--;
-        }
-        if (height % 2 == 1) {
-            height--;
-        }
-        var colorChannelsStream = Stream.of(image.r(), image.g(), image.b());
-        addColorFrame(encoder, image, colorChannelsStream, width, height);
-    }
-
-    private static void addColorFrame(SequenceEncoder encoder, ImageWrapper image, Stream<float[][]> colorChannelsStream, int width, int height) {
-        var bytes = colorChannelsStream.map(EightBitConversionSupport::to8BitImage).toArray(byte[][]::new);
-        if (width != image.width() || height != image.height()) {
-            for (int channel = 0; channel < 3; channel++) {
-                var data = new byte[width * height];
-                for (int y = 0; y < height; y++) {
-                    System.arraycopy(bytes[channel], y * image.width(), data, y * width, width);
-                }
-                bytes[channel] = data;
+    private static void addColorFrame(Mp4SequenceEncoder encoder, RGBImage image) throws IOException {
+        var width = image.width() & ~1;
+        var height = image.height() & ~1;
+        var r = to8BitImage(image.r());
+        var g = to8BitImage(image.g());
+        var b = to8BitImage(image.b());
+        var rgb = new int[width * height];
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                var idx = y * image.width() + x;
+                rgb[y * width + x] = ((r[idx] & 0xFF) << 16) | ((g[idx] & 0xFF) << 8) | (b[idx] & 0xFF);
             }
         }
-        var rgb = new byte[3 * width * height];
-        for (int channel = 0; channel < 3; channel++) {
-            var data = bytes[channel];
-            for (int i = 0; i < data.length; i++) {
-                var v = (byte) (data[i] - 128);
-                rgb[3 * i + channel] = v;
-            }
-        }
-        try {
-            var pic = new Picture(width, height, new byte[][]{rgb}, null, ColorSpace.RGB, 0, null);
-            encoder.encodeNativeFrame(pic);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        encoder.encodeFrame(rgb, width, height);
     }
 
     /**

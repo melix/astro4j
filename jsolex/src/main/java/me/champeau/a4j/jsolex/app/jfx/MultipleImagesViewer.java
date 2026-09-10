@@ -42,6 +42,7 @@ import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
 import javafx.scene.media.MediaView;
 import javafx.util.Duration;
+import me.champeau.a4j.jsolex.app.AlertFactory;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.app.listeners.JSolExInterface;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
@@ -55,6 +56,8 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.DisplayCategory;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.sun.workflow.SpectroSolHubImageKind;
+import me.champeau.a4j.jsolex.processing.util.AnimationEditor;
+import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
 
@@ -75,10 +78,12 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
+import java.util.Locale;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
+import static me.champeau.a4j.jsolex.processing.util.LoggingSupport.logError;
 
 /**
  * A viewer component that displays multiple images organized by categories with navigation.
@@ -133,6 +138,7 @@ public class MultipleImagesViewer extends Pane {
     private final BooleanProperty trimSerEnabled = new SimpleBooleanProperty(false);
 
     private final List<SessionMedia> mediaEntries = new ArrayList<>();
+    private final AtomicInteger editedAnimations = new AtomicInteger();
 
     /**
      * Creates a new instance.
@@ -575,49 +581,54 @@ public class MultipleImagesViewer extends Pane {
                                 LocalDateTime runStartTime) {
         try {
             lock.lock();
-
             var scope = resolveRunScope(kind, scriptRunNumber, runStartTime);
-            var category = scope.category();
-            mediaEntries.add(new SessionMedia(kind, title, description, filePath, SessionMedia.Type.VIDEO));
-            var media = createMedia(filePath);
-            var mediaPlayer = new MediaPlayer(media);
-            var viewer = new MediaView(mediaPlayer);
-            // Create the buttons
-            var rewindButton = createButton("<<");
-            var playButton = createButton(I18N.string(JSolEx.class, "common", "media.play"));
-            var stopButton = createButton(I18N.string(JSolEx.class, "common", "media.stop"));
-            var openButton = createButton(message("open.in.files"));
-            openButton.setOnAction(e -> ExplorerSupport.openInExplorer(filePath));
-            mediaPlayer.setOnEndOfMedia(() -> mediaPlayer.seek(Duration.ZERO));
-            playButton.setOnAction(e -> mediaPlayer.play());
-            stopButton.setOnAction(e -> mediaPlayer.stop());
-            rewindButton.setOnAction(e -> {
-                mediaPlayer.stop();
-                mediaPlayer.seek(Duration.ZERO);
-            });
-            var buttonBox = new HBox(playButton, stopButton, rewindButton, openButton);
-            buttonBox.setSpacing(10);
-            var contentBox = new VBox(new ScrollPane(viewer), buttonBox);
-            if (description != null && !description.isBlank()) {
-                var descriptionArea = createDescriptionArea(description);
-                contentBox.getChildren().add(descriptionArea);
-            }
-            contentBox.setAlignment(Pos.CENTER);
-            viewer.fitWidthProperty().bind(widthProperty());
-            viewer.fitHeightProperty().bind(heightProperty().subtract(buttonBox.heightProperty()));
-            var hyperlink = category.addVideo(title, scope.badge(), scope.badgeTooltip(), link -> {
-                categories().forEach(CategoryPane::clearSelection);
-                FxUtils.runLater(() -> borderPane.setCenter(contentBox));
-                selected = link;
-                selectedView = contentBox;
-            }, this::onClose);
-            if (selected == null || isUserInitiated(kind)) {
-                hyperlink.fire();
-            }
-            return mediaPlayer;
+            return addVideoEntry(kind, title, filePath, description, scope, selected == null || isUserInitiated(kind));
         } finally {
             lock.unlock();
         }
+    }
+
+    private MediaPlayer addVideoEntry(GeneratedImageKind kind, String title, Path filePath, String description, RunScope scope, boolean select) {
+        var category = scope.category();
+        mediaEntries.add(new SessionMedia(kind, title, description, filePath, SessionMedia.Type.VIDEO));
+        var media = createMedia(filePath);
+        var mediaPlayer = new MediaPlayer(media);
+        var viewer = new MediaView(mediaPlayer);
+        // Create the buttons
+        var rewindButton = createButton("<<");
+        var playButton = createButton(I18N.string(JSolEx.class, "common", "media.play"));
+        var stopButton = createButton(I18N.string(JSolEx.class, "common", "media.stop"));
+        var openButton = createButton(message("open.in.files"));
+        openButton.setOnAction(e -> ExplorerSupport.openInExplorer(filePath));
+        var editButton = createButton(message("edit.animation"));
+        editButton.setOnAction(e -> openAnimationEditor(kind, title, filePath, mediaPlayer.getCurrentTime().toSeconds()));
+        mediaPlayer.setOnEndOfMedia(() -> mediaPlayer.seek(Duration.ZERO));
+        playButton.setOnAction(e -> mediaPlayer.play());
+        stopButton.setOnAction(e -> mediaPlayer.stop());
+        rewindButton.setOnAction(e -> {
+            mediaPlayer.stop();
+            mediaPlayer.seek(Duration.ZERO);
+        });
+        var buttonBox = new HBox(playButton, stopButton, rewindButton, editButton, openButton);
+        buttonBox.setSpacing(10);
+        var contentBox = new VBox(new ScrollPane(viewer), buttonBox);
+        if (description != null && !description.isBlank()) {
+            var descriptionArea = createDescriptionArea(description);
+            contentBox.getChildren().add(descriptionArea);
+        }
+        contentBox.setAlignment(Pos.CENTER);
+        viewer.fitWidthProperty().bind(widthProperty());
+        viewer.fitHeightProperty().bind(heightProperty().subtract(buttonBox.heightProperty()));
+        var hyperlink = category.addVideo(title, scope.badge(), scope.badgeTooltip(), link -> {
+            categories().forEach(CategoryPane::clearSelection);
+            FxUtils.runLater(() -> borderPane.setCenter(contentBox));
+            selected = link;
+            selectedView = contentBox;
+        }, this::onClose);
+        if (select) {
+            hyperlink.fire();
+        }
+        return mediaPlayer;
     }
 
     /**
@@ -652,42 +663,99 @@ public class MultipleImagesViewer extends Pane {
                                LocalDateTime runStartTime) {
         try {
             lock.lock();
-
             var scope = resolveRunScope(kind, scriptRunNumber, runStartTime);
-            var category = scope.category();
-            mediaEntries.add(new SessionMedia(kind, title, description, filePath, SessionMedia.Type.GIF));
-            var image = new Image(filePath.toUri().toString());
-            var imageView = new ImageView(image);
-            imageView.setPreserveRatio(true);
-
-            var openButton = createButton(message("open.in.files"));
-            openButton.setOnAction(e -> ExplorerSupport.openInExplorer(filePath));
-
-            var buttonBox = new HBox(openButton);
-            buttonBox.setSpacing(10);
-            buttonBox.setAlignment(Pos.CENTER);
-
-            var contentBox = new VBox(new ScrollPane(imageView), buttonBox);
-            if (description != null && !description.isBlank()) {
-                var descriptionArea = createDescriptionArea(description);
-                contentBox.getChildren().add(descriptionArea);
-            }
-            contentBox.setAlignment(Pos.CENTER);
-            imageView.fitWidthProperty().bind(widthProperty());
-            imageView.fitHeightProperty().bind(heightProperty().subtract(buttonBox.heightProperty()));
-
-            var hyperlink = category.addVideo(title, scope.badge(), scope.badgeTooltip(), link -> {
-                categories().forEach(CategoryPane::clearSelection);
-                FxUtils.runLater(() -> borderPane.setCenter(contentBox));
-                selected = link;
-                selectedView = contentBox;
-            }, this::onClose);
-            if (selected == null || isUserInitiated(kind)) {
-                hyperlink.fire();
-            }
+            addAnimatedGifEntry(kind, title, filePath, description, scope, selected == null || isUserInitiated(kind));
         } finally {
             lock.unlock();
         }
+    }
+
+    private void addAnimatedGifEntry(GeneratedImageKind kind, String title, Path filePath, String description, RunScope scope, boolean select) {
+        var category = scope.category();
+        mediaEntries.add(new SessionMedia(kind, title, description, filePath, SessionMedia.Type.GIF));
+        var image = new Image(filePath.toUri().toString());
+        var imageView = new ImageView(image);
+        imageView.setPreserveRatio(true);
+
+        var openButton = createButton(message("open.in.files"));
+        openButton.setOnAction(e -> ExplorerSupport.openInExplorer(filePath));
+        var editButton = createButton(message("edit.animation"));
+        editButton.setOnAction(e -> openAnimationEditor(kind, title, filePath, 0));
+
+        var buttonBox = new HBox(editButton, openButton);
+        buttonBox.setSpacing(10);
+        buttonBox.setAlignment(Pos.CENTER);
+
+        var contentBox = new VBox(new ScrollPane(imageView), buttonBox);
+        if (description != null && !description.isBlank()) {
+            var descriptionArea = createDescriptionArea(description);
+            contentBox.getChildren().add(descriptionArea);
+        }
+        contentBox.setAlignment(Pos.CENTER);
+        imageView.fitWidthProperty().bind(widthProperty());
+        imageView.fitHeightProperty().bind(heightProperty().subtract(buttonBox.heightProperty()));
+
+        var hyperlink = category.addVideo(title, scope.badge(), scope.badgeTooltip(), link -> {
+            categories().forEach(CategoryPane::clearSelection);
+            FxUtils.runLater(() -> borderPane.setCenter(contentBox));
+            selected = link;
+            selectedView = contentBox;
+        }, this::onClose);
+        if (select) {
+            hyperlink.fire();
+        }
+    }
+
+    private void openAnimationEditor(GeneratedImageKind kind, String title, Path filePath, double positionSeconds) {
+        BackgroundOperations.async(() -> {
+            try {
+                var frame = AnimationEditor.readFrame(filePath, positionSeconds);
+                FxUtils.runLater(() -> AnimationEditorDialog.open(owner.getMainStage(), frame, operations -> {
+                    if (!operations.isEmpty()) {
+                        applyAnimationEdit(kind, title, filePath, operations);
+                    }
+                }));
+            } catch (Exception e) {
+                reportAnimationError(e);
+            }
+        });
+    }
+
+    private void applyAnimationEdit(GeneratedImageKind kind, String title, Path filePath, List<AnimationEditor.Operation> operations) {
+        BackgroundOperations.async(() -> {
+            var id = editedAnimations.incrementAndGet();
+            var fileName = filePath.getFileName().toString();
+            var dot = fileName.lastIndexOf('.');
+            var targetBase = filePath.resolveSibling(fileName.substring(0, dot) + "-edited-" + id);
+            var operation = owner.createRootOperation(message("editing.animation")).createChild(title);
+            owner.updateProgress(operation);
+            try {
+                var result = AnimationEditor.transform(filePath, targetBase, operations, progress -> owner.updateProgress(operation.update(progress)));
+                var resultTitle = String.format(message("edited.animation"), title, id);
+                FxUtils.runLater(() -> {
+                    try {
+                        lock.lock();
+                        var scope = resolveRunScope(kind, 0, null);
+                        if (result.getFileName().toString().toLowerCase(Locale.US).endsWith(".gif")) {
+                            addAnimatedGifEntry(kind, resultTitle, result, null, scope, true);
+                        } else {
+                            addVideoEntry(kind, resultTitle, result, null, scope, true);
+                        }
+                    } finally {
+                        lock.unlock();
+                    }
+                });
+            } catch (Exception e) {
+                reportAnimationError(e);
+            } finally {
+                owner.updateProgress(operation.complete());
+            }
+        });
+    }
+
+    private static void reportAnimationError(Exception e) {
+        var details = logError(e);
+        FxUtils.runLater(() -> AlertFactory.error(details).showAndWait());
     }
 
     private static TextArea createDescriptionArea(String description) {

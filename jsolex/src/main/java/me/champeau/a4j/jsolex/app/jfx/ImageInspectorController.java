@@ -66,6 +66,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
@@ -136,6 +137,7 @@ public class ImageInspectorController {
             return size() > IMAGE_CACHE_SIZE;
         }
     };
+    private final Map<CandidateImageDescriptor, CompletableFuture<Image>> pendingLoads = new HashMap<>();
     private final Map<Integer, ImageSelection> selections = new HashMap<>();
     private final Set<File> deletedFiles = new HashSet<>();
     private final Map<File, File> movedFiles = new HashMap<>();
@@ -601,25 +603,57 @@ public class ImageInspectorController {
             return;
         }
         view.setImage(null);
-        BackgroundOperations.async(() -> {
-            var path = findImageFile(item);
-            if (path == null) {
-                return;
+        loadImage(item).thenAcceptAsync(image -> {
+            if (displayed.get() == item) {
+                view.setImage(image);
             }
-            var lower = path.toString().toLowerCase();
-            Image image;
-            if (lower.endsWith(".png") || lower.endsWith(".jpg")) {
-                image = new Image(path.toFile().toURI().toString(), true);
-            } else {
-                image = WritableImageSupport.asWritable(Loader.loadImage(path.toFile()));
-            }
-            FxUtils.runLater(() -> {
-                imageCache.put(item, image);
-                if (displayed.get() == item) {
-                    view.setImage(image);
+        }, FxUtils::runLater);
+    }
+
+    private CompletableFuture<Image> loadImage(CandidateImageDescriptor item) {
+        return pendingLoads.computeIfAbsent(item, key -> {
+            var decoded = new CompletableFuture<Image>();
+            BackgroundOperations.asyncIo(() -> {
+                try {
+                    decoded.complete(decodeImage(key));
+                } catch (Throwable e) {
+                    decoded.completeExceptionally(e);
                 }
             });
+            return decoded.handleAsync((image, error) -> {
+                pendingLoads.remove(key);
+                if (error != null) {
+                    LOGGER.warn("Could not load image {}", key.path(), error);
+                    return null;
+                }
+                if (image != null) {
+                    imageCache.put(key, image);
+                }
+                return image;
+            }, FxUtils::runLater);
         });
+    }
+
+    private Image decodeImage(CandidateImageDescriptor item) throws IOException {
+        var path = findImageFile(item);
+        if (path == null) {
+            LOGGER.warn("No image file found for {}", item.path());
+            return null;
+        }
+        var lower = path.toString().toLowerCase();
+        Image image;
+        if (lower.endsWith(".png") || lower.endsWith(".jpg")) {
+            try (var in = Files.newInputStream(path)) {
+                image = new Image(in);
+            }
+        } else {
+            image = WritableImageSupport.asWritable(Loader.loadImage(path.toFile()));
+        }
+        if (image.isError()) {
+            LOGGER.warn("Could not decode image {}", path, image.getException());
+            return null;
+        }
+        return image;
     }
 
     /**

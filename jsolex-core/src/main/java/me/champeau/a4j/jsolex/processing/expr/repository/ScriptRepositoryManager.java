@@ -52,6 +52,7 @@ public class ScriptRepositoryManager {
     private static final String SCRIPTS_TXT = "scripts.txt";
     private static final String ZIP_DESCRIPTOR = "main.txt";
     private static final String LAST_CHECK_MARKER = ".last-check";
+    private static final String PENDING_SUFFIX = ".pending";
 
     private final HttpClient httpClient;
     private final DirectoryListingParser parser;
@@ -306,21 +307,7 @@ public class ScriptRepositoryManager {
             var requiredVersion = result.getRequiredVersion();
 
             if (!VersionUtil.isVersionSupported(requiredVersion)) {
-                LOGGER.debug(message("repository.script.version.checking"),
-                    mainScriptName, requiredVersion, VersionUtil.getVersion());
-
-                if (Files.exists(mainScriptPath)) {
-                    var localScript = loadLocalScript(repository, mainScriptPath);
-                    if (localScript != null) {
-                        LOGGER.info(message("repository.script.keeping.local"),
-                            mainScriptName, requiredVersion);
-                        return localScript;
-                    }
-                }
-
-                LOGGER.info(message("repository.script.skipping"),
-                    mainScriptName, requiredVersion, VersionUtil.getVersion());
-                return null;
+                return keepLocalScript(repository, mainScriptName, mainScriptContent, requiredVersion, mainScriptPath);
             }
 
             // Extract all files to the cache directory, preserving directory structure
@@ -329,6 +316,7 @@ public class ScriptRepositoryManager {
                 createDirectoriesIfNeeded(filePath.getParent());
                 Files.write(filePath, fileEntry.getValue(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
             }
+            Files.deleteIfExists(pendingPath(mainScriptPath));
 
             LOGGER.info(message("repository.zip.extracted"), zipFilename, extractedFiles.size());
             return loadLocalScript(repository, mainScriptPath);
@@ -365,29 +353,44 @@ public class ScriptRepositoryManager {
             var requiredVersion = result.getRequiredVersion();
 
             if (!VersionUtil.isVersionSupported(requiredVersion)) {
-                LOGGER.debug(message("repository.script.version.checking"),
-                    filename, requiredVersion, VersionUtil.getVersion());
-
-                if (Files.exists(localPath)) {
-                    var localScript = loadLocalScript(repository, localPath);
-                    if (localScript != null) {
-                        LOGGER.info(message("repository.script.keeping.local"),
-                            filename, requiredVersion);
-                        return localScript;
-                    }
-                }
-
-                LOGGER.info(message("repository.script.skipping"),
-                    filename, requiredVersion, VersionUtil.getVersion());
-                return null;
+                return keepLocalScript(repository, filename, scriptContent, requiredVersion, localPath);
             }
 
             Files.writeString(localPath, scriptContent, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+            Files.deleteIfExists(pendingPath(localPath));
             return loadLocalScript(repository, localPath);
         } catch (Exception e) {
             LOGGER.warn(message("repository.script.metadata.parse.failed"), filename, e);
             return null;
         }
+    }
+
+    /**
+     * Handles a remote script which requires a more recent version of JSol'Ex than the current one.
+     * The local copy, if any, is kept as is, and the remote content is stored next to it so that
+     * the pending update can be reported to the user.
+     */
+    private RemoteScript keepLocalScript(ScriptRepository repository, String scriptName, String remoteContent, String requiredVersion, Path localPath) throws IOException {
+        LOGGER.debug(message("repository.script.version.checking"),
+            scriptName, requiredVersion, VersionUtil.getVersion());
+
+        if (Files.exists(localPath)) {
+            Files.writeString(pendingPath(localPath), remoteContent, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+            var localScript = loadLocalScript(repository, localPath);
+            if (localScript != null) {
+                LOGGER.info(message("repository.script.keeping.local"),
+                    scriptName, requiredVersion);
+                return localScript;
+            }
+        }
+
+        LOGGER.info(message("repository.script.skipping"),
+            scriptName, requiredVersion, VersionUtil.getVersion());
+        return null;
+    }
+
+    private static Path pendingPath(Path localPath) {
+        return localPath.resolveSibling(localPath.getFileName() + PENDING_SUFFIX);
     }
 
     private RemoteScript loadLocalScript(ScriptRepository repository, Path localPath) {
@@ -409,11 +412,27 @@ public class ScriptRepositoryManager {
                 localPath,
                 author,
                 title,
-                version
+                version,
+                readPendingUpdate(localPath)
             );
         } catch (Exception e) {
             LOGGER.error(message("repository.script.parse.failed"), localPath, e);
             return null;
+        }
+    }
+
+    private Optional<RemoteScript.PendingUpdate> readPendingUpdate(Path localPath) {
+        var pendingPath = pendingPath(localPath);
+        if (!Files.exists(pendingPath)) {
+            return Optional.empty();
+        }
+        try {
+            var result = ScriptParameterExtractor.extractParameters(Files.readString(pendingPath), localPath.getFileName().toString());
+            return Optional.ofNullable(result.getVersion())
+                .map(version -> new RemoteScript.PendingUpdate(version, result.getRequiredVersion()));
+        } catch (Exception e) {
+            LOGGER.debug(message("repository.script.parse.failed"), pendingPath, e);
+            return Optional.empty();
         }
     }
 

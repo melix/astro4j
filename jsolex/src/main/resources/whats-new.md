@@ -1,11 +1,21 @@
 # Welcome to JSol'Ex {{version}}!
 
+## What's New in Version 5.4.3
+
+- Blurring and sharpening no longer clip negative values or values above the white point.
+
 ## What's New in Version 5.4.2
 
-- Python scripts can now emit animations with `jsolex.emit`.
-- Fixed the script language selector of the main window staying locked once a script had been loaded or saved.
+- Animations and videos shown in the image viewer can now be cropped, flipped or rotated.
 - OpenGL support can now be re-enabled from the advanced settings if it was previously disabled.
+- Python scripts can now emit animations with `jsolex.emit`.
+- The scripts summary of a repository now tells when a newer script version is available but requires a more recent JSol'Ex.
 - Fixed the application hanging or crashing at startup on some computers with faulty graphics card drivers.
+- Fixed Python scripts in batch mode sometimes producing the images of another file when several files were processed at the same time.
+- Fixed the image reviewer sometimes showing a blank image when navigating between files.
+- Fixed the script language selector of the main window staying locked once a script had been loaded or saved.
+- The `config.json` file which records the processing parameters is now saved alongside the log file, next to the generated images, instead of the folder containing the video.
+- Fixed the solar disk being detected too large in saturated disk mode because of the glow surrounding the disk.
 
 ## What's New in Version 5.4.1
 

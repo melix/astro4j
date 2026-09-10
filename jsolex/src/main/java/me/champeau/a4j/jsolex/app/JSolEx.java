@@ -2902,7 +2902,8 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
 
     }
 
-    private ProgressOperation createRootOperation(String name) {
+    @Override
+    public ProgressOperation createRootOperation(String name) {
         var root = ProgressOperation.root(name, op -> {
             // This callback is called when a child of 'op' is removed
             if (op.hasNoChild() && op.parent() == null) {
@@ -3019,10 +3020,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             setFileCounts(FileCounts.SINGLE_FILE);
         }
         var baseName = selectedFile.getName().substring(0, selectedFile.getName().lastIndexOf("."));
-        var logFileName = namingStrategy.render(sequenceNumber, null, "log", "log", baseName, null) + LOG_EXTENSION;
-        var logFile = new File(outputDirectory, logFileName);
-        // For the log file we cannot _fully_ use the pattern since some data is not yet available (the file header)
-        logFile = new File(logFile.getParentFile(), String.format("%04d_%s" + LOG_EXTENSION, sequenceNumber, baseName));
+        var logFile = namingStrategy.logDirectory(outputDirectory.toPath(), sequenceNumber, baseName).resolve(String.format("%04d_%s" + LOG_EXTENSION, sequenceNumber, baseName)).toFile();
         if (context instanceof BatchProcessingContext ctx) {
             ctx.items().get(sequenceNumber).generatedFiles().add(logFile);
         }

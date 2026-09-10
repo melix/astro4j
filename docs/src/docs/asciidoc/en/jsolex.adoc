@@ -300,6 +300,9 @@ This mode is especially useful in batch processing: several saturated scans may 
 If the closest reference scan is far away in time, a warning is issued because the polynomial may no longer be accurate.
 If no usable reference scan is found, JSol'Ex falls back to the regular automatic detection.
 
+This mode also changes how the edge of the solar disk is detected: the glow surrounding a saturated disk is bright enough to be mistaken for the disk, so JSol'Ex looks for the edge of the saturated area instead.
+As a consequence, the detected disk is slightly smaller than the true photospheric limb, which is unavoidable with a saturated disk.
+
 NOTE: "Saturated disk mode" and "Force polynomial" are mutually exclusive.
 
 [[filename-templates]]
@@ -377,6 +380,9 @@ It is possible to zoom into the images by using the mouse wheel.
 In addition, right-clicking the image will let you open it into your file explorer or in a separate window.
 
 You can also duplicate an image from the sidebar by right-clicking on its name and choosing "Duplicate", which is useful when you want to keep a clean original alongside an annotated version.
+
+Animations and videos have a "Crop / rotate..." button which opens a window showing a single frame (the current one for a video).
+You can rotate it, flip it or crop it, then click "Apply": the operations are applied to every frame and the result appears as a new animation next to the original one.
 
 === Other spectral lines in the capture window
 
