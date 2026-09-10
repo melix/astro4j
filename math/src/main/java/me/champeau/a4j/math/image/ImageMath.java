@@ -32,7 +32,6 @@ public interface ImageMath {
     /**
      * Maximum pixel value for 16-bit images.
      */
-    int MAX_VALUE = 65535;
 
     /**
      * Creates a new instance with the best available backend implementation.
@@ -529,7 +528,7 @@ public interface ImageMath {
             }
         }
         for (int x = 0; x < width; x++) {
-            result[0][x] = Math.clamp(colSums[x] * invN2, 0, MAX_VALUE);
+            result[0][x] = colSums[x] * invN2;
         }
         for (int y = 1; y < height; y++) {
             var removeRow = hPass[Math.clamp(y - halfK - 1, 0, height - 1)];
@@ -537,7 +536,7 @@ public interface ImageMath {
             var resultRow = result[y];
             for (int x = 0; x < width; x++) {
                 colSums[x] += addRow[x] - removeRow[x];
-                resultRow[x] = Math.clamp(colSums[x] * invN2, 0, MAX_VALUE);
+                resultRow[x] = colSums[x] * invN2;
             }
         }
 
@@ -596,7 +595,7 @@ public interface ImageMath {
                 }
 
                 var val = sum * factor;
-                output[y][x] = Math.clamp(val, 0, MAX_VALUE);
+                output[y][x] = val;
             }
         }
 
@@ -672,7 +671,7 @@ public interface ImageMath {
             var outRow = output[y];
             for (int x = fromColumn; x < toColumn; x++) {
                 var val = (up[x] + 2 * mid[x] + down[x]) * (1f / 16f);
-                outRow[x] = Math.clamp(val, 0, MAX_VALUE);
+                outRow[x] = val;
             }
         }
         return output;

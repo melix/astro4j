@@ -1,5 +1,9 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+## Nouveautés de la version 5.4.3
+
+- Le flou et l'accentuation ne tronquent plus les valeurs négatives ou supérieures au point blanc.
+
 ## Nouveautés de la version 5.4.2
 
 - Les animations et vidéos affichées dans le visualiseur d'images peuvent désormais être rognées, retournées ou pivotées.

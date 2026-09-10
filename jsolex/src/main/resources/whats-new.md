@@ -1,5 +1,9 @@
 # Welcome to JSol'Ex {{version}}!
 
+## What's New in Version 5.4.3
+
+- Blurring and sharpening no longer clip negative values or values above the white point.
+
 ## What's New in Version 5.4.2
 
 - Animations and videos shown in the image viewer can now be cropped, flipped or rotated.
