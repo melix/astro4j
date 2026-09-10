@@ -686,7 +686,7 @@ public class ImageViewer implements WithRootNode {
             openExplorerButton.setOnAction(e -> imageView.openInExplorer());
             openExplorerButton.disableProperty().bind(imageView.cannotOpenInExplorerProperty());
             dimensions = new Label();
-            var zoomLabel = new Label("Zoom");
+            var zoomLabel = new Label(I18N.string(JSolEx.class, "common", "zoom"));
             var zoomMinus = createIconButton("-");
             zoomMinus.setOnAction(evt -> {
                 clearPendingAlignment();

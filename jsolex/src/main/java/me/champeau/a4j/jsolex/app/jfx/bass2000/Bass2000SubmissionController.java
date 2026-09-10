@@ -453,7 +453,9 @@ public class Bass2000SubmissionController {
                                 nextButton.setDisable(false);
                                 previousButton.setDisable(false);
                                 updateButtons();
-                                AlertFactory.error("Failed to generate off-band image: " + e.getMessage()).showAndWait();
+                                var text = I18N.string(JSolEx.class, "common", "bass.offband.generation.failed")
+                                        .replace("{0}", String.valueOf(e.getMessage()));
+                                AlertFactory.error(text).showAndWait();
                             });
                         }
                     });
@@ -592,9 +594,11 @@ public class Bass2000SubmissionController {
             } catch (Exception e) {
                 LOGGER.error(JSolEx.message("error.failed.save.bass2000"), e);
                 FxUtils.runLater(() -> {
-                    var alert = AlertFactory.error("Could not save BASS2000 file: " + e.getMessage());
-                    alert.setTitle("Save Error");
-                    alert.setHeaderText("File Save Failed");
+                    var text = I18N.string(JSolEx.class, "common", "bass.save.failed")
+                            .replace("{0}", String.valueOf(e.getMessage()));
+                    var alert = AlertFactory.error(text);
+                    alert.setTitle(I18N.string(JSolEx.class, "common", "bass.save.error.title"));
+                    alert.setHeaderText(I18N.string(JSolEx.class, "common", "bass.save.error.header"));
                     alert.showAndWait();
                 });
             }

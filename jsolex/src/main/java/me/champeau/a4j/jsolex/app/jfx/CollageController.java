@@ -408,7 +408,7 @@ public class CollageController {
     private ImageSlot createImageSlot(int row, int col, double width, double height) {
         var slot = new ImageSlot(row, col);
 
-        var placeholder = new Label("Drop image here");
+        var placeholder = new Label(I18N.string(JSolEx.class, "common", "collage.drop.image"));
         placeholder.setStyle("-fx-text-fill: gray; -fx-font-style: italic;");
         placeholder.setAlignment(Pos.CENTER);
 
@@ -599,7 +599,7 @@ public class CollageController {
         slot.container.setOnDragDetected(null);
         slot.container.setOnDragDone(null);
 
-        var placeholder = new Label("Drop image here");
+        var placeholder = new Label(I18N.string(JSolEx.class, "common", "collage.drop.image"));
         placeholder.setStyle("-fx-text-fill: gray; -fx-font-style: italic;");
         placeholder.setAlignment(Pos.CENTER);
 
@@ -757,7 +757,8 @@ public class CollageController {
 
         try {
             var noOpListener = new ProcessingEventListener() {};
-            var noOpOperation = ProgressOperation.root("Collage Creation", _ -> {});
+            var noOpOperation = ProgressOperation.root(
+                    I18N.string(JSolEx.class, "common", "collage.creation"), _ -> {});
             var processingDate = LocalDateTime.now();
             var namingStrategy = new FileNamingStrategy(
                     processParams.extraParams().fileNamePattern(),
@@ -772,7 +773,7 @@ public class CollageController {
             multipleImagesViewer.addImage(
                     noOpListener,
                     noOpOperation,
-                    "Collage " + filename,
+                    I18N.string(JSolEx.class, "common", "collage.title") + " " + filename,
                     filename,
                     GeneratedImageKind.COLLAGE,
                     I18N.string(JSolEx.class, "collage", "generated.collage"),

@@ -52,7 +52,7 @@
                         <Button fx:id="playButton" mnemonicParsing="false" onAction="#togglePlay" text="▶"
                                 styleClass="small-button"/>
                         <Slider fx:id="frameSlider" prefHeight="20" prefWidth="200" styleClass="compact-slider"/>
-                        <Label text="Frame" styleClass="compact-label"/>
+                        <Label text="%frame" styleClass="compact-label"/>
                         <TextField fx:id="frameId" maxWidth="60" styleClass="compact-field"/>
                         <Button mnemonicParsing="false" onAction="#forward" text="&gt;" styleClass="small-button"/>
                         <Button mnemonicParsing="false" onAction="#fastForward" text="&gt;&gt;"
@@ -71,7 +71,7 @@
 
                     <CheckBox fx:id="lockPolynomialCheckbox" text="%lock.polynomial" styleClass="compact-checkbox"/>
                     <Button fx:id="computePolynomial" text="%compute.polynomial" styleClass="small-button"/>
-                    <Button fx:id="resetPolynomial" text="Reset" styleClass="small-button"/>
+                    <Button fx:id="resetPolynomial" text="%reset" styleClass="small-button"/>
 
                     <Label text="%contrast" styleClass="compact-label"/>
                     <Slider fx:id="contrastBoost" max="200" min="0" prefWidth="100" styleClass="compact-slider"/>
@@ -82,13 +82,13 @@
                     <Label text="%detected.polynomial" styleClass="compact-label"/>
                     <TextField fx:id="polynomialTextField" editable="false" styleClass="compact-polynomial-field"
                                HBox.hgrow="ALWAYS"
-                               promptText="No polynomial computed yet"/>
+                               promptText="%no.polynomial.computed"/>
                 </HBox>
             </VBox>
 
             <!-- Status Bar -->
             <HBox styleClass="status-bar" alignment="CENTER_LEFT" spacing="12">
-                <Label fx:id="info" styleClass="status-text" text="Move mouse over spectrum to see coordinates"
+                <Label fx:id="info" styleClass="status-text" text="%move.mouse.for.coordinates"
                        HBox.hgrow="ALWAYS"/>
             </HBox>
         </VBox>

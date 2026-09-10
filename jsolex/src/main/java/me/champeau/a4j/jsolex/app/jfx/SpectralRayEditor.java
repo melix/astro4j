@@ -392,8 +392,9 @@ public class SpectralRayEditor {
         var fileChooser = new FileChooser();
         fileChooser.setTitle(I18N.string(JSolEx.class, "spectral-ray-editor", "browse"));
         fileChooser.getExtensionFilters().addAll(
-            new FileChooser.ExtensionFilter("Image math files (*.math)", "*.math"),
-            new FileChooser.ExtensionFilter("All files", "*.*")
+            new FileChooser.ExtensionFilter(
+                    I18N.string(JSolEx.class, "common", "file.filter.imagemath") + " (*.math)", "*.math"),
+            new FileChooser.ExtensionFilter(I18N.string(JSolEx.class, "common", "file.filter.all"), "*.*")
         );
 
         var file = fileChooser.showOpenDialog(stage);

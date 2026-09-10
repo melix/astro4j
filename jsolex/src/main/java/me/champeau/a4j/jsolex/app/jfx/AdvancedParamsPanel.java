@@ -462,7 +462,8 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
         fileChooser.setTitle(I18N.string(JSolEx.class, "advanced-params", "select.python"));
         if (System.getProperty("os.name").toLowerCase().contains("win")) {
             fileChooser.getExtensionFilters().add(
-                    new FileChooser.ExtensionFilter("Executable", "*.exe"));
+                    new FileChooser.ExtensionFilter(
+                            I18N.string(JSolEx.class, "common", "file.filter.executable"), "*.exe"));
         }
         var file = fileChooser.showOpenDialog(getScene().getWindow());
         if (file != null) {

@@ -245,8 +245,6 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
 
     private static final Logger LOGGER = LoggerFactory.getLogger(JSolEx.class);
     private static final String LOG_EXTENSION = ".log";
-    private static final FileChooser.ExtensionFilter LOG_FILE_EXTENSION_FILTER = new FileChooser.ExtensionFilter("Log files (*" + LOG_EXTENSION + ")", "*" + LOG_EXTENSION);
-    private static final FileChooser.ExtensionFilter SER_FILES_EXTENSION_FILTER = new FileChooser.ExtensionFilter("SER files", "*.ser", "*.SER");
     private static final String DISCORD_INVITE = "https://discord.gg/y9NCGaWzve";
     private static final int PANEL_ROW_WIDTH_INSET = 24;
     // Must match -fx-fixed-cell-size and the vertical padding/border of .panel-selector-list in components.css
@@ -264,7 +262,22 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     /**
      * File chooser extension filter for image files.
      */
-    public static final FileChooser.ExtensionFilter IMAGE_FILES_EXTENSIONS = new FileChooser.ExtensionFilter("Image Files", IMAGE_FILE_EXTENSIONS.stream().map(ext -> "*." + ext).toList());
+    public static FileChooser.ExtensionFilter imageFilesExtensionFilter() {
+        return new FileChooser.ExtensionFilter(
+                I18N.string(JSolEx.class, "common", "file.filter.images"),
+                IMAGE_FILE_EXTENSIONS.stream().map(ext -> "*." + ext).toList());
+    }
+
+    private static FileChooser.ExtensionFilter logFileExtensionFilter() {
+        return new FileChooser.ExtensionFilter(
+                I18N.string(JSolEx.class, "common", "file.filter.log") + " (*" + LOG_EXTENSION + ")",
+                "*" + LOG_EXTENSION);
+    }
+
+    private static FileChooser.ExtensionFilter serFilesExtensionFilter() {
+        return new FileChooser.ExtensionFilter(
+                I18N.string(JSolEx.class, "common", "file.filter.ser"), "*.ser", "*.SER");
+    }
 
     private final Configuration config = Configuration.getInstance();
 
@@ -1006,7 +1019,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             pane.prefWidthProperty().bind(stack.widthProperty());
             stack.setAlignment(Pos.CENTER);
             stack.getChildren().add(pane);
-            mainPane.getTabs().add(new Tab("Fast mode", stack));
+            mainPane.getTabs().add(new Tab(I18N.string(getClass(), "common", "fast.mode"), stack));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -1759,7 +1772,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
 
         while (addMoreFiles) {
             var fileChooser = new FileChooser();
-            fileChooser.getExtensionFilters().add(SER_FILES_EXTENSION_FILTER);
+            fileChooser.getExtensionFilters().add(serFilesExtensionFilter());
             config.findLastOpenDirectory().ifPresent(dir -> fileChooser.setInitialDirectory(dir.toFile()));
             var selectedFiles = fileChooser.showOpenMultipleDialog(rootStage);
 
@@ -1862,7 +1875,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     private void loadImages() {
         ensureImagesViewerTab();
         var defaults = ProcessParams.loadDefaults();
-        new StandaloneImagesLoader(rootStage, config, multipleImagesViewer, IMAGE_FILES_EXTENSIONS, this::updateProgress, defaults, popupViewers).loadImages();
+        new StandaloneImagesLoader(rootStage, config, multipleImagesViewer, imageFilesExtensionFilter(), this::updateProgress, defaults, popupViewers).loadImages();
         config.findLastOpenDirectory().ifPresent(dir -> {
             this.outputDirectory = dir;
             multipleImagesViewer.setCollageContext(this, defaults, dir);
@@ -2016,7 +2029,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
 
     private void selectSerFileAndThen(Consumer<? super File> consumer) {
         var fileChooser = new FileChooser();
-        fileChooser.getExtensionFilters().add(SER_FILES_EXTENSION_FILTER);
+        fileChooser.getExtensionFilters().add(serFilesExtensionFilter());
         config.findLastOpenDirectory().ifPresent(dir -> fileChooser.setInitialDirectory(dir.toFile()));
         var selectedFile = fileChooser.showOpenDialog(rootStage);
         if (selectedFile != null) {
@@ -2363,7 +2376,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         var listener = delegatingListener(new SingleModeProcessingEventListener(this, rootOperation, "", null, outputDirectory.toPath(), params, processingDate, popupViewers));
         var namingStrategy = new FileNamingStrategy(params.extraParams().fileNamePattern(), params.extraParams().datetimeFormat(), params.extraParams().dateFormat(), processingDate, createFakeHeader(processingDate));
         // Create a child operation for script execution so the root doesn't get marked complete prematurely
-        var scriptOperation = rootOperation.createChild("Script");
+        var scriptOperation = rootOperation.createChild(I18N.string(JSolEx.class, "common", "progress.script"));
         var context = ScriptExecutionContext.builder().progressOperation(scriptOperation).build();
         context.mergeAll(extraContext);
         var imageScriptExecutor = new JSolExScriptExecutor(imageSupplier, context, (Broadcaster) listener, null) {
@@ -2488,7 +2501,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         try {
             licenses.setText(new String(JSolEx.class.getResourceAsStream("/licenses.txt").readAllBytes(), "utf-8"));
         } catch (Exception e) {
-            licenses.setText("Cannot find licenses file");
+            licenses.setText(I18N.string(getClass(), "common", "license.missing"));
         }
         var scroll = new ScrollPane(licenses);
         scroll.fitToHeightProperty().set(true);
@@ -2520,7 +2533,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         fileChooser.setTitle(I18N.string(getClass(), "messages", "export.python.stubs.title"));
         fileChooser.setInitialFileName("jsolex.pyi");
         fileChooser.getExtensionFilters().add(
-                new FileChooser.ExtensionFilter("Python Stub Files", "*.pyi"));
+                new FileChooser.ExtensionFilter(I18N.string(getClass(), "common", "file.filter.python.stubs"), "*.pyi"));
         var file = fileChooser.showSaveDialog(rootStage);
         if (file != null) {
             try (var input = JSolEx.class.getResourceAsStream("/python-stubs/jsolex.pyi");
@@ -2884,7 +2897,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         }
         var firstHeader = header;
         boolean autoTrimFinal = autoTrim.orElse(false);
-        var progressOperation = createRootOperation("Batch");
+        var progressOperation = createRootOperation(I18N.string(JSolEx.class, "common", "progress.batch"));
         processParams.ifPresent(params -> startBatchProcess(firstHeader, progressOperation, params, selectedFiles, autoTrimFinal));
 
     }
@@ -2950,7 +2963,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     @Override
     public List<File> chooseAdditionalBatchFiles() {
         var fileChooser = new FileChooser();
-        fileChooser.getExtensionFilters().add(SER_FILES_EXTENSION_FILTER);
+        fileChooser.getExtensionFilters().add(serFilesExtensionFilter());
         config.findLastOpenDirectory().ifPresent(dir -> fileChooser.setInitialDirectory(dir.toFile()));
         var selectedFiles = fileChooser.showOpenMultipleDialog(rootStage);
         if (selectedFiles == null || selectedFiles.isEmpty()) {
@@ -3168,7 +3181,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     @FXML
     private void saveLog() throws IOException {
         var saveWindow = new FileChooser();
-        saveWindow.getExtensionFilters().add(LOG_FILE_EXTENSION_FILTER);
+        saveWindow.getExtensionFilters().add(logFileExtensionFilter());
         var file = saveWindow.showSaveDialog(rootStage);
         if (file != null) {
             if (!file.getName().endsWith(LOG_EXTENSION)) {

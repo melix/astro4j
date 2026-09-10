@@ -397,7 +397,8 @@ public class SimpleMarkdownViewer {
                 hbox.setAlignment(Pos.CENTER);
                 return hbox;
             } else {
-                var label = new Label("[Image: " + altText + "]");
+                var label = new Label(I18N.string(JSolEx.class, "common", "image.fallback")
+                        .replace("{0}", altText));
                 label.setStyle("-fx-background-color: #f0f0f0; -fx-padding: 4px;");
                 
                 var hbox = new HBox(label);

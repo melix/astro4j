@@ -21,7 +21,21 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 class ChineseLocalizationTest extends Specification {
-    private static final Path RESOURCE_DIR = Path.of("src/main/resources/me/champeau/a4j/jsolex/app")
+    private static final Path APP_RESOURCE_DIR = Path.of("src/main/resources/me/champeau/a4j/jsolex/app")
+    private static final List<Path> RESOURCE_DIRS = [
+            APP_RESOURCE_DIR,
+            Path.of("../jsolex-core/src/main/resources/me/champeau/a4j/jsolex/processing/util"),
+            Path.of("../jsolex-server/src/main/resources/me/champeau/a4j/jsolex/server")
+    ]
+
+    def "every source bundle has a Chinese translation"() {
+        expect:
+        basePropertyFiles().each { englishFile ->
+            def chineseFile = englishFile.resolveSibling(
+                    englishFile.fileName.toString().replace('.properties', '_zh.properties'))
+            assert Files.isRegularFile(chineseFile): "${englishFile}: missing Chinese bundle"
+        }
+    }
 
     def "Chinese bundles preserve keys, placeholders and help markup"() {
         given:
@@ -47,7 +61,7 @@ class ChineseLocalizationTest extends Specification {
 
     def "BASS2000 fields retain scientific units and instrument identifiers"() {
         given:
-        def chinese = loadProperties(RESOURCE_DIR.resolve('bass2000-submission_zh.properties'))
+        def chinese = loadProperties(APP_RESOURCE_DIR.resolve('bass2000-submission_zh.properties'))
 
         expect:
         chinese.getProperty(key).contains(expected)
@@ -69,11 +83,44 @@ class ChineseLocalizationTest extends Specification {
 
     def "translated ImageMath example preserves executable lines"() {
         given:
-        def english = loadProperties(RESOURCE_DIR.resolve('imagemath-editor.properties'))
-        def chinese = loadProperties(RESOURCE_DIR.resolve('imagemath-editor_zh.properties'))
+        def english = loadProperties(APP_RESOURCE_DIR.resolve('imagemath-editor.properties'))
+        def chinese = loadProperties(APP_RESOURCE_DIR.resolve('imagemath-editor_zh.properties'))
 
         expect:
         scriptLines(chinese.getProperty('example.script')) == scriptLines(english.getProperty('example.script'))
+    }
+
+    def "Chinese release notes cover every release section"() {
+        given:
+        def english = Files.readString(Path.of('src/main/resources/whats-new.md'))
+        def chinese = Files.readString(Path.of('src/main/resources/whats-new_ZH.md'))
+
+        expect:
+        versionsInHeadings(chinese) == versionsInHeadings(english)
+        chinese.contains('## 致美国公民和极右翼支持者')
+        !chinese.contains('\uFFFD')
+        chinese.readLines().size() >= english.readLines().size() - 10
+    }
+
+    def "common resource keys used by Java sources exist"() {
+        given:
+        def common = loadProperties(APP_RESOURCE_DIR.resolve('common.properties'))
+        def sourceRoot = Path.of('src/main/java')
+
+        expect:
+        Files.walk(sourceRoot).withCloseable { files ->
+            files.filter { it.fileName.toString().endsWith('.java') }.each { sourceFile ->
+                def source = Files.readString(sourceFile)
+                def directCalls = source =~ /"common"\s*,\s*"([^"]+)"/
+                directCalls.each { match ->
+                    assert common.containsKey(match[1]): "${sourceFile}: missing common resource key ${match[1]}"
+                }
+                def helperCalls = source =~ /\bcommon\("([^"]+)"\)/
+                helperCalls.each { match ->
+                    assert common.containsKey(match[1]): "${sourceFile}: missing common resource key ${match[1]}"
+                }
+            }
+        }
     }
 
     private static List<String> scriptLines(String script) {
@@ -83,12 +130,35 @@ class ChineseLocalizationTest extends Specification {
     private static List<String> tokens(String value) {
         // Named template tokens, MessageFormat/SLF4J arguments and printf formats.
         // Do not treat ordinary percentages such as "25% larger" as printf formats.
-        value.findAll(/%[A-Z_]+%|\{[^{}]*\}|%(?:\d+\$)?[-#+0,(<]*\d*(?:\.\d+)?[bBhHsScCdoxXeEfgGaAn%]/).sort()
+        value.findAll(/%[A-Z_]+%|\{[^{}]*\}|%(?:\d+\$)?[-#+0,(<]*\d*(?:\.\d+)?[bBhHsScCdoxXeEfgGaAn%]/)
+    }
+
+    private static List<String> versionsInHeadings(String text) {
+        text.readLines()
+                .findAll { it.startsWith('## ') }
+                .collect { line ->
+                    def matcher = line =~ /\d+\.\d+\.\d+/
+                    matcher.find() ? matcher.group() : null
+                }
+                .findAll()
     }
 
     private static List<Path> chineseFiles() {
-        Files.list(RESOURCE_DIR).withCloseable { files ->
-            files.filter { it.fileName.toString().endsWith('_zh.properties') }.toList()
+        RESOURCE_DIRS.collectMany { resourceDir ->
+            Files.walk(resourceDir).withCloseable { files ->
+                files.filter { it.fileName.toString().endsWith('_zh.properties') }.toList()
+            }
+        }
+    }
+
+    private static List<Path> basePropertyFiles() {
+        RESOURCE_DIRS.collectMany { resourceDir ->
+            Files.walk(resourceDir).withCloseable { files ->
+                files.filter {
+                    def name = it.fileName.toString()
+                    name.endsWith('.properties') && !(name ==~ /.*_[a-z]{2}\.properties/)
+                }.toList()
+            }
         }
     }
 

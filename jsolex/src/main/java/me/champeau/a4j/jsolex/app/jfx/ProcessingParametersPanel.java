@@ -842,7 +842,8 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
         private void readPivotFromSerFile() {
             var fileChooser = new FileChooser();
             fileChooser.setTitle(I18N.string(JSolEx.class, "process-params", "conditional.flip.from.ser"));
-            fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("SER files", "*.ser", "*.SER"));
+            fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter(
+                    I18N.string(JSolEx.class, "common", "file.filter.ser"), "*.ser", "*.SER"));
             Configuration.getInstance().findLastOpenDirectory().ifPresent(dir -> fileChooser.setInitialDirectory(dir.toFile()));
             var file = fileChooser.showOpenDialog(getScene().getWindow());
             if (file != null) {

@@ -1033,17 +1033,17 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                                 // Validate bounds
                                 if (startFrame >= totalFrames || endFrame < 0 || frameCount <= 0) {
                                     LOGGER.error(JSolEx.message("error.invalid.frame.bounds"), startFrame, endFrame, totalFrames, frameCount);
-                                    throw new IllegalArgumentException("Invalid frame selection bounds");
+                                    throw new IllegalArgumentException(common("ser.extract.invalid.frame.bounds"));
                                 }
                                 if (cropLeft >= originalWidth || cropRight < 0 || cropWidth <= 0) {
                                     LOGGER.error(JSolEx.message("error.invalid.crop.bounds"), cropLeft, cropRight, originalWidth, cropWidth);
-                                    throw new IllegalArgumentException("Invalid crop selection bounds");
+                                    throw new IllegalArgumentException(common("ser.extract.invalid.crop.bounds"));
                                 }
 
                                 // Create a list to hold the extracted frames
                                 var frames = new ArrayList<ImageWrapper>();
                                 var totalFramesToExtract = endFrame - startFrame + 1;
-                                var extractionOp = rootOperation.createChild("Extracting frames");
+                                var extractionOp = rootOperation.createChild(common("progress.extracting.frames"));
 
                                 // Extract frames from the selected frame range with width-only cropping (preserve full height)
                                 for (var frameIndex = startFrame; frameIndex <= endFrame; frameIndex++) {
@@ -1071,13 +1071,16 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                                     // Update progress every 10 frames
                                     if ((frameIndex - startFrame) % 10 == 0) {
                                         var currentFrame = frameIndex - startFrame + 1;
-                                        broadcast(extractionOp.update(currentFrame / (double) totalFramesToExtract, "Extracting frame " + currentFrame + "/" + totalFramesToExtract));
+                                        var progressText = common("progress.extracting.frame")
+                                                .replace("{0}", Integer.toString(currentFrame))
+                                                .replace("{1}", Integer.toString(totalFramesToExtract));
+                                        broadcast(extractionOp.update(currentFrame / (double) totalFramesToExtract, progressText));
                                     }
                                 }
                                 broadcast(extractionOp.complete());
 
                                 if (frames.isEmpty()) {
-                                    throw new IllegalStateException("No frames were extracted - cannot create animation");
+                                    throw new IllegalStateException(common("ser.extract.no.frames"));
                                 }
 
                                 var animate = new Animate(Map.of(AnimationFormat.class, Configuration.getInstance().getAnimationFormats()), SingleModeProcessingEventListener.this);
@@ -1085,7 +1088,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                                 try {
                                     animationResult = animate.createAnimation(Map.of("images", frames, "delay", 25));
                                 } catch (Exception e) {
-                                    throw new RuntimeException("Animation creation failed: " + e.getMessage(), e);
+                                    throw new RuntimeException(common("ser.extract.animation.failed")
+                                            .replace("{0}", String.valueOf(e.getMessage())), e);
                                 }
                                 if (animationResult instanceof FileOutputResult fileOutput) {
                                     var baseFilename = createNamingStrategy().render(0, null, Constants.TYPE_CUSTOM,
@@ -1108,20 +1112,23 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                                     }
 
                                     if (displayOutputPath != null) {
-                                        broadcast(FileGeneratedEvent.of(GeneratedImageKind.IMAGE_MATH, "SER Frame Extract", displayOutputPath));
+                                        broadcast(FileGeneratedEvent.of(GeneratedImageKind.IMAGE_MATH,
+                                                common("ser.extract.output.title"), displayOutputPath));
                                     }
                                 } else {
-                                    throw new RuntimeException("Animation creation returned unexpected result type: " +
-                                            (animationResult != null ? animationResult.getClass().getName() : "null"));
+                                    var resultType = animationResult != null ? animationResult.getClass().getName() : "null";
+                                    throw new RuntimeException(common("ser.extract.unexpected.result")
+                                            .replace("{0}", resultType));
                                 }
                             }
 
                         } catch (Exception e) {
                             broadcast(new NotificationEvent(new Notification(
                                     Notification.AlertType.ERROR,
-                                    "SER Frame Extraction Failed",
-                                    "Animation Creation Error",
-                                    "Failed to extract SER frames to MP4: " + e.getMessage()
+                                    common("ser.extract.notification.title"),
+                                    common("ser.extract.notification.header"),
+                                    common("ser.extract.notification.message")
+                                            .replace("{0}", String.valueOf(e.getMessage()))
                             )));
                         }
                     });
@@ -1486,7 +1493,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
         // Display fitted coefficients compared to reference (Snodgrass & Ulrich 1990)
         var coeffsLabel = new Label(String.format(Locale.US,
-                "Fitted: ω(φ) = %.3f %+.3f·sin²φ %+.3f·sin⁴φ  |  Snodgrass & Ulrich (1990): ω(φ) = %.3f %+.3f·sin²φ %+.3f·sin⁴φ  (deg/day)",
+                common("rotation.profile.coefficients"),
                 fittedCoeffs.a(), fittedCoeffs.b(), fittedCoeffs.c(),
                 SNODGRASS_A, SNODGRASS_B, SNODGRASS_C));
         coeffsLabel.setStyle("-fx-font-size: 12px; -fx-font-family: monospace;");
@@ -3327,6 +3334,10 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
      */
     public boolean hasSerFile() {
         return serFile != null;
+    }
+
+    private static String common(String key) {
+        return I18N.string(JSolEx.class, "common", key);
     }
 
     sealed interface GraphData {

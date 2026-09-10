@@ -25,6 +25,7 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.params.ChoiceParameter;
 import me.champeau.a4j.jsolex.processing.params.NumberParameter;
 import me.champeau.a4j.jsolex.processing.params.ScriptParameter;
@@ -206,7 +207,7 @@ public class ScriptParameterUIBuilder {
                             errorMessage = validationResult.getErrorMessage();
                         }
                     } catch (ParseException e) {
-                        errorMessage = "Invalid number format";
+                        errorMessage = I18N.string(JSolEx.class, "common", "invalid.number.format");
                     }
 
                     if (errorMessage != null) {

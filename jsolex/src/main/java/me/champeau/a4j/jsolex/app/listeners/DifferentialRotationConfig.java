@@ -15,6 +15,9 @@
  */
 package me.champeau.a4j.jsolex.app.listeners;
 
+import me.champeau.a4j.jsolex.app.JSolEx;
+import me.champeau.a4j.jsolex.app.jfx.I18N;
+
 import java.util.Locale;
 
 /**
@@ -78,24 +81,24 @@ public record DifferentialRotationConfig(
      */
     public String validate() {
         if (limbLongitudeDeg < 10 || limbLongitudeDeg > 85) {
-            return "Limb longitude must be between 10° and 85°";
+            return common("differential.rotation.config.error.limb.longitude");
         }
         var maxHalfRange = 90.0 - limbLongitudeDeg;
         if (longitudeHalfRangeDeg < 1 || longitudeHalfRangeDeg > maxHalfRange) {
-            return String.format(Locale.US, "Longitude half-range must be between 1° and %.0f° (for limb longitude %.0f°)",
+            return String.format(Locale.US, common("differential.rotation.config.error.longitude.halfrange"),
                 maxHalfRange, limbLongitudeDeg);
         }
         if (longitudeStepDeg < 0.5 || longitudeStepDeg > longitudeHalfRangeDeg) {
-            return "Longitude step must be between 0.5° and the half-range";
+            return common("differential.rotation.config.error.longitude.step");
         }
         if (latitudeStepDeg < 0.5 || latitudeStepDeg > 10) {
-            return "Latitude step must be between 0.5° and 10°";
+            return common("differential.rotation.config.error.latitude.step");
         }
         if (smoothingWindowDeg < 1 || smoothingWindowDeg > 20) {
-            return "Smoothing window must be between 1° and 20°";
+            return common("differential.rotation.config.error.smoothing");
         }
         if (voigtFitHalfWidthAngstroms < 0.5 || voigtFitHalfWidthAngstroms > 5) {
-            return "Voigt fit half-width must be between 0.5 Å and 5 Å";
+            return common("differential.rotation.config.error.voigt.halfwidth");
         }
         return null;
     }
@@ -106,8 +109,7 @@ public record DifferentialRotationConfig(
     public String warning() {
         if (smoothingWindowDeg < 2 * latitudeStepDeg) {
             return String.format(Locale.US,
-                "Smoothing window (%.1f°) should be at least 2× the latitude step (%.1f°) for effective smoothing. " +
-                "Current settings may result in no smoothing being applied.",
+                common("differential.rotation.config.warning.smoothing"),
                 smoothingWindowDeg, latitudeStepDeg);
         }
         return null;
@@ -118,5 +120,9 @@ public record DifferentialRotationConfig(
      */
     public static double maxHalfRangeFor(double limbLongitude) {
         return 90.0 - limbLongitude;
+    }
+
+    private static String common(String key) {
+        return I18N.string(JSolEx.class, "common", key);
     }
 }
