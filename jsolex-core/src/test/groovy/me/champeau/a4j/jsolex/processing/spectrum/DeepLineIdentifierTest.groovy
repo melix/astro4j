@@ -78,6 +78,8 @@ class DeepLineIdentifierTest extends Specification {
         '/average/caH/12_06_28.ser-average.fits'     | 3968.47d
         '/average/Hb/11_22_43.ser-average.fits'      | 4861.34d
         '/average/Mag/12_01_12.ser-average.fits'     | 5183.62d
+        '/average/Ha/12_39_10.ser-average.fits'      | 6562.81d
+        '/average/Ha/14_39_41.ser-average.fits'      | 6562.81d
     }
 
     def "declines rather than guessing on a window too narrow to identify"() {

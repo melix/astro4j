@@ -85,6 +85,10 @@ public final class DeepLineIdentifier {
      */
     private static final double MIN_PROFILE_ANGSTROMS = 3;
 
+    private static final double MIN_SCALE_GAIN = 0.002;
+    private static final double ATLAS_LINE_DEPTH_HALF_WIDTH_ANGSTROMS = 1;
+    private static final double MIN_ATLAS_LINE_DEPTH = 0.02;
+
     private static final double MIN_SCORE = 0.70;
     /**
      * Minimum lead over the best hypothesis which is a genuinely different line,
@@ -96,7 +100,10 @@ public final class DeepLineIdentifier {
     private static final double MIN_RELATIVE_MARGIN = 0.30;
     private static final double COMPETITOR_SEPARATION_ANGSTROMS = 3;
 
-    private static volatile Reference reference;
+    /** The reference spectrum of the Sun alone, as the free search on a recorded scan has always used. */
+    private static volatile Reference solarReference;
+    /** The reference spectrum as seen through the atmosphere, for frames observed live from the ground. */
+    private static volatile Reference skyReference;
 
     private DeepLineIdentifier() {
     }
@@ -113,7 +120,9 @@ public final class DeepLineIdentifier {
     }
 
     /**
-     * Identifies the line the profile is centred on.
+     * Identifies the line the profile is centred on. The profile is compared with the
+     * solar spectrum as seen through the atmosphere, since a scan is recorded from the
+     * ground and carries the telluric lines too.
      *
      * @param profile the de-smiled profile, as produced by {@link SpectrumAnalyzer#computeDataPoints}
      * @param instrument the spectroheliograph
@@ -125,31 +134,80 @@ public final class DeepLineIdentifier {
                                             SpectroHeliograph instrument,
                                             double pixelSize,
                                             int... binnings) {
-        var ranked = rank(profile, instrument, pixelSize, binnings);
+        return select(rank(profile, instrument, pixelSize, true, binnings));
+    }
+
+    /**
+     * Applies the confidence gates to ranked hypotheses, reporting why none of them
+     * was retained when that is the case.
+     *
+     * @param ranked the hypotheses, best first, as returned by {@link #rank}
+     * @return the winning hypothesis, or empty when none clearly wins
+     */
+    static Optional<Result> select(List<Result> ranked) {
+        return select(ranked, true);
+    }
+
+    /**
+     * Applies the confidence gates to ranked hypotheses.
+     *
+     * @param ranked the hypotheses, best first, as returned by {@link #rank}
+     * @param explain whether to report what was rejected and why. A caller which
+     * identifies several frames per second, and which reports the best hypothesis
+     * whether it passes the gates or not, would only fill the log with it.
+     * @return the winning hypothesis, or empty when none clearly wins
+     */
+    static Optional<Result> select(List<Result> ranked, boolean explain) {
         if (ranked.isEmpty()) {
-            LOGGER.info(message("free.search.no.candidate"));
+            if (explain) {
+                LOGGER.info(message("free.search.no.candidate"));
+            }
             return Optional.empty();
         }
         var winner = ranked.getFirst();
         if (winner.score() < MIN_SCORE) {
-            return reject(ranked, String.format(Locale.US, message("free.search.rejected.score"),
+            return reject(ranked, explain, String.format(Locale.US, message("free.search.rejected.score"),
                     winner.wavelength().angstroms(), winner.score(), MIN_SCORE));
         }
-        var runnerUp = ranked.stream()
-                .filter(c -> Math.abs(c.wavelength().angstroms() - winner.wavelength().angstroms()) >= COMPETITOR_SEPARATION_ANGSTROMS)
-                .findFirst();
+        var runnerUp = runnerUp(ranked, winner);
         if (runnerUp.isEmpty()) {
-            return reject(ranked, String.format(Locale.US, message("free.search.rejected.alone"),
+            return reject(ranked, explain, String.format(Locale.US, message("free.search.rejected.alone"),
                     winner.wavelength().angstroms()));
         }
-        var margin = (winner.score() - runnerUp.get().score()) / Math.max(1e-9, 1 - runnerUp.get().score());
+        var margin = margin(ranked, winner);
         if (margin < MIN_RELATIVE_MARGIN) {
-            return reject(ranked, String.format(Locale.US, message("free.search.rejected.margin"),
+            return reject(ranked, explain, String.format(Locale.US, message("free.search.rejected.margin"),
                     winner.wavelength().angstroms(), winner.score(),
                     runnerUp.get().wavelength().angstroms(), runnerUp.get().score(),
                     margin, MIN_RELATIVE_MARGIN));
         }
         return Optional.of(new Result(winner.wavelength(), winner.score(), margin, winner.binning()));
+    }
+
+    /**
+     * The best hypothesis which is a genuinely different line from the given one, that
+     * is the one it has to be told apart from.
+     */
+    private static Optional<Result> runnerUp(List<Result> ranked, Result winner) {
+        return ranked.stream()
+                .filter(c -> Math.abs(c.wavelength().angstroms() - winner.wavelength().angstroms()) >= COMPETITOR_SEPARATION_ANGSTROMS)
+                .findFirst();
+    }
+
+    /**
+     * The lead of a hypothesis over the best competing line, as a fraction of the
+     * headroom left above that line. Exposed so that a caller which reports the best
+     * hypothesis whether or not it passes the gates can still say how close the
+     * competition was.
+     *
+     * @param ranked the hypotheses, best first, as returned by {@link #rank}
+     * @param winner the hypothesis to measure, usually the first of the ranking
+     * @return the lead, or zero when the ranking holds no competing line
+     */
+    static double margin(List<Result> ranked, Result winner) {
+        return runnerUp(ranked, winner)
+                .map(runnerUp -> (winner.score() - runnerUp.score()) / Math.max(1e-9, 1 - runnerUp.score()))
+                .orElse(0d);
     }
 
     /**
@@ -166,6 +224,27 @@ public final class DeepLineIdentifier {
     static List<Result> rank(List<SpectrumAnalyzer.DataPoint> profile,
                              SpectroHeliograph instrument,
                              double pixelSize,
+                             int... binnings) {
+        return rank(profile, instrument, pixelSize, false, binnings);
+    }
+
+    /**
+     * The hypotheses this identification considered, against the Sun alone or the Sun seen
+     * through the atmosphere.
+     *
+     * @param profile the de-smiled profile
+     * @param instrument the spectroheliograph
+     * @param pixelSize the sensor pixel size, in micrometers
+     * @param sky whether the reference includes the absorption of the atmosphere, as a frame
+     * observed live from the ground does. The free search on a recorded scan keeps to the
+     * Sun alone, as it always has.
+     * @param binnings the binnings to consider
+     * @return the scored hypotheses, best first, with a margin of zero
+     */
+    static List<Result> rank(List<SpectrumAnalyzer.DataPoint> profile,
+                             SpectroHeliograph instrument,
+                             double pixelSize,
+                             boolean sky,
                              int... binnings) {
         if (profile.size() < MIN_PROFILE_SIZE || pixelSize <= 0 || instrument == null || binnings.length == 0) {
             return List.of();
@@ -190,12 +269,12 @@ public final class DeepLineIdentifier {
 
         // First pass over every candidate at a single broadening, then a second
         // pass which re-scores only the leading ones over all of them.
-        var reference = reference();
+        var reference = reference(sky);
         var scored = new ArrayList<Scored>();
         for (int b = 0; b < prepared.length; b++) {
             for (var wavelength : reference.candidates()) {
                 scored.add(new Scored(wavelength,
-                        correlate(reference.broadened()[COARSE_SIGMA_INDEX], prepared[b], shifts, wavelength, instrument, pixelSize),
+                        correlate(reference.broadened()[COARSE_SIGMA_INDEX], prepared[b], shifts, wavelength, instrument, pixelSize, 1),
                         b));
             }
         }
@@ -206,7 +285,7 @@ public final class DeepLineIdentifier {
             var best = candidate.score();
             for (var atlas : reference.broadened()) {
                 best = Math.max(best, correlate(atlas, prepared[candidate.binningIndex()], shifts,
-                        candidate.wavelength(), instrument, pixelSize));
+                        candidate.wavelength(), instrument, pixelSize, 1));
             }
             refined.add(new Scored(candidate.wavelength(), best, candidate.binningIndex()));
         }
@@ -226,12 +305,12 @@ public final class DeepLineIdentifier {
                                     double[] shifts,
                                     double wavelength,
                                     SpectroHeliograph instrument,
-                                    double pixelSize) {
-        var dispersion = SpectrumAnalyzer.computeSpectralDispersion(instrument,
-                Wavelen.ofAngstroms(wavelength), pixelSize * prepared.binning()).angstromsPerPixel();
+                                    double pixelSize,
+                                    double dispersionScale) {
+        var solution = WavelengthSolution.around(instrument, wavelength, pixelSize * prepared.binning(), dispersionScale);
         var reference = new double[shifts.length];
         for (int i = 0; i < shifts.length; i++) {
-            reference[i] = sample(atlas, wavelength + shifts[i] * dispersion);
+            reference[i] = sample(atlas, solution.wavelengthAt(shifts[i]));
         }
         return pearson(prepared.observed(), continuumNormalize(reference, prepared.window()));
     }
@@ -243,26 +322,140 @@ public final class DeepLineIdentifier {
      * @return the candidate wavelengths, in angstroms
      */
     static double[] candidateSet() {
-        return reference().candidates().clone();
+        return candidateSet(false);
+    }
+
+    /**
+     * The wavelengths which can be identified, in increasing order, against the Sun alone
+     * or seen through the atmosphere, whose deepest lines are candidates too: a window can
+     * be centred on one of them just as well.
+     *
+     * @param sky whether the reference includes the absorption of the atmosphere
+     * @return the candidate wavelengths, in angstroms
+     */
+    static double[] candidateSet(boolean sky) {
+        return reference(sky).candidates().clone();
+    }
+
+    static void warmUp() {
+        warmUp(false);
+    }
+
+    static void warmUp(boolean sky) {
+        reference(sky);
+    }
+
+    /**
+     * The observed profile divided by its local continuum, as used for scoring.
+     */
+    static double[] normalizedObservation(List<SpectrumAnalyzer.DataPoint> profile,
+                                          SpectroHeliograph instrument,
+                                          double pixelSize,
+                                          int binning) {
+        var observed = profile.stream().mapToDouble(SpectrumAnalyzer.DataPoint::intensity).toArray();
+        return continuumNormalize(observed, normalizationWindow(midDispersion(instrument, pixelSize, binning), observed.length));
+    }
+
+    record Refined(double dispersionScale, int sigmaIndex, double score) {
+    }
+
+    /**
+     * Refines an identification by choosing the broadening which best matches the
+     * instrument, then the dispersion scale which best aligns the far lines of the
+     * window. The scale only departs from the theoretical dispersion when it brings a
+     * measurable gain, since a narrow window cannot constrain it.
+     *
+     * @param profile the de-smiled profile
+     * @param instrument the spectroheliograph
+     * @param pixelSize the sensor pixel size, in micrometers
+     * @param binning the binning
+     * @param wavelength the identified wavelength
+     * @param sky whether the reference includes the absorption of the atmosphere
+     * @param scales the dispersion scale factors to consider, closest to 1 first
+     * @return the refinement
+     */
+    static Refined refine(List<SpectrumAnalyzer.DataPoint> profile,
+                          SpectroHeliograph instrument,
+                          double pixelSize,
+                          int binning,
+                          Wavelen wavelength,
+                          boolean sky,
+                          double[] scales) {
+        var shifts = profile.stream().mapToDouble(SpectrumAnalyzer.DataPoint::pixelShift).toArray();
+        var observed = profile.stream().mapToDouble(SpectrumAnalyzer.DataPoint::intensity).toArray();
+        var dispersion = midDispersion(instrument, pixelSize, binning);
+        var window = normalizationWindow(dispersion, shifts.length);
+        var prepared = new Prepared(binning, window, continuumNormalize(observed, window), shifts.length * dispersion);
+        var broadened = reference(sky).broadened();
+        var best = new Refined(1, COARSE_SIGMA_INDEX, Double.NEGATIVE_INFINITY);
+        for (int s = 0; s < broadened.length; s++) {
+            var score = correlate(broadened[s], prepared, shifts, wavelength.angstroms(), instrument, pixelSize, 1);
+            if (score > best.score()) {
+                best = new Refined(1, s, score);
+            }
+        }
+        var atlas = broadened[best.sigmaIndex()];
+        for (var scale : scales) {
+            var score = correlate(atlas, prepared, shifts, wavelength.angstroms(), instrument, pixelSize, scale);
+            if (score > best.score() + MIN_SCALE_GAIN) {
+                best = new Refined(scale, best.sigmaIndex(), score);
+            }
+        }
+        return best;
+    }
+
+    /**
+     * The wavelengths of the absorption lines of the broadened atlas within a range.
+     *
+     * @param sky whether the reference includes the absorption of the atmosphere, whose
+     * lines are then reported along with the solar ones
+     * @param sigmaIndex the index of the broadening, as returned by {@link #refine}
+     * @param fromAngstroms the start of the range
+     * @param toAngstroms the end of the range
+     * @return the wavelengths of the lines, in increasing order
+     */
+    static double[] atlasLines(boolean sky, int sigmaIndex, double fromAngstroms, double toAngstroms) {
+        var atlas = reference(sky).broadened()[sigmaIndex];
+        var halfWidth = (int) (ATLAS_LINE_DEPTH_HALF_WIDTH_ANGSTROMS / ATLAS_STEP_ANGSTROMS);
+        var start = Math.max(1, (int) Math.floor((fromAngstroms - first()) / ATLAS_STEP_ANGSTROMS));
+        var end = Math.min(atlas.length - 1, (int) Math.ceil((toAngstroms - first()) / ATLAS_STEP_ANGSTROMS));
+        var lines = new ArrayList<Double>();
+        for (int i = start; i < end; i++) {
+            if (atlas[i] >= atlas[i - 1] || atlas[i] > atlas[i + 1]) {
+                continue;
+            }
+            var continuum = 0d;
+            for (int k = Math.max(0, i - halfWidth); k < Math.min(atlas.length, i + halfWidth + 1); k++) {
+                continuum = Math.max(continuum, atlas[k]);
+            }
+            if (continuum > 1e-9 && 1 - atlas[i] / continuum >= MIN_ATLAS_LINE_DEPTH) {
+                lines.add(first() + i * ATLAS_STEP_ANGSTROMS);
+            }
+        }
+        return lines.stream().mapToDouble(Double::doubleValue).toArray();
     }
 
     /**
      * The reference data, built once: reading and broadening the whole atlas is far too
      * expensive to repeat, and it never changes.
      */
-    private static Reference reference() {
-        var local = reference;
+    private static Reference reference(boolean sky) {
+        var local = sky ? skyReference : solarReference;
         if (local == null) {
             synchronized (DeepLineIdentifier.class) {
-                local = reference;
+                local = sky ? skyReference : solarReference;
                 if (local == null) {
-                    var raw = rawAtlas();
+                    var raw = rawAtlas(sky);
                     var broadened = new double[SIGMAS_ANGSTROMS.length][];
                     for (int i = 0; i < SIGMAS_ANGSTROMS.length; i++) {
                         broadened[i] = broaden(raw, SIGMAS_ANGSTROMS[i]);
                     }
                     local = new Reference(extractDeepLines(broaden(raw, CATALOG_SIGMA_ANGSTROMS)), broadened);
-                    reference = local;
+                    if (sky) {
+                        skyReference = local;
+                    } else {
+                        solarReference = local;
+                    }
                 }
             }
         }
@@ -303,11 +496,19 @@ public final class DeepLineIdentifier {
         return FIRST_ANGSTROMS - ATLAS_PADDING_ANGSTROMS;
     }
 
-    private static double[] rawAtlas() {
+    /**
+     * The solar spectrum, alone or as seen through the atmosphere: the transmission of the
+     * atmosphere multiplies it, as it does the light on its way to the sensor.
+     */
+    private static double[] rawAtlas(boolean sky) {
         var count = (int) Math.ceil((LAST_ANGSTROMS + ATLAS_PADDING_ANGSTROMS - first()) / ATLAS_STEP_ANGSTROMS) + 1;
         var raw = new double[count];
         for (int i = 0; i < count; i++) {
-            raw[i] = ReferenceIntensities.intensityAt(Wavelen.ofAngstroms(first() + i * ATLAS_STEP_ANGSTROMS));
+            var wavelength = Wavelen.ofAngstroms(first() + i * ATLAS_STEP_ANGSTROMS);
+            raw[i] = ReferenceIntensities.intensityAt(wavelength);
+            if (sky) {
+                raw[i] *= TelluricTransmission.transmissionAt(wavelength);
+            }
         }
         return raw;
     }
@@ -394,9 +595,11 @@ public final class DeepLineIdentifier {
      * hypotheses are only worth listing when they were not used, which is when the
      * question of what the search was hesitating between actually arises.
      */
-    private static Optional<Result> reject(List<Result> ranked, String reason) {
-        LOGGER.info(String.format(Locale.US, message("free.search.candidates"), describe(ranked)));
-        LOGGER.info(reason);
+    private static Optional<Result> reject(List<Result> ranked, boolean explain, String reason) {
+        if (explain) {
+            LOGGER.info(String.format(Locale.US, message("free.search.candidates"), describe(ranked)));
+            LOGGER.info(reason);
+        }
         return Optional.empty();
     }
 

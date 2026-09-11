@@ -1812,7 +1812,13 @@ JSol'Ex essayera alors de retrouver dans quelle partie du spectre elle se trouve
 
 image::spectrum-browser-4.jpg[]
 
+L'identification utilise la même méthode que l'identification en direct du serveur embarqué (voir <<live-line-identification>>) : la raie au centre de l'image est recherchée parmi toutes les raies profondes du spectre solaire, tel qu'observé à travers l'atmosphère, et toutes les autres raies visibles dans l'image sont également identifiées, y compris les raies telluriques.
+L'orientation de l'image est détectée automatiquement.
+
 Si l'identification fonctionne, votre image sera affichée en transparence, par dessus le spectre, sur la partie gauche de l'image, ce qui vous permettra de vérifier facilement si l'identification a réussi.
+Les raies trouvées dans l'image sont marquées en vert, et la barre d'état indique sur quelle raie l'image est centrée et le niveau de confiance de l'identification.
+
+La case "Raies telluriques" affiche le spectre de référence tel qu'observé à travers l'atmosphère, c'est-à-dire ce que votre caméra capture : décochez-la pour voir le spectre solaire seul.
 
 Vous pouvez masquer l'image en transparence en cliquant sur le bouton "Cacher".
 
@@ -1830,6 +1836,34 @@ Vous pouvez configurer le port sur lequel le serveur écoute et disposez de la p
 L'interface donne accès aux images en cours de traitement ainsi qu'à leur historique, au cas où vous traitez plusieurs images successivement.
 
 image::embedded-server-2-fr.jpg[]
+
+[[live-line-identification]]
+=== Identification en direct des raies spectrales
+
+Le serveur embarqué expose également une API qui identifie les raies spectrales visibles dans une image du spectre, par exemple la vue en direct de votre logiciel de capture.
+Vous savez ainsi quelle raie vous observez pendant que vous réglez le réseau de votre spectrohéliographe, sans interrompre la capture.
+
+Un script pour SharpCap est fourni : choisissez "Scripts SharpCap" dans le menu "Aide" pour ouvrir le dossier où JSol'Ex le copie (il est également disponible https://github.com/melix/astro4j/blob/main/scripts/sharpcap/jsolex_spectral_lines.py[sur GitHub]).
+Une fois JSol'Ex lancé avec son serveur embarqué démarré, exécutez le script depuis la console de scripts de SharpCap.
+Il envoie les images en direct à JSol'Ex et dessine chaque raie identifiée par dessus la vue en direct, avec son nom lorsqu'il s'agit d'une raie connue ou sa longueur d'onde sinon.
+La raie au centre de la fenêtre est mise en évidence, et une ligne d'état indique la confiance de l'identification, qui augmente à mesure que les images successives s'accordent sur la même raie.
+Une raie est proposée dès que l'image contient un spectre : lorsque la fenêtre est trop étroite pour qu'une raie se distingue de toutes les autres, la plus probable est tout de même affichée, mais la confiance signale qu'il s'agit d'une supposition et sa raie est tracée en pointillés.
+Élargissez la fenêtre de capture ou moyennez davantage d'images avant de vous fier à une telle réponse.
+Arrêtez le script avec Ctrl+C pour retirer l'affichage.
+
+Le binning est lu depuis la caméra, et l'orientation du spectre est détectée d'après la courbure des raies, de sorte que le sens dans lequel le logiciel de capture lit le capteur n'a pas d'importance.
+Le spectrohéliographe et la taille des pixels de la caméra sont ceux des détails d'observation de JSol'Ex, sauf si le script les remplace : modifiez les paramètres en tête du script pour indiquer l'adresse du serveur, la taille des pixels ou le nom du spectrohéliographe.
+L'identification est d'autant plus fiable que la fenêtre de capture est haute, puisqu'une plus grande partie du spectre est comparée au spectre de référence, et que davantage d'images sont moyennées.
+Contrairement à l'identification d'un scan enregistré, l'identification en direct compare l'image à une référence qui inclut les raies d'absorption de l'atmosphère terrestre, tirées de l'atlas NSO/Kitt Peak : autour de H-alpha, les raies de l'eau sont aussi profondes que les raies solaires, et un spectre observé depuis le sol ne peut pas être reconnu sans elles.
+Ces raies sont étiquetées comme telluriques.
+
+L'API peut être utilisée depuis tout autre logiciel : envoyez une image par une requête `POST` à `/api/spectrum/identify`.
+Le corps est soit les pixels bruts de l'image, avec les paramètres `width`, `height` et `format`, `format` étant l'espace de couleurs de la caméra (`MONO8`, `MONO12`, `MONO16`, `RGB24`, `RGB32`, `RGB48`, `RAW8`, `RAW12` ou `RAW16`, les échantillons sur plusieurs octets étant petit-boutistes), soit un fichier image (PNG, TIFF, ou FITS avec `format=fits`).
+Les images couleur sont moyennées en mono, et les images portant une matrice de Bayer sont conservées en pleine résolution, la matrice étant égalisée.
+Les paramètres optionnels `pixelSize`, `binning`, `instrument` et `average` remplacent les détails d'observation et le nombre d'images moyennées.
+La réponse est un document JSON décrivant le polynôme de courbure des raies, la raie identifiée avec son score, la dispersion, et la liste des raies trouvées dans la fenêtre avec leur position par rapport au centre de l'image.
+Une requête `DELETE` à la même adresse oublie les images précédentes, par exemple lorsque vous changez de caméra.
+
 
 [[collage]]
 == Création de collages d'images
@@ -1883,4 +1917,5 @@ Le collage créé sera sauvegardé dans le répertoire de sortie et ajouté à l
 - Sylvain Weiller pour son beta-testing intensif, ses retours précieux et ses idées de traitement
 - Ken M. Harrison pour l'amélioration des calculs d'exposition optimale
 - Minh Trong Nguyen pour ses suggestions d'amélioration et son travail sur le SHG 700
+- Le National Solar Observatory pour l'atlas du spectre tellurique utilisé par l'identification en direct des raies spectrales : NSO/Kitt Peak FTS data used here were produced by NSF/NOAO
 

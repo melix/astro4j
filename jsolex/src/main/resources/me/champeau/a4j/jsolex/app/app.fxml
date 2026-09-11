@@ -56,6 +56,7 @@
                         <MenuItem onAction="#openDiscord" text="%discord"/>
                         <SeparatorMenuItem/>
                         <MenuItem onAction="#exportPythonStubs" text="%export.python.stubs"/>
+                        <MenuItem onAction="#openSharpCapScripts" text="%sharpcap.scripts"/>
                         <SeparatorMenuItem/>
                         <MenuItem onAction="#donate" text="%donate"/>
                         <MenuItem onAction="#about" text="%about"/>

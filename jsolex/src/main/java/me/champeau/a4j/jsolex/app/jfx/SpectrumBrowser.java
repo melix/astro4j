@@ -68,6 +68,8 @@ import java.util.List;
 import me.champeau.a4j.jsolex.processing.params.SpectroHeliograph;
 import me.champeau.a4j.jsolex.processing.params.SpectroHeliographsIO;
 import me.champeau.a4j.jsolex.processing.spectrum.ReferenceIntensities;
+import me.champeau.a4j.jsolex.processing.spectrum.SpectralWindowIdentifier;
+import me.champeau.a4j.jsolex.processing.spectrum.TelluricTransmission;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectralLineCatalog;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
 import me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper;
@@ -84,7 +86,6 @@ import me.champeau.a4j.math.image.ImageMath;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.BitSet;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -95,7 +96,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.DoubleUnaryOperator;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.DoubleStream;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.IMAGE_FILES_EXTENSIONS;
 
@@ -117,6 +117,9 @@ public class SpectrumBrowser extends BorderPane {
     private final CheckBox adjustDispersion = new CheckBox(I18N.string(JSolEx.class, "spectrum-browser", "adjust.dispersion"));
     private final AtomicBoolean animating = new AtomicBoolean(false);
     private final CheckBox flipSpectrumCheckBox = new CheckBox(I18N.string(JSolEx.class, "spectrum-browser", "flip.spectrum"));
+    private final CheckBox telluricLines = new CheckBox(I18N.string(JSolEx.class, "spectrum-browser", "telluric.lines"));
+    private final List<IdentifiedLine> imageLines = new ArrayList<>();
+    private final Label identificationStatus = new Label();
 
     private SpectroHeliograph selectedShg;
 
@@ -260,6 +263,9 @@ public class SpectrumBrowser extends BorderPane {
         colorize.getStyleClass().add("check-box");
         colorizeSpectrum.bind(colorize.selectedProperty());
         colorize.selectedProperty().addListener((observableValue, aBoolean, t1) -> drawSpectrum());
+        telluricLines.getStyleClass().add("check-box");
+        telluricLines.setSelected(true);
+        telluricLines.selectedProperty().addListener((observableValue, aBoolean, t1) -> drawSpectrum());
         var zoomIn = new Button("+");
         zoomIn.getStyleClass().add("default-button");
         zoomIn.setOnAction(evt -> zoom(1 / ZOOM_FACTOR));
@@ -360,6 +366,8 @@ public class SpectrumBrowser extends BorderPane {
             imageView.setImage(null);
             curvature = null;
             hasCurvature.set(false);
+            imageLines.clear();
+            identificationStatus.setText("");
             drawSpectrum();
         });
         hide.disableProperty().bind(imageView.imageProperty().isNull().and(hasCurvature.not()));
@@ -391,7 +399,7 @@ public class SpectrumBrowser extends BorderPane {
         var line1 = createControlRow();
         var line2 = createControlRow();
         var line3 = createControlRow();
-        line1.getChildren().addAll(gtLabel, textField, unit, searchButton, choiceBox, colorize, flipSpectrumCheckBox);
+        line1.getChildren().addAll(gtLabel, textField, unit, searchButton, choiceBox, colorize, telluricLines, flipSpectrumCheckBox);
         line2.getChildren().addAll(instrumentLabel, shg, pixelSizeLabel, pixelSizeValue, adjustDispersion, zoomIn, zoomOut, zoomPresetChoice, help, loadImage, hide);
         line3.getChildren().addAll(alwaysOnTop, opacityLabel, opacitySlider, borderlessCheckBox, controlsAtBottomCheckBox, closeButton);
         vbox.getChildren().addAll(line1, line2, line3);
@@ -576,103 +584,65 @@ public class SpectrumBrowser extends BorderPane {
 
     private void performWavelengthIdentification() {
         var image = loadedImage;
-        var result = loadedDistortion;
-        if (image == null || result == null) {
+        var instrument = selectedShg;
+        if (image == null || instrument == null) {
+            showIdentificationFailure();
             return;
         }
         var width = image.width();
-        result.distortionPolynomial().ifPresentOrElse(polynomial -> {
-            var distorsionCorrection = new DistortionCorrection(image.data(), width, image.height());
-            var correctedImage = distorsionCorrection.polynomicalCorrectionHeightRestricted(polynomial);
-            var corrected = correctedImage.data();
-            for (float[] line : corrected) {
-                for (float v : line) {
-                    if (Float.isNaN(v)) {
-                        showIdentificationFailure();
-                        return;
-                    }
-                }
+        var height = image.height();
+        var identification = new SpectralWindowIdentifier().identify(image.data(), width, height, instrument, pixelSize.get(), 1, 1);
+        if (!identification.identified()) {
+            showIdentificationFailure();
+            return;
+        }
+        var corrected = new DistortionCorrection(image.data(), width, height).polynomialCorrection(identification.polynomial().asPolynomial());
+        int minX = identification.leftBorder();
+        if (minX > 0) {
+            minX += 5 * width / 100;
+        }
+        int maxX = identification.rightBorder();
+        if (maxX < width) {
+            maxX -= 5 * width / 100;
+        }
+        var range = maxX - minX;
+        var anchor = identification.anchor();
+        var lines = identification.lines().stream()
+            .map(line -> new IdentifiedLine(line.wavelength(), lineName(line.name()), -1))
+            .toList();
+        var status = String.format(I18N.string(JSolEx.class, "spectrum-browser", "identification.status"),
+            new IdentifiedLine(anchor.wavelength(), lineName(anchor.name()), -1),
+            I18N.string(JSolEx.class, "spectrum-browser", "confidence." + identification.confidence().name().toLowerCase(Locale.US)));
+        var writableImage = new WritableImage(range, height);
+        var writer = writableImage.getPixelWriter();
+        for (int y = 0; y < height; y++) {
+            for (int x = minX; x < maxX; x++) {
+                var v = Math.clamp(corrected[y][x] / Constants.MAX_PIXEL_VALUE, 0, 1);
+                writer.setColor(x - minX, y, Color.gray(v, .8));
             }
-            var height = correctedImage.height();
-            int minX = result.leftBorder().orElse(0);
-            if (minX > 0) {
-                minX += 5 * width / 100;
-            }
-            int maxX = result.rightBorder().orElse(width);
-            if (maxX < width) {
-                maxX -= 5 * width / 100;
-            }
-            var range = maxX - minX;
-            int finalMinX = minX;
-            int finalMaxX = maxX;
-            double[] lineAverages = new double[height];
-            var flipped = flipSpectrumCheckBox.isSelected();
-            for (int y = 0; y < height; y++) {
-                double sum = 0;
-                for (int x = minX; x < maxX; x++) {
-                    var v = corrected[y][x] / Constants.MAX_PIXEL_VALUE;
-                    sum += v;
-                }
-                var yy = flipped ? height - y - 1 : y;
-                lineAverages[yy] = sum / range;
-            }
-            var localMinima = identifyLocalMinima(lineAverages);
+        }
+        FxUtils.runLater(() -> {
+            flipSpectrumCheckBox.setSelected(identification.flipped());
+            visibleRangeAngstroms.set(identification.angstromsPerPixel() * height);
+            imageRangeAngstroms.set(visibleRangeAngstroms.get());
+            imageView.fitHeightProperty().set(canvas.heightProperty().flatMap(w ->
+                visibleRangeAngstroms.flatMap(visible ->
+                    imageRangeAngstroms.map(r -> w.doubleValue() * r.doubleValue() / visible.doubleValue()))
+            ).getValue());
+            imageView.setImage(writableImage);
+            adjustDispersion.setSelected(false);
+            imageLines.clear();
+            imageLines.addAll(lines);
+            identificationStatus.setText(status);
+            searchByWavelength(anchor.wavelength());
+        });
+    }
 
-            var step = ReferenceIntensities.INSTANCE.getStep();
-            DoubleStream.iterate(ReferenceIntensities.INSTANCE.getMinWavelength(), wl -> wl < ReferenceIntensities.INSTANCE.getMaxWavelength(), wl -> wl + step)
-                .parallel()
-                .mapToObj(wl -> {
-                    var baseDispersion = computeDispersion(Wavelen.ofAngstroms(wl));
-                    if (Double.isNaN(baseDispersion.angstromsPerPixel())) {
-                        return new Score(Wavelen.ofAngstroms(wl), Double.MAX_VALUE);
-                    }
-                    double[] ref = new double[height];
-                    double maxAvg = 0;
-                    for (int y = 0; y < height; y++) {
-                        var currentWl = Wavelen.ofAngstroms(wl + y * baseDispersion.angstromsPerPixel());
-                        ref[y] = ReferenceIntensities.intensityAt(currentWl) / 10000;
-                        maxAvg = Math.max(maxAvg, lineAverages[y]);
-                    }
-                    var localRefMinima = identifyLocalMinima(ref);
-                    var total = 0d;
-                    for (int y = 0; y < height; y++) {
-                        var diff = ref[y] - lineAverages[y];
-                        var diff2 = ref[y] - lineAverages[y] / maxAvg;
-                        total += Math.min(Math.abs(diff), Math.abs(diff2));
-                    }
-                    var common = (BitSet) localMinima.clone();
-                    common.and(localRefMinima);
-                    var weight = Math.pow(common.cardinality() / (double) Math.max(localRefMinima.cardinality(), localMinima.cardinality()), 2);
-                    total = total / weight;
-                    return new Score(Wavelen.ofAngstroms(wl), total);
-                })
-                .min(Comparator.comparingDouble(Score::score))
-                .ifPresent(score -> {
-                    var disp = computeDispersion(score.wavelength);
-                    if (Double.isNaN(disp.angstromsPerPixel())) {
-                        return;
-                    }
-                    visibleRangeAngstroms.set(disp.angstromsPerPixel() * height);
-                    imageRangeAngstroms.set(visibleRangeAngstroms.get());
-                    FxUtils.runLater(() -> {
-                        var writableImage = new WritableImage(range, height);
-                        for (int y = 0; y < height; y++) {
-                            for (int x = finalMinX; x < finalMaxX; x++) {
-                                var v = corrected[y][x] / Constants.MAX_PIXEL_VALUE;
-                                writableImage.getPixelWriter().setColor(x - finalMinX, y, Color.gray(v, .8));
-                            }
-                            imageView.fitHeightProperty().set(canvas.heightProperty().flatMap(w ->
-                                visibleRangeAngstroms.flatMap(visible ->
-                                    imageRangeAngstroms.map(r -> w.doubleValue() * r.doubleValue() / visible.doubleValue()))
-                            ).getValue());
-                            imageView.setImage(writableImage);
-                        }
-                        adjustDispersion.setSelected(false);
-                        var targetWavelen = score.wavelength.plusAngstroms(disp.angstromsPerPixel() * height / 2);
-                        searchByWavelength(targetWavelen);
-                    });
-                });
-        }, this::showIdentificationFailure);
+    private static String lineName(String name) {
+        if (SpectralWindowIdentifier.TELLURIC_LINE_NAME.equals(name)) {
+            return I18N.string(JSolEx.class, "spectrum-browser", "line.telluric");
+        }
+        return name;
     }
 
     private static ImageWrapper32 cropForPolynomialDetection(ImageWrapper32 image) {
@@ -694,38 +664,6 @@ public class SpectrumBrowser extends BorderPane {
             System.arraycopy(image.data()[y], 0, cropped[y - yMin], 0, width);
         }
         return new ImageWrapper32(image.width(), restrictedHeight, cropped, Map.of());
-    }
-
-    private static double[] performSmoothing(double[] values) {
-        double[] result = new double[values.length];
-        double max = 0;
-        result[0] = (2 * values[0] + values[1]) / 3d;
-        for (int i = 1; i < values.length - 1; i++) {
-            result[i] = (values[i - 1] + 2 * values[i] + values[i + 1]) / 4d;
-            max = Math.max(max, result[i]);
-        }
-        result[values.length - 1] = (2 * values[values.length - 1] + values[values.length - 2]) / 3d;
-        return result;
-    }
-
-    private BitSet identifyLocalMinima(double[] lineAverages) {
-        int length = lineAverages.length;
-        BitSet minima = new BitSet(length);
-
-        if (length < 3) {
-            // No local minima possible with less than 3 points
-            return minima;
-        }
-
-        double[] smoothed = performSmoothing(lineAverages);
-
-        for (int i = 1; i < length - 1; i++) {
-            if (smoothed[i] < smoothed[i - 1] && smoothed[i] < smoothed[i + 1]) {
-                minima.set(i);
-            }
-        }
-
-        return minima;
     }
 
     private static double computeInitialPixelSize(ProcessParams processParams) {
@@ -796,7 +734,8 @@ public class SpectrumBrowser extends BorderPane {
             var wavelength = currentMinWavelength + y * (visibleRangeAngstroms.get() / canvas.getHeight());
             label.textProperty().set(String.format(I18N.string(JSolEx.class, "spectrum-browser", "wavelength"), wavelength));
         });
-        hbox.getChildren().add(label);
+        identificationStatus.getStyleClass().add("status-text");
+        hbox.getChildren().addAll(label, identificationStatus);
         return hbox;
     }
 
@@ -852,6 +791,9 @@ public class SpectrumBrowser extends BorderPane {
             // Calculate wavelength and intensity
             var wavelength = Wavelen.ofAngstroms(currentMinWavelength + i * step);
             var intensity = ReferenceIntensities.intensityAt(wavelength);
+            if (telluricLines.isSelected()) {
+                intensity *= TelluricTransmission.transmissionAt(wavelength);
+            }
             var grayscale = 0.9 * (intensity / 10000.0);
 
             // Choose color
@@ -875,6 +817,7 @@ public class SpectrumBrowser extends BorderPane {
         drawLegend(step, gc);
         drawIdentifiedLines(gc, spectrumWidth, step, IDENTIFIED_LINES, Color.RED);
         drawIdentifiedLines(gc, spectrumWidth, step, userDefinedLines.toArray(new IdentifiedLine[0]), Color.BLUE);
+        drawIdentifiedLines(gc, spectrumWidth, step, imageLines.toArray(new IdentifiedLine[0]), Color.DARKGREEN);
     }
 
     private Color createColor(double grayscale, Wavelen wavelength) {
@@ -1045,12 +988,6 @@ public class SpectrumBrowser extends BorderPane {
                 return String.format(Locale.US, "%s (%.2f)", name, wavelength.angstroms());
             }
         }
-    }
-
-    private record Score(
-        Wavelen wavelength,
-        double score
-    ) {
     }
 
     private static IdentifiedLine[] loadDefaultLines() {

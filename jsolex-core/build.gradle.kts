@@ -1,5 +1,6 @@
 import me.champeau.astro4j.BuiltinFunctionCodeGenerator
 import me.champeau.astro4j.SpectrumFileConverter
+import me.champeau.astro4j.TelluricFileConverter
 import java.util.*
 
 plugins {
@@ -69,6 +70,11 @@ val converter = tasks.register<SpectrumFileConverter>("convertSpectrumFile") {
     outputFile = layout.buildDirectory.file("atlas/atlasvi.txt")
 }
 
+val telluricConverter = tasks.register<TelluricFileConverter>("convertTelluricFile") {
+    inputFile = file("src/nso/visatl-telluric.dat")
+    outputFile = layout.buildDirectory.file("atlas/telluric.txt")
+}
+
 val generateBuiltinFunctions = tasks.register<BuiltinFunctionCodeGenerator>("builtinFunctionGenerator") {
     yamlDirectory = file("src/main/functions")
     generatedSourcesDirectory = layout.buildDirectory.dir("generated-sources/astro4j-functions")
@@ -80,7 +86,8 @@ sourceSets {
             srcDir(generateBuiltinFunctions.flatMap { it.generatedSourcesDirectory })
         }
         resources {
-            srcDir(converter.map { it.outputFile.get().asFile.parentFile })
+            // Both converters write to the same directory, added once but depending on both
+            srcDir(converter.flatMap { it.outputFile }.zip(telluricConverter.flatMap { it.outputFile }) { atlas, _ -> atlas.asFile.parentFile })
         }
     }
 }

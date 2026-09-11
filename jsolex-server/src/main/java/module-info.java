@@ -16,6 +16,9 @@
 /** Module for the JSol'Ex embedded web server. */
 module me.champeau.a4j.jsolex.server {
     requires me.champeau.a4j.jsolex.core;
+    requires me.champeau.a4j.math;
+    requires com.google.gson;
+    requires java.desktop;
     requires io.micronaut.micronaut_context;
     requires io.micronaut.micronaut_core;
     requires io.micronaut.micronaut_http;
