@@ -1,6 +1,6 @@
 # Welcome to JSol'Ex {{version}}!
 
-## What's New in Version 5.4.3
+## What's New in Version 5.5.0
 
 - The automatic search on the full spectrum now takes the telluric lines into account, which makes it more reliable in the red part of the spectrum.
 - The spectrum browser identifies images with the same method as the live identification, including telluric lines, and can show the reference spectrum as seen through the atmosphere.
