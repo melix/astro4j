@@ -1193,7 +1193,8 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
         var fileChooser = new FileChooser();
         fileChooser.setTitle(I18N.string(JSolEx.class, "spectral-surface-3d", "export.video.title"));
         fileChooser.setInitialFileName(defaultFileName);
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("All files", "*.*"));
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter(
+                I18N.string(JSolEx.class, "common", "file.filter.all"), "*.*"));
 
         var stage = (Stage) getScene().getWindow();
         stage.toFront();
@@ -1297,7 +1298,7 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
                 if (!cancelled.get()) {
                     FxUtils.runLater(() -> {
                         var alert = new Alert(Alert.AlertType.ERROR);
-                        alert.setTitle("Export Error");
+                        alert.setTitle(I18N.string(JSolEx.class, "common", "export.error"));
                         alert.setContentText(e.getMessage());
                         alert.showAndWait();
                     });

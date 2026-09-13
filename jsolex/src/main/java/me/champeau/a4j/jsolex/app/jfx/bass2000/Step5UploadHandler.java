@@ -318,9 +318,9 @@ class Step5UploadHandler implements StepHandler {
 
         if (!uploadLineCenter && !uploadWingImage) {
             FxUtils.runLater(() -> {
-                var alert = AlertFactory.error("Please select at least one image to upload.");
-                alert.setTitle("No Images Selected");
-                alert.setHeaderText("Upload Error");
+                var alert = AlertFactory.error(message("bass.upload.none.message"));
+                alert.setTitle(message("bass.upload.none.title"));
+                alert.setHeaderText(message("bass.upload.error.header"));
                 alert.showAndWait();
             });
             return;
@@ -345,9 +345,9 @@ class Step5UploadHandler implements StepHandler {
 
         if (uploadWingImage && step4Handler.getSavedOffBandFilePath() == null) {
             FxUtils.runLater(() -> {
-                var alert = AlertFactory.error("Wing image file not available for upload.");
-                alert.setTitle("File Not Available");
-                alert.setHeaderText("Upload Error");
+                var alert = AlertFactory.error(message("bass.upload.wing.missing"));
+                alert.setTitle(message("bass.upload.file.missing.title"));
+                alert.setHeaderText(message("bass.upload.error.header"));
                 alert.showAndWait();
             });
             return;
@@ -438,6 +438,7 @@ class Step5UploadHandler implements StepHandler {
     }
 
     private static String message(String messageKey) {
-        return I18N.string(JSolEx.class, "bass2000-submission", messageKey);
+        var value = I18N.string(JSolEx.class, "bass2000-submission", messageKey);
+        return value.isEmpty() ? I18N.string(JSolEx.class, "common", messageKey) : value;
     }
 }

@@ -63,11 +63,15 @@ public class ImageMathEditor {
     /** File extension for Python scripts. */
     public static final String PY_EXTENSION = ".py";
     /** File chooser filter for ImageMath script files. */
-    public static final FileChooser.ExtensionFilter MATH_SCRIPT_EXTENSION_FILTER = new FileChooser.ExtensionFilter("ImageMath Script (*.math)", "*" + MATH_EXTENSION);
+    public static final FileChooser.ExtensionFilter MATH_SCRIPT_EXTENSION_FILTER = new FileChooser.ExtensionFilter(
+            I18N.string(JSolEx.class, "common", "file.filter.imagemath") + " (*.math)", "*" + MATH_EXTENSION);
     /** File chooser filter for Python script files. */
-    public static final FileChooser.ExtensionFilter PY_SCRIPT_EXTENSION_FILTER = new FileChooser.ExtensionFilter("Python Script (*.py)", "*" + PY_EXTENSION);
+    public static final FileChooser.ExtensionFilter PY_SCRIPT_EXTENSION_FILTER = new FileChooser.ExtensionFilter(
+            I18N.string(JSolEx.class, "common", "file.filter.python") + " (*.py)", "*" + PY_EXTENSION);
     /** File chooser filter for all script files. */
-    public static final FileChooser.ExtensionFilter ALL_SCRIPTS_EXTENSION_FILTER = new FileChooser.ExtensionFilter("All Scripts (*.math, *.py)", "*" + MATH_EXTENSION, "*" + PY_EXTENSION);
+    public static final FileChooser.ExtensionFilter ALL_SCRIPTS_EXTENSION_FILTER = new FileChooser.ExtensionFilter(
+            I18N.string(JSolEx.class, "common", "file.filter.scripts") + " (*.math, *.py)",
+            "*" + MATH_EXTENSION, "*" + PY_EXTENSION);
 
     private final Configuration configuration = Configuration.getInstance();
 

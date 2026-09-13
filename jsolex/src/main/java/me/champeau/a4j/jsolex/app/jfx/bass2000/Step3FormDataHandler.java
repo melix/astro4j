@@ -371,8 +371,8 @@ class Step3FormDataHandler implements StepHandler {
         telescopeNameField.setPromptText(message("instrument.name.prompt"));
         addFormField(formGrid, message("instrument.name.label"), telescopeNameField, 1, row, true);
 
-        telescopeFocalLengthField.setPromptText("e.g., 1000");
-        addFormField(formGrid, "Telescope Focal Length (mm)", telescopeFocalLengthField, 2, row++, true);
+        telescopeFocalLengthField.setPromptText(common("bass.telescope.focal.length.prompt"));
+        addFormField(formGrid, common("bass.telescope.focal.length.label"), telescopeFocalLengthField, 2, row++, true);
 
         apertureField.setPromptText(message("instrument.aperture.prompt"));
         addFormField(formGrid, message("instrument.aperture.label"), apertureField, 0, row, true);
@@ -615,6 +615,10 @@ class Step3FormDataHandler implements StepHandler {
 
     private static String message(String messageKey) {
         return I18N.string(JSolEx.class, "bass2000-submission", messageKey);
+    }
+
+    private static String common(String messageKey) {
+        return I18N.string(JSolEx.class, "common", messageKey);
     }
 
     private static int parseInt(String text) {

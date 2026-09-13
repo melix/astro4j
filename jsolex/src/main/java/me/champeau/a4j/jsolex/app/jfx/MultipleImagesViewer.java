@@ -596,8 +596,8 @@ public class MultipleImagesViewer extends Pane {
         var viewer = new MediaView(mediaPlayer);
         // Create the buttons
         var rewindButton = createButton("<<");
-        var playButton = createButton("Play");
-        var stopButton = createButton("Stop");
+        var playButton = createButton(I18N.string(JSolEx.class, "common", "media.play"));
+        var stopButton = createButton(I18N.string(JSolEx.class, "common", "media.stop"));
         var openButton = createButton(message("open.in.files"));
         openButton.setOnAction(e -> ExplorerSupport.openInExplorer(filePath));
         var editButton = createButton(message("edit.animation"));

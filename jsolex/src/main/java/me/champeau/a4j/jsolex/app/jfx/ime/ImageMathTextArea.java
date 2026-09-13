@@ -1094,14 +1094,17 @@ public class ImageMathTextArea extends BorderPane {
         return switch (key) {
             case "parameters" -> switch (language) {
                 case "fr" -> "Paramètres";
+                case "zh" -> "参数";
                 default -> "Parameters";
             };
             case "examples" -> switch (language) {
                 case "fr" -> "Exemples";
+                case "zh" -> "示例";
                 default -> "Examples";
             };
             case "optional" -> switch (language) {
                 case "fr" -> "optionnel";
+                case "zh" -> "可选";
                 default -> "optional";
             };
             default -> key;
@@ -1258,7 +1261,8 @@ public class ImageMathTextArea extends BorderPane {
             if (isFolded) {
                 var folded = getFoldedRegionForParagraph(paragraphIndex);
                 if (folded != null) {
-                    var foldIndicator = new Label("... " + (folded.endParagraph - folded.startParagraph) + " lines");
+                    var foldIndicator = new Label(I18N.string(JSolEx.class, "common", "folded.lines")
+                            .replace("{0}", Integer.toString(folded.endParagraph - folded.startParagraph)));
                     foldIndicator.setStyle("-fx-text-fill: #888888; -fx-font-style: italic; -fx-font-size: 10px; -fx-padding: 0 0 0 5;");
                     hbox.getChildren().add(foldIndicator);
                 }
