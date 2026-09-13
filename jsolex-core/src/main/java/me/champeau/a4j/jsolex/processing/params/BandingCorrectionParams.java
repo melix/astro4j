@@ -22,13 +22,15 @@ package me.champeau.a4j.jsolex.processing.params;
  * @param passes the number of correction passes to apply
  * @param ellipseMode the region used by the correction (0 = whole line,
  *                    1 = inside disk, 2 = outside disk)
- * @param destripeParams optional pre-processing stripe-removal parameters
+ * @param destripeParams parameters for the Destripe method
+ * @param method the one native stripe-removal method to execute
  */
 public record BandingCorrectionParams(
         int width,
         int passes,
         Integer ellipseMode,
-        DestripeParams destripeParams
+        DestripeParams destripeParams,
+        BandingCorrectionMethod method
 ) {
     /**
      * Creates the legacy two-parameter form.  Keeping this constructor means
@@ -36,14 +38,22 @@ public record BandingCorrectionParams(
      * the new fields use the same inside-disk defaults as the old native path.
      */
     public BandingCorrectionParams(int width, int passes) {
-        this(width, passes, 1, DestripeParams.disabled());
+        this(width, passes, 1, DestripeParams.defaults(), BandingCorrectionMethod.BANDING_CORRECTION);
     }
 
     /**
      * Creates a banding configuration with an explicit ellipse mode.
      */
     public BandingCorrectionParams(int width, int passes, int ellipseMode) {
-        this(width, passes, ellipseMode, DestripeParams.disabled());
+        this(width, passes, ellipseMode, DestripeParams.defaults(), BandingCorrectionMethod.BANDING_CORRECTION);
+    }
+
+    /**
+     * Creates a configuration with explicit Destripe parameters and the
+     * historical method selected by default.
+     */
+    public BandingCorrectionParams(int width, int passes, int ellipseMode, DestripeParams destripeParams) {
+        this(width, passes, ellipseMode, destripeParams, BandingCorrectionMethod.BANDING_CORRECTION);
     }
 
     /**
@@ -57,7 +67,10 @@ public record BandingCorrectionParams(
             ellipseMode = 1;
         }
         if (destripeParams == null) {
-            destripeParams = DestripeParams.disabled();
+            destripeParams = DestripeParams.defaults();
+        }
+        if (method == null) {
+            method = BandingCorrectionMethod.BANDING_CORRECTION;
         }
     }
 
@@ -68,7 +81,7 @@ public record BandingCorrectionParams(
      * @return a new BandingCorrectionParams with the updated width
      */
     public BandingCorrectionParams withWidth(int width) {
-        return new BandingCorrectionParams(width, passes, ellipseMode(), destripeParams());
+        return new BandingCorrectionParams(width, passes, ellipseMode(), destripeParams(), method());
     }
 
     /**
@@ -78,21 +91,28 @@ public record BandingCorrectionParams(
      * @return a new BandingCorrectionParams with the updated passes
      */
     public BandingCorrectionParams withPasses(int passes) {
-        return new BandingCorrectionParams(width, passes, ellipseMode(), destripeParams());
+        return new BandingCorrectionParams(width, passes, ellipseMode(), destripeParams(), method());
     }
 
     /**
      * Returns a copy with the selected ellipse mode.
      */
     public BandingCorrectionParams withEllipseMode(int ellipseMode) {
-        return new BandingCorrectionParams(width, passes, ellipseMode, destripeParams());
+        return new BandingCorrectionParams(width, passes, ellipseMode, destripeParams(), method());
     }
 
     /**
      * Returns a copy with the selected destripe parameters.
      */
     public BandingCorrectionParams withDestripeParams(DestripeParams destripeParams) {
-        return new BandingCorrectionParams(width, passes, ellipseMode(), destripeParams);
+        return new BandingCorrectionParams(width, passes, ellipseMode(), destripeParams, method());
+    }
+
+    /**
+     * Returns a copy with the selected native algorithm.
+     */
+    public BandingCorrectionParams withMethod(BandingCorrectionMethod method) {
+        return new BandingCorrectionParams(width, passes, ellipseMode(), destripeParams(), method);
     }
 
     /**
@@ -100,6 +120,6 @@ public record BandingCorrectionParams(
      * deserialization or script parameter overrides.
      */
     public BandingCorrectionParams normalized() {
-        return new BandingCorrectionParams(width, passes, ellipseMode(), destripeParams());
+        return new BandingCorrectionParams(width, passes, ellipseMode(), destripeParams(), method());
     }
 }

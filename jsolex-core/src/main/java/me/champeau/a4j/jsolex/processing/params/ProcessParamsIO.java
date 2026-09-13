@@ -234,13 +234,11 @@ public abstract class ProcessParamsIO {
                         params.contrastEnhancement(),
                         params.enhancementParams()
                 );
-            } else {
-                // New banding fields are absent from legacy JSON.  Normalize
-                // them after deserialization so both Gson and script
-                // overrides get deterministic defaults without changing the
-                // legacy width/pass values.
-                params = params.withBandingCorrectionParams(params.bandingCorrectionParams().normalized());
             }
+            // New banding fields are absent from legacy JSON. Normalize them
+            // after deserialization so old files and script overrides select
+            // the historical method deterministically.
+            params = normalize(params);
             if (params.requestedImages() == null) {
                 params = new ProcessParams(
                         params.spectrumParams(),

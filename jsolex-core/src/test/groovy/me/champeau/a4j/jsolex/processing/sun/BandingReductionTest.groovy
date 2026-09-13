@@ -15,10 +15,9 @@
  */
 package me.champeau.a4j.jsolex.processing.sun
 
-import me.champeau.a4j.jsolex.processing.expr.impl.Destripe
-import me.champeau.a4j.jsolex.processing.expr.impl.FixBanding
-import me.champeau.a4j.jsolex.processing.util.ImageWrapper32
-import me.champeau.a4j.math.image.ImageMath
+import me.champeau.a4j.jsolex.processing.params.BandingCorrectionMethod
+import me.champeau.a4j.jsolex.processing.params.BandingCorrectionParams
+import me.champeau.a4j.jsolex.processing.params.DestripeParams
 import me.champeau.a4j.math.regression.Ellipse
 import me.champeau.a4j.math.tuples.DoubleSextuplet
 import spock.lang.Specification
@@ -357,11 +356,88 @@ class BandingReductionTest extends Specification {
         !hasNaN(data, width, height)
     }
 
-    def "the native pre-processing chain matches ImageMath destripe followed by fix_banding"() {
-        given: "one reconstructed image and the same rotated ellipse used by the native path"
-        int width = 320
+    def "native banding selection runs only the historical correction"() {
+        given:
+        int width = 256
         int height = 192
-        def ellipse = createTestEllipse(width, height)
+        def original = createDispatchImage(width, height)
+        def expected = copyOf(original)
+        def actual = copyOf(original)
+        def params = new BandingCorrectionParams(
+                32,
+                1,
+                1,
+                new DestripeParams(192, -1, 1, 1),
+                BandingCorrectionMethod.BANDING_CORRECTION
+        )
+
+        and: "the expected image contains only the ordinary correction"
+        BandingReduction.applyFixBanding(width, height, expected, 32, 1, null, BandingReduction.Mode.WHOLE_LINE)
+
+        when:
+        BandingReduction.applySelected(params, width, height, actual, null)
+
+        then:
+        maxDifference(expected, actual) < 1e-4
+    }
+
+    def "native destripe selection runs only Destripe even when ordinary passes are set"() {
+        given:
+        int width = 256
+        int height = 192
+        def original = createDispatchImage(width, height)
+        def expected = copyOf(original)
+        def actual = copyOf(original)
+        def params = new BandingCorrectionParams(
+                32,
+                4,
+                1,
+                new DestripeParams(192, -1, 1, 1),
+                BandingCorrectionMethod.DESTRIPE
+        )
+
+        and: "the expected image contains only Destripe"
+        BandingReduction.applyDestripe(width, height, expected, 192, -1, 1, null, BandingReduction.Mode.WHOLE_LINE)
+
+        when:
+        BandingReduction.applySelected(params, width, height, actual, null)
+
+        then:
+        maxDifference(expected, actual) < 1e-4
+    }
+
+    def "zero passes disable the selected method without falling back to the other one"() {
+        given:
+        int width = 128
+        int height = 128
+        def original = createDispatchImage(width, height)
+        def ordinaryDisabled = copyOf(original)
+        def destripeDisabled = copyOf(original)
+        def ordinaryParams = new BandingCorrectionParams(
+                32,
+                0,
+                1,
+                new DestripeParams(192, -1, 1, 1),
+                BandingCorrectionMethod.BANDING_CORRECTION
+        )
+        def destripeParams = new BandingCorrectionParams(
+                32,
+                4,
+                1,
+                new DestripeParams(192, 0, 1, 1),
+                BandingCorrectionMethod.DESTRIPE
+        )
+
+        when:
+        BandingReduction.applySelected(ordinaryParams, width, height, ordinaryDisabled, null)
+        BandingReduction.applySelected(destripeParams, width, height, destripeDisabled, null)
+
+        then:
+        maxDifference(original, ordinaryDisabled) == 0
+        maxDifference(original, destripeDisabled) == 0
+    }
+
+    private static float[][] createDispatchImage(int width, int height) {
         def data = new float[height][width]
         for (int y = 0; y < height; y++) {
             double band = 600 * Math.sin(y / 5.0d) + 180 * Math.sin(y / 17.0d)
@@ -369,42 +445,25 @@ class BandingReductionTest extends Specification {
                 data[y][x] = (float) (24000 + band + 500 * Math.sin(x / 23.0d))
             }
         }
-        def source = new ImageWrapper32(width, height, data, [(Ellipse): ellipse])
-        def imageMath = ImageMath.newCpuInstance()
-        def rotated = imageMath.rotateLeft(source.asImage())
-        def rotatedEllipse = ellipse.rotate(-Math.PI / 2, width, height, rotated.width(), rotated.height())
-        def context = [(Ellipse): rotatedEllipse] as Map<Class<?>, Object>
+        return data
+    }
 
-        when: "ImageMath evaluates the two operations on the reconstructed stage"
-        def imageMathDestriped = new Destripe(context, Broadcaster.NO_OP).destripe([
-                img: ImageWrapper32.fromImage(rotated, [(Ellipse): rotatedEllipse]),
-                bs: 192,
-                passes: -1,
-                strips: 1,
-                ellipseMode: 1
-        ]) as ImageWrapper32
-        def imageMathResult = new FixBanding(context, Broadcaster.NO_OP).fixBanding([
-                img: imageMathDestriped,
-                bs: 32,
-                passes: 1,
-                ellipseMode: 1
-        ]) as ImageWrapper32
-        def expected = imageMath.rotateRight(imageMathResult.asImage())
+    private static float[][] copyOf(float[][] source) {
+        def result = new float[source.length][source[0].length]
+        for (int y = 0; y < source.length; y++) {
+            System.arraycopy(source[y], 0, result[y], 0, source[y].length)
+        }
+        return result
+    }
 
-        and: "the native shared helpers execute the same chain"
-        def nativeRotated = ImageWrapper32.fromImage(rotated, [(Ellipse): rotatedEllipse])
-        BandingReduction.applyDestripe(nativeRotated.width(), nativeRotated.height(), nativeRotated.data(), 192, -1, 1, rotatedEllipse, BandingReduction.Mode.INSIDE_DISK)
-        BandingReduction.applyFixBanding(nativeRotated.width(), nativeRotated.height(), nativeRotated.data(), 32, 1, rotatedEllipse, BandingReduction.Mode.INSIDE_DISK)
-        def actual = imageMath.rotateRight(nativeRotated.asImage())
-
-        then: "both paths are numerically identical within float round-off"
-        double maxDifference = 0
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                maxDifference = Math.max(maxDifference, Math.abs(expected.data()[y][x] - actual.data()[y][x]))
+    private static double maxDifference(float[][] left, float[][] right) {
+        double result = 0
+        for (int y = 0; y < left.length; y++) {
+            for (int x = 0; x < left[y].length; x++) {
+                result = Math.max(result, Math.abs(left[y][x] - right[y][x]))
             }
         }
-        maxDifference < 1e-4
+        return result
     }
 
     private static float[][] createTestImage(int width, int height) {

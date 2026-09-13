@@ -19,11 +19,11 @@ package me.champeau.a4j.jsolex.processing.params;
  * Parameters for the additive, multi-scale stripe removal stage.
  *
  * <p>The defaults intentionally match the ImageMath invocation which is useful
- * for reconstructed Sol'Ex images.  The stage is disabled by default so that
- * configurations written by older JSol'Ex versions retain their behaviour.</p>
+ * for reconstructed Sol'Ex images.  Whether this algorithm is used is selected
+ * by {@link BandingCorrectionParams#method()}, rather than being stored in this
+ * parameter object.</p>
  */
 public record DestripeParams(
-        boolean enabled,
         int bandSize,
         int passes,
         int strips,
@@ -35,20 +35,11 @@ public record DestripeParams(
     public static final int DEFAULT_ELLIPSE_MODE = 1;
 
     /**
-     * Returns the disabled defaults used when loading a legacy configuration.
+     * Returns the default parameters for the optional Destripe algorithm.
      *
-     * @return disabled destripe parameters
-     */
-    public static DestripeParams disabled() {
-        return new DestripeParams(false, DEFAULT_BAND_SIZE, DEFAULT_PASSES, DEFAULT_STRIPS, DEFAULT_ELLIPSE_MODE);
-    }
-
-    /**
-     * Returns the recommended parameters for the ImageMath-equivalent chain.
-     *
-     * @return recommended destripe parameters
+     * @return default destripe parameters
      */
     public static DestripeParams defaults() {
-        return disabled();
+        return new DestripeParams(DEFAULT_BAND_SIZE, DEFAULT_PASSES, DEFAULT_STRIPS, DEFAULT_ELLIPSE_MODE);
     }
 }

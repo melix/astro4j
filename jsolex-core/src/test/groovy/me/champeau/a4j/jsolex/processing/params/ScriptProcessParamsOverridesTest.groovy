@@ -102,6 +102,64 @@ result = img(0)
         updated.spectrumParams() == params.spectrumParams()
     }
 
+    def "the native banding method can be overridden without resetting its parameters"() {
+        given:
+        var params = ProcessParamsIO.createNewDefaults()
+                .withBandingCorrectionParams(new BandingCorrectionParams(24, 4))
+        var overrides = new ImageMathParameterExtractor().extractParameters("""
+meta {
+    overrides {
+        bandingCorrectionParams {
+            method = "DESTRIPE"
+            destripeParams {
+                bandSize = 192
+                passes = -1
+                strips = 1
+                ellipseMode = 1
+            }
+        }
+    }
+}
+
+[outputs]
+result = img(0)
+""", "script.math").processParamsOverrides
+
+        when:
+        var updated = ScriptProcessParamsOverrides.apply(params, overrides)
+
+        then:
+        updated.bandingCorrectionParams().method() == BandingCorrectionMethod.DESTRIPE
+        updated.bandingCorrectionParams().width() == 24
+        updated.bandingCorrectionParams().passes() == 4
+        updated.bandingCorrectionParams().destripeParams() == new DestripeParams(192, -1, 1, 1)
+    }
+
+    def "an invalid native banding method leaves the current selection unchanged"() {
+        given:
+        var params = ProcessParamsIO.createNewDefaults()
+                .withBandingCorrectionParams(new BandingCorrectionParams(24, 4)
+                        .withMethod(BandingCorrectionMethod.DESTRIPE))
+        var overrides = new ImageMathParameterExtractor().extractParameters("""
+meta {
+    overrides {
+        bandingCorrectionParams {
+            method = "NOT_A_METHOD"
+        }
+    }
+}
+
+[outputs]
+result = img(0)
+""", "script.math").processParamsOverrides
+
+        when:
+        var updated = ScriptProcessParamsOverrides.apply(params, overrides)
+
+        then:
+        updated.bandingCorrectionParams().method() == BandingCorrectionMethod.DESTRIPE
+    }
+
     def "unknown parameters and invalid values are ignored"() {
         given:
         var params = ProcessParamsIO.createNewDefaults()

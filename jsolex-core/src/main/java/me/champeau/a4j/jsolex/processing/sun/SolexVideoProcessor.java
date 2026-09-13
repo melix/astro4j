@@ -48,6 +48,7 @@ import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
 import me.champeau.a4j.jsolex.processing.expr.impl.Loader;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.ConditionalFlip;
+import me.champeau.a4j.jsolex.processing.params.BandingCorrectionMethod;
 import me.champeau.a4j.jsolex.processing.params.EllipseFittingMode;
 import me.champeau.a4j.jsolex.processing.params.EnhancementParams;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
@@ -977,61 +978,36 @@ public class SolexVideoProcessor implements Broadcaster {
         var rotated = imageMath.rotateLeft(reconstructed.asImage());
         var bandingParams = processParams.bandingCorrectionParams().normalized();
         var destripeParams = bandingParams.destripeParams();
-        var fixMode = BandingReduction.modeForEllipseMode(bandingParams.ellipseMode());
-        var destripeMode = BandingReduction.modeForEllipseMode(destripeParams.ellipseMode());
-        var fixPasses = bandingParams.passes();
         var width = rotated.width();
         var height = rotated.height();
         var buffer = rotated.data();
         var ellipse = e != null ? e.rotate(-Math.PI / 2, reconstructed.width(), reconstructed.height(), width, height) : null;
-        var hasDestripe = destripeParams.enabled();
-        var hasFixBanding = fixPasses > 0;
-        var stages = (hasDestripe ? 1 : 0) + (hasFixBanding ? 1 : 0);
-        var completedStages = 0;
-        if (hasDestripe) {
-            // This is the same argument handling used by ImageMath's
-            // destripe(img; bs; passes; strips; ellipseMode) implementation.
-            BandingReduction.applyDestripe(
-                    width,
-                    height,
-                    buffer,
-                    destripeParams.bandSize(),
-                    destripeParams.passes(),
-                    destripeParams.strips(),
-                    ellipse,
-                    destripeMode
-            );
-            completedStages++;
-            broadcast(operation.update(completedStages / (double) stages));
-        }
-        if (hasFixBanding) {
-            // Run the ordinary correction exactly once, after destripe when it
-            // is enabled.  In particular, do not leave the historical loop in
-            // place as a second implicit fix_banding stage.
-            BandingReduction.applyFixBanding(width, height, buffer, bandingParams.width(), fixPasses, ellipse, fixMode);
-            completedStages++;
-            broadcast(operation.update(completedStages / (double) stages));
-        }
-        if (stages == 0) {
-            broadcast(operation.update(1));
-        }
+        var appliedPasses = BandingReduction.applySelected(
+                bandingParams,
+                width,
+                height,
+                buffer,
+                ellipse,
+                progress -> broadcast(operation.update(progress))
+        );
         broadcast(operation.complete());
         // rotate back to original orientation
         rotated = imageMath.rotateRight(rotated);
         for (int y = 0; y < reconstructed.height(); y++) {
             System.arraycopy(rotated.data()[y], 0, reconstructed.data()[y], 0, reconstructed.width());
         }
-        if (hasDestripe) {
+        if (appliedPasses > 0 && bandingParams.method() == BandingCorrectionMethod.DESTRIPE) {
             TransformationHistory.recordTransform(reconstructed,
                     "Destripe (band size: " + destripeParams.bandSize()
                             + " passes: " + destripeParams.passes()
                             + " strips: " + destripeParams.strips()
                             + " ellipse mode: " + destripeParams.ellipseMode() + ")");
+        } else if (appliedPasses > 0) {
+            TransformationHistory.recordTransform(reconstructed,
+                    "Banding reduction (band size: " + bandingParams.width()
+                            + " passes: " + bandingParams.passes()
+                            + " ellipse mode: " + bandingParams.ellipseMode() + ")");
         }
-        TransformationHistory.recordTransform(reconstructed,
-                "Banding reduction (band size: " + bandingParams.width()
-                        + " passes: " + fixPasses
-                        + " ellipse mode: " + bandingParams.ellipseMode() + ")");
     }
 
     private void updateTruncationDetails(WorkflowState state, ImageWrapper32 rotated) {
