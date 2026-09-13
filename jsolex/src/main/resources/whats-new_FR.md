@@ -1,7 +1,10 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
-## Nouveautés de la version 5.4.3
+## Nouveautés de la version 5.5.0
 
+- La recherche automatique sur le spectre complet prend désormais en compte les raies telluriques, ce qui la rend plus fiable dans la partie rouge du spectre.
+- L'explorateur de spectre identifie les images avec la même méthode que l'identification en direct, raies telluriques comprises, et peut afficher le spectre de référence tel qu'observé à travers l'atmosphère.
+- Le serveur web embarqué peut identifier les raies spectrales visibles dans la vue en direct de votre logiciel de capture, avec un script pour SharpCap, disponible dans le menu "Aide", qui les dessine par dessus l'image.
 - Le flou et l'accentuation ne tronquent plus les valeurs négatives ou supérieures au point blanc.
 
 ## Nouveautés de la version 5.4.2

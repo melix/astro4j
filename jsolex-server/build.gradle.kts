@@ -16,6 +16,7 @@ micronaut {
 dependencies {
     annotationProcessor(mn.micronaut.serde.processor)
     implementation(projects.jsolexCore)
+    implementation(mn.micronaut.serde.jackson)
     implementation(mn.micronaut.websocket)
     implementation(mn.micronaut.serde.bson)
     implementation(mn.micronaut.views.thymeleaf)

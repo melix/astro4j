@@ -88,6 +88,7 @@ import me.champeau.a4j.jsolex.app.jfx.BatchProcessingHelper;
 import me.champeau.a4j.jsolex.app.jfx.CustomTooltip;
 import me.champeau.a4j.jsolex.app.jfx.DocsHelper;
 import me.champeau.a4j.jsolex.app.jfx.EmbeddedServerController;
+import me.champeau.a4j.jsolex.app.jfx.ExplorerSupport;
 import me.champeau.a4j.jsolex.app.jfx.ExposureCalculator;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
 import me.champeau.a4j.jsolex.app.jfx.ImageMathEditor;
@@ -195,6 +196,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchEvent;
@@ -2512,6 +2515,34 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     private void donate() {
         var lang = LocaleUtils.getConfiguredLanguageCode();
         getHostServices().showDocument("https://melix.github.io/astro4j/latest/" + lang + "/jsolex.html#donate");
+    }
+
+    @FXML
+    private void openSharpCapScripts() {
+        try {
+            var directory = VersionUtil.getJsolexDir().resolve("sharpcap");
+            Files.createDirectories(directory);
+            try (var index = JSolEx.class.getResourceAsStream("/sharpcap/index.txt")) {
+                if (index == null) {
+                    throw new IllegalStateException("SharpCap scripts resource not found");
+                }
+                for (var name : new String(index.readAllBytes(), StandardCharsets.UTF_8).split("\n")) {
+                    var script = name.trim();
+                    if (script.isEmpty()) {
+                        continue;
+                    }
+                    try (var input = JSolEx.class.getResourceAsStream("/sharpcap/" + script)) {
+                        if (input == null) {
+                            throw new IllegalStateException("SharpCap script not found: " + script);
+                        }
+                        Files.copy(input, directory.resolve(script), StandardCopyOption.REPLACE_EXISTING);
+                    }
+                }
+            }
+            ExplorerSupport.openInExplorer(directory);
+        } catch (Exception e) {
+            AlertFactory.error(e.getMessage()).showAndWait();
+        }
     }
 
     @FXML
