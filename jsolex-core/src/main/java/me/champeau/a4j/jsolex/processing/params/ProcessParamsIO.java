@@ -235,6 +235,10 @@ public abstract class ProcessParamsIO {
                         params.enhancementParams()
                 );
             }
+            // New banding fields are absent from legacy JSON. Normalize them
+            // after deserialization so old files and script overrides select
+            // the historical method deterministically.
+            params = normalize(params);
             if (params.requestedImages() == null) {
                 params = new ProcessParams(
                         params.spectrumParams(),
@@ -298,6 +302,22 @@ public abstract class ProcessParamsIO {
             return params;
         }
         return null;
+    }
+
+    /**
+     * Normalizes the fields introduced after the original two-parameter
+     * banding configuration.  This is also used by script parameter
+     * overrides, whose Gson round-trip may construct a partially populated
+     * record independently of {@link #readFrom(Reader)}.
+     *
+     * @param params parameters to normalize
+     * @return parameters with a complete banding configuration
+     */
+    public static ProcessParams normalize(ProcessParams params) {
+        if (params == null || params.bandingCorrectionParams() == null) {
+            return params;
+        }
+        return params.withBandingCorrectionParams(params.bandingCorrectionParams().normalized());
     }
 
     private static ClaheParams createDefaultClaheParams() {

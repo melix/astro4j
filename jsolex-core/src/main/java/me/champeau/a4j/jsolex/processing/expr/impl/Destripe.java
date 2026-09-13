@@ -32,11 +32,7 @@ public class Destripe extends AbstractFunctionImpl {
 
     public Object destripe(Map<String, Object> arguments) {
         BuiltinFunction.DESTRIPE.validateArgs(arguments);
-        var mode = switch (intArg(arguments, "ellipseMode", 1)) {
-            case 0 -> BandingReduction.Mode.WHOLE_LINE;
-            case 2 -> BandingReduction.Mode.OUTSIDE_DISK;
-            default -> BandingReduction.Mode.INSIDE_DISK;
-        };
+        var mode = BandingReduction.modeForEllipseMode(intArg(arguments, "ellipseMode", 1));
         var ellipse = mode == BandingReduction.Mode.WHOLE_LINE ? Optional.<Ellipse>empty() : getEllipse(arguments, "ellipse");
         int bandSize = intArg(arguments, "bs", -1);
         int passes = intArg(arguments, "passes", -1);
@@ -46,17 +42,7 @@ public class Destripe extends AbstractFunctionImpl {
                 var width = image.width();
                 var height = image.height();
                 var data = image.data();
-                var bs = bandSize > 0 ? bandSize : BandingReduction.autoBandSize(height);
-                if (passes < 0) {
-                    BandingReduction.removeStripesUntilConvergence(width, height, data, bs, ellipse.orElse(null), mode, strips);
-                } else {
-                    for (int i = 0; i < passes; i++) {
-                        BandingReduction.removeStripes(width, height, data, bs, ellipse.orElse(null), mode, strips);
-                    }
-                }
-                if (mode == BandingReduction.Mode.OUTSIDE_DISK && passes != 0) {
-                    BandingReduction.removeLocalStripes(width, height, data, Math.max(4, bs / 4), ellipse.orElse(null), mode);
-                }
+                BandingReduction.applyDestripe(width, height, data, bandSize, passes, strips, ellipse.orElse(null), mode);
             } else {
                 throw new ProcessingException("destripe can only be applied to mono images");
             }

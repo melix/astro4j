@@ -16,6 +16,8 @@
 package me.champeau.a4j.jsolex.processing.sun;
 
 import me.champeau.a4j.jsolex.processing.util.Constants;
+import me.champeau.a4j.jsolex.processing.params.BandingCorrectionMethod;
+import me.champeau.a4j.jsolex.processing.params.BandingCorrectionParams;
 import me.champeau.a4j.math.RowStrips;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
@@ -24,6 +26,7 @@ import me.champeau.a4j.math.regression.Ellipse;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.function.DoubleConsumer;
 import java.util.stream.IntStream;
 
 import static me.champeau.a4j.jsolex.processing.sun.ImageUtils.bilinearSmoothing;
@@ -57,6 +60,22 @@ public class BandingReduction {
         INSIDE_DISK,
         /** Use only pixels outside the solar disk. */
         OUTSIDE_DISK
+    }
+
+    /**
+     * Converts the integer used by ImageMath and the process-parameter GUI to
+     * the shared reduction mode.  Unknown values deliberately retain the
+     * historical inside-disk behaviour.
+     *
+     * @param ellipseMode 0 for whole line, 1 for inside disk, 2 for outside disk
+     * @return the corresponding reduction mode
+     */
+    public static Mode modeForEllipseMode(int ellipseMode) {
+        return switch (ellipseMode) {
+            case 0 -> Mode.WHOLE_LINE;
+            case 2 -> Mode.OUTSIDE_DISK;
+            default -> Mode.INSIDE_DISK;
+        };
     }
 
     private static final int MIN_FIT_PIXELS = 16;
@@ -216,6 +235,122 @@ public class BandingReduction {
             previous = correction;
         }
         return MAX_AUTO_PASSES;
+    }
+
+    /**
+     * Applies the exact operation implemented by ImageMath's {@code destripe}
+     * function.  Keeping the argument handling here makes the native and
+     * scripting paths share one implementation and prevents their defaults or
+     * outside-disk fine stage from drifting apart.
+     *
+     * @return the number of coarse passes applied (zero when explicitly disabled)
+     */
+    public static int applyDestripe(int width,
+                                    int height,
+                                    float[][] data,
+                                    int bandSize,
+                                    int passes,
+                                    int strips,
+                                    Ellipse ellipse,
+                                    Mode mode) {
+        var effectiveMode = mode == null ? Mode.INSIDE_DISK : mode;
+        var effectiveBandSize = bandSize > 0 ? bandSize : autoBandSize(height);
+        int appliedPasses;
+        if (passes < 0) {
+            appliedPasses = removeStripesUntilConvergence(width, height, data, effectiveBandSize, ellipse, effectiveMode, strips);
+        } else {
+            appliedPasses = Math.max(0, passes);
+            for (int i = 0; i < appliedPasses; i++) {
+                removeStripes(width, height, data, effectiveBandSize, ellipse, effectiveMode, strips);
+            }
+        }
+        if (effectiveMode == Mode.OUTSIDE_DISK && passes != 0) {
+            removeLocalStripes(width, height, data, Math.max(4, effectiveBandSize / 4), ellipse, effectiveMode);
+        }
+        return appliedPasses;
+    }
+
+    /**
+     * Applies the exact operation implemented by ImageMath's
+     * {@code fix_banding} function.
+     *
+     * @return the number of correction passes applied
+     */
+    public static int applyFixBanding(int width,
+                                      int height,
+                                      float[][] data,
+                                      int bandSize,
+                                      int passes,
+                                      Ellipse ellipse,
+                                      Mode mode) {
+        var effectiveMode = mode == null ? Mode.INSIDE_DISK : mode;
+        var appliedPasses = Math.max(0, passes);
+        for (int i = 0; i < appliedPasses; i++) {
+            reduceBanding(width, height, data, bandSize, ellipse, effectiveMode);
+        }
+        return appliedPasses;
+    }
+
+    /**
+     * Applies the one native stripe-removal method selected in the processing
+     * parameters.  Keeping this dispatch next to the two algorithm helpers
+     * gives the production processor and its regression tests one shared
+     * execution path, so a Destripe selection cannot accidentally fall through
+     * to the historical correction.
+     *
+     * @param params the normalized native stripe-removal parameters
+     * @param width image width
+     * @param height image height
+     * @param data image data, modified in place
+     * @param ellipse optional solar ellipse in the rotated image coordinates
+     * @param progress receives values in the inclusive range [0, 1]
+     * @return the number of passes applied by the selected method
+     */
+    static int applySelected(BandingCorrectionParams params,
+                             int width,
+                             int height,
+                             float[][] data,
+                             Ellipse ellipse,
+                             DoubleConsumer progress) {
+        var normalized = params.normalized();
+        DoubleConsumer listener = progress == null ? ignored -> { } : progress;
+        var mode = modeForEllipseMode(normalized.ellipseMode());
+        if (normalized.method() == BandingCorrectionMethod.DESTRIPE) {
+            var destripe = normalized.destripeParams();
+            var appliedPasses = applyDestripe(
+                    width,
+                    height,
+                    data,
+                    destripe.bandSize(),
+                    destripe.passes(),
+                    destripe.strips(),
+                    ellipse,
+                    modeForEllipseMode(destripe.ellipseMode())
+            );
+            listener.accept(1d);
+            return appliedPasses;
+        }
+
+        var appliedPasses = Math.max(0, normalized.passes());
+        for (int i = 0; i < appliedPasses; i++) {
+            reduceBanding(width, height, data, normalized.width(), ellipse, mode);
+            listener.accept((i + 1d) / appliedPasses);
+        }
+        if (appliedPasses == 0) {
+            listener.accept(1d);
+        }
+        return appliedPasses;
+    }
+
+    /**
+     * Applies the selected method without progress reporting.
+     */
+    static int applySelected(BandingCorrectionParams params,
+                             int width,
+                             int height,
+                             float[][] data,
+                             Ellipse ellipse) {
+        return applySelected(params, width, height, data, ellipse, null);
     }
 
     /**

@@ -31,11 +31,13 @@ import javafx.util.converter.IntegerStringConverter;
 import me.champeau.a4j.jsolex.app.AlertFactory;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.expr.impl.Clahe;
+import me.champeau.a4j.jsolex.processing.params.BandingCorrectionMethod;
 import me.champeau.a4j.jsolex.processing.params.AutoStretchParams;
 import me.champeau.a4j.jsolex.processing.params.BandingCorrectionParams;
 import me.champeau.a4j.jsolex.processing.params.ClaheParams;
 import me.champeau.a4j.jsolex.processing.params.ContrastEnhancement;
 import me.champeau.a4j.jsolex.processing.params.DeconvolutionMode;
+import me.champeau.a4j.jsolex.processing.params.DestripeParams;
 import me.champeau.a4j.jsolex.processing.params.EnhancementParams;
 import me.champeau.a4j.jsolex.processing.params.JaggingCorrectionParams;
 import me.champeau.a4j.jsolex.processing.params.OscillationCorrectionParams;
@@ -92,6 +94,14 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
 
     private TextField bandingCorrectionPasses;
     private TextField bandingCorrectionWidth;
+    private ChoiceBox<Integer> bandingCorrectionEllipseMode;
+    private ChoiceBox<BandingCorrectionMethod> bandingCorrectionMethod;
+    private VBox bandingCorrectionParamsSection;
+    private TextField destripeBandSize;
+    private TextField destripePasses;
+    private TextField destripeStrips;
+    private ChoiceBox<Integer> destripeEllipseMode;
+    private VBox destripeParamsSection;
     
     private CheckBox jaggingCorrection;
     private TextField jaggingCorrectionSigma;
@@ -257,6 +267,44 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
                 return value;
             }
         }));
+
+        bandingCorrectionMethod = createChoiceBox();
+        bandingCorrectionMethod.setItems(FXCollections.observableArrayList(BandingCorrectionMethod.values()));
+        bandingCorrectionMethod.setValue(BandingCorrectionMethod.BANDING_CORRECTION);
+        bandingCorrectionMethod.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(BandingCorrectionMethod method) {
+                if (method == null) {
+                    return null;
+                }
+                return processParamString(
+                        method == BandingCorrectionMethod.DESTRIPE ? "banding.correction.method.destripe" : "banding.correction.method.banding",
+                        method == BandingCorrectionMethod.DESTRIPE ? "Destripe" : "Banding Correction"
+                );
+            }
+
+            @Override
+            public BandingCorrectionMethod fromString(String string) {
+                return "Destripe".equalsIgnoreCase(string)
+                        ? BandingCorrectionMethod.DESTRIPE
+                        : BandingCorrectionMethod.BANDING_CORRECTION;
+            }
+        });
+        bandingCorrectionMethod.setTooltip(new Tooltip(processParamString("banding.correction.method.tooltip", "Choose one stripe-removal method.")));
+        bandingCorrectionMethod.setOnAction(e -> updateParameterVisibility());
+
+        bandingCorrectionEllipseMode = createEllipseModeChoiceBox();
+        bandingCorrectionEllipseMode.setValue(DestripeParams.DEFAULT_ELLIPSE_MODE);
+        bandingCorrectionEllipseMode.setTooltip(new Tooltip(processParamString("banding.correction.ellipse.mode.tooltip", "Select the correction region.")));
+
+        destripeBandSize = new TextField(String.valueOf(DestripeParams.DEFAULT_BAND_SIZE));
+        destripeBandSize.setTooltip(new Tooltip(processParamString("destripe.band.size.tooltip", "Destripe band size in pixels.")));
+        destripePasses = new TextField(String.valueOf(DestripeParams.DEFAULT_PASSES));
+        destripePasses.setTooltip(new Tooltip(processParamString("destripe.passes.tooltip", "Use -1 to iterate automatically until convergence.")));
+        destripeStrips = new TextField(String.valueOf(DestripeParams.DEFAULT_STRIPS));
+        destripeStrips.setTooltip(new Tooltip(processParamString("destripe.strips.tooltip", "Number of independent vertical strips.")));
+        destripeEllipseMode = createEllipseModeChoiceBox();
+        destripeEllipseMode.setValue(DestripeParams.DEFAULT_ELLIPSE_MODE);
         
         jaggingCorrection = new CheckBox();
         jaggingCorrection.setOnAction(e -> updateParameterVisibility());
@@ -361,8 +409,26 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
         
         var bandingSection = createSection("banding.correction");
         var bandingGrid = createGrid();
-        addGridRow(bandingGrid, 0, I18N.string(JSolEx.class, "process-params", "banding.correction.passes") + ":", bandingCorrectionPasses, "banding.correction.passes.tooltip");
-        addGridRow(bandingGrid, 1, I18N.string(JSolEx.class, "process-params", "banding.correction.width") + ":", bandingCorrectionWidth, "banding.correction.width.tooltip");
+        addGridRow(bandingGrid, 0, processParamString("banding.correction.method", "Method") + ":", bandingCorrectionMethod, "banding.correction.method.tooltip");
+
+        bandingCorrectionParamsSection = new VBox(8);
+        bandingCorrectionParamsSection.getStyleClass().add("subsection");
+        var bandingParamsGrid = createGrid();
+        addGridRow(bandingParamsGrid, 0, I18N.string(JSolEx.class, "process-params", "banding.correction.passes") + ":", bandingCorrectionPasses, "banding.correction.passes.tooltip");
+        addGridRow(bandingParamsGrid, 1, I18N.string(JSolEx.class, "process-params", "banding.correction.width") + ":", bandingCorrectionWidth, "banding.correction.width.tooltip");
+        addGridRow(bandingParamsGrid, 2, processParamString("banding.correction.ellipse.mode", "Ellipse mode") + ":", bandingCorrectionEllipseMode);
+        bandingCorrectionParamsSection.getChildren().add(bandingParamsGrid);
+        bandingGrid.add(bandingCorrectionParamsSection, 0, 1, 2, 1);
+
+        destripeParamsSection = new VBox(8);
+        destripeParamsSection.getStyleClass().add("subsection");
+        var destripeGrid = createGrid();
+        addGridRow(destripeGrid, 0, processParamString("destripe.band.size", "Destripe width (bs)") + ":", destripeBandSize);
+        addGridRow(destripeGrid, 1, processParamString("destripe.passes", "Destripe passes") + ":", destripePasses);
+        addGridRow(destripeGrid, 2, processParamString("destripe.strips", "Destripe strips") + ":", destripeStrips);
+        addGridRow(destripeGrid, 3, processParamString("destripe.ellipse.mode", "Destripe ellipse mode") + ":", destripeEllipseMode);
+        destripeParamsSection.getChildren().add(destripeGrid);
+        bandingGrid.add(destripeParamsSection, 0, 2, 2, 1);
         bandingSection.getChildren().add(bandingGrid);
         
         var deconvolutionSharpeningSection = createSection(I18N.string(JSolEx.class, "process-params", "sharpening.method") + " & " + I18N.string(JSolEx.class, "process-params", "deconvolution.mode"));
@@ -486,8 +552,14 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
         claheClipping.setText(String.valueOf(ClaheStrategy.DEFAULT_CLIP));
         clahe2Clipping.setText(String.valueOf(Clahe.CLAHE2_DEFAULT_CLIP));
         
+        bandingCorrectionMethod.setValue(BandingCorrectionMethod.BANDING_CORRECTION);
         bandingCorrectionPasses.setText(String.valueOf(BandingReduction.DEFAULT_PASS_COUNT));
         bandingCorrectionWidth.setText(String.valueOf(BandingReduction.DEFAULT_BAND_SIZE));
+        bandingCorrectionEllipseMode.setValue(DestripeParams.DEFAULT_ELLIPSE_MODE);
+        destripeBandSize.setText(String.valueOf(DestripeParams.DEFAULT_BAND_SIZE));
+        destripePasses.setText(String.valueOf(DestripeParams.DEFAULT_PASSES));
+        destripeStrips.setText(String.valueOf(DestripeParams.DEFAULT_STRIPS));
+        destripeEllipseMode.setValue(DestripeParams.DEFAULT_ELLIPSE_MODE);
         
         deconvolutionMode.setValue(DeconvolutionMode.NONE);
         rlRadius.setText(String.valueOf(Deconvolution.DEFAULT_RADIUS));
@@ -535,9 +607,16 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
         }
         
         
-        var bandingParams = params.bandingCorrectionParams();
+        var bandingParams = params.bandingCorrectionParams().normalized();
+        bandingCorrectionMethod.setValue(bandingParams.method());
         bandingCorrectionPasses.setText(String.valueOf(bandingParams.passes()));
         bandingCorrectionWidth.setText(String.valueOf(bandingParams.width()));
+        bandingCorrectionEllipseMode.setValue(bandingParams.ellipseMode());
+        var destripeParams = bandingParams.destripeParams();
+        destripeBandSize.setText(String.valueOf(destripeParams.bandSize()));
+        destripePasses.setText(String.valueOf(destripeParams.passes()));
+        destripeStrips.setText(String.valueOf(destripeParams.strips()));
+        destripeEllipseMode.setValue(destripeParams.ellipseMode());
         
         var jaggingParams = params.enhancementParams().jaggingCorrectionParams();
         jaggingCorrection.setSelected(jaggingParams.enabled());
@@ -627,6 +706,45 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
     }
     
     
+    private ChoiceBox<Integer> createEllipseModeChoiceBox() {
+        ChoiceBox<Integer> choiceBox = createChoiceBox();
+        choiceBox.setItems(FXCollections.observableArrayList(0, 1, 2));
+        choiceBox.setConverter(new StringConverter<Integer>() {
+            @Override
+            public String toString(Integer mode) {
+                if (mode == null) {
+                    return null;
+                }
+                var key = switch (mode) {
+                    case 0 -> "ellipse.mode.whole.line";
+                    case 2 -> "ellipse.mode.outside.disk";
+                    default -> "ellipse.mode.inside.disk";
+                };
+                var fallback = switch (mode) {
+                    case 0 -> "Whole line";
+                    case 2 -> "Outside solar disk";
+                    default -> "Inside solar disk";
+                };
+                return processParamString(key, fallback);
+            }
+
+            @Override
+            public Integer fromString(String string) {
+                return switch (string) {
+                    case "0" -> 0;
+                    case "2" -> 2;
+                    default -> 1;
+                };
+            }
+        });
+        return choiceBox;
+    }
+
+    private String processParamString(String key, String fallback) {
+        var value = I18N.string(JSolEx.class, "process-params", key);
+        return value.isEmpty() ? fallback : value;
+    }
+
     private void updateParameterVisibility() {
         var selectedEnhancement = contrastEnhancementChoice.getValue();
         
@@ -690,6 +808,17 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
             protusStretchRow.setVisible(stretchProtus.isSelected());
             protusStretchRow.setManaged(stretchProtus.isSelected());
         }
+
+        if (bandingCorrectionParamsSection != null && bandingCorrectionMethod != null) {
+            var showBanding = bandingCorrectionMethod.getValue() == BandingCorrectionMethod.BANDING_CORRECTION;
+            bandingCorrectionParamsSection.setVisible(showBanding);
+            bandingCorrectionParamsSection.setManaged(showBanding);
+        }
+        if (destripeParamsSection != null && bandingCorrectionMethod != null) {
+            var showDestripe = bandingCorrectionMethod.getValue() == BandingCorrectionMethod.DESTRIPE;
+            destripeParamsSection.setVisible(showDestripe);
+            destripeParamsSection.setManaged(showDestripe);
+        }
         
         var selectedFlatMode = flatMode.getValue();
         if (selectedFlatMode != null && artificialFlatSection != null && realFlatSection != null && flatModeHelp != null) {
@@ -750,7 +879,19 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
     public BandingCorrectionParams getBandingCorrectionParams() {
         var passes = parseInt(bandingCorrectionPasses.getText(), BandingReduction.DEFAULT_PASS_COUNT);
         var width = parseInt(bandingCorrectionWidth.getText(), BandingReduction.DEFAULT_BAND_SIZE);
-        return new BandingCorrectionParams(width, passes);
+        var ellipseMode = bandingCorrectionEllipseMode.getValue() == null
+                ? DestripeParams.DEFAULT_ELLIPSE_MODE
+                : bandingCorrectionEllipseMode.getValue();
+        var destripe = new DestripeParams(
+                parseInt(destripeBandSize.getText(), DestripeParams.DEFAULT_BAND_SIZE),
+                parseInt(destripePasses.getText(), DestripeParams.DEFAULT_PASSES),
+                parseInt(destripeStrips.getText(), DestripeParams.DEFAULT_STRIPS),
+                destripeEllipseMode.getValue() == null ? DestripeParams.DEFAULT_ELLIPSE_MODE : destripeEllipseMode.getValue()
+        );
+        var method = bandingCorrectionMethod.getValue() == null
+                ? BandingCorrectionMethod.BANDING_CORRECTION
+                : bandingCorrectionMethod.getValue();
+        return new BandingCorrectionParams(width, passes, ellipseMode, destripe, method);
     }
 
     /**

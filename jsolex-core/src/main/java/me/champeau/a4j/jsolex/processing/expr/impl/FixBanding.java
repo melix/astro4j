@@ -32,11 +32,7 @@ public class FixBanding extends AbstractFunctionImpl {
 
     public Object fixBanding(Map<String ,Object> arguments) {
         BuiltinFunction.FIX_BANDING.validateArgs(arguments);
-        var mode = switch (intArg(arguments, "ellipseMode", 1)) {
-            case 0 -> BandingReduction.Mode.WHOLE_LINE;
-            case 2 -> BandingReduction.Mode.OUTSIDE_DISK;
-            default -> BandingReduction.Mode.INSIDE_DISK;
-        };
+        var mode = BandingReduction.modeForEllipseMode(intArg(arguments, "ellipseMode", 1));
         var ellipse = mode == BandingReduction.Mode.WHOLE_LINE ? Optional.<Ellipse>empty() : getEllipse(arguments, "ellipse");
         int bandSize = intArg(arguments, "bs", 32);
         int passes = intArg(arguments, "passes", 1);
@@ -45,9 +41,7 @@ public class FixBanding extends AbstractFunctionImpl {
                 var width = image.width();
                 var height = image.height();
                 var data = image.data();
-                for (int i = 0; i < passes; i++) {
-                    BandingReduction.reduceBanding(width, height, data, bandSize, ellipse.orElse(null), mode);
-                }
+                BandingReduction.applyFixBanding(width, height, data, bandSize, passes, ellipse.orElse(null), mode);
             } else {
                 throw new ProcessingException("fix_banding can only be applied to mono images");
             }

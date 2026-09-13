@@ -48,6 +48,7 @@ import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
 import me.champeau.a4j.jsolex.processing.expr.impl.Loader;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.ConditionalFlip;
+import me.champeau.a4j.jsolex.processing.params.BandingCorrectionMethod;
 import me.champeau.a4j.jsolex.processing.params.EllipseFittingMode;
 import me.champeau.a4j.jsolex.processing.params.EnhancementParams;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
@@ -987,23 +988,38 @@ public class SolexVideoProcessor implements Broadcaster {
         // banding correction works horizontally, so we need to temporarily rotate the image
         var imageMath = ImageMath.newInstance();
         var rotated = imageMath.rotateLeft(reconstructed.asImage());
-        var passes = processParams.bandingCorrectionParams().passes();
-        var bandSize = processParams.bandingCorrectionParams().width();
+        var bandingParams = processParams.bandingCorrectionParams().normalized();
+        var destripeParams = bandingParams.destripeParams();
         var width = rotated.width();
         var height = rotated.height();
         var buffer = rotated.data();
         var ellipse = e != null ? e.rotate(-Math.PI / 2, reconstructed.width(), reconstructed.height(), width, height) : null;
-        for (int i = 0; i < passes; i++) {
-            BandingReduction.reduceBanding(width, height, buffer, bandSize, ellipse, BandingReduction.Mode.INSIDE_DISK);
-            broadcast(operation.update((i + 1d) / passes));
-        }
+        var appliedPasses = BandingReduction.applySelected(
+                bandingParams,
+                width,
+                height,
+                buffer,
+                ellipse,
+                progress -> broadcast(operation.update(progress))
+        );
         broadcast(operation.complete());
         // rotate back to original orientation
         rotated = imageMath.rotateRight(rotated);
         for (int y = 0; y < reconstructed.height(); y++) {
             System.arraycopy(rotated.data()[y], 0, reconstructed.data()[y], 0, reconstructed.width());
         }
-        TransformationHistory.recordTransform(reconstructed, "Banding reduction (band size: " + bandSize + " passes: " + passes + ")");
+        if (appliedPasses > 0 && bandingParams.method() == BandingCorrectionMethod.DESTRIPE) {
+            TransformationHistory.recordTransform(reconstructed,
+                    "Destripe (band size: " + destripeParams.bandSize()
+                            + " passes: " + destripeParams.passes()
+                            + " strips: " + destripeParams.strips()
+                            + " ellipse mode: " + destripeParams.ellipseMode() + ")");
+        } else if (appliedPasses > 0) {
+            TransformationHistory.recordTransform(reconstructed,
+                    "Banding reduction (band size: " + bandingParams.width()
+                            + " passes: " + bandingParams.passes()
+                            + " ellipse mode: " + bandingParams.ellipseMode() + ")");
+        }
     }
 
     private void updateTruncationDetails(WorkflowState state, ImageWrapper32 rotated) {
