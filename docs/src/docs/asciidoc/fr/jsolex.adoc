@@ -1851,6 +1851,10 @@ Une raie est proposée dès que l'image contient un spectre : lorsque la fenêtr
 Élargissez la fenêtre de capture ou moyennez davantage d'images avant de vous fier à une telle réponse.
 Arrêtez le script avec Ctrl+C pour retirer l'affichage.
 
+Une petite fenêtre de réglages s'ouvre avec le script.
+Elle permet de limiter le nombre de raies étiquetées, qui sont alors réparties uniformément sur la fenêtre tandis que les autres ne sont marquées que par un trait, et de choisir la taille des étiquettes, qui suit le zoom de l'affichage.
+Elle propose aussi un mode "Rechercher une raie" : saisissez la longueur d'onde recherchée, en Angströms, et le script ne dessine que cette raie lorsqu'elle est dans la fenêtre, accompagnée d'une règle graduée en Angströms à droite du spectre ; lorsque la raie est hors de la fenêtre, la ligne d'état indique de combien elle dépasse et de quel côté, afin que vous sachiez dans quel sens tourner le réseau.
+
 Le binning est lu depuis la caméra, et l'orientation du spectre est détectée d'après la courbure des raies, de sorte que le sens dans lequel le logiciel de capture lit le capteur n'a pas d'importance.
 Le spectrohéliographe et la taille des pixels de la caméra sont ceux des détails d'observation de JSol'Ex, sauf si le script les remplace : modifiez les paramètres en tête du script pour indiquer l'adresse du serveur, la taille des pixels ou le nom du spectrohéliographe.
 L'identification est d'autant plus fiable que la fenêtre de capture est haute, puisqu'une plus grande partie du spectre est comparée au spectre de référence, et que davantage d'images sont moyennées.
