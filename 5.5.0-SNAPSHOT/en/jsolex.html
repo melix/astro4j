@@ -3751,6 +3751,11 @@ Widen the capture window or average more frames before trusting such an answer.
 Stop the script with Ctrl+C to remove the overlay.</p>
 </div>
 <div class="paragraph">
+<p>A small settings window opens with the script.
+It lets you limit the number of labelled lines, which are then spread evenly over the window while the others are only marked by a tick, and set the size of the labels, which follows the zoom of the display.
+It also offers a "Find a line" mode: enter the wavelength you are looking for, in Angstroms, and the script only draws that line when it is in the window, along with a ruler graduated in Angstroms on the right of the spectrum; when the line is out of the window, the status line tells how far beyond which edge it is, so that you know which way to turn the grating.</p>
+</div>
+<div class="paragraph">
 <p>The binning is read from the camera, and the orientation of the spectrum is detected from the curvature of the lines, so it does not matter which way the capture software reads the sensor.
 The spectroheliograph and the pixel size of the camera are those of the observation details of JSol&#8217;Ex, unless the script overrides them: edit the parameters at the top of the script to set the address of the server, the pixel size or the name of the spectroheliograph.
 The identification gets more reliable as the capture window gets taller, since more of the spectrum is compared with the reference spectrum, and as more frames are averaged.
