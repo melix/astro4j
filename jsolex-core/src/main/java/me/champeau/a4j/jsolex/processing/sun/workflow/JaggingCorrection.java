@@ -216,9 +216,9 @@ public class JaggingCorrection {
             }
         }
         var chartTitle = String.format("Jagged edges correction: %d measured lines, %d corrected lines", measurements.size(), correctedLines);
-        ShiftDebugChart.emit(imageEmitter, chartTitle, "Jagging correction", "jagging-correction", List.of(
-                new ShiftDebugChart.Panel("Left border shift and applied correction", leftShifts, leftWeights, leftCurve),
-                new ShiftDebugChart.Panel("Right border shift and applied correction", rightShifts, rightWeights, rightCurve)
+        ShiftDebugChart.emit(imageEmitter, chartTitle, "Jagging correction", "jagging-correction", "Frame", List.of(
+                new ShiftDebugChart.Panel("Left border shift and applied correction", "Shift (px)", leftShifts, leftWeights, leftCurve),
+                new ShiftDebugChart.Panel("Right border shift and applied correction", "Shift (px)", rightShifts, rightWeights, rightCurve)
         ));
     }
 

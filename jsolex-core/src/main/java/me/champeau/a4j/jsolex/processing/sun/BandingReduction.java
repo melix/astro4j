@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.sun;
 
+import me.champeau.a4j.jsolex.processing.params.BandingCorrectionParams;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.math.RowStrips;
 import me.champeau.a4j.math.image.Image;
@@ -24,6 +25,8 @@ import me.champeau.a4j.math.regression.Ellipse;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.DoubleConsumer;
 import java.util.stream.IntStream;
 
 import static me.champeau.a4j.jsolex.processing.sun.ImageUtils.bilinearSmoothing;
@@ -57,6 +60,35 @@ public class BandingReduction {
         INSIDE_DISK,
         /** Use only pixels outside the solar disk. */
         OUTSIDE_DISK
+    }
+
+    /**
+     * Receives the correction computed for each line of the image by one correction pass.
+     */
+    @FunctionalInterface
+    public interface CorrectionListener {
+        /**
+         * Called after each pass.
+         *
+         * @param lineCorrections the correction of each line: a multiplicative factor for
+         * {@link #reduceBanding}, a value added to the line for {@link #removeStripes}, or NaN
+         * when no pixel of the line was corrected
+         */
+        void onPass(double[] lineCorrections);
+    }
+
+    /**
+     * Converts the {@code ellipseMode} argument of the ImageMath functions to a mode.
+     *
+     * @param ellipseMode 0 for whole line, 1 for inside disk, 2 for outside disk
+     * @return the corresponding mode
+     */
+    public static Mode modeForEllipseMode(int ellipseMode) {
+        return switch (ellipseMode) {
+            case 0 -> Mode.WHOLE_LINE;
+            case 2 -> Mode.OUTSIDE_DISK;
+            default -> Mode.INSIDE_DISK;
+        };
     }
 
     private static final int MIN_FIT_PIXELS = 16;
@@ -112,9 +144,28 @@ public class BandingReduction {
      * @return the mean absolute deviation of per-line corrections from 1.0
      */
     public static double reduceBanding(int width, int height, float[][] data, int bandSize, Ellipse ellipse, Mode mode) {
+        return reduceBanding(width, height, data, bandSize, ellipse, mode, _ -> { });
+    }
+
+    /**
+     * Reduces banding artifacts like {@link #reduceBanding(int, int, float[][], int, Ellipse, Mode)},
+     * reporting the factor applied to each line.
+     *
+     * @param width the image width in pixels
+     * @param height the image height in pixels
+     * @param data the image data as a 2D array (modified in place)
+     * @param bandSize the size of the bands for correction
+     * @param ellipse optional ellipse defining the region to correct, or null for full image
+     * @param mode which pixels of each line feed the correction
+     * @param listener receives the factor applied to each line
+     * @return the mean absolute deviation of per-line corrections from 1.0
+     */
+    public static double reduceBanding(int width, int height, float[][] data, int bandSize, Ellipse ellipse, Mode mode, CorrectionListener listener) {
         var effectiveEllipse = mode == Mode.WHOLE_LINE ? null : ellipse;
         var outsideDisk = mode == Mode.OUTSIDE_DISK;
-        var result = applyMultiplicativeCorrections(width, height, data, bandSize, effectiveEllipse, outsideDisk);
+        var lineCorrections = new double[height];
+        var result = applyMultiplicativeCorrections(width, height, data, bandSize, effectiveEllipse, outsideDisk, lineCorrections);
+        listener.onPass(lineCorrections);
         if (effectiveEllipse != null && !outsideDisk) {
             bilinearSmoothing(effectiveEllipse, width, height, data);
         }
@@ -190,6 +241,17 @@ public class BandingReduction {
     }
 
     /**
+     * The band size used by {@link #applyDestripe}.
+     *
+     * @param bandSize the requested band size, or a negative value to derive it from the image height
+     * @param height the image height in pixels
+     * @return the band size, in pixels
+     */
+    public static int destripeBandSize(int bandSize, int height) {
+        return bandSize > 0 ? bandSize : autoBandSize(height);
+    }
+
+    /**
      * Removes horizontal banding, repeating the correction until it converges. A single pass
      * under-corrects, because the robust per-line levels are themselves biased by the banding they
      * measure; each pass therefore starts from a cleaner image and refines the previous one. The
@@ -207,15 +269,124 @@ public class BandingReduction {
      * @return the number of passes which were applied
      */
     public static int removeStripesUntilConvergence(int width, int height, float[][] data, int bandSize, Ellipse ellipse, Mode mode, int strips) {
+        return removeStripesUntilConvergence(width, height, data, bandSize, ellipse, mode, strips, _ -> { });
+    }
+
+    /**
+     * Removes horizontal banding until convergence like
+     * {@link #removeStripesUntilConvergence(int, int, float[][], int, Ellipse, Mode, int)}, reporting
+     * the value added to each line by each pass.
+     *
+     * @param width the image width in pixels
+     * @param height the image height in pixels
+     * @param data the image data as a 2D array (modified in place)
+     * @param bandSize the coarsest scale, in pixels, of the vertical smoothing
+     * @param ellipse optional ellipse defining the region to correct, or null for full image
+     * @param mode which pixels of each line feed the correction
+     * @param strips how many vertical strips to correct independently, or 0 to choose from the
+     * image width
+     * @param listener receives the value added to each line by each pass
+     * @return the number of passes which were applied
+     */
+    public static int removeStripesUntilConvergence(int width, int height, float[][] data, int bandSize, Ellipse ellipse, Mode mode, int strips, CorrectionListener listener) {
         var previous = Double.MAX_VALUE;
         for (var pass = 1; pass <= MAX_AUTO_PASSES; pass++) {
-            var correction = removeStripes(width, height, data, bandSize, ellipse, mode, strips);
+            var correction = removeStripes(width, height, data, bandSize, ellipse, mode, strips, listener);
             if (correction >= STALL_RATIO * previous) {
                 return pass;
             }
             previous = correction;
         }
         return MAX_AUTO_PASSES;
+    }
+
+    /**
+     * Removes horizontal banding with {@link #removeStripes}, either for a fixed number of passes
+     * or until convergence.
+     *
+     * @param width the image width in pixels
+     * @param height the image height in pixels
+     * @param data the image data as a 2D array (modified in place)
+     * @param bandSize the coarsest scale, in pixels, of the vertical smoothing, or a negative value
+     * to derive it from the image height
+     * @param passes the number of passes, or a negative value to iterate until convergence
+     * @param strips how many vertical strips to correct independently, or 0 to choose from the
+     * image width
+     * @param ellipse optional ellipse defining the region to correct, or null for full image
+     * @param mode which pixels of each line feed the correction
+     * @param listener receives the value added to each line by each pass
+     * @return the number of passes which were applied
+     */
+    public static int applyDestripe(int width, int height, float[][] data, int bandSize, int passes, int strips, Ellipse ellipse, Mode mode, CorrectionListener listener) {
+        var effectiveBandSize = destripeBandSize(bandSize, height);
+        int appliedPasses;
+        if (passes < 0) {
+            appliedPasses = removeStripesUntilConvergence(width, height, data, effectiveBandSize, ellipse, mode, strips, listener);
+        } else {
+            appliedPasses = passes;
+            for (int i = 0; i < passes; i++) {
+                removeStripes(width, height, data, effectiveBandSize, ellipse, mode, strips, listener);
+            }
+        }
+        if (mode == Mode.OUTSIDE_DISK && passes != 0) {
+            removeLocalStripes(width, height, data, Math.max(4, effectiveBandSize / 4), ellipse, mode);
+        }
+        return appliedPasses;
+    }
+
+    /**
+     * Reduces banding with {@link #reduceBanding} for the requested number of passes.
+     *
+     * @param width the image width in pixels
+     * @param height the image height in pixels
+     * @param data the image data as a 2D array (modified in place)
+     * @param bandSize the size of the bands for correction
+     * @param passes the number of passes
+     * @param ellipse optional ellipse defining the region to correct, or null for full image
+     * @param mode which pixels of each line feed the correction
+     * @param listener receives the factor applied to each line by each pass
+     * @return the number of passes which were applied
+     */
+    public static int applyFixBanding(int width, int height, float[][] data, int bandSize, int passes, Ellipse ellipse, Mode mode, CorrectionListener listener) {
+        for (int i = 0; i < passes; i++) {
+            reduceBanding(width, height, data, bandSize, ellipse, mode, listener);
+        }
+        return Math.max(0, passes);
+    }
+
+    /**
+     * Applies the banding correction selected in the processing parameters, using only the pixels
+     * inside the solar disk.
+     *
+     * @param params the banding correction parameters
+     * @param width the image width in pixels
+     * @param height the image height in pixels
+     * @param data the image data as a 2D array (modified in place)
+     * @param ellipse the solar disk, or null if unknown
+     * @param progress receives the progress of the correction, between 0 and 1
+     * @param listener receives the correction of each line by each pass: a multiplicative factor
+     * for the banding correction, a value added to the line for destripe
+     * @return the number of passes which were applied
+     */
+    static int applyBandingCorrection(BandingCorrectionParams params, int width, int height, float[][] data, Ellipse ellipse, DoubleConsumer progress, CorrectionListener listener) {
+        return switch (params.method()) {
+            case BANDING_CORRECTION -> applyFixBanding(width, height, data, params.width(), params.passes(), ellipse, Mode.INSIDE_DISK, reportingProgress(listener, params.passes(), progress));
+            case DESTRIPE -> {
+                var destripe = params.destripeParams();
+                yield applyDestripe(width, height, data, destripe.bandSize(), destripe.passes(), 1, ellipse, Mode.INSIDE_DISK, reportingProgress(listener, destripe.passes(), progress));
+            }
+        };
+    }
+
+    private static CorrectionListener reportingProgress(CorrectionListener listener, int passes, DoubleConsumer progress) {
+        if (passes <= 0) {
+            return listener;
+        }
+        var done = new AtomicInteger();
+        return lineCorrections -> {
+            listener.onPass(lineCorrections);
+            progress.accept(done.incrementAndGet() / (double) passes);
+        };
     }
 
     /**
@@ -235,6 +406,25 @@ public class BandingReduction {
      * @return the mean absolute per-line correction that was applied
      */
     public static double removeStripes(int width, int height, float[][] data, int bandSize, Ellipse ellipse, Mode mode, int strips) {
+        return removeStripes(width, height, data, bandSize, ellipse, mode, strips, _ -> { });
+    }
+
+    /**
+     * Removes horizontal banding like {@link #removeStripes(int, int, float[][], int, Ellipse, Mode, int)},
+     * reporting the value added to each line, averaged over its corrected pixels.
+     *
+     * @param width the image width in pixels
+     * @param height the image height in pixels
+     * @param data the image data as a 2D array (modified in place)
+     * @param bandSize the coarsest scale, in pixels, of the vertical smoothing
+     * @param ellipse optional ellipse defining the region to correct, or null for full image
+     * @param mode which pixels of each line feed the correction
+     * @param strips how many vertical strips to correct independently, or 0 to choose from the
+     * image width
+     * @param listener receives the value added to each line
+     * @return the mean absolute per-line correction that was applied
+     */
+    public static double removeStripes(int width, int height, float[][] data, int bandSize, Ellipse ellipse, Mode mode, int strips, CorrectionListener listener) {
         var effectiveEllipse = mode == Mode.WHOLE_LINE ? null : ellipse;
         var outsideDisk = mode == Mode.OUTSIDE_DISK;
         var stripCount = strips > 0
@@ -242,10 +432,12 @@ public class BandingReduction {
                 : (int) Math.max(1, Math.min(MAX_STRIPS, Math.round(width / (double) STRIP_WIDTH)));
         double total = 0;
         var scales = 0;
+        var lineCorrections = new double[height];
         for (var scale = bandSize; scale >= Math.max(4, bandSize / 4); scale /= 2) {
-            total += matchLineLevels(width, height, data, scale, effectiveEllipse, outsideDisk, stripCount);
+            total += matchLineLevels(width, height, data, scale, effectiveEllipse, outsideDisk, stripCount, lineCorrections);
             scales++;
         }
+        listener.onPass(lineCorrections);
         return scales > 0 ? total / scales : 0;
     }
 
@@ -403,7 +595,7 @@ public class BandingReduction {
         }
     }
 
-    private static double applyMultiplicativeCorrections(int width, int height, float[][] data, int bandSize, Ellipse ellipse, boolean outsideDisk) {
+    private static double applyMultiplicativeCorrections(int width, int height, float[][] data, int bandSize, Ellipse ellipse, boolean outsideDisk, double[] lineCorrections) {
         var lineAverages = lineAverages(width, height, data, ellipse, outsideDisk);
         var corrections = computeMultiScaleCorrections(height, lineAverages, bandSize, ellipse);
         double totalDeviation = 0;
@@ -418,19 +610,22 @@ public class BandingReduction {
         RowStrips.forEach(height, (yStart, yEnd) -> {
             for (var y = yStart; y < yEnd; y++) {
                 var correction = corrections[y];
+                var corrected = false;
                 if (!Double.isInfinite(correction) && !Double.isNaN(correction)) {
                     for (var x = 0; x < width; x++) {
                         if (ellipse == null || outsideDisk != ellipse.isWithin(x, y)) {
                             data[y][x] *= correction;
+                            corrected = true;
                         }
                     }
                 }
+                lineCorrections[y] = corrected ? correction : Double.NaN;
             }
         });
         return deviationCount > 0 ? totalDeviation / deviationCount : 0;
     }
 
-    private static double matchLineLevels(int width, int height, float[][] data, int scale, Ellipse ellipse, boolean outsideDisk, int stripCount) {
+    private static double matchLineLevels(int width, int height, float[][] data, int scale, Ellipse ellipse, boolean outsideDisk, int stripCount, double[] lineCorrections) {
         var edges = new int[stripCount + 1];
         for (var i = 0; i <= stripCount; i++) {
             edges[i] = (int) Math.round(i * (double) width / stripCount);
@@ -452,15 +647,18 @@ public class BandingReduction {
         }
         var totals = IntStream.range(0, height).parallel().mapToObj(y -> {
             var sum = 0.0;
+            var signedSum = 0.0;
             var count = 0;
             for (var x = 0; x < width; x++) {
                 if (ellipse == null || outsideDisk != ellipse.isWithin(x, y)) {
                     var corr = interpolateAcrossStrips(corrected, centers, stripCount, x, y);
                     data[y][x] += (float) corr;
                     sum += Math.abs(corr);
+                    signedSum += corr;
                     count++;
                 }
             }
+            lineCorrections[y] = count > 0 ? lineCorrections[y] + signedSum / count : Double.NaN;
             return new double[]{sum, count};
         }).toList();
         var total = totals.stream().mapToDouble(a -> a[0]).sum();

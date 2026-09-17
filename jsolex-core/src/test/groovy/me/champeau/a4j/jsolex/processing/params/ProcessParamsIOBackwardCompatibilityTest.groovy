@@ -262,4 +262,44 @@ class ProcessParamsIOBackwardCompatibilityTest extends Specification {
         expect:
         ProcessParamsIO.createNewDefaults().spectrumParams().detectionMode() == LineDetectionMode.FREE_SEARCH
     }
+
+    def "legacy banding parameters use the banding correction method"() {
+        given:
+        def tempFile = Files.createTempFile("legacy-banding", ".json")
+        tempFile.toFile().deleteOnExit()
+        tempFile.toFile().text = """
+        {
+          "bandingCorrectionParams": {
+            "width": 24,
+            "passes": 4
+            $method
+          }
+        }
+        """
+
+        when:
+        def params = ProcessParamsIO.readFrom(tempFile)
+
+        then:
+        params.bandingCorrectionParams() == new BandingCorrectionParams(24, 4, DestripeParams.defaults(), BandingCorrectionMethod.BANDING_CORRECTION)
+
+        where:
+        method << ['', ', "method": "NOT_A_METHOD"']
+    }
+
+    def "the banding correction method and destripe parameters are saved"() {
+        given:
+        def configured = ProcessParamsIO.createNewDefaults().withBandingCorrectionParams(
+                new BandingCorrectionParams(32, 1, new DestripeParams(96, 2), BandingCorrectionMethod.DESTRIPE)
+        )
+        def tempFile = Files.createTempFile("destripe-preset", ".json")
+        tempFile.toFile().deleteOnExit()
+
+        when:
+        ProcessParamsIO.saveTo(configured, tempFile.toFile())
+        def restored = ProcessParamsIO.readFrom(tempFile)
+
+        then:
+        restored.bandingCorrectionParams() == configured.bandingCorrectionParams()
+    }
 }
