@@ -21,6 +21,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import static me.champeau.a4j.jsolex.processing.util.Constants.message;
+
 /**
  * Renders a debug chart of the correction applied to each line by the transversallium correction.
  */
@@ -70,7 +72,7 @@ public final class BandingCorrectionChart {
             }
         }
         var yAxisTitle = multiplicative ? "Correction (%)" : "Correction (pixel value)";
-        ShiftDebugChart.emit(imageEmitter, chartTitle, "Transversallium correction", "transversallium-correction", "Position along the slit (px)", List.of(
+        ShiftDebugChart.emit(imageEmitter, chartTitle, message("banding.correction"), "transversallium-correction", "Position along the slit (px)", List.of(
                 new ShiftDebugChart.Panel("Correction applied to each line", yAxisTitle, samples, total, "Total")
         ));
     }
