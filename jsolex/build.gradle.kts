@@ -104,11 +104,23 @@ val generatePythonStubs = tasks.register<PythonStubsGenerator>("generatePythonSt
     outputDirectory = layout.buildDirectory.dir("generated-resources")
 }
 
+val bundleSharpCapScripts = tasks.register<Sync>("bundleSharpCapScripts") {
+    from(rootProject.file("scripts/sharpcap")) {
+        include("*.py")
+    }
+    into(layout.buildDirectory.dir("sharpcap-scripts/sharpcap"))
+    doLast {
+        val scripts = destinationDir.listFiles { file -> file.extension == "py" }!!.map { it.name }.sorted()
+        destinationDir.resolve("index.txt").writeText(scripts.joinToString("\n"))
+    }
+}
+
 sourceSets {
     main {
         resources {
             srcDir(tasks.generateLicense.map { it.outputFile.get().asFile.parentFile })
             srcDir(generatePythonStubs.flatMap { it.outputDirectory })
+            srcDir(bundleSharpCapScripts.map { it.destinationDir.parentFile })
         }
     }
 }
@@ -134,7 +146,7 @@ tasks.named<JavaExec>("run") {
             listOf(
                 "--module-path",
                 classpath.asPath,
-                "-XX:StartFlightRecording=filename=/tmp/profile.jfr,settings=profile,duration=300s"
+                //"-XX:StartFlightRecording=filename=/tmp/profile.jfr,settings=profile,duration=300s"
             )
 //            listOf("--module-path", classpath.asPath)
         )

@@ -1,8 +1,12 @@
 # Welcome to JSol'Ex {{version}}!
 
-## What's New in Version 5.4.3
+## What's New in Version 5.5.0
 
+- The automatic search on the full spectrum now takes the telluric lines into account, which makes it more reliable in the red part of the spectrum.
+- The spectrum browser identifies images with the same method as the live identification, including telluric lines, and can show the reference spectrum as seen through the atmosphere.
+- The embedded web server can identify the spectral lines visible in the live view of your capture software, with a script for SharpCap, available from the "Help" menu, which draws them over the image.
 - Blurring and sharpening no longer clip negative values or values above the white point.
+- Stripe removal (destripe) can now be chosen instead of the banding correction in the process parameters: it is more effective on strong transversalliums. Contributed by [icelin](https://github.com/nuan-xing).
 
 ## What's New in Version 5.4.2
 

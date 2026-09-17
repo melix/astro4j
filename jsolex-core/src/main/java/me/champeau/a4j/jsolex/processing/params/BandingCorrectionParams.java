@@ -18,13 +18,27 @@ package me.champeau.a4j.jsolex.processing.params;
 /**
  * Parameters for banding correction processing.
  *
- * @param width the band width in pixels
- * @param passes the number of correction passes to apply
+ * @param width the band width in pixels of the banding correction
+ * @param passes the number of passes of the banding correction
+ * @param destripeParams the parameters of the destripe correction
+ * @param method the correction algorithm to apply
  */
 public record BandingCorrectionParams(
         int width,
-        int passes
+        int passes,
+        DestripeParams destripeParams,
+        BandingCorrectionMethod method
 ) {
+    /**
+     * Creates banding correction parameters using the banding correction method.
+     *
+     * @param width the band width in pixels
+     * @param passes the number of correction passes to apply
+     */
+    public BandingCorrectionParams(int width, int passes) {
+        this(width, passes, DestripeParams.defaults(), BandingCorrectionMethod.BANDING_CORRECTION);
+    }
+
     /**
      * Returns a copy of this instance with the specified band width.
      *
@@ -32,7 +46,7 @@ public record BandingCorrectionParams(
      * @return a new BandingCorrectionParams with the updated width
      */
     public BandingCorrectionParams withWidth(int width) {
-        return new BandingCorrectionParams(width, passes);
+        return new BandingCorrectionParams(width, passes, destripeParams, method);
     }
 
     /**
@@ -42,6 +56,26 @@ public record BandingCorrectionParams(
      * @return a new BandingCorrectionParams with the updated passes
      */
     public BandingCorrectionParams withPasses(int passes) {
-        return new BandingCorrectionParams(width, passes);
+        return new BandingCorrectionParams(width, passes, destripeParams, method);
+    }
+
+    /**
+     * Returns a copy of this instance with the specified destripe parameters.
+     *
+     * @param destripeParams the new destripe parameters
+     * @return a new BandingCorrectionParams with the updated destripe parameters
+     */
+    public BandingCorrectionParams withDestripeParams(DestripeParams destripeParams) {
+        return new BandingCorrectionParams(width, passes, destripeParams, method);
+    }
+
+    /**
+     * Returns a copy of this instance with the specified correction method.
+     *
+     * @param method the new correction method
+     * @return a new BandingCorrectionParams with the updated method
+     */
+    public BandingCorrectionParams withMethod(BandingCorrectionMethod method) {
+        return new BandingCorrectionParams(width, passes, destripeParams, method);
     }
 }

@@ -102,6 +102,33 @@ result = img(0)
         updated.spectrumParams() == params.spectrumParams()
     }
 
+    def "the banding correction method can be overridden"() {
+        given:
+        var params = ProcessParamsIO.createNewDefaults()
+                .withBandingCorrectionParams(new BandingCorrectionParams(24, 4))
+        var overrides = new ImageMathParameterExtractor().extractParameters("""
+meta {
+    overrides {
+        bandingCorrectionParams {
+            method = "DESTRIPE"
+            destripeParams {
+                bandSize = 96
+            }
+        }
+    }
+}
+
+[outputs]
+result = img(0)
+""", "script.math").processParamsOverrides
+
+        when:
+        var updated = ScriptProcessParamsOverrides.apply(params, overrides)
+
+        then:
+        updated.bandingCorrectionParams() == new BandingCorrectionParams(24, 4, new DestripeParams(96, DestripeParams.DEFAULT_PASSES), BandingCorrectionMethod.DESTRIPE)
+    }
+
     def "unknown parameters and invalid values are ignored"() {
         given:
         var params = ProcessParamsIO.createNewDefaults()
@@ -126,6 +153,7 @@ result = img(0)
         declaration << [
                 'notAParamsGroup { passes = 0 }',
                 'geometryParams { autocropMode = "NOT_A_MODE" }',
+                'bandingCorrectionParams { method = "NOT_A_METHOD" }',
                 'geometryParams { notAParameter = 0 }',
                 'enhancementParams { jaggingCorrectionParams = "false" }'
         ]

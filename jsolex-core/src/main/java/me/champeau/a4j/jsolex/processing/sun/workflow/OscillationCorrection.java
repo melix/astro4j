@@ -558,13 +558,13 @@ public class OscillationCorrection {
                 residuals[i] = values[i] - curve[i];
             }
             panels = List.of(
-                    new ShiftDebugChart.Panel("Measured limb shift and fitted model", values, weights, curve),
-                    new ShiftDebugChart.Panel("Residual shift after subtracting the model", residuals, weights, null)
+                    new ShiftDebugChart.Panel("Measured limb shift and fitted model", "Shift (px)", values, weights, curve),
+                    new ShiftDebugChart.Panel("Residual shift after subtracting the model", "Shift (px)", residuals, weights, null)
             );
         } else {
-            panels = List.of(new ShiftDebugChart.Panel("Measured limb shift", values, weights, null));
+            panels = List.of(new ShiftDebugChart.Panel("Measured limb shift", "Shift (px)", values, weights, null));
         }
-        ShiftDebugChart.emit(imageEmitter, chartTitle, "Oscillation detection", "oscillation-detection", panels);
+        ShiftDebugChart.emit(imageEmitter, chartTitle, "Oscillation detection", "oscillation-detection", "Frame", panels);
     }
 
     public static void applyCorrection(ImageWrapper32 image, OscillationModel model) {

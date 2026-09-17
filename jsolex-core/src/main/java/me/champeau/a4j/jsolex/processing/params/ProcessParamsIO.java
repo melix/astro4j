@@ -235,6 +235,12 @@ public abstract class ProcessParamsIO {
                         params.enhancementParams()
                 );
             }
+            if (params.bandingCorrectionParams().destripeParams() == null) {
+                params = params.withBandingCorrectionParams(params.bandingCorrectionParams().withDestripeParams(DestripeParams.defaults()));
+            }
+            if (params.bandingCorrectionParams().method() == null) {
+                params = params.withBandingCorrectionParams(params.bandingCorrectionParams().withMethod(BandingCorrectionMethod.BANDING_CORRECTION));
+            }
             if (params.requestedImages() == null) {
                 params = new ProcessParams(
                         params.spectrumParams(),
