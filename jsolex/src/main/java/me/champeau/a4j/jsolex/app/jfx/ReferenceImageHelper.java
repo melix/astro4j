@@ -66,7 +66,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.function.Supplier;
 
-import static me.champeau.a4j.jsolex.app.JSolEx.IMAGE_FILES_EXTENSIONS;
+import static me.champeau.a4j.jsolex.app.JSolEx.imageFilesExtensionFilter;
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
 
 /**
@@ -429,7 +429,7 @@ public final class ReferenceImageHelper {
             return;
         }
         var fileChooser = new FileChooser();
-        fileChooser.getExtensionFilters().add(IMAGE_FILES_EXTENSIONS);
+        fileChooser.getExtensionFilters().add(imageFilesExtensionFilter());
         var file = fileChooser.showSaveDialog(rootStage);
         if (file != null) {
             BackgroundOperations.async(() -> {

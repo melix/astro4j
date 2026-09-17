@@ -7,6 +7,7 @@
 - Le serveur web embarqué peut identifier les raies spectrales visibles dans la vue en direct de votre logiciel de capture, avec un script pour SharpCap, disponible dans le menu "Aide", qui les dessine par dessus l'image.
 - Le flou et l'accentuation ne tronquent plus les valeurs négatives ou supérieures au point blanc.
 - La suppression des stries (destripe) peut désormais être choisie à la place de la correction de bandes dans les paramètres de traitement : elle est plus efficace sur les transversalliums marqués. Contribution d'[icelin](https://github.com/nuan-xing).
+- JSol'Ex est désormais disponible en chinois. Contribution d'[icelin](https://github.com/nuan-xing).
 
 ## Nouveautés de la version 5.4.2
 

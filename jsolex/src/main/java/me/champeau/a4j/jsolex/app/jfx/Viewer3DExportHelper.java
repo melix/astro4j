@@ -406,7 +406,8 @@ public final class Viewer3DExportHelper {
         var fileChooser = new FileChooser();
         fileChooser.setTitle(I18N.string(JSolEx.class, i18nBundle, "export.video.title"));
         fileChooser.setInitialFileName(initialFileName);
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("All files", "*.*"));
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter(
+                I18N.string(JSolEx.class, "common", "file.filter.all"), "*.*"));
         if (initialDirectory != null && initialDirectory.isDirectory()) {
             fileChooser.setInitialDirectory(initialDirectory);
         }
@@ -509,8 +510,8 @@ public final class Viewer3DExportHelper {
                 FxUtils.runLater(() -> {
                     progressStage.close();
                     var alert = new Alert(Alert.AlertType.ERROR);
-                    alert.setTitle("Export Error");
-                    alert.setContentText("Failed to initialize OpenGL context for export");
+                    alert.setTitle(I18N.string(JSolEx.class, "common", "export.error"));
+                    alert.setContentText(I18N.string(JSolEx.class, "common", "export.opengl.failed"));
                     alert.showAndWait();
                     onExportEnd.run();
                 });
@@ -555,7 +556,7 @@ public final class Viewer3DExportHelper {
                 if (!cancelled.get()) {
                     FxUtils.runLater(() -> {
                         var alert = new Alert(Alert.AlertType.ERROR);
-                        alert.setTitle("Export Error");
+                        alert.setTitle(I18N.string(JSolEx.class, "common", "export.error"));
                         alert.setContentText(e.getMessage());
                         alert.showAndWait();
                     });

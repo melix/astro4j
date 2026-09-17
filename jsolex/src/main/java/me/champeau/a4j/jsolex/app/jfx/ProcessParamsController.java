@@ -617,7 +617,7 @@ public class ProcessParamsController {
         }
 
         var progressOperation = ProgressOperation.root(
-                "Spectrum Analysis",
+                I18N.string(JSolEx.class, "common", "progress.spectrum.analysis"),
                 op -> {
                 }
         );

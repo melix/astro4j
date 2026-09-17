@@ -146,7 +146,7 @@
                                             <HBox spacing="8">
                                                 <ListView fx:id="choicesList" styleClass="embedded-editor" prefHeight="120" HBox.hgrow="ALWAYS"/>
                                                 <VBox spacing="8">
-                                                    <TextField fx:id="choiceValueField" styleClass="modern-text-field" promptText="Value"/>
+                                                    <TextField fx:id="choiceValueField" styleClass="modern-text-field" promptText="%value.prompt"/>
                                                     <Button fx:id="addChoiceButton" styleClass="default-button" mnemonicParsing="false" onAction="#handleAddChoice" text="%add.choice" prefWidth="80"/>
                                                     <Button fx:id="removeChoiceButton" styleClass="default-button" mnemonicParsing="false" onAction="#handleRemoveChoice" text="%remove.choice" prefWidth="80"/>
                                                 </VBox>

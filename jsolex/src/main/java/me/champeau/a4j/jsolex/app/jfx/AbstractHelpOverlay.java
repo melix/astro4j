@@ -52,6 +52,7 @@ import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.util.Duration;
 import me.champeau.a4j.jsolex.app.Configuration;
+import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.util.AnimatedGifWriter;
 
 import javax.imageio.stream.FileImageOutputStream;
@@ -553,8 +554,9 @@ public abstract class AbstractHelpOverlay extends StackPane {
 
     private void exportDiagramToGif(Supplier<Node> diagramSupplier, Pane progressParent) {
         var fileChooser = new FileChooser();
-        fileChooser.setTitle("Export Animation as GIF");
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("GIF files", "*.gif"));
+        fileChooser.setTitle(I18N.string(JSolEx.class, "common", "export.animation.gif.title"));
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter(
+                I18N.string(JSolEx.class, "common", "file.filter.gif"), "*.gif"));
         fileChooser.setInitialFileName("help_animation.gif");
 
         var window = progressParent.getScene() != null ? progressParent.getScene().getWindow() : null;
@@ -578,7 +580,7 @@ public abstract class AbstractHelpOverlay extends StackPane {
         var totalFrames = fps * durationSeconds;
         var delayMs = 1000 / fps;
 
-        var progressLabel = new Label("Preparing export...");
+        var progressLabel = new Label(I18N.string(JSolEx.class, "common", "export.preparing"));
         progressLabel.setFont(Font.font("System", FontWeight.BOLD, 14));
         progressLabel.setTextFill(Color.WHITE);
         progressLabel.setStyle(
@@ -601,7 +603,7 @@ public abstract class AbstractHelpOverlay extends StackPane {
         } else if (freshDiagram instanceof Region r) {
             diagramToCapture = r;
         } else {
-            progressLabel.setText("Export failed: invalid diagram");
+            progressLabel.setText(I18N.string(JSolEx.class, "common", "export.invalid.diagram"));
             return;
         }
 
@@ -645,7 +647,9 @@ public abstract class AbstractHelpOverlay extends StackPane {
             captureTimeline.getKeyFrames().add(new KeyFrame(
                     Duration.millis((long) i * delayMs),
                     e -> {
-                        progressLabel.setText("Capturing frame " + (frameIndex + 1) + "/" + totalFrames);
+                        progressLabel.setText(I18N.string(JSolEx.class, "common", "export.capturing.frame")
+                                .replace("{0}", Integer.toString(frameIndex + 1))
+                                .replace("{1}", Integer.toString(totalFrames)));
                         // Snapshot the capture pane with exact dimensions
                         capturePane.snapshot(params, snapshotImage);
                         frames.add(SwingFXUtils.fromFXImage(snapshotImage, null));
@@ -655,13 +659,13 @@ public abstract class AbstractHelpOverlay extends StackPane {
 
         captureTimeline.setOnFinished(e -> {
             captureStage.close();
-            progressLabel.setText("Writing GIF...");
+            progressLabel.setText(I18N.string(JSolEx.class, "common", "export.writing.gif"));
 
             new Thread(() -> {
                 try {
                     writeGif(frames, outputFile, delayMs);
                     FxUtils.runLater(() -> {
-                        progressLabel.setText("Export complete!");
+                        progressLabel.setText(I18N.string(JSolEx.class, "common", "export.complete"));
                         var removeDelay = new Timeline(new KeyFrame(Duration.seconds(2), evt ->
                             progressParent.getChildren().remove(progressLabel)
                         ));
@@ -670,7 +674,7 @@ public abstract class AbstractHelpOverlay extends StackPane {
                 } catch (IOException ex) {
                     ex.printStackTrace();
                     FxUtils.runLater(() -> {
-                        progressLabel.setText("Export failed!");
+                        progressLabel.setText(I18N.string(JSolEx.class, "common", "export.failed"));
                         var removeDelay = new Timeline(new KeyFrame(Duration.seconds(3), evt ->
                             progressParent.getChildren().remove(progressLabel)
                         ));

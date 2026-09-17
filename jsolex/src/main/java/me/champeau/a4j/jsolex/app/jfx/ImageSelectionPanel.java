@@ -186,7 +186,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         applyAutomaticScripts = createCheckbox("apply.automatic.scripts");
         applyAutomaticScripts.setSelected(true);
 
-        scriptLabel = new Label("No script loaded");
+        scriptLabel = new Label(I18N.string(JSolEx.class, "process-params", "no.script.loaded"));
         scriptLabel.getStyleClass().add("script-label");
         scriptLabel.setWrapText(true);
 
