@@ -63,6 +63,7 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
     private ChoiceBox<SpectralRay> wavelengthChoice;
     private TextField customWavelengthField;
     private HBox customWavelengthBox;
+    private Button wavelengthEditorButton;
     private TextField pixelShiftingField;
     private TextField dopplerShiftingField;
     private TextField continuumShiftingField;
@@ -133,13 +134,19 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
         });
 
         customWavelengthField = createTextField("", I18N.string(JSolEx.class, "process-params", "wavelength.custom.tooltip"));
-        customWavelengthField.setStyle("-fx-min-width: 90px; -fx-pref-width: 90px;");
+        customWavelengthField.setPromptText(I18N.string(JSolEx.class, "process-params", "wavelength.custom.prompt"));
+        customWavelengthField.setStyle("-fx-min-width: 110px; -fx-pref-width: 110px;");
         var angstromLabel = new Label("Å");
         angstromLabel.getStyleClass().add("field-description");
         customWavelengthBox = createHBox();
         customWavelengthBox.getChildren().addAll(customWavelengthField, angstromLabel);
         customWavelengthBox.setVisible(false);
         customWavelengthBox.setManaged(false);
+
+        wavelengthEditorButton = new Button("...");
+        wavelengthEditorButton.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "wavelength.tooltip")));
+        wavelengthEditorButton.getStyleClass().add("default-button");
+        wavelengthEditorButton.setOnAction(ignored -> openWavelengthEditor());
 
         pixelShiftingField = createTextField("0", I18N.string(JSolEx.class, "process-params", "pixel.shifting.tooltip"));
         dopplerShiftingField = createTextField("3.0", I18N.string(JSolEx.class, "process-params", "doppler.tooltip"));
@@ -160,9 +167,12 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
         pixelShiftingField.textProperty().addListener((obs, oldVal, newVal) -> updateAngstromLabels());
         dopplerShiftingField.textProperty().addListener((obs, oldVal, newVal) -> updateAngstromLabels());
         continuumShiftingField.textProperty().addListener((obs, oldVal, newVal) -> updateAngstromLabels());
-        customWavelengthField.textProperty().addListener((obs, oldVal, newVal) -> updateAngstromLabels());
+        customWavelengthField.textProperty().addListener((obs, oldVal, newVal) -> {
+            updateWavelengthEnabledState();
+            updateAngstromLabels();
+        });
         wavelengthChoice.valueProperty().addListener((obs, oldVal, newVal) -> {
-            prefillCustomWavelength(oldVal, newVal);
+            customWavelengthField.clear();
             updateWavelengthEnabledState();
             updateAngstromLabels();
         });
@@ -341,12 +351,7 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
     }
 
     private HBox createWavelengthBox() {
-        var editButton = new Button("...");
-        editButton.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "wavelength.tooltip")));
-        editButton.getStyleClass().add("default-button");
-        editButton.setOnAction(ignored -> openWavelengthEditor());
-
-        var box = createChoiceBoxWithButton(wavelengthChoice, editButton);
+        var box = createChoiceBoxWithButton(wavelengthChoice, wavelengthEditorButton);
         box.getChildren().add(customWavelengthBox);
         return box;
     }
@@ -439,28 +444,40 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
     }
 
     /**
-     * The line can only be picked by hand when the detection is not going to find it, and its
-     * wavelength only has to be typed in when it is not one of the known lines.
+     * The line can only be chosen by hand when the detection is not going to find it, either by
+     * picking one of the known lines, or by typing the wavelength of a line which is not in the
+     * list. The list and its editor are disabled while a wavelength is typed in, to show that the
+     * typed one is the one being used.
      */
     private void updateWavelengthEnabledState() {
         var manual = detectionModeChoice.getValue() == LineDetectionMode.MANUAL;
-        wavelengthChoice.setDisable(!manual);
-        var custom = manual && isCustomWavelengthSelected();
-        customWavelengthBox.setVisible(custom);
-        customWavelengthBox.setManaged(custom);
+        var fromList = manual && isCustomWavelengthBlank();
+        wavelengthChoice.setDisable(!fromList);
+        wavelengthEditorButton.setDisable(!fromList);
+        customWavelengthBox.setVisible(manual);
+        customWavelengthBox.setManaged(manual);
+    }
+
+    private boolean isCustomWavelengthBlank() {
+        var text = customWavelengthField.getText();
+        return text == null || text.isBlank();
     }
 
     /**
-     * Starts the typed wavelength from the line which was selected until then, so that the
-     * field is never left empty, which would mean processing without a wavelength.
+     * A line must be selected, and the typed wavelength, when there is one, must be usable. The
+     * entry which has no wavelength of its own requires one to be typed in.
      */
-    private void prefillCustomWavelength(SpectralRay previous, SpectralRay selected) {
-        var text = customWavelengthField.getText();
-        if (selected != null && selected.wavelength().angstroms() <= 0
-                && (text == null || text.isBlank())
-                && previous != null && previous.wavelength().angstroms() > 0) {
-            customWavelengthField.setText(String.format(Locale.US, "%.2f", previous.wavelength().angstroms()));
+    private boolean isWavelengthValid() {
+        if (wavelengthChoice.getValue() == null) {
+            return false;
         }
+        if (detectionModeChoice.getValue() != LineDetectionMode.MANUAL) {
+            return true;
+        }
+        if (isCustomWavelengthBlank()) {
+            return !isCustomWavelengthSelected();
+        }
+        return customWavelength().isPresent();
     }
 
     private boolean isCustomWavelengthSelected() {
@@ -469,27 +486,23 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
     }
 
     /**
-     * The line to process with: the one picked in the list, or the one built from the typed
-     * wavelength. A typed wavelength which turns out to be a known line resolves to that line,
-     * so that its color curve and everything configured for it keep applying.
+     * The line to process with: the one built from the typed wavelength, or the one picked in the
+     * list when no wavelength was typed. A typed wavelength which turns out to be a known line
+     * resolves to that line, so that its color curve and everything configured for it keep applying.
      */
     private SpectralRay selectedRay() {
-        var selected = wavelengthChoice.getValue();
-        if (!isCustomWavelengthSelected()) {
-            return selected;
-        }
         var typed = customWavelength();
         if (typed.isEmpty()) {
-            return selected;
+            return wavelengthChoice.getValue();
         }
         return IdentifiedLineResolver.resolveEntered(Wavelen.ofAngstroms(typed.getAsDouble()), wavelengthChoice.getItems());
     }
 
     private OptionalDouble customWavelength() {
-        var text = customWavelengthField.getText();
-        if (text == null || text.isBlank()) {
+        if (detectionModeChoice.getValue() != LineDetectionMode.MANUAL || isCustomWavelengthBlank()) {
             return OptionalDouble.empty();
         }
+        var text = customWavelengthField.getText();
         try {
             var angstroms = parseDoubleLocaleIndependent(text);
             return angstroms > 0 ? OptionalDouble.of(angstroms) : OptionalDouble.empty();
@@ -585,11 +598,7 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
             if (batchMode && (!horizontalFlipCondition.isValid() || !verticalFlipCondition.isValid())) {
                 return false;
             }
-            if (detectionModeChoice.getValue() == LineDetectionMode.MANUAL
-                    && isCustomWavelengthSelected() && customWavelength().isEmpty()) {
-                return false;
-            }
-            return wavelengthChoice.getValue() != null;
+            return isWavelengthValid();
         } catch (NumberFormatException e) {
             return false;
         }

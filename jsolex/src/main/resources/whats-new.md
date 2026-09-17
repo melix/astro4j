@@ -2,6 +2,7 @@
 
 ## What's New in Version 5.5.0
 
+- In manual line selection, a wavelength can now be typed directly next to the list of lines, without having to add the line to your list first.
 - The automatic search on the full spectrum now takes the telluric lines into account, which makes it more reliable in the red part of the spectrum.
 - The spectrum browser identifies images with the same method as the live identification, including telluric lines, and can show the reference spectrum as seen through the atmosphere.
 - The embedded web server can identify the spectral lines visible in the live view of your capture software, with a script for SharpCap, available from the "Help" menu, which draws them over the image.
