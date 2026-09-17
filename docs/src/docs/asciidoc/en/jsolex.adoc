@@ -300,6 +300,9 @@ This mode is especially useful in batch processing: several saturated scans may 
 If the closest reference scan is far away in time, a warning is issued because the polynomial may no longer be accurate.
 If no usable reference scan is found, JSol'Ex falls back to the regular automatic detection.
 
+This mode also changes how the edge of the solar disk is detected: the glow surrounding a saturated disk is bright enough to be mistaken for the disk, so JSol'Ex looks for the edge of the saturated area instead.
+As a consequence, the detected disk is slightly smaller than the true photospheric limb, which is unavoidable with a saturated disk.
+
 NOTE: "Saturated disk mode" and "Force polynomial" are mutually exclusive.
 
 [[filename-templates]]
@@ -377,6 +380,9 @@ It is possible to zoom into the images by using the mouse wheel.
 In addition, right-clicking the image will let you open it into your file explorer or in a separate window.
 
 You can also duplicate an image from the sidebar by right-clicking on its name and choosing "Duplicate", which is useful when you want to keep a clean original alongside an annotated version.
+
+Animations and videos have a "Crop / rotate..." button which opens a window showing a single frame (the current one for a video).
+You can rotate it, flip it or crop it, then click "Apply": the operations are applied to every frame and the result appears as a new animation next to the original one.
 
 === Other spectral lines in the capture window
 
@@ -1861,7 +1867,13 @@ JSol'Ex will then try to find out which part of the spectrum it is in:
 
 image::spectrum-browser-4.jpg[]
 
+The identification uses the same method as the live identification of the embedded server (see <<live-line-identification>>): the line at the centre of the image is found among all the deep lines of the solar spectrum, as seen through the atmosphere, and every other line visible in the image is identified too, including the telluric lines.
+The orientation of the image is detected automatically.
+
 If the identification works, your image will be displayed in transparency, overlaid on the spectrum, on the left side of the image, allowing you to easily verify if the identification was successful.
+The lines found in the image are marked in green, and the status bar tells which line the image is centred on and how confident the identification is.
+
+The "Telluric lines" checkbox shows the reference spectrum as seen through the atmosphere, which is what your camera captures: untick it to see the solar spectrum alone.
 
 You can hide the transparent image by clicking the "Hide" button.
 
@@ -1880,6 +1892,38 @@ The web UI gives access to images being processed as well as their history, in c
 
 image::embedded-server-2-en.jpg[]
 
+[[live-line-identification]]
+=== Live identification of spectral lines
+
+The embedded server also exposes an API which identifies the spectral lines visible in a spectrum frame, such as the live view of your capture software.
+This lets you know which line you are looking at while tuning the grating of your spectroheliograph, without stopping the capture.
+
+A script for SharpCap is provided: choose "SharpCap scripts" in the "Help" menu to open the folder where JSol'Ex copies it (it is also available https://github.com/melix/astro4j/blob/main/scripts/sharpcap/jsolex_spectral_lines.py[on GitHub]).
+Once JSol'Ex is running with its embedded server started, run the script from the SharpCap scripting console.
+It sends the live frames to JSol'Ex and draws every identified line over the live view, with its name when it is a known line or its wavelength otherwise.
+The line the window is centred on is highlighted, and a status line reports the confidence of the identification, which grows as successive frames agree on the same line.
+A line is proposed as soon as the frame carries a spectrum: when the window is too narrow for one line to stand out from all the others, the most likely one is still shown, but the confidence reports it as a guess and its line is drawn dashed.
+Widen the capture window or average more frames before trusting such an answer.
+Stop the script with Ctrl+C to remove the overlay.
+
+A small settings window opens with the script.
+It lets you limit the number of labelled lines, which are then spread evenly over the window while the others are only marked by a tick, and set the size of the labels, which follows the zoom of the display.
+It also offers a "Find a line" mode: enter the wavelength you are looking for, in Angstroms, and the script only draws that line when it is in the window, along with a ruler graduated in Angstroms on the right of the spectrum; when the line is out of the window, the status line tells how far beyond which edge it is, so that you know which way to turn the grating.
+
+The binning is read from the camera, and the orientation of the spectrum is detected from the curvature of the lines, so it does not matter which way the capture software reads the sensor.
+The spectroheliograph and the pixel size of the camera are those of the observation details of JSol'Ex, unless the script overrides them: edit the parameters at the top of the script to set the address of the server, the pixel size or the name of the spectroheliograph.
+The identification gets more reliable as the capture window gets taller, since more of the spectrum is compared with the reference spectrum, and as more frames are averaged.
+The frame is compared with a reference which includes the absorption lines of the Earth's atmosphere, taken from the NSO/Kitt Peak atlas: around H-alpha the water lines are as deep as the solar ones, and a spectrum observed from the ground cannot be recognised without them.
+Such lines are labelled as telluric.
+
+The API can be used from any other software: send a frame with a `POST` request to `/api/spectrum/identify`.
+The body is either the raw pixels of the frame, with the `width`, `height` and `format` query parameters, `format` being the colour space of the camera (`MONO8`, `MONO12`, `MONO16`, `RGB24`, `RGB32`, `RGB48`, `RAW8`, `RAW12` or `RAW16`, multi-byte samples being little-endian), or an image file (PNG, TIFF, or FITS with `format=fits`).
+Colour frames are averaged to mono, and frames carrying a Bayer mosaic are kept at full resolution with the mosaic evened out.
+The optional `pixelSize`, `binning`, `instrument` and `average` query parameters override the observation details and the number of averaged frames.
+The response is a JSON document describing the curvature polynomial of the lines, the identified line with its score, the dispersion, and the list of lines found in the window with their position relative to the centre of the frame.
+A `DELETE` request on the same address forgets the previous frames, for example when you switch to another camera.
+
+
 
 == Acknowledgements
 
@@ -1889,3 +1933,4 @@ image::embedded-server-2-en.jpg[]
 - Sylvain Weiller for his intensive beta-testing, valuable feedback, and processing ideas
 - Ken M. Harrison for improved exposure time calculations
 - Minh Trong Nguyen for his suggestions of improvements and his work on the SHG 700
+- The National Solar Observatory for the atlas of the telluric spectrum used by the live identification of spectral lines: NSO/Kitt Peak FTS data used here were produced by NSF/NOAO

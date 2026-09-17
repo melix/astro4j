@@ -36,10 +36,13 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.IntConsumer;
+import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 
 public class FfmegEncoder {
     private static final Logger LOGGER = LoggerFactory.getLogger(FfmegEncoder.class);
+    private static final Pattern PROGRESS_FRAME = Pattern.compile("frame=(\\d+)");
 
     public static boolean isAvailable() {
         return Holder.isAvailable();
@@ -78,35 +81,12 @@ public class FfmegEncoder {
                 .toList();
             broadcaster.broadcast(progressOperation.update(1, "Exporting frames"));
             broadcaster.broadcast(progressOperation.update(0, "Encoding (FFMPEG)"));
-            double framesPerSecond = 1000d / msBetweenFrames;
-            // now we can use ffmpeg to encode the video
-            var ffmpeg = new ProcessBuilder("ffmpeg",
-                "-framerate", framesPerSecond + "",
-                "-i", tempDir + "/frame-%04d.png",
-                "-y",
-                "-crf", "10",
-                "-c:v", "libx264",
-                "-vf", "pad=ceil(iw/2)*2:ceil(ih/2)*2",
-                "-pix_fmt", "yuv420p",
-                outputFile.getAbsolutePath())
-                .redirectErrorStream(true)
-                .start();
-            var sb = new StringBuilder();
-            try (var reader = new BufferedReader(new InputStreamReader(ffmpeg.getInputStream()))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    sb.append(line).append("\n");
-                }
-            }
-            LOGGER.debug("FFMPEG output: {}", sb);
-            ffmpeg.waitFor(10, TimeUnit.MINUTES);
+            var success = encodeFrameDirectory(tempDir, outputFile, msBetweenFrames,
+                encoded -> broadcaster.broadcast(progressOperation.update(Math.min(1.0, encoded / (double) images.size()), "Encoding (FFMPEG)")));
             broadcaster.broadcast(progressOperation.complete());
-            if (ffmpeg.exitValue() != 0) {
+            if (!success) {
                 return false;
             }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IOException("Unable to encode video", e);
         } finally {
             if (frames != null) {
                 // delete all temporary files
@@ -118,6 +98,53 @@ public class FfmegEncoder {
             Files.deleteIfExists(tempDir);
         }
         return true;
+    }
+
+    /**
+     * Encodes a directory of PNG frames named {@code frame-NNNN.png} into an H.264 video.
+     *
+     * @param framesDir the directory containing the frames
+     * @param outputFile the output video file
+     * @param msBetweenFrames the delay between frames, in milliseconds
+     * @param encodedFrames receives the number of frames encoded so far, as encoding progresses
+     * @return true if encoding succeeded
+     * @throws IOException if ffmpeg cannot be started or is interrupted
+     */
+    public static boolean encodeFrameDirectory(Path framesDir, File outputFile, int msBetweenFrames, IntConsumer encodedFrames) throws IOException {
+        double framesPerSecond = 1000d / msBetweenFrames;
+        try {
+            var ffmpeg = new ProcessBuilder("ffmpeg",
+                "-framerate", framesPerSecond + "",
+                "-i", framesDir + "/frame-%04d.png",
+                "-y",
+                "-crf", "10",
+                "-c:v", "libx264",
+                "-vf", "pad=ceil(iw/2)*2:ceil(ih/2)*2",
+                "-pix_fmt", "yuv420p",
+                "-nostats",
+                "-progress", "pipe:1",
+                outputFile.getAbsolutePath())
+                .redirectErrorStream(true)
+                .start();
+            var sb = new StringBuilder();
+            try (var reader = new BufferedReader(new InputStreamReader(ffmpeg.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    var matcher = PROGRESS_FRAME.matcher(line);
+                    if (matcher.matches()) {
+                        encodedFrames.accept(Integer.parseInt(matcher.group(1)));
+                    } else {
+                        sb.append(line).append("\n");
+                    }
+                }
+            }
+            LOGGER.debug("FFMPEG output: {}", sb);
+            ffmpeg.waitFor(10, TimeUnit.MINUTES);
+            return ffmpeg.exitValue() == 0;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Unable to encode video", e);
+        }
     }
 
     private static class Holder {

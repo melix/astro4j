@@ -51,14 +51,11 @@ __kernel void convolve2d(
         }
     }
 
-    float val = sum * factor;
-    // Clamp result to valid range
-    output[y * imgWidth + x] = clamp(val, 0.0f, 65535.0f);
+    output[y * imgWidth + x] = sum * factor;
 }
 
-// Horizontal pass of a separable (low-rank) convolution. No factor and no
-// range clamping: intermediate values may legitimately be negative or exceed
-// the pixel range, the vertical pass applies both on the final value.
+// Horizontal pass of a separable (low-rank) convolution. No factor: the
+// vertical pass applies it on the final value.
 __kernel void convolve1d_horizontal(
     __global const float* image,
     __global const float* rowKernel,
@@ -85,8 +82,8 @@ __kernel void convolve1d_horizontal(
 
 // Vertical pass of a separable (low-rank) convolution. When accumulate is
 // non-zero the term is added to the existing output (used for rank-2
-// kernels); when finalize is non-zero the factor and range clamp are applied,
-// matching the convolve2d output exactly.
+// kernels); when finalize is non-zero the factor is applied, matching the
+// convolve2d output exactly.
 __kernel void convolve1d_vertical(
     __global const float* image,
     __global const float* colKernel,
@@ -115,7 +112,7 @@ __kernel void convolve1d_vertical(
     int idx = y * imgWidth + x;
     float val = (accumulate ? output[idx] : 0.0f) + sum;
     if (finalize) {
-        val = clamp(val * factor, 0.0f, 65535.0f);
+        val = val * factor;
     }
     output[idx] = val;
 }

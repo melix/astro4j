@@ -68,6 +68,7 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static me.champeau.a4j.jsolex.processing.expr.AbstractImageExpressionEvaluator.computeDispersion;
@@ -148,66 +149,9 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
 
         long nanoTime = System.nanoTime();
         try {
-            // Create evaluator to get context for Python executor
-            var evaluator = new MemoizingExpressionEvaluator(broadcaster);
-            evaluator.setIncludesDir(includesDir);
-            populateContext(evaluator, getProgressOperation());
-
-            var contextMap = context.toMap();
-            var pythonExecutor = new PythonScriptExecutor(evaluator, contextMap, broadcaster, true);
-
-            // For batch mode, check if script has a batch() function BEFORE executing
-            // This avoids running top-level code that may fail in batch context
-            if (kind == SectionKind.BATCH) {
-                var scriptContent = FilesUtils.readString(scriptPath);
-                if (!pythonExecutor.scriptDefinesFunction(scriptContent, "batch")) {
-                    return ImageMathScriptResult.EMPTY;
-                }
-            }
-
-            // Execute the file (runs top-level code and defines functions)
-            var scriptResult = pythonExecutor.executeFile(scriptPath.toString(), variables);
-
-            var hasSingle = pythonExecutor.hasFunction("single");
-            var hasBatch = pythonExecutor.hasFunction("batch");
-
-            if (kind == SectionKind.SINGLE) {
-                if (!hasSingle && hasBatch) {
-                    // Batch-only script, skip in single mode
-                    return ImageMathScriptResult.EMPTY;
-                }
-
-                Map<String, Object> outputs;
-                if (hasSingle) {
-                    // Call single() function with outputs object
-                    outputs = pythonExecutor.callSingleFunction();
-                } else {
-                    // Implicit single mode - merge result variable with outputs object
-                    outputs = new LinkedHashMap<>();
-                    // First add any outputs set via outputs.name = value
-                    outputs.putAll(pythonExecutor.extractOutputs());
-                    // Then add/override with result variable for backwards compatibility
-                    outputs.putAll(resultToMap(scriptResult));
-                }
-
-                return toScriptResult(outputs);
-            } else { // BATCH
-                if (!hasBatch) {
-                    return ImageMathScriptResult.EMPTY;
-                }
-
-                // Collect variables that are lists (from single mode executions)
-                var collectedResults = new LinkedHashMap<String, List<Object>>();
-                for (var entry : variables.entrySet()) {
-                    if (entry.getValue() instanceof List<?> list) {
-                        collectedResults.put(entry.getKey(), new ArrayList<>(list));
-                    }
-                }
-
-                var outputs = pythonExecutor.callBatchFunction(collectedResults);
-
-                return toScriptResult(outputs);
-            }
+            var pythonExecutor = newPythonExecutor();
+            var scriptContent = kind == SectionKind.BATCH ? FilesUtils.readString(scriptPath) : null;
+            return runPythonScript(pythonExecutor, kind, scriptContent, () -> pythonExecutor.executeFile(scriptPath.toString(), variables));
         } catch (Exception e) {
             // Capture Python errors and return them as invalid expressions for display
             var invalidExpression = new InvalidExpression(
@@ -231,6 +175,57 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                 LOGGER.info(message("script.completed.in"), formatted);
             }
         }
+    }
+
+    private PythonScriptExecutor newPythonExecutor() {
+        var evaluator = new MemoizingExpressionEvaluator(broadcaster);
+        evaluator.setIncludesDir(includesDir);
+        populateContext(evaluator, getProgressOperation());
+        return new PythonScriptExecutor(evaluator, context.toMap(), broadcaster, true);
+    }
+
+    /**
+     * Loads a Python script and calls its {@code single()} or {@code batch()} function.
+     * The whole sequence runs with exclusive ownership of the Python context: the
+     * context is shared by all executors and loading a script redefines its globals,
+     * so a concurrent executor must not be able to load its own script in between.
+     */
+    private ImageMathScriptResult runPythonScript(PythonScriptExecutor pythonExecutor,
+                                                  SectionKind kind,
+                                                  String scriptContent,
+                                                  Supplier<Object> loader) {
+        return pythonExecutor.runExclusively(() -> {
+            if (kind == SectionKind.BATCH && !pythonExecutor.scriptDefinesFunction(scriptContent, "batch")) {
+                return ImageMathScriptResult.EMPTY;
+            }
+            var scriptResult = loader.get();
+            var hasSingle = pythonExecutor.hasFunction("single");
+            var hasBatch = pythonExecutor.hasFunction("batch");
+            if (kind == SectionKind.SINGLE) {
+                if (!hasSingle && hasBatch) {
+                    return ImageMathScriptResult.EMPTY;
+                }
+                Map<String, Object> outputs;
+                if (hasSingle) {
+                    outputs = pythonExecutor.callSingleFunction();
+                } else {
+                    outputs = new LinkedHashMap<>();
+                    outputs.putAll(pythonExecutor.extractOutputs());
+                    outputs.putAll(resultToMap(scriptResult));
+                }
+                return toScriptResult(outputs);
+            }
+            if (!hasBatch) {
+                return ImageMathScriptResult.EMPTY;
+            }
+            var collectedResults = new LinkedHashMap<String, List<Object>>();
+            for (var entry : variables.entrySet()) {
+                if (entry.getValue() instanceof List<?> list) {
+                    collectedResults.put(entry.getKey(), new ArrayList<>(list));
+                }
+            }
+            return toScriptResult(pythonExecutor.callBatchFunction(collectedResults));
+        });
     }
 
     @SuppressWarnings("unchecked")
@@ -301,63 +296,8 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
 
         long nanoTime = System.nanoTime();
         try {
-            // Create evaluator to get context for Python executor
-            var evaluator = new MemoizingExpressionEvaluator(broadcaster);
-            evaluator.setIncludesDir(includesDir);
-            populateContext(evaluator, getProgressOperation());
-
-            var contextMap = context.toMap();
-            var pythonExecutor = new PythonScriptExecutor(evaluator, contextMap, broadcaster, true);
-
-            // For batch mode, check if script has a batch() function BEFORE executing
-            // This avoids running top-level code that may fail in batch context
-            if (kind == SectionKind.BATCH && !pythonExecutor.scriptDefinesFunction(script, "batch")) {
-                return ImageMathScriptResult.EMPTY;
-            }
-
-            // Execute the script text to define functions
-            var scriptResult = pythonExecutor.executeInline(script, variables, includesDir);
-
-            var hasSingle = pythonExecutor.hasFunction("single");
-            var hasBatch = pythonExecutor.hasFunction("batch");
-
-            if (kind == SectionKind.SINGLE) {
-                if (!hasSingle && hasBatch) {
-                    // Batch-only script, skip in single mode
-                    return ImageMathScriptResult.EMPTY;
-                }
-
-                Map<String, Object> outputs;
-                if (hasSingle) {
-                    // Call single() function with outputs object
-                    outputs = pythonExecutor.callSingleFunction();
-                } else {
-                    // Implicit single mode - merge result variable with outputs object
-                    outputs = new LinkedHashMap<>();
-                    // First add any outputs set via outputs.name = value
-                    outputs.putAll(pythonExecutor.extractOutputs());
-                    // Then add/override with result variable for backwards compatibility
-                    outputs.putAll(resultToMap(scriptResult));
-                }
-
-                return toScriptResult(outputs);
-            } else { // BATCH
-                if (!hasBatch) {
-                    return ImageMathScriptResult.EMPTY;
-                }
-
-                // Collect variables that are lists (from single mode executions)
-                var collectedResults = new LinkedHashMap<String, List<Object>>();
-                for (var entry : variables.entrySet()) {
-                    if (entry.getValue() instanceof List<?> list) {
-                        collectedResults.put(entry.getKey(), new ArrayList<>(list));
-                    }
-                }
-
-                var outputs = pythonExecutor.callBatchFunction(collectedResults);
-
-                return toScriptResult(outputs);
-            }
+            var pythonExecutor = newPythonExecutor();
+            return runPythonScript(pythonExecutor, kind, script, () -> pythonExecutor.executeInline(script, variables, includesDir));
         } catch (Exception e) {
             // Capture Python errors and return them as invalid expressions for display
             var invalidExpression = new InvalidExpression(

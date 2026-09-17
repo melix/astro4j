@@ -75,6 +75,38 @@ class ScriptRepositoryUpdateCheckTest extends Specification {
         manager.lastSuccessfulCheck(repository).get().toEpochMilli() == recorded.toEpochMilli()
     }
 
+    def "reports a pending update when the remote script requires a newer version"() {
+        given:
+        def repository = new ScriptRepository("My scripts", "https://example.com/scripts/", null)
+        def repoDir = cacheRoot.resolve("My_scripts")
+        Files.createDirectories(repoDir)
+        Files.writeString(repoDir.resolve("stack.math"), script("1.4", "5.0.0"))
+        Files.writeString(repoDir.resolve("stack.math.pending"), script("1.5", "99.0.0"))
+        Files.writeString(repoDir.resolve("other.math"), script("1.0", "5.0.0"))
+
+        when:
+        def scripts = manager.getLocalScripts(repository).sort { it.filename }
+
+        then:
+        scripts*.filename == ["other.math", "stack.math"]
+        scripts[0].version == "1.0"
+        scripts[0].pendingUpdate.empty
+        scripts[1].version == "1.4"
+        scripts[1].pendingUpdate.get() == new RemoteScript.PendingUpdate("1.5", "99.0.0")
+    }
+
+    private static String script(String version, String requires) {
+        """meta {
+  title = "Stacking"
+  author = "Cédric Champeau"
+  version = "${version}"
+  requires = "${requires}"
+}
+[outputs]
+result = img(0)
+"""
+    }
+
     private void writeMarker(ScriptRepository repository, Instant instant) {
         def repoDir = cacheRoot.resolve("My_scripts")
         Files.createDirectories(repoDir)

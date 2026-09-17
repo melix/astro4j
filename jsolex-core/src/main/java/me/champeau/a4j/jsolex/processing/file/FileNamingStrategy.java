@@ -20,6 +20,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.ser.Header;
 
+import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -108,6 +109,10 @@ public class FileNamingStrategy {
             }
         }
         return "unknown";
+    }
+
+    public Path logDirectory(Path outputDirectory, int sequenceNumber, String serFileBasename) {
+        return outputDirectory.resolve(render(sequenceNumber, null, "log", "log", serFileBasename, null)).getParent();
     }
 
     public String render(

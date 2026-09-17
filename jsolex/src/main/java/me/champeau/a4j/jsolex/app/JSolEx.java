@@ -88,6 +88,7 @@ import me.champeau.a4j.jsolex.app.jfx.BatchProcessingHelper;
 import me.champeau.a4j.jsolex.app.jfx.CustomTooltip;
 import me.champeau.a4j.jsolex.app.jfx.DocsHelper;
 import me.champeau.a4j.jsolex.app.jfx.EmbeddedServerController;
+import me.champeau.a4j.jsolex.app.jfx.ExplorerSupport;
 import me.champeau.a4j.jsolex.app.jfx.ExposureCalculator;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
 import me.champeau.a4j.jsolex.app.jfx.ImageMathEditor;
@@ -195,6 +196,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchEvent;
@@ -2515,6 +2518,34 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     }
 
     @FXML
+    private void openSharpCapScripts() {
+        try {
+            var directory = VersionUtil.getJsolexDir().resolve("sharpcap");
+            Files.createDirectories(directory);
+            try (var index = JSolEx.class.getResourceAsStream("/sharpcap/index.txt")) {
+                if (index == null) {
+                    throw new IllegalStateException("SharpCap scripts resource not found");
+                }
+                for (var name : new String(index.readAllBytes(), StandardCharsets.UTF_8).split("\n")) {
+                    var script = name.trim();
+                    if (script.isEmpty()) {
+                        continue;
+                    }
+                    try (var input = JSolEx.class.getResourceAsStream("/sharpcap/" + script)) {
+                        if (input == null) {
+                            throw new IllegalStateException("SharpCap script not found: " + script);
+                        }
+                        Files.copy(input, directory.resolve(script), StandardCopyOption.REPLACE_EXISTING);
+                    }
+                }
+            }
+            ExplorerSupport.openInExplorer(directory);
+        } catch (Exception e) {
+            AlertFactory.error(e.getMessage()).showAndWait();
+        }
+    }
+
+    @FXML
     private void exportPythonStubs() {
         var fileChooser = new FileChooser();
         fileChooser.setTitle(I18N.string(getClass(), "messages", "export.python.stubs.title"));
@@ -2889,7 +2920,8 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
 
     }
 
-    private ProgressOperation createRootOperation(String name) {
+    @Override
+    public ProgressOperation createRootOperation(String name) {
         var root = ProgressOperation.root(name, op -> {
             // This callback is called when a child of 'op' is removed
             if (op.hasNoChild() && op.parent() == null) {
@@ -3006,10 +3038,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             setFileCounts(FileCounts.SINGLE_FILE);
         }
         var baseName = selectedFile.getName().substring(0, selectedFile.getName().lastIndexOf("."));
-        var logFileName = namingStrategy.render(sequenceNumber, null, "log", "log", baseName, null) + LOG_EXTENSION;
-        var logFile = new File(outputDirectory, logFileName);
-        // For the log file we cannot _fully_ use the pattern since some data is not yet available (the file header)
-        logFile = new File(logFile.getParentFile(), String.format("%04d_%s" + LOG_EXTENSION, sequenceNumber, baseName));
+        var logFile = namingStrategy.logDirectory(outputDirectory.toPath(), sequenceNumber, baseName).resolve(String.format("%04d_%s" + LOG_EXTENSION, sequenceNumber, baseName)).toFile();
         if (context instanceof BatchProcessingContext ctx) {
             ctx.items().get(sequenceNumber).generatedFiles().add(logFile);
         }

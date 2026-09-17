@@ -47,6 +47,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
@@ -420,6 +421,18 @@ public class PythonScriptExecutor {
      * Otherwise, submits to the executor and acquires the lock there.
      * GraalPy cannot run on virtual threads, so we use platform threads.
      */
+    /**
+     * Runs a task with exclusive ownership of the Python context, so that the
+     * sequence of operations it performs (loading a script, then calling its
+     * functions) cannot be interleaved with operations from another executor.
+     *
+     * @param task the task to run
+     * @return the task result
+     */
+    public <T> T runExclusively(Supplier<T> task) {
+        return runUnderLock(task::get);
+    }
+
     private <T> T runUnderLock(Callable<T> task) {
         // If we already hold the lock (reentrant call from nested python()), execute directly
         if (CONTEXT_LOCK.isHeldByCurrentThread()) {
