@@ -17,21 +17,11 @@ package me.champeau.a4j.math.correlation
 
 import me.champeau.a4j.math.opencl.GPUImageCache
 import me.champeau.a4j.math.opencl.OpenCLContext
+import me.champeau.a4j.math.opencl.OpenCLSpecification
 import me.champeau.a4j.math.opencl.OpenCLSupport
 import spock.lang.Requires
-import spock.lang.Specification
 
-class CorrelationToolsTest extends Specification {
-
-    def setup() {
-        // GPU paths are gated on this property: without it the GPU tests
-        // would silently compare CPU against CPU
-        System.setProperty("opencl.enabled", "true")
-    }
-
-    def cleanup() {
-        System.clearProperty("opencl.enabled")
-    }
+class CorrelationToolsTest extends OpenCLSpecification {
 
     def "CPU phase correlation detects known shift"() {
         given:

@@ -18,20 +18,11 @@ package me.champeau.a4j.math.opencl
 import jdk.jfr.Recording
 import jdk.jfr.consumer.RecordingFile
 import spock.lang.Requires
-import spock.lang.Specification
 
 import java.nio.file.Files
 
 @Requires({ OpenCLSupport.isAvailable() })
-class GpuOperationEventTest extends Specification {
-
-    def setup() {
-        System.setProperty("opencl.enabled", "true")
-    }
-
-    def cleanup() {
-        System.clearProperty("opencl.enabled")
-    }
+class GpuOperationEventTest extends OpenCLSpecification {
 
     def "runOp emits a GpuOperation JFR event"() {
         given:

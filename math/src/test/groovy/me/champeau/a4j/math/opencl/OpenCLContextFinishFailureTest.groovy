@@ -16,7 +16,6 @@
 package me.champeau.a4j.math.opencl
 
 import spock.lang.Requires
-import spock.lang.Specification
 
 /**
  * Regression test for the silent-garbage class of bug in
@@ -42,7 +41,7 @@ import spock.lang.Specification
  * call site is a single inspectable line.
  */
 @Requires({ OpenCLSupport.isAvailable() })
-class OpenCLContextFinishFailureTest extends Specification {
+class OpenCLContextFinishFailureTest extends OpenCLSpecification {
 
     private OpenCLContext context
 

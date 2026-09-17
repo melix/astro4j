@@ -16,7 +16,6 @@
 package me.champeau.a4j.math.opencl
 
 import spock.lang.Requires
-import spock.lang.Specification
 
 import java.nio.FloatBuffer
 import java.util.concurrent.Executors
@@ -44,7 +43,7 @@ import static org.lwjgl.opencl.CL10.CL_MEM_READ_WRITE
  * bounded under arbitrary thread fan-out.
  */
 @Requires({ OpenCLSupport.isAvailable() })
-class OpenCLContextWriteCacheLeakTest extends Specification {
+class OpenCLContextWriteCacheLeakTest extends OpenCLSpecification {
 
     private OpenCLContext context
 

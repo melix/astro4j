@@ -16,7 +16,6 @@
 package me.champeau.a4j.math.opencl
 
 import spock.lang.Requires
-import spock.lang.Specification
 
 import java.util.function.Consumer
 
@@ -35,7 +34,7 @@ import static org.lwjgl.opencl.CL10.CL_MEM_READ_WRITE
  * its {@code close()} drains the queue via {@code clFinish}.
  */
 @Requires({ OpenCLSupport.isAvailable() })
-class GpuOpKernelLifetimeTest extends Specification {
+class GpuOpKernelLifetimeTest extends OpenCLSpecification {
 
     private static final String PROGRAM = "arithmetic"
     private static final String KERNEL = "add_scalar"

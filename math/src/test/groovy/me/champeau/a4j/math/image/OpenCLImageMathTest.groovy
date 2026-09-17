@@ -15,9 +15,9 @@
  */
 package me.champeau.a4j.math.image
 
+import me.champeau.a4j.math.opencl.OpenCLSpecification
 import me.champeau.a4j.math.opencl.OpenCLSupport
 import spock.lang.Requires
-import spock.lang.Specification
 
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicInteger
  * These tests verify that the OpenCL implementation produces correct results.
  */
 @Requires({ OpenCLSupport.isAvailable() })
-class OpenCLImageMathTest extends Specification {
+class OpenCLImageMathTest extends OpenCLSpecification {
 
     private OpenCLImageMath openclMath
     private ImageMath referenceMath
