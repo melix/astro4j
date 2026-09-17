@@ -48,7 +48,6 @@ import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
 import me.champeau.a4j.jsolex.processing.expr.impl.Loader;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.ConditionalFlip;
-import me.champeau.a4j.jsolex.processing.params.BandingCorrectionMethod;
 import me.champeau.a4j.jsolex.processing.params.EllipseFittingMode;
 import me.champeau.a4j.jsolex.processing.params.EnhancementParams;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
@@ -74,6 +73,7 @@ import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.sun.tasks.EllipseFittingTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.GeometryCorrector;
 import me.champeau.a4j.jsolex.processing.sun.workflow.AverageImage;
+import me.champeau.a4j.jsolex.processing.sun.workflow.BandingCorrectionChart;
 import me.champeau.a4j.jsolex.processing.sun.workflow.DefaultImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.DiscardNonRequiredImages;
 import me.champeau.a4j.jsolex.processing.sun.workflow.DopplerSupport;
@@ -711,12 +711,15 @@ public class SolexVideoProcessor implements Broadcaster {
     }
 
     private ProcessAwareImageEmitterFactory createImageEmitterFactory(List<WorkflowState> imageList, FileNamingStrategy imageNamingStrategy, String baseName) {
-        var ref = imageList.stream()
+        return new ProcessAwareImageEmitterFactory(findReferenceState(imageList), imageNamingStrategy, baseName);
+    }
+
+    private WorkflowState findReferenceState(List<WorkflowState> imageList) {
+        return imageList.stream()
                 .filter(i -> i.pixelShift() == processParams.spectrumParams().pixelShift())
                 .findFirst()
                 .or(() -> imageList.stream().filter(i -> !i.isInternal()).findFirst())
                 .orElse(imageList.getFirst());
-        return new ProcessAwareImageEmitterFactory(ref, imageNamingStrategy, baseName);
     }
 
     /*
@@ -782,6 +785,8 @@ public class SolexVideoProcessor implements Broadcaster {
         // the borders are detected once, on the line center reconstruction, so the
         // correction models are computed once and shared by all pixel shifts
         var correctionModels = computeCorrectionModels(imageList, initialFit.orElse(null), fps, imageEmitterFactory);
+        var referenceState = findReferenceState(imageList);
+        var debugEnabled = processParams.requestedImages().isEnabled(GeneratedImageKind.DEBUG);
         // Per-state preparation is independent across pixel shifts: each state
         // has its own emitter, results map, and metadata. Run them concurrently
         // when the heap can afford the parallel working set.
@@ -789,7 +794,8 @@ public class SolexVideoProcessor implements Broadcaster {
                     CancellationSupport.checkCancelled();
                     initialFit.ifPresent(e -> i.recordResult(WorkflowResults.INITIAL_ELLIPSE_FITTING, e));
                     double pg = ((double) progress.incrementAndGet()) / imageList.size();
-                    prepareImageForCorrections(i, header, initialFit.orElse(null), correctionModels);
+                    var debugEmitter = debugEnabled && i == referenceState ? imageEmitterFactory.newEmitter(this, outputDirectory) : null;
+                    prepareImageForCorrections(i, header, initialFit.orElse(null), correctionModels, debugEmitter);
                     broadcast(prepareOperation.update(pg));
                 });
         broadcast(prepareOperation.complete());
@@ -925,13 +931,13 @@ public class SolexVideoProcessor implements Broadcaster {
     private record CorrectionModels(OscillationCorrection.OscillationModel oscillationModel, JaggingCorrection.JaggingModel jaggingModel) {
     }
 
-    private void prepareImageForCorrections(WorkflowState state, Header header, Ellipse ellipse, CorrectionModels correctionModels) {
+    private void prepareImageForCorrections(WorkflowState state, Header header, Ellipse ellipse, CorrectionModels correctionModels, ImageEmitter debugEmitter) {
         ImageWrapper32 rotated;
         ImageWrapper32 reconstructed = maybeRemoveZeroPixels(state.reconstructed());
         state.recordResult(WorkflowResults.RECONSTRUCTED, reconstructed);
         reconstructed = reconstructed.copy();
         reconstructed.metadata().put(PixelShift.class, new PixelShift(state.pixelShift()));
-        performBandingCorrection(reconstructed, ellipse);
+        performBandingCorrection(reconstructed, ellipse, debugEmitter);
         if (ellipse != null) {
             if (correctionModels.oscillationModel() != null) {
                 OscillationCorrection.applyCorrection(reconstructed, correctionModels.oscillationModel());
@@ -982,43 +988,32 @@ public class SolexVideoProcessor implements Broadcaster {
         return reconstructed;
     }
 
-    private void performBandingCorrection(ImageWrapper32 reconstructed, Ellipse e) {
+    private void performBandingCorrection(ImageWrapper32 reconstructed, Ellipse e, ImageEmitter debugEmitter) {
         var operation = rootOperation.createChild(message("banding.correction"));
         broadcast(operation);
         // banding correction works horizontally, so we need to temporarily rotate the image
         var imageMath = ImageMath.newInstance();
         var rotated = imageMath.rotateLeft(reconstructed.asImage());
-        var bandingParams = processParams.bandingCorrectionParams().normalized();
-        var destripeParams = bandingParams.destripeParams();
+        var bandingParams = processParams.bandingCorrectionParams();
         var width = rotated.width();
         var height = rotated.height();
         var buffer = rotated.data();
         var ellipse = e != null ? e.rotate(-Math.PI / 2, reconstructed.width(), reconstructed.height(), width, height) : null;
-        var appliedPasses = BandingReduction.applySelected(
-                bandingParams,
-                width,
-                height,
-                buffer,
-                ellipse,
-                progress -> broadcast(operation.update(progress))
-        );
+        var passCorrections = new ArrayList<double[]>();
+        var passes = BandingReduction.applyBandingCorrection(bandingParams, width, height, buffer, ellipse, progress -> broadcast(operation.update(progress)), debugEmitter != null ? passCorrections::add : _ -> { });
         broadcast(operation.complete());
         // rotate back to original orientation
         rotated = imageMath.rotateRight(rotated);
         for (int y = 0; y < reconstructed.height(); y++) {
             System.arraycopy(rotated.data()[y], 0, reconstructed.data()[y], 0, reconstructed.width());
         }
-        if (appliedPasses > 0 && bandingParams.method() == BandingCorrectionMethod.DESTRIPE) {
-            TransformationHistory.recordTransform(reconstructed,
-                    "Destripe (band size: " + destripeParams.bandSize()
-                            + " passes: " + destripeParams.passes()
-                            + " strips: " + destripeParams.strips()
-                            + " ellipse mode: " + destripeParams.ellipseMode() + ")");
-        } else if (appliedPasses > 0) {
-            TransformationHistory.recordTransform(reconstructed,
-                    "Banding reduction (band size: " + bandingParams.width()
-                            + " passes: " + bandingParams.passes()
-                            + " ellipse mode: " + bandingParams.ellipseMode() + ")");
+        var transform = switch (bandingParams.method()) {
+            case BANDING_CORRECTION -> "Banding reduction (band size: " + bandingParams.width() + " passes: " + passes + ")";
+            case DESTRIPE -> "Destripe (band size: " + BandingReduction.destripeBandSize(bandingParams.destripeParams().bandSize(), height) + " passes: " + passes + ")";
+        };
+        TransformationHistory.recordTransform(reconstructed, transform);
+        if (debugEmitter != null) {
+            BandingCorrectionChart.emit(debugEmitter, bandingParams.method(), transform, passCorrections);
         }
     }
 

@@ -178,14 +178,10 @@ public final class ScriptProcessParamsOverrides {
         var result = params;
         for (var entry : flattenValues(overrides).entrySet()) {
             var path = entry.getKey();
-            if (!isValidEnumOverride(path, entry.getValue())) {
-                LOGGER.warn("Ignoring invalid process parameter override '{}'", path);
-                continue;
-            }
             var candidate = tree.deepCopy();
             putAtPath(candidate, path, entry.getValue());
             try {
-                var updated = ProcessParamsIO.normalize(gson.fromJson(candidate, ProcessParams.class));
+                var updated = gson.fromJson(candidate, ProcessParams.class);
                 if (getAtPath(gson.toJsonTree(updated).getAsJsonObject(), path) == null) {
                     LOGGER.warn("Ignoring unknown process parameter override '{}'", path);
                     continue;
@@ -197,21 +193,6 @@ public final class ScriptProcessParamsOverrides {
             }
         }
         return result;
-    }
-
-    private static boolean isValidEnumOverride(String path, JsonElement value) {
-        if (!"bandingCorrectionParams.method".equals(path)) {
-            return true;
-        }
-        if (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isString()) {
-            return false;
-        }
-        try {
-            BandingCorrectionMethod.valueOf(value.getAsString());
-            return true;
-        } catch (IllegalArgumentException ex) {
-            return false;
-        }
     }
 
     private static JsonElement getAtPath(JsonObject source, String path) {

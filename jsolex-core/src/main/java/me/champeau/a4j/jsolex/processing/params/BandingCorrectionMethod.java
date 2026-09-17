@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2023 the original author or authors.
+ * Copyright 2026-2026 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,11 @@
 package me.champeau.a4j.jsolex.processing.params;
 
 /**
- * Selects the one native stripe-removal algorithm used for a reconstruction.
+ * The algorithm used to correct transversal bands.
  */
 public enum BandingCorrectionMethod {
-    /** The historical multiplicative banding correction. */
+    /** Multiplies each line by the ratio between the band average and the line average. */
     BANDING_CORRECTION,
-    /** The additive multi-scale Destripe correction. */
+    /** Removes stripes additively, at successively finer scales. */
     DESTRIPE
 }

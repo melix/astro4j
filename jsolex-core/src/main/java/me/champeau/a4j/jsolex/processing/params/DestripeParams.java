@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2023 the original author or authors.
+ * Copyright 2026-2026 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,30 +16,41 @@
 package me.champeau.a4j.jsolex.processing.params;
 
 /**
- * Parameters for the additive, multi-scale stripe removal stage.
+ * Parameters of the destripe correction.
  *
- * <p>The defaults intentionally match the ImageMath invocation which is useful
- * for reconstructed Sol'Ex images.  Whether this algorithm is used is selected
- * by {@link BandingCorrectionParams#method()}, rather than being stored in this
- * parameter object.</p>
+ * @param bandSize the coarsest scale, in pixels, of the correction
+ * @param passes the number of passes, or -1 to iterate until convergence
  */
 public record DestripeParams(
         int bandSize,
-        int passes,
-        int strips,
-        int ellipseMode
+        int passes
 ) {
+    /**
+     * Default band size in pixels.
+     */
     public static final int DEFAULT_BAND_SIZE = 192;
-    public static final int DEFAULT_PASSES = -1;
-    public static final int DEFAULT_STRIPS = 1;
-    public static final int DEFAULT_ELLIPSE_MODE = 1;
 
     /**
-     * Returns the default parameters for the optional Destripe algorithm.
+     * Number of passes meaning that passes are repeated until convergence.
+     */
+    public static final int AUTOMATIC_PASSES = -1;
+
+    /**
+     * Default number of passes.
+     */
+    public static final int DEFAULT_PASSES = AUTOMATIC_PASSES;
+
+    /**
+     * Default number of passes when they are not automatic.
+     */
+    public static final int DEFAULT_MANUAL_PASSES = 2;
+
+    /**
+     * Returns the default destripe parameters.
      *
-     * @return default destripe parameters
+     * @return the default parameters
      */
     public static DestripeParams defaults() {
-        return new DestripeParams(DEFAULT_BAND_SIZE, DEFAULT_PASSES, DEFAULT_STRIPS, DEFAULT_ELLIPSE_MODE);
+        return new DestripeParams(DEFAULT_BAND_SIZE, DEFAULT_PASSES);
     }
 }

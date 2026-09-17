@@ -18,60 +18,25 @@ package me.champeau.a4j.jsolex.processing.params;
 /**
  * Parameters for banding correction processing.
  *
- * @param width the band width in pixels
- * @param passes the number of correction passes to apply
- * @param ellipseMode the region used by the correction (0 = whole line,
- *                    1 = inside disk, 2 = outside disk)
- * @param destripeParams parameters for the Destripe method
- * @param method the one native stripe-removal method to execute
+ * @param width the band width in pixels of the banding correction
+ * @param passes the number of passes of the banding correction
+ * @param destripeParams the parameters of the destripe correction
+ * @param method the correction algorithm to apply
  */
 public record BandingCorrectionParams(
         int width,
         int passes,
-        Integer ellipseMode,
         DestripeParams destripeParams,
         BandingCorrectionMethod method
 ) {
     /**
-     * Creates the legacy two-parameter form.  Keeping this constructor means
-     * callers and old script parameter overrides continue to compile, while
-     * the new fields use the same inside-disk defaults as the old native path.
+     * Creates banding correction parameters using the banding correction method.
+     *
+     * @param width the band width in pixels
+     * @param passes the number of correction passes to apply
      */
     public BandingCorrectionParams(int width, int passes) {
-        this(width, passes, 1, DestripeParams.defaults(), BandingCorrectionMethod.BANDING_CORRECTION);
-    }
-
-    /**
-     * Creates a banding configuration with an explicit ellipse mode.
-     */
-    public BandingCorrectionParams(int width, int passes, int ellipseMode) {
-        this(width, passes, ellipseMode, DestripeParams.defaults(), BandingCorrectionMethod.BANDING_CORRECTION);
-    }
-
-    /**
-     * Creates a configuration with explicit Destripe parameters and the
-     * historical method selected by default.
-     */
-    public BandingCorrectionParams(int width, int passes, int ellipseMode, DestripeParams destripeParams) {
-        this(width, passes, ellipseMode, destripeParams, BandingCorrectionMethod.BANDING_CORRECTION);
-    }
-
-    /**
-     * Normalizes fields which may be absent in JSON produced by older versions.
-     * Gson normally invokes this compact constructor for records, but callers
-     * which obtain a partially populated object can use the accessors below as
-     * a second line of defence.
-     */
-    public BandingCorrectionParams {
-        if (ellipseMode == null) {
-            ellipseMode = 1;
-        }
-        if (destripeParams == null) {
-            destripeParams = DestripeParams.defaults();
-        }
-        if (method == null) {
-            method = BandingCorrectionMethod.BANDING_CORRECTION;
-        }
+        this(width, passes, DestripeParams.defaults(), BandingCorrectionMethod.BANDING_CORRECTION);
     }
 
     /**
@@ -81,7 +46,7 @@ public record BandingCorrectionParams(
      * @return a new BandingCorrectionParams with the updated width
      */
     public BandingCorrectionParams withWidth(int width) {
-        return new BandingCorrectionParams(width, passes, ellipseMode(), destripeParams(), method());
+        return new BandingCorrectionParams(width, passes, destripeParams, method);
     }
 
     /**
@@ -91,35 +56,26 @@ public record BandingCorrectionParams(
      * @return a new BandingCorrectionParams with the updated passes
      */
     public BandingCorrectionParams withPasses(int passes) {
-        return new BandingCorrectionParams(width, passes, ellipseMode(), destripeParams(), method());
+        return new BandingCorrectionParams(width, passes, destripeParams, method);
     }
 
     /**
-     * Returns a copy with the selected ellipse mode.
-     */
-    public BandingCorrectionParams withEllipseMode(int ellipseMode) {
-        return new BandingCorrectionParams(width, passes, ellipseMode, destripeParams(), method());
-    }
-
-    /**
-     * Returns a copy with the selected destripe parameters.
+     * Returns a copy of this instance with the specified destripe parameters.
+     *
+     * @param destripeParams the new destripe parameters
+     * @return a new BandingCorrectionParams with the updated destripe parameters
      */
     public BandingCorrectionParams withDestripeParams(DestripeParams destripeParams) {
-        return new BandingCorrectionParams(width, passes, ellipseMode(), destripeParams, method());
+        return new BandingCorrectionParams(width, passes, destripeParams, method);
     }
 
     /**
-     * Returns a copy with the selected native algorithm.
+     * Returns a copy of this instance with the specified correction method.
+     *
+     * @param method the new correction method
+     * @return a new BandingCorrectionParams with the updated method
      */
     public BandingCorrectionParams withMethod(BandingCorrectionMethod method) {
-        return new BandingCorrectionParams(width, passes, ellipseMode(), destripeParams(), method);
-    }
-
-    /**
-     * Returns a normalized instance, useful after reflection-based JSON
-     * deserialization or script parameter overrides.
-     */
-    public BandingCorrectionParams normalized() {
-        return new BandingCorrectionParams(width, passes, ellipseMode(), destripeParams(), method());
+        return new BandingCorrectionParams(width, passes, destripeParams, method);
     }
 }

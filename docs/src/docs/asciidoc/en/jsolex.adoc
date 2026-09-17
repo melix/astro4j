@@ -143,10 +143,22 @@ For the CLAHE method, you can configure:
 
 The CLAHE (multi-scale) method runs CLAHE several times at tile sizes derived automatically from the solar disk diameter and averages the results. This greatly reduces the bright "ring" artifact that classic CLAHE can produce at the limb, while still enhancing local contrast at multiple scales. Only the clipping factor is configurable; tile sizes and histogram levels are chosen automatically.
 
-Next come the banding correction parameters, which allow to correct transversal bands which can appear on images, for example because of dust on the slit.
+Next come the transversallium correction parameters, which allow to correct transversal bands which can appear on images, for example because of dust on the slit.
+Two methods are available: banding correction, used by default, and stripe removal (destripe), which is more effective on strong or irregular stripes.
+Both methods only use the pixels of the solar disk.
+
+Banding correction has the following parameters:
 
 - Banding correction width: this is the width of the bands which are used in the transversallium correction algorithm. Bands are used to compute the average brightness of pixels in the band, then lines are corrected according the band they belong to.
 - Banding correction passes: the more passes you'll apply, the more lines should be corrected, at the cost of lower contrast images
+
+Stripe removal has the following parameters:
+
+- Automatic passes: when checked, passes are repeated until the stripes are removed.
+- Passes: the number of passes to perform when automatic passes are unchecked.
+- Width: the width, in pixels, of the widest stripes to remove. Structures wider than this are kept.
+
+When debug images are enabled, a graph is also generated, showing the correction applied at each position along the slit by each pass, and the total correction.
 
 You can then choose detail enhancement parameters.
 By default, no deconvolution is applied, but you can choose the deconvolution algorithm and its parameters.
@@ -811,6 +823,9 @@ The most useful ones are:
 |Parameter|Description
 |`bandingCorrectionParams.passes`|Number of banding correction passes. Use `0` to disable the correction.
 |`bandingCorrectionParams.width`|Band size, in pixels, of the banding correction.
+|`bandingCorrectionParams.method`|Banding correction method: `BANDING_CORRECTION` or `DESTRIPE`.
+|`bandingCorrectionParams.destripeParams.passes`|Number of stripe removal passes, `-1` to stop automatically.
+|`bandingCorrectionParams.destripeParams.bandSize`|Width, in pixels, of the widest stripes removed by the stripe removal.
 |`geometryParams.autocropMode`|Cropping: `OFF`, `RADIUS_1_1`, `RADIUS_1_2`, `RADIUS_1_5`, `SOURCE_WIDTH` or `FIXED_WIDTH`.
 |`geometryParams.fixedWidth`|Width used when `autocropMode` is `FIXED_WIDTH`.
 |===

@@ -263,37 +263,34 @@ class ProcessParamsIOBackwardCompatibilityTest extends Specification {
         ProcessParamsIO.createNewDefaults().spectrumParams().detectionMode() == LineDetectionMode.FREE_SEARCH
     }
 
-    def "legacy banding parameters keep the old method and default values"() {
+    def "legacy banding parameters use the banding correction method"() {
         given:
         def tempFile = Files.createTempFile("legacy-banding", ".json")
         tempFile.toFile().deleteOnExit()
-        tempFile.toFile().text = '''
+        tempFile.toFile().text = """
         {
           "bandingCorrectionParams": {
             "width": 24,
             "passes": 4
+            $method
           }
         }
-        '''
+        """
 
         when:
         def params = ProcessParamsIO.readFrom(tempFile)
 
         then:
-        params.bandingCorrectionParams().width() == 24
-        params.bandingCorrectionParams().passes() == 4
-        params.bandingCorrectionParams().ellipseMode() == 1
-        params.bandingCorrectionParams().method() == BandingCorrectionMethod.BANDING_CORRECTION
-        params.bandingCorrectionParams().destripeParams().bandSize() == DestripeParams.DEFAULT_BAND_SIZE
-        params.bandingCorrectionParams().destripeParams().passes() == DestripeParams.DEFAULT_PASSES
-        params.bandingCorrectionParams().destripeParams().strips() == DestripeParams.DEFAULT_STRIPS
-        params.bandingCorrectionParams().destripeParams().ellipseMode() == DestripeParams.DEFAULT_ELLIPSE_MODE
+        params.bandingCorrectionParams() == new BandingCorrectionParams(24, 4, DestripeParams.defaults(), BandingCorrectionMethod.BANDING_CORRECTION)
+
+        where:
+        method << ['', ', "method": "NOT_A_METHOD"']
     }
 
-    def "selected method and destripe parameters survive process parameter save and restore"() {
+    def "the banding correction method and destripe parameters are saved"() {
         given:
         def configured = ProcessParamsIO.createNewDefaults().withBandingCorrectionParams(
-                new BandingCorrectionParams(32, 1, 1, new DestripeParams(192, -1, 1, 1), BandingCorrectionMethod.DESTRIPE)
+                new BandingCorrectionParams(32, 1, new DestripeParams(96, 2), BandingCorrectionMethod.DESTRIPE)
         )
         def tempFile = Files.createTempFile("destripe-preset", ".json")
         tempFile.toFile().deleteOnExit()
@@ -301,64 +298,8 @@ class ProcessParamsIOBackwardCompatibilityTest extends Specification {
         when:
         ProcessParamsIO.saveTo(configured, tempFile.toFile())
         def restored = ProcessParamsIO.readFrom(tempFile)
-        def serialized = ProcessParamsIO.serializeToJson(configured)
 
         then:
-        restored.bandingCorrectionParams().width() == 32
-        restored.bandingCorrectionParams().passes() == 1
-        restored.bandingCorrectionParams().ellipseMode() == 1
-        restored.bandingCorrectionParams().method() == BandingCorrectionMethod.DESTRIPE
-        restored.bandingCorrectionParams().destripeParams() == new DestripeParams(192, -1, 1, 1)
-        serialized.contains('"method":"DESTRIPE"')
-        !serialized.contains('"destripeParams":{"enabled"')
-    }
-
-    def "the old experimental enabled flag cannot select destripe"() {
-        given:
-        def tempFile = Files.createTempFile("old-destripe-flag", ".json")
-        tempFile.toFile().deleteOnExit()
-        tempFile.toFile().text = '''
-        {
-          "bandingCorrectionParams": {
-            "width": 32,
-            "passes": 4,
-            "destripeParams": {
-              "enabled": true,
-              "bandSize": 192,
-              "passes": -1,
-              "strips": 1,
-              "ellipseMode": 1
-            }
-          }
-        }
-        '''
-
-        when:
-        def params = ProcessParamsIO.readFrom(tempFile)
-
-        then:
-        params.bandingCorrectionParams().method() == BandingCorrectionMethod.BANDING_CORRECTION
-        params.bandingCorrectionParams().destripeParams() == new DestripeParams(192, -1, 1, 1)
-    }
-
-    def "unknown method values fall back to the historical method"() {
-        given:
-        def tempFile = Files.createTempFile("unknown-banding-method", ".json")
-        tempFile.toFile().deleteOnExit()
-        tempFile.toFile().text = '''
-        {
-          "bandingCorrectionParams": {
-            "width": 24,
-            "passes": 4,
-            "method": "NOT_A_METHOD"
-          }
-        }
-        '''
-
-        when:
-        def params = ProcessParamsIO.readFrom(tempFile)
-
-        then:
-        params.bandingCorrectionParams().method() == BandingCorrectionMethod.BANDING_CORRECTION
+        restored.bandingCorrectionParams() == configured.bandingCorrectionParams()
     }
 }

@@ -356,88 +356,148 @@ class BandingReductionTest extends Specification {
         !hasNaN(data, width, height)
     }
 
-    def "native banding selection runs only the historical correction"() {
+    def "the banding correction method uses the pixels inside the disk"() {
         given:
         int width = 256
         int height = 192
-        def original = createDispatchImage(width, height)
+        def ellipse = createTestEllipse(width, height)
+        def original = createBandedImage(width, height)
         def expected = copyOf(original)
         def actual = copyOf(original)
-        def params = new BandingCorrectionParams(
-                32,
-                1,
-                1,
-                new DestripeParams(192, -1, 1, 1),
-                BandingCorrectionMethod.BANDING_CORRECTION
-        )
-
-        and: "the expected image contains only the ordinary correction"
-        BandingReduction.applyFixBanding(width, height, expected, 32, 1, null, BandingReduction.Mode.WHOLE_LINE)
+        def params = new BandingCorrectionParams(32, 2, new DestripeParams(192, -1), BandingCorrectionMethod.BANDING_CORRECTION)
+        BandingReduction.applyFixBanding(width, height, expected, 32, 2, ellipse, BandingReduction.Mode.INSIDE_DISK, { })
 
         when:
-        BandingReduction.applySelected(params, width, height, actual, null)
+        def passes = BandingReduction.applyBandingCorrection(params, width, height, actual, ellipse, { }, { })
 
         then:
-        maxDifference(expected, actual) < 1e-4
+        passes == 2
+        maxDifference(original, actual) > 0
+        maxDifference(expected, actual) == 0
     }
 
-    def "native destripe selection runs only Destripe even when ordinary passes are set"() {
+    def "the destripe method uses the pixels inside the disk"() {
         given:
         int width = 256
         int height = 192
-        def original = createDispatchImage(width, height)
+        def ellipse = createTestEllipse(width, height)
+        def original = createBandedImage(width, height)
         def expected = copyOf(original)
         def actual = copyOf(original)
-        def params = new BandingCorrectionParams(
-                32,
-                4,
-                1,
-                new DestripeParams(192, -1, 1, 1),
-                BandingCorrectionMethod.DESTRIPE
-        )
-
-        and: "the expected image contains only Destripe"
-        BandingReduction.applyDestripe(width, height, expected, 192, -1, 1, null, BandingReduction.Mode.WHOLE_LINE)
+        def params = new BandingCorrectionParams(32, 4, new DestripeParams(48, -1), BandingCorrectionMethod.DESTRIPE)
+        def expectedPasses = BandingReduction.applyDestripe(width, height, expected, 48, -1, 1, ellipse, BandingReduction.Mode.INSIDE_DISK, { })
 
         when:
-        BandingReduction.applySelected(params, width, height, actual, null)
+        def passes = BandingReduction.applyBandingCorrection(params, width, height, actual, ellipse, { }, { })
 
         then:
-        maxDifference(expected, actual) < 1e-4
+        passes == expectedPasses
+        maxDifference(original, actual) > 0
+        maxDifference(expected, actual) == 0
     }
 
-    def "zero passes disable the selected method without falling back to the other one"() {
+    def "zero passes disable the selected method"() {
         given:
         int width = 128
         int height = 128
-        def original = createDispatchImage(width, height)
-        def ordinaryDisabled = copyOf(original)
-        def destripeDisabled = copyOf(original)
-        def ordinaryParams = new BandingCorrectionParams(
-                32,
-                0,
-                1,
-                new DestripeParams(192, -1, 1, 1),
-                BandingCorrectionMethod.BANDING_CORRECTION
-        )
-        def destripeParams = new BandingCorrectionParams(
-                32,
-                4,
-                1,
-                new DestripeParams(192, 0, 1, 1),
-                BandingCorrectionMethod.DESTRIPE
-        )
+        def ellipse = createTestEllipse(width, height)
+        def original = createBandedImage(width, height)
+        def data = copyOf(original)
+        def params = new BandingCorrectionParams(32, bandingPasses, new DestripeParams(48, destripePasses), method)
 
         when:
-        BandingReduction.applySelected(ordinaryParams, width, height, ordinaryDisabled, null)
-        BandingReduction.applySelected(destripeParams, width, height, destripeDisabled, null)
+        BandingReduction.applyBandingCorrection(params, width, height, data, ellipse, { }, { })
 
         then:
-        maxDifference(original, ordinaryDisabled) == 0
-        maxDifference(original, destripeDisabled) == 0
+        maxDifference(original, data) == 0
+
+        where:
+        method                                     | bandingPasses | destripePasses
+        BandingCorrectionMethod.BANDING_CORRECTION | 0             | -1
+        BandingCorrectionMethod.DESTRIPE           | 4             | 0
     }
 
-    private static float[][] createDispatchImage(int width, int height) {
+    def "the banding correction reports the factor applied to each line"() {
+        given:
+        int width = 256
+        int height = 192
+        def data = createBandedImage(width, height)
+        def before = copyOf(data)
+        def reported = []
+
+        when:
+        BandingReduction.reduceBanding(width, height, data, 32, null, BandingReduction.Mode.WHOLE_LINE, { reported << it })
+
+        then:
+        reported.size() == 1
+        (0..<height).every { y ->
+            (0..<width).every { x -> Math.abs(data[y][x] / before[y][x] - reported[0][y]) < 1e-5 }
+        }
+    }
+
+    def "destripe reports the value added to each line"() {
+        given:
+        int width = 256
+        int height = 192
+        def data = createBandedImage(width, height)
+        def before = copyOf(data)
+        def reported = []
+
+        when:
+        BandingReduction.removeStripes(width, height, data, 48, null, BandingReduction.Mode.WHOLE_LINE, 1, { reported << it })
+
+        then:
+        reported.size() == 1
+        (0..<height).every { y ->
+            (0..<width).every { x -> Math.abs(data[y][x] - before[y][x] - reported[0][y]) < 0.05 }
+        }
+    }
+
+    def "each pass is reported and lines outside the disk are reported as not corrected"() {
+        given:
+        int width = 256
+        int height = 192
+        def ellipse = createTestEllipse(width, height)
+        def data = createBandedImage(width, height)
+        def params = new BandingCorrectionParams(32, 3, new DestripeParams(48, 2), method)
+        def reported = []
+
+        when:
+        BandingReduction.applyBandingCorrection(params, width, height, data, ellipse, { }, { reported << it })
+
+        then:
+        reported.size() == passes
+        reported.every { Double.isNaN(it[0]) && Double.isFinite(it[height.intdiv(2)]) }
+
+        where:
+        method                                     | passes
+        BandingCorrectionMethod.BANDING_CORRECTION | 3
+        BandingCorrectionMethod.DESTRIPE           | 2
+    }
+
+    def "progress is reported after each pass when the number of passes is known"() {
+        given:
+        int width = 256
+        int height = 192
+        def ellipse = createTestEllipse(width, height)
+        def data = createBandedImage(width, height)
+        def params = new BandingCorrectionParams(32, 4, new DestripeParams(48, destripePasses), method)
+        def progress = []
+
+        when:
+        BandingReduction.applyBandingCorrection(params, width, height, data, ellipse, { progress << it }, { })
+
+        then:
+        progress == expected
+
+        where:
+        method                                     | destripePasses | expected
+        BandingCorrectionMethod.BANDING_CORRECTION | -1             | [0.25d, 0.5d, 0.75d, 1d]
+        BandingCorrectionMethod.DESTRIPE           | 2              | [0.5d, 1d]
+        BandingCorrectionMethod.DESTRIPE           | -1             | []
+    }
+
+    private static float[][] createBandedImage(int width, int height) {
         def data = new float[height][width]
         for (int y = 0; y < height; y++) {
             double band = 600 * Math.sin(y / 5.0d) + 180 * Math.sin(y / 17.0d)

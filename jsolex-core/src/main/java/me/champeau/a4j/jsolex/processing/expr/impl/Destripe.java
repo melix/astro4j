@@ -42,7 +42,7 @@ public class Destripe extends AbstractFunctionImpl {
                 var width = image.width();
                 var height = image.height();
                 var data = image.data();
-                BandingReduction.applyDestripe(width, height, data, bandSize, passes, strips, ellipse.orElse(null), mode);
+                BandingReduction.applyDestripe(width, height, data, bandSize, passes, strips, ellipse.orElse(null), mode, _ -> { });
             } else {
                 throw new ProcessingException("destripe can only be applied to mono images");
             }

@@ -19,7 +19,9 @@ import ch.qos.logback.classic.Level;
 import io.micronaut.configuration.picocli.PicocliRunner;
 import io.micronaut.core.annotation.ReflectiveAccess;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
+import me.champeau.a4j.jsolex.processing.params.BandingCorrectionMethod;
 import me.champeau.a4j.jsolex.processing.params.BandingCorrectionParams;
+import me.champeau.a4j.jsolex.processing.params.DestripeParams;
 import me.champeau.a4j.jsolex.processing.params.ExtraParams;
 import me.champeau.a4j.jsolex.processing.params.GeometryParams;
 import me.champeau.a4j.jsolex.processing.params.ObservationDetails;
@@ -90,7 +92,7 @@ public class Main implements Runnable {
     @CommandLine.ArgGroup
     GeometryOptions geometryOptions = new GeometryOptions();
 
-    @CommandLine.ArgGroup
+    @CommandLine.ArgGroup(exclusive = false)
     BandingCorrectionOptions bandingCorrectionOptions = new BandingCorrectionOptions();
 
     /**
@@ -327,6 +329,15 @@ public class Main implements Runnable {
         @Option(names = {"-bcp", "--banding-correction-passes"}, description = "Banding correction passes")
         Integer passes;
 
+        @Option(names = {"-bcm", "--banding-correction-method"}, description = "Banding correction method: ${COMPLETION-CANDIDATES}")
+        BandingCorrectionMethod method;
+
+        @Option(names = {"-dsw", "--destripe-width"}, description = "Destripe band width")
+        Integer destripeWidth;
+
+        @Option(names = {"-dsp", "--destripe-passes"}, description = "Destripe passes, or -1 to stop automatically")
+        Integer destripePasses;
+
         @Override
         public BandingCorrectionParams applyTo(BandingCorrectionParams params) {
             var result = params;
@@ -335,6 +346,16 @@ public class Main implements Runnable {
             }
             if (passes != null) {
                 result = result.withPasses(passes);
+            }
+            if (method != null) {
+                result = result.withMethod(method);
+            }
+            if (destripeWidth != null || destripePasses != null) {
+                var destripe = result.destripeParams();
+                result = result.withDestripeParams(new DestripeParams(
+                        destripeWidth != null ? destripeWidth : destripe.bandSize(),
+                        destripePasses != null ? destripePasses : destripe.passes()
+                ));
             }
             return result;
         }

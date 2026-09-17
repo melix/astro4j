@@ -102,7 +102,7 @@ result = img(0)
         updated.spectrumParams() == params.spectrumParams()
     }
 
-    def "the native banding method can be overridden without resetting its parameters"() {
+    def "the banding correction method can be overridden"() {
         given:
         var params = ProcessParamsIO.createNewDefaults()
                 .withBandingCorrectionParams(new BandingCorrectionParams(24, 4))
@@ -112,10 +112,7 @@ meta {
         bandingCorrectionParams {
             method = "DESTRIPE"
             destripeParams {
-                bandSize = 192
-                passes = -1
-                strips = 1
-                ellipseMode = 1
+                bandSize = 96
             }
         }
     }
@@ -129,35 +126,7 @@ result = img(0)
         var updated = ScriptProcessParamsOverrides.apply(params, overrides)
 
         then:
-        updated.bandingCorrectionParams().method() == BandingCorrectionMethod.DESTRIPE
-        updated.bandingCorrectionParams().width() == 24
-        updated.bandingCorrectionParams().passes() == 4
-        updated.bandingCorrectionParams().destripeParams() == new DestripeParams(192, -1, 1, 1)
-    }
-
-    def "an invalid native banding method leaves the current selection unchanged"() {
-        given:
-        var params = ProcessParamsIO.createNewDefaults()
-                .withBandingCorrectionParams(new BandingCorrectionParams(24, 4)
-                        .withMethod(BandingCorrectionMethod.DESTRIPE))
-        var overrides = new ImageMathParameterExtractor().extractParameters("""
-meta {
-    overrides {
-        bandingCorrectionParams {
-            method = "NOT_A_METHOD"
-        }
-    }
-}
-
-[outputs]
-result = img(0)
-""", "script.math").processParamsOverrides
-
-        when:
-        var updated = ScriptProcessParamsOverrides.apply(params, overrides)
-
-        then:
-        updated.bandingCorrectionParams().method() == BandingCorrectionMethod.DESTRIPE
+        updated.bandingCorrectionParams() == new BandingCorrectionParams(24, 4, new DestripeParams(96, DestripeParams.DEFAULT_PASSES), BandingCorrectionMethod.DESTRIPE)
     }
 
     def "unknown parameters and invalid values are ignored"() {
@@ -184,6 +153,7 @@ result = img(0)
         declaration << [
                 'notAParamsGroup { passes = 0 }',
                 'geometryParams { autocropMode = "NOT_A_MODE" }',
+                'bandingCorrectionParams { method = "NOT_A_METHOD" }',
                 'geometryParams { notAParameter = 0 }',
                 'enhancementParams { jaggingCorrectionParams = "false" }'
         ]
