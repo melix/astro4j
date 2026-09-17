@@ -2,6 +2,7 @@
 
 ## Nouveautés de la version 5.5.0
 
+- En sélection manuelle de la raie, une longueur d'onde peut désormais être saisie directement à côté de la liste des raies, sans avoir à ajouter la raie à votre liste au préalable.
 - La recherche automatique sur le spectre complet prend désormais en compte les raies telluriques, ce qui la rend plus fiable dans la partie rouge du spectre.
 - L'explorateur de spectre identifie les images avec la même méthode que l'identification en direct, raies telluriques comprises, et peut afficher le spectre de référence tel qu'observé à travers l'atmosphère.
 - Le serveur web embarqué peut identifier les raies spectrales visibles dans la vue en direct de votre logiciel de capture, avec un script pour SharpCap, disponible dans le menu "Aide", qui les dessine par dessus l'image.

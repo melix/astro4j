@@ -100,7 +100,7 @@ La première section est la plus importante pour vos premiers scans, les autres 
 
 image::params-1-fr.jpg[]
 
-- la longueur d'onde d'observation: s'il n'est pas obligatoire de remplir ce champ, le faire vous permettra de bénéficier de la coloration automatique et de fonctionnalités avancées telles que les calculs de vitesse. En cliquant sur les "..." vous disposez de la possibilité d'ajouter vos propres raies si elles ne sont pas listées. En choisissant "Other" vous pouvez saisir directement la longueur d'onde, pour une raie que vous ne souhaitez pas conserver dans la liste. Il s'agit ici de la longueur d'onde de la raie la plus sombre de votre fenêtre de capture.
+- la longueur d'onde d'observation: s'il n'est pas obligatoire de remplir ce champ, le faire vous permettra de bénéficier de la coloration automatique et de fonctionnalités avancées telles que les calculs de vitesse. En cliquant sur les "..." vous disposez de la possibilité d'ajouter vos propres raies si elles ne sont pas listées. Le champ situé à côté de la liste vous permet de saisir directement une longueur d'onde en angströms, pour une raie que vous ne souhaitez pas conserver dans la liste : laissez-le vide pour utiliser la raie choisie dans la liste. Il s'agit ici de la longueur d'onde de la raie la plus sombre de votre fenêtre de capture.
 - Détection de la raie : la manière dont la raie observée est déterminée.
 « Sélection manuelle » utilise la longueur d'onde sélectionnée ci-dessus.
 « Recherche automatique sur les raies connues » la cherche parmi les raies listées.
