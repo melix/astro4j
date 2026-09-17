@@ -833,7 +833,12 @@ The search only answers when the identification is certain: a narrow capture win
 <p>The CLAHE (multi-scale) method runs CLAHE several times at tile sizes derived automatically from the solar disk diameter and averages the results. This greatly reduces the bright "ring" artifact that classic CLAHE can produce at the limb, while still enhancing local contrast at multiple scales. Only the clipping factor is configurable; tile sizes and histogram levels are chosen automatically.</p>
 </div>
 <div class="paragraph">
-<p>Next come the banding correction parameters, which allow to correct transversal bands which can appear on images, for example because of dust on the slit.</p>
+<p>Next come the transversallium correction parameters, which allow to correct transversal bands which can appear on images, for example because of dust on the slit.
+Two methods are available: banding correction, used by default, and stripe removal (destripe), which is more effective on strong or irregular stripes.
+Both methods only use the pixels of the solar disk.</p>
+</div>
+<div class="paragraph">
+<p>Banding correction has the following parameters:</p>
 </div>
 <div class="ulist">
 <ul>
@@ -844,6 +849,25 @@ The search only answers when the identification is certain: a narrow capture win
 <p>Banding correction passes: the more passes you&#8217;ll apply, the more lines should be corrected, at the cost of lower contrast images</p>
 </li>
 </ul>
+</div>
+<div class="paragraph">
+<p>Stripe removal has the following parameters:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Automatic passes: when checked, passes are repeated until the stripes are removed.</p>
+</li>
+<li>
+<p>Passes: the number of passes to perform when automatic passes are unchecked.</p>
+</li>
+<li>
+<p>Width: the width, in pixels, of the widest stripes to remove. Structures wider than this are kept.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>When debug images are enabled, a graph is also generated, showing the correction applied at each position along the slit by each pass, and the total correction.</p>
 </div>
 <div class="paragraph">
 <p>You can then choose detail enhancement parameters.
@@ -2013,6 +2037,18 @@ The most useful ones are:</p>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>bandingCorrectionParams.width</code></p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Band size, in pixels, of the banding correction.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>bandingCorrectionParams.method</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Banding correction method: <code>BANDING_CORRECTION</code> or <code>DESTRIPE</code>.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>bandingCorrectionParams.destripeParams.passes</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Number of stripe removal passes, <code>-1</code> to stop automatically.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>bandingCorrectionParams.destripeParams.bandSize</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Width, in pixels, of the widest stripes removed by the stripe removal.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>geometryParams.autocropMode</code></p></td>

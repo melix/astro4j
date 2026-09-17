@@ -831,7 +831,12 @@ La recherche ne répond que lorsque l&#8217;identification est certaine : une fe
 <p>La méthode CLAHE (multi-échelle) exécute plusieurs passes CLAHE à des tailles de tuiles déduites automatiquement du diamètre du disque solaire et en moyenne les résultats. Cela atténue fortement l'« anneau » brillant que la CLAHE classique peut produire au limbe, tout en rehaussant le contraste local à plusieurs échelles. Seul le facteur de clipping est configurable ; les tailles de tuiles et le nombre de niveaux sont choisis automatiquement.</p>
 </div>
 <div class="paragraph">
-<p>Viennent ensuite les paramètres de correction de bandes, qui permettent de corriger les bandes transversales qui peuvent apparaître sur les images par exemple à cause de poussières sur la fente.</p>
+<p>Viennent ensuite les paramètres de correction des transversalliums, qui permettent de corriger les bandes transversales qui peuvent apparaître sur les images par exemple à cause de poussières sur la fente.
+Deux méthodes sont disponibles : la correction de bandes, utilisée par défaut, et la suppression des stries (destripe), plus efficace sur les stries marquées ou irrégulières.
+Les deux méthodes n&#8217;utilisent que les pixels du disque solaire.</p>
+</div>
+<div class="paragraph">
+<p>La correction de bandes a les paramètres suivants :</p>
 </div>
 <div class="ulist">
 <ul>
@@ -842,6 +847,25 @@ La recherche ne répond que lorsque l&#8217;identification est certaine : une fe
 <p>Nombre de passes de correction de bande : plus vous ferez de passes, plus il sera possible de corriger de gros défauts, au prix d&#8217;une image moins contrastée et/ou moins lumineuse</p>
 </li>
 </ul>
+</div>
+<div class="paragraph">
+<p>La suppression des stries a les paramètres suivants :</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Passes automatiques : lorsque cette case est cochée, les passes sont répétées jusqu&#8217;à ce que les stries soient supprimées.</p>
+</li>
+<li>
+<p>Passes : le nombre de passes à effectuer lorsque les passes automatiques ne sont pas cochées.</p>
+</li>
+<li>
+<p>Largeur : la largeur, en pixels, des stries les plus larges à supprimer. Les structures plus larges sont conservées.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Lorsque les images de débogage sont activées, un graphique est également généré, montrant la correction appliquée à chaque position le long de la fente par chaque passe, ainsi que la correction totale.</p>
 </div>
 <div class="paragraph">
 <p>Vous pouvez ensuite choisir des paramètres d&#8217;accentuation des détails.</p>
@@ -2259,6 +2283,18 @@ Les plus utiles sont :</p>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>bandingCorrectionParams.width</code></p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Taille des bandes, en pixels, pour la correction des bandes.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>bandingCorrectionParams.method</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Méthode de correction des bandes : <code>BANDING_CORRECTION</code> ou <code>DESTRIPE</code>.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>bandingCorrectionParams.destripeParams.passes</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Nombre de passes de suppression des stries, <code>-1</code> pour s&#8217;arrêter automatiquement.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>bandingCorrectionParams.destripeParams.bandSize</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Largeur, en pixels, des stries les plus larges supprimées par la suppression des stries.</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>geometryParams.autocropMode</code></p></td>
