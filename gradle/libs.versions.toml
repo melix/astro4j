@@ -1,6 +1,6 @@
 [versions]
 slf4j-api = "2.0.18"
-logback = "1.5.38"
+logback = "1.6.3"
 commonmark = "0.30.0"
 commons-compress="1.28.0"
 commons-math = "3.6.1"
