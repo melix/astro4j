@@ -2,13 +2,13 @@
 
 ## Nouveautés de la version 5.5.0
 
+- Identification en direct des raies spectrales dans SharpCap : un script, disponible dans le menu "Aide", dessine les raies par dessus la vue en direct de vos images SharpCap, ce qui rend l'identification très simple. Consultez la documentation pour plus de détails.
+- L'identification des raies spectrales prend désormais en compte les raies telluriques, ce qui la rend plus précise.
 - En sélection manuelle de la raie, une longueur d'onde peut désormais être saisie directement à côté de la liste des raies, sans avoir à ajouter la raie à votre liste au préalable.
-- La recherche automatique sur le spectre complet prend désormais en compte les raies telluriques, ce qui la rend plus fiable dans la partie rouge du spectre.
 - L'explorateur de spectre identifie les images avec la même méthode que l'identification en direct, raies telluriques comprises, et peut afficher le spectre de référence tel qu'observé à travers l'atmosphère.
-- Le serveur web embarqué peut identifier les raies spectrales visibles dans la vue en direct de votre logiciel de capture, avec un script pour SharpCap, disponible dans le menu "Aide", qui les dessine par dessus l'image.
-- Le flou et l'accentuation ne tronquent plus les valeurs négatives ou supérieures au point blanc.
 - La suppression des stries (destripe) peut désormais être choisie à la place de la correction de bandes dans les paramètres de traitement : elle est plus efficace sur les transversalliums marqués. Contribution d'[icelin](https://github.com/nuan-xing).
 - JSol'Ex est désormais disponible en chinois. Contribution d'[icelin](https://github.com/nuan-xing).
+- Le flou et l'accentuation ne tronquent plus les valeurs négatives ou supérieures au point blanc.
 
 ## Nouveautés de la version 5.4.2
 
