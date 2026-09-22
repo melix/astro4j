@@ -73,6 +73,16 @@ def read_pixel_format():
     """The colour space of the camera, as SharpCap names it (MONO16, RGB24...)."""
     return str(cam.Controls.ColourSpace.Value).strip().upper()
 
+def read_frame_size(frame):
+    """Width and height of a captured frame. The camera exposes no ROI before
+    SharpCap 4.2, so the frame is asked first."""
+    try:
+        info = frame.Info
+        return int(info.Width), int(info.Height)
+    except AttributeError:
+        roi = cam.ROI
+        return int(roi.Width), int(roi.Height)
+
 def grab_frame(timeout=3.0):
     """Copies the next live frame into a byte array, straight from memory.
 
@@ -86,9 +96,7 @@ def grab_frame(timeout=3.0):
             return
         try:
             frame = args.Frame
-            roi = cam.ROI
-            width = int(roi.Width)
-            height = int(roi.Height)
+            width, height = read_frame_size(frame)
             pixel_format = read_pixel_format()
             bytes_per_pixel = BYTES_PER_PIXEL.get(pixel_format)
             if bytes_per_pixel is None:
