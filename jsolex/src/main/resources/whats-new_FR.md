@@ -1,5 +1,9 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+## Nouveautés de la version 5.5.1
+
+- Le script SharpCap d'identification en direct des raies spectrales fonctionne désormais avec SharpCap 4.1.
+
 ## Nouveautés de la version 5.5.0
 
 - Identification en direct des raies spectrales dans SharpCap : un script, disponible dans le menu "Aide", dessine les raies par dessus la vue en direct de vos images SharpCap, ce qui rend l'identification très simple. Consultez la documentation pour plus de détails.

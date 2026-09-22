@@ -1,5 +1,9 @@
 # Welcome to JSol'Ex {{version}}!
 
+## What's New in Version 5.5.1
+
+- The SharpCap script for live identification of spectral lines now works with SharpCap 4.1.
+
 ## What's New in Version 5.5.0
 
 - Live identification of spectral lines in SharpCap: a script is available from the "Help" menu which draws the lines over the live view of your SharpCap images, making identification a breeze. Please refer to the documentation for more details.
