@@ -110,17 +110,17 @@ tasks.named("check") {
     dependsOn("spotlessCheck")
 }
 
-val gatherLicenses by tasks.registering(GatherLicenseTask::class) {
+val gatherLicenses = tasks.register<GatherLicenseTask>("gatherLicenses") {
     configurations.add(project.configurations.runtimeClasspath)
     extraLicenseDir.set(rootProject.file("licenses"))
 }
 
-val generateLicense by tasks.registering(GenerateLicenseResourceFile::class) {
+val generateLicense = tasks.register<GenerateLicenseResourceFile>("generateLicense") {
     licensesDir.set(gatherLicenses.flatMap(GatherLicenseTask::licenseDir))
     outputFile.set(layout.buildDirectory.file("generated/resources/licenses/licenses.txt"))
 }
 
-val propertiesSanityCheck by tasks.registering(PropertiesFileSanityCheckTask::class) {
+val propertiesSanityCheck = tasks.register<PropertiesFileSanityCheckTask>("propertiesSanityCheck") {
     propertiesFiles.from(sourceSets.main.get().resources.asFileTree.filter { it.name.endsWith(".properties") })
 }
 
