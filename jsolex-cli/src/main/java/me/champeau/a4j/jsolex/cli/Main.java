@@ -19,6 +19,7 @@ import ch.qos.logback.classic.Level;
 import io.micronaut.configuration.picocli.PicocliRunner;
 import io.micronaut.core.annotation.ReflectiveAccess;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
+import me.champeau.a4j.jsolex.processing.expr.python.PythonScriptExecutor;
 import me.champeau.a4j.jsolex.processing.params.BandingCorrectionMethod;
 import me.champeau.a4j.jsolex.processing.params.BandingCorrectionParams;
 import me.champeau.a4j.jsolex.processing.params.DestripeParams;
@@ -80,6 +81,9 @@ public class Main implements Runnable {
     @Option(names = {"-c", "--config"}, description = "Read parameters from a JSON configuration file")
     File configFile;
 
+    @Option(names = {"--graalpy"}, description = "GraalPy executable to run Python scripts with (for example the graalpy of a virtual environment with numpy installed)")
+    File graalPy;
+
     @CommandLine.ArgGroup
     SpectrumOptions spectrumOptions = new SpectrumOptions();
 
@@ -110,6 +114,9 @@ public class Main implements Runnable {
         } else {
             logger("me.champeau.a4j.jsolex.processing").setLevel(Level.ERROR);
             logger("me.champeau.a4j.math").setLevel(Level.ERROR);
+        }
+        if (graalPy != null) {
+            PythonScriptExecutor.setGraalPyExecutable(graalPy.toPath());
         }
         var processParams = ProcessParams.loadDefaults();
         if (configFile != null) {
