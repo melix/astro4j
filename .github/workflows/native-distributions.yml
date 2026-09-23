@@ -26,7 +26,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build native binary
-        run: ./gradlew :jsolex-scripting:nativeZip
+        run: NATIVE_IMAGE_OPTIONS="$NATIVE_IMAGE_OPTIONS -J-Xms2g -J-Xmx10g" ./gradlew :jsolex-scripting:nativeZip
       - uses: shallwefootball/s3-upload-action@master
         with:
           aws_key_id: ${{ secrets.AWS_KEY_ID }}

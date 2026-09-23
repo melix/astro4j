@@ -24,11 +24,12 @@ abstract class GenerateLicenseResourceFile : DefaultTask() {
         val sb = StringBuilder()
         sb.append("This software uses other open source libraries which licenses are listed below:\n")
         val texts = File(licensesDir.asFile.get(), "texts")
-        texts.listFiles().forEach { groupId ->
-            groupId.listFiles().forEach { artifactId ->
+        texts.listFiles().sortedBy(File::getName).forEach { groupId ->
+            groupId.listFiles().sortedBy(File::getName).forEach { artifactId ->
                 sb.append("${groupId.name}:${artifactId.name}\n")
                 Files.walk(artifactId.toPath())
                     .filter(Path::isRegularFile)
+                    .sorted()
                     .forEach {
                         sb.append(it.fileName).append("\n")
                         sb.append(it.readText())

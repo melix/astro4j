@@ -12,15 +12,15 @@ repositories {
 
 dependencies {
     implementation("org.openjfx:javafx-plugin:0.1.0")
-    implementation("org.nosphere.apache:creadur-rat-gradle:0.8.1")
-    implementation("org.graalvm.buildtools:native-gradle-plugin:0.10.6")
-    implementation("org.beryx.jlink:org.beryx.jlink.gradle.plugin:3.1.3")
+    implementation("org.nosphere.apache:creadur-rat-gradle:0.11.0")
+    implementation("org.graalvm.buildtools:native-gradle-plugin:1.1.14")
+    implementation("org.beryx.jlink:org.beryx.jlink.gradle.plugin:4.1.1")
     implementation("org.javamodularity:moduleplugin:1.8.15")
     implementation("com.diffplug.spotless:spotless-plugin-gradle:7.2.1")
     implementation("com.github.vlsi.gradle:license-gather-plugin:4.0.0")
     implementation("io.micronaut.gradle:micronaut-gradle-plugin:4.6.2")
     implementation("io.github.gradle-nexus:publish-plugin:2.0.0")
-    implementation("org.asciidoctor:asciidoctor-gradle-jvm:4.0.5")
+    implementation("org.asciidoctor:asciidoctor5-jvm-core-plugin:5.0.0")
     implementation("org.ajoberstar:gradle-git-publish:3.0.0")
     implementation("org.yaml:snakeyaml:2.6")
 }

@@ -1,27 +1,41 @@
+import org.asciidoctor.gradle.model5.core.tasks.AsciidoctorTask
+
 plugins {
-    id("org.asciidoctor.jvm.convert")
+    id("org.asciidoctor.jvm")
     id("org.ajoberstar.git-publish")
 }
 
-tasks {
-    asciidoctor {
-        baseDirFollowsSourceDir()
-        resources {
-            from("src/docs/asciidoc/highlight") {
-                into("highlight")
+asciidoc {
+    publications {
+        named("main") {
+            sourceSet {
+                setSourceDir("src/docs/asciidoc")
+                missingIncludesAreFatal()
+                resources {
+                    include("**/*.png")
+                    include("**/*.jpg")
+                    include("**/*.webm")
+                }
+                docInfo {
+                    setDocInfoDir("src/docs/asciidoc")
+                }
             }
-            from("src/docs/asciidoc/css") {
-                into("css")
-            }
-            from("src/docs/asciidoc/js") {
-                into("js")
-            }
-            from("src/docs/asciidoc/shared") {
-                into("en")
-            }
-            from("src/docs/asciidoc/shared") {
-                into("fr")
-            }
+            output("asciidoctorj", "html")
+        }
+    }
+}
+
+abstract class FileOperations {
+    @get:Inject
+    abstract val fileSystemOperations: FileSystemOperations
+}
+
+tasks.named<AsciidoctorTask>("asciidoctorHtml") {
+    val fileSystemOperations = objects.newInstance<FileOperations>().fileSystemOperations
+    val outputDir = outputDir
+    doFirst {
+        fileSystemOperations.delete {
+            delete(outputDir)
         }
     }
 }
@@ -32,7 +46,7 @@ gitPublish {
     sign.set(false)
 
     contents {
-        from(tasks.asciidoctor) {
+        from(tasks.named("asciidoctorHtml")) {
             into(providers.provider { "$version" })
         }
     }

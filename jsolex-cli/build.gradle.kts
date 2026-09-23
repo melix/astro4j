@@ -22,6 +22,11 @@ dependencies {
 
 application {
     mainClass.set("me.champeau.a4j.jsolex.cli.Main")
+    applicationDefaultJvmArgs = applicationDefaultJvmArgs + listOf(
+        // Required by Apache Arrow, used to hand images to Python scripts
+        "--add-opens=java.base/java.nio=org.apache.arrow.memory.core",
+        "--add-opens=java.base/java.nio=ALL-UNNAMED"
+    )
 }
 
 graalvmNative {

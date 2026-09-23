@@ -1,6 +1,7 @@
 = Fonctions ImageMath
 Cédric Champeau
 :icons: font
+:lang: fr
 :docinfo: shared
 
 Cette page décrit les fonctions disponibles dans les scripts ImageMath.

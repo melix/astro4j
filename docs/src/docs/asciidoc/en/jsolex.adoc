@@ -528,7 +528,7 @@ Here's an example of a video:
 
 ++++
 <video width="100%" controls autoplay loop>
-  <source src="orig.webm" type="video/webm">
+  <source src="../shared/orig.webm" type="video/webm">
   Your browser does not support the video tag.
 </video>
 ++++
@@ -537,7 +537,7 @@ And the result after trimming:
 
 ++++
 <video width="100%" controls autoplay loop>
-  <source src="trimmed.webm" type="video/webm">
+  <source src="../shared/trimmed.webm" type="video/webm">
   Your browser does not support the video tag.
 </video>
 ++++

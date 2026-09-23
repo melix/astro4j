@@ -1,6 +1,7 @@
 = Scripting Python
 Cédric Champeau
 :icons: font
+:lang: fr
 :docinfo: shared
 :toc: left
 :toclevels: 3
