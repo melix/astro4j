@@ -74,18 +74,23 @@ var jpackageInstallers = tasks.register<Copy>("jpackageInstallers") {
     }
 }
 
-val jlinkTgz = tasks.register<Tar>("jlinkTgz") {
+val packageJlinkImage = Action<AbstractArchiveTask> {
     destinationDirectory.set(installersDir)
     mustRunAfter(tasks.jpackageImage, tasks.jpackage)
     from(tasks.jlink)
+    filesMatching(listOf("bin/**", "lib/jexec", "lib/jspawnhelper")) {
+        permissions { unix("rwxr-xr-x") }
+    }
+}
+
+val jlinkTgz = tasks.register<Tar>("jlinkTgz") {
+    packageJlinkImage.execute(this)
     setCompression(Compression.GZIP)
     archiveExtension.set("tar.gz")
 }
 
 val jlinkZipArchive = tasks.register<Zip>("jlinkZipArchive") {
-    destinationDirectory.set(installersDir)
-    mustRunAfter(tasks.jpackageImage, tasks.jpackage)
-    from(tasks.jlink)
+    packageJlinkImage.execute(this)
 }
 
 tasks.register("allDistributions") {

@@ -1,6 +1,7 @@
 = JSol'Ex
 Cédric Champeau
 :icons: font
+:lang: fr
 :docinfo: shared
 
 JSol'Ex est un traitement d'images solaires produites par l'intermédiaire du http://www.astrosurf.com/solex/[Sol'Ex de Christian Buil] ou d'autres spectrohéliographes comme le SHG 700 ou vos propres constructions.
@@ -1111,7 +1112,7 @@ Voici un exemple de résultat :
 
 ++++
 <video width="100%" controls autoplay loop>
-  <source src="orig.webm" type="video/webm">
+  <source src="../shared/orig.webm" type="video/webm">
   Your browser does not support the video tag.
 </video>
 ++++
@@ -1120,7 +1121,7 @@ Et la version réduite :
 
 ++++
 <video width="100%" controls autoplay loop>
-  <source src="trimmed.webm" type="video/webm">
+  <source src="../shared/trimmed.webm" type="video/webm">
   Your browser does not support the video tag.
 </video>
 ++++
