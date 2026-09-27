@@ -25,6 +25,9 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
+import javafx.scene.control.ListView;
+import javafx.scene.control.SelectionMode;
 import javafx.scene.control.Separator;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.SpinnerValueFactory;
@@ -32,6 +35,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.Window;
@@ -40,6 +44,8 @@ import me.champeau.a4j.jsolex.app.listeners.DifferentialRotationConfig;
 import me.champeau.a4j.jsolex.app.listeners.NoiseReductionMethod;
 import me.champeau.a4j.jsolex.app.listeners.SampleRejectionMethod;
 
+import java.io.File;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -58,10 +64,20 @@ public class DifferentialRotationConfigDialog {
     private final Spinner<Double> sigmaValueSpinner;
     private final ComboBox<NoiseReductionMethod> noiseReductionCombo;
     private final Label noiseDescLabel;
+    private final ListView<File> additionalScansList;
     private final Stage stage;
-    private final AtomicReference<DifferentialRotationConfig> result = new AtomicReference<>();
+    private final AtomicReference<Result> result = new AtomicReference<>();
 
-    public DifferentialRotationConfigDialog(Window owner, DifferentialRotationConfig currentConfig) {
+    /**
+     * The measurement configuration and the scans to combine with the current one.
+     *
+     * @param config the measurement configuration
+     * @param additionalScans the SER files of the additional scans
+     */
+    public record Result(DifferentialRotationConfig config, List<File> additionalScans) {
+    }
+
+    public DifferentialRotationConfigDialog(Window owner, DifferentialRotationConfig currentConfig, List<File> currentAdditionalScans, File initialDirectory) {
         stage = new Stage();
         stage.initOwner(owner);
         stage.initModality(Modality.APPLICATION_MODAL);
@@ -134,6 +150,41 @@ public class DifferentialRotationConfigDialog {
         updateNoiseDescription(noiseReductionCombo.getValue());
         noiseReductionCombo.valueProperty().addListener((obs, oldVal, newVal) -> updateNoiseDescription(newVal));
 
+        additionalScansList = new ListView<>();
+        additionalScansList.getItems().addAll(currentAdditionalScans);
+        additionalScansList.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+        additionalScansList.setPrefHeight(100);
+        additionalScansList.setCellFactory(list -> new ListCell<>() {
+            @Override
+            protected void updateItem(File item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item.getName());
+            }
+        });
+        var addScansButton = new Button(message("differential.rotation.config.scans.add"));
+        addScansButton.getStyleClass().add("default-button");
+        addScansButton.setOnAction(e -> {
+            var fileChooser = new FileChooser();
+            fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("SER", "*.ser", "*.SER"));
+            if (initialDirectory != null && initialDirectory.isDirectory()) {
+                fileChooser.setInitialDirectory(initialDirectory);
+            }
+            var files = fileChooser.showOpenMultipleDialog(stage);
+            if (files != null) {
+                files.stream()
+                    .filter(file -> !additionalScansList.getItems().contains(file))
+                    .forEach(additionalScansList.getItems()::add);
+            }
+        });
+        var removeScansButton = new Button(message("differential.rotation.config.scans.remove"));
+        removeScansButton.getStyleClass().add("default-button");
+        removeScansButton.setOnAction(e -> additionalScansList.getItems().removeAll(List.copyOf(additionalScansList.getSelectionModel().getSelectedItems())));
+        var scanButtons = new HBox(10, addScansButton, removeScansButton);
+        var scansHelpLabel = new Label(message("differential.rotation.config.scans.help"));
+        scansHelpLabel.setWrapText(true);
+        scansHelpLabel.getStyleClass().add("help-text");
+        scansHelpLabel.setMaxWidth(400);
+
         // Build content
         var content = new VBox(8);
         content.setPadding(new Insets(10));
@@ -152,6 +203,9 @@ public class DifferentialRotationConfigDialog {
         addRow(geometryGrid, 2, message("differential.rotation.config.longitude.step"), longitudeStepSpinner, "°", message("differential.rotation.config.longitude.step.tooltip"));
         addRow(geometryGrid, 3, message("differential.rotation.config.latitude.step"), latitudeStepSpinner, "°", message("differential.rotation.config.latitude.step.tooltip"));
         addRow(geometryGrid, 4, message("differential.rotation.config.voigt.halfwidth"), voigtFitHalfWidthSpinner, "Å", message("differential.rotation.config.voigt.halfwidth.tooltip"));
+
+        var scansLabel = new Label(message("differential.rotation.config.scans.section"));
+        scansLabel.getStyleClass().add("section-header");
 
         // Noise reduction section
         var noiseLabel = new Label(message("differential.rotation.config.noise.section"));
@@ -176,7 +230,12 @@ public class DifferentialRotationConfigDialog {
             new Separator(),
             noiseLabel,
             noiseGrid,
-            noiseDescLabel
+            noiseDescLabel,
+            new Separator(),
+            scansLabel,
+            scansHelpLabel,
+            additionalScansList,
+            scanButtons
         );
 
         root.setCenter(content);
@@ -221,7 +280,7 @@ public class DifferentialRotationConfigDialog {
                     return;
                 }
             }
-            result.set(config);
+            result.set(new Result(config, List.copyOf(additionalScansList.getItems())));
             stage.close();
         });
         ButtonBar.setButtonData(okButton, ButtonBar.ButtonData.OK_DONE);
@@ -315,13 +374,13 @@ public class DifferentialRotationConfigDialog {
         }
     }
 
-    public Optional<DifferentialRotationConfig> showAndWait() {
+    public Optional<Result> showAndWait() {
         stage.showAndWait();
         return Optional.ofNullable(result.get());
     }
 
-    public static Optional<DifferentialRotationConfig> show(Window owner, DifferentialRotationConfig currentConfig) {
-        var dialog = new DifferentialRotationConfigDialog(owner, currentConfig);
+    public static Optional<Result> show(Window owner, DifferentialRotationConfig currentConfig, List<File> currentAdditionalScans, File initialDirectory) {
+        var dialog = new DifferentialRotationConfigDialog(owner, currentConfig, currentAdditionalScans, initialDirectory);
         return dialog.showAndWait();
     }
 }

@@ -2,6 +2,8 @@
 
 ## What's New in Version 5.5.1
 
+- The differential rotation measurement no longer underestimates the solar rotation velocity, and its reference curve now takes Earth's motion into account.
+- The custom differential rotation measurement can combine several scans to reduce the uncertainties, which are now displayed.
 - The SharpCap script for live identification of spectral lines now works with SharpCap 4.1.
 
 ## What's New in Version 5.5.0

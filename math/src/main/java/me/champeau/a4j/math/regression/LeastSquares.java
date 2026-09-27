@@ -25,6 +25,8 @@ public final class LeastSquares {
     private final int terms;
     private final double[][] xtx;
     private final double[] xty;
+    private double yty;
+    private int count;
 
     public LeastSquares(int terms) {
         this.terms = terms;
@@ -37,6 +39,8 @@ public final class LeastSquares {
     }
 
     public void add(double[] basis, double value, double weight) {
+        yty += weight * value * value;
+        count++;
         for (int i = 0; i < terms; i++) {
             var wb = weight * basis[i];
             xty[i] += wb * value;
@@ -50,11 +54,7 @@ public final class LeastSquares {
      * @return the least-squares coefficients, or {@code null} if the system is singular or the solution is not finite
      */
     public double[] solve() {
-        for (int i = 1; i < terms; i++) {
-            for (int j = 0; j < i; j++) {
-                xtx[i][j] = xtx[j][i];
-            }
-        }
+        symmetrize();
         try {
             var rhs = new double[terms][1];
             for (int i = 0; i < terms; i++) {
@@ -71,6 +71,50 @@ public final class LeastSquares {
             return coeffs;
         } catch (Exception ex) {
             return null;
+        }
+    }
+
+    /**
+     * Computes the standard error of each coefficient, estimating the noise variance
+     * from the weighted residuals of the fit.
+     *
+     * @param coefficients the coefficients returned by {@link #solve()}
+     * @return the standard error of each coefficient, or {@code null} if there are not
+     * more samples than terms or the system is singular
+     */
+    public double[] standardErrors(double[] coefficients) {
+        if (count <= terms) {
+            return null;
+        }
+        symmetrize();
+        var residuals = yty;
+        for (int i = 0; i < terms; i++) {
+            residuals -= 2 * coefficients[i] * xty[i];
+            for (int j = 0; j < terms; j++) {
+                residuals += coefficients[i] * xtx[i][j] * coefficients[j];
+            }
+        }
+        var variance = Math.max(0, residuals) / (count - terms);
+        try {
+            var inverse = DoubleMatrix.of(xtx).inverse().asArray();
+            var errors = new double[terms];
+            for (int i = 0; i < terms; i++) {
+                errors[i] = Math.sqrt(variance * inverse[i][i]);
+                if (!Double.isFinite(errors[i])) {
+                    return null;
+                }
+            }
+            return errors;
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    private void symmetrize() {
+        for (int i = 1; i < terms; i++) {
+            for (int j = 0; j < i; j++) {
+                xtx[i][j] = xtx[j][i];
+            }
         }
     }
 }

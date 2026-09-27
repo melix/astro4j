@@ -38,6 +38,11 @@ import static me.champeau.a4j.jsolex.processing.util.Constants.message;
  * and computes an incremental average to produce a single averaged image.
  */
 public class AverageImageCreator {
+    /**
+     * Fraction of the brightest frame mean below which a frame is excluded from the average.
+     */
+    public static final float FRAME_INCLUSION_THRESHOLD = 0.5f;
+
     private static final int IO_PARALLELISM = Runtime.getRuntime().availableProcessors();
 
     private final ImageConverter<float[][]> imageConverter;
@@ -77,7 +82,7 @@ public class AverageImageCreator {
         int width = geometry.width();
         var progressOperation = rootOperation.createChild(limbDetectionMessage);
         var maxMean = findMaxMeanBySampling(reader, frameCount, progressOperation, geometry, imageMath);
-        var threshold = 0.5f * maxMean;
+        var threshold = FRAME_INCLUSION_THRESHOLD * maxMean;
 
         // Per-thread sum accumulators (double precision to avoid overflow) to eliminate lock contention
         var accumulators = new ConcurrentLinkedQueue<double[][]>();
