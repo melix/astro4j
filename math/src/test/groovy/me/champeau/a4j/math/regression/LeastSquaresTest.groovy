@@ -57,4 +57,35 @@ class LeastSquaresTest extends Specification {
         expect:
         fit.solve() == null
     }
+
+    def "standard errors match the textbook formulas of a straight line fit"() {
+        given:
+        def xs = [0d, 1d, 2d, 3d, 4d, 5d]
+        def ys = [3.4d, 4.7d, 7.3d, 8.8d, 11.2d, 12.9d]
+        def fit = new LeastSquares(2)
+        xs.eachWithIndex { x, i -> fit.add([1d, x] as double[], ys[i]) }
+
+        when:
+        double[] c = fit.solve()
+        double[] errors = fit.standardErrors(c)
+
+        then:
+        def n = xs.size()
+        def meanX = xs.sum() / n
+        def sxx = xs.collect { (it - meanX) * (it - meanX) }.sum()
+        def rss = (0..<n).collect { def r = ys[it] - c[0] - c[1] * xs[it]; r * r }.sum()
+        def variance = rss / (n - 2)
+        Math.abs(errors[1] - Math.sqrt(variance / sxx)) < 1e-9
+        Math.abs(errors[0] - Math.sqrt(variance * (1 / n + meanX * meanX / sxx))) < 1e-9
+    }
+
+    def "standard errors are unavailable without more samples than terms"() {
+        given:
+        def fit = new LeastSquares(2)
+        fit.add([1d, 0d] as double[], 1d)
+        fit.add([1d, 1d] as double[], 2d)
+
+        expect:
+        fit.standardErrors(fit.solve()) == null
+    }
 }

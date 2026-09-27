@@ -61,6 +61,7 @@ import javafx.scene.shape.Line;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
+import javafx.scene.text.TextAlignment;
 import javafx.scene.text.TextFlow;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -149,7 +150,6 @@ import me.champeau.a4j.jsolex.processing.util.Wavelen;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.regression.Ellipse;
-import me.champeau.a4j.math.regression.LinearRegression;
 import me.champeau.a4j.ser.Header;
 import me.champeau.a4j.ser.SerFileReader;
 import org.slf4j.Logger;
@@ -173,7 +173,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
@@ -181,13 +180,21 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import java.util.function.DoubleConsumer;
 import java.util.function.DoubleUnaryOperator;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
 import static me.champeau.a4j.jsolex.app.jfx.FXUtils.newModalStage;
+import static me.champeau.a4j.jsolex.app.listeners.DifferentialRotationMeasurement.ROTATION_PROFILE_MAX_LAT_DEG;
+import static me.champeau.a4j.jsolex.app.listeners.DifferentialRotationMeasurement.ROTATION_PROFILE_MIN_LAT_DEG;
+import static me.champeau.a4j.jsolex.app.listeners.DifferentialRotationMeasurement.ROTATION_PROFILE_MIN_RETAINED_FRACTION;
+import static me.champeau.a4j.jsolex.app.listeners.DifferentialRotationMeasurement.SNODGRASS_A;
+import static me.champeau.a4j.jsolex.app.listeners.DifferentialRotationMeasurement.SNODGRASS_B;
+import static me.champeau.a4j.jsolex.app.listeners.DifferentialRotationMeasurement.SNODGRASS_C;
+import static me.champeau.a4j.jsolex.app.listeners.DifferentialRotationMeasurement.snodgrassAngularVelocity;
+import static me.champeau.a4j.jsolex.app.listeners.DifferentialRotationMeasurement.snodgrassVelocity;
+import static me.champeau.a4j.jsolex.app.listeners.DifferentialRotationMeasurement.velocityToAngularVelocity;
 import static me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelper.computeSerFileBasename;
 
 /**
@@ -205,40 +212,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private static final String COLOR_FRAME = "#9a42c8";
     private static final String COLOR_LINE = "#c84164";
     private static final int BINS = 256;
-    private static final double SPEED_OF_LIGHT_KM_S = 299792.458;
-    private static final double SOLAR_RADIUS_KM = 696000.0;
-    // Snodgrass & Ulrich (1990) differential rotation coefficients
-    // ω(φ) = A + B·sin²(φ) + C·sin⁴(φ) deg/day
-    private static final double SNODGRASS_A = 14.713;
-    private static final double SNODGRASS_B = -2.396;
-    private static final double SNODGRASS_C = -1.787;
-
-    /**
-     * Minimum heliographic latitude (degrees) for the rotation profile scan.
-     */
-    private static final double ROTATION_PROFILE_MIN_LAT_DEG = -60;
-    /**
-     * Maximum heliographic latitude (degrees) for the rotation profile scan.
-     */
-    private static final double ROTATION_PROFILE_MAX_LAT_DEG = 60;
-    /**
-     * Maximum plausible measured velocity (km/s). Points exceeding this
-     * threshold are discarded as outliers (e.g. failed Voigt fits).
-     */
-    private static final double ROTATION_PROFILE_MAX_VELOCITY_KM_S = 10.0;
-    /**
-     * Number of pixel columns averaged on each side of the target column when
-     * extracting a spectral profile from the reconstructed image. A radius of 2
-     * means 5 columns are averaged (target ± 2), which reduces noise.
-     */
-    private static final int ROTATION_PROFILE_COLUMN_AVERAGING_RADIUS = 4;
-
-    // Voigt fit is more robust for rotation profile measurement
-    private static final DopplerMeasurementMethod ROTATION_PROFILE_DOPPLER_METHOD = DopplerMeasurementMethod.VOIGT_FIT;
-
-    // Record to hold velocity measurement with its position data for weighted averaging
-    private record VelocityMeasurement(double velocity, double longitudeFraction) {
-    }
 
     private final Map<SuggestionEvent.SuggestionKind, String> suggestions = Collections.synchronizedMap(new LinkedHashMap<>());
     private final Map<Double, ReconstructionView> imageViews;
@@ -295,6 +268,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private Button measureVelocityButton;
     private Button customMeasurementButton;
     private DifferentialRotationConfig differentialRotationConfig = DifferentialRotationConfig.defaultConfig();
+    private List<File> additionalRotationScans = List.of();
     private final Spectral3DVisualizationHelper spectral3DHelper;
 
     /**
@@ -1141,50 +1115,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         });
     }
 
-
-    private void generateRotationProfileChart(AverageImageComputedEvent.AverageImage payload,
-                                              ReferenceCoords refCoords, Ellipse ellipse, SolarParameters solarParams) {
-        var params = payload.adjustedParams();
-        var lambda0 = params.spectrumParams().ray().wavelength();
-        var binning = params.observationDetails().binning();
-        var pixelSize = params.observationDetails().pixelSize();
-        var canCalibrate = binning != null && pixelSize != null && lambda0.nanos() > 0 && pixelSize > 0 && binning > 0;
-
-        if (!canCalibrate) {
-            LOGGER.warn("Cannot generate rotation profile: wavelength calibration not available");
-            return;
-        }
-
-        var dispersion = SpectrumAnalyzer.computeSpectralDispersion(params.observationDetails().instrument(), lambda0, pixelSize * binning);
-
-        var centerX = ellipse.center().a();
-        var centerY = ellipse.center().b();
-        var radius = (ellipse.semiAxis().a() + ellipse.semiAxis().b()) / 2d;
-        var b0 = solarParams.b0();
-        var angleP = solarParams.p();
-
-        LOGGER.info("=== AUTO ROTATION PROFILE ===");
-        LOGGER.info("Lambda0: {} Å, Dispersion: {} Å/pixel", lambda0.angstroms(), dispersion.angstromsPerPixel());
-
-        var polynomial = payload.polynomial();
-        var start = payload.leftBorder();
-        var end = payload.rightBorder();
-        var height = payload.image().height();
-        var range = PixelShiftRange.computePixelShiftRange(start, end, height, polynomial);
-
-        // Check for HFLIP/VFLIP to determine actual image orientation
-        var hasHFlip = refCoords.operations().stream()
-                .anyMatch(op -> op.kind() == ReferenceCoords.OperationKind.HFLIP);
-        var hasVFlip = refCoords.operations().stream()
-                .anyMatch(op -> op.kind() == ReferenceCoords.OperationKind.VFLIP);
-
-        // Longitude sign convention: East limb = negative longitude, West limb = positive
-        // After LEFT_ROTATION without HFLIP: orientation is mirrored, so signs swap
-        var eastLonSign = hasHFlip ? -1 : 1;
-        // Latitude sign: VFLIP swaps north/south, so we need to negate latitude
-        var latSign = hasVFlip ? -1 : 1;
-
-        // Show progress dialog
+    private void generateRotationProfileChart(DifferentialRotationMeasurement.Scan currentScan, List<File> additionalSerFiles) {
+        var currentParams = currentScan.averageImage().adjustedParams();
+        var baseParams = params;
         var progressBar = new ProgressBar(0);
         progressBar.setPrefWidth(300);
         var progressLabel = new Label(message("doppler.computing.rotation.profile"));
@@ -1198,227 +1131,72 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         progressStage.setResizable(false);
         progressStage.show();
 
-        // Run computation on a background thread
         var config = differentialRotationConfig;
+        var serFiles = new ArrayList<File>();
+        serFiles.add(currentScan.serFile());
+        serFiles.addAll(additionalSerFiles);
         Thread.startVirtualThread(() -> {
-            var velocityData = computeRotationProfile(
-                    refCoords, range, polynomial, start, end, height,
-                    lambda0, dispersion, centerX, centerY, radius, b0, angleP, eastLonSign, latSign,
-                    config,
-                    progress -> FxUtils.runLater(() -> progressBar.setProgress(progress))
-            );
-
+            var scans = new ArrayList<List<double[]>>();
+            var ignoredScans = new ArrayList<String>();
+            var orientationIssue = false;
+            for (int i = 0; i < serFiles.size(); i++) {
+                var index = i;
+                var serFile = serFiles.get(i);
+                if (serFiles.size() > 1) {
+                    FxUtils.runLater(() -> {
+                        progressLabel.setText(String.format(message("doppler.computing.rotation.profile.scan"), index + 1, serFiles.size(), serFile.getName()));
+                        progressBar.setProgress((double) index / serFiles.size());
+                    });
+                }
+                var scan = i == 0 ? Optional.of(currentScan) : DifferentialRotationMeasurement.processScan(serFile, baseParams, outputDirectory, Configuration.getInstance().getMemoryRestrictionMultiplier(), rootOperation, this::onEllipseFittingRequest);
+                var points = scan.map(s -> DifferentialRotationMeasurement.measure(s, config,
+                                progress -> FxUtils.runLater(() -> progressBar.setProgress((index + progress) / serFiles.size()))))
+                        .orElse(List.of());
+                if (scan.isPresent() && !points.isEmpty()) {
+                    logScanRotationProfile(scan.get(), points, config);
+                }
+                if (points.isEmpty()) {
+                    ignoredScans.add(serFile.getName());
+                } else if (DifferentialRotationMeasurement.computeRetainedRotationFraction(points) < ROTATION_PROFILE_MIN_RETAINED_FRACTION) {
+                    orientationIssue = true;
+                    ignoredScans.add(serFile.getName());
+                } else {
+                    scans.add(points);
+                }
+            }
+            var singleScanOrientationIssue = serFiles.size() == 1 && orientationIssue;
             FxUtils.runLater(() -> {
                 progressStage.close();
-                if (!velocityData.isEmpty()) {
-                    showRotationProfileChart(velocityData, params);
+                if (singleScanOrientationIssue) {
+                    new Alert(Alert.AlertType.WARNING, message("doppler.rotation.scan.orientation")).showAndWait();
+                } else if (serFiles.size() > 1 && !ignoredScans.isEmpty()) {
+                    new Alert(Alert.AlertType.WARNING, String.format(message("doppler.rotation.scans.ignored"), String.join(", ", ignoredScans))).showAndWait();
+                }
+                if (!scans.isEmpty()) {
+                    showRotationProfileChart(scans, currentParams, config);
                 }
             });
         });
     }
 
-    private List<double[]> computeRotationProfile(ReferenceCoords refCoords,
-                                                  PixelShiftRange range, DoubleUnaryOperator polynomial,
-                                                  int start, int end, int height,
-                                                  Wavelen lambda0, Dispersion dispersion,
-                                                  double centerX, double centerY, double radius,
-                                                  double b0, double angleP, int eastLonSign, int latSign,
-                                                  DifferentialRotationConfig config,
-                                                  DoubleConsumer progressCallback) {
-        var velocityData = new ArrayList<double[]>();
-        int totalPoints = 0;
-
-        var limbLongitude = config.limbLongitudeDeg();
-        var longitudeHalfRange = config.longitudeHalfRangeDeg();
-        var longitudeStep = config.longitudeStepDeg();
-        var latitudeStep = config.latitudeStepDeg();
-
-        var lonMin = limbLongitude - longitudeHalfRange;
-        var lonMax = limbLongitude + longitudeHalfRange;
-        var totalLatSteps = (int) ((ROTATION_PROFILE_MAX_LAT_DEG - ROTATION_PROFILE_MIN_LAT_DEG) / latitudeStep) + 1;
-        var measurementsByLat = new TreeMap<Integer, List<VelocityMeasurement>>();
-
-        var measurement = ROTATION_PROFILE_DOPPLER_METHOD.createMeasurement(config.voigtFitHalfWidthAngstroms());
-        try (var reader = SerFileReader.of(serFile)) {
-            var totalFrames = reader.header().frameCount();
-
-            for (double latDeg = ROTATION_PROFILE_MIN_LAT_DEG; latDeg <= ROTATION_PROFILE_MAX_LAT_DEG; latDeg += latitudeStep) {
-                totalPoints++;
-                progressCallback.accept((double) totalPoints / totalLatSteps);
-                // Apply latSign to account for VFLIP: if image is vertically flipped, north/south are swapped
-                var effectiveLatDeg = latSign * latDeg;
-                var latRad = Math.toRadians(effectiveLatDeg);
-                var colatitude = Math.PI / 2 - latRad;
-
-                for (double lonDeg = lonMin; lonDeg <= lonMax; lonDeg += longitudeStep) {
-                    var eastLonRad = Math.toRadians(eastLonSign * lonDeg);
-                    var westLonRad = Math.toRadians(-eastLonSign * lonDeg);
-
-                    var eastCoords = computeSphereCoords(eastLonRad, colatitude, radius, b0, angleP);
-                    var eastImgX = (int) Math.round(centerX + eastCoords[0]);
-                    var eastImgY = (int) Math.round(centerY + eastCoords[1]);
-
-                    var westCoords = computeSphereCoords(westLonRad, colatitude, radius, b0, angleP);
-                    var westImgX = (int) Math.round(centerX + westCoords[0]);
-                    var westImgY = (int) Math.round(centerY + westCoords[1]);
-
-                    var eastOrig = refCoords.determineOriginalCoordinates(new Point2D(eastImgX, eastImgY), ReferenceCoords.NO_LIMIT);
-                    var westOrig = refCoords.determineOriginalCoordinates(new Point2D(westImgX, westImgY), ReferenceCoords.NO_LIMIT);
-
-                    var eastColumn = (int) Math.round(eastOrig.x());
-                    var eastFrame = (int) Math.round(eastOrig.y());
-                    var westColumn = (int) Math.round(westOrig.x());
-                    var westFrame = (int) Math.round(westOrig.y());
-
-                    if (eastFrame < 0 || eastFrame >= totalFrames || westFrame < 0 || westFrame >= totalFrames) {
-                        continue;
-                    }
-
-                    var eastFrameData = readFrameData(reader, eastFrame);
-                    if (eastFrameData == null) {
-                        continue;
-                    }
-
-                    var westFrameData = readFrameData(reader, westFrame);
-                    if (westFrameData == null) {
-                        continue;
-                    }
-
-                    var eastProfile = extractPointProfile(eastColumn, eastFrameData, range, polynomial, lambda0, dispersion, true, ROTATION_PROFILE_COLUMN_AVERAGING_RADIUS);
-                    var westProfile = extractPointProfile(westColumn, westFrameData, range, polynomial, lambda0, dispersion, true, ROTATION_PROFILE_COLUMN_AVERAGING_RADIUS);
-
-                    if (eastProfile.isEmpty() || westProfile.isEmpty()) {
-                        continue;
-                    }
-
-                    var eastCenter = measurement.measureLineCenter(eastProfile);
-                    var westCenter = measurement.measureLineCenter(westProfile);
-                    if (eastCenter.isEmpty() || westCenter.isEmpty()) {
-                        continue;
-                    }
-                    var dopplerShiftAngstroms = westCenter.getAsDouble() - eastCenter.getAsDouble();
-
-                    var measuredVelocity = (dopplerShiftAngstroms / lambda0.angstroms()) * SPEED_OF_LIGHT_KM_S / 2.0;
-
-                    var cosLat = Math.cos(latRad);
-                    var sinLon = Math.sin(Math.toRadians(lonDeg));
-                    var geometryFactor = cosLat * sinLon;
-                    if (Math.abs(geometryFactor) > 0.1) {
-                        var equatorialVelocity = Math.abs(measuredVelocity / geometryFactor);
-                        if (equatorialVelocity < ROTATION_PROFILE_MAX_VELOCITY_KM_S) {
-                            var latBin = (int) latDeg;
-                            // longitudeFraction: 0 at limb (best accuracy), 1 at meridian (worst)
-                            var longitudeFraction = 1.0 - Math.abs(lonDeg) / limbLongitude;
-                            measurementsByLat.computeIfAbsent(latBin, k -> new ArrayList<>())
-                                    .add(new VelocityMeasurement(equatorialVelocity, longitudeFraction));
-                        }
-                    }
-                }
-            }
-        } catch (Exception ex) {
-            LOGGER.error("Error reading SER file for rotation profile", ex);
-            return List.of();
-        }
-
-        var sampleRejection = config.sampleRejectionMethod();
-        var noiseReduction = config.noiseReductionMethod();
-
-        for (var entry : measurementsByLat.entrySet()) {
-            var latBin = entry.getKey();
-            var measurements = entry.getValue();
-            var velocities = measurements.stream().map(VelocityMeasurement::velocity).toList();
-            // For weighted average: weight = 1 - longitudeFraction (higher weight at limb)
-            var weights = measurements.stream()
-                    .map(m -> 1.0 - m.longitudeFraction())
-                    .toList();
-            // Apply sample rejection before aggregation
-            var filtered = sampleRejection.filter(velocities, weights);
-            var result = noiseReduction.aggregate(filtered.velocities(), filtered.weights());
-            velocityData.add(new double[]{latBin, result.value(), result.error()});
-        }
-
-        if (velocityData.isEmpty()) {
-            LOGGER.warn("No valid velocity measurements obtained");
-            return List.of();
-        }
-
-        return applyLatitudeSmoothingFilter(velocityData, config.smoothingWindowDeg(), noiseReduction);
+    private static void logScanRotationProfile(DifferentialRotationMeasurement.Scan scan, List<double[]> points, DifferentialRotationConfig config) {
+        var coeffs = DifferentialRotationMeasurement.fit(List.of(points), config);
+        var solarParams = scan.solarParameters();
+        LOGGER.info(String.format(Locale.US, "Rotation profile of %s (%s): P = %.2f°, B0 = %.2f°, retained fraction = %.3f, A = %.3f ± %.3f, B = %.3f ± %.3f, C = %.3f ± %.3f",
+                scan.serFile().getName(),
+                scan.averageImage().adjustedParams().observationDetails().date(),
+                Math.toDegrees(solarParams.p()),
+                Math.toDegrees(solarParams.b0()),
+                DifferentialRotationMeasurement.computeRetainedRotationFraction(points),
+                coeffs.a(), coeffs.aError(), coeffs.b(), coeffs.bError(), coeffs.c(), coeffs.cError()));
     }
 
-
-    private static List<double[]> applyLatitudeSmoothingFilter(List<double[]> velocityData,
-                                                               double windowDeg,
-                                                               NoiseReductionMethod noiseReduction) {
-        var filtered = new ArrayList<double[]>();
-        var halfWindow = windowDeg / 2.0;
-        for (int i = 0; i < velocityData.size(); i++) {
-            var centerPoint = velocityData.get(i);
-            var centerLat = centerPoint[0];
-            var windowValues = new ArrayList<Double>();
-            var windowErrors = new ArrayList<Double>();
-            for (var point : velocityData) {
-                if (Math.abs(point[0] - centerLat) <= halfWindow) {
-                    windowValues.add(point[1]);
-                    windowErrors.add(point[2]);
-                }
-            }
-            if (windowValues.size() == 1) {
-                // Single point: preserve original value and error
-                filtered.add(new double[]{centerLat, centerPoint[1], centerPoint[2]});
-            } else {
-                // Compute smoothed value using the noise reduction method
-                var result = noiseReduction.aggregate(windowValues, null);
-                // Propagate errors properly instead of using spread-based error
-                var propagatedError = propagateErrors(windowErrors, noiseReduction);
-                filtered.add(new double[]{centerLat, result.value(), propagatedError});
-            }
-        }
-        return filtered;
-    }
-
-    /**
-     * Propagates measurement errors when combining multiple points.
-     * For n measurements with errors σ₁, σ₂, ..., σₙ:
-     * - MEDIAN: median(σᵢ) / √n (robust estimate)
-     * - AVERAGE: √(Σσᵢ²) / n (standard error propagation)
-     * - WEIGHTED_AVERAGE: same as AVERAGE (weights already applied in stage 1)
-     */
-    private static double propagateErrors(List<Double> errors, NoiseReductionMethod method) {
-        int n = errors.size();
-        if (n == 0) {
-            return 0;
-        }
-        return switch (method) {
-            case MEDIAN -> {
-                var sorted = errors.stream().sorted().toList();
-                var medianError = sorted.get(sorted.size() / 2);
-                yield medianError / Math.sqrt(n);
-            }
-            case AVERAGE, WEIGHTED_AVERAGE -> {
-                var sumSquares = errors.stream().mapToDouble(e -> e * e).sum();
-                yield Math.sqrt(sumSquares) / n;
-            }
-        };
-    }
-
-    private float[][] readFrameData(SerFileReader reader, int frameNumber) {
-        try {
-            var geometry = reader.header().geometry();
-            var converter = ImageUtils.createImageConverter(geometry.colorMode());
-            reader.seekFrame(frameNumber);
-            var currentFrame = reader.currentFrame().data();
-            var buffer = converter.createBuffer(geometry);
-            converter.convert(frameNumber, currentFrame, geometry, buffer);
-            return new Image(geometry.width(), geometry.height(), buffer).data();
-        } catch (Exception ex) {
-            LOGGER.error("Error reading frame {}", frameNumber, ex);
-            return null;
-        }
-    }
-
-    private void showRotationProfileChart(List<double[]> velocityData, ProcessParams processParams) {
-        var chartTitle = buildRotationProfileTitle(processParams);
-        var fittedCoeffs = fitDifferentialRotationCoefficients(velocityData);
+    private void showRotationProfileChart(List<List<double[]>> scans, ProcessParams processParams, DifferentialRotationConfig config) {
+        var chartTitle = scans.size() > 1
+                ? buildRotationProfileTitle(processParams) + " - " + String.format(message("doppler.rotation.scans.combined"), scans.size())
+                : buildRotationProfileTitle(processParams);
+        var fittedCoeffs = DifferentialRotationMeasurement.fit(scans, config);
+        var velocityData = DifferentialRotationMeasurement.combineCorrected(scans, fittedCoeffs);
         var velocityChart = createSingleRotationChart(velocityData, false, fittedCoeffs);
         var angularChart = createSingleRotationChart(velocityData, true, fittedCoeffs);
         var layout = createDualRotationLayout(chartTitle, velocityChart, angularChart, fittedCoeffs);
@@ -1432,14 +1210,14 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 var madEq = point[2];
                 var cosLat = Math.cos(Math.toRadians(latDeg));
                 var theoreticalVEq = snodgrassVelocity(latDeg);
-                fittedCoeffs.tangentialVelocity(latDeg); // Convert back to equatorial
                 writer.printf(Locale.US, "%.2f;%.4f;%.4f;%.4f;%.4f;%.4f;%.4f;%.4f;%.4f%n",
                         latDeg, vEq * cosLat, madEq * cosLat, theoreticalVEq * cosLat, fittedCoeffs.tangentialVelocity(latDeg),
                         velocityToAngularVelocity(vEq), velocityToAngularVelocity(madEq),
                         snodgrassAngularVelocity(latDeg), fittedCoeffs.angularVelocity(latDeg));
             }
             // Add fitted coefficients as a comment at the end
-            writer.printf(Locale.US, "%n# Fitted coefficients: A=%.4f, B=%.4f, C=%.4f%n", fittedCoeffs.a(), fittedCoeffs.b(), fittedCoeffs.c());
+            writer.printf(Locale.US, "%n# Fitted coefficients: A=%.4f+-%.4f, B=%.4f+-%.4f, C=%.4f+-%.4f%n",
+                    fittedCoeffs.a(), fittedCoeffs.aError(), fittedCoeffs.b(), fittedCoeffs.bError(), fittedCoeffs.c(), fittedCoeffs.cError());
             writer.printf(Locale.US, "# Snodgrass & Ulrich (1990): A=%.4f, B=%.4f, C=%.4f%n", SNODGRASS_A, SNODGRASS_B, SNODGRASS_C);
         };
         Supplier<VBox> dualLayoutFactory = () -> {
@@ -1485,7 +1263,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         return sb.toString();
     }
 
-    private static VBox createDualRotationLayout(String title, LineChart<Number, Number> velocityChart, LineChart<Number, Number> angularChart, DifferentialRotationCoefficients fittedCoeffs) {
+    private static VBox createDualRotationLayout(String title, LineChart<Number, Number> velocityChart, LineChart<Number, Number> angularChart, DifferentialRotationMeasurement.DifferentialRotationCoefficients fittedCoeffs) {
         var titleLabel = new Label(title);
         titleLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
         titleLabel.setMaxWidth(Double.MAX_VALUE);
@@ -1494,11 +1272,12 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         // Display fitted coefficients compared to reference (Snodgrass & Ulrich 1990)
         var coeffsLabel = new Label(String.format(Locale.US,
                 common("rotation.profile.coefficients"),
-                fittedCoeffs.a(), fittedCoeffs.b(), fittedCoeffs.c(),
+                fittedCoeffs.a(), fittedCoeffs.aError(), fittedCoeffs.b(), fittedCoeffs.bError(), fittedCoeffs.c(), fittedCoeffs.cError(),
                 SNODGRASS_A, SNODGRASS_B, SNODGRASS_C));
         coeffsLabel.setStyle("-fx-font-size: 12px; -fx-font-family: monospace;");
         coeffsLabel.setMaxWidth(Double.MAX_VALUE);
         coeffsLabel.setAlignment(Pos.CENTER);
+        coeffsLabel.setTextAlignment(TextAlignment.CENTER);
 
         var hbox = new HBox(10, velocityChart, angularChart);
         HBox.setHgrow(velocityChart, Priority.ALWAYS);
@@ -1585,7 +1364,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         yAxis.scaleProperty().addListener((obs, oldVal, newVal) -> updateHeights.run());
     }
 
-    private LineChart<Number, Number> createSingleRotationChart(List<double[]> velocityData, boolean angularVelocity, DifferentialRotationCoefficients fittedCoeffs) {
+    private LineChart<Number, Number> createSingleRotationChart(List<double[]> velocityData, boolean angularVelocity, DifferentialRotationMeasurement.DifferentialRotationCoefficients fittedCoeffs) {
         var xAxis = new NumberAxis();
         var yAxis = new NumberAxis();
         xAxis.setLabel(message("doppler.latitude"));
@@ -1682,90 +1461,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             niceFraction = 10;
         }
         return niceFraction * Math.pow(10, exponent);
-    }
-
-    private static double snodgrassAngularVelocity(double latDeg) {
-        var sinLat = Math.sin(Math.toRadians(latDeg));
-        var sinLat2 = sinLat * sinLat;
-        var sinLat4 = sinLat2 * sinLat2;
-        return SNODGRASS_A + SNODGRASS_B * sinLat2 + SNODGRASS_C * sinLat4;
-    }
-
-    private static double snodgrassVelocity(double latDeg) {
-        var omegaRadPerSec = Math.toRadians(snodgrassAngularVelocity(latDeg)) / (24.0 * 3600.0);
-        return omegaRadPerSec * SOLAR_RADIUS_KM;
-    }
-
-    private static double velocityToAngularVelocity(double velocityKmS) {
-        return velocityKmS / SOLAR_RADIUS_KM * (180.0 / Math.PI) * 86400.0;
-    }
-
-    /**
-     * Fitted differential rotation coefficients using the standard formula
-     * (often called the "Faye formula"): ω(φ) = A + B·sin²(φ) + C·sin⁴(φ) in deg/day.
-     * Reference coefficients are from Snodgrass & Ulrich (1990).
-     */
-    private record DifferentialRotationCoefficients(double a, double b, double c) {
-        double angularVelocity(double latDeg) {
-            var sinLat = Math.sin(Math.toRadians(latDeg));
-            var sinLat2 = sinLat * sinLat;
-            var sinLat4 = sinLat2 * sinLat2;
-            return a + b * sinLat2 + c * sinLat4;
-        }
-
-        double tangentialVelocity(double latDeg) {
-            var omegaRadPerSec = Math.toRadians(angularVelocity(latDeg)) / (24.0 * 3600.0);
-            return omegaRadPerSec * SOLAR_RADIUS_KM * Math.cos(Math.toRadians(latDeg));
-        }
-    }
-
-    /**
-     * Fits the Snodgrass-style differential rotation formula to the measured data.
-     * Uses sin²(φ) as the independent variable for a quadratic fit:
-     * ω = A + B·x + C·x² where x = sin²(φ)
-     */
-    private static DifferentialRotationCoefficients fitDifferentialRotationCoefficients(List<double[]> velocityData) {
-        var points = new Point2D[velocityData.size()];
-        var weights = new double[velocityData.size()];
-        for (int i = 0; i < velocityData.size(); i++) {
-            var p = velocityData.get(i);
-            var latDeg = p[0];
-            var velocityKmS = p[1];
-            var mad = p[2];
-            // Convert to angular velocity and use sin²(lat) as x
-            var sinLat = Math.sin(Math.toRadians(latDeg));
-            var sinLat2 = sinLat * sinLat;
-            var omega = velocityToAngularVelocity(velocityKmS);
-            points[i] = new Point2D(sinLat2, omega);
-            weights[i] = mad > 0 ? 1.0 / mad : 1.0;
-        }
-        // Fit quadratic: ω = c + b*x + a*x² where x = sin²(φ)
-        // secondOrderRegression returns (a, b, c) for y = a*x² + b*x + c
-        var coeffs = LinearRegression.secondOrderRegression(points, weights);
-        // coeffs.a() is the x² coefficient (C in Snodgrass), coeffs.b() is x coefficient (B), coeffs.c() is constant (A)
-        return new DifferentialRotationCoefficients(coeffs.c(), coeffs.b(), coeffs.a());
-    }
-
-    private double[] computeSphereCoords(double longitude, double latitude, double radius, double b0, double angleP) {
-        // Convert spherical to Cartesian (same formula as ImageDraw.ofSpherical)
-        // longitude = 0 is facing Earth, +90 is West limb, -90 is East limb
-        // latitude = π/2 is the equator (co-latitude convention)
-        var x = Math.sin(longitude) * Math.sin(latitude) * radius;
-        var y = Math.cos(latitude) * radius;
-        var z = Math.cos(longitude) * Math.sin(latitude) * radius;
-
-        // Rotate around X axis by -b0
-        var cosB0 = Math.cos(-b0);
-        var sinB0 = Math.sin(-b0);
-        var y1 = y * cosB0 - z * sinB0;
-
-        // Rotate around Z axis by -angleP
-        var cosP = Math.cos(-angleP);
-        var sinP = Math.sin(-angleP);
-        var x2 = x * cosP - y1 * sinP;
-        var y2 = x * sinP + y1 * cosP;
-
-        return new double[]{x2, y2};
     }
 
     private BarChart<String, Number> showHistogram(ImageWrapper imageWrapper) {
@@ -2537,7 +2232,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         warningLabel.setStyle("-fx-text-fill: #856404; -fx-font-weight: bold;");
 
         // Helper to run the measurement
-        Runnable runMeasurement = () -> {
+        Consumer<List<File>> runMeasurement = additionalScans -> {
             var referenceImage = shiftImages.entrySet().stream()
                     .min(Comparator.comparingDouble(e2 -> Math.abs(e2.getKey().pixelShift())))
                     .map(Map.Entry::getValue)
@@ -2551,14 +2246,14 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             if (refCoordsOpt.isEmpty() || solarParamsOpt.isEmpty() || ellipseOpt.isEmpty()) {
                 return;
             }
-            generateRotationProfileChart(payload, refCoordsOpt.get(), ellipseOpt.get(), solarParamsOpt.get());
+            generateRotationProfileChart(new DifferentialRotationMeasurement.Scan(serFile, payload, refCoordsOpt.get(), ellipseOpt.get(), solarParamsOpt.get()), additionalScans);
         };
 
         // Measure button - runs with default/current config
         measureVelocityButton = new Button(message("rotation.measure"));
         measureVelocityButton.getStyleClass().add("primary-button");
         measureVelocityButton.setDisable(true);
-        measureVelocityButton.setOnAction(evt -> runMeasurement.run());
+        measureVelocityButton.setOnAction(evt -> runMeasurement.accept(List.of()));
 
         // Customized measurement button - opens config dialog then runs
         customMeasurementButton = new Button(message("rotation.measure.custom"));
@@ -2567,11 +2262,14 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         customMeasurementButton.setOnAction(evt -> {
             var result = DifferentialRotationConfigDialog.show(
                     measureVelocityButton.getScene().getWindow(),
-                    differentialRotationConfig
+                    differentialRotationConfig,
+                    additionalRotationScans,
+                    serFile.getParentFile()
             );
-            result.ifPresent(config -> {
-                differentialRotationConfig = config;
-                runMeasurement.run();
+            result.ifPresent(r -> {
+                differentialRotationConfig = r.config();
+                additionalRotationScans = r.additionalScans();
+                runMeasurement.accept(additionalRotationScans);
             });
         });
 
@@ -2586,53 +2284,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         mainPane.setCenter(contentBox);
 
         return mainPane;
-    }
-
-    private List<SpectrumAnalyzer.DataPoint> extractPointProfile(int column,
-                                                                 float[][] frameData,
-                                                                 PixelShiftRange range,
-                                                                 DoubleUnaryOperator polynomial,
-                                                                 Wavelen lambda0,
-                                                                 Dispersion dispersion,
-                                                                 boolean canCalibrate,
-                                                                 int columnAveragingRadius) {
-        var dataPoints = new ArrayList<SpectrumAnalyzer.DataPoint>();
-        if (frameData == null || frameData.length == 0) {
-            return dataPoints;
-        }
-        var frameHeight = frameData.length;
-        var frameWidth = frameData[0].length;
-
-        var centerPolyValue = polynomial.applyAsDouble(column);
-        for (var pixelShift = range.minPixelShift(); pixelShift < range.maxPixelShift(); pixelShift++) {
-            var centerExactNy = centerPolyValue + pixelShift;
-            var centerLowerNy = (int) Math.floor(centerExactNy);
-            var centerUpperNy = (int) Math.ceil(centerExactNy);
-
-            if (centerLowerNy >= 0 && centerUpperNy < frameHeight) {
-                double sum = 0;
-                int count = 0;
-                for (int colOffset = -columnAveragingRadius; colOffset <= columnAveragingRadius; colOffset++) {
-                    int col = column + colOffset;
-                    if (col >= 0 && col < frameWidth) {
-                        var colPolyValue = polynomial.applyAsDouble(col);
-                        var colExactNy = colPolyValue + pixelShift;
-                        var colLowerNy = (int) Math.floor(colExactNy);
-                        var colUpperNy = (int) Math.ceil(colExactNy);
-                        if (colLowerNy >= 0 && colUpperNy < frameHeight) {
-                            var lowerValue = frameData[colLowerNy][col];
-                            var upperValue = frameData[colUpperNy][col];
-                            sum += lowerValue + (upperValue - lowerValue) * (colExactNy - colLowerNy);
-                            count++;
-                        }
-                    }
-                }
-                var interpolatedValue = count > 0 ? (float) (sum / count) : 0f;
-                var wl = canCalibrate ? SpectralProfileHelper.computeWavelength(pixelShift, lambda0, dispersion) : Wavelen.ofAngstroms(0);
-                dataPoints.add(new SpectrumAnalyzer.DataPoint(wl, pixelShift, interpolatedValue));
-            }
-        }
-        return dataPoints;
     }
 
     private void updateSpectral3DButtonsState() {

@@ -2,6 +2,8 @@
 
 ## Nouveautés de la version 5.5.1
 
+- La mesure de la rotation différentielle ne sous-estime plus la vitesse de rotation du Soleil, et sa courbe de référence tient désormais compte du mouvement de la Terre.
+- La mesure personnalisée de la rotation différentielle peut combiner plusieurs balayages pour réduire les incertitudes, désormais affichées.
 - Le script SharpCap d'identification en direct des raies spectrales fonctionne désormais avec SharpCap 4.1.
 
 ## Nouveautés de la version 5.5.0
