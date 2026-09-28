@@ -90,7 +90,7 @@ Of course, you can also send a message of encouragement or appreciation, it is a
 JSol'Ex only supports SER files, please make sure to configure your capture software to use this format.
 The main window looks like this:
 
-image::main-window-fr.jpg[]
+image::main-window-en.jpg[]
 
 In the "File" menu, choose "Open SER File" and select a file.
 A configuration window opens, with several sections:
@@ -386,7 +386,7 @@ You have the possibility to launch a quick or complete processing directly by cl
 Once images are generated, they appear one after each other in tabs.
 These tabs provide you with the ability to tweak the contrast of images and save them, typically when you unchecked the automatic save option.
 
-image::image-display-fr.jpg[]
+image::image-display-en.jpg[]
 
 It is possible to zoom into the images by using the mouse wheel.
 In addition, right-clicking the image will let you open it into your file explorer or in a separate window.
@@ -598,7 +598,7 @@ In the "ImageMath" mode, we have a language which will let us to this with a sin
 First, select the `ImageMath` mode in the select box and click on "Open ImageMath".
 The following interface show up:
 
-image::imagemath-1-fr.jpg[]
+image::imagemath-1-en.jpg[]
 
 On the left side, "Scripts to execute", you will find the list of all scripts which will be applied in your session.
 
@@ -620,7 +620,7 @@ Select a destination file and proceed: the script is now added to the list on th
 Click on "Ok" to close ImageMath and only keep the "geometry corrected (stretched)" images.
 Click on "Ok" to start processing, you will now have the 21 required images generated:
 
-image::imagemath-2-fr.jpg[]
+image::imagemath-2-en.jpg[]
 
 === Functions available in ImageMath
 
@@ -1536,7 +1536,7 @@ This window will let you configure the batch processing, but there are subtle di
 - the "automatically save images" parameter is always set to `true`
 - images will not show up in the interface, but will be shown in a table instead
 
-image::batch-mode-fr.jpg[]
+image::batch-mode-en.jpg[]
 
 The file list for each SER file will include the log file for each video, as well as all generated images for that SER file.
 
@@ -1727,7 +1727,7 @@ This tool chan be used, for example, to efficiently determine the pixel shift to
 To do this, open the "Video analyzer" in the "Tools" section.
 Select a video, the tool will compute the average image then show this window:
 
-image::spectral-debug-1-fr.jpg[]
+image::spectral-debug-1-en.jpg[]
 
 In the upper side you can see the reconstructed average image.
 The red line is the detected spectral ray, which is built by figuring out the darkest points of the lines.
@@ -1749,23 +1749,23 @@ We can then proceed by steps:
 
 - first, lock the polynomial on the average image
 
-image::spectral-debug-2-fr.jpg[]
+image::spectral-debug-2-en.jpg[]
 
 - select the "Frames" mode
 
-image::spectral-debug-3-fr.jpg[]
+image::spectral-debug-3-en.jpg[]
 
 - Adjust contrast to make the spectrum very bright
 
-image::spectral-debug-4-fr.jpg[]
+image::spectral-debug-4-en.jpg[]
 
 - Select a frame which is close to the sun limb
 
-image::spectral-debug-5-fr.jpg[]
+image::spectral-debug-5-en.jpg[]
 
 We can now perform measurements: when you are moving the mouse over the image, coordinates are displayed:
 
-image::spectral-debug-6-fr.jpg[]
+image::spectral-debug-6-en.jpg[]
 
 The first 2 numbers are the (x,y) coordinates of the point below the cursor.
 The 3rd one is the one we're interested in: it's the pixel shift between the cursor position and the detected spectral line (in red).
@@ -1774,7 +1774,7 @@ The 4th number will let us increase our accuracy by computing an average value f
 To add a sample, find a point on the helium line then click on it while holding the CTRL key.
 You can add as many sample points as you wish.
 
-image::spectral-debug-7-fr.jpg[]
+image::spectral-debug-7-en.jpg[]
 
 The 4th number is the average of distances and should be a good value to use in your ImageMath scripts.
 **In this example we deduce that the pixel shift is -134**.

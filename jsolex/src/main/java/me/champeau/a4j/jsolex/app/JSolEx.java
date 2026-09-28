@@ -125,6 +125,7 @@ import me.champeau.a4j.jsolex.app.listeners.JSolExInterface;
 import me.champeau.a4j.jsolex.app.listeners.RedshiftImagesProcessor;
 import me.champeau.a4j.jsolex.app.listeners.SingleModeProcessingEventListener;
 import me.champeau.a4j.jsolex.app.script.JSolExScriptExecutor;
+import me.champeau.a4j.jsolex.app.uiapi.UiApi;
 import me.champeau.a4j.jsolex.app.util.FxUtils;
 import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
@@ -180,6 +181,7 @@ import me.champeau.a4j.jsolex.processing.util.SpectroSolHubClient;
 import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
 import me.champeau.a4j.jsolex.processing.util.VersionUtil;
 import me.champeau.a4j.jsolex.processing.util.spectrosolhub.SpectroSolHubException;
+import me.champeau.a4j.jsolex.server.ui.UiApiServer;
 import me.champeau.a4j.math.VectorApiSupport;
 import me.champeau.a4j.math.opencl.OpenCLSupport;
 import me.champeau.a4j.math.regression.Ellipse;
@@ -475,6 +477,8 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     private Path outputDirectory;
     private final RepositoryUpdateService repositoryUpdateService = new RepositoryUpdateService();
     private ProgressHandler progressHandler;
+    private final AtomicReference<ProgressHandler.ProgressSnapshot> latestProgress = new AtomicReference<>(ProgressHandler.ProgressSnapshot.hidden());
+    private UiApiServer uiApiServer;
     private ReferenceImageHelper referenceImageHelper;
     private final BatchProcessingHelper batchProcessingHelper = new BatchProcessingHelper();
 
@@ -643,6 +647,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         try {
             var root = (Parent) fxmlLoader.load();
             progressHandler = new ProgressHandler(snapshot -> {
+                latestProgress.set(snapshot);
                 if (snapshot.taskCount() == 0 && snapshot.currentTaskLabel().isEmpty()) {
                     // Nothing to show - hide everything
                     progressBar.setProgress(0);
@@ -701,6 +706,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             referenceImageHelper.initialize();
             bass2000Button.setVisible(true);
             stage.show();
+            uiApiServer = UiApi.startIfRequested(stage, latestProgress::get).orElse(null);
             BackgroundOperations.async(JitWarmup::warmup);
             refreshRecentItemsMenu();
             publishingTab.disableProperty().bind(bass2000Button.disableProperty().and(spectroSolHubButton.disableProperty()));
@@ -715,10 +721,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             setupLogWindowContextMenu();
             setupImageMathEditorContextMenu();
             createFastModePane();
-            stage.setOnCloseRequest(e -> {
-                progressHandler.close();
-                System.exit(0);
-            });
+            stage.setOnCloseRequest(e -> exit());
             startWatcherThread();
             repositoryUpdateService.checkAtStartup();
             Thread.startVirtualThread(() -> {
@@ -3204,6 +3207,10 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
 
     @FXML
     private void exit() {
+        progressHandler.close();
+        if (uiApiServer != null) {
+            uiApiServer.stop();
+        }
         System.exit(0);
     }
 

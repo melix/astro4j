@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.server;
 
+import io.micronaut.context.annotation.Requires;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.MediaType;
@@ -37,6 +38,7 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
+import me.champeau.a4j.jsolex.server.ui.UiApiServer;
 
 import javax.imageio.ImageIO;
 import java.io.ByteArrayInputStream;
@@ -52,6 +54,7 @@ import java.util.Optional;
 /**
  * Identifies the spectral lines visible in a frame sent by a capture software.
  */
+@Requires(notEnv = UiApiServer.ENVIRONMENT)
 @Controller("/api/spectrum")
 public class SpectrumController {
     private static final int[] DEFAULT_BINNINGS = {1, 2};

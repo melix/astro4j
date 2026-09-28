@@ -35,11 +35,14 @@ module me.champeau.a4j.jsolex.server {
     requires jakarta.annotation;
     requires jakarta.inject;
     requires io.micronaut.micronaut_inject;
+    requires io.micronaut.micronaut_router;
+    requires static io.swagger.v3.oas.annotations;
 
     // For Thymeleaf!!!
     requires java.sql;
 
     exports me.champeau.a4j.jsolex.server;
+    exports me.champeau.a4j.jsolex.server.ui;
     opens views;
     opens _static.css;
     opens _static.img;

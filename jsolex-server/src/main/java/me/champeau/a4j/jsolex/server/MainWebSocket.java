@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.server;
 
 import io.micronaut.context.ApplicationContext;
+import io.micronaut.context.annotation.Requires;
 import io.micronaut.views.ViewsRenderer;
 import io.micronaut.websocket.WebSocketBroadcaster;
 import io.micronaut.websocket.WebSocketSession;
@@ -23,6 +24,7 @@ import io.micronaut.websocket.annotation.OnClose;
 import io.micronaut.websocket.annotation.OnMessage;
 import io.micronaut.websocket.annotation.OnOpen;
 import io.micronaut.websocket.annotation.ServerWebSocket;
+import me.champeau.a4j.jsolex.server.ui.UiApiServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,6 +42,7 @@ import java.util.stream.Collectors;
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
 /** WebSocket handler for live image updates. */
+@Requires(notEnv = UiApiServer.ENVIRONMENT)
 @ServerWebSocket("/ws/live")
 public class MainWebSocket extends AbstractController implements StoreListener {
     private static final Logger LOGGER = LoggerFactory.getLogger(MainWebSocket.class);

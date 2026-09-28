@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.server;
 
+import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
 import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
@@ -26,6 +27,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.SourceInfo;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.ImageSaver;
 import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
+import me.champeau.a4j.jsolex.server.ui.UiApiServer;
 
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -42,6 +44,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 /** Store for managing generated images in the server. */
+@Requires(notEnv = UiApiServer.ENVIRONMENT)
 @Singleton
 public class ImagesStore implements ProcessingEventListener {
     private final AtomicLong currentId = new AtomicLong(0);
