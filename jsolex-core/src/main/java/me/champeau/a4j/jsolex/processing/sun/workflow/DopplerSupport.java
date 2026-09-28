@@ -34,16 +34,19 @@ import me.champeau.a4j.math.regression.Polynomial2D;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BooleanSupplier;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
 public class DopplerSupport {
     private final ProcessParams processParams;
+    private final BooleanSupplier switchRedBlueChannels;
     private final List<WorkflowState> states;
     private final ImageEmitter processedImagesEmitter;
 
-    public DopplerSupport(ProcessParams processParams, List<WorkflowState> states, ImageEmitter processedImagesEmitter) {
+    public DopplerSupport(ProcessParams processParams, BooleanSupplier switchRedBlueChannels, List<WorkflowState> states, ImageEmitter processedImagesEmitter) {
         this.processParams = processParams;
+        this.switchRedBlueChannels = switchRedBlueChannels;
         this.states = states;
         this.processedImagesEmitter = processedImagesEmitter;
     }
@@ -53,7 +56,7 @@ public class DopplerSupport {
             return;
         }
         var dopplerShift = processParams.spectrumParams().dopplerShift();
-        double lookupShift = processParams.spectrumParams().switchRedBlueChannels() ? -dopplerShift : dopplerShift;
+        double lookupShift = switchRedBlueChannels.getAsBoolean() ? -dopplerShift : dopplerShift;
         var first = states.stream().filter(s -> s.pixelShift() == lookupShift).findFirst();
         var second = states.stream().filter(s -> s.pixelShift() == -lookupShift).findFirst();
         first.ifPresent(s1 -> second.ifPresent(s2 -> {

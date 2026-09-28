@@ -48,6 +48,7 @@ import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
 import me.champeau.a4j.jsolex.processing.expr.impl.Loader;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.params.ConditionalFlip;
+import me.champeau.a4j.jsolex.processing.params.DopplerColors;
 import me.champeau.a4j.jsolex.processing.params.EllipseFittingMode;
 import me.champeau.a4j.jsolex.processing.params.EnhancementParams;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
@@ -590,7 +591,7 @@ public class SolexVideoProcessor implements Broadcaster {
             if (!imageList.isEmpty() && processParams.requestedImages().isEnabled(GeneratedImageKind.DOPPLER) || processParams.requestedImages().isEnabled(GeneratedImageKind.DOPPLER_ECLIPSE) || processParams.requestedImages().isEnabled(GeneratedImageKind.DOPPLER_ROTATION_CORRECTED)) {
                 runnables.add(() -> {
                     var imageEmitterFactory = createImageEmitterFactory(imageList, imageNamingStrategy, baseName);
-                    var producer = new DopplerSupport(processParams, imageList, imageEmitterFactory.newEmitter(this, outputDirectory));
+                    var producer = new DopplerSupport(processParams, this::shouldSwitchDopplerChannels, imageList, imageEmitterFactory.newEmitter(this, outputDirectory));
                     producer.produceDopplerImage();
                 });
             }
@@ -1987,6 +1988,23 @@ public class SolexVideoProcessor implements Broadcaster {
                 .stream()
                 .collect(Collectors.toMap(d -> d, details -> SpectrumAnalyzer.computeDataPoints(details, polynomial, 0, width, width, height, averageImage), (e1, _) -> e1, LinkedHashMap::new));
         return SpectrumAnalyzer.findBestMatch(map);
+    }
+
+    /**
+     * Whether the red and blue channels of Doppler images must be switched. In automatic
+     * mode, they are switched when the wavelength grows with the row, so that receding
+     * material shows in red. The smile of a grating bends the ends of the lines towards
+     * the longer wavelengths, so the wavelength grows with the row when the curvature of
+     * the line is positive.
+     */
+    private boolean shouldSwitchDopplerChannels() {
+        var dopplerColors = processParams.spectrumParams().dopplerColors();
+        if (dopplerColors != DopplerColors.AUTO) {
+            return dopplerColors == DopplerColors.SWITCHED;
+        }
+        var switched = polynomialCoefficients != null && polynomialCoefficients.b() > 0;
+        LOGGER.info(message(switched ? "doppler.colors.switched" : "doppler.colors.normal"));
+        return switched;
     }
 
     /**

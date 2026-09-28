@@ -23,6 +23,7 @@ import me.champeau.a4j.jsolex.processing.expr.python.PythonScriptExecutor;
 import me.champeau.a4j.jsolex.processing.params.BandingCorrectionMethod;
 import me.champeau.a4j.jsolex.processing.params.BandingCorrectionParams;
 import me.champeau.a4j.jsolex.processing.params.DestripeParams;
+import me.champeau.a4j.jsolex.processing.params.DopplerColors;
 import me.champeau.a4j.jsolex.processing.params.ExtraParams;
 import me.champeau.a4j.jsolex.processing.params.GeometryParams;
 import me.champeau.a4j.jsolex.processing.params.ObservationDetails;
@@ -185,7 +186,7 @@ public class Main implements Runnable {
         @Option(names = {"-ds", "--doppler-shift"}, description = "Doppler shifting")
         Integer dopplerShift;
 
-        @Option(names = {"-irb", "--inverse-red-blue"}, description = "Inverse red and blue channels in Doppler image")
+        @Option(names = {"-irb", "--inverse-red-blue"}, description = "Inverse red and blue channels in Doppler image, instead of determining them automatically")
         Boolean switchRedBlueChannels;
 
         @Override
@@ -201,7 +202,7 @@ public class Main implements Runnable {
                 result = result.withDopplerShift(dopplerShift);
             }
             if (switchRedBlueChannels != null) {
-                result = result.withSwitchRedBlueChannels(switchRedBlueChannels);
+                result = result.withDopplerColors(switchRedBlueChannels ? DopplerColors.SWITCHED : DopplerColors.NORMAL);
             }
             return result;
         }

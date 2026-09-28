@@ -32,6 +32,7 @@ import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.params.AutocropMode;
 import me.champeau.a4j.jsolex.processing.params.ConditionalFlip;
+import me.champeau.a4j.jsolex.processing.params.DopplerColors;
 import me.champeau.a4j.jsolex.processing.params.GeometryParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.LineDetectionMode;
@@ -79,7 +80,7 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
     private CheckBox horizontalMirrorCheck;
     private CheckBox verticalMirrorCheck;
     private CheckBox autocorrectAnglePCheck;
-    private CheckBox switchRedBlueChannelsCheck;
+    private ChoiceBox<DopplerColors> dopplerColorsChoice;
     private CheckBox reviewImagesAfterBatch;
     private CheckBox alternateScanDirection;
     private ConditionalFlipControl horizontalFlipCondition;
@@ -198,7 +199,22 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
         horizontalMirrorCheck = new CheckBox();
         verticalMirrorCheck = new CheckBox();
         autocorrectAnglePCheck = new CheckBox();
-        switchRedBlueChannelsCheck = new CheckBox();
+        dopplerColorsChoice = createChoiceBox();
+        dopplerColorsChoice.setItems(FXCollections.observableArrayList(DopplerColors.values()));
+        dopplerColorsChoice.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(DopplerColors colors) {
+                return colors == null ? "" : I18N.string(JSolEx.class, "process-params", "doppler.colors." + colors.name().toLowerCase(Locale.US));
+            }
+
+            @Override
+            public DopplerColors fromString(String string) {
+                return dopplerColorsChoice.getItems().stream()
+                        .filter(colors -> toString(colors).equals(string))
+                        .findFirst()
+                        .orElse(null);
+            }
+        });
 
         reviewImagesAfterBatch = new CheckBox();
         horizontalFlipCondition = new ConditionalFlipControl(horizontalMirrorCheck);
@@ -303,7 +319,7 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
         addGridRow(spectrumGrid, 2, I18N.string(JSolEx.class, "process-params", "pixel.shifting"), createFieldWithAngstromLabel(pixelShiftingField, pixelShiftAngstromLabel), "pixel.shifting.tooltip");
         addGridRow(spectrumGrid, 3, I18N.string(JSolEx.class, "process-params", "doppler.shifting"), createFieldWithAngstromLabel(dopplerShiftingField, dopplerShiftAngstromLabel), "doppler.tooltip");
         addGridRow(spectrumGrid, 4, I18N.string(JSolEx.class, "process-params", "continuum.shift"), createFieldWithAngstromLabel(continuumShiftingField, continuumShiftAngstromLabel), "continuum.shift.desc");
-        addGridRow(spectrumGrid, 5, I18N.string(JSolEx.class, "process-params", "doppler.switch.red.blue.channels") + ":", switchRedBlueChannelsCheck, "doppler.switch.red.blue.channels.tooltip");
+        addGridRow(spectrumGrid, 5, I18N.string(JSolEx.class, "process-params", "doppler.colors"), dopplerColorsChoice, "doppler.colors.tooltip");
 
         spectrumSection.getChildren().add(spectrumGrid);
 
@@ -372,7 +388,7 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
         horizontalMirrorCheck.setSelected(false);
         verticalMirrorCheck.setSelected(false);
         autocorrectAnglePCheck.setSelected(false);
-        switchRedBlueChannelsCheck.setSelected(false);
+        dopplerColorsChoice.setValue(DopplerColors.AUTO);
         if (batchMode) {
             reviewImagesAfterBatch.setSelected(false);
             alternateScanDirection.setSelected(false);
@@ -401,7 +417,7 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
         pixelShiftingField.setText(String.valueOf(spectrum.pixelShift()));
         dopplerShiftingField.setText(String.valueOf(spectrum.dopplerShift()));
         continuumShiftingField.setText(String.valueOf(spectrum.continuumShift()));
-        switchRedBlueChannelsCheck.setSelected(spectrum.switchRedBlueChannels());
+        dopplerColorsChoice.setValue(spectrum.dopplerColors() == null ? DopplerColors.AUTO : spectrum.dopplerColors());
 
         rotationChoice.setValue(geometry.rotation());
         autocropChoice.setValue(geometry.autocropMode());
@@ -546,7 +562,7 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
                 firstPixelShift,
                 parseDoubleLocaleIndependent(dopplerShiftingField.getText()),
                 parseDoubleLocaleIndependent(continuumShiftingField.getText()),
-                switchRedBlueChannelsCheck.isSelected()
+                dopplerColorsChoice.getValue() == null ? DopplerColors.AUTO : dopplerColorsChoice.getValue()
         );
     }
 

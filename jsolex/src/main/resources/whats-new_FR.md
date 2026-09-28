@@ -3,6 +3,7 @@
 ## Nouveautés de la version 5.5.1
 
 - La mesure de la rotation différentielle ne sous-estime plus la vitesse de rotation du Soleil, et sa courbe de référence tient désormais compte du mouvement de la Terre.
+- Les couleurs des images Doppler sont désormais déterminées automatiquement, pour afficher en rouge ce qui s'éloigne et en bleu ce qui s'approche.
 - La mesure personnalisée de la rotation différentielle peut combiner plusieurs balayages pour réduire les incertitudes, désormais affichées.
 - Le script SharpCap d'identification en direct des raies spectrales fonctionne désormais avec SharpCap 4.1.
 

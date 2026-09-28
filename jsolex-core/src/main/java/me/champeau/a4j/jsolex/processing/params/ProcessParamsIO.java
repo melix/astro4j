@@ -99,7 +99,7 @@ public abstract class ProcessParamsIO {
 
     public static ProcessParams createNewDefaults() {
         return new ProcessParams(
-                new SpectrumParams(SpectralRay.H_ALPHA, LineDetectionMode.FREE_SEARCH, 0, 3, Constants.DEFAULT_CONTINUUM_SHIFT, false),
+                new SpectrumParams(SpectralRay.H_ALPHA, LineDetectionMode.FREE_SEARCH, 0, 3, Constants.DEFAULT_CONTINUUM_SHIFT, DopplerColors.AUTO),
                 new ObservationDetails(
                         null,
                         null,
@@ -148,6 +148,18 @@ public abstract class ProcessParamsIO {
         return params.withSpectrumParams(spectrum.withRay(SpectralRay.H_ALPHA).withDetectionMode(LineDetectionMode.FREE_SEARCH));
     }
 
+    /**
+     * Older configurations had a checkbox to switch the red and blue channels of Doppler
+     * images instead of the Doppler colors, which are then determined automatically.
+     */
+    private static ProcessParams migrateDopplerColors(ProcessParams params) {
+        var spectrum = params.spectrumParams();
+        if (spectrum == null || spectrum.dopplerColors() != null) {
+            return params;
+        }
+        return params.withSpectrumParams(spectrum.withDopplerColors(DopplerColors.AUTO));
+    }
+
     public static ProcessParams readFrom(Path configFile) {
         if (Files.exists(configFile)) {
             try (var reader = FilesUtils.newTextReader(configFile)) {
@@ -167,6 +179,7 @@ public abstract class ProcessParamsIO {
         var params = gson.fromJson(reader, ProcessParams.class);
         if (params != null) {
             params = migrateDetectionMode(params);
+            params = migrateDopplerColors(params);
             if (params.videoParams() == null) {
                 // happens if loading an old config file
                 params = new ProcessParams(

@@ -302,4 +302,54 @@ class ProcessParamsIOBackwardCompatibilityTest extends Specification {
         then:
         restored.bandingCorrectionParams() == configured.bandingCorrectionParams()
     }
+
+    def "determines the Doppler colors automatically for a configuration which had a checkbox (#legacy)"() {
+        given:
+        def tempFile = Files.createTempFile("legacy-doppler-colors", ".json")
+        tempFile.toFile().deleteOnExit()
+        tempFile.toFile().text = """
+        {
+          "spectrumParams": {
+            "ray": { "label": "H-alpha", "wavelength": 656.281, "emission": false },
+            "pixelShift": 0.0,
+            "dopplerShift": 3.0,
+            "continuumShift": 12.0
+            $legacy
+          },
+          "observationDetails": { "instrument": "SOLEX", "pixelSize": 2.4 }
+        }
+        """
+
+        when:
+        def params = ProcessParamsIO.readFrom(tempFile)
+
+        then:
+        params.spectrumParams().dopplerColors() == DopplerColors.AUTO
+
+        where:
+        legacy << [', "switchRedBlueChannels": true', ', "switchRedBlueChannels": false', '']
+    }
+
+    def "new configurations determine the Doppler colors automatically"() {
+        expect:
+        ProcessParamsIO.createNewDefaults().spectrumParams().dopplerColors() == DopplerColors.AUTO
+    }
+
+    def "the Doppler colors are saved"() {
+        given:
+        def defaults = ProcessParamsIO.createNewDefaults()
+        def configured = defaults.withSpectrumParams(defaults.spectrumParams().withDopplerColors(colors))
+        def tempFile = Files.createTempFile("doppler-colors", ".json")
+        tempFile.toFile().deleteOnExit()
+
+        when:
+        ProcessParamsIO.saveTo(configured, tempFile.toFile())
+        def restored = ProcessParamsIO.readFrom(tempFile)
+
+        then:
+        restored.spectrumParams().dopplerColors() == colors
+
+        where:
+        colors << DopplerColors.values()
+    }
 }
