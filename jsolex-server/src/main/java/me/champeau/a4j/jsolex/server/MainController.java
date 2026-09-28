@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.server;
 
+import io.micronaut.context.annotation.Requires;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.MediaType;
 import io.micronaut.http.annotation.Controller;
@@ -24,11 +25,13 @@ import io.micronaut.views.View;
 import io.micronaut.views.ViewsRenderer;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.util.VersionUtil;
+import me.champeau.a4j.jsolex.server.ui.UiApiServer;
 
 import java.io.File;
 import java.util.Map;
 
 /** Main HTTP controller for the JSol'Ex web interface. */
+@Requires(notEnv = UiApiServer.ENVIRONMENT)
 @Controller("/")
 public class MainController extends AbstractController {
     private final ImagesStore imagesStore;
