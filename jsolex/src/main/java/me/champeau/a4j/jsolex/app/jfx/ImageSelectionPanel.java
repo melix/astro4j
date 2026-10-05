@@ -118,7 +118,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
     private final Map<String, Boolean> scriptParameterValidationStates = new HashMap<>();
     private final BooleanProperty allScriptParametersValid = new SimpleBooleanProperty(true);
     private VBox repositoryScriptsSection;
-    private FlowPane repositoryScriptsContainer;
+    private VBox repositoryScriptsContainer;
     private final Set<RemoteScript> selectedRepositoryScripts = new HashSet<>();
     private ScriptRepositoryManager repositoryManager;
 
@@ -214,9 +214,8 @@ public class ImageSelectionPanel extends BaseParameterPanel {
 
         repositoryManager = new ScriptRepositoryManager();
 
-        repositoryScriptsContainer = new FlowPane();
-        repositoryScriptsContainer.setHgap(8);
-        repositoryScriptsContainer.setVgap(4);
+        repositoryScriptsContainer = new VBox();
+        repositoryScriptsContainer.setSpacing(4);
 
     }
 
