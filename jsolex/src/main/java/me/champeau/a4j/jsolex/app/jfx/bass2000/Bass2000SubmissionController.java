@@ -716,9 +716,9 @@ public class Bass2000SubmissionController {
         var ref = reference != null ? String.format(Locale.US, ", ref:%.3f", reference) : "";
         var output = executor.execute(String.format(Locale.US, """
             [outputs]
-            geometryCorrected=autocrop2(img(-a2px(a: %.3f%s));1.2)
+            __geometryCorrected=autocrop2(img(-a2px(a: %.3f%s));1.2)
             """, shift, ref), ImageMathScriptExecutor.SectionKind.SINGLE);
-        var result = output.imagesByLabel().get("geometryCorrected");
+        var result = output.imagesByLabel().get("__geometryCorrected");
 
         if (result instanceof ImageWrapper image) {
             return image.unwrapToMemory();
