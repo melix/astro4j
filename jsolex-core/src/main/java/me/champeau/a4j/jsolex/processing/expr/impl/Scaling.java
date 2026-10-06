@@ -275,7 +275,7 @@ public class Scaling extends AbstractFunctionImpl {
                     ImageWrapper withEllipse = img;
                     var ellipse = img.findMetadata(Ellipse.class).orElse(null);
                     if (ellipse == null) {
-                        withEllipse = (ImageWrapper) ellipseFit.fit(Map.of("img", img));
+                        withEllipse = FileBackedImage.wrap((ImageWrapper) ellipseFit.fit(Map.of("img", img)));
                     }
                     return withEllipse;
                 })
@@ -296,10 +296,10 @@ public class Scaling extends AbstractFunctionImpl {
                 var img = entry.getKey();
                 var radius = entry.getValue();
                 if (radius.equals(maxRadiusValue)) {
-                    result.add(img);
+                    result.add(FileBackedImage.wrap(img));
                 } else {
                     var scale = maxRadiusValue / radius;
-                    result.add(doRescale(img, (int) Math.round(img.width() * scale), (int) Math.round(img.height() * scale)));
+                    result.add(FileBackedImage.wrap(doRescale(img, (int) Math.round(img.width() * scale), (int) Math.round(img.height() * scale))));
                 }
             }
             var minWidth = result.stream().mapToInt(ImageWrapper::width).min().orElse(0);

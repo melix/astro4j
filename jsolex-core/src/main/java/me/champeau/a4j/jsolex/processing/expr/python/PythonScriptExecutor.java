@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.expr.python;
 
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
+import me.champeau.a4j.jsolex.processing.util.CancellationSupport;
 import me.champeau.a4j.jsolex.processing.expr.AbstractImageExpressionEvaluator;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import org.graalvm.polyglot.Context;
@@ -433,24 +434,30 @@ public class PythonScriptExecutor {
         return runUnderLock(task::get);
     }
 
+    private static <T> T call(Callable<T> task) {
+        try {
+            return task.call();
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new IllegalStateException(e.getMessage(), e);
+        }
+    }
+
     private <T> T runUnderLock(Callable<T> task) {
         // If we already hold the lock (reentrant call from nested python()), execute directly
         if (CONTEXT_LOCK.isHeldByCurrentThread()) {
-            try {
-                return task.call();
-            } catch (RuntimeException e) {
-                throw e;
-            } catch (Exception e) {
-                throw new IllegalStateException(e.getMessage(), e);
-            }
+            return call(task);
         }
 
-        // Otherwise, submit to executor and acquire lock there
+        // Otherwise, submit to executor and acquire lock there. The cancellation of the
+        // calling thread must follow the task, so that the script can be interrupted
+        var cancellation = CancellationSupport.currentFlag();
         try {
             return PYTHON_EXECUTOR.submit(() -> {
                 CONTEXT_LOCK.lock();
                 try {
-                    return task.call();
+                    return CancellationSupport.callWith(cancellation, () -> call(task));
                 } finally {
                     CONTEXT_LOCK.unlock();
                 }

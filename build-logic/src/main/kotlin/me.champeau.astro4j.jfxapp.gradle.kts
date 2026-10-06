@@ -12,14 +12,7 @@ javafx {
 }
 
 val os = System.getProperty("os.name").lowercase(Locale.ENGLISH)
-val jvmMemorySettings = listOf(
-    providers.systemProperty("memory.settings").getOrElse("-XX:MaxRAMPercentage=80"),
-    "-XX:+UseZGC",
-    "-XX:+ExplicitGCInvokesConcurrent",
-    "-XX:+HeapDumpOnOutOfMemoryError",
-    "-XX:+UseCompactObjectHeaders",
-    "-Dpolyglotimpl.DisableMultiReleaseCheck=true"
-)
+val jvmMemorySettings: List<String> by extra
 
 application {
     applicationDefaultJvmArgs = jvmMemorySettings + listOf(
@@ -98,7 +91,6 @@ tasks.register("allDistributions") {
 }
 
 tasks.withType<JavaExec>().configureEach {
-    jvmArgs(jvmMemorySettings)
     // Required for Apache Arrow memory allocation
     jvmArgs("--add-opens=java.base/java.nio=org.apache.arrow.memory.core")
     jvmArgs("--add-opens=java.base/java.nio=ALL-UNNAMED")

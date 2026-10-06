@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
@@ -74,6 +75,7 @@ public record BatchProcessingContext(
     long batchStartNanos,
     AtomicBoolean batchScriptsRunning,
     AtomicBoolean batchPostProcessing,
-    List<InvalidExpression> perImageScriptErrors
+    List<InvalidExpression> perImageScriptErrors,
+    AtomicReference<Runnable> postProcessingCleanup
 ) {
 }

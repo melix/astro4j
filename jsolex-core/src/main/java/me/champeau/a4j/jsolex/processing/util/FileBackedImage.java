@@ -420,10 +420,10 @@ public final class FileBackedImage implements ImageWrapper {
         }
         // Now that the file is saved, proceed to re-read the image from disk.
         var read = readFromDisk();
-        unwrapped = new ImageReference(read, this, REFERENCE_QUEUE);
+        unwrapped = new ImageReference(read, this, REFERENCE_QUEUE, false);
         CACHE_LOCK.lock();
         try {
-            WRAP_CACHE.put(read, new FileBackedImage(width, height, backingFile, metadata, keptInMemory, read));
+            WRAP_CACHE.put(read, this);
         } finally {
             CACHE_LOCK.unlock();
         }
@@ -573,10 +573,15 @@ public final class FileBackedImage implements ImageWrapper {
         private volatile ImageWrapper source;
 
         public ImageReference(ImageWrapper referent, FileBackedImage image, ReferenceQueue<ImageWrapper> queue) {
+            this(referent, image, queue, true);
+        }
+
+        public ImageReference(ImageWrapper referent, FileBackedImage image, ReferenceQueue<ImageWrapper> queue, boolean keepStrongCopy) {
             super(referent, queue);
             this.image = image;
             this.source = switch (referent) {
                 case null -> null;
+                case ImageWrapper ignored when !keepStrongCopy -> null;
                 case ImageWrapper32 mono ->
                         new ImageWrapper32(mono.width(), mono.height(), mono.data(), mono.metadata());
                 case RGBImage rgb -> new RGBImage(rgb.width(), rgb.height(), rgb.r(), rgb.g(), rgb.b(), rgb.metadata());

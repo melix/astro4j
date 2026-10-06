@@ -6,6 +6,13 @@
 - Les couleurs des images Doppler sont désormais déterminées automatiquement, pour afficher en rouge ce qui s'éloigne et en bleu ce qui s'approche.
 - La mesure personnalisée de la rotation différentielle peut combiner plusieurs balayages pour réduire les incertitudes, désormais affichées.
 - Le script SharpCap d'identification en direct des raies spectrales fonctionne désormais avec SharpCap 4.1.
+- Un nouveau script d'exemple, disponible en mode batch, produit une animation fluide d'une journée de scans H-alpha en les empilant avec une fenêtre glissante, avec une animation Doppler en option.
+- La nouvelle fonction `correct_limb` ramène le limbe solaire sur un cercle et aligne une série d'images sur le même cercle, ce qui supprime l'ondulation lente du disque dans les animations.
+- Les scripts Python ne conservent plus en mémoire toutes les images qu'ils produisent, ce qui pouvait faire planter l'application lors du traitement de nombreux fichiers en mode batch.
+- La fonction `radius_rescale` ne conserve plus en mémoire toutes les images redimensionnées, ce qui pouvait faire planter le traitement par lots de nombreux fichiers.
+- Les scripts Python ne se bloquent plus quand une fonction comme `anim` traite une liste d'images en parallèle.
+- Les animations ne basculent plus silencieusement sur l'encodeur de secours, plus lent, quand la mémoire est juste pendant l'export des vues pour ffmpeg.
+- Les scripts exécutés en fin de traitement par lots peuvent désormais être interrompus, et la barre de progression montre ce qu'ils font.
 
 ## Nouveautés de la version 5.5.0
 

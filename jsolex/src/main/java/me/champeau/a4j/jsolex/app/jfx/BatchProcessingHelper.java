@@ -183,10 +183,7 @@ public final class BatchProcessingHelper {
                 context,
                 interrupted,
                 autoTrimSerFile,
-                () -> FxUtils.runLater(() -> {
-                    context.removeInterruptButton(interruptButton);
-                    context.setImageMathRunDisabled(false);
-                })
+                () -> releaseInterruptButton(context, batchContext, interruptButton)
         );
 
         interruptButton.setOnAction(e -> {
@@ -345,10 +342,7 @@ public final class BatchProcessingHelper {
                 context,
                 interrupted,
                 autoTrimSerFile,
-                () -> FxUtils.runLater(() -> {
-                    context.removeInterruptButton(interruptButton);
-                    context.setImageMathRunDisabled(false);
-                })
+                () -> releaseInterruptButton(context, batchContext, interruptButton)
         );
 
         interruptButton.setOnAction(e -> {
@@ -384,8 +378,24 @@ public final class BatchProcessingHelper {
                 System.nanoTime(),
                 new AtomicBoolean(),
                 new AtomicBoolean(),
-                new CopyOnWriteArrayList<>()
+                new CopyOnWriteArrayList<>(),
+                new AtomicReference<>()
         );
+    }
+
+    private static void releaseInterruptButton(BatchContext context, BatchProcessingContext batchContext, Button interruptButton) {
+        Runnable release = () -> FxUtils.runLater(() -> {
+            context.removeInterruptButton(interruptButton);
+            context.setImageMathRunDisabled(false);
+        });
+        // The batch scripts run after the files, on their own thread: the button must survive them
+        batchContext.postProcessingCleanup().set(release);
+        if (!batchContext.batchPostProcessing().get()) {
+            var pending = batchContext.postProcessingCleanup().getAndSet(null);
+            if (pending != null) {
+                pending.run();
+            }
+        }
     }
 
     private Thread runBatchProcessing(List<BatchItem> itemsToProcess,

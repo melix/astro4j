@@ -6,6 +6,13 @@
 - The colors of Doppler images are now determined automatically, so that receding regions appear in red and approaching ones in blue.
 - The custom differential rotation measurement can combine several scans to reduce the uncertainties, which are now displayed.
 - The SharpCap script for live identification of spectral lines now works with SharpCap 4.1.
+- A new example script, available in batch mode, produces a smooth animation of a day of H-alpha scans by stacking them with a sliding window, with an optional Doppler animation.
+- The new `correct_limb` function brings the solar limb back onto a circle and aligns a series of images on the same circle, which removes the slow wobbling of the disk in animations.
+- Python scripts no longer keep every image they produce in memory, which could crash the application when processing many files in batch mode.
+- The `radius_rescale` function no longer keeps all the rescaled images in memory, which could crash batch processing of many files.
+- Python scripts no longer hang when a function such as `anim` processes a list of images in parallel.
+- Animations are no longer silently encoded with the slow fallback encoder when memory is tight while the frames are exported for ffmpeg.
+- The scripts which run at the end of a batch can now be interrupted, and the progress bar shows what they are doing.
 
 ## What's New in Version 5.5.0
 
