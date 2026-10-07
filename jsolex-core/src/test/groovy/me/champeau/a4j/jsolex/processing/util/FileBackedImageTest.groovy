@@ -17,6 +17,8 @@ package me.champeau.a4j.jsolex.processing.util
 
 import spock.lang.Specification
 
+import java.nio.file.Files
+import java.nio.file.Path
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -138,6 +140,73 @@ class FileBackedImageTest extends Specification {
         floatArraysEqual(recovered.data(), data)
     }
 
+    def "a reloaded image is served from memory without a strong copy and re-read when the GC releases it"() {
+        given: "an FBI written to disk and released under pressure"
+        FileBackedImage.setPressureSupplierForTesting({ true } as BooleanSupplier)
+        def data = synthesise(150, 120, 5)
+        def fbi = FileBackedImage.wrap(new ImageWrapper32(150, 120, data, [:] as Map<Class<?>, Object>))
+        fbi.clearSoftReferenceForTesting()
+        assert statusSaved(fbi)
+
+        when: "the image is reloaded"
+        def reloaded = (ImageWrapper32) fbi.unwrapToMemory()
+
+        then: "only the soft reference holds the pixels"
+        fbi.@unwrapped.get() != null
+        fbi.@unwrapped.@source == null
+        floatArraysEqual(reloaded.data(), data)
+
+        when: "the backing file is removed and the image is requested again"
+        def backingFile = (Path) fbi.@backingFile
+        def saved = Files.readAllBytes(backingFile)
+        Files.delete(backingFile)
+        def again = (ImageWrapper32) fbi.unwrapToMemory()
+
+        then: "it is served from memory, the disk is not read"
+        again.is(reloaded)
+
+        when: "the GC releases the soft reference"
+        Files.write(backingFile, saved)
+        fbi.clearSoftReferenceForTesting()
+        def reread = (ImageWrapper32) fbi.unwrapToMemory()
+
+        then: "nothing was queued for writing and the pixels are re-read from disk"
+        fbi.@unwrapped.@source == null
+        !reread.is(reloaded)
+        floatArraysEqual(reread.data(), data)
+    }
+
+    def "reloading more images than the heap can hold does not fail"() {
+        given: "flushed images whose total size exceeds the maximum heap"
+        FileBackedImage.setPressureSupplierForTesting({ true } as BooleanSupplier)
+        def size = 1024
+        def imageBytes = size * size * Float.BYTES
+        def count = (int) (Runtime.runtime.maxMemory() * 1.5 / imageBytes)
+        def handles = new ArrayList<FileBackedImage>()
+        def checksums = new ArrayList<Double>()
+        for (int i = 0; i < count; i++) {
+            def data = synthesise(size, size, i)
+            checksums << checksum(data)
+            def fbi = FileBackedImage.wrap(new ImageWrapper32(size, size, data, [:] as Map<Class<?>, Object>))
+            fbi.clearSoftReferenceForTesting()
+            handles << fbi
+        }
+        FileBackedImage.setPressureSupplierForTesting({ false } as BooleanSupplier)
+
+        when: "every image is reloaded while all handles stay alive"
+        def mismatches = 0
+        for (int i = 0; i < count; i++) {
+            def image = (ImageWrapper32) handles[i].unwrapToMemory()
+            if (checksum(image.data()) != checksums[i]) {
+                mismatches++
+            }
+        }
+
+        then: "no OutOfMemoryError, every image was read correctly, and the GC released some of them"
+        mismatches == 0
+        handles.count { it.@unwrapped.get() == null } > 0
+    }
+
     def "concurrent unwrapToMemory after flush returns equivalent data"() {
         given: "an FBI flushed to disk"
         FileBackedImage.setPressureSupplierForTesting({ true } as BooleanSupplier)
@@ -197,6 +266,16 @@ class FileBackedImageTest extends Specification {
             }
         }
         return data
+    }
+
+    private static double checksum(float[][] data) {
+        double sum = 0
+        for (int y = 0; y < data.length; y += 7) {
+            for (int x = 0; x < data[y].length; x += 11) {
+                sum += data[y][x]
+            }
+        }
+        sum
     }
 
     private static float[][] copyMonoData(float[][] src) {

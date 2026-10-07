@@ -65,6 +65,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.NamingStrategyAwareImageEm
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.sun.workflow.RenamingImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.SourceInfo;
+import me.champeau.a4j.jsolex.processing.util.CancellationSupport;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.DurationFormatter;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
@@ -93,6 +94,7 @@ import java.util.Set;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
@@ -135,6 +137,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     private final AtomicBoolean batchScriptsRunning;
     private final AtomicBoolean batchPostProcessing;
     private final List<InvalidExpression> perImageScriptErrors;
+    private final AtomicReference<Runnable> postProcessingCleanup;
 
     /**
      * Creates a new batch mode event listener.
@@ -171,6 +174,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         this.batchScriptsRunning = context.batchScriptsRunning();
         this.batchPostProcessing = context.batchPostProcessing();
         this.perImageScriptErrors = context.perImageScriptErrors();
+        this.postProcessingCleanup = context.postProcessingCleanup();
     }
     
     private SolarParameters computeAverageSolarParameters() {
@@ -349,6 +353,8 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     }
 
     private void maybeFilterImages(Consumer<? super FilteringResult> onClose) {
+        // The scripts run on a new thread, which must inherit the cancellation of the batch
+        var cancellation = CancellationSupport.currentFlag();
         if (processParams.extraParams().reviewImagesAfterBatch()) {
             // Create defensive copies of shared data under lock protection
             Map<Integer, List<CandidateImageDescriptor>> imagesByIndexCopy;
@@ -372,10 +378,10 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                 var deletedFiles = controller.getDeletedFiles();
                 var movedFiles = controller.getMovedFiles();
                 adjustDeletedAndMovedFilesList(deletedFiles, movedFiles);
-                Thread.startVirtualThread(() -> onClose.accept(new FilteringResult(controller.getDiscardedImages(), controller.getBestImage().orElse(null))));
+                Thread.startVirtualThread(() -> CancellationSupport.runWith(cancellation, () -> onClose.accept(new FilteringResult(controller.getDiscardedImages(), controller.getBestImage().orElse(null)))));
             }));
         } else {
-            Thread.startVirtualThread(() -> onClose.accept(new FilteringResult(List.of(), null)));
+            Thread.startVirtualThread(() -> CancellationSupport.runWith(cancellation, () -> onClose.accept(new FilteringResult(List.of(), null))));
         }
     }
 
@@ -434,6 +440,10 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
 
     private void batchFinished() {
         batchPostProcessing.set(false);
+        var cleanup = postProcessingCleanup.getAndSet(null);
+        if (cleanup != null) {
+            cleanup.run();
+        }
         owner.enableSpectroSolHubSubmission(detectedSpectralLines.stream().findFirst().orElse(null));
         if (owner.isLiveSessionActive() && liveUploadCount.get() == 0) {
             LOGGER.warn(message("live.batch.no.uploads"));
@@ -563,7 +573,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                         batchScriptExecutor.putVariable(entry.getKey(), entry.getValue());
                     }
                 }
-                executeBatchScript(namingStrategy, scriptFile);
+                executeBatchScript(namingStrategy, scriptFile, rootOperation);
             }
         } finally {
             batchScriptsRunning.set(false);
@@ -572,8 +582,10 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     }
 
 
-    private void executeBatchScript(FileNamingStrategy namingStrategy, File scriptFile) {
-        owner.updateProgress(0, String.format(message("executing.script"), scriptFile));
+    private void executeBatchScript(FileNamingStrategy namingStrategy, File scriptFile, ProgressOperation rootOperation) {
+        var scriptOperation = rootOperation.createChild(String.format(message("executing.script"), scriptFile));
+        batchScriptExecutor.putInContext(ProgressOperation.class, scriptOperation);
+        owner.updateProgress(scriptOperation);
         ImageMathScriptResult result;
         try {
             result = batchScriptExecutor.execute(scriptFile.toPath(), ImageMathScriptExecutor.SectionKind.BATCH);
@@ -585,7 +597,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
             var outputsMetadata = ScriptExecutionHelper.extractOutputsMetadata(scriptFile);
             renderBatchOutputs(namingStrategy, result, outputsMetadata);
         } finally {
-            owner.updateProgress(1, String.format(message("executing.script"), scriptFile));
+            owner.updateProgress(scriptOperation.complete());
         }
     }
 

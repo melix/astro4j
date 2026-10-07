@@ -27,6 +27,8 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShiftRange;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
 import me.champeau.a4j.jsolex.processing.sun.workflow.SourceInfo;
 import me.champeau.a4j.jsolex.processing.sun.workflow.SpectralLinePolynomial;
+import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
+import me.champeau.a4j.jsolex.processing.util.CancellationSupport;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
@@ -324,12 +326,13 @@ public class PythonImageMathBridge implements AutoCloseable {
      */
     @HostAccess.Export
     public Object callAny(String functionName, Object args) {
+        CancellationSupport.checkCancelled();
         // Try builtin first - separate lookup from execution to avoid catching
         // IllegalArgumentException from the function call itself
         var builtin = lookupBuiltin(functionName);
         if (builtin != null) {
             var argsMap = convertToJavaMap(args);
-            return evaluator.functionCall(builtin, argsMap);
+            return wrapImages(functionName, evaluator.functionCall(builtin, argsMap));
         }
 
         // Not a builtin, try user function
@@ -352,6 +355,7 @@ public class PythonImageMathBridge implements AutoCloseable {
      */
     @HostAccess.Export
     public Object callAnyWithPositionalArgs(String functionName, Object positionalArgs, Object kwargs) {
+        CancellationSupport.checkCancelled();
         // Try builtin first - separate lookup from execution to avoid catching
         // IllegalArgumentException from the function call itself
         var builtin = lookupBuiltin(functionName);
@@ -369,7 +373,7 @@ public class PythonImageMathBridge implements AutoCloseable {
             }
 
             argsMap.putAll(convertToJavaMap(kwargs));
-            return evaluator.functionCall(builtin, argsMap);
+            return wrapImages(functionName, evaluator.functionCall(builtin, argsMap));
         }
 
         // Not a builtin, try user function
@@ -1504,6 +1508,21 @@ public class PythonImageMathBridge implements AutoCloseable {
 
     // ========== Helper Methods ==========
 
+    private static Object wrapImages(String functionName, Object result) {
+        var transform = "Python: " + functionName;
+        if (result instanceof ImageWrapper image) {
+            return FileBackedImage.wrap(TransformationHistory.recordTransform(image, transform));
+        }
+        if (result instanceof List<?> list && !list.isEmpty() && list.stream().allMatch(ImageWrapper.class::isInstance)) {
+            return list.stream()
+                    .map(ImageWrapper.class::cast)
+                    .map(image -> TransformationHistory.recordTransform(image, transform))
+                    .map(FileBackedImage::wrap)
+                    .toList();
+        }
+        return result;
+    }
+
     private BuiltinFunction lookupBuiltin(String functionName) {
         try {
             return BuiltinFunction.valueOf(functionName.toUpperCase(Locale.US));
@@ -1606,6 +1625,18 @@ public class PythonImageMathBridge implements AutoCloseable {
             } catch (Exception e) {
                 return v.toString();
             }
+        }
+        // Guest collections are proxies which take the Python lock on every access, so they
+        // must not reach host code which may read them from other threads
+        if (value instanceof List<?> list) {
+            var converted = new ArrayList<>(list.size());
+            for (var item : list) {
+                converted.add(convertFromPythonValue(item));
+            }
+            return converted;
+        }
+        if (value instanceof Map<?, ?> map) {
+            return convertToJavaMap(map);
         }
         return value;
     }

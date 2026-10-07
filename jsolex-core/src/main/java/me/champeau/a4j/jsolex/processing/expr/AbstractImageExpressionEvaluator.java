@@ -40,6 +40,7 @@ import me.champeau.a4j.jsolex.processing.expr.impl.Dedistort;
 import me.champeau.a4j.jsolex.processing.expr.impl.Destripe;
 import me.champeau.a4j.jsolex.processing.expr.impl.DiskFill;
 import me.champeau.a4j.jsolex.processing.expr.impl.EllipseFit;
+import me.champeau.a4j.jsolex.processing.expr.impl.LimbCorrection;
 import me.champeau.a4j.jsolex.processing.expr.impl.Filtering;
 import me.champeau.a4j.jsolex.processing.expr.impl.FixBanding;
 import me.champeau.a4j.jsolex.processing.expr.impl.GeometryCorrection;
@@ -142,6 +143,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     private final Dedistort dedistort;
     private final DiskFill diskFill;
     private final EllipseFit ellipseFit;
+    private final LimbCorrection limbCorrection;
     private final Filtering filtering;
     private final FixBanding fixBanding;
     private final Destripe destripe;
@@ -188,6 +190,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         this.dedistort = new Dedistort(context, broadcaster, crop, scaling);
         this.diskFill = new DiskFill(context, broadcaster);
         this.ellipseFit = new EllipseFit(context, broadcaster);
+        this.limbCorrection = new LimbCorrection(context, broadcaster, ellipseFit);
         this.filtering = new Filtering(context, broadcaster);
         this.fixBanding = new FixBanding(context, broadcaster);
         this.destripe = new Destripe(context, broadcaster);
@@ -386,6 +389,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case DRAW_TEXT -> imageDraw.drawText(arguments);
             case DRAW_EARTH -> imageDraw.drawEarth(arguments);
             case ELLIPSE_FIT -> ellipseFit.fit(arguments);
+            case CORRECT_LIMB -> limbCorrection.correctLimb(arguments);
             case EQUALIZE -> adjustContrast.equalize(arguments);
             case EXP -> math.exp(arguments);
             case FILTER -> filtering.filter(arguments);

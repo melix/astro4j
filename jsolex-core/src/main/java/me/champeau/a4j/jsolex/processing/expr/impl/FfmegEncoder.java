@@ -21,6 +21,7 @@ import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.MemoryAwareStreams;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
 import org.slf4j.Logger;
@@ -32,6 +33,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -55,15 +57,13 @@ public class FfmegEncoder {
                               int msBetweenFrames) throws IOException {
         // first step is to export each image in a temporary directory
         // and each frame must be named with a sequence number, eg. frame-0001.png
-        var tempDir = TemporaryFolder.newTempDir("jsolex-ffmpeg-");
-        List<File> frames = null;
+        var tempDir = TemporaryFolder.newUniqueTempDir("jsolex-ffmpeg-");
         var progressOperation = operation.createChild("Exporting frames");
         try {
             broadcaster.broadcast(progressOperation);
             var progress = new AtomicInteger(0);
-            frames = IntStream.range(0, images.size())
-                .parallel()
-                .mapToObj(i -> {
+            MemoryAwareStreams.maybeParallel(IntStream.range(0, images.size()))
+                .forEach(i -> {
                     var fileName = String.format("frame-%04d.png", i);
                     var file = new File(tempDir.toFile(), fileName);
                     var img = images.get(i);
@@ -76,28 +76,30 @@ public class FfmegEncoder {
                         ImageUtils.writeRgbImage(rgb.width(), rgb.height(), rgb.r(), rgb.g(), rgb.b(), file, Set.of(ImageFormat.PNG));
                     }
                     broadcaster.broadcast(progressOperation.update(progress.incrementAndGet() / (double) images.size()));
-                    return file;
-                })
-                .toList();
+                });
             broadcaster.broadcast(progressOperation.update(1, "Exporting frames"));
             broadcaster.broadcast(progressOperation.update(0, "Encoding (FFMPEG)"));
             var success = encodeFrameDirectory(tempDir, outputFile, msBetweenFrames,
                 encoded -> broadcaster.broadcast(progressOperation.update(Math.min(1.0, encoded / (double) images.size()), "Encoding (FFMPEG)")));
             broadcaster.broadcast(progressOperation.complete());
-            if (!success) {
-                return false;
-            }
+            return success;
         } finally {
-            if (frames != null) {
-                // delete all temporary files
-                for (File file : frames) {
-                    Path path = file.toPath();
-                    Files.deleteIfExists(path);
-                }
-            }
-            Files.deleteIfExists(tempDir);
+            deleteRecursively(tempDir);
         }
-        return true;
+    }
+
+    private static void deleteRecursively(Path dir) {
+        try (var paths = Files.walk(dir)) {
+            paths.sorted(Comparator.reverseOrder()).forEach(path -> {
+                try {
+                    Files.deleteIfExists(path);
+                } catch (IOException e) {
+                    LOGGER.warn("Unable to delete temporary file {}", path, e);
+                }
+            });
+        } catch (IOException e) {
+            LOGGER.warn("Unable to clean temporary directory {}", dir, e);
+        }
     }
 
     /**

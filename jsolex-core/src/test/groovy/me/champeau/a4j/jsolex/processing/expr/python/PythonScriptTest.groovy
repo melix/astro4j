@@ -23,6 +23,7 @@ import me.champeau.a4j.jsolex.processing.sun.Broadcaster
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords
 import me.champeau.a4j.jsolex.processing.sun.workflow.SpectralLinePolynomial
+import me.champeau.a4j.jsolex.processing.util.FileBackedImage
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32
 import me.champeau.a4j.jsolex.processing.util.SolarParameters
 import me.champeau.a4j.math.regression.Ellipse
@@ -1893,7 +1894,37 @@ def single():
         result.my_image.height() == 10
     }
 
-    // ==================== Helper Methods ====================
+    // ==================== Memory Management Tests ====================
+
+    def "images returned by builtin functions are file backed, like in ImageMath"() {
+        given:
+        def img = createImage(4, 2, 10.0f)
+
+        when:
+        def single = executor.executeInline("result = jsolex.funcs.rotate_left(img)", [img: img])
+        def list = executor.executeInline("result = jsolex.funcs.rotate_left([img, img])", [img: img])
+
+        then:
+        single instanceof FileBackedImage
+        single.unwrapToMemory().data()[0][0] == 10.0f
+        list instanceof List
+        list.every { it instanceof FileBackedImage }
+    }
+
+    def "lists passed from Python to builtin functions are copied into plain Java lists"() {
+        given:
+        def context = executor.getOrCreateContext()
+        def pyList = context.eval("python", "[[1.0, 2.0], [3.0]]").as(List)
+
+        when:
+        def converted = executor.@bridge.convertFromPythonValue(pyList)
+
+        then:
+        converted instanceof ArrayList
+        converted.every { it instanceof ArrayList }
+        converted[0] == [1.0d, 2.0d]
+        converted[1] == [3.0d]
+    }
 
     // ==================== Image Arithmetic Operator Tests ====================
 

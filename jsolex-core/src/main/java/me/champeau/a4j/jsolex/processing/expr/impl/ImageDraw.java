@@ -1125,7 +1125,7 @@ public class ImageDraw extends AbstractFunctionImpl {
             var height = mono.height();
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
-                    converted[y * width + x] = (short) round(data[y][x]);
+                    converted[y * width + x] = (short) toUnsignedShort(data[y][x]);
                 }
             }
             return image;
@@ -1355,7 +1355,7 @@ public class ImageDraw extends AbstractFunctionImpl {
             var height = mono.height();
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
-                    converted[y * width + x] = (short) round(data[y][x]);
+                    converted[y * width + x] = (short) toUnsignedShort(data[y][x]);
                 }
             }
         } else if (wrapper instanceof RGBImage rgb) {
@@ -1371,6 +1371,10 @@ public class ImageDraw extends AbstractFunctionImpl {
         return image;
     }
 
+    private static int toUnsignedShort(float value) {
+        return Math.clamp(round(value), 0, 65535);
+    }
+
     private static BufferedImage toBufferedImage(int width, int height, float[][] r, float[][] g, float[][] b) {
         var image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
         var rgbArray = ((DataBufferInt) image.getRaster().getDataBuffer()).getData();
@@ -1380,9 +1384,9 @@ public class ImageDraw extends AbstractFunctionImpl {
             var bRow = b[y];
             int rowOffset = y * width;
             for (int x = 0; x < width; x++) {
-                int rv = (round(rRow[x]) >> 8) & 0xFF;
-                int gv = (round(gRow[x]) >> 8) & 0xFF;
-                int bv = (round(bRow[x]) >> 8) & 0xFF;
+                int rv = toUnsignedShort(rRow[x]) >> 8;
+                int gv = toUnsignedShort(gRow[x]) >> 8;
+                int bv = toUnsignedShort(bRow[x]) >> 8;
                 rgbArray[rowOffset + x] = (rv << 16) | (gv << 8) | bv;
             }
         }

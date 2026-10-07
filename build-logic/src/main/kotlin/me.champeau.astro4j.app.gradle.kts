@@ -16,7 +16,22 @@ plugins {
 // an application, so no consumers except for the final
 // deliverable
 
-val sharedJvmArgs = listOf("--enable-preview", "--enable-native-access=javafx.graphics", "--enable-native-access=org.lwjgl.opengl", "--enable-native-access=org.lwjgl")
+val jvmMemorySettings = listOf(
+    providers.systemProperty("memory.settings").getOrElse("-XX:MaxRAMPercentage=80"),
+    "-XX:+UseZGC",
+    // Soft references hold the cached images: the default policy keeps them for about one
+    // second per free megabyte, which is hours on a large heap, so cached images would only
+    // ever be written to disk under memory pressure
+    "-XX:SoftRefLRUPolicyMSPerMB=8",
+    "-XX:+ExplicitGCInvokesConcurrent",
+    "-XX:+HeapDumpOnOutOfMemoryError",
+    "-XX:+UseCompactObjectHeaders",
+    "-Dpolyglotimpl.DisableMultiReleaseCheck=true"
+)
+extra["jvmMemorySettings"] = jvmMemorySettings
+
+val nativeAccessArgs = listOf("--enable-preview", "--enable-native-access=javafx.graphics", "--enable-native-access=org.lwjgl.opengl", "--enable-native-access=org.lwjgl")
+val sharedJvmArgs = jvmMemorySettings + nativeAccessArgs
 
 application {
     applicationDefaultJvmArgs = sharedJvmArgs
@@ -50,7 +65,7 @@ graalvmNative {
                 restrictToProjectDependencies.set(false)
             }
         }
-        jvmArgs(sharedJvmArgs)
+        jvmArgs(nativeAccessArgs)
     }
 }
 

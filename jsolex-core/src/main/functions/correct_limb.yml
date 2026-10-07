@@ -1,0 +1,29 @@
+name: CORRECT_LIMB
+category: ENHANCEMENT
+description:
+  fr: "Ramène le limbe solaire sur un cercle. Le limbe est mesuré tout autour du disque, son écart au cercle ajusté est modélisé par quelques harmoniques, puis l'image est déformée radialement pour annuler cet écart. La déformation est complète au limbe et décroît vers le centre du disque, de sorte que les détails internes ne sont pas contraints. Utile pour supprimer l'ondulation du disque due à la turbulence lente dans les animations."
+  en: "Brings the solar limb back onto a circle. The limb is measured all around the disk, its deviation from the fitted circle is modelled with a few harmonics, then the image is radially warped to cancel this deviation. The warp is full at the limb and fades towards the center of the disk, so that the inner details are not constrained. Useful to remove the wobbling of the disk caused by slow turbulence in animations."
+arguments:
+  - name: img
+    description: Image(s)
+  - name: order
+    optional: true
+    default: 6
+    description:
+      fr: "Nombre d'harmoniques du modèle du limbe"
+      en: "Number of harmonics of the limb model"
+  - name: ref
+    optional: true
+    description:
+      fr: "Image(s) sur lesquelles mesurer le limbe, lorsque les images à corriger ne le montrent pas bien, par exemple les ailes d'une raie. La correction mesurée sur chaque image de référence est appliquée à l'image de même rang."
+      en: "Image(s) on which the limb is measured, when the images to correct do not show it well, for example the wings of a line. The correction measured on each reference image is applied to the image at the same index."
+  - name: falloff
+    optional: true
+    default: 2
+    description:
+      fr: "Exposant de la décroissance de la correction vers le centre du disque"
+      en: "Exponent of the decay of the correction towards the center of the disk"
+examples:
+  - "correct_limb(img(0))"
+  - "correct_limb(img: some_images, order: 4)"
+  - "correct_limb(img: wings, ref: centers)"
