@@ -1021,6 +1021,7 @@ public class PythonImageMathBridge implements AutoCloseable {
         result.put("dateTime", sourceInfo.dateTime() != null ? sourceInfo.dateTime().toString() : null);
         result.put("width", sourceInfo.width());
         result.put("height", sourceInfo.height());
+        result.put("durationSeconds", sourceInfo.durationSeconds());
         return result;
     }
 
