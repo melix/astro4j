@@ -192,6 +192,7 @@ public class SolexVideoProcessor implements Broadcaster {
     private DoubleUnaryOperator polynomial;
     private DoubleQuadruplet polynomialCoefficients;
     private float[][] averageImage;
+    private double scanDurationSeconds;
     private PixelShiftRange pixelShiftRange;
     private boolean forceDetectActiveRegions;
     private List<ConditionalFlip> flipConditions = List.of();
@@ -302,6 +303,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 detector.computeAverageImage(reader);
                 averageImage = detector.getAverageImage();
             }
+            scanDurationSeconds = reader.computeSequenceDuration().map(d -> d.toNanos() / 1e9).orElse(0d);
             var fps = reader.estimateFps().orElse(null);
             generateImages(converter, header, fps, serFile, reader);
         } catch (Exception e) {
@@ -950,7 +952,7 @@ public class SolexVideoProcessor implements Broadcaster {
         var recon = reconstructed.asImage();
         var rotateLeft = ImageMath.newInstance().rotateLeft(recon);
         var metadata = new HashMap<>(reconstructed.metadata());
-        metadata.putAll(createMetadata(processParams, serFile.toPath(), pixelShiftRange, header).build().toMap());
+        metadata.putAll(createMetadata(processParams, serFile.toPath(), pixelShiftRange, header, scanDurationSeconds).build().toMap());
 
         var refCoords = metadata.get(ReferenceCoords.class);
         if (refCoords instanceof ReferenceCoords coords) {
@@ -1324,7 +1326,7 @@ public class SolexVideoProcessor implements Broadcaster {
                  var scriptExecutor = Executors.newVirtualThreadPerTaskExecutor()) {
                 var scriptFutures = mathImages.scriptFiles().stream().map(scriptFile -> ProcessingLogContext.runAsync(scriptExecutor, () -> {
                     broadcast(scriptsOperation.update(0, message("running.scripts") + " : " + scriptFile.getName()));
-                    var context = createMetadata(processParams, serFile.toPath(), pixelShiftRange, header)
+                    var context = createMetadata(processParams, serFile.toPath(), pixelShiftRange, header, scanDurationSeconds)
                             .imageEmitter(emitter)
                             .progressOperation(scriptsOperation)
                             .serFileReader(scriptsReader)
@@ -1392,8 +1394,8 @@ public class SolexVideoProcessor implements Broadcaster {
         }
     }
 
-    public static ScriptExecutionContext.Builder createMetadata(ProcessParams processParams, Path serFile, PixelShiftRange pixelShiftRange, Header header) {
-        return ScriptExecutionContext.forProcessing(processParams, serFile, pixelShiftRange, header);
+    public static ScriptExecutionContext.Builder createMetadata(ProcessParams processParams, Path serFile, PixelShiftRange pixelShiftRange, Header header, double scanDurationSeconds) {
+        return ScriptExecutionContext.forProcessing(processParams, serFile, pixelShiftRange, header, scanDurationSeconds);
     }
 
     private ImageEmitter createCustomImageEmitter(FileNamingStrategy imageNamingStrategy, String baseName) {

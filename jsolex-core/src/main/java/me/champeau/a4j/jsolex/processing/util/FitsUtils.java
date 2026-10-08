@@ -372,11 +372,15 @@ public class FitsUtils {
                     var date = ZonedDateTime.parse((String) binaryTable.get(0, 2));
                     int width = 0;
                     int height = 0;
+                    double duration = 0;
                     if (binaryTable.getNCols() > 3) {
                         width = binaryTable.getNumber(0, 3).intValue();
                         height = binaryTable.getNumber(0, 4).intValue();
                     }
-                    metadata.put(SourceInfo.class, new SourceInfo(fileName, parentName, date, width, height));
+                    if (binaryTable.getNCols() > 5) {
+                        duration = binaryTable.getNumber(0, 5).doubleValue();
+                    }
+                    metadata.put(SourceInfo.class, new SourceInfo(fileName, parentName, date, width, height, duration));
                 } else if (REDSHIFTS_VALUE.equals(card.getValue())) {
                     var binaryTable = binaryTableHdu.getData();
                     int cpt = binaryTable.getNRows();
@@ -733,7 +737,7 @@ public class FitsUtils {
         if (metadata.isPresent()) {
             var sourceInfo = metadata.get();
             var table = new BinaryTable();
-            table.addRow(new Object[]{sourceInfo.serFileName(), sourceInfo.parentDirName(), sourceInfo.dateTime().toString(), sourceInfo.width(), sourceInfo.height()});
+            table.addRow(new Object[]{sourceInfo.serFileName(), sourceInfo.parentDirName(), sourceInfo.dateTime().toString(), sourceInfo.width(), sourceInfo.height(), sourceInfo.durationSeconds()});
             var binaryTableHDU = BinaryTableHDU.wrap(table);
             binaryTableHDU.getHeader().addValue(JSOLEX_HEADER_KEY, SOURCEINFO_VALUE, "Source file information");
             fits.addHDU(binaryTableHDU);

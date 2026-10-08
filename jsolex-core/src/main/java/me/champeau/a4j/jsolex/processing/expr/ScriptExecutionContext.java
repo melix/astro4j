@@ -54,11 +54,15 @@ public final class ScriptExecutionContext {
     }
 
     public static Builder forProcessing(ProcessParams processParams, Path serFile, PixelShiftRange pixelShiftRange, Header header) {
+        return forProcessing(processParams, serFile, pixelShiftRange, header, 0);
+    }
+
+    public static Builder forProcessing(ProcessParams processParams, Path serFile, PixelShiftRange pixelShiftRange, Header header, double durationSeconds) {
         return builder()
             .processParams(processParams)
             .solarParameters(SolarParametersUtils.computeSolarParams(processParams.observationDetails().date().toLocalDateTime()))
             .referenceCoords(new ReferenceCoords(List.of()))
-            .sourceInfo(serFile, header)
+            .sourceInfo(serFile, header, durationSeconds)
             .pixelShiftRange(pixelShiftRange);
     }
 
@@ -119,7 +123,7 @@ public final class ScriptExecutionContext {
             return this;
         }
 
-        public Builder sourceInfo(Path serFile, Header header) {
+        public Builder sourceInfo(Path serFile, Header header, double durationSeconds) {
             if (serFile != null && header != null) {
                 var file = serFile.toFile();
                 entries.put(SourceInfo.class, new SourceInfo(
@@ -127,7 +131,8 @@ public final class ScriptExecutionContext {
                     file.getParentFile().getName(),
                     header.metadata().utcDateTime(),
                     header.geometry().width(),
-                    header.frameCount()
+                    header.frameCount(),
+                    durationSeconds
                 ));
             }
             return this;

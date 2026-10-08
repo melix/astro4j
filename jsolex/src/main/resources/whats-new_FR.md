@@ -8,6 +8,7 @@
 - Le script SharpCap d'identification en direct des raies spectrales fonctionne désormais avec SharpCap 4.1.
 - Un nouveau script d'exemple, disponible en mode batch, produit une animation fluide d'une journée de scans H-alpha en les empilant avec une fenêtre glissante, avec une animation Doppler en option.
 - La nouvelle fonction `correct_limb` ramène le limbe solaire sur un cercle et aligne une série d'images sur le même cercle, ce qui supprime l'ondulation lente du disque dans les animations.
+- La nouvelle fonction `correct_periodic_error` supprime la déformation due à l'erreur périodique du suivi de la monture, qui fait osciller le disque d'avant en arrière dans les animations d'une journée de scans.
 - Les scripts Python ne conservent plus en mémoire toutes les images qu'ils produisent, ce qui pouvait faire planter l'application lors du traitement de nombreux fichiers en mode batch.
 - La fonction `radius_rescale` ne conserve plus en mémoire toutes les images redimensionnées, ce qui pouvait faire planter le traitement par lots de nombreux fichiers.
 - Les scripts Python ne se bloquent plus quand une fonction comme `anim` traite une liste d'images en parallèle.

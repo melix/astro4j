@@ -369,16 +369,32 @@ public class SerFileReader implements AutoCloseable {
                 // ignore
             }
         }
-        if (header.metadata().hasTimestamps()) {
-            seekLast();
-            ZonedDateTime lastFrameTimestamp = currentFrame().timestamp().orElseThrow();
-            seekFirst();
-            ZonedDateTime firstFrameTimestamp = currentFrame().timestamp().orElseThrow();
-            Duration sequenceDuration = Duration.between(firstFrameTimestamp, lastFrameTimestamp);
-            long seconds = sequenceDuration.getSeconds();
+        var sequenceDuration = computeSequenceDuration();
+        if (sequenceDuration.isPresent()) {
+            long seconds = sequenceDuration.get().getSeconds();
             value = Optional.ofNullable(seconds > 0 ? (double) header.frameCount() / seconds : null);
         }
         return value;
+    }
+
+    /**
+     * Computes the time elapsed between the first and the last frame,
+     * from the frame timestamps. The reader is left on the first frame.
+     *
+     * @return the duration of the sequence, or empty if the file has no timestamps
+     */
+    public Optional<Duration> computeSequenceDuration() {
+        if (!header.metadata().hasTimestamps()) {
+            return Optional.empty();
+        }
+        seekLast();
+        var lastFrameTimestamp = currentFrame().timestamp();
+        seekFirst();
+        var firstFrameTimestamp = currentFrame().timestamp();
+        if (firstFrameTimestamp.isEmpty() || lastFrameTimestamp.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(Duration.between(firstFrameTimestamp.get(), lastFrameTimestamp.get()));
     }
 
     /**

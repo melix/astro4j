@@ -17,11 +17,25 @@ package me.champeau.a4j.jsolex.processing.sun.workflow;
 
 import java.time.ZonedDateTime;
 
+/**
+ * Information about the video an image was produced from.
+ *
+ * @param serFileName the name of the SER file
+ * @param parentDirName the name of the directory containing the SER file
+ * @param dateTime the date of the first frame
+ * @param width the width of the frames
+ * @param height the number of frames
+ * @param durationSeconds the time elapsed between the first and the last frame, or 0 if unknown
+ */
 public record SourceInfo(
     String serFileName,
     String parentDirName,
     ZonedDateTime dateTime,
     int width,
-    int height
+    int height,
+    double durationSeconds
 ) {
+    public SourceInfo(String serFileName, String parentDirName, ZonedDateTime dateTime, int width, int height) {
+        this(serFileName, parentDirName, dateTime, width, height, 0);
+    }
 }

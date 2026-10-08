@@ -1,0 +1,31 @@
+name: CORRECT_PERIODIC_ERROR
+category: ENHANCEMENT
+description:
+  fr: "Corrige la déformation du disque due à l'erreur périodique du suivi de la monture, à appliquer à une série de scans avant `correct_limb`. La série doit compter assez de scans pour couvrir plusieurs périodes de l'erreur, avec plusieurs scans par période."
+  en: "Corrects the distortion of the disk caused by the periodic error of the mount tracking, to be applied to a series of scans before `correct_limb`. The series must contain enough scans to cover several periods of the error, with several scans per period."
+arguments:
+  - name: img
+    description:
+      fr: "Liste des images à corriger"
+      en: "List of images to correct"
+  - name: ref
+    optional: true
+    description:
+      fr: "Images des mêmes scans sur lesquelles mesurer l'erreur, par exemple le centre de la raie pour corriger ses ailes"
+      en: "Images of the same scans on which the error is measured, for example the line center to correct its wings"
+  - name: period
+    optional: true
+    default: 0
+    description:
+      fr: "Période de l'erreur en secondes, 0 pour la trouver automatiquement"
+      en: "Period of the error in seconds, 0 to find it automatically"
+  - name: harmonics
+    optional: true
+    default: 5
+    description:
+      fr: "Nombre d'harmoniques du modèle de l'erreur"
+      en: "Number of harmonics of the error model"
+examples:
+  - "correct_periodic_error(images)"
+  - "correct_periodic_error(img: images, period: 431)"
+  - "correct_periodic_error(img: wings, ref: centers)"

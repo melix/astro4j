@@ -17,9 +17,9 @@
 # meta:title:fr = "Animation H-alpha (empilement glissant)"
 # meta:author = "Cédric Champeau"
 # meta:version = "1.0"
-# meta:requires = "5.4.2"
-# meta:description = "Produces a smooth animation of a series of H-alpha scans taken over a day. Must be executed in batch mode. Each image is processed with auto_contrast, then the images are sorted by date and stacked with a sliding window: the first frame of the animation is the stack of images 1 to N, the second the stack of images 2 to N+1, and so on. Before stacking, every scan is brought onto a common circle with correct_limb, which removes the slow wobbling of the disk caused by turbulence and tracking. Each window is then dedistorted against its own consensus reference, so that each frame is as sharp as a regular stack while consecutive frames share most of their images, which gives a smooth transition. Each frame is annotated with the observer and the time span it covers. A Doppler animation can be produced in addition, by stacking the two wings of the line with the same dedistortion as the line center."
-# meta:description:fr = "Produit une animation fluide d'une série de scans H-alpha pris au cours d'une journée. Doit être exécuté en mode batch. Chaque image est traitée avec auto_contrast, puis les images sont triées par date et empilées avec une fenêtre glissante : la première image de l'animation est l'empilement des images 1 à N, la deuxième celui des images 2 à N+1, et ainsi de suite. Avant l'empilement, chaque scan est ramené sur un cercle commun avec correct_limb, ce qui supprime l'ondulation lente du disque due à la turbulence et au suivi. Chaque fenêtre est ensuite dé-déformée par rapport à sa propre référence par consensus, de sorte que chaque image de l'animation est aussi nette qu'un empilement classique, tandis que deux images consécutives partagent la plupart de leurs scans, ce qui donne une transition fluide. Chaque image est annotée avec l'observateur et la plage horaire qu'elle couvre. Une animation Doppler peut être produite en plus, en empilant les deux ailes de la raie avec la même dé-déformation que le centre de la raie."
+# meta:requires = "5.5.1"
+# meta:description = "Produces a smooth animation of a series of H-alpha scans taken over a day. Must be executed in batch mode. Each image is processed with auto_contrast, then the images are sorted by date and stacked with a sliding window: the first frame of the animation is the stack of images 1 to N, the second the stack of images 2 to N+1, and so on. Before stacking, the distortion caused by the periodic error of the mount tracking is removed with correct_periodic_error, then every scan is brought onto a common circle with correct_limb, which removes the slow wobbling of the disk caused by turbulence and tracking. Each window is then dedistorted against its own consensus reference, so that each frame is as sharp as a regular stack while consecutive frames share most of their images, which gives a smooth transition. Each frame is annotated with the observer and the time span it covers. A Doppler animation can be produced in addition, by stacking the two wings of the line with the same dedistortion as the line center."
+# meta:description:fr = "Produit une animation fluide d'une série de scans H-alpha pris au cours d'une journée. Doit être exécuté en mode batch. Chaque image est traitée avec auto_contrast, puis les images sont triées par date et empilées avec une fenêtre glissante : la première image de l'animation est l'empilement des images 1 à N, la deuxième celui des images 2 à N+1, et ainsi de suite. Avant l'empilement, la déformation due à l'erreur périodique du suivi de la monture est supprimée avec correct_periodic_error, puis chaque scan est ramené sur un cercle commun avec correct_limb, ce qui supprime l'ondulation lente du disque due à la turbulence et au suivi. Chaque fenêtre est ensuite dé-déformée par rapport à sa propre référence par consensus, de sorte que chaque image de l'animation est aussi nette qu'un empilement classique, tandis que deux images consécutives partagent la plupart de leurs scans, ce qui donne une transition fluide. Chaque image est annotée avec l'observateur et la plage horaire qu'elle couvre. Une animation Doppler peut être produite en plus, en empilant les deux ailes de la raie avec la même dé-déformation que le centre de la raie."
 #
 # param:gamma:type = number
 # param:gamma:default = 1.5
@@ -213,6 +213,15 @@ def batch(results):
     if doppler and (len(red) != count or len(blue) != count):
         print("The Doppler wings do not match the line center images, Doppler animation skipped")
         doppler = False
+
+    # The periodic error of the mount tracking bends each scan differently along the
+    # scanning direction. It is measured on the whole series and removed first, while the
+    # images still have the geometry of the processing. The wings are corrected with the
+    # error measured on the line center
+    if doppler:
+        red = to_list(f.correct_periodic_error(img=red, ref=images))
+        blue = to_list(f.correct_periodic_error(img=blue, ref=images))
+    images = to_list(f.correct_periodic_error(images))
 
     # Same radius and same framing for every image, including the wings, so that all
     # frames share the same geometry. The target is read from the metadata

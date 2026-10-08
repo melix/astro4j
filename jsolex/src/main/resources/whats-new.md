@@ -8,6 +8,7 @@
 - The SharpCap script for live identification of spectral lines now works with SharpCap 4.1.
 - A new example script, available in batch mode, produces a smooth animation of a day of H-alpha scans by stacking them with a sliding window, with an optional Doppler animation.
 - The new `correct_limb` function brings the solar limb back onto a circle and aligns a series of images on the same circle, which removes the slow wobbling of the disk in animations.
+- The new `correct_periodic_error` function removes the distortion caused by the periodic error of the mount tracking, which makes the disk sway back and forth in animations of a day of scans.
 - Python scripts no longer keep every image they produce in memory, which could crash the application when processing many files in batch mode.
 - The `radius_rescale` function no longer keeps all the rescaled images in memory, which could crash batch processing of many files.
 - Python scripts no longer hang when a function such as `anim` processes a list of images in parallel.
