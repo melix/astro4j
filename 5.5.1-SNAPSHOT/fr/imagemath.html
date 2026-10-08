@@ -543,6 +543,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_colorize">COLORIZE</a></li>
 <li><a href="#_colorize2">COLORIZE2</a></li>
 <li><a href="#_correct_limb">CORRECT_LIMB</a></li>
+<li><a href="#_correct_periodic_error">CORRECT_PERIODIC_ERROR</a></li>
 <li><a href="#_curve_transform">CURVE_TRANSFORM</a></li>
 <li><a href="#_deghost">DEGHOST</a></li>
 <li><a href="#_destripe">DESTRIPE</a></li>
@@ -4213,6 +4214,73 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <div class="listingblock">
 <div class="content">
 <pre>correct_limb(img: wings, ref: centers)</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_correct_periodic_error">CORRECT_PERIODIC_ERROR</h3>
+<div class="paragraph">
+<p>Corrige la déformation du disque due à l&#8217;erreur périodique du suivi de la monture, à appliquer à une série de scans avant <code>correct_limb</code>. La série doit compter assez de scans pour couvrir plusieurs périodes de l&#8217;erreur, avec plusieurs scans par période.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 13.6363%;">
+<col style="width: 13.6363%;">
+<col style="width: 59.0909%;">
+<col style="width: 13.6365%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Argument</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Requis ?</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Description</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Valeur par défaut</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>img</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Liste des images à corriger</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>ref</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Images des mêmes scans sur lesquelles mesurer l&#8217;erreur, par exemple le centre de la raie pour corriger ses ailes</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>period</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Période de l&#8217;erreur en secondes, 0 pour la trouver automatiquement</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">0</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>harmonics</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Nombre d&#8217;harmoniques du modèle de l&#8217;erreur</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">5</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p><strong>Exemples</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>correct_periodic_error(images)</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>correct_periodic_error(img: images, period: 431)</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>correct_periodic_error(img: wings, ref: centers)</pre>
 </div>
 </div>
 </div>
