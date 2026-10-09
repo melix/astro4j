@@ -47,6 +47,7 @@ tasks.rat {
     excludes.add("build/**")
     excludes.add("**/*.css")
     excludes.add("**/*.dat")
+    excludes.add("**/*.csv")
     excludes.add("**/*.fits")
     excludes.add("**/*.fits.ko")
     excludes.add("**/*.fxml")

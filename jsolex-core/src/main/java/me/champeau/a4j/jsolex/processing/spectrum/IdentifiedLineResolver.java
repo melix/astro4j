@@ -37,6 +37,11 @@ public final class IdentifiedLineResolver {
      */
     private static final double MATCH_TOLERANCE_ANGSTROMS = 0.5;
     /**
+     * Tolerance when naming a wavelength after the solar line list, whose lines are far
+     * denser than the known lines.
+     */
+    private static final double SOLAR_LINE_TOLERANCE_ANGSTROMS = 0.1;
+    /**
      * Prefix of the name given to a line the catalog does not know and which was found by
      * the search. It is deliberately not translated: the name ends up in file names and in
      * saved parameters, where it has to stay the same whichever language the software runs in.
@@ -96,8 +101,8 @@ public final class IdentifiedLineResolver {
      */
     private static String nameOf(Wavelen wavelength, String prefix) {
         var angstroms = String.format(Locale.US, "%.2f", wavelength.angstroms());
-        return SpectralLineCatalog.findClosest(wavelength, MATCH_TOLERANCE_ANGSTROMS)
-                .map(line -> line.shortName() + " " + angstroms)
+        return SpectralLineCatalog.nameOf(wavelength, SOLAR_LINE_TOLERANCE_ANGSTROMS)
+                .map(name -> name + " " + angstroms)
                 .orElse(prefix + angstroms);
     }
 }

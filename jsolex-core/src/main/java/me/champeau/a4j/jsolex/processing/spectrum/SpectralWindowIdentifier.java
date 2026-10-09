@@ -53,7 +53,6 @@ public final class SpectralWindowIdentifier {
     private static final double MIN_LINE_DEPTH = 0.03;
     private static final int MINIMUM_HALF_WIDTH_PIXELS = 2;
     private static final double LINE_MATCH_TOLERANCE_PIXELS = 1.5;
-    private static final double CATALOG_NAME_TOLERANCE_ANGSTROMS = 0.5;
     private static final double MAX_SCALE_DEVIATION = 0.03;
     private static final double SCALE_STEP = 0.0025;
     private static final int MEDIUM_CONFIDENCE_STREAK = 2;
@@ -235,7 +234,7 @@ public final class SpectralWindowIdentifier {
             var solution = WavelengthSolution.around(instrument, result.wavelength().angstroms(),
                     pixelSize * result.binning(), refined.dispersionScale());
             var lines = findLines(profile, instrument, pixelSize, result, solution, refined.sigmaIndex());
-            var anchor = new Anchor(result.wavelength(), nameOf(result.wavelength()), result.score(),
+            var anchor = new Anchor(result.wavelength(), nameOf(result.wavelength(), LINE_MATCH_TOLERANCE_PIXELS * solution.angstromsPerPixel()), result.score(),
                     DeepLineIdentifier.margin(ranked, result), result.binning());
             var confidence = selected.isPresent() ? confidence(result.score(), streak)
                     : tracked.isPresent() ? Confidence.LOW : Confidence.NONE;
@@ -446,7 +445,7 @@ public final class SpectralWindowIdentifier {
                 continue;
             }
             var wavelength = Wavelen.ofAngstroms(matched.getAsDouble());
-            var line = new Line(wavelength, nameOf(wavelength), pixelShift, depth);
+            var line = new Line(wavelength, nameOf(wavelength, tolerance), pixelShift, depth);
             byWavelength.merge(matched.getAsDouble(), line, (a, b) -> a.depth() >= b.depth() ? a : b);
         }
         return byWavelength.values().stream()
@@ -496,12 +495,15 @@ public final class SpectralWindowIdentifier {
 
     /**
      * The name of a line: the one of the catalog when it knows the line, "telluric" when
-     * the atmosphere absorbs there, since that is what the observer is looking at.
+     * the atmosphere absorbs there, since that is what the observer is looking at, and
+     * otherwise the strongest line of the solar line list within the tolerance.
      */
-    private static String nameOf(Wavelen wavelength) {
-        return SpectralLineCatalog.findClosest(wavelength, CATALOG_NAME_TOLERANCE_ANGSTROMS)
+    private static String nameOf(Wavelen wavelength, double toleranceAngstroms) {
+        return SpectralLineCatalog.findClosest(wavelength, SpectralLineCatalog.CATALOG_TOLERANCE_ANGSTROMS)
                 .map(SpectralLineCatalog.CatalogLine::shortName)
-                .orElseGet(() -> TelluricTransmission.transmissionAt(wavelength) < TELLURIC_LINE_TRANSMISSION ? TELLURIC_LINE_NAME : null);
+                .or(() -> TelluricTransmission.transmissionAt(wavelength) < TELLURIC_LINE_TRANSMISSION ? Optional.of(TELLURIC_LINE_NAME) : Optional.empty())
+                .or(() -> SpectralLineCatalog.findStrongest(wavelength, toleranceAngstroms).map(SpectralLineCatalog.SolarLine::name))
+                .orElse(null);
     }
 
     private static double[] scales() {

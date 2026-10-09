@@ -95,6 +95,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.DoubleUnaryOperator;
+import java.util.function.Function;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.imageFilesExtensionFilter;
@@ -111,6 +112,9 @@ public class SpectrumBrowser extends BorderPane {
     private static final int TARGET_TICK_COUNT = 10;
     private static final int[] ZOOM_PRESETS = {25, 50, 75, 100, 150, 200, 400};
     public static final int CROP_HEIGHT = 64;
+    private static final double LABEL_SPACING = 18;
+    private static final double MAX_LABEL_FILL = 0.5;
+    private static final Color SOLAR_LINE_COLOR = Color.DIMGRAY;
 
     private final DoubleProperty pixelSize = new SimpleDoubleProperty();
     private final BooleanProperty colorizeSpectrum = new SimpleBooleanProperty();
@@ -815,7 +819,10 @@ public class SpectrumBrowser extends BorderPane {
 
         // Draw legend and identified lines
         drawLegend(step, gc);
-        drawIdentifiedLines(gc, spectrumWidth, step, IDENTIFIED_LINES, Color.RED);
+        var solarLines = solarLineLabels(height);
+        var catalogLines = new ArrayList<>(Arrays.asList(IDENTIFIED_LINES));
+        catalogLines.addAll(solarLines);
+        drawIdentifiedLines(gc, spectrumWidth, step, catalogLines, line -> solarLines.contains(line) ? SOLAR_LINE_COLOR : Color.RED);
         drawIdentifiedLines(gc, spectrumWidth, step, userDefinedLines.toArray(new IdentifiedLine[0]), Color.BLUE);
         drawIdentifiedLines(gc, spectrumWidth, step, imageLines.toArray(new IdentifiedLine[0]), Color.DARKGREEN);
     }
@@ -891,10 +898,34 @@ public class SpectrumBrowser extends BorderPane {
         }
     }
 
+    /**
+     * The lines of the solar line list to label, the strongest first, as many as the
+     * height of the view leaves room for once the catalog lines are labelled.
+     */
+    private List<IdentifiedLine> solarLineLabels(double height) {
+        var catalogLabels = Arrays.stream(IDENTIFIED_LINES)
+                .filter(line -> line.wavelength().angstroms() >= currentMinWavelength && line.wavelength().angstroms() <= currentMaxWavelength)
+                .count();
+        var capacity = (long) (height / LABEL_SPACING * MAX_LABEL_FILL) - catalogLabels;
+        if (capacity <= 0) {
+            return List.of();
+        }
+        return SpectralLineCatalog.linesBetween(currentMinWavelength, currentMaxWavelength).stream()
+                .filter(line -> SpectralLineCatalog.findClosest(line.wavelength(), SpectralLineCatalog.CATALOG_TOLERANCE_ANGSTROMS).isEmpty())
+                .sorted(Comparator.comparingDouble(SpectralLineCatalog.SolarLine::equivalentWidth).reversed())
+                .limit(capacity)
+                .map(line -> new IdentifiedLine(line.wavelength(), line.name(), -1))
+                .toList();
+    }
+
     private void drawIdentifiedLines(GraphicsContext gc, double spectrumWidth, double step, IdentifiedLine[] lines, Color color) {
+        drawIdentifiedLines(gc, spectrumWidth, step, Arrays.asList(lines), line -> color);
+    }
+
+    private void drawIdentifiedLines(GraphicsContext gc, double spectrumWidth, double step, List<IdentifiedLine> lines, Function<IdentifiedLine, Color> colors) {
         double previousY = -1;
         var height = canvas.getHeight();
-        var sortedByWavelen = Arrays.stream(lines).sorted(Comparator.comparingDouble(i ->
+        var sortedByWavelen = lines.stream().sorted(Comparator.comparingDouble(i ->
                 flipSpectrumCheckBox.isSelected() ? -i.wavelength().angstroms() : i.wavelength().angstroms()))
                 .toList();
         for (var identifiedLine : sortedByWavelen) {
@@ -902,10 +933,11 @@ public class SpectrumBrowser extends BorderPane {
             if (identifiedWavelength >= currentMinWavelength && identifiedWavelength <= currentMaxWavelength) {
                 var position1 = calculatePosition((identifiedWavelength - currentMinWavelength) / step, height);
                 var position2 = position1;
-                if (position1 - previousY < 18) {
-                    position2 = previousY + 18;
+                if (position1 - previousY < LABEL_SPACING) {
+                    position2 = previousY + LABEL_SPACING;
                 }
                 previousY = position2;
+                var color = colors.apply(identifiedLine);
                 gc.setStroke(color);
                 gc.setLineDashes(5);
                 gc.setLineCap(StrokeLineCap.BUTT);

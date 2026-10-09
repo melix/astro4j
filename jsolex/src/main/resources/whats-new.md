@@ -1,5 +1,9 @@
 # Welcome to JSol'Ex {{version}}!
 
+## What's New in Version 5.5.2
+
+- Many more spectral lines (Si I, Ni I, Ti II...) are now named in the spectrum browser and in the live identification of lines, including the SharpCap script.
+
 ## What's New in Version 5.5.1
 
 - The differential rotation measurement no longer underestimates the solar rotation velocity, and its reference curve now takes Earth's motion into account.

@@ -1,5 +1,9 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+## Nouveautés de la version 5.5.2
+
+- Beaucoup plus de raies spectrales (Si I, Ni I, Ti II...) sont désormais nommées dans l'explorateur de spectre et dans l'identification des raies en direct, y compris le script SharpCap.
+
 ## Nouveautés de la version 5.5.1
 
 - La mesure de la rotation différentielle ne sous-estime plus la vitesse de rotation du Soleil, et sa courbe de référence tient désormais compte du mouvement de la Terre.

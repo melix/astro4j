@@ -51,6 +51,39 @@ class SpectralLineCatalogTest extends Specification {
         wavelengths.find { Math.abs(it - 5875.618d) < 0.01d } != null
     }
 
+    def "loads the solar line list sorted by wavelength, without telluric lines"() {
+        when:
+        def lines = SpectralLineCatalog.solarLines()
+        def wavelengths = lines.collect { it.wavelength().angstroms() }
+
+        then:
+        lines.size() > 4000
+        wavelengths == wavelengths.toSorted()
+        lines.every { it.name() != 'Atm' && it.name() == it.name().trim() }
+
+        and: "the TeX notation of the Balmer lines is converted"
+        lines.find { Math.abs(it.wavelength().angstroms() - 6562.808d) < 1e-6 }.name() == 'H-alpha'
+    }
+
+    def "returns the lines within a wavelength range, bounds included"() {
+        when:
+        def lines = SpectralLineCatalog.linesBetween(5297.385d, 5298.784d)
+
+        then:
+        lines.collect { it.wavelength().angstroms() } == [5297.385d, 5298.283d, 5298.784d]
+    }
+
+    def "names a wavelength after the catalog first, then after the strongest solar line"() {
+        expect: "a catalog line wins"
+        SpectralLineCatalog.nameOf(Wavelen.ofAngstroms(6562.8d), 0.2d).get() == 'H-alpha'
+
+        and: "the strongest line within the tolerance wins, not the closest one"
+        SpectralLineCatalog.nameOf(Wavelen.ofAngstroms(6555.9d), 0.5d).get() == 'Si I'
+
+        and: "no name when no line is close enough"
+        SpectralLineCatalog.nameOf(Wavelen.ofAngstroms(5299.40d), 0.1d).isEmpty()
+    }
+
     def "returns no line when the window is too narrow to contain another line"() {
         given: "H-alpha with a sub-pixel window"
         def lambda0 = Wavelen.ofAngstroms(6562.81d)
