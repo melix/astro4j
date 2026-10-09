@@ -88,6 +88,8 @@ sourceSets {
         resources {
             srcDir(converter.map { it.outputFile.get().asFile.parentFile })
             srcDir(telluricConverter.map { it.outputFile.get().asFile.parentFile })
+            srcDir("src/mmh")
+            exclude("README.md")
         }
     }
 }

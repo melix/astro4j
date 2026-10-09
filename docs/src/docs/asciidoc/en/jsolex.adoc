@@ -1862,6 +1862,9 @@ A blue dashed line is added, allowing you to clearly identify the line.
 
 Alternatively, you can directly search for a notable spectral line by selecting it in the box next to the "Go" button.
 
+Notable lines are labelled in red.
+Other lines, such as Si I or Ni I, are labelled in grey, using the line list of Moore, Minnaert and Houtgast (1966): the stronger lines are labelled first, and more lines get a label as you zoom in.
+
 When you click "Colorize", the spectrum is then colorized to give you an idea of where you are in the visible spectrum (however, we recommend staying in grayscale to precisely identify a line):
 
 image::spectrum-browser-3.jpg[]
@@ -1949,3 +1952,4 @@ A `DELETE` request on the same address forgets the previous frames, for example 
 - Ken M. Harrison for improved exposure time calculations
 - Minh Trong Nguyen for his suggestions of improvements and his work on the SHG 700
 - The National Solar Observatory for the atlas of the telluric spectrum used by the live identification of spectral lines: NSO/Kitt Peak FTS data used here were produced by NSF/NOAO
+- Alex Pietrow for the line list of the https://github.com/AlexPietrow/HelioSpectrotron5000[HelioSpectrotron 5000], taken from "The Solar Spectrum 2935 Å to 8770 Å" by C. E. Moore, M. G. J. Minnaert and J. Houtgast (NBS Monograph 61, 1966), which names the lines in the spectrum browser and in the live identification

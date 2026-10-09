@@ -165,28 +165,36 @@ class DeepLineIdentifierTest extends Specification {
 
     def "creates a ray on the fly when the wavelength matches no known line"() {
         when:
-        def ray = IdentifiedLineResolver.resolve(Wavelen.ofAngstroms(5298.26), SpectralRay.predefined())
+        def ray = IdentifiedLineResolver.resolve(Wavelen.ofAngstroms(5299.40), SpectralRay.predefined())
 
         then:
         !SpectralRay.predefined().contains(ray)
-        Math.abs(ray.wavelength().angstroms() - 5298.26d) < 1e-6
+        Math.abs(ray.wavelength().angstroms() - 5299.40d) < 1e-6
         !ray.emission()
 
         and: "the name says the line was found automatically, and carries the wavelength"
-        ray.label() == 'Auto 5298.26'
+        ray.label() == 'Auto 5299.40'
     }
 
     def "does not mark a ray as found automatically when the user entered its wavelength"() {
         when:
-        def ray = IdentifiedLineResolver.resolveEntered(Wavelen.ofAngstroms(5298.26), SpectralRay.predefined())
+        def ray = IdentifiedLineResolver.resolveEntered(Wavelen.ofAngstroms(5299.40), SpectralRay.predefined())
 
         then:
-        ray.label() == '5298.26'
-        Math.abs(ray.wavelength().angstroms() - 5298.26d) < 1e-6
+        ray.label() == '5299.40'
+        Math.abs(ray.wavelength().angstroms() - 5299.40d) < 1e-6
 
         and: "an entered wavelength which is a known line still resolves to that line"
         IdentifiedLineResolver.resolveEntered(Wavelen.ofAngstroms(6562.9), SpectralRay.predefined())
                 .is(SpectralRay.H_ALPHA)
+    }
+
+    def "names a created ray after the solar line list when the catalog does not know the line"() {
+        when:
+        def ray = IdentifiedLineResolver.resolve(Wavelen.ofAngstroms(5298.28), SpectralRay.predefined())
+
+        then:
+        ray.label() == 'Cr I 5298.28'
     }
 
     def "names a created ray after the catalog when the line is known there"() {

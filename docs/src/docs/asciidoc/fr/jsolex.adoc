@@ -1808,6 +1808,9 @@ Une ligne pointillée bleue est ajoutée, vous permettant de bien repérer la li
 
 Alternativement, vous pouvez rechercher directement une ligne spectrale remarquable en la sélectionnant dans la boîte à côté du bouton "Aller".
 
+Les raies remarquables sont annotées en rouge.
+Les autres raies, comme Si I ou Ni I, sont annotées en gris, d'après la liste de raies de Moore, Minnaert et Houtgast (1966) : les raies les plus marquées sont annotées en premier, et d'autres raies reçoivent une annotation à mesure que vous zoomez.
+
 Lorsque vous cliquez sur "Coloriser", le spectre est alors colorisé de façon à vous donner une idée d'où vous vous situez dans le spectre visible (nous recommandons cependant de rester en niveaux de gris pour repérer précisément une raie) :
 
 image::spectrum-browser-3.jpg[]
@@ -1938,4 +1941,5 @@ Le collage créé sera sauvegardé dans le répertoire de sortie et ajouté à l
 - Ken M. Harrison pour l'amélioration des calculs d'exposition optimale
 - Minh Trong Nguyen pour ses suggestions d'amélioration et son travail sur le SHG 700
 - Le National Solar Observatory pour l'atlas du spectre tellurique utilisé par l'identification en direct des raies spectrales : NSO/Kitt Peak FTS data used here were produced by NSF/NOAO
+- Alex Pietrow pour la liste de raies du https://github.com/AlexPietrow/HelioSpectrotron5000[HelioSpectrotron 5000], tirée de "The Solar Spectrum 2935 Å to 8770 Å" de C. E. Moore, M. G. J. Minnaert et J. Houtgast (NBS Monograph 61, 1966), qui nomme les raies dans l'explorateur de spectre et dans l'identification en direct
 
