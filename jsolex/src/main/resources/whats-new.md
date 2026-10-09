@@ -3,6 +3,7 @@
 ## What's New in Version 5.5.2
 
 - Many more spectral lines (Si I, Ni I, Ti II...) are now named in the spectrum browser and in the live identification of lines, including the SharpCap script.
+- Fixed the solar disk being detected too small in saturated disk mode when only the center of the disk is saturated.
 
 ## What's New in Version 5.5.1
 

@@ -31,9 +31,9 @@ class EllipseFittingTaskTest extends Specification {
     private static final double HALO_SCALE = 60
     private static final double HALO_LEVEL = 0.6
 
-    def "fits the plateau of a saturated disk surrounded by a halo in saturated disk mode"() {
+    def "fits the plateau of a saturated disk surrounded by a halo in saturated disk mode (halo level #haloLevel, scale #haloScale)"() {
         given:
-        def image = saturatedDiskWithHalo()
+        def image = saturatedDiskWithHalo(haloLevel, haloScale)
         def params = withSaturatedDiskMode(true)
 
         when:
@@ -44,8 +44,73 @@ class EllipseFittingTaskTest extends Specification {
         then:
         Math.abs(center.a() - CENTER) < 2
         Math.abs(center.b() - CENTER) < 2
-        semiAxis.a() < RADIUS + 1 && semiAxis.a() > RADIUS - 5
-        semiAxis.b() < RADIUS + 1 && semiAxis.b() > RADIUS - 5
+        Math.abs(semiAxis.a() - RADIUS) < 3
+        Math.abs(semiAxis.b() - RADIUS) < 3
+
+        where:
+        haloLevel | haloScale
+        0.6d      | 60d
+        0.8d      | 60d
+        0.9d      | 30d
+        0.9d      | 120d
+        0.6d      | 20d
+        0.6d      | 120d
+    }
+
+    def "ignores a hot spot brighter than the saturated plateau in saturated disk mode"() {
+        given:
+        def image = scene { double x, double y ->
+            def r = Math.hypot(x - CENTER, y - CENTER)
+            if (Math.hypot(x - CENTER - 60, y - CENTER + 40) <= 12) {
+                return Constants.MAX_PIXEL_VALUE
+            }
+            return plateauWithHalo(r, 0.7d)
+        }
+        def params = withSaturatedDiskMode(true)
+
+        when:
+        def result = fit(image, params)
+
+        then:
+        fitsPlateau(result)
+    }
+
+    def "handles an unevenly lit plateau in saturated disk mode"() {
+        given:
+        def image = scene { double x, double y ->
+            def r = Math.hypot(x - CENTER, y - CENTER)
+            def level = 0.75d + 0.25d * (x - CENTER + RADIUS) / (2 * RADIUS)
+            return plateauWithHalo(r, Math.max(0.75d, Math.min(1.0d, level)))
+        }
+        def params = withSaturatedDiskMode(true)
+
+        when:
+        def result = fit(image, params)
+
+        then:
+        fitsPlateau(result)
+    }
+
+    def "fits the limb of a disk whose saturated area does not reach the limb in saturated disk mode"() {
+        given:
+        def image = radialScene { double r ->
+            if (r > RADIUS) {
+                return 0.02 * Constants.MAX_PIXEL_VALUE
+            }
+            return Math.min(1.0d, 0.55d + 0.45d * (RADIUS - r) / 70) * Constants.MAX_PIXEL_VALUE
+        }
+        def params = withSaturatedDiskMode(true)
+
+        when:
+        def result = fit(image, params)
+        def center = result.ellipse().center()
+        def semiAxis = result.ellipse().semiAxis()
+
+        then:
+        Math.abs(center.a() - CENTER) < 2
+        Math.abs(center.b() - CENTER) < 2
+        Math.abs(semiAxis.a() - RADIUS) < 3
+        Math.abs(semiAxis.b() - RADIUS) < 3
     }
 
     def "fits a normally exposed disk with the default sensitivity"() {
@@ -74,17 +139,34 @@ class EllipseFittingTaskTest extends Specification {
         defaults.withGeometryParams(defaults.geometryParams().withSaturatedDiskMode(enabled))
     }
 
-    private static ImageWrapper32 saturatedDiskWithHalo() {
-        scene { double r ->
+    private static boolean fitsPlateau(EllipseFittingTask.Result result) {
+        def center = result.ellipse().center()
+        def semiAxis = result.ellipse().semiAxis()
+        assert Math.abs(center.a() - CENTER) < 2
+        assert Math.abs(center.b() - CENTER) < 2
+        assert semiAxis.a() < RADIUS + 1 && semiAxis.a() > RADIUS - 5
+        assert semiAxis.b() < RADIUS + 1 && semiAxis.b() > RADIUS - 5
+        true
+    }
+
+    private static double plateauWithHalo(double r, double plateauLevel) {
+        if (r <= RADIUS) {
+            return plateauLevel * Constants.MAX_PIXEL_VALUE
+        }
+        return HALO_LEVEL * 0.7d * Constants.MAX_PIXEL_VALUE * Math.exp(-(r - RADIUS) / HALO_SCALE)
+    }
+
+    private static ImageWrapper32 saturatedDiskWithHalo(double haloLevel, double haloScale) {
+        radialScene { double r ->
             if (r <= RADIUS) {
                 return Constants.MAX_PIXEL_VALUE
             }
-            return HALO_LEVEL * Constants.MAX_PIXEL_VALUE * Math.exp(-(r - RADIUS) / HALO_SCALE)
+            return haloLevel * Constants.MAX_PIXEL_VALUE * Math.exp(-(r - RADIUS) / haloScale)
         }
     }
 
     private static ImageWrapper32 limbDarkenedDisk() {
-        scene { double r ->
+        radialScene { double r ->
             if (r > RADIUS) {
                 return 0.02 * Constants.MAX_PIXEL_VALUE
             }
@@ -93,12 +175,15 @@ class EllipseFittingTaskTest extends Specification {
         }
     }
 
+    private static ImageWrapper32 radialScene(Closure<Double> profile) {
+        scene { double x, double y -> profile.call(Math.hypot(x - CENTER, y - CENTER)) }
+    }
+
     private static ImageWrapper32 scene(Closure<Double> profile) {
         def data = new float[SIZE][SIZE]
         for (int y = 0; y < SIZE; y++) {
             for (int x = 0; x < SIZE; x++) {
-                def r = Math.hypot(x - CENTER, y - CENTER)
-                data[y][x] = (float) profile.call(r)
+                data[y][x] = (float) profile.call((double) x, (double) y)
             }
         }
         new ImageWrapper32(SIZE, SIZE, data, MutableMap.of())

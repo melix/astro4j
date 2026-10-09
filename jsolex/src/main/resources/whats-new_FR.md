@@ -3,6 +3,7 @@
 ## Nouveautés de la version 5.5.2
 
 - Beaucoup plus de raies spectrales (Si I, Ni I, Ti II...) sont désormais nommées dans l'explorateur de spectre et dans l'identification des raies en direct, y compris le script SharpCap.
+- Correction de la détection d'un disque solaire trop petit en mode disque saturé lorsque seul le centre du disque est saturé.
 
 ## Nouveautés de la version 5.5.1
 
