@@ -56,7 +56,8 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
     private static final Logger LOGGER = LoggerFactory.getLogger(EllipseFittingTask.class);
     private static final int MINIMUM_SAMPLES = 32;
     private static final Kernel BLUR_8 = BlurKernel.of(8);
-    private static final double SATURATED_DISK_SENSITIVITY = 0.9;
+    private static final double STRONG_CHANGE_RATIO = 0.5;
+    private static final double MIN_EDGE_STRENGTH_RATIO = 0.25;
     private final ProcessParams processParams;
     private final ImageEmitter debugImagesEmitter;
     private Image image;
@@ -170,7 +171,7 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
     private Result ellipseFitRun() {
         var magnitudes = workImage.data();
         broadcaster.broadcast(operation.update(0, message("fitting.ellipse")));
-        var samples = findSamplesUsingDynamicSensitivity(magnitudes);
+        var samples = isSaturatedDiskMode() ? findSamplesAtStrongestChange(magnitudes) : findSamplesUsingDynamicSensitivity(magnitudes);
         samples = decimate(samples);
 
         int pSize = 0;
@@ -253,7 +254,7 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         Set<Point2D> samples = new LinkedHashSet<>();
         var stats = statsOf(magnitudes);
         var maxMagnitude = stats.max();
-        double sensitivity = isSaturatedDiskMode() ? SATURATED_DISK_SENSITIVITY : 0.5 * (stats.min() + stats.stddev()) / Constants.MAX_PIXEL_VALUE;
+        double sensitivity = 0.5 * (stats.min() + stats.stddev()) / Constants.MAX_PIXEL_VALUE;
         var minX = 0;
         var minY = 0;
         var maxX = width;
@@ -264,6 +265,86 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         scan(samples, minLimit, width, height, magnitudes, false, minX, maxX, minY, maxY);
         filterOutliersByDetectingLines(samples);
         return new ArrayList<>(samples.stream().toList());
+    }
+
+    /**
+     * Finds the edge of a saturated disk on each row and column as the
+     * position of the strongest change in brightness, coming from the outside.
+     * Unlike a brightness threshold, this finds the limb whether the disk is
+     * saturated up to the limb (then the glow around it fades smoothly and the
+     * strongest change is the edge of the saturated area) or only in its
+     * center (then the strongest change is the limb itself).
+     */
+    private List<Point2D> findSamplesAtStrongestChange(float[][] magnitudes) {
+        var candidates = new ArrayList<EdgeCandidate>();
+        scanStrongestChange(candidates, magnitudes, true);
+        scanStrongestChange(candidates, magnitudes, false);
+        var maxStrength = candidates.stream().mapToDouble(EdgeCandidate::strength).max().orElse(0);
+        Set<Point2D> samples = candidates.stream()
+                .filter(c -> c.strength() >= MIN_EDGE_STRENGTH_RATIO * maxStrength)
+                .map(EdgeCandidate::point)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        filterOutliersByDetectingLines(samples);
+        return new ArrayList<>(samples);
+    }
+
+    private void scanStrongestChange(List<EdgeCandidate> candidates, float[][] magnitudes, boolean alongRows) {
+        var lineCount = alongRows ? height : width;
+        var length = alongRows ? width : height;
+        if (length < 3) {
+            return;
+        }
+        var profile = new double[length];
+        var gradient = new double[length];
+        for (int i = 0; i < lineCount; i++) {
+            for (int j = 0; j < length; j++) {
+                profile[j] = alongRows ? magnitudes[i][j] : magnitudes[j][i];
+            }
+            for (int j = 1; j < length - 1; j++) {
+                gradient[j] = (profile[j + 1] - profile[j - 1]) / 2;
+            }
+            var rising = findFirstStrongChange(gradient, 1);
+            var falling = findFirstStrongChange(gradient, -1);
+            if (rising == null || falling == null || rising.position() >= falling.position()) {
+                continue;
+            }
+            for (var edge : List.of(rising, falling)) {
+                var point = alongRows ? new Point2D(edge.position(), i) : new Point2D(i, edge.position());
+                candidates.add(new EdgeCandidate(point, edge.strength()));
+            }
+        }
+    }
+
+    /**
+     * Walks a gradient profile from one end (start for a rising edge, end for a
+     * falling edge) and returns the first peak which reaches a significant
+     * fraction of the strongest change of the profile, refined to sub-pixel
+     * precision.
+     */
+    private static Edge findFirstStrongChange(double[] gradient, int sign) {
+        var length = gradient.length;
+        double lineMax = 0;
+        for (int j = 1; j < length - 1; j++) {
+            lineMax = Math.max(lineMax, sign * gradient[j]);
+        }
+        if (lineMax <= 0) {
+            return null;
+        }
+        var threshold = STRONG_CHANGE_RATIO * lineMax;
+        var step = sign > 0 ? 1 : -1;
+        var j = sign > 0 ? 1 : length - 2;
+        while (sign * gradient[j] < threshold) {
+            j += step;
+        }
+        while (j + step > 0 && j + step < length - 1 && sign * gradient[j + step] > sign * gradient[j]) {
+            j += step;
+        }
+        var before = gradient[j - 1];
+        var peak = gradient[j];
+        var after = gradient[j + 1];
+        var curvature = before - 2 * peak + after;
+        var offset = curvature == 0 ? 0 : 0.5 * (before - after) / curvature;
+        return new Edge(j + Math.max(-0.5, Math.min(0.5, offset)), sign * peak);
     }
 
     private boolean isSaturatedDiskMode() {
@@ -472,6 +553,12 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
 
     private record Stats(float avg, float stddev, float min, float max, float minNonZero) {
 
+    }
+
+    private record Edge(double position, double strength) {
+    }
+
+    private record EdgeCandidate(Point2D point, double strength) {
     }
 
     public record Result(
