@@ -1712,7 +1712,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     }
 
     @Override
-    public ImageMathScriptResult execute(String script, SectionKind kind) {
+    public ImageMathScriptResult executeWithoutRendering(String script, SectionKind kind) {
         // perform a first pass just to check if they are missing image shifts
         var missingShifts = determineShiftsRequiredInScript(script);
         shiftImages.keySet().stream().map(PixelShift::pixelShift).toList().forEach(missingShifts::remove);
@@ -1720,6 +1720,16 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             restartProcessForMissingShifts(missingShifts);
         }
         var result = imageScriptExecutor.execute(script, kind);
+        var invalidExpressions = result.invalidExpressions();
+        if (!invalidExpressions.isEmpty()) {
+            FxUtils.runLater(() -> ScriptErrorDialog.showErrors(invalidExpressions));
+        }
+        return result;
+    }
+
+    @Override
+    public ImageMathScriptResult execute(String script, SectionKind kind) {
+        var result = executeWithoutRendering(script, kind);
         var namingStrategy = createNamingStrategy();
         var outputsMetadata = ScriptExecutionHelper.extractOutputsMetadata(script);
         var language = LocaleUtils.getConfiguredLocale().getLanguage();
@@ -1737,10 +1747,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 throw new ProcessingException(e);
             }
         }, outputsMetadata, language);
-        var invalidExpressions = result.invalidExpressions();
-        if (!invalidExpressions.isEmpty()) {
-            FxUtils.runLater(() -> ScriptErrorDialog.showErrors(invalidExpressions));
-        }
         return result;
     }
 
