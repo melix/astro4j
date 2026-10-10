@@ -121,6 +121,13 @@ public interface ImageMathScriptExecutor {
     ImageMathScriptResult execute(String script, SectionKind kind);
 
     /**
+     * Executes a script and returns its outputs without displaying nor saving them.
+     */
+    default ImageMathScriptResult executeWithoutRendering(String script, SectionKind kind) {
+        return execute(script, kind);
+    }
+
+    /**
      * Executes a Python script from text content.
      */
     default ImageMathScriptResult executePythonScript(String script, SectionKind kind) {
