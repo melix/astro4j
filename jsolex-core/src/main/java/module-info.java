@@ -51,6 +51,7 @@ module me.champeau.a4j.jsolex.core {
     exports me.champeau.a4j.jsolex.processing.stats;
     exports me.champeau.a4j.jsolex.processing.stretching;
     exports me.champeau.a4j.jsolex.processing.spectrum;
+    exports me.champeau.a4j.jsolex.processing.spectrum.cloud;
     exports me.champeau.a4j.jsolex.processing.sun;
     exports me.champeau.a4j.jsolex.processing.sun.crop;
     exports me.champeau.a4j.jsolex.processing.util;

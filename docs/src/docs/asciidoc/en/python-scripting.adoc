@@ -479,6 +479,8 @@ if profile is not None:
 |`frameToImageCoords(img, frameNumber, xInFrame)`|SER frame to image coordinates.
 |===
 
+Heliographic coordinates are given in degrees, with longitudes measured from the central meridian and positive towards east. The image is assumed to show the Sun with north up and east left before the rotation by the P angle, which is the orientation given by the flips of the processing parameters.
+
 Example:
 
 [source,python]

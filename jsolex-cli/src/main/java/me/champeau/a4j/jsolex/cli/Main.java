@@ -30,6 +30,7 @@ import me.champeau.a4j.jsolex.processing.params.ObservationDetails;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.params.SpectroHeliograph;
+import me.champeau.a4j.jsolex.processing.params.SpectroHeliographsIO;
 import me.champeau.a4j.jsolex.processing.params.SpectrumParams;
 import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinParallelExecutor;
@@ -50,6 +51,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectoriesIfNeeded;
 
@@ -215,7 +217,10 @@ public class Main implements Runnable {
         @Option(names = {"-em", "--email"}, description = "The observer contact email address")
         String email;
 
-        @Option(names = {"-in", "--instrument"}, description = "The instrument used (defaults to Sol'Ex)", defaultValue = "Sol'Ex")
+        @Option(names = {"-in", "--instrument"},
+                description = "The instrument used (one of ${COMPLETION-CANDIDATES}), instead of the one of the configuration file",
+                completionCandidates = InstrumentCandidates.class
+        )
         String instrument;
 
         @Option(names = {"-t", "--telescope"}, description = "The telescope")
@@ -249,7 +254,7 @@ public class Main implements Runnable {
                 result = result.withEmail(email);
             }
             if (instrument != null) {
-                result = result.withInstrument(SpectroHeliograph.SOLEX.withLabel(instrument));
+                result = result.withInstrument(findInstrument(instrument));
             }
             if (telescope != null) {
                 result = result.withTelescope(telescope);
@@ -366,6 +371,21 @@ public class Main implements Runnable {
                 ));
             }
             return result;
+        }
+    }
+
+    private static SpectroHeliograph findInstrument(String label) {
+        var instruments = SpectroHeliographsIO.loadDefaults();
+        return instruments.stream()
+                .filter(shg -> shg.label().equalsIgnoreCase(label))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Unknown instrument '" + label + "', expected one of: "
+                        + instruments.stream().map(SpectroHeliograph::label).distinct().collect(Collectors.joining(", "))));
+    }
+
+    static class InstrumentCandidates extends ArrayList<String> {
+        public InstrumentCandidates() {
+            super(SpectroHeliographsIO.loadDefaults().stream().map(SpectroHeliograph::label).distinct().toList());
         }
     }
 

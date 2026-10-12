@@ -32,6 +32,16 @@ public interface ImageHelpContentProvider {
     Node createContent();
 
     /**
+     * Returns a text shown before the description of the image, or null.
+     * It may use the same formatting as the description.
+     *
+     * @return the introduction, or null
+     */
+    default String introduction() {
+        return null;
+    }
+
+    /**
      * Called when the help popup is shown.
      * Can be used to start animations.
      */

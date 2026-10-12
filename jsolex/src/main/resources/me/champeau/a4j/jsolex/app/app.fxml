@@ -121,6 +121,7 @@
                     <Tab fx:id="statsTab" text="%stats" disable="true"/>
                     <Tab fx:id="profileTab" text="%profile" disable="true"/>
                     <Tab fx:id="analysisTab" text="%analysis" disable="true"/>
+                    <Tab fx:id="cloudModelTab" text="%cloud.model" disable="true"/>
                     <Tab fx:id="redshiftTab" text="%redshifts" disable="true">
                         <BorderPane>
                             <padding>

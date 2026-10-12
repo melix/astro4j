@@ -17,8 +17,12 @@ package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Group;
+import javafx.scene.Node;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
@@ -27,6 +31,8 @@ import javafx.scene.text.FontWeight;
 import me.champeau.a4j.jsolex.app.jfx.help.ImageHelpContentProvider;
 import me.champeau.a4j.jsolex.app.jfx.help.ImageHelpContentRegistry;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
+
+import java.util.List;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
 
@@ -38,6 +44,10 @@ public class ImageHelpOverlay extends AbstractHelpOverlay {
 
     private static final double POPUP_WIDTH = 500;
     private static final double POPUP_MAX_HEIGHT = 600;
+    private static final double PAGED_WIDTH = 780;
+    private static final double PAGED_HEIGHT = 720;
+    private static final double PAGED_MIN_HEIGHT = 420;
+    private static final double PAGED_DIAGRAM_SCALE = 1.35;
 
     private final String title;
     private final String description;
@@ -70,11 +80,11 @@ public class ImageHelpOverlay extends AbstractHelpOverlay {
                 : null;
 
         var hasRichContent = contentProvider != null;
+        if (hasRichContent && contentProvider.introduction() != null) {
+            return createPagedPopup();
+        }
 
-        var titleLabel = new Label(title);
-        titleLabel.setFont(Font.font("System", FontWeight.BOLD, 16));
-        titleLabel.setTextFill(Color.rgb(255, 200, 100));
-        titleLabel.setWrapText(true);
+        var titleLabel = createTitle(title);
 
         var contentBox = new VBox(10);
         contentBox.setPadding(new Insets(20));
@@ -101,46 +111,104 @@ public class ImageHelpOverlay extends AbstractHelpOverlay {
                 explanationHeader.setPadding(new Insets(10, 0, 0, 0));
                 contentBox.getChildren().add(explanationHeader);
             }
-            var diagramContent = contentProvider.createContent();
-            // Wrap with scalable diagram for fullscreen support
-            var scalableDiagram = createScalableDiagram(
-                    diagramContent,
-                    () -> {
-                        // Create fresh provider and content for fullscreen view
-                        var fullscreenProvider = ImageHelpContentRegistry.getProvider(kind).orElse(null);
-                        if (fullscreenProvider != null) {
-                            maximizedProvider = fullscreenProvider;
-                            return fullscreenProvider.createContent();
-                        }
-                        return contentProvider.createContent();
-                    },
-                    () -> {
-                        // Start animation when maximized view is shown
-                        if (maximizedProvider != null) {
-                            maximizedProvider.onShown();
-                        }
-                    },
-                    () -> {
-                        // Stop animation when maximized view is closed
-                        if (maximizedProvider != null) {
-                            maximizedProvider.onHidden();
-                            maximizedProvider = null;
-                        }
-                    }
-            );
+            var scalableDiagram = createRichContent();
             scalableDiagram.setPadding(new Insets(20, 0, 0, 0));
             contentBox.getChildren().add(scalableDiagram);
         }
 
-        var scrollPane = new ScrollPane(contentBox);
-        scrollPane.setFitToWidth(true);
+        var scrollPane = createScrollPane(contentBox);
         scrollPane.setFitToHeight(true);
-        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
-        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-        scrollPane.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
 
         var content = createFlexibleContentPane(scrollPane, POPUP_WIDTH, POPUP_MAX_HEIGHT);
         return wrapInOverlay(content);
+    }
+
+    private StackPane createRichContent() {
+        return createScalableDiagram(
+                contentProvider.createContent(),
+                () -> {
+                    var fullscreenProvider = ImageHelpContentRegistry.getProvider(kind).orElse(null);
+                    if (fullscreenProvider != null) {
+                        maximizedProvider = fullscreenProvider;
+                        return fullscreenProvider.createContent();
+                    }
+                    return contentProvider.createContent();
+                },
+                () -> {
+                    if (maximizedProvider != null) {
+                        maximizedProvider.onShown();
+                    }
+                },
+                () -> {
+                    if (maximizedProvider != null) {
+                        maximizedProvider.onHidden();
+                        maximizedProvider = null;
+                    }
+                }
+        );
+    }
+
+    /**
+     * Creates a popup with three pages: the description of the image, the introduction of the
+     * content provider, and its animated diagram.
+     */
+    private StackPane createPagedPopup() {
+        var diagram = createRichContent();
+        var pages = List.<Node>of(
+                createTextPage(title, description),
+                createTextPage(message("image.help.page.principle"), contentProvider.introduction()),
+                createPage(message("image.help.page.animation"), enlarge(diagram))
+        );
+        var pager = new Pager(pages);
+        var ok = createNavigationButton("OK");
+        ok.setOnAction(e -> hidePopup());
+        var navigation = new HBox(20, pager.previous, pager.indicator.node(), pager.next, ok);
+        navigation.setAlignment(Pos.CENTER);
+        navigation.setPadding(new Insets(15, 20, 20, 20));
+
+        var contentBox = new VBox(pager.holder);
+        contentBox.setPadding(new Insets(0, 20, 0, 20));
+        var scrollPane = createScrollPane(contentBox);
+        var content = createContentPane(scrollPane, navigation, PAGED_WIDTH, PAGED_HEIGHT);
+        return wrapInOverlay(content);
+    }
+
+    private static Label createTitle(String text) {
+        var label = new Label(text);
+        label.setFont(Font.font("System", FontWeight.BOLD, 16));
+        label.setTextFill(Color.rgb(255, 200, 100));
+        label.setWrapText(true);
+        return label;
+    }
+
+    private static ScrollPane createScrollPane(Node content) {
+        var scrollPane = new ScrollPane(content);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scrollPane.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
+        return scrollPane;
+    }
+
+    private static Node enlarge(Node diagram) {
+        diagram.setScaleX(PAGED_DIAGRAM_SCALE);
+        diagram.setScaleY(PAGED_DIAGRAM_SCALE);
+        var centered = new StackPane(new Group(diagram));
+        centered.setAlignment(Pos.CENTER);
+        return centered;
+    }
+
+    private VBox createTextPage(String pageTitle, String text) {
+        var flow = parseFormattedText(text);
+        flow.setMaxWidth(PAGED_WIDTH - 80);
+        return createPage(pageTitle, flow);
+    }
+
+    private static VBox createPage(String pageTitle, Node content) {
+        var titleLabel = createTitle(pageTitle);
+        var page = new VBox(12, titleLabel, content);
+        page.setAlignment(Pos.TOP_LEFT);
+        return page;
     }
 
     @Override
@@ -163,5 +231,32 @@ public class ImageHelpOverlay extends AbstractHelpOverlay {
      */
     public void show() {
         showPopup();
+    }
+
+    private static final class Pager {
+        private final List<Node> pages;
+        private final StackPane holder = new StackPane();
+        private final Button previous = createNavigationButton(message("image.help.previous"));
+        private final Button next = createNavigationButton(message("image.help.next"));
+        private final PageIndicator indicator;
+        private int current;
+
+        private Pager(List<Node> pages) {
+            this.pages = pages;
+            holder.setAlignment(Pos.TOP_LEFT);
+            holder.setMinHeight(PAGED_MIN_HEIGHT);
+            indicator = new PageIndicator(pages.size(), this::show);
+            previous.setOnAction(e -> show(current - 1));
+            next.setOnAction(e -> show(current + 1));
+            show(0);
+        }
+
+        private void show(int index) {
+            current = index;
+            holder.getChildren().setAll(pages.get(index));
+            indicator.select(index);
+            previous.setDisable(index == 0);
+            next.setDisable(index == pages.size() - 1);
+        }
     }
 }

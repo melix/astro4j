@@ -33,6 +33,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShiftRange;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.Dispersion;
+import me.champeau.a4j.jsolex.processing.util.HeliographicProjection;
 import me.champeau.a4j.jsolex.processing.util.SolarParameters;
 import me.champeau.a4j.jsolex.processing.util.Wavelen;
 import me.champeau.a4j.math.Point2D;
@@ -158,22 +159,8 @@ final class DifferentialRotationMeasurement {
         var polynomial = payload.polynomial();
         var range = PixelShiftRange.computePixelShiftRange(payload.leftBorder(), payload.rightBorder(), payload.image().height(), polynomial);
 
-        var refCoords = scan.referenceCoords();
-        // Check for HFLIP/VFLIP to determine actual image orientation
-        var hasHFlip = refCoords.operations().stream()
-                .anyMatch(op -> op.kind() == ReferenceCoords.OperationKind.HFLIP);
-        var hasVFlip = refCoords.operations().stream()
-                .anyMatch(op -> op.kind() == ReferenceCoords.OperationKind.VFLIP);
-
-        // Longitude sign convention: East limb = negative longitude, West limb = positive
-        // After LEFT_ROTATION without HFLIP: orientation is mirrored, so signs swap
-        var eastLonSign = hasHFlip ? -1 : 1;
-        // Latitude sign: VFLIP swaps north/south, so we need to negate latitude
-        var latSign = hasVFlip ? -1 : 1;
-
-        return computeRotationProfile(scan.serFile(), refCoords, range, polynomial, isPolynomialFromScan(params),
-                lambda0, dispersion, centerX, centerY, radius, b0, angleP, eastLonSign, latSign,
-                config, progressCallback);
+        return computeRotationProfile(scan.serFile(), scan.referenceCoords(), range, polynomial, isPolynomialFromScan(params),
+                lambda0, dispersion, centerX, centerY, radius, b0, angleP, config, progressCallback);
     }
 
     /**
@@ -241,6 +228,10 @@ final class DifferentialRotationMeasurement {
         return !forced && !fromReference;
     }
 
+    private static Point2D toOriginalCoordinates(ReferenceCoords refCoords, Point2D position) {
+        return refCoords.determineOriginalCoordinates(new Point2D(Math.round(position.x()), Math.round(position.y())), ReferenceCoords.NO_LIMIT);
+    }
+
     static double computeRetainedRotationFraction(List<double[]> velocityData) {
         var equatorPoint = velocityData.stream()
                 .min(Comparator.comparingDouble(point -> Math.abs(point[0])))
@@ -254,7 +245,7 @@ final class DifferentialRotationMeasurement {
                                                          boolean polynomialFromScan,
                                                          Wavelen lambda0, Dispersion dispersion,
                                                          double centerX, double centerY, double radius,
-                                                         double b0, double angleP, int eastLonSign, int latSign,
+                                                         double b0, double angleP,
                                                          DifferentialRotationConfig config,
                                                          DoubleConsumer progressCallback) {
         var velocityData = new ArrayList<double[]>();
@@ -280,25 +271,16 @@ final class DifferentialRotationMeasurement {
             for (double latDeg = ROTATION_PROFILE_MIN_LAT_DEG; latDeg <= ROTATION_PROFILE_MAX_LAT_DEG; latDeg += latitudeStep) {
                 totalPoints++;
                 progressCallback.accept((double) totalPoints / totalLatSteps);
-                // Apply latSign to account for VFLIP: if image is vertically flipped, north/south are swapped
-                var effectiveLatDeg = latSign * latDeg;
-                var latRad = Math.toRadians(effectiveLatDeg);
-                var colatitude = Math.PI / 2 - latRad;
+                var latRad = Math.toRadians(latDeg);
 
                 for (double lonDeg = lonMin; lonDeg <= lonMax; lonDeg += longitudeStep) {
-                    var eastLonRad = Math.toRadians(eastLonSign * lonDeg);
-                    var westLonRad = Math.toRadians(-eastLonSign * lonDeg);
-
-                    var eastCoords = SlitRotationAbsorption.projectToImage(eastLonRad, colatitude, radius, b0, angleP);
-                    var eastImgX = (int) Math.round(centerX + eastCoords[0]);
-                    var eastImgY = (int) Math.round(centerY + eastCoords[1]);
-
-                    var westCoords = SlitRotationAbsorption.projectToImage(westLonRad, colatitude, radius, b0, angleP);
-                    var westImgX = (int) Math.round(centerX + westCoords[0]);
-                    var westImgY = (int) Math.round(centerY + westCoords[1]);
-
-                    var eastOrig = refCoords.determineOriginalCoordinates(new Point2D(eastImgX, eastImgY), ReferenceCoords.NO_LIMIT);
-                    var westOrig = refCoords.determineOriginalCoordinates(new Point2D(westImgX, westImgY), ReferenceCoords.NO_LIMIT);
+                    var east = HeliographicProjection.toImage(new HeliographicProjection.Coordinates(latDeg, -lonDeg), centerX, centerY, radius, angleP, b0);
+                    var west = HeliographicProjection.toImage(new HeliographicProjection.Coordinates(latDeg, lonDeg), centerX, centerY, radius, angleP, b0);
+                    if (east.isEmpty() || west.isEmpty()) {
+                        continue;
+                    }
+                    var eastOrig = toOriginalCoordinates(refCoords, east.get());
+                    var westOrig = toOriginalCoordinates(refCoords, west.get());
 
                     var eastColumn = (int) Math.round(eastOrig.x());
                     var eastFrame = (int) Math.round(eastOrig.y());
@@ -346,7 +328,7 @@ final class DifferentialRotationMeasurement {
                             var longitudeFraction = 1.0 - Math.abs(lonDeg) / limbLongitude;
                             measurementsByLat.computeIfAbsent(latBin, k -> new ArrayList<>())
                                     .add(new VelocityMeasurement(equatorialVelocity, longitudeFraction,
-                                            absorption.absorbedRatios(latRad, eastLonRad, westLonRad, eastColumn, westColumn)));
+                                            absorption.absorbedRatios(latRad, Math.toRadians(-lonDeg), Math.toRadians(lonDeg), eastColumn, westColumn)));
                         }
                     }
                 }

@@ -15,7 +15,9 @@
  */
 package me.champeau.a4j.jsolex.processing.sun.workflow;
 
+import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
+import me.champeau.a4j.math.MathUtils;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
@@ -24,7 +26,6 @@ import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
-import java.awt.image.DataBufferInt;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -136,19 +137,7 @@ final class ShiftDebugChart {
         g.setColor(Color.BLACK);
         g.drawString(xAxisTitle, area.x + (area.width - g.getFontMetrics().stringWidth(xAxisTitle)) / 2, area.y + area.height + 42);
         g.dispose();
-        var buffer = ((DataBufferInt) chart.getRaster().getDataBuffer()).getData();
-        var r = new float[CHART_HEIGHT][CHART_WIDTH];
-        var gr = new float[CHART_HEIGHT][CHART_WIDTH];
-        var b = new float[CHART_HEIGHT][CHART_WIDTH];
-        for (var y = 0; y < CHART_HEIGHT; y++) {
-            var offset = y * CHART_WIDTH;
-            for (var x = 0; x < CHART_WIDTH; x++) {
-                var pixel = buffer[offset + x];
-                r[y][x] = ((pixel >> 16) & 0xFF) << 8;
-                gr[y][x] = ((pixel >> 8) & 0xFF) << 8;
-                b[y][x] = (pixel & 0xFF) << 8;
-            }
-        }
+        var rgb = ImageUtils.toRgb(chart);
         imageEmitter.newColorImage(
                 GeneratedImageKind.DEBUG,
                 null,
@@ -158,7 +147,7 @@ final class ShiftDebugChart {
                 CHART_WIDTH,
                 CHART_HEIGHT,
                 MutableMap.of(),
-                () -> new float[][][]{r, gr, b}
+                () -> rgb
         );
     }
 
@@ -170,7 +159,7 @@ final class ShiftDebugChart {
         g.drawString(panel.title(), area.x, area.y - 8);
         drawYAxisTitle(g, area, panel.yAxisTitle());
         drawLegend(g, area, panel);
-        var yStep = niceStep(2 * maxAbs, 6);
+        var yStep = MathUtils.niceStep(2 * maxAbs, 6);
         for (var v = 0d; v <= maxAbs; v += yStep) {
             for (var sign = v == 0 ? 1 : -1; sign <= 1; sign += 2) {
                 var py = (int) Math.round(centerY - sign * v * yScale);
@@ -180,7 +169,7 @@ final class ShiftDebugChart {
                 g.drawString(String.format("%.2f", sign * v), area.x - 50, py + 4);
             }
         }
-        var xStep = Math.max(1, (int) niceStep((double) last - first, 10));
+        var xStep = Math.max(1, (int) MathUtils.niceStep((double) last - first, 10));
         for (var index = (first / xStep) * xStep + xStep; index < last; index += xStep) {
             var px = (int) Math.round(area.x + (index - first) * xScale);
             g.setColor(Color.LIGHT_GRAY);
@@ -274,19 +263,4 @@ final class ShiftDebugChart {
     private record LegendEntry(String label, Color color, boolean line) {
     }
 
-    private static double niceStep(double range, int targetTicks) {
-        var raw = range / targetTicks;
-        var magnitude = Math.pow(10, Math.floor(Math.log10(raw)));
-        var residual = raw / magnitude;
-        if (residual <= 1) {
-            return magnitude;
-        }
-        if (residual <= 2) {
-            return 2 * magnitude;
-        }
-        if (residual <= 5) {
-            return 5 * magnitude;
-        }
-        return 10 * magnitude;
-    }
 }

@@ -1,0 +1,23 @@
+name: CLOUD_MAP
+category: ANALYSIS
+description:
+  fr: "Extrait une carte d'un résultat de cloud_inversion, en valeurs physiques (km/s, kelvins...). Les valeurs non définies valent 0."
+  en: "Extracts a map from a cloud_inversion result, in physical values (km/s, kelvins...). Undefined values are 0."
+arguments:
+  - name: inversion
+    description:
+      fr: "Résultat de cloud_inversion"
+      en: "Result of cloud_inversion"
+  - name: map
+    description:
+      fr: "Nom de la carte : vm, vmax, ve, vf (vitesses en km/s, négatives vers l'observateur), t (température en K), m (masse colonne en g/cm²), fm, ek, fk (flux de masse, énergie cinétique et son flux), tauw (absorption intégrée), s (fonction source), w (largeur Doppler), bg, bgw (luminosité et largeur du fond), ncomp (nombre de composantes), tau_b, tau_c, tau_r, v_b, v_c, v_r (opacité et vitesse de chaque composante), chi2 (qualité de l'ajustement), snr (signal sur bruit de l'absorption) ou status (0 : non traité, 1 : nuage, 2 : profil invalide, 3 : rejeté, 4 : pas d'absorption, 5 : plus brillant que le fond)"
+      en: "Name of the map: vm, vmax, ve, vf (velocities in km/s, negative towards the observer), t (temperature in K), m (column mass in g/cm²), fm, ek, fk (mass flux, kinetic energy and its flux), tauw (integrated absorption), s (source function), w (Doppler width), bg, bgw (background brightness and width), ncomp (number of components), tau_b, tau_c, tau_r, v_b, v_c, v_r (opacity and velocity of each component), chi2 (fit quality), snr (signal to noise ratio of the absorption) or status (0: not processed, 1: cloud, 2: invalid profile, 3: rejected, 4: no absorption, 5: brighter than the background)"
+  - name: colorize
+    optional: true
+    default: 0
+    description:
+      fr: "Avec 1, la carte est colorée avec la même échelle et la même légende que les images produites par le traitement."
+      en: "With 1, the map is colored with the same scale and legend as the images produced by the processing."
+examples:
+  - "cloud_map(cloud_inversion(); \"vm\")"
+  - "cloud_map(inversion: nuage; map: \"t\"; colorize: 1)"

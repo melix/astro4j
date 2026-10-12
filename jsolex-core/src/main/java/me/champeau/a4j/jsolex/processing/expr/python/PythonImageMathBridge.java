@@ -33,6 +33,7 @@ import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.util.FitsUtils;
+import me.champeau.a4j.jsolex.processing.util.HeliographicProjection;
 import me.champeau.a4j.ser.ImageGeometry;
 import me.champeau.a4j.ser.SerFileReader;
 import me.champeau.a4j.ser.bayer.ImageConverter;
@@ -60,6 +61,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Bridge class that exposes ImageMath functions to Python scripts.
@@ -1289,222 +1291,77 @@ public class PythonImageMathBridge implements AutoCloseable {
 
     /**
      * Converts heliographic coordinates (latitude, longitude) to image pixel coordinates.
-     * Automatically handles HFLIP/VFLIP orientation corrections based on ReferenceCoords
-     * so that scripts don't need to know about image orientation.
+     * The image is assumed to show the Sun with north up and east left before the rotation
+     * by the P angle, like the overlays drawn by JSol'Ex.
      *
      * @param img    the image (used to get ellipse and solar parameters)
      * @param latDeg heliographic latitude in degrees
-     * @param lonDeg heliographic longitude in degrees (positive = east, negative = west in Stonyhurst convention)
+     * @param lonDeg heliographic longitude from the central meridian in degrees, positive towards east
      * @return map with x, y coordinates and visible flag (true if on front side of sun)
      */
     @HostAccess.Export
     public Map<String, Object> heliographicToImage(ImageWrapper img, double latDeg, double lonDeg) {
-        // Get metadata from image first (like built-in does), fall back to context
-        var solarParams = img.findMetadata(SolarParameters.class).orElse(null);
-        if (solarParams == null) {
-            solarParams = (SolarParameters) context.get(SolarParameters.class);
-        }
-        var ellipse = img.findMetadata(Ellipse.class).orElse(null);
-        if (ellipse == null) {
-            ellipse = (Ellipse) context.get(Ellipse.class);
-        }
-
         var result = new LinkedHashMap<String, Object>();
-        if (solarParams == null || ellipse == null) {
+        var disk = findDisk(img);
+        if (disk.isEmpty()) {
             result.put("x", Double.NaN);
             result.put("y", Double.NaN);
             result.put("visible", false);
             result.put("available", false);
             return result;
         }
-
-        // Check for HFLIP/VFLIP to determine actual image orientation
-        // This matches the built-in rotation profile behavior
-        var refCoords = img.findMetadata(ReferenceCoords.class).orElse(null);
-        if (refCoords == null) {
-            refCoords = (ReferenceCoords) context.get(ReferenceCoords.class);
-        }
-
-        // Longitude sign convention: HFLIP swaps east/west
-        // Latitude sign convention: VFLIP swaps north/south
-        int lonSign = 1;
-        int latSign = 1;
-        if (refCoords != null) {
-            var hasHFlip = refCoords.operations().stream()
-                    .anyMatch(op -> op.kind() == ReferenceCoords.OperationKind.HFLIP);
-            var hasVFlip = refCoords.operations().stream()
-                    .anyMatch(op -> op.kind() == ReferenceCoords.OperationKind.VFLIP);
-            lonSign = hasHFlip ? -1 : 1;
-            latSign = hasVFlip ? -1 : 1;
-        }
-
-        double b0 = solarParams.b0();
-        double angleP = solarParams.p();
-        var center = ellipse.center();
-        var semiAxis = ellipse.semiAxis();
-        double radius = (semiAxis.a() + semiAxis.b()) / 2.0;
-        double centerX = center.a();
-        double centerY = center.b();
-
-        // Apply orientation corrections (same as built-in computeRotationProfile)
-        double effectiveLatDeg = latSign * latDeg;
-        double effectiveLonDeg = lonSign * lonDeg;
-
-        // Convert to radians using colatitude convention (same as built-in computeSphereCoords)
-        // colatitude = π/2 - latitude, where latitude=0 is equator, +90 is north pole
-        double colatitude = Math.PI / 2 - Math.toRadians(effectiveLatDeg);
-        double longitude = Math.toRadians(effectiveLonDeg);
-
-        // Convert spherical to 3D Cartesian, then apply rotations
-        var coords = sphericalToCartesian(longitude, colatitude, radius);
-        coords = rotateX(coords, -b0);
-        coords = rotateZ(coords, -angleP);
-
-        result.put("x", centerX + coords[0]);
-        result.put("y", centerY + coords[1]);
-        result.put("visible", coords[2] > 0);
+        var geometry = disk.get();
+        var coordinates = new HeliographicProjection.Coordinates(latDeg, -lonDeg);
+        var position = HeliographicProjection.project(coordinates, geometry.centerX(), geometry.centerY(), geometry.radius(),
+                geometry.angleP(), geometry.b0());
+        result.put("x", position.x());
+        result.put("y", position.y());
+        result.put("visible", HeliographicProjection.isVisible(coordinates, geometry.b0()));
         result.put("available", true);
         return result;
     }
 
     /**
      * Converts image pixel coordinates to heliographic coordinates.
-     * Automatically handles HFLIP/VFLIP orientation corrections based on ReferenceCoords
-     * so that scripts don't need to know about image orientation.
+     * The image is assumed to show the Sun with north up and east left before the rotation
+     * by the P angle, like the overlays drawn by JSol'Ex.
      *
      * @param img the image (used to get ellipse and solar parameters)
      * @param x   the x coordinate in image space
      * @param y   the y coordinate in image space
-     * @return map with lat, lon (in degrees), mu (cosine of heliocentric angle), and onDisk flag
+     * @return map with lat, lon (in degrees, positive = east), mu (cosine of heliocentric angle), and onDisk flag
      */
     @HostAccess.Export
     public Map<String, Object> imageToHeliographic(ImageWrapper img, double x, double y) {
-        // Get metadata from image first (like built-in does), fall back to context
-        var solarParams = img.findMetadata(SolarParameters.class).orElse(null);
-        if (solarParams == null) {
-            solarParams = (SolarParameters) context.get(SolarParameters.class);
-        }
-        var ellipse = img.findMetadata(Ellipse.class).orElse(null);
-        if (ellipse == null) {
-            ellipse = (Ellipse) context.get(Ellipse.class);
-        }
-
         var result = new LinkedHashMap<String, Object>();
-        if (solarParams == null || ellipse == null) {
-            result.put("lat", Double.NaN);
-            result.put("lon", Double.NaN);
-            result.put("mu", Double.NaN);
-            result.put("onDisk", false);
-            result.put("available", false);
-            return result;
-        }
-
-        // Check for HFLIP/VFLIP to determine actual image orientation
-        // This matches the built-in rotation profile behavior
-        var refCoords = img.findMetadata(ReferenceCoords.class).orElse(null);
-        if (refCoords == null) {
-            refCoords = (ReferenceCoords) context.get(ReferenceCoords.class);
-        }
-
-        // Longitude sign convention: HFLIP swaps east/west
-        // Latitude sign convention: VFLIP swaps north/south
-        int lonSign = 1;
-        int latSign = 1;
-        if (refCoords != null) {
-            var hasHFlip = refCoords.operations().stream()
-                    .anyMatch(op -> op.kind() == ReferenceCoords.OperationKind.HFLIP);
-            var hasVFlip = refCoords.operations().stream()
-                    .anyMatch(op -> op.kind() == ReferenceCoords.OperationKind.VFLIP);
-            lonSign = hasHFlip ? -1 : 1;
-            latSign = hasVFlip ? -1 : 1;
-        }
-
-        double b0 = solarParams.b0();
-        double angleP = solarParams.p();
-        var center = ellipse.center();
-        var semiAxis = ellipse.semiAxis();
-        double radius = (semiAxis.a() + semiAxis.b()) / 2.0;
-        double centerX = center.a();
-        double centerY = center.b();
-
-        // Normalize to unit disk
-        double nx = (x - centerX) / radius;
-        double ny = (y - centerY) / radius;
-        double rSq = nx * nx + ny * ny;
-
-        if (rSq > 1.0) {
-            result.put("lat", Double.NaN);
-            result.put("lon", Double.NaN);
-            result.put("mu", Double.NaN);
-            result.put("onDisk", false);
-            result.put("available", true);
-            return result;
-        }
-
-        // Compute z from unit sphere
-        double nz = Math.sqrt(1.0 - rSq);
-        double mu = nz; // mu = cos(heliocentric angle)
-
-        // Reverse rotations: first +P around Z, then +B0 around X
-        double[] coords = {nx, ny, nz};
-        coords = rotateZ(coords, angleP);
-        coords = rotateX(coords, b0);
-
-        // Convert back to spherical coordinates
-        // Using the colatitude convention: y = cos(colatitude)
-        // colatitude = 0 at north pole, π/2 at equator, π at south pole
-        // heliographic latitude = 90° - colatitude_degrees
-        double colatitudeRad = Math.acos(coords[1]);
-        double latDeg = 90 - Math.toDegrees(colatitudeRad);
-
-        double sinColat = Math.sin(colatitudeRad);
-        double lonDeg;
-        if (Math.abs(sinColat) < 1e-10) {
-            lonDeg = 0;
-        } else {
-            double sinLon = coords[0] / sinColat;
-            double cosLon = coords[2] / sinColat;
-            lonDeg = Math.toDegrees(Math.atan2(sinLon, cosLon));
-        }
-
-        // Apply orientation corrections (inverse of heliographicToImage)
-        result.put("lat", latSign * latDeg);
-        result.put("lon", lonSign * lonDeg);
-        result.put("mu", mu);
-        result.put("onDisk", true);
-        result.put("available", true);
+        result.put("lat", Double.NaN);
+        result.put("lon", Double.NaN);
+        result.put("mu", Double.NaN);
+        result.put("onDisk", false);
+        var disk = findDisk(img);
+        result.put("available", disk.isPresent());
+        disk.ifPresent(geometry -> HeliographicProjection.toHeliographic(x, y, geometry.centerX(), geometry.centerY(), geometry.radius(),
+                geometry.angleP(), geometry.b0()).ifPresent(coordinates -> {
+            result.put("lat", coordinates.latitude());
+            result.put("lon", -coordinates.longitude());
+            result.put("mu", HeliographicProjection.mu(x, y, geometry.centerX(), geometry.centerY(), geometry.radius()));
+            result.put("onDisk", true);
+        }));
         return result;
     }
 
-    // Spherical to Cartesian conversion (matching ImageDraw.ofSpherical)
-    private double[] sphericalToCartesian(double longitude, double latitude, double radius) {
-        return new double[]{
-                Math.sin(longitude) * Math.sin(latitude) * radius,
-                Math.cos(latitude) * radius,
-                Math.cos(longitude) * Math.sin(latitude) * radius
-        };
+    private Optional<SolarDisk> findDisk(ImageWrapper img) {
+        var solarParams = img.findMetadata(SolarParameters.class).orElse((SolarParameters) context.get(SolarParameters.class));
+        var ellipse = img.findMetadata(Ellipse.class).orElse((Ellipse) context.get(Ellipse.class));
+        if (solarParams == null || ellipse == null) {
+            return Optional.empty();
+        }
+        var semiAxis = ellipse.semiAxis();
+        return Optional.of(new SolarDisk(ellipse.center().a(), ellipse.center().b(), (semiAxis.a() + semiAxis.b()) / 2.0,
+                solarParams.p(), solarParams.b0()));
     }
 
-    // Rotate around X axis
-    private double[] rotateX(double[] coords, double angle) {
-        double cos = Math.cos(angle);
-        double sin = Math.sin(angle);
-        return new double[]{
-                coords[0],
-                coords[1] * cos - coords[2] * sin,
-                coords[1] * sin + coords[2] * cos
-        };
-    }
-
-    // Rotate around Z axis
-    private double[] rotateZ(double[] coords, double angle) {
-        double cos = Math.cos(angle);
-        double sin = Math.sin(angle);
-        return new double[]{
-                coords[0] * cos - coords[1] * sin,
-                coords[0] * sin + coords[1] * cos,
-                coords[2]
-        };
+    private record SolarDisk(double centerX, double centerY, double radius, double angleP, double b0) {
     }
 
     // ========== Helper Methods ==========

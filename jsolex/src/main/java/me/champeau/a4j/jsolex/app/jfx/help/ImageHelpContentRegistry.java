@@ -29,7 +29,8 @@ public final class ImageHelpContentRegistry {
     private static final Map<GeneratedImageKind, Supplier<ImageHelpContentProvider>> PROVIDERS = Map.of(
             GeneratedImageKind.DOPPLER, DopplerHelpContentProvider::new,
             GeneratedImageKind.DOPPLER_ECLIPSE, DopplerHelpContentProvider::new,
-            GeneratedImageKind.RECONSTRUCTION, ReconstructionHelpContentProvider::new
+            GeneratedImageKind.RECONSTRUCTION, ReconstructionHelpContentProvider::new,
+            GeneratedImageKind.CLOUD_MODEL, CloudModelHelpContentProvider::new
     );
 
     private ImageHelpContentRegistry() {

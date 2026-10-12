@@ -480,6 +480,8 @@ if profile is not None:
 |`frameToImageCoords(img, frameNumber, xInFrame)`|Trame SER vers coordonnées image.
 |===
 
+Les coordonnées héliographiques sont exprimées en degrés, les longitudes étant mesurées depuis le méridien central et positives vers l'est. L'image est supposée montrer le Soleil avec le nord en haut et l'est à gauche avant la rotation de l'angle P, orientation obtenue avec les retournements des paramètres de traitement.
+
 Exemple :
 
 [source,python]

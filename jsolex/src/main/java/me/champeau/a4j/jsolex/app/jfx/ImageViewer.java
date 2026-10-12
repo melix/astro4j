@@ -60,6 +60,7 @@ import javafx.util.Duration;
 import me.champeau.a4j.jsolex.app.AlertFactory;
 import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.JSolEx;
+import me.champeau.a4j.jsolex.app.listeners.CloudModelFitDisplay;
 import me.champeau.a4j.jsolex.app.listeners.MetadataComparator;
 import me.champeau.a4j.jsolex.processing.event.GenericMessage;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
@@ -71,6 +72,9 @@ import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
 import me.champeau.a4j.jsolex.processing.params.AutocropMode;
 import me.champeau.a4j.jsolex.processing.params.GlobeStyle;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.jsolex.processing.spectrum.cloud.CloudInversionResult;
+import me.champeau.a4j.jsolex.processing.spectrum.cloud.CloudMap;
+import me.champeau.a4j.jsolex.processing.spectrum.cloud.CloudMapRenderer;
 import me.champeau.a4j.jsolex.processing.stretching.ContrastAdjustmentStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.CurveTransformStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
@@ -254,7 +258,7 @@ public class ImageViewer implements WithRootNode {
         this.description = description;
         this.imageName = imageName;
         this.popupViews = popupViews;
-        if (kind == GeneratedImageKind.IMAGE_MATH || kind == GeneratedImageKind.COLLAGE) {
+        if (kind == GeneratedImageKind.IMAGE_MATH || kind == GeneratedImageKind.COLLAGE || kind == GeneratedImageKind.CLOUD_MODEL) {
             this.stretchingMode = StretchingMode.NO_STRETCH;
         }
         if (description != null && !description.isBlank()) {
@@ -728,8 +732,16 @@ public class ImageViewer implements WithRootNode {
                     var pixelValue = mono.data()[yy][xx];
                     extra = ", " + String.format("%.0f", pixelValue);
                 }
+                var cloudValue = cloudModelValue(xx, yy);
+                if (cloudValue != null) {
+                    extra = ", " + cloudValue;
+                }
                 coordinatesLabel.setText("(" + xx + ", " + yy + extra + ")");
             });
+            if (broadcaster instanceof CloudModelFitDisplay display && image.findMetadata(CloudInversionResult.class).isPresent()) {
+                imageView.setClickListener((x, y) -> image.findMetadata(CloudInversionResult.class)
+                        .ifPresent(current -> display.showCloudModelFit(current, x, y)));
+            }
             var applyNextTime = createIconButton("✔");
             correctAngleP.selectedProperty().addListener((obj, oldValue, newValue) -> {
                 stretchAndDisplay();
@@ -1521,6 +1533,15 @@ public class ImageViewer implements WithRootNode {
             defaultY = 0;
         }
         overlays = overlays.withSignaturePosition(defaultX, defaultY);
+    }
+
+    private String cloudModelValue(int x, int y) {
+        var result = image.findMetadata(CloudInversionResult.class).orElse(null);
+        var map = image.findMetadata(CloudMap.class).orElse(null);
+        if (result == null || map == null) {
+            return null;
+        }
+        return CloudMapRenderer.describe(result, map, x, y).orElse(null);
     }
 
     private ImageWrapper applyTransformations(ImageWrapper image) {

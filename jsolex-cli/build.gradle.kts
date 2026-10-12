@@ -25,8 +25,14 @@ application {
     applicationDefaultJvmArgs = applicationDefaultJvmArgs + listOf(
         // Required by Apache Arrow, used to hand images to Python scripts
         "--add-opens=java.base/java.nio=org.apache.arrow.memory.core",
-        "--add-opens=java.base/java.nio=ALL-UNNAMED"
+        "--add-opens=java.base/java.nio=ALL-UNNAMED",
+        // Required by the OpenCL image operations
+        "--add-modules=jdk.incubator.vector"
     )
+}
+
+astro4j {
+    withVectorApi()
 }
 
 graalvmNative {

@@ -376,6 +376,9 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     private Tab analysisTab;
 
     @FXML
+    private Tab cloudModelTab;
+
+    @FXML
     private Tab redshiftTab;
 
     @FXML
@@ -596,6 +599,11 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     @Override
     public Tab getAnalysisTab() {
         return analysisTab;
+    }
+
+    @Override
+    public Tab getCloudModelTab() {
+        return cloudModelTab;
     }
 
     @Override
@@ -2683,7 +2691,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     }
 
     private void resetInspectorTabs() {
-        for (var tab : List.of(statsTab, profileTab, analysisTab)) {
+        for (var tab : List.of(statsTab, profileTab, analysisTab, cloudModelTab)) {
             tab.setContent(null);
             tab.setDisable(true);
         }

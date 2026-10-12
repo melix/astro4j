@@ -33,6 +33,7 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
@@ -66,6 +67,7 @@ import javafx.scene.text.TextFlow;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Duration;
+import javafx.util.StringConverter;
 import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.app.jfx.ApplyUserRotation;
@@ -74,6 +76,7 @@ import me.champeau.a4j.jsolex.app.jfx.CustomAnimationCreator;
 import me.champeau.a4j.jsolex.app.jfx.DifferentialRotationConfigDialog;
 import me.champeau.a4j.jsolex.app.jfx.DifferentialVelocityHelpOverlay;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
+import me.champeau.a4j.jsolex.app.jfx.ImageHelpOverlay;
 import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
 import me.champeau.a4j.jsolex.app.jfx.OpenGLAvailability;
 import me.champeau.a4j.jsolex.app.jfx.ReconstructionView;
@@ -121,11 +124,15 @@ import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectralLineAnalysis;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectralLineCatalog;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
+import me.champeau.a4j.jsolex.processing.spectrum.cloud.CloudInversion;
+import me.champeau.a4j.jsolex.processing.spectrum.cloud.CloudInversionResult;
+import me.champeau.a4j.jsolex.processing.spectrum.cloud.CloudMap;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
 import me.champeau.a4j.jsolex.processing.sun.TrimmingParameters;
 import me.champeau.a4j.jsolex.processing.sun.workflow.AverageImage;
+import me.champeau.a4j.jsolex.processing.sun.workflow.CloudModelProcessor;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
@@ -135,6 +142,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.SpectralLinePolynomial;
 import me.champeau.a4j.jsolex.processing.sun.workflow.SpectroSolHubImageKind;
 import me.champeau.a4j.jsolex.processing.util.AnimationFormat;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
+import me.champeau.a4j.jsolex.processing.util.CancellationSupport;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.Dispersion;
 import me.champeau.a4j.jsolex.processing.util.DurationFormatter;
@@ -175,13 +183,16 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.WeakHashMap;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.DoubleUnaryOperator;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static me.champeau.a4j.jsolex.app.JSolEx.message;
@@ -203,8 +214,13 @@ import static me.champeau.a4j.jsolex.processing.sun.CaptureSoftwareMetadataHelpe
  * This listener manages the visualization of processed images, histograms, spectral profiles,
  * and provides script execution capabilities through the ImageMath language.
  */
-public class SingleModeProcessingEventListener implements ProcessingEventListener, ImageMathScriptExecutor, Broadcaster, Spectral3DVisualizationHelper.DataProvider {
+public class SingleModeProcessingEventListener implements ProcessingEventListener, ImageMathScriptExecutor, Broadcaster, Spectral3DVisualizationHelper.DataProvider, CloudModelFitDisplay {
     private static final Logger LOGGER = LoggerFactory.getLogger(SingleModeProcessingEventListener.class);
+    static final String STATISTICS_PANEL_STYLE = "-fx-background-color: #f0f0f0; -fx-border-color: #cccccc; -fx-border-width: 1 0 0 0;";
+    private static final double TAB_TEXT_WIDTH = 500;
+    private static final String ITALIC_STYLE = "-fx-font-style: italic;";
+    private static final String CLOUD_MODEL_HELP_ID = "cloud-model-help";
+    static final String WARNING_STYLE = "-fx-text-fill: #856404; -fx-font-weight: bold;";
     private static final String[] RGB_COLORS = {"red", "green", "blue"};
     private static final String[] CHART_SERIES_PALETTE = {
             "#f3622d", "#fba71b", "#57b757", "#41a9c9", "#4258c9", "#9a42c8", "#c84164", "#888888"
@@ -227,6 +243,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private final Tab profileTab;
     private final Tab statsTab;
     private final Tab analysisTab;
+    private final Tab cloudModelTab;
     private final WeakHashMap<ImageWrapper, List<CachedHistogram>> cachedHistograms = new WeakHashMap<>();
     private final LocalDateTime processingDate;
     private float[][] averageImage;
@@ -240,12 +257,14 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private ImageEmitter imageEmitter;
     private ImageMathScriptExecutor imageScriptExecutor;
     private final Map<String, Object> pendingVariables = new HashMap<>();
+    private ImageHelpOverlay cloudModelHelpOverlay;
     private long sd;
     private final Map<PixelShift, ImageWrapper> shiftImages;
     private Ellipse mainEllipse;
     private ProgressOperation reconstructionProgress;
 
     private final AtomicInteger cropCount = new AtomicInteger();
+    private final AtomicBoolean showCloudVelocityMap = new AtomicBoolean();
     private final AtomicInteger animCount = new AtomicInteger();
     private final Map<String, List<ImageWrapper>> scriptImagesByLabel = new HashMap<>();
     private final Map<String, List<Object>> scriptValuesByLabel = new HashMap<>();
@@ -300,6 +319,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         this.statsTab = owner.getStatsTab();
         this.profileTab = owner.getProfileTab();
         this.analysisTab = owner.getAnalysisTab();
+        this.cloudModelTab = owner.getCloudModelTab();
         this.popupViews = popupViews;
         this.shiftImages = new HashMap<>();
         this.processingDate = processingDate;
@@ -861,6 +881,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                             FxUtils.runLater(() -> enableTab(statsTab, histogram));
                         });
                     }));
+            if (imageWrapper.findMetadata(CloudMap.class).filter(CloudMap.MASS_FLUX_VELOCITY::equals).isPresent() && showCloudVelocityMap.compareAndSet(true, false)) {
+                owner.getImagesViewer().show(addedImageViewer);
+            }
             var pixelShiftRange = imageWrapper.findMetadata(PixelShiftRange.class).orElse(new PixelShiftRange(-15, 15, .25));
             var imageWidth = imageWrapper.width();
             var imageHeight = imageWrapper.height();
@@ -1118,18 +1141,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private void generateRotationProfileChart(DifferentialRotationMeasurement.Scan currentScan, List<File> additionalSerFiles) {
         var currentParams = currentScan.averageImage().adjustedParams();
         var baseParams = params;
-        var progressBar = new ProgressBar(0);
-        progressBar.setPrefWidth(300);
-        var progressLabel = new Label(message("doppler.computing.rotation.profile"));
-        var progressBox = new VBox(10, progressLabel, progressBar);
-        progressBox.setAlignment(Pos.CENTER);
-        progressBox.setPadding(new Insets(20));
-        var progressStage = new Stage();
-        progressStage.initModality(Modality.WINDOW_MODAL);
-        progressStage.setTitle(message("doppler.rotation.profile"));
-        progressStage.setScene(JSolEx.newScene(progressBox, 350, 100));
-        progressStage.setResizable(false);
-        progressStage.show();
+        var popup = ProgressPopup.show(message("doppler.rotation.profile"), message("doppler.computing.rotation.profile"));
+        var progressBar = popup.progressBar();
+        var progressLabel = popup.label();
 
         var config = differentialRotationConfig;
         var serFiles = new ArrayList<File>();
@@ -1166,7 +1180,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             }
             var singleScanOrientationIssue = serFiles.size() == 1 && orientationIssue;
             FxUtils.runLater(() -> {
-                progressStage.close();
+                popup.stage().close();
                 if (singleScanOrientationIssue) {
                     new Alert(Alert.AlertType.WARNING, message("doppler.rotation.scan.orientation")).showAndWait();
                 } else if (serFiles.size() > 1 && !ignoredScans.isEmpty()) {
@@ -1493,6 +1507,23 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         return histogram;
     }
 
+    @Override
+    public void showCloudModelFit(CloudInversionResult result, int x, int y) {
+        BackgroundOperations.async(() -> result.fitAt(x, y).ifPresent(fit -> FxUtils.runLater(() -> {
+            Supplier<LineChart<Number, Number>> chartSupplier = () -> CloudModelFitChart.create(fit);
+            var chart = chartSupplier.get();
+            var content = new VBox(8, chart, CloudModelFitChart.summary(fit, result.heliographicAt(x, y)));
+            content.setPadding(new Insets(8));
+            VBox.setVgrow(chart, Priority.ALWAYS);
+            registerSaveChartAction(new GraphData.CloudModelFitData(chart, chartSupplier, writer -> CloudModelFitChart.writeCsv(fit, writer), x, y));
+            enableTab(profileTab, content);
+            var tabPane = profileTab.getTabPane();
+            if (tabPane != null) {
+                tabPane.getSelectionModel().select(profileTab);
+            }
+        })));
+    }
+
     private static void enableTab(Tab tab, Node content) {
         tab.setContent(content);
         tab.setDisable(false);
@@ -1626,6 +1657,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         owner.enableSpectroSolHubSubmission(null);
         pixelShiftRange = payload.pixelShiftRange();
         mainEllipse = payload.mainEllipse();
+        if (adjustedParams != null && CloudModelProcessor.canInvert(adjustedParams)) {
+            FxUtils.runLater(() -> enableTab(cloudModelTab, buildCloudModelTabContent()));
+        }
         imageScriptExecutor = new JSolExScriptExecutor(
                 this::lazyReconstructMissingImage,
                 scriptExecutionContext,
@@ -1825,6 +1859,11 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     }
 
     private void restartProcessForMissingShifts(Set<Double> missingShifts) {
+        restartProcessForMissingShifts(missingShifts, operation -> {
+        });
+    }
+
+    private void restartProcessForMissingShifts(Set<Double> missingShifts, Consumer<ProgressOperation> progressListener) {
         var outOfRange = missingShifts.stream()
                 .filter(s -> s > pixelShiftRange.maxPixelShift())
                 .findAny();
@@ -1859,6 +1898,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             @Override
             public void onProgress(ProgressEvent e) {
                 BatchOperations.submitOneOfAKind("progress", () -> owner.updateProgress(e.getPayload()));
+                progressListener.accept(e.getPayload());
             }
         });
         solexVideoProcessor.setForceDetectActiveRegions(params.requestedImages().isEnabled(GeneratedImageKind.ACTIVE_REGIONS));
@@ -2221,21 +2261,13 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         titleBox.setAlignment(Pos.CENTER_LEFT);
 
         // Description
-        var descriptionLabel = new Label(message("analysis.differential.velocity.description"));
-        descriptionLabel.setWrapText(true);
-        descriptionLabel.setMaxWidth(500);
+        var descriptionLabel = wrappedLabel(message("analysis.differential.velocity.description"), null);
 
         // Note about GONG tab
-        var noteLabel = new Label(message("analysis.differential.velocity.note"));
-        noteLabel.setWrapText(true);
-        noteLabel.setMaxWidth(500);
-        noteLabel.setStyle("-fx-font-style: italic;");
+        var noteLabel = wrappedLabel(message("analysis.differential.velocity.note"), ITALIC_STYLE);
 
         // Warning about seeing conditions
-        var warningLabel = new Label(message("analysis.differential.velocity.warning"));
-        warningLabel.setWrapText(true);
-        warningLabel.setMaxWidth(500);
-        warningLabel.setStyle("-fx-text-fill: #856404; -fx-font-weight: bold;");
+        var warningLabel = wrappedLabel(message("analysis.differential.velocity.warning"), WARNING_STYLE);
 
         // Helper to run the measurement
         Consumer<List<File>> runMeasurement = additionalScans -> {
@@ -2292,6 +2324,129 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         return mainPane;
     }
 
+    private Parent buildCloudModelTabContent() {
+        var titleLabel = new Label(message("cloud.model.tab.title"));
+        titleLabel.setFont(Font.font(titleLabel.getFont().getFamily(), FontWeight.BOLD, 14));
+        var titleBox = new HBox(10, titleLabel, createCloudModelHelpButton(message("cloud.model.tab.title"), message("cloud.model.tab.help")));
+        titleBox.setAlignment(Pos.CENTER_LEFT);
+        var resultBox = new VBox();
+        resultBox.setMaxWidth(TAB_TEXT_WIDTH);
+        var binningChoice = new ChoiceBox<Integer>();
+        for (var factor = 1; factor <= CloudModelProcessor.MAX_BINNING; factor++) {
+            binningChoice.getItems().add(factor);
+        }
+        binningChoice.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(Integer factor) {
+                return factor == null || factor == 1 ? message("cloud.model.tab.binning.none") : factor + " \u00d7 " + factor;
+            }
+
+            @Override
+            public Integer fromString(String string) {
+                return null;
+            }
+        });
+        binningChoice.setValue(CloudModelProcessor.defaultBinning(adjustedParams));
+        var binningBox = new HBox(10, new Label(message("cloud.model.tab.binning")), binningChoice);
+        binningBox.setAlignment(Pos.CENTER_LEFT);
+        var computeButton = new Button(message("cloud.model.tab.compute"));
+        computeButton.getStyleClass().add("primary-button");
+        computeButton.setOnAction(evt -> computeCloudModel(computeButton, resultBox, binningChoice.getValue()));
+        var buttonBox = new HBox(10, computeButton);
+        buttonBox.setAlignment(Pos.CENTER);
+        buttonBox.setPadding(new Insets(20, 0, 0, 0));
+        var contentBox = new VBox(15, titleBox,
+                wrappedLabel(message("cloud.model.tab.description"), null),
+                wrappedLabel(message("cloud.model.tab.origin"), ITALIC_STYLE),
+                wrappedLabel(message("cloud.model.tab.warning"), WARNING_STYLE),
+                binningBox,
+                wrappedLabel(message("cloud.model.tab.binning.help"), ITALIC_STYLE),
+                buttonBox,
+                resultBox);
+        contentBox.setAlignment(Pos.TOP_LEFT);
+        contentBox.setPadding(new Insets(10));
+        var mainPane = new BorderPane(contentBox);
+        mainPane.setPadding(new Insets(15));
+        return mainPane;
+    }
+
+    private static Label wrappedLabel(String text, String style) {
+        var label = new Label(text);
+        label.setWrapText(true);
+        label.setMaxWidth(TAB_TEXT_WIDTH);
+        if (style != null) {
+            label.setStyle(style);
+        }
+        return label;
+    }
+
+    private void computeCloudModel(Button computeButton, VBox resultBox, int binning) {
+        computeButton.setDisable(true);
+        resultBox.getChildren().clear();
+        var cloudParams = adjustedParams;
+        var cancelled = new AtomicBoolean();
+        showCloudVelocityMap.set(true);
+        var popup = ProgressPopup.show(message("cloud.model.tab.title"), message("cloud.model.tab.step.inversion"), () -> cancelled.set(true));
+        Thread.startVirtualThread(() -> {
+            Supplier<Node> content;
+            try {
+                var result = CancellationSupport.callWith(cancelled, () -> runCloudModel(cloudParams, binning, popup));
+                content = () -> CloudModelFitChart.inversionSummary(result);
+            } catch (CancellationException e) {
+                showCloudVelocityMap.set(false);
+                content = () -> wrappedLabel(message("cloud.model.tab.cancelled"), null);
+            } catch (Throwable e) {
+                showCloudVelocityMap.set(false);
+                LOGGER.error(message("cloud.model.tab.failed"), e.getMessage(), e);
+                var text = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+                content = () -> wrappedLabel(text, null);
+            }
+            var node = content;
+            FxUtils.runLater(() -> {
+                popup.stage().close();
+                resultBox.getChildren().setAll(node.get());
+                computeButton.setDisable(false);
+            });
+        });
+    }
+
+    private CloudInversionResult runCloudModel(ProcessParams cloudParams, int binning, ProgressPopup popup) {
+        var missing = CloudModelProcessor.computePixelShifts(cloudParams, pixelShiftRange).stream()
+                .filter(shift -> !shiftImages.containsKey(new PixelShift(shift)))
+                .collect(Collectors.toCollection(TreeSet::new));
+        if (!missing.isEmpty()) {
+            var step = String.format(message("cloud.model.tab.step.images"), missing.size());
+            popup.update(step, ProgressBar.INDETERMINATE_PROGRESS);
+            var reconstruction = new ReconstructionProgress();
+            restartProcessForMissingShifts(missing, operation -> reconstruction.update(operation)
+                    .ifPresent(state -> popup.update(step + "\n" + state.task(), state.progress())));
+        }
+        var images = CloudModelProcessor.collectImages(cloudParams, pixelShiftRange, shiftImages::get);
+        var step = message("cloud.model.tab.step.inversion");
+        popup.update(step, ProgressBar.INDETERMINATE_PROGRESS);
+        Broadcaster broadcaster = event -> {
+            broadcast(event);
+            if (event instanceof ProgressEvent progressEvent && progressEvent.getPayload().progress() > 0) {
+                popup.update(step, progressEvent.getPayload().progress());
+            }
+        };
+        var result = CloudModelProcessor.invert(cloudParams, images, CloudInversion.Options.DEFAULT.withBinning(binning), broadcaster, rootOperation);
+        CloudModelProcessor.emit(result, imageEmitter, cloudParams.requestedImages().isEnabled(GeneratedImageKind.DEBUG));
+        return result;
+    }
+
+    private Node createCloudModelHelpButton(String title, String text) {
+        if (cloudModelHelpOverlay == null) {
+            cloudModelHelpOverlay = new ImageHelpOverlay(title, text, GeneratedImageKind.CLOUD_MODEL);
+            cloudModelHelpOverlay.setId(CLOUD_MODEL_HELP_ID);
+            cloudModelHelpOverlay.setMouseTransparent(true);
+            var root = owner.getRootStackPane().getChildren();
+            root.removeIf(node -> CLOUD_MODEL_HELP_ID.equals(node.getId()));
+            root.add(cloudModelHelpOverlay);
+        }
+        return cloudModelHelpOverlay.createStandaloneButton();
+    }
+
     private void updateSpectral3DButtonsState() {
         if (show3DButton != null) {
             show3DButton.setDisable(cachedAverageImagePayload == null);
@@ -2317,7 +2472,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     private Parent createStatisticsPanel(SpectralLineAnalysis.LineStatistics stats, boolean hasWavelength) {
         var statsBox = new HBox(20);
         statsBox.setPadding(new Insets(10));
-        statsBox.setStyle("-fx-background-color: #f0f0f0; -fx-border-color: #cccccc; -fx-border-width: 1 0 0 0;");
+        statsBox.setStyle(STATISTICS_PANEL_STYLE);
 
         var titleLabel = new Label(message("line.statistics"));
         titleLabel.setFont(Font.font(titleLabel.getFont().getFamily(), FontWeight.BOLD, 12));
@@ -2399,7 +2554,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         return bar;
     }
 
-    private VBox createStatItem(String label, String value) {
+    static VBox createStatItem(String label, String value) {
         var labelNode = new Label(label);
         labelNode.setStyle("-fx-font-size: 10px; -fx-text-fill: #666666;");
         var valueNode = new Label(value);
@@ -2762,7 +2917,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
         // For the main chart, snapshot parent to include stats panel / dual chart layout
         Supplier<Node> nodeSupplier = () -> {
-            if (graphData instanceof GraphData.ProfileData && chart.getParent() != null) {
+            if ((graphData instanceof GraphData.ProfileData || graphData instanceof GraphData.CloudModelFitData) && chart.getParent() != null) {
                 return chart.getParent();
             }
             if (graphData instanceof GraphData.DifferentialVelocityData && chart.getParent() != null && chart.getParent().getParent() != null) {
@@ -2774,6 +2929,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         Consumer<? super PrintWriter> csvWriter = switch (graphData) {
             case GraphData.ProfileData profileData -> profileData.csvWriter();
             case GraphData.DifferentialVelocityData rpData -> rpData.csvWriter();
+            case GraphData.CloudModelFitData fitData -> fitData.csvWriter();
             default -> null;
         };
 
@@ -2787,6 +2943,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             Consumer<? super PrintWriter> popupCsvWriter = switch (graphData) {
                 case GraphData.ProfileData profileData -> profileData.csvWriter();
                 case GraphData.DifferentialVelocityData rpData -> rpData.csvWriter();
+                case GraphData.CloudModelFitData fitData -> fitData.csvWriter();
                 default -> null;
             };
 
@@ -3019,6 +3176,15 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             }
         }
 
+        record CloudModelFitData(XYChart<?, ?> chart, Supplier<? extends XYChart<?, ?>> graphFactory,
+                                 Consumer<? super PrintWriter> csvWriter,
+                                 int x,
+                                 int y) implements GraphData {
+            public String name() {
+                return "cloud-fit_" + x + "-" + y;
+            }
+        }
+
         record HistogramData(XYChart<?, ?> chart, Supplier<? extends XYChart<?, ?>> graphFactory) implements GraphData {
             public String name() {
                 return "histogram";
@@ -3041,4 +3207,52 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         }
     }
 
+    private record ProgressPopup(Stage stage, Label label, ProgressBar progressBar) {
+        private static final double WIDTH = 350;
+
+        static ProgressPopup show(String title, String text) {
+            return show(title, text, null);
+        }
+
+        /**
+         * Shows a progress window, with a cancel button when an action is given. Closing the
+         * window also cancels.
+         */
+        static ProgressPopup show(String title, String text, Runnable onCancel) {
+            var progressBar = new ProgressBar(0);
+            progressBar.setPrefWidth(WIDTH - 50);
+            var progressLabel = new Label(text);
+            progressLabel.setWrapText(true);
+            progressLabel.setMaxWidth(WIDTH - 40);
+            var progressBox = new VBox(10, progressLabel, progressBar);
+            progressBox.setAlignment(Pos.CENTER);
+            progressBox.setPadding(new Insets(20));
+            progressBox.setPrefWidth(WIDTH);
+            var stage = new Stage();
+            if (onCancel != null) {
+                var cancelButton = new Button(message("cancel"));
+                cancelButton.setOnAction(e -> {
+                    cancelButton.setDisable(true);
+                    onCancel.run();
+                });
+                progressBox.getChildren().add(cancelButton);
+                stage.setOnCloseRequest(e -> onCancel.run());
+            }
+            stage.initModality(Modality.WINDOW_MODAL);
+            stage.setTitle(title);
+            stage.setScene(JSolEx.newScene(progressBox));
+            stage.setResizable(false);
+            stage.sizeToScene();
+            stage.show();
+            return new ProgressPopup(stage, progressLabel, progressBar);
+        }
+
+        void update(String text, double progress) {
+            BatchOperations.submitOneOfAKind(this, () -> {
+                label.setText(text);
+                progressBar.setProgress(progress);
+                stage.sizeToScene();
+            });
+        }
+    }
 }
