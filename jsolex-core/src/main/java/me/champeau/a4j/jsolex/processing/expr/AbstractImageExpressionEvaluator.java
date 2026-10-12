@@ -49,6 +49,7 @@ import me.champeau.a4j.jsolex.processing.expr.impl.ImageCombination;
 import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
 import me.champeau.a4j.jsolex.processing.expr.impl.ImageStatistics;
 import me.champeau.a4j.jsolex.processing.expr.impl.Inverse;
+import me.champeau.a4j.jsolex.processing.expr.impl.LineFit;
 import me.champeau.a4j.jsolex.processing.expr.impl.Loader;
 import me.champeau.a4j.jsolex.processing.expr.impl.Masking;
 import me.champeau.a4j.jsolex.processing.expr.impl.MathFunctions;
@@ -155,6 +156,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     private final ImageDraw imageDraw;
     private final ImageStatistics imageStatistics;
     private final Inverse inverse;
+    private final LineFit lineFit;
     private final Loader loader;
     private final Masking masking;
     private final MathFunctions math;
@@ -203,6 +205,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         this.imageDraw = new ImageDraw(context, broadcaster, this::getVariables);
         this.imageStatistics = new ImageStatistics(context, broadcaster);
         this.inverse = new Inverse(context, broadcaster);
+        this.lineFit = new LineFit(context, broadcaster);
         this.loader = new Loader(context, broadcaster);
         this.masking = new Masking(context, broadcaster);
         this.math = new MathFunctions(context, broadcaster);
@@ -375,6 +378,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case ANNULUS_MASK -> masking.annulusMask(arguments);
             case RANGE_MASK -> masking.rangeMask(arguments);
             case INVERT_MASK -> masking.invertMask(arguments);
+            case LINE_FIT -> lineFit.lineFit(arguments);
             case COPY_METADATA -> utilities.copyMetadata(arguments);
             case CROP -> crop.crop(arguments);
             case CROP_RECT -> crop.cropToRect(arguments);

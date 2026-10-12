@@ -1,5 +1,9 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+## Nouveautés de la version 5.5.3
+
+- Nouvelle fonction de script `line_fit`, qui mesure une raie d'émission pixel par pixel sans confondre les raies d'absorption de la lumière de fond avec de l'émission.
+
 ## Nouveautés de la version 5.5.2
 
 - Correction de l'assistant de soumission BASS2000, qui échouait car l'image à soumettre ne pouvait pas être générée.

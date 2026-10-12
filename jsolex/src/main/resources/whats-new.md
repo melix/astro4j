@@ -1,5 +1,9 @@
 # Welcome to JSol'Ex {{version}}!
 
+## What's New in Version 5.5.3
+
+- New `line_fit` script function, which measures an emission line pixel by pixel without mistaking the absorption lines of the background light for emission.
+
 ## What's New in Version 5.5.2
 
 - Fixed the BASS2000 submission wizard failing because the image to submit could not be generated.

@@ -1,0 +1,42 @@
+name: LINE_FIT
+category: RECONSTRUCTION
+description:
+  fr: "Mesure l'intensité d'une raie d'émission en ajustant, pour chaque pixel, le spectre formé par une série d'images. Contrairement à une simple soustraction du continuum, les raies d'absorption de la lumière de fond (par exemple la lumière diffusée par l'instrument) ne sont pas prises pour de l'émission."
+  en: "Measures the intensity of an emission line by fitting, for each pixel, the spectrum formed by a series of images. Unlike a simple continuum subtraction, the absorption lines of the background light (for example light scattered by the instrument) are not mistaken for emission."
+arguments:
+  - name: img
+    description:
+      fr: "Images formant le spectre, par exemple obtenues avec `range`. Elles doivent couvrir la raie et du continuum de part et d'autre."
+      en: "Images forming the spectrum, for example obtained with `range`. They must cover the line and some continuum on both sides."
+  - name: shift
+    description:
+      fr: "Position du centre de la raie d'émission, en décalage de pixels (voir `find_shift`)."
+      en: "Position of the centre of the emission line, as a pixel shift (see `find_shift`)."
+  - name: fwhm
+    description:
+      fr: "Largeur à mi-hauteur de la raie d'émission, en pixels (voir `a2px`)."
+      en: "Full width at half maximum of the emission line, in pixels (see `a2px`)."
+  - name: template
+    description:
+      fr: "Masque de la zone où le spectre de fond est mesuré, là où la raie d'émission est négligeable (créé avec `annulus_mask` ou `range_mask`)."
+      en: "Mask of the area where the background spectrum is measured, where the emission line is negligible (created with `annulus_mask` or `range_mask`)."
+  - name: mask
+    optional: true
+    description:
+      fr: "Masque restreignant les pixels mesurés. Les autres pixels valent 0."
+      en: "Mask restricting the measured pixels. The other pixels are set to 0."
+  - name: doppler
+    optional: true
+    default: 0
+    description:
+      fr: "Correction du décalage en longueur d'onde du spectre de fond, dû par exemple à la rotation solaire : 0 la désactive, 1 la calcule pour chaque pixel, une valeur plus grande la moyenne sur un voisinage de cette taille en pixels, ce qui réduit le bruit."
+      en: "Correction of the wavelength shift of the background spectrum, caused for example by solar rotation: 0 disables it, 1 computes it for each pixel, a larger value averages it over a neighbourhood of that size in pixels, which reduces the noise."
+  - name: faintest
+    optional: true
+    default: 1
+    description:
+      fr: "Fraction de la zone du gabarit, là où la raie d'émission est la plus faible, sur laquelle le spectre de fond est mesuré. Si la zone du gabarit contient encore un peu d'émission, celle-ci serait retirée de toute l'image : une valeur plus faible ne garde que la partie la plus sombre. 1 utilise toute la zone."
+      en: "Fraction of the template area, where the emission line is the weakest, on which the background spectrum is measured. If the template area still contains some emission, it would be removed from the whole image: a lower value only keeps its darkest part. 1 uses the whole area."
+examples:
+  - "line_fit(img: range(-4; 8); shift: 2.5; fwhm: a2px(0.7); template: annulus_mask(1.3; 1.45))"
+  - "line_fit(img: range(-4; 8); shift: 2.7; fwhm: 3.3; template: annulus_mask(1.3; 1.45); mask: invert_mask(annulus_mask(0; 1)); doppler: 11; faintest: 0.25)"
