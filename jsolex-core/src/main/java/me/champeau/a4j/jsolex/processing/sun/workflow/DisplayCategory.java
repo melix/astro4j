@@ -27,5 +27,6 @@ public enum DisplayCategory {
     IMAGE_MATH,
     MISC,
     PHENOMENA,
+    CLOUD_MODEL,
     REDSHIFT;
 }

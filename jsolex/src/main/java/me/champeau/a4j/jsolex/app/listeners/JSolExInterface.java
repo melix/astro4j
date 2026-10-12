@@ -80,6 +80,12 @@ public interface JSolExInterface {
     Tab getAnalysisTab();
 
     /**
+     * Returns the cloud model tab.
+     * @return the cloud model tab
+     */
+    Tab getCloudModelTab();
+
+    /**
      * Returns the root StackPane for adding overlays.
      * @return the root stack pane
      */

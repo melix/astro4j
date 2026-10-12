@@ -16,7 +16,7 @@
 package me.champeau.a4j.jsolex.processing.sun
 
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords
-import me.champeau.a4j.math.Point2D
+import me.champeau.a4j.jsolex.processing.util.HeliographicProjection
 import spock.lang.Specification
 
 class SlitRotationAbsorptionTest extends Specification {
@@ -59,16 +59,14 @@ class SlitRotationAbsorptionTest extends Specification {
 
     private static double retainedFraction(ReferenceCoords refCoords, double angleP, double b0) {
         def absorption = SlitRotationAbsorption.compute(refCoords, CENTER, CENTER, RADIUS, b0, angleP, SIZE, SIZE)
-        def eastLon = Math.toRadians(60)
-        def westLon = -eastLon
-        def colatitude = Math.PI / 2
-        def eastColumn = column(refCoords, SlitRotationAbsorption.projectToImage(eastLon, colatitude, RADIUS, b0, angleP))
-        def westColumn = column(refCoords, SlitRotationAbsorption.projectToImage(westLon, colatitude, RADIUS, b0, angleP))
-        1 - absorption.absorbedRatios(0, eastLon, westLon, eastColumn, westColumn)[0]
+        def eastColumn = column(refCoords, -60, angleP, b0)
+        def westColumn = column(refCoords, 60, angleP, b0)
+        1 - absorption.absorbedRatios(0, Math.toRadians(-60), Math.toRadians(60), eastColumn, westColumn)[0]
     }
 
-    private static int column(ReferenceCoords refCoords, double[] offset) {
-        def original = refCoords.determineOriginalCoordinates(new Point2D(CENTER + offset[0], CENTER + offset[1]), ReferenceCoords.NO_LIMIT)
+    private static int column(ReferenceCoords refCoords, double longitude, double angleP, double b0) {
+        def position = HeliographicProjection.project(new HeliographicProjection.Coordinates(0, longitude), CENTER, CENTER, RADIUS, angleP, b0)
+        def original = refCoords.determineOriginalCoordinates(position, ReferenceCoords.NO_LIMIT)
         (int) Math.round(original.x())
     }
 }

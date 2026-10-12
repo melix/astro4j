@@ -35,10 +35,15 @@ import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
-import javafx.scene.text.TextAlignment;
 import javafx.util.Duration;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
+
+import static me.champeau.a4j.jsolex.app.jfx.help.HelpDiagrams.COLOR_BLUE;
+import static me.champeau.a4j.jsolex.app.jfx.help.HelpDiagrams.COLOR_HIGHLIGHT;
+import static me.champeau.a4j.jsolex.app.jfx.help.HelpDiagrams.COLOR_RED;
+import static me.champeau.a4j.jsolex.app.jfx.help.HelpDiagrams.COLOR_TEXT;
+import static me.champeau.a4j.jsolex.app.jfx.help.HelpDiagrams.createText;
 
 /**
  * Provides animated help content explaining how Doppler images are created.
@@ -53,11 +58,6 @@ public class DopplerHelpContentProvider implements ImageHelpContentProvider {
     private static final double DIAGRAM_HEIGHT = 280;
     private static final Duration PHASE_DURATION = Duration.seconds(4);
     private static final Duration FADE_DURATION = Duration.seconds(0.5);
-
-    private static final Color COLOR_BLUE_WING = Color.rgb(80, 140, 255);
-    private static final Color COLOR_RED_WING = Color.rgb(255, 100, 80);
-    private static final Color COLOR_TEXT = Color.rgb(204, 204, 204);
-    private static final Color COLOR_HIGHLIGHT = Color.rgb(255, 204, 102);
 
     private static final String I18N_BUNDLE = "image-help-doppler";
 
@@ -92,21 +92,21 @@ public class DopplerHelpContentProvider implements ImageHelpContentProvider {
 
         // Left disk - Blue wing (toward us)
         double leftX = 100;
-        var leftDisk = createSunDisk(leftX, centerY, 60, COLOR_BLUE_WING);
+        var leftDisk = createSunDisk(leftX, centerY, 60, COLOR_BLUE);
         var leftLabel = createText(msg("phase1.blue.wing"), leftX, centerY + 85, 11, false);
         // Arrow pointing LEFT (toward observer)
-        var leftArrow = createArrow(leftX - 55, centerY, leftX - 80, centerY, COLOR_BLUE_WING);
+        var leftArrow = createArrow(leftX - 55, centerY, leftX - 80, centerY, COLOR_BLUE);
         var leftApproach = createText(msg("phase1.approaching"), leftX - 67, centerY - 15, 10, false);
-        leftApproach.setFill(COLOR_BLUE_WING);
+        leftApproach.setFill(COLOR_BLUE);
 
         // Right disk - Red wing (away from us)
         double rightX = DIAGRAM_WIDTH - 100;
-        var rightDisk = createSunDisk(rightX, centerY, 60, COLOR_RED_WING);
+        var rightDisk = createSunDisk(rightX, centerY, 60, COLOR_RED);
         var rightLabel = createText(msg("phase1.red.wing"), rightX, centerY + 85, 11, false);
         // Arrow pointing RIGHT (away from observer)
-        var rightArrow = createArrow(rightX + 55, centerY, rightX + 80, centerY, COLOR_RED_WING);
+        var rightArrow = createArrow(rightX + 55, centerY, rightX + 80, centerY, COLOR_RED);
         var rightRecede = createText(msg("phase1.receding"), rightX + 67, centerY - 15, 10, false);
-        rightRecede.setFill(COLOR_RED_WING);
+        rightRecede.setFill(COLOR_RED);
 
         // Title
         var title = createText(msg("phase1.title"), DIAGRAM_WIDTH / 2, 25, 14, true);
@@ -144,7 +144,7 @@ public class DopplerHelpContentProvider implements ImageHelpContentProvider {
         double boxSpacing = 100;
 
         // R channel (from red wing)
-        var rBox = createChannelBox(centerX - boxSpacing, boxY, "R", COLOR_RED_WING);
+        var rBox = createChannelBox(centerX - boxSpacing, boxY, "R", COLOR_RED);
         var rLabel = createText(msg("phase2.red.channel"), centerX - boxSpacing, boxY + 45, 9, false);
 
         // G channel (minimum)
@@ -152,7 +152,7 @@ public class DopplerHelpContentProvider implements ImageHelpContentProvider {
         var gLabel = createText(msg("phase2.green.channel"), centerX, boxY + 45, 9, false);
 
         // B channel (from blue wing)
-        var bBox = createChannelBox(centerX + boxSpacing, boxY, "B", COLOR_BLUE_WING);
+        var bBox = createChannelBox(centerX + boxSpacing, boxY, "B", COLOR_BLUE);
         var bLabel = createText(msg("phase2.blue.channel"), centerX + boxSpacing, boxY + 45, 9, false);
 
         // Arrow pointing to result
@@ -187,9 +187,9 @@ public class DopplerHelpContentProvider implements ImageHelpContentProvider {
 
         // Labels for interpretation
         var blueLabel = createText(msg("phase3.blue.meaning"), centerX - 110, centerY, 11, false);
-        blueLabel.setFill(COLOR_BLUE_WING);
+        blueLabel.setFill(COLOR_BLUE);
         var redLabel = createText(msg("phase3.red.meaning"), centerX + 110, centerY, 11, false);
-        redLabel.setFill(COLOR_RED_WING);
+        redLabel.setFill(COLOR_RED);
 
         // Notes about DEC vs RA scans
         var note1 = createText(msg("phase3.note1"), centerX, centerY + 80, 10, false);
@@ -226,11 +226,11 @@ public class DopplerHelpContentProvider implements ImageHelpContentProvider {
         // Simple horizontal gradient from blue (left/East) to red (right/West)
         var gradient = new LinearGradient(
                 0, 0, 1, 0, true, CycleMethod.NO_CYCLE,
-                new Stop(0, COLOR_BLUE_WING),
-                new Stop(0.35, COLOR_BLUE_WING.darker()),
+                new Stop(0, COLOR_BLUE),
+                new Stop(0.35, COLOR_BLUE.darker()),
                 new Stop(0.5, Color.gray(0.4)),
-                new Stop(0.65, COLOR_RED_WING.darker()),
-                new Stop(1, COLOR_RED_WING)
+                new Stop(0.65, COLOR_RED.darker()),
+                new Stop(1, COLOR_RED)
         );
         var disk = new Circle(x, y, radius);
         disk.setFill(gradient);
@@ -276,16 +276,6 @@ public class DopplerHelpContentProvider implements ImageHelpContentProvider {
 
         group.getChildren().addAll(line, arrowHead);
         return group;
-    }
-
-    private Text createText(String content, double x, double y, double size, boolean bold) {
-        var text = new Text(content);
-        text.setFont(Font.font("System", bold ? FontWeight.BOLD : FontWeight.NORMAL, size));
-        text.setFill(COLOR_TEXT);
-        text.setTextAlignment(TextAlignment.CENTER);
-        text.setX(x - text.getLayoutBounds().getWidth() / 2);
-        text.setY(y);
-        return text;
     }
 
     private SequentialTransition createAnimation(Group phase1, Group phase2, Group phase3) {

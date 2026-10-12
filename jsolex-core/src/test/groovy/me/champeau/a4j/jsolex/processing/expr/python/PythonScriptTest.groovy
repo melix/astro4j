@@ -625,6 +625,32 @@ result = [coords["lat"], coords["lon"], coords["mu"], coords["onDisk"], coords["
         result[4] == true   // available
     }
 
+    def "the disk center is at the latitude B0 whatever the flips of the image"() {
+        given:
+        context.put(SolarParameters, new SolarParameters(2300, Math.toRadians(6.5d), 0.0d, Math.toRadians(24.0d), 0.0d))
+        context.put(Ellipse, Ellipse.ofCartesian(new DoubleSextuplet(1.0d, 0.0d, 1.0d, -100.0d, -100.0d, 3400.0d)))
+        context.put(ReferenceCoords, new ReferenceCoords(operations))
+        def img = createImage(100, 100, 50.0f)
+
+        when:
+        def result = executor.executeInline('''
+coords = jsolex.imageToHeliographic(img, 50.0, 50.0)
+result = [coords["lat"], coords["lon"]]
+''', [img: img])
+
+        then:
+        Math.abs((double) result[0] - 6.5) < 1e-6
+        Math.abs((double) result[1]) < 1e-6
+
+        where:
+        operations << [
+                [],
+                [new ReferenceCoords.Operation(ReferenceCoords.OperationKind.VFLIP, 100d)],
+                [new ReferenceCoords.Operation(ReferenceCoords.OperationKind.HFLIP, 100d)],
+                [new ReferenceCoords.Operation(ReferenceCoords.OperationKind.HFLIP, 100d), new ReferenceCoords.Operation(ReferenceCoords.OperationKind.VFLIP, 100d)]
+        ]
+    }
+
     def "imageToHeliographic returns off disk for points outside solar disk"() {
         given: "solar parameters and ellipse in context"
         def solarParams = new SolarParameters(2300, 0.0d, 0.0d, 0.0d, 0.0d)
@@ -730,35 +756,23 @@ result = [params["centerX"], params["centerY"], params["semiAxisA"], params["sem
     }
 
     // ==================== Coordinate Conversion Accuracy Tests ====================
-    // These tests verify that heliographicToImage produces IDENTICAL results
-    // to the built-in computeSphereCoords algorithm from SingleModeProcessingEventListener
 
     /**
-     * Reference implementation of computeSphereCoords from SingleModeProcessingEventListener.
-     * This is the EXACT algorithm used by the built-in rotation profile measurement.
+     * Position of a point relative to the disk center in an image showing the Sun with north up and east left.
      */
-    private static double[] computeSphereCoords(double longitude, double colatitude, double radius, double b0, double angleP) {
-        // Convert spherical to Cartesian (same formula as ImageDraw.ofSpherical)
-        def x = Math.sin(longitude) * Math.sin(colatitude) * radius
-        def y = Math.cos(colatitude) * radius
-        def z = Math.cos(longitude) * Math.sin(colatitude) * radius
-
-        // Rotate around X axis by -b0
-        def cosB0 = Math.cos(-b0)
-        def sinB0 = Math.sin(-b0)
-        def y1 = y * cosB0 - z * sinB0
-        def z1 = y * sinB0 + z * cosB0
-
-        // Rotate around Z axis by -angleP
-        def cosP = Math.cos(-angleP)
-        def sinP = Math.sin(-angleP)
-        def x2 = x * cosP - y1 * sinP
-        def y2 = x * sinP + y1 * cosP
-
-        return [x2, y2] as double[]
+    private static double[] expectedOffset(double latDeg, double lonDeg, double radius, double b0, double angleP) {
+        def lat = Math.toRadians(latDeg)
+        def lon = Math.toRadians(lonDeg)
+        def x = -Math.sin(lon) * Math.cos(lat)
+        def y = -Math.sin(lat)
+        def z = Math.cos(lon) * Math.cos(lat)
+        def y1 = y * Math.cos(b0) + z * Math.sin(b0)
+        def x2 = x * Math.cos(angleP) + y1 * Math.sin(angleP)
+        def y2 = -x * Math.sin(angleP) + y1 * Math.cos(angleP)
+        return [x2 * radius, y2 * radius] as double[]
     }
 
-    def "heliographicToImage matches built-in computeSphereCoords at equator"() {
+    def "heliographicToImage matches the solar geometry at equator"() {
         given: "solar parameters and ellipse"
         def b0Rad = Math.toRadians(b0Deg)
         def pRad = Math.toRadians(pDeg)
@@ -771,13 +785,10 @@ result = [params["centerX"], params["centerY"], params["semiAxisA"], params["sem
         context.put(Ellipse, ellipse)
         def img = createImage(400, 400, 50.0f)
 
-        and: "compute expected result using built-in algorithm"
-        def latRad = Math.toRadians(latDeg)
-        def lonRad = Math.toRadians(lonDeg)
-        def colatitude = Math.PI / 2 - latRad
-        def builtInCoords = computeSphereCoords(lonRad, colatitude, radius, b0Rad, pRad)
-        def expectedX = 200.0 + builtInCoords[0]
-        def expectedY = 200.0 + builtInCoords[1]
+        and: "compute the expected position"
+        def expected = expectedOffset(latDeg, lonDeg, radius, b0Rad, pRad)
+        def expectedX = 200.0 + expected[0]
+        def expectedY = 200.0 + expected[1]
 
         when: "convert using bridge"
         def result = executor.executeInline("""
@@ -799,7 +810,7 @@ result = [coords["x"], coords["y"], coords["visible"]]
         0.0    | 75.0   | 7.25  | -10.5 | 100.0   // east limb with both
     }
 
-    def "heliographicToImage matches built-in computeSphereCoords at various latitudes"() {
+    def "heliographicToImage matches the solar geometry at various latitudes"() {
         given: "solar parameters and ellipse"
         def b0Rad = Math.toRadians(b0Deg)
         def pRad = Math.toRadians(pDeg)
@@ -810,13 +821,10 @@ result = [coords["x"], coords["y"], coords["visible"]]
         context.put(Ellipse, ellipse)
         def img = createImage(400, 400, 50.0f)
 
-        and: "compute expected result using built-in algorithm"
-        def latRad = Math.toRadians(latDeg)
-        def lonRad = Math.toRadians(lonDeg)
-        def colatitude = Math.PI / 2 - latRad
-        def builtInCoords = computeSphereCoords(lonRad, colatitude, radius, b0Rad, pRad)
-        def expectedX = 200.0 + builtInCoords[0]
-        def expectedY = 200.0 + builtInCoords[1]
+        and: "compute the expected position"
+        def expected = expectedOffset(latDeg, lonDeg, radius, b0Rad, pRad)
+        def expectedX = 200.0 + expected[0]
+        def expectedY = 200.0 + expected[1]
 
         when: "convert using bridge"
         def result = executor.executeInline("""
@@ -840,7 +848,7 @@ result = [coords["x"], coords["y"], coords["visible"]]
         -60.0  | -45.0  | 0.0   | 0.0   | 100.0   // S60
     }
 
-    def "heliographicToImage matches built-in with realistic solar parameters"() {
+    def "heliographicToImage matches the solar geometry with realistic solar parameters"() {
         given: "realistic solar parameters (typical observation conditions)"
         def b0Rad = Math.toRadians(b0Deg)
         def pRad = Math.toRadians(pDeg)
@@ -851,13 +859,10 @@ result = [coords["x"], coords["y"], coords["visible"]]
         context.put(Ellipse, ellipse)
         def img = createImage(400, 400, 50.0f)
 
-        and: "compute expected result using built-in algorithm"
-        def latRad = Math.toRadians(latDeg)
-        def lonRad = Math.toRadians(lonDeg)
-        def colatitude = Math.PI / 2 - latRad
-        def builtInCoords = computeSphereCoords(lonRad, colatitude, radius, b0Rad, pRad)
-        def expectedX = 200.0 + builtInCoords[0]
-        def expectedY = 200.0 + builtInCoords[1]
+        and: "compute the expected position"
+        def expected = expectedOffset(latDeg, lonDeg, radius, b0Rad, pRad)
+        def expectedX = 200.0 + expected[0]
+        def expectedY = 200.0 + expected[1]
 
         when: "convert using bridge"
         def result = executor.executeInline("""
@@ -907,9 +912,9 @@ result = [east["x"], east["y"], west["x"], west["y"]]
         def westX = (double) result[2]
         def westY = (double) result[3]
 
-        // East should be right of center (x > 200), west should be left (x < 200)
-        eastX > 200.0
-        westX < 200.0
+        // East should be left of center (x < 200), west should be right (x > 200)
+        eastX < 200.0
+        westX > 200.0
         // X should be symmetric: (eastX - 200) ≈ -(westX - 200)
         Math.abs((eastX - 200.0) + (westX - 200.0)) < 0.001
         // Y should be identical for same latitude
@@ -960,7 +965,7 @@ result = {
         def eastImgY = result["east_imgY"]
         def westImgY = result["west_imgY"]
 
-        // Image X should be different (east is right of center, west is left)
+        // Image X should be different (east is left of center, west is right)
         Math.abs(eastImgX - westImgX) > 50.0
         // Image Y should be the same (same latitude)
         Math.abs(eastImgY - westImgY) < 0.001

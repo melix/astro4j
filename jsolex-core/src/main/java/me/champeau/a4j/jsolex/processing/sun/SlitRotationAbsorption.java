@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.sun;
 
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
+import me.champeau.a4j.jsolex.processing.util.HeliographicProjection;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.regression.LinearRegression;
 import org.slf4j.Logger;
@@ -154,31 +155,6 @@ public final class SlitRotationAbsorption {
         return ratios;
     }
 
-    /**
-     * Projects a point of the solar sphere onto the image plane.
-     *
-     * @param longitude the longitude, in radians: 0 faces the observer
-     * @param colatitude the colatitude, in radians
-     * @param radius the disk radius, in pixels
-     * @param b0 the B0 angle, in radians
-     * @param angleP the P angle, in radians
-     * @return the (x, y) offset from the disk center, in pixels
-     */
-    public static double[] projectToImage(double longitude, double colatitude, double radius, double b0, double angleP) {
-        var x = Math.sin(longitude) * Math.sin(colatitude);
-        var y = Math.cos(colatitude);
-        var z = Math.cos(longitude) * Math.sin(colatitude);
-        var cosB0 = Math.cos(-b0);
-        var sinB0 = Math.sin(-b0);
-        var y1 = y * cosB0 - z * sinB0;
-        var cosP = Math.cos(-angleP);
-        var sinP = Math.sin(-angleP);
-        return new double[]{
-                (x * cosP - y1 * sinP) * radius,
-                (x * sinP + y1 * cosP) * radius
-        };
-    }
-
     private static void forEachDiskSample(ReferenceCoords refCoords,
                                           double centerX,
                                           double centerY,
@@ -188,10 +164,6 @@ public final class SlitRotationAbsorption {
                                           int frameCount,
                                           int columnCount,
                                           DiskSampleConsumer consumer) {
-        var cosB0 = Math.cos(-b0);
-        var sinB0 = Math.sin(-b0);
-        var cosP = Math.cos(-angleP);
-        var sinP = Math.sin(-angleP);
         var basis = new double[BASIS_SIZE];
         var minX = (int) Math.floor(centerX - radius);
         var maxX = (int) Math.ceil(centerX + radius);
@@ -199,10 +171,8 @@ public final class SlitRotationAbsorption {
         var maxY = (int) Math.ceil(centerY + radius);
         for (int py = minY; py <= maxY; py++) {
             for (int px = minX; px <= maxX; px++) {
-                var dx = (px - centerX) / radius;
-                var dy = (py - centerY) / radius;
-                var rho2 = dx * dx + dy * dy;
-                if (rho2 >= 1) {
+                var mu = HeliographicProjection.mu(px, py, centerX, centerY, radius);
+                if (!(mu > 0)) {
                     continue;
                 }
                 var original = refCoords.determineOriginalCoordinates(new Point2D(px, py), ReferenceCoords.NO_LIMIT);
@@ -211,15 +181,11 @@ public final class SlitRotationAbsorption {
                 if (column < 0 || column >= columnCount || frame < 0 || frame >= frameCount) {
                     continue;
                 }
-                var x = dx * cosP + dy * sinP;
-                var y1 = -dx * sinP + dy * cosP;
-                var mu = Math.sqrt(Math.max(0, 1 - rho2));
-                var y = y1 * cosB0 + mu * sinB0;
-                var sinLat = Math.max(-1, Math.min(1, y));
-                var cosLat = Math.sqrt(1 - sinLat * sinLat);
-                var sinLon = cosLat > 0 ? x / cosLat : 0;
+                var coordinates = HeliographicProjection.toHeliographic(px, py, centerX, centerY, radius, angleP, b0).orElseThrow();
+                var latitude = Math.toRadians(coordinates.latitude());
+                var sinLat = Math.sin(latitude);
                 var sinLat2 = sinLat * sinLat;
-                var rigid = cosLat * sinLon * Math.cos(b0);
+                var rigid = Math.cos(latitude) * Math.sin(Math.toRadians(coordinates.longitude())) * Math.cos(b0);
                 basis[0] = rigid;
                 basis[1] = rigid * sinLat2;
                 basis[2] = rigid * sinLat2 * sinLat2;

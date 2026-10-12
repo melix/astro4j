@@ -35,13 +35,13 @@ import javafx.scene.shape.Line;
 import javafx.scene.shape.Polygon;
 import javafx.scene.shape.QuadCurve;
 import javafx.scene.shape.Rectangle;
-import javafx.scene.text.Font;
-import javafx.scene.text.FontWeight;
-import javafx.scene.text.Text;
-import javafx.scene.text.TextAlignment;
 import javafx.util.Duration;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
+
+import static me.champeau.a4j.jsolex.app.jfx.help.HelpDiagrams.COLOR_HIGHLIGHT;
+import static me.champeau.a4j.jsolex.app.jfx.help.HelpDiagrams.COLOR_TEXT;
+import static me.champeau.a4j.jsolex.app.jfx.help.HelpDiagrams.createText;
 
 /**
  * Provides animated help content explaining how spectroheliographic reconstruction works.
@@ -61,8 +61,6 @@ public class ReconstructionHelpContentProvider implements ImageHelpContentProvid
     private static final Color COLOR_CONTINUUM = Color.rgb(180, 180, 180);
     private static final Color COLOR_HALPHA_LINE = Color.rgb(40, 40, 40);
     private static final Color COLOR_EXTRACTED = Color.rgb(255, 80, 60);
-    private static final Color COLOR_TEXT = Color.rgb(204, 204, 204);
-    private static final Color COLOR_HIGHLIGHT = Color.rgb(255, 204, 102);
     private static final Color COLOR_SUN = Color.rgb(255, 200, 100);
 
     private static final String I18N_BUNDLE = "image-help-reconstruction";
@@ -446,16 +444,6 @@ public class ReconstructionHelpContentProvider implements ImageHelpContentProvid
 
         group.getChildren().addAll(line, arrowHead);
         return group;
-    }
-
-    private Text createText(String content, double x, double y, double size, boolean bold) {
-        var text = new Text(content);
-        text.setFont(Font.font("System", bold ? FontWeight.BOLD : FontWeight.NORMAL, size));
-        text.setFill(COLOR_TEXT);
-        text.setTextAlignment(TextAlignment.CENTER);
-        text.setX(x - text.getLayoutBounds().getWidth() / 2);
-        text.setY(y);
-        return text;
     }
 
     private SequentialTransition createAnimation(Group phase1, Group phase2, Group phase3) {

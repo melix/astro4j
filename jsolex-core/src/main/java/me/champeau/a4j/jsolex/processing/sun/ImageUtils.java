@@ -222,6 +222,28 @@ public class ImageUtils {
         return new float[][][]{r, g, b};
     }
 
+    /**
+     * Converts an image of type {@link BufferedImage#TYPE_INT_RGB} to red, green and blue channels, on 16 bits.
+     */
+    public static float[][][] toRgb(BufferedImage image) {
+        var width = image.getWidth();
+        var height = image.getHeight();
+        var buffer = ((DataBufferInt) image.getRaster().getDataBuffer()).getData();
+        var r = new float[height][width];
+        var g = new float[height][width];
+        var b = new float[height][width];
+        for (var y = 0; y < height; y++) {
+            var offset = y * width;
+            for (var x = 0; x < width; x++) {
+                var pixel = buffer[offset + x];
+                r[y][x] = ((pixel >> 16) & 0xFF) << 8;
+                g[y][x] = ((pixel >> 8) & 0xFF) << 8;
+                b[y][x] = (pixel & 0xFF) << 8;
+            }
+        }
+        return new float[][][]{r, g, b};
+    }
+
     private static float clampToRange(double v) {
         if (v < 0) {
             return 0f;

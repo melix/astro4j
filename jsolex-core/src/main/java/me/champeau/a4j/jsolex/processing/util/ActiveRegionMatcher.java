@@ -25,9 +25,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static java.lang.Math.cos;
-import static java.lang.Math.sin;
-
 /**
  * Projects NOAA active regions, whose position is given in heliographic coordinates,
  * onto image coordinates, and matches them with the active regions which were detected
@@ -56,13 +53,8 @@ public final class ActiveRegionMatcher {
                                             double radius,
                                             double angleP,
                                             double b0) {
-        var latitude = Math.toRadians(region.latitudeDeg()) + Math.PI / 2;
-        var longitude = Math.toRadians(region.longitudeDeg());
-        var coords = ofSpherical(longitude, latitude, radius).rotateX(-b0).rotateZ(-angleP);
-        if (coords.z() <= 0) {
-            return Optional.empty();
-        }
-        return Optional.of(new Point2D(centerX + coords.x(), centerY + coords.y()));
+        return HeliographicProjection.toImage(new HeliographicProjection.Coordinates(region.latitudeDeg(), region.longitudeDeg()),
+                centerX, centerY, radius, angleP, b0);
     }
 
     /**
@@ -120,26 +112,6 @@ public final class ActiveRegionMatcher {
         return Math.hypot(cx - anchor.x(), cy - anchor.y());
     }
 
-    private static Coordinates ofSpherical(double ascension, double declination, double radius) {
-        return new Coordinates(sin(ascension) * sin(declination) * radius, cos(declination) * radius, cos(ascension) * sin(declination) * radius);
-    }
-
-    private static double[] rotate(double a, double b, double angle) {
-        return new double[]{cos(angle) * a - sin(angle) * b, sin(angle) * a + cos(angle) * b};
-    }
-
     private record Anchored(NOAAActiveRegion noaaRegion, Point2D anchor) {
-    }
-
-    private record Coordinates(double x, double y, double z) {
-        Coordinates rotateX(double angle) {
-            var rot = rotate(y, z, angle);
-            return new Coordinates(x, rot[0], rot[1]);
-        }
-
-        Coordinates rotateZ(double angle) {
-            var rot = rotate(x, y, angle);
-            return new Coordinates(rot[0], rot[1], z);
-        }
     }
 }

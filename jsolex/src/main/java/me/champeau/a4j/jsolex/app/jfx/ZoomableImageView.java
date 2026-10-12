@@ -162,9 +162,9 @@ public class ZoomableImageView extends HBox {
                     if (zoomingIn) {
                         centerViewportOn(imageX, imageY);
                     }
-                } else if (evt.getClickCount() == 1 && onClickListener != null) {
-                    int imageX = (int) Math.round(evt.getX() / zoom);
-                    int imageY = (int) Math.round(evt.getY() / zoom);
+                } else if (evt.getClickCount() == 1 && evt.isStillSincePress() && onClickListener != null) {
+                    var imageX = (int) (evt.getX() / zoom);
+                    var imageY = (int) (evt.getY() / zoom);
                     onClickListener.accept(imageX, imageY);
                 }
             }

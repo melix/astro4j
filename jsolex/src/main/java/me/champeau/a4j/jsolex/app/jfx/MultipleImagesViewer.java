@@ -815,6 +815,23 @@ public class MultipleImagesViewer extends Pane {
     }
 
     /**
+     * Shows an image which was added to this viewer.
+     * @param viewer the viewer of the image
+     */
+    public void show(ImageViewer viewer) {
+        try {
+            lock.lock();
+            linkToViewer.entrySet().stream()
+                    .filter(entry -> entry.getValue() == viewer)
+                    .map(Map.Entry::getKey)
+                    .findFirst()
+                    .ifPresent(Hyperlink::fire);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /**
      * Returns the currently selected image viewer.
      * @return the selected viewer, or null if the selected view is not an image viewer
      */

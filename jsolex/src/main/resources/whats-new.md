@@ -1,8 +1,11 @@
 # Welcome to JSol'Ex {{version}}!
 
-## What's New in Version 5.5.3
+## What's New in Version 5.6.0
 
+- New "H-alpha cloud model" tool, in the drop-down list of the right panel: maps of the temperature, mass and velocity of the absorbing material (filaments, fibrils...), obtained by fitting the line profile at each point of the disk.
+- Fixed the solar latitudes and longitudes given to Python scripts and used by the differential rotation measurement, which could be mirrored depending on the flips applied to the image.
 - New `line_fit` script function, which measures an emission line pixel by pixel without mistaking the absorption lines of the background light for emission.
+- Fixed the command line version, which ignored the instrument of the configuration file and always used the Sol'Ex settings.
 
 ## What's New in Version 5.5.2
 

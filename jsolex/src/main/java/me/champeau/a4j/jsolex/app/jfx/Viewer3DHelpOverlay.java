@@ -23,7 +23,6 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Cursor;
 import javafx.scene.Node;
-import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.HBox;
@@ -127,30 +126,7 @@ public class Viewer3DHelpOverlay extends AbstractHelpOverlay {
         var textFlow = parseFormattedText(helpText);
         textFlow.setMaxWidth(700);
 
-        var okButton = new Button("OK");
-        okButton.setFont(Font.font("System", FontWeight.BOLD, 13));
-        okButton.setMinWidth(80);
-        okButton.setStyle(
-                "-fx-background-color: rgba(80, 80, 100, 0.9); " +
-                "-fx-text-fill: white; " +
-                "-fx-background-radius: 6; " +
-                "-fx-cursor: hand; " +
-                "-fx-padding: 8 20 8 20;"
-        );
-        okButton.setOnMouseEntered(e -> okButton.setStyle(
-                "-fx-background-color: rgba(100, 100, 130, 0.95); " +
-                "-fx-text-fill: white; " +
-                "-fx-background-radius: 6; " +
-                "-fx-cursor: hand; " +
-                "-fx-padding: 8 20 8 20;"
-        ));
-        okButton.setOnMouseExited(e -> okButton.setStyle(
-                "-fx-background-color: rgba(80, 80, 100, 0.9); " +
-                "-fx-text-fill: white; " +
-                "-fx-background-radius: 6; " +
-                "-fx-cursor: hand; " +
-                "-fx-padding: 8 20 8 20;"
-        ));
+        var okButton = createNavigationButton("OK");
         okButton.setOnAction(e -> hidePopup());
 
         var buttonBox = new HBox(okButton);

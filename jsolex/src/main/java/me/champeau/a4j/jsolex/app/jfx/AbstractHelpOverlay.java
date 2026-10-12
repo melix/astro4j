@@ -74,6 +74,10 @@ public abstract class AbstractHelpOverlay extends StackPane {
     private static final String HELP_ICON = "?";
     private static final Pattern BOLD_PATTERN = Pattern.compile("\\*\\*(.+?)\\*\\*");
     protected static final double BUTTON_SIZE = 32;
+    private static final String NAVIGATION_BUTTON_STYLE = "-fx-background-color: rgba(80, 80, 100, 0.9); -fx-text-fill: white; "
+            + "-fx-background-radius: 6; -fx-cursor: hand; -fx-padding: 8 20 8 20;";
+    private static final String NAVIGATION_BUTTON_HOVER_STYLE = "-fx-background-color: rgba(100, 100, 130, 0.95); -fx-text-fill: white; "
+            + "-fx-background-radius: 6; -fx-cursor: hand; -fx-padding: 8 20 8 20;";
     protected static final String WINDOW_BUTTON_STYLE = "-fx-background-color: transparent; " +
             "-fx-text-fill: rgba(255, 255, 255, 0.6); " +
             "-fx-cursor: hand; " +
@@ -333,6 +337,19 @@ public abstract class AbstractHelpOverlay extends StackPane {
     }
 
     /**
+     * Creates a button styled like the buttons at the bottom of the help popups.
+     */
+    protected static Button createNavigationButton(String text) {
+        var button = new Button(text);
+        button.setFont(Font.font("System", FontWeight.BOLD, 13));
+        button.setMinWidth(80);
+        button.setStyle(NAVIGATION_BUTTON_STYLE);
+        button.setOnMouseEntered(e -> button.setStyle(NAVIGATION_BUTTON_HOVER_STYLE));
+        button.setOnMouseExited(e -> button.setStyle(NAVIGATION_BUTTON_STYLE));
+        return button;
+    }
+
+    /**
      * Creates a styled content pane with a close button.
      * @param scrollPane the scroll pane containing the content
      * @param normalWidth the normal width
@@ -340,6 +357,19 @@ public abstract class AbstractHelpOverlay extends StackPane {
      * @return a configured StackPane with window controls
      */
     protected StackPane createContentPane(ScrollPane scrollPane, double normalWidth, double normalHeight) {
+        return createContentPane(scrollPane, null, normalWidth, normalHeight);
+    }
+
+    /**
+     * Creates a styled content pane with a close button and a footer which stays at the bottom
+     * of the pane while the content scrolls.
+     * @param scrollPane the scroll pane containing the content
+     * @param footer the footer, or null
+     * @param normalWidth the normal width
+     * @param normalHeight the normal height
+     * @return a configured StackPane with window controls
+     */
+    protected StackPane createContentPane(ScrollPane scrollPane, Node footer, double normalWidth, double normalHeight) {
         var closeButton = new Button("\u2715");
         closeButton.setFont(Font.font("System", FontWeight.NORMAL, 14));
         closeButton.setMinSize(28, 28);
@@ -361,6 +391,7 @@ public abstract class AbstractHelpOverlay extends StackPane {
         var borderPane = new BorderPane();
         borderPane.setTop(buttonBar);
         borderPane.setCenter(scrollPane);
+        borderPane.setBottom(footer);
 
         // Wrapper with styling
         var content = new StackPane(borderPane);

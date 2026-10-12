@@ -1718,6 +1718,80 @@ Finally, select the type of rendering:
 
 image::pixel-shift-panel.jpg["Example of panel"]
 
+=== H-alpha cloud model
+
+In H-alpha, JSol'Ex records the full profile of the line at each point of the disk. The "H-alpha cloud model" tool uses these profiles to estimate the velocity, temperature and mass of the material which absorbs the H-alpha light (filaments, fibrils, spicules seen on the disk).
+
+The cloud model was introduced by J. M. Beckers in 1964 to study the dark structures seen in H-alpha. The method followed by JSol'Ex is the one of Chae et al., "Inference of the physical parameters of Hα-absorbing plasma structures in the quiet Sun" (A&A 706, A123, 2026). The absorbing material is represented by a cloud lying above a background atmosphere. The cloud may contain one or three velocity components, which share the same temperature. The observed profile is fitted at each point, and the physical quantities are derived from the parameters of the cloud.
+
+The background is not the three-layer atmosphere of the paper. It is the average profile of the disk at the same distance from the center, whose intensity and width JSol'Ex adjusts at each point. If this background alone explains the observed profile, the point is considered to have no significant absorption.
+
+Velocities are measured relative to the surrounding atmosphere: the overall shift of the profile, caused by the solar rotation and by the instrument, is estimated over the whole disk and removed. The maps therefore show the motions of the structures themselves, not the rotation.
+
+Once processing is done, choose "H-alpha cloud model" in the drop-down list of the right panel, then click on "Compute". This entry is only shown for H-alpha, and not on a saturated disk. JSol'Ex first reconstructs the required images, from 3 Å on both sides of the line with a step of 1 pixel, then fits the profile at each point. A window shows the progress of both steps. Allow one to a few minutes. If GPU acceleration is enabled in the settings, the fit runs on the graphics card, which makes it several times faster. At the end, the panel shows a summary of the calibration and the averages over the disk. Below each average, the value measured by Chae et al. (2026) on a quiet Sun region with a professional spectrograph is shown for comparison. Hovering over a value explains what it means.
+
+Before computing, you can choose to average neighbouring pixels by blocks of 2 × 2 to 4 × 4. The suggested value matches the finest details your setup can resolve through the turbulence of the atmosphere, about 1.5 arc seconds. Averaging makes the computation several times faster and slightly reduces the scatter of the velocities, at the cost of resolution. The maps keep the size of the other images, and clicking on a map shows the fit of the block under the cursor.
+
+If the observed profile does not look like the H-alpha line (wrong instrument, binning or pixel size in the settings, saturated disk), the computation stops with a message instead of producing wrong maps. When the dispersion measured on the profile differs a lot from the one computed from the instrument settings, the calibration uses the measured one, and its correction factor is shown in the summary: a factor far from 1 points to wrong instrument, binning or pixel size settings.
+
+==== Generated images
+
+The absorbing material is the gas floating above the bright surface of the Sun (filaments, fibrils, spicules), which blocks part of the light coming from below and therefore looks dark in H-alpha.
+
+The maps are shown in the "Cloud model" category, and the mean velocity map is displayed as soon as the computation is done:
+
+- Mean velocity (v_M): velocity of the absorbing material, weighted by mass, in km/s. Blue means material moving towards the observer, red material moving away.
+- Fastest flow (v_max): speed of the most shifted part of the absorbing material. When fast material, such as an eruption or a surge, shares a pixel with slower and denser material, the mean velocity v_M stays low, while this map shows the fast part. The model only looks at the line within 2.5 Å of its centre, so flows faster than about 110 km/s are not seen, or seen at a lower speed.
+- Temperature, in kelvins, derived from the width of the line once the turbulence (assumed to be 8 km/s) is removed. When the profile does not allow this width to be measured, the point is shown in dark grey.
+- Column mass: mass of absorbing material along the line of sight, in grams per square centimeter. It is derived from the temperature, because the share of hydrogen atoms which can absorb H-alpha light depends strongly on it, so it is only shown where the temperature could be measured (dark grey elsewhere).
+- Integrated absorption: how much light the cloud absorbs. It depends neither on the temperature nor on the turbulence, which makes it the most reliable map.
+- Fit quality: the lower the value, the better the fit. The scale goes from green (good) to dark red (poor), from 0 to 5. Rejected points (sunspots, abnormal profiles, poor fits) are shown in medium grey on every map. The edge of the disk, which is not processed, is hatched.
+
+On the velocity and temperature maps, dark grey shows the points without absorbing material, the points where the absorption is too weak for its shift or its width to be measured (signal to noise ratio below 5), and the regions brighter than their surroundings, such as plages. The cloud model describes absorbing material and does not apply to these bright regions. On the mass and absorption maps, the points without absorbing material are at zero, and the regions brighter than their surroundings are in dark grey.
+
+The background of each point is the average line of the disk at the same distance from the centre, which already contains the absorption of the usual fibrils: only the material which absorbs more than this average is measured. On a quiet Sun, the dark grey points can therefore cover more than half of the disk.
+
+The color scales are fixed, so that the maps of two observations can be compared directly: a given color always means the same value. The velocity scale covers -100 to +100 km/s, and its colors change quickly for slow motions and more slowly for fast ones, so that both can be seen on the same map. Its legend shows where 10, 30 and 100 km/s are. Each map carries its legend in the top left corner. When hovering a map, the status bar shows the value under the cursor, with its unit.
+
+Two charts complete the maps:
+
+- The distribution of the velocities, weighted by mass: the mean velocity v_M, the energy velocity v_E, which measures how agitated the material is whatever the direction (it includes the turbulence, so it never goes below about 6 km/s), and the energy flux velocity v_F, which gives the direction in which the kinetic energy is carried and is dominated by the fastest flows.
+- The spectral calibration, which compares the average profile at disk center with the BASS2000 atlas seen through the Earth's atmosphere. JSol'Ex derives from it the width of the instrumental profile, the amount of stray light, a small correction of the dispersion and the depth of the lines of atmospheric water vapor (telluric lines), which varies with the humidity and the elevation of the Sun. If both curves do not match, the results of the cloud model are not reliable.
+
+If the debug images are part of the selection, additional maps are produced: energy velocity v_E and energy flux velocity v_F, mass flux, kinetic energy and its flux, source function, Doppler width, background brightness and width, number of retained components, and detection (the signal to noise ratio of the absorption).
+
+The "?" button of each map and chart opens a help in three pages: what the map shows, how to read it and how reliable it is, then the principle of the cloud model, and finally an animation of this principle, which can be shown full screen.
+
+The processing log also summarizes the calibration and gives the averages over the disk: temperature, column mass, velocities and kinetic energy flux.
+
+==== Showing the fit at one point
+
+In single processing mode, clicking on a cloud model map shows, in the "Spectral profiles" tab, the profile observed at this point, the fitted model, the background and the average profile. Below the chart, the heliographic position of the point is followed by the measured values, grouped by theme: velocities, cloud, components, background and fit quality. Hovering over a value explains what it means. A value which could not be measured is replaced by a dash, and a note explains why. This is the best way to judge whether a value is credible. The context menu of the chart saves it as an image or as CSV.
+
+==== Limitations
+
+- The spectral sampling must be about 0.12 Å per pixel or better. With camera binning 2, the results are significantly less reliable.
+- The spatial resolution of an amateur spectroheliograph mixes several structures in each pixel. Velocities are therefore lower than those measured with a large telescope. This mixing also broadens the line, and the model takes this extra width for heat: the temperature is likely overestimated, and so is the mass, which depends on it. The temperature also depends on the measurement of the instrumental profile. Consider these maps as relative maps rather than absolute measurements.
+- The method was designed for the quiet Sun, that is the parts of the disk away from active regions (sunspots, plages, flares), where the chromosphere shows its usual network of dark fibrils. Its assumptions (a background close to the average line, a turbulence of about 8 km/s, the link between the temperature and the share of absorbing hydrogen) do not hold in active regions: there, the temperature and the mass are not reliable. On filaments and at the edges of active regions, the velocities remain meaningful, but the temperature and the mass should be taken with caution.
+- Points close to the limb (beyond about 95% of the radius) and sunspots are not processed.
+- In plages, the line is brighter and broader than the average line used as background. The brightest parts are left aside, but the edges of plages can still show absorption which does not come from absorbing material.
+- The banding correction is applied separately at each wavelength, which may leave traces along the corrected lines.
+
+==== In scripts
+
+The `cloud_inversion` and `cloud_map` functions give access to the same computation from an ImageMath script. Without arguments, `cloud_inversion()` uses the images within 3 Å on both sides of the line. The `binning` argument sets the size of the averaged blocks of pixels, chosen automatically by default. Each call runs the computation again: keep the result in a variable. `cloud_map` extracts a map in physical values (km/s, kelvins...), which can be used in the computations of the script, for example for a threshold or a mask. With `colorize: 1`, the map is colored like the images of the processing:
+
+[source]
+----
+cloud = cloud_inversion()
+
+[outputs]
+velocity = cloud_map(inversion: cloud; map: "vm"; colorize: 1)
+temperature = cloud_map(cloud; "t")
+----
+
+Image formats (PNG, FITS...) store the pixels on 16 bits, which keeps neither negative velocities nor very small values. To keep the exact values, use `save_raw`.
+
 === Measurements thanks to the video analyzer
 
 JSol'Ex provides a tool which will let you see what the detected spectral line is for a particular video.

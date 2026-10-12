@@ -90,7 +90,8 @@ class Step3OrientationHandler implements StepHandler {
             GeneratedImageKind.FLARES,
             GeneratedImageKind.ACTIVE_REGIONS,
             GeneratedImageKind.VIRTUAL_ECLIPSE,
-            GeneratedImageKind.DOPPLER_ECLIPSE);
+            GeneratedImageKind.DOPPLER_ECLIPSE,
+            GeneratedImageKind.CLOUD_MODEL);
 
     private final ProcessParams processParams;
     private final Supplier<List<MultipleImagesViewer.ImageInfo>> imagesSupplier;

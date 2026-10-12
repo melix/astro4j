@@ -1658,6 +1658,80 @@ Enfin, sélectionnez le type de rendu :
 
 image::pixel-shift-panel.jpg["Example of panel"]
 
+=== Modèle de nuage en H-alpha
+
+En H-alpha, JSol'Ex enregistre en chaque point du disque le profil complet de la raie. L'outil "Modèle de nuage H-alpha" exploite ces profils pour estimer la vitesse, la température et la masse de la matière qui absorbe la lumière H-alpha (filaments, fibrilles, spicules vus sur le disque).
+
+Le modèle de nuage a été introduit par J. M. Beckers en 1964 pour étudier les structures sombres visibles en H-alpha. La méthode suivie par JSol'Ex est celle de Chae et al., "Inference of the physical parameters of Hα-absorbing plasma structures in the quiet Sun" (A&A 706, A123, 2026). La matière absorbante est représentée par un nuage posé au-dessus d'une atmosphère de fond. Le nuage peut contenir une ou trois composantes de vitesse, qui partagent la même température. Le profil observé est ajusté en chaque point, et les grandeurs physiques sont déduites des paramètres du nuage.
+
+Le fond n'est pas l'atmosphère à trois couches de l'article. C'est le profil moyen du disque à la même distance du centre, dont JSol'Ex ajuste l'intensité et la largeur en chaque point. Si ce fond explique à lui seul le profil observé, le point est considéré comme sans absorption significative.
+
+Les vitesses sont mesurées par rapport à l'atmosphère environnante : le décalage d'ensemble du profil, dû à la rotation solaire et à l'instrument, est estimé sur tout le disque et retiré. Les cartes montrent donc les mouvements propres des structures, pas la rotation.
+
+Une fois le traitement terminé, choisissez "Modèle de nuage H-alpha" dans la liste déroulante du panneau de droite, puis cliquez sur "Calculer". Cette entrée n'apparaît qu'en H-alpha, et pas sur un disque saturé. JSol'Ex reconstruit d'abord les images nécessaires, de 3 Å de part et d'autre de la raie au pas de 1 pixel, puis ajuste le profil en chaque point. Une fenêtre affiche l'avancement de ces deux étapes. Comptez une à quelques minutes. Si l'accélération GPU est activée dans les paramètres, l'ajustement est confié à la carte graphique, ce qui le rend plusieurs fois plus rapide. À la fin, le panneau affiche un résumé de l'étalonnage et les moyennes sur le disque. Sous chaque moyenne figure, pour comparaison, la valeur mesurée par Chae et al. (2026) sur une région de Soleil calme avec un spectrographe professionnel. Le survol d'une valeur en explique la signification.
+
+Avant le calcul, vous pouvez choisir de moyenner les pixels voisins par blocs de 2 × 2 à 4 × 4. La valeur proposée correspond aux plus fins détails que votre instrument peut distinguer à travers la turbulence de l'atmosphère, environ 1,5 seconde d'arc. Moyenner rend le calcul plusieurs fois plus rapide et réduit un peu la dispersion des vitesses, au prix de la résolution. Les cartes gardent la taille des autres images, et un clic sur une carte montre l'ajustement du bloc sous le curseur.
+
+Si le profil observé ne ressemble pas à la raie H-alpha (instrument, binning ou taille des pixels mal renseignés, disque saturé), le calcul s'arrête avec un message plutôt que de produire des cartes fausses. Quand la dispersion mesurée sur le profil s'écarte beaucoup de celle calculée à partir des réglages de l'instrument, l'étalonnage utilise la valeur mesurée et le résumé affiche son facteur de correction : un facteur éloigné de 1 signale un instrument, un binning ou une taille de pixels mal renseignés.
+
+==== Images produites
+
+La matière absorbante est le gaz qui flotte au-dessus de la surface brillante du Soleil (filaments, fibrilles, spicules). Il bloque une partie de la lumière venue d'en dessous et paraît donc sombre en H-alpha.
+
+Les cartes sont rangées dans la catégorie "Modèle de nuage", et la carte de la vitesse moyenne est affichée dès la fin du calcul :
+
+- Vitesse moyenne (v_M) : vitesse de la matière absorbante, pondérée par la masse, en km/s. Le bleu indique une matière qui se rapproche de l'observateur, le rouge une matière qui s'en éloigne.
+- Écoulement le plus rapide (v_max) : vitesse de la partie la plus décalée de la matière absorbante. Quand de la matière rapide, comme une éruption ou un jet, partage un pixel avec de la matière plus lente et plus dense, la vitesse moyenne v_M reste faible, alors que cette carte montre la partie rapide. Le modèle n'examine la raie qu'à 2,5 Å de part et d'autre de son centre : les écoulements plus rapides qu'environ 110 km/s ne sont pas vus, ou vus avec une vitesse plus faible.
+- Température, en kelvins, déduite de la largeur de la raie une fois retirée la turbulence (supposée égale à 8 km/s). Quand le profil ne permet pas de mesurer cette largeur, le point est affiché en gris foncé.
+- Masse colonne : masse de matière absorbante le long de la ligne de visée, en grammes par centimètre carré. Elle est déduite de la température, car la part d'atomes d'hydrogène capables d'absorber la lumière H-alpha en dépend fortement : elle n'est donc affichée que là où la température a pu être mesurée (gris foncé ailleurs).
+- Absorption intégrée : quantité de lumière absorbée par le nuage. Elle ne dépend ni de la température ni de la turbulence, ce qui en fait la carte la plus fiable.
+- Qualité de l'ajustement : plus la valeur est basse, meilleur est l'ajustement. L'échelle va du vert (bon) au rouge foncé (mauvais), de 0 à 5. Les points rejetés (taches, profils anormaux, ajustements trop mauvais) sont affichés en gris moyen sur toutes les cartes. Le bord du disque, qui n'est pas traité, est hachuré.
+
+Sur les cartes de vitesse et de température, le gris foncé indique les points sans matière absorbante, les points où l'absorption est trop faible pour que son décalage ou sa largeur soient mesurés (signal sur bruit inférieur à 5), et les régions plus brillantes que leur entourage, comme les plages. Le modèle de nuage décrit de la matière absorbante et ne s'applique pas à ces régions brillantes. Sur les cartes de masse et d'absorption, les points sans matière absorbante valent zéro, et les régions plus brillantes que leur entourage sont en gris foncé.
+
+Le fond de chaque point est la raie moyenne du disque à la même distance du centre, qui contient déjà l'absorption des fibrilles habituelles : seule la matière qui absorbe davantage que cette moyenne est mesurée. Sur un Soleil calme, les points en gris foncé peuvent donc couvrir plus de la moitié du disque.
+
+Les échelles de couleur sont fixes, pour que les cartes de deux observations se comparent directement : une couleur donnée correspond toujours à la même valeur. L'échelle des vitesses couvre -100 à +100 km/s, et ses couleurs changent vite pour les mouvements lents et plus lentement pour les rapides, pour que les deux se voient sur la même carte. Sa légende indique où se trouvent 10, 30 et 100 km/s. Chaque carte porte sa légende en haut à gauche. En survolant une carte, la barre d'état affiche la valeur du point sous le curseur, avec son unité.
+
+Deux graphiques complètent les cartes :
+
+- La distribution des vitesses, pondérée par la masse : la vitesse moyenne v_M, la vitesse énergétique v_E, qui mesure l'agitation de la matière quel que soit le sens (elle inclut la turbulence et ne descend donc jamais sous 6 km/s environ), et la vitesse du flux d'énergie v_F, qui donne le sens dans lequel l'énergie cinétique est transportée et est dominée par les écoulements les plus rapides.
+- L'étalonnage spectral, qui compare le profil moyen au centre du disque à l'atlas BASS2000 vu à travers l'atmosphère terrestre. JSol'Ex en déduit la largeur du profil instrumental, la part de lumière parasite, une petite correction de la dispersion et la profondeur des raies de la vapeur d'eau atmosphérique (raies telluriques), qui varie avec l'humidité et la hauteur du Soleil. Si les deux courbes ne se superposent pas, les résultats du modèle de nuage ne sont pas fiables.
+
+Si les images de débogage font partie de la sélection, des cartes supplémentaires sont produites : vitesse énergétique v_E et vitesse du flux d'énergie v_F, flux de masse, énergie cinétique et son flux, fonction source, largeur Doppler, luminosité et largeur du fond, nombre de composantes retenues, et détection (le signal sur bruit de l'absorption).
+
+Le bouton "?" de chaque carte et de chaque graphique ouvre une aide en trois pages : la grandeur représentée, comment la lire et sa fiabilité, puis le principe du modèle de nuage, et enfin une animation de ce principe, qui peut être affichée en plein écran.
+
+Le journal de traitement résume aussi l'étalonnage et donne les moyennes sur le disque : température, masse colonne, vitesses et flux d'énergie cinétique.
+
+==== Voir l'ajustement en un point
+
+En mode de traitement simple, un clic sur une carte du modèle de nuage affiche dans l'onglet "Profils spectraux" le profil observé en ce point, le modèle ajusté, le fond et le profil moyen. Sous le graphique, la position héliographique du point est suivie des valeurs mesurées, regroupées par thème : vitesses, nuage, composantes, fond et qualité de l'ajustement. Le survol d'une valeur en explique la signification. Une valeur qui n'a pas pu être mesurée est remplacée par un tiret, et une note en explique la raison. C'est le meilleur moyen de juger si une valeur est crédible. Le menu contextuel du graphique permet de l'enregistrer en image ou en CSV.
+
+==== Limites
+
+- L'échantillonnage spectral doit être d'environ 0,12 Å par pixel ou mieux. Avec un binning caméra de 2, les résultats sont nettement moins fiables.
+- La résolution spatiale d'un spectrohéliographe amateur mélange plusieurs structures dans chaque pixel. Les vitesses sont donc plus faibles que celles mesurées avec un grand télescope. Ce mélange élargit aussi la raie, et le modèle prend cette largeur en plus pour de la chaleur : la température est probablement surestimée, ainsi que la masse, qui en dépend. La température dépend aussi de la mesure du profil instrumental. Considérez ces cartes comme des cartes relatives plutôt que comme des mesures absolues.
+- La méthode a été conçue pour le Soleil calme, c'est-à-dire les parties du disque éloignées des régions actives (taches, plages, éruptions), où la chromosphère montre son réseau habituel de fibrilles sombres. Ses hypothèses (fond proche de la raie moyenne, turbulence d'environ 8 km/s, lien entre température et part d'hydrogène absorbant) n'y sont plus valables : dans les régions actives, la température et la masse sont peu fiables. Sur les filaments et les bords des régions actives, les vitesses gardent un sens, mais la température et la masse sont à prendre avec prudence.
+- Les points proches du limbe (au-delà de 95 % du rayon environ) et les taches solaires ne sont pas traités.
+- Dans les plages, la raie est plus brillante et plus large que la raie moyenne qui sert de fond. Les parties les plus brillantes sont laissées de côté, mais les bords des plages peuvent encore montrer une absorption qui ne vient pas de matière absorbante.
+- La correction de bandes est appliquée séparément à chaque longueur d'onde, ce qui peut laisser des traces le long des lignes corrigées.
+
+==== Dans les scripts
+
+Les fonctions `cloud_inversion` et `cloud_map` donnent accès au même calcul depuis un script ImageMath. Sans argument, `cloud_inversion()` utilise les images situées à 3 Å de part et d'autre de la raie. L'argument `binning` fixe la taille des blocs de pixels moyennés, choisie automatiquement par défaut. Chaque appel refait le calcul : gardez le résultat dans une variable. `cloud_map` en extrait une carte en valeurs physiques (km/s, kelvins...), utilisable dans les calculs du script, par exemple pour un seuil ou un masque. Avec `colorize: 1`, la carte est colorée comme les images du traitement :
+
+[source]
+----
+nuage = cloud_inversion()
+
+[outputs]
+vitesse = cloud_map(inversion: nuage; map: "vm"; colorize: 1)
+temperature = cloud_map(nuage; "t")
+----
+
+Les formats d'image (PNG, FITS...) enregistrent les pixels sur 16 bits, ce qui ne conserve pas les vitesses négatives ni les très petites valeurs. Pour garder les valeurs exactes, utilisez `save_raw`.
+
 === Mesures avec l'analyseur de vidéo
 
 JSol'Ex propose un outil permettant de visualiser la détection des lignes spectrales sur une vidéo.

@@ -129,4 +129,27 @@ public class MathUtils {
             }
         }
     }
+
+    /**
+     * Returns a round step (1, 2 or 5 times a power of ten) which divides a range into about the given number of intervals.
+     *
+     * @param range the range to divide
+     * @param targetCount the desired number of intervals
+     * @return the step
+     */
+    public static double niceStep(double range, int targetCount) {
+        var raw = range / targetCount;
+        var magnitude = Math.pow(10, Math.floor(Math.log10(raw)));
+        var residual = raw / magnitude;
+        if (residual <= 1) {
+            return magnitude;
+        }
+        if (residual <= 2) {
+            return 2 * magnitude;
+        }
+        if (residual <= 5) {
+            return 5 * magnitude;
+        }
+        return 10 * magnitude;
+    }
 }

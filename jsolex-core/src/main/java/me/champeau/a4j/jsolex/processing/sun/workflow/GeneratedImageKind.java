@@ -45,6 +45,7 @@ public enum GeneratedImageKind {
     ACTIVE_REGIONS(DisplayCategory.COLORIZED, DirectoryKind.PROCESSED),
     ELLERMAN_BOMBS(DisplayCategory.PHENOMENA, DirectoryKind.PROCESSED),
     FLARES(DisplayCategory.PHENOMENA, DirectoryKind.PROCESSED),
+    CLOUD_MODEL(DisplayCategory.CLOUD_MODEL, DirectoryKind.PROCESSED),
     ;
 
     private final DisplayCategory displayCategory;
@@ -70,7 +71,8 @@ public enum GeneratedImageKind {
                 || this == GeneratedImageKind.COLLAGE
                 || this == GeneratedImageKind.REDSHIFT
                 || this == GeneratedImageKind.ELLERMAN_BOMBS
-                || this == GeneratedImageKind.FLARES;
+                || this == GeneratedImageKind.FLARES
+                || this == GeneratedImageKind.CLOUD_MODEL;
     }
 
     /**

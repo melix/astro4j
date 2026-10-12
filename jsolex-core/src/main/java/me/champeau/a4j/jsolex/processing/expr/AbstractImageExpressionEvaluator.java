@@ -31,6 +31,7 @@ import me.champeau.a4j.jsolex.processing.expr.impl.Animate;
 import me.champeau.a4j.jsolex.processing.expr.impl.ArtifificialFlatCorrector;
 import me.champeau.a4j.jsolex.processing.expr.impl.BackgroundRemoval;
 import me.champeau.a4j.jsolex.processing.expr.impl.Clahe;
+import me.champeau.a4j.jsolex.processing.expr.impl.CloudModelFunctions;
 import me.champeau.a4j.jsolex.processing.expr.impl.CollageComposition;
 import me.champeau.a4j.jsolex.processing.expr.impl.Colorize;
 import me.champeau.a4j.jsolex.processing.expr.impl.Conditionals;
@@ -76,6 +77,7 @@ import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.DistortionCorrection;
 import me.champeau.a4j.jsolex.processing.sun.workflow.AverageImage;
+import me.champeau.a4j.jsolex.processing.sun.workflow.CloudModelProcessor;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShiftRange;
@@ -159,6 +161,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     private final LineFit lineFit;
     private final Loader loader;
     private final Masking masking;
+    private final CloudModelFunctions cloudModel;
     private final MathFunctions math;
     private final MosaicComposition mosaicComposition;
     private final PolyFit2D polyFit2D;
@@ -208,6 +211,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         this.lineFit = new LineFit(context, broadcaster);
         this.loader = new Loader(context, broadcaster);
         this.masking = new Masking(context, broadcaster);
+        this.cloudModel = new CloudModelFunctions(context, broadcaster);
         this.math = new MathFunctions(context, broadcaster);
         this.polyFit2D = new PolyFit2D(context, broadcaster);
         this.pythonScript = new PythonScript(this, context, broadcaster);
@@ -366,6 +370,8 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case SAVE_RAW -> loader.saveRaw(arguments);
             case BLUR -> convolution.blur(arguments);
             case CLAHE -> clahe.clahe(arguments);
+            case CLOUD_INVERSION -> cloudInversion(arguments);
+            case CLOUD_MAP -> cloudModel.cloudMap(arguments);
             case CLAMP -> stretching.clamp(arguments);
             case CLAHE2 -> clahe.clahe2(arguments);
             case COLLAGE -> collageComposition.collage(arguments);
@@ -518,6 +524,23 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
      *
      * @return the continuum image
      */
+    private Object cloudInversion(Map<String, Object> arguments) {
+        var effectiveArguments = arguments;
+        if (!arguments.containsKey("images")) {
+            var params = (ProcessParams) context.get(ProcessParams.class);
+            var range = (PixelShiftRange) context.get(PixelShiftRange.class);
+            if (params == null || range == null) {
+                throw new IllegalArgumentException(message("cloud.model.function.images.required"));
+            }
+            effectiveArguments = new HashMap<>(arguments);
+            effectiveArguments.put("images", CloudModelProcessor.collectImages(params, range, this::findImage));
+        }
+        if (isShiftCollecting()) {
+            return ImageWrapper32.createEmpty();
+        }
+        return cloudModel.cloudInversion(effectiveArguments);
+    }
+
     public ImageWrapper32 createContinuumImage() {
         record ImageWithAverage(ImageWrapper image, double average) {
         }

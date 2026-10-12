@@ -1,0 +1,33 @@
+name: CLOUD_INVERSION
+category: ANALYSIS
+description:
+  fr: "Ajuste un modèle de nuage sur la raie H-alpha en chaque point du disque, pour en tirer la vitesse, la température et la masse de la matière absorbante (Chae et al. 2026). Le calcul peut prendre quelques minutes et ses cartes se lisent avec cloud_map."
+  en: "Fits a cloud model to the H-alpha line at each point of the disk, to derive the velocity, temperature and mass of the absorbing material (Chae et al. 2026). The computation can take a few minutes and its maps are read with cloud_map."
+arguments:
+  - name: images
+    optional: true
+    description:
+      fr: "Images reconstruites de part et d'autre de la raie au pas de 1 pixel, sur au moins ±2,5 Å, par exemple range(a2px(-3); a2px(3); 1). Sans images, celles à ±3 Å de la raie sont utilisées."
+      en: "Images reconstructed on both sides of the line with a step of 1 pixel, over at least ±2.5 Å, for example range(a2px(-3); a2px(3); 1). Without images, those within ±3 Å of the line are used."
+  - name: turbulence
+    optional: true
+    default: 8
+    description:
+      fr: "Vitesse des mouvements désordonnés dans le gaz, en km/s, retirée de la largeur de la raie pour calculer la température"
+      en: "Speed of the random motions in the gas, in km/s, removed from the width of the line to compute the temperature"
+  - name: components
+    optional: true
+    default: 3
+    description:
+      fr: "Nombre maximal de composantes de vitesse du nuage : 1 ou 3. Avec 1, le calcul est environ deux fois plus rapide."
+      en: "Maximum number of velocity components of the cloud: 1 or 3. With 1, the computation is about twice as fast."
+  - name: binning
+    optional: true
+    default: 0
+    description:
+      fr: "Taille des blocs de pixels moyennés avant le calcul (1 à 4), ce qui accélère le calcul au prix de la résolution. Avec 0, la taille est choisie selon la résolution de l'instrument."
+      en: "Size of the blocks of pixels averaged before the computation (1 to 4), which speeds up the computation at the cost of resolution. With 0, the size is chosen from the resolution of the instrument."
+examples:
+  - "cloud_inversion()"
+  - "cloud_inversion(range(a2px(-3); a2px(3); 1))"
+  - "cloud_inversion(images: range(a2px(-3); a2px(3); 1); components: 1)"
