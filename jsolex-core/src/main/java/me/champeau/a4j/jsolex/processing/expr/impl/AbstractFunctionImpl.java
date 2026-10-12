@@ -211,12 +211,25 @@ class AbstractFunctionImpl {
      * @return a predicate selecting the pixels to include, or null when no mask is given
      */
     protected BiPredicate<Integer, Integer> statsMask(Map<String, Object> arguments, ImageWrapper image) {
-        var mask = arguments.get("mask");
+        return maskArgument(arguments, "mask", image);
+    }
+
+    /**
+     * Resolves a mask argument against the image; annulus masks fall back to the ellipse from
+     * the processing context when the image does not carry one.
+     *
+     * @param arguments the arguments map
+     * @param key       the name of the mask argument
+     * @param image     the image the mask applies to
+     * @return a predicate selecting the pixels to include, or null when the argument is absent
+     */
+    protected BiPredicate<Integer, Integer> maskArgument(Map<String, Object> arguments, String key, ImageWrapper image) {
+        var mask = arguments.get(key);
         if (mask == null) {
             return null;
         }
         if (!(mask instanceof ImageMask imageMask)) {
-            throw new IllegalArgumentException("The mask argument must be created with annulus_mask or range_mask");
+            throw new IllegalArgumentException("The " + key + " argument must be created with annulus_mask or range_mask");
         }
         if (imageMask instanceof AnnulusMask annulus && image.findMetadata(Ellipse.class).isEmpty()) {
             var ellipse = getFromContext(Ellipse.class)
