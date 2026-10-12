@@ -466,6 +466,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_reconstruction_dimages_solaires">Reconstruction d&#8217;images solaires</a>
 <ul class="sectlevel2">
 <li><a href="#_img">IMG</a></li>
+<li><a href="#_line_fit">LINE_FIT</a></li>
 <li><a href="#_range">RANGE</a></li>
 </ul>
 </li>
@@ -712,6 +713,86 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <div class="listingblock">
 <div class="content">
 <pre>img(ps: a2px(1)) // 1 Å pixel shift</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_line_fit">LINE_FIT</h3>
+<div class="paragraph">
+<p>Mesure l&#8217;intensité d&#8217;une raie d&#8217;émission en ajustant, pour chaque pixel, le spectre formé par une série d&#8217;images. Contrairement à une simple soustraction du continuum, les raies d&#8217;absorption de la lumière de fond (par exemple la lumière diffusée par l&#8217;instrument) ne sont pas prises pour de l&#8217;émission.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 13.6363%;">
+<col style="width: 13.6363%;">
+<col style="width: 59.0909%;">
+<col style="width: 13.6365%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Argument</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Requis ?</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Description</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Valeur par défaut</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>img</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Images formant le spectre, par exemple obtenues avec <code>range</code>. Elles doivent couvrir la raie et du continuum de part et d&#8217;autre.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>shift</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Position du centre de la raie d&#8217;émission, en décalage de pixels (voir <code>find_shift</code>).</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>fwhm</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Largeur à mi-hauteur de la raie d&#8217;émission, en pixels (voir <code>a2px</code>).</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>template</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Masque de la zone où le spectre de fond est mesuré, là où la raie d&#8217;émission est négligeable (créé avec <code>annulus_mask</code> ou <code>range_mask</code>).</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>mask</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Masque restreignant les pixels mesurés. Les autres pixels valent 0.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>doppler</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Correction du décalage en longueur d&#8217;onde du spectre de fond, dû par exemple à la rotation solaire : 0 la désactive, 1 la calcule pour chaque pixel, une valeur plus grande la moyenne sur un voisinage de cette taille en pixels, ce qui réduit le bruit.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">0</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>faintest</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Fraction de la zone du gabarit, là où la raie d&#8217;émission est la plus faible, sur laquelle le spectre de fond est mesuré. Si la zone du gabarit contient encore un peu d&#8217;émission, celle-ci serait retirée de toute l&#8217;image : une valeur plus faible ne garde que la partie la plus sombre. 1 utilise toute la zone.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">1</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p><strong>Exemples</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>line_fit(img: range(-4; 8); shift: 2.5; fwhm: a2px(0.7); template: annulus_mask(1.3; 1.45))</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>line_fit(img: range(-4; 8); shift: 2.7; fwhm: 3.3; template: annulus_mask(1.3; 1.45); mask: invert_mask(annulus_mask(0; 1)); doppler: 11; faintest: 0.25)</pre>
 </div>
 </div>
 </div>
