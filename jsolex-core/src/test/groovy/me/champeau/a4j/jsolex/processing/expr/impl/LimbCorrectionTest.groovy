@@ -68,6 +68,24 @@ class LimbCorrectionTest extends Specification {
         aligned.collect { it.findMetadata(Ellipse).get().center() }.toSet().size() == 1
     }
 
+    def "a single reference applies the same correction to every image of a list"() {
+        given:
+        def deviation = { double angle -> 3 * Math.cos(2 * angle) + 2 * Math.sin(3 * angle) }
+        def reference = disk(CENTER, CENTER, deviation)
+        def images = [disk(CENTER, CENTER, deviation), disk(CENTER + 4, CENTER, deviation)]
+
+        when:
+        def corrected = ((List<ImageWrapper>) correction().correctLimb(Map.of("img", images, "ref", reference))).collect { (ImageWrapper32) it.unwrapToMemory() }
+        def single = (ImageWrapper32) correction().correctLimb(Map.of("img", images[1], "ref", reference))
+
+        then: "the image matching the reference becomes round"
+        limbSpread(corrected[0]) < 0.6
+
+        and: "the other image is warped exactly as if it had been corrected alone with the same reference"
+        corrected[1].data() == single.data()
+        corrected.collect { it.findMetadata(Ellipse).get().center() }.toSet().size() == 1
+    }
+
     def "an image without a disk is left unchanged"() {
         given:
         def flat = new ImageWrapper32(SIZE, SIZE, new float[SIZE][SIZE], MutableMap.of())

@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.sun;
 
 import me.champeau.a4j.jsolex.processing.params.BandingCorrectionParams;
 import me.champeau.a4j.jsolex.processing.util.Constants;
+import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.math.RowStrips;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
@@ -332,6 +333,205 @@ public class BandingReduction {
             removeLocalStripes(width, height, data, Math.max(4, effectiveBandSize / 4), ellipse, mode);
         }
         return appliedPasses;
+    }
+
+    /**
+     * Removes horizontal banding like
+     * {@link #applyDestripe(int, int, float[][], int, int, int, Ellipse, Mode, CorrectionListener)},
+     * optionally adapting the strength of the correction near the solar disk with
+     * {@link #applyLimbGain}. The adaptation only applies when the levels are measured outside
+     * the disk.
+     *
+     * @param width the image width in pixels
+     * @param height the image height in pixels
+     * @param data the image data as a 2D array (modified in place)
+     * @param bandSize the coarsest scale, in pixels, of the vertical smoothing, or a negative value
+     * to derive it from the image height
+     * @param passes the number of passes, or a negative value to iterate until convergence
+     * @param strips how many vertical strips to correct independently, or 0 to choose from the
+     * image width
+     * @param ellipse optional ellipse defining the region to correct, or null for full image
+     * @param mode which pixels of each line feed the correction
+     * @param limbGain whether to adapt the strength of the correction near the disk
+     * @param listener receives the value added to each line by each pass
+     * @return the number of passes which were applied
+     */
+    public static int applyDestripe(int width, int height, float[][] data, int bandSize, int passes, int strips, Ellipse ellipse, Mode mode, boolean limbGain, CorrectionListener listener) {
+        var original = limbGain && mode == Mode.OUTSIDE_DISK && ellipse != null ? ImageWrapper.copyData(data) : null;
+        var appliedPasses = applyDestripe(width, height, data, bandSize, passes, strips, ellipse, mode, listener);
+        if (original != null) {
+            applyLimbGain(width, height, original, data, destripeBandSize(bandSize, height), ellipse);
+        }
+        return appliedPasses;
+    }
+
+    /**
+     * Width, in pixels, of the edge of the disk which is blurred by the resampling of the images:
+     * the strength of the banding cannot be measured there, so the closest ring is used instead.
+     */
+    private static final double BLURRED_EDGE = 2;
+
+    /**
+     * Adapts the strength of the banding correction near the solar disk. Next to the limb, the
+     * banding of a stacked image can be a few times stronger than in the open sky, while the
+     * correction of each line is measured on the sky, so that most of it remains. How much stronger
+     * it is depends on the distance to the limb and on the position around the disk, so the gain is
+     * measured on the image itself: in rings around the disk whose width doubles from one ring to
+     * the next, split into sectors about as long as a strip, the banding left after the correction
+     * is regressed against the correction. The correction of each pixel is then scaled by the gain
+     * interpolated at its position. Far from the disk the gain is close to 1, so the open sky is
+     * left as corrected.
+     *
+     * @param width the image width in pixels
+     * @param height the image height in pixels
+     * @param original the image before the banding correction
+     * @param data the corrected image (modified in place)
+     * @param bandSize the coarsest scale, in pixels, of the vertical smoothing
+     * @param ellipse the solar disk
+     */
+    static void applyLimbGain(int width, int height, float[][] original, float[][] data, int bandSize, Ellipse ellipse) {
+        var geometry = LimbGeometry.of(ellipse, width);
+        var rings = geometry.ringCount(bandSize);
+        var sectors = geometry.sectorCount();
+        var usable = new boolean[height][width];
+        var correction = new float[height][width];
+        RowStrips.forEach(height, (y0, y1) -> {
+            for (var y = y0; y < y1; y++) {
+                for (var x = 0; x < width; x++) {
+                    var value = original[y][x];
+                    usable[y][x] = !ellipse.isWithin(x, y) && value != 0 && Float.isFinite(value);
+                    correction[y][x] = data[y][x] - value;
+                }
+            }
+        });
+        var dataTrend = smoothColumns(data, usable, width, height, bandSize);
+        var correctionTrend = smoothColumns(correction, usable, width, height, bandSize);
+        var sums = IntStream.range(0, height).parallel().mapToObj(y -> {
+            var partial = new double[sectors][rings][2];
+            for (var x = 0; x < width; x++) {
+                if (!usable[y][x]) {
+                    continue;
+                }
+                var c = correction[y][x] - correctionTrend[y][x];
+                var r = data[y][x] - dataTrend[y][x];
+                var bin = partial[geometry.sector(x, y)][geometry.ring(x, y, rings)];
+                bin[0] += r * c;
+                bin[1] += c * c;
+            }
+            return partial;
+        }).reduce(new double[sectors][rings][2], (a, b) -> {
+            var sum = new double[sectors][rings][2];
+            for (var s = 0; s < sectors; s++) {
+                for (var k = 0; k < rings; k++) {
+                    sum[s][k][0] = a[s][k][0] + b[s][k][0];
+                    sum[s][k][1] = a[s][k][1] + b[s][k][1];
+                }
+            }
+            return sum;
+        });
+        var gains = new double[sectors][rings];
+        for (var s = 0; s < sectors; s++) {
+            for (var k = 1; k < rings; k++) {
+                double residual = 0;
+                double squares = 0;
+                for (var n = -1; n <= 1; n++) {
+                    var neighbour = sums[Math.floorMod(s + n, sectors)][k];
+                    residual += neighbour[0];
+                    squares += neighbour[1];
+                }
+                gains[s][k] = squares > 0 ? 1 - residual / squares : 1;
+            }
+            gains[s][0] = rings > 1 ? gains[s][1] : 1;
+        }
+        RowStrips.forEach(height, (y0, y1) -> {
+            for (var y = y0; y < y1; y++) {
+                for (var x = 0; x < width; x++) {
+                    if (usable[y][x]) {
+                        data[y][x] = (float) (original[y][x] + geometry.gain(gains, x, y, rings) * correction[y][x]);
+                    }
+                }
+            }
+        });
+    }
+
+    private static float[][] smoothColumns(float[][] data, boolean[][] usable, int width, int height, int scale) {
+        var kernel = GaussianSupport.gaussianKernel1D(scale);
+        var half = kernel.length / 2;
+        var result = new float[height][width];
+        IntStream.range(0, width).parallel().forEach(x -> {
+            for (var y = 0; y < height; y++) {
+                double sum = 0;
+                double weight = 0;
+                for (var k = -half; k <= half; k++) {
+                    var idx = y + k;
+                    if (idx >= 0 && idx < height && usable[idx][x]) {
+                        sum += kernel[k + half] * data[idx][x];
+                        weight += kernel[k + half];
+                    }
+                }
+                result[y][x] = weight > 0 ? (float) (sum / weight) : data[y][x];
+            }
+        });
+        return result;
+    }
+
+    /**
+     * Positions of the pixels relative to the solar disk: the distance to the limb, split into
+     * rings whose width doubles, and the angle around the disk, split into sectors about as long as
+     * a strip.
+     */
+    private record LimbGeometry(double cx, double cy, double a, double b, double rotation, int sectorCount) {
+        static LimbGeometry of(Ellipse ellipse, int width) {
+            var semiAxis = ellipse.semiAxis();
+            var circumference = Math.PI * (semiAxis.a() + semiAxis.b());
+            var sectors = (int) Math.max(4, Math.round(circumference / STRIP_WIDTH));
+            return new LimbGeometry(ellipse.center().a(), ellipse.center().b(), semiAxis.a(), semiAxis.b(), ellipse.rotationAngle(), sectors);
+        }
+
+        int ringCount(int bandSize) {
+            return 2 + (int) Math.ceil(Math.log(4.0 * bandSize / BLURRED_EDGE) / Math.log(2));
+        }
+
+        double distance(int x, int y) {
+            var t = Math.atan2(y - cy, x - cx) - rotation;
+            var radius = a * b / Math.hypot(b * Math.cos(t), a * Math.sin(t));
+            return Math.hypot(x - cx, y - cy) - radius;
+        }
+
+        double angle(int x, int y) {
+            return Math.atan2(y - cy, x - cx);
+        }
+
+        int sector(int x, int y) {
+            return Math.floorMod((int) Math.floor((angle(x, y) + Math.PI) / (2 * Math.PI) * sectorCount), sectorCount);
+        }
+
+        int ring(int x, int y, int rings) {
+            var d = distance(x, y);
+            if (d < BLURRED_EDGE) {
+                return 0;
+            }
+            return Math.min(rings - 1, 1 + (int) Math.floor(Math.log(d / BLURRED_EDGE) / Math.log(2)));
+        }
+
+        /**
+         * Interpolates the gain linearly between the centres of the sectors and, along the
+         * distance, between the centres of the rings on a logarithmic scale.
+         */
+        double gain(double[][] gains, int x, int y, int rings) {
+            var position = (angle(x, y) + Math.PI) / (2 * Math.PI) * sectorCount - 0.5;
+            var s0 = (int) Math.floor(position);
+            var t = position - s0;
+            var ringPosition = Math.log(Math.max(BLURRED_EDGE, distance(x, y)) / BLURRED_EDGE) / Math.log(2) + 0.5;
+            var k0 = Math.min(rings - 1, (int) Math.floor(ringPosition));
+            var u = k0 >= rings - 1 ? 0 : ringPosition - k0;
+            var k1 = Math.min(rings - 1, k0 + 1);
+            var first = gains[Math.floorMod(s0, sectorCount)];
+            var second = gains[Math.floorMod(s0 + 1, sectorCount)];
+            var g0 = first[k0] * (1 - u) + first[k1] * u;
+            var g1 = second[k0] * (1 - u) + second[k1] * u;
+            return g0 * (1 - t) + g1 * t;
+        }
     }
 
     /**

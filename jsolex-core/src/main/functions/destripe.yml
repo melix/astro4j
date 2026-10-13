@@ -30,7 +30,14 @@ arguments:
     description:
       fr: "Utilisation du disque solaire : 0 = ignoré (tous les pixels de la ligne), 1 = pixels du disque (défaut), 2 = pixels hors du disque uniquement."
       en: "Solar disk usage: 0 = ignored (all pixels in the line), 1 = pixels inside the disk (default), 2 = pixels outside the disk only."
+  - name: limbGain
+    optional: true
+    default: 0
+    description:
+      fr: "Avec ellipseMode 2, mettez 1 pour adapter la correction près du disque solaire. Les bandes peuvent y être plusieurs fois plus marquées que dans le ciel, où la correction de chaque ligne est mesurée. Leur force est alors mesurée sur l'image, selon la distance au limbe et la position autour du disque, et la correction est ajustée en conséquence. 0 (défaut) pour ne pas l'utiliser."
+      en: "With ellipseMode 2, set to 1 to adapt the correction near the solar disk. The banding can be several times stronger there than in the sky, where the correction of each line is measured. Its strength is then measured on the image, depending on the distance to the limb and on the position around the disk, and the correction is adjusted accordingly. 0 (default) not to use it."
 examples:
   - "destripe(img(0))"
   - "destripe(img: someImage; bs: 192; passes: 2; ellipseMode: 2)"
   - "destripe(img: someImage; bs: 192; strips: 1; ellipseMode: 2)"
+  - "destripe(img: stacked; ellipseMode: 2; limbGain: 1)"

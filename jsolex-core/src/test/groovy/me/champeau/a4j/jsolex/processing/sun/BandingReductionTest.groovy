@@ -356,6 +356,75 @@ class BandingReductionTest extends Specification {
         !hasNaN(data, width, height)
     }
 
+    def "the limb gain removes banding which is stronger near the disk"() {
+        given: "a sky whose banding is three times stronger against the limb"
+        def size = 1024
+        def ellipse = Ellipse.ofCartesian(new DoubleSextuplet(1, 0, 1, -1024, -1024, 512 * 512 * 2 - 300 * 300))
+        def random = new Random(42)
+        def data = new float[size][size]
+        for (int y = 0; y < size; y++) {
+            double band = 300 * Math.sin(y / 7.0d) + 200 * Math.sin(y / 19.0d)
+            for (int x = 0; x < size; x++) {
+                double distance = Math.hypot(x - 512, y - 512) - 300
+                double gain = distance > 0 ? 1 + 2 * Math.exp(-distance / 12) : 1
+                data[y][x] = (float) (30000 + band * gain + 100 * random.nextGaussian())
+            }
+        }
+        def plain = copyOf(data)
+        def adapted = copyOf(data)
+
+        when:
+        BandingReduction.applyDestripe(size, size, plain, -1, -1, 0, ellipse, BandingReduction.Mode.OUTSIDE_DISK, false, { })
+        BandingReduction.applyDestripe(size, size, adapted, -1, -1, 0, ellipse, BandingReduction.Mode.OUTSIDE_DISK, true, { })
+
+        then: "the banding left next to the limb is much lower"
+        def plainNearLimb = rowResidual(plain, 3, 20)
+        def adaptedNearLimb = rowResidual(adapted, 3, 20)
+        adaptedNearLimb < 0.5 * plainNearLimb
+
+        and: "the open sky is corrected as before"
+        Math.abs(rowResidual(adapted, 150, 200) - rowResidual(plain, 150, 200)) < 0.2 * rowResidual(plain, 150, 200) + 5
+        !hasNaN(adapted, size, size)
+    }
+
+    def "the limb gain only applies when the levels are measured outside the disk"() {
+        given:
+        def width = 256
+        def height = 256
+        def ellipse = createTestEllipse(width, height)
+        def plain = createTestImage(width, height)
+        def adapted = copyOf(plain)
+
+        when:
+        BandingReduction.applyDestripe(width, height, plain, 32, 2, 0, ellipse, BandingReduction.Mode.INSIDE_DISK, false, { })
+        BandingReduction.applyDestripe(width, height, adapted, 32, 2, 0, ellipse, BandingReduction.Mode.INSIDE_DISK, true, { })
+
+        then:
+        maxDifference(plain, adapted) == 0
+    }
+
+    /** Root mean square, over the lines crossing the disk, of the mean level in a ring around it. */
+    private static double rowResidual(float[][] data, double from, double to) {
+        double sum = 0
+        int rows = 0
+        for (int y = 512 - 250; y < 512 + 250; y++) {
+            double level = 0
+            int n = 0
+            for (int x = 0; x < data[y].length; x++) {
+                double distance = Math.hypot(x - 512, y - 512) - 300
+                if (distance >= from && distance < to) {
+                    level += data[y][x] - 30000
+                    n++
+                }
+            }
+            if (n > 0) {
+                sum += (level / n) * (level / n)
+                rows++
+            }
+        }
+        Math.sqrt(sum / rows)
+    }
+
     def "the banding correction method uses the pixels inside the disk"() {
         given:
         int width = 256

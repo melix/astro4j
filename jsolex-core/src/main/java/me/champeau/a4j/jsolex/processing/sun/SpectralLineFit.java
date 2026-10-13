@@ -44,10 +44,7 @@ import java.util.stream.IntStream;
  * <p>
  * A wavelength shift of the background spectrum, for example a Doppler shift, is not in the
  * span of the template, and on a slope of the template it is mistaken for line emission. It is
- * corrected by adding the derivative of the template to the model, which measures the shift.
- * Because the shift varies smoothly across the image, its estimate can be averaged over a
- * neighbourhood before its contribution is removed, which avoids most of the noise the extra
- * term would otherwise add.
+ * corrected by adding the derivative of the template to the model, which absorbs the shift.
  * <p>
  * The template must not contain the emission line itself, otherwise the line is subtracted from
  * every pixel in proportion to its background. When the template region still holds some
@@ -63,6 +60,7 @@ import java.util.stream.IntStream;
 public final class SpectralLineFit {
     private static final double FWHM_TO_SIGMA = 2 * Math.sqrt(2 * Math.log(2));
     private static final int BASE_TERMS = 4;
+    private static final int TEMPLATE = 0;
     private static final int LINE = 1;
     private static final int SHIFT = 4;
     private static final double SINGULARITY_THRESHOLD = 1e-12;
@@ -86,9 +84,7 @@ public final class SpectralLineFit {
      * @param template the pixels the background spectrum is measured on
      * @param region the pixels which are fitted, or null for all of them. The other pixels are
      * set to 0.
-     * @param shiftSmoothing 0 to ignore wavelength shifts of the background, 1 to correct them
-     * pixel by pixel, or the size, in pixels, of the neighbourhood over which the shift is
-     * averaged before being corrected
+     * @param correctShift whether wavelength shifts of the background are corrected
      * @param templateFraction the fraction of the template region, where the line is the
      * weakest, on which the background spectrum is measured. 1 uses the whole region.
      * @return the line amplitude, in the unit of the samples
@@ -101,7 +97,7 @@ public final class SpectralLineFit {
                                 double fwhm,
                                 BiPredicate<Integer, Integer> template,
                                 BiPredicate<Integer, Integer> region,
-                                int shiftSmoothing,
+                                boolean correctShift,
                                 double templateFraction) {
         var n = cube.length;
         if (n != positions.length) {
@@ -113,9 +109,6 @@ public final class SpectralLineFit {
         if (fwhm <= 0) {
             throw new IllegalArgumentException("The line width must be positive");
         }
-        if (shiftSmoothing < 0) {
-            throw new IllegalArgumentException("The shift smoothing must be positive or zero");
-        }
         if (templateFraction <= 0 || templateFraction > 1) {
             throw new IllegalArgumentException("The template fraction must be greater than 0 and at most 1");
         }
@@ -123,42 +116,21 @@ public final class SpectralLineFit {
         var templateSpectrum = templateFraction < 1
                 ? measureFaintestTemplate(width, height, cube, unusable, template, positions, linePosition, fwhm, templateFraction)
                 : measureTemplate(width, height, cube, unusable, template);
-        var design = new Design(columns(positions, templateSpectrum, linePosition, fwhm), shiftSmoothing > 0);
+        var design = new Design(columns(positions, templateSpectrum, linePosition, fwhm), correctShift ? BASE_TERMS + 1 : BASE_TERMS);
         var amplitude = new float[height][width];
-        var shift = shiftSmoothing > 0 ? new float[height][width] : null;
-        var leak = shiftSmoothing > 0 ? new float[height][width] : null;
-        var fitted = new boolean[height][width];
         RowStrips.forEach(height, (yStart, yEnd) -> {
             for (int y = yStart; y < yEnd; y++) {
                 for (int x = 0; x < width; x++) {
                     if (region != null && !region.test(x, y)) {
                         continue;
                     }
-                    var weights = design.weightsFor(~unusable[y][x] & design.allSamples);
-                    if (weights == null) {
-                        continue;
+                    var weights = design.lineWeights(~unusable[y][x] & design.allSamples);
+                    if (weights != null) {
+                        amplitude[y][x] = (float) weightedSum(cube, weights, x, y);
                     }
-                    amplitude[y][x] = (float) weightedSum(cube, weights.line, x, y);
-                    if (shift != null) {
-                        shift[y][x] = (float) weightedSum(cube, weights.shift, x, y);
-                        leak[y][x] = (float) weights.leak;
-                    }
-                    fitted[y][x] = true;
                 }
             }
         });
-        if (shift != null) {
-            var correction = shiftSmoothing > 1 ? boxAverage(width, height, shift, fitted, shiftSmoothing) : shift;
-            RowStrips.forEach(height, (yStart, yEnd) -> {
-                for (int y = yStart; y < yEnd; y++) {
-                    for (int x = 0; x < width; x++) {
-                        if (fitted[y][x]) {
-                            amplitude[y][x] -= leak[y][x] * correction[y][x];
-                        }
-                    }
-                }
-            });
-        }
         return amplitude;
     }
 
@@ -319,9 +291,9 @@ public final class SpectralLineFit {
         var selected = tiles;
         var spectrum = averageSpectrum(sums, counts, selected, n);
         for (int iteration = 0; iteration < MAX_TEMPLATE_ITERATIONS && tiles.length > 1; iteration++) {
-            var design = new Design(columns(positions, spectrum, linePosition, fwhm), true);
-            var lineWeights = design.pseudoInverseRow(design.allSamples, BASE_TERMS + 1, LINE);
-            var levelWeights = design.pseudoInverseRow(design.allSamples, BASE_TERMS + 1, 0);
+            var design = new Design(columns(positions, spectrum, linePosition, fwhm), BASE_TERMS + 1);
+            var lineWeights = design.pseudoInverseRow(design.allSamples, design.terms, LINE);
+            var levelWeights = design.pseudoInverseRow(design.allSamples, design.terms, TEMPLATE);
             if (lineWeights == null || levelWeights == null) {
                 break;
             }
@@ -446,7 +418,7 @@ public final class SpectralLineFit {
         columns[SHIFT] = splineDerivatives(positions, template);
         for (int i = 0; i < n; i++) {
             var offset = (positions[i] - linePosition) / sigma;
-            columns[0][i] = template[i];
+            columns[TEMPLATE][i] = template[i];
             columns[LINE][i] = Math.exp(-0.5 * offset * offset);
             columns[2][i] = 1;
             columns[3][i] = (positions[i] - min) / span;
@@ -509,92 +481,30 @@ public final class SpectralLineFit {
         return derivatives;
     }
 
-    /**
-     * Averages the values of the fitted pixels over a square neighbourhood, using summed area
-     * tables so the cost doesn't depend on the size of the neighbourhood.
-     */
-    private static float[][] boxAverage(int width, int height, float[][] values, boolean[][] valid, int size) {
-        var sums = new double[height + 1][width + 1];
-        var counts = new int[height + 1][width + 1];
-        for (int y = 0; y < height; y++) {
-            var rowSum = 0d;
-            var rowCount = 0;
-            for (int x = 0; x < width; x++) {
-                if (valid[y][x]) {
-                    rowSum += values[y][x];
-                    rowCount++;
-                }
-                sums[y + 1][x + 1] = sums[y][x + 1] + rowSum;
-                counts[y + 1][x + 1] = counts[y][x + 1] + rowCount;
-            }
-        }
-        var half = size / 2;
-        var result = new float[height][width];
-        RowStrips.forEach(height, (yStart, yEnd) -> {
-            for (int y = yStart; y < yEnd; y++) {
-                var y0 = Math.max(0, y - half);
-                var y1 = Math.min(height, y + half + 1);
-                for (int x = 0; x < width; x++) {
-                    if (!valid[y][x]) {
-                        continue;
-                    }
-                    var x0 = Math.max(0, x - half);
-                    var x1 = Math.min(width, x + half + 1);
-                    var count = counts[y1][x1] - counts[y0][x1] - counts[y1][x0] + counts[y0][x0];
-                    var sum = sums[y1][x1] - sums[y0][x1] - sums[y1][x0] + sums[y0][x0];
-                    result[y][x] = (float) (sum / count);
-                }
-            }
-        });
-        return result;
-    }
-
-    /**
-     * The least squares weights for a set of usable samples.
-     *
-     * @param line the weights giving the line amplitude, without shift term
-     * @param shift the weights giving the shift coefficient, with the shift term
-     * @param leak the line amplitude produced by a unit shift coefficient, without shift term
-     */
-    private record Weights(double[] line, double[] shift, double leak) {
-    }
-
     private static final class Design {
-        private static final Weights UNSOLVABLE = new Weights(null, null, 0);
+        private static final double[] UNSOLVABLE = new double[0];
 
         private final double[][] columns;
-        private final boolean withShift;
+        private final int terms;
         private final long allSamples;
-        private final Map<Long, Weights> cache = new ConcurrentHashMap<>();
+        private final Map<Long, double[]> cache = new ConcurrentHashMap<>();
 
-        private Design(double[][] columns, boolean withShift) {
+        private Design(double[][] columns, int terms) {
             this.columns = columns;
-            this.withShift = withShift;
+            this.terms = terms;
             this.allSamples = (1L << columns[0].length) - 1;
         }
 
-        Weights weightsFor(long samples) {
-            var weights = cache.computeIfAbsent(samples, this::solve);
+        /**
+         * Returns the weights giving the line amplitude from the given samples, or null if they
+         * are not enough to fit the model.
+         */
+        double[] lineWeights(long samples) {
+            var weights = cache.computeIfAbsent(samples, s -> {
+                var row = pseudoInverseRow(s, terms, LINE);
+                return row == null ? UNSOLVABLE : row;
+            });
             return weights == UNSOLVABLE ? null : weights;
-        }
-
-        private Weights solve(long samples) {
-            var base = pseudoInverseRow(samples, BASE_TERMS, LINE);
-            if (base == null) {
-                return UNSOLVABLE;
-            }
-            if (!withShift) {
-                return new Weights(base, null, 0);
-            }
-            var shift = pseudoInverseRow(samples, BASE_TERMS + 1, SHIFT);
-            if (shift == null) {
-                return UNSOLVABLE;
-            }
-            var leak = 0d;
-            for (int i = 0; i < base.length; i++) {
-                leak += base[i] * columns[SHIFT][i];
-            }
-            return new Weights(base, shift, leak);
         }
 
         /**
