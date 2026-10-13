@@ -28,11 +28,15 @@ import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
 import me.champeau.a4j.jsolex.processing.expr.ScriptExecutionContext;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
+import me.champeau.a4j.jsolex.processing.params.NumberParameter;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParamsIO;
+import me.champeau.a4j.jsolex.processing.params.ScriptParameter;
+import me.champeau.a4j.jsolex.processing.params.ScriptParameterExtractor;
 import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
+import me.champeau.a4j.jsolex.processing.sun.workflow.DefaultImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.AnimationFormat;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
@@ -152,23 +156,11 @@ public class ScriptingEntryPoint implements Runnable {
                 for (var inputFile : inputFiles) {
                     performSerProcessing(inputFile, index, processParams, generatedImages);
                 }
-                for (var scriptPath : scriptPaths) {
-                    var scriptExecutor = new DefaultImageScriptExecutor(
-                            d -> {
-                                throw new RuntimeException("image not available in batch section. You can only reference images generated in the [outputs] section");
-                            },
-                            ScriptExecutionContext.builder().processParams(processParams).animationFormats(animationFormats()).build(),
-                            createBroadcaster(new ImageSaver(CutoffStretchingStrategy.DEFAULT, processParams, imageFormats), outputDir)
-                    );
-                    for (Map.Entry<String, List<ImageWrapper>> entry : generatedImages.entrySet()) {
-                        scriptExecutor.putVariable(entry.getKey(), entry.getValue());
-                    }
-                    try {
-                        var result = scriptExecutor.execute(scriptPath.toPath(), ImageMathScriptExecutor.SectionKind.BATCH);
-                        processScriptResult(saver, result, outputDir);
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    }
+                try {
+                    executeScripts(processParams, saver, outputDir, ImageMathScriptExecutor.SectionKind.BATCH, generatedImages,
+                            "image not available in batch section. You can only reference images generated in the [outputs] section");
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
                 }
             } else {
                 processSingle(processParams, saver);
@@ -217,32 +209,46 @@ public class ScriptingEntryPoint implements Runnable {
 
     private void processSingle(ProcessParams processParams, ImageSaver saver) {
         var outputDirectory = outputDir == null ? new File(".") : outputDir;
-        var scriptExecutor = new DefaultImageScriptExecutor(
-                d -> {
-                    throw new IllegalStateException("image not available in standalone mode");
-                },
-                ScriptExecutionContext.builder().processParams(processParams).animationFormats(animationFormats()).build(),
-                createBroadcaster(saver, outputDirectory)
-        );
         try {
-            if (params != null) {
-                for (Map.Entry<String, Object> entry : params.entrySet()) {
-                    scriptExecutor.putVariable(entry.getKey(), entry.getValue());
-                }
-            }
-            for (var scriptPath : scriptPaths) {
-                var sourceScriptPath = scriptPath.toPath();
-                if (!Files.exists(sourceScriptPath)) {
-                    System.err.println("Script " + sourceScriptPath + " not found");
-                    System.exit(-1);
-                }
-                var result = scriptExecutor.execute(sourceScriptPath, ImageMathScriptExecutor.SectionKind.SINGLE);
-                processScriptResult(saver, result, outputDirectory);
-            }
+            executeScripts(processParams, saver, outputDirectory, ImageMathScriptExecutor.SectionKind.SINGLE, Map.of(), "image not available in standalone mode");
         } catch (Exception e) {
             LOGGER.error("Unable to execute script", e);
             propapateErrorIfNeeded(e);
         }
+    }
+
+    /**
+     * Executes a section of every script, with the values of its parameters and the given variables.
+     * The images the scripts emit are written to the output directory.
+     */
+    private void executeScripts(ProcessParams processParams,
+                                ImageSaver saver,
+                                File outputDirectory,
+                                ImageMathScriptExecutor.SectionKind kind,
+                                Map<String, ?> variables,
+                                String unavailableImageMessage) throws IOException {
+        var broadcaster = createBroadcaster(saver, outputDirectory);
+        var emitter = new DefaultImageEmitter(broadcaster, ProgressOperation.root("cli", p -> {
+        }), outputDirectory);
+        var parameterValues = processParams.requestedImages().mathImages().parameterValues();
+        for (var scriptPath : scriptPaths) {
+            if (!scriptPath.exists()) {
+                System.err.println("Script " + scriptPath + " not found");
+                System.exit(-1);
+            }
+            var scriptExecutor = new DefaultImageScriptExecutor(
+                    d -> {
+                        throw new IllegalStateException(unavailableImageMessage);
+                    },
+                    ScriptExecutionContext.builder().processParams(processParams).animationFormats(animationFormats()).imageEmitter(emitter).build(),
+                    broadcaster
+            );
+            variables.forEach(scriptExecutor::putVariable);
+            parameterValues.getOrDefault(scriptPath, Map.of()).forEach(scriptExecutor::putVariable);
+            var result = scriptExecutor.execute(scriptPath.toPath(), kind);
+            processScriptResult(saver, result, outputDirectory);
+        }
+        emitter.await();
     }
 
     private void processScriptResult(ImageSaver saver, ImageMathScriptResult result, File outputDirectory) {
@@ -288,10 +294,69 @@ public class ScriptingEntryPoint implements Runnable {
         }
         processParams = processParams.withRequestedImages(
                 processParams.requestedImages().withMathImages(
-                        new ImageMathParams(scriptPaths, Map.of())
+                        new ImageMathParams(scriptPaths, scriptParameterValues(processParams.requestedImages().mathImages()))
                 )
         );
         return processParams;
+    }
+
+    /**
+     * Computes the values of the parameters of each script: the defaults declared by the script,
+     * replaced by the values saved for it in the configuration file, then by the values given on
+     * the command line.
+     */
+    private Map<File, Map<String, Object>> scriptParameterValues(ImageMathParams configured) {
+        var result = new HashMap<File, Map<String, Object>>();
+        for (var scriptPath : scriptPaths) {
+            var declared = declaredParameters(scriptPath);
+            var values = new HashMap<String, Object>();
+            declared.forEach((name, parameter) -> {
+                if (parameter.getDefaultValue() != null) {
+                    values.put(name, parameter.getDefaultValue());
+                }
+            });
+            configured.parameterValues().forEach((file, saved) -> {
+                if (saved != null && isSameFile(file, scriptPath)) {
+                    saved.forEach((name, value) -> values.put(name, typedValue(declared.get(name), value)));
+                }
+            });
+            if (params != null) {
+                params.forEach((name, value) -> values.put(name, typedValue(declared.get(name), value)));
+            }
+            result.put(scriptPath, values);
+        }
+        return result;
+    }
+
+    private static Map<String, ScriptParameter> declaredParameters(File scriptPath) {
+        try {
+            return ScriptParameterExtractor.extractParameters(scriptPath.toPath())
+                    .getParameters()
+                    .stream()
+                    .collect(Collectors.toMap(ScriptParameter::getName, p -> p, (a, b) -> a));
+        } catch (Exception e) {
+            LOGGER.warn("Unable to read the parameters of script {}: {}", scriptPath, e.getMessage());
+            return Map.of();
+        }
+    }
+
+    private static boolean isSameFile(File a, File b) {
+        return a.toPath().toAbsolutePath().normalize().equals(b.toPath().toAbsolutePath().normalize());
+    }
+
+    /**
+     * Converts the values given as text, on the command line or in the configuration file, to numbers
+     * for the parameters declared as numbers.
+     */
+    private static Object typedValue(ScriptParameter parameter, Object value) {
+        if (parameter instanceof NumberParameter && value instanceof String text) {
+            try {
+                return Double.parseDouble(text);
+            } catch (NumberFormatException e) {
+                LOGGER.warn("Invalid value {} for number parameter {}", text, parameter.getName());
+            }
+        }
+        return value;
     }
 
     private Set<ImageFormat> imageFormats() {
@@ -346,7 +411,8 @@ public class ScriptingEntryPoint implements Runnable {
             }
 
             private void writeImage(GeneratedImage payload) {
-                saver.save(payload.image(), new File(outputDirectory, payload.title() + ".png"));
+                var saved = saver.save(payload.image(), new File(outputDirectory, payload.path().getFileName() + ".png"));
+                saved.forEach(f -> System.out.println("Saved " + f));
             }
 
             private void logProgress(ProgressEvent e) {

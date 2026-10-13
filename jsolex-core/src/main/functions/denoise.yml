@@ -1,0 +1,22 @@
+name: DENOISE
+category: ENHANCEMENT
+description:
+  fr: "Réduit le bruit d'une image en ne gardant, à chaque échelle, que les détails qui dépassent nettement le niveau de bruit. Le niveau de bruit est mesuré automatiquement sur l'image."
+  en: "Reduces the noise of an image by keeping, at each scale, only the details which clearly stand out from the noise. The noise level is measured automatically on the image."
+arguments:
+  - name: img
+    description: Image(s)
+  - name: mask
+    optional: true
+    description:
+      fr: "Masque restreignant les pixels débruités (créé avec `annulus_mask` ou `range_mask`). Les autres pixels ne sont pas modifiés et ne sont pas pris en compte."
+      en: "Mask restricting the denoised pixels (created with `annulus_mask` or `range_mask`). The other pixels are left unchanged and are not taken into account."
+  - name: grain
+    optional: true
+    default: 0.25
+    description:
+      fr: "Part du bruit conservée, entre 0 et 1. Un peu de grain évite un rendu trop lisse : 0 retire tout le bruit détecté, 1 ne change rien."
+      en: "Fraction of the noise which is kept, between 0 and 1. A little grain avoids a look which is too smooth: 0 removes all the detected noise, 1 changes nothing."
+examples:
+  - "denoise(img(0))"
+  - "denoise(img: img(0); mask: invert_mask(annulus_mask(0; 1)); grain: 0.1)"

@@ -61,7 +61,7 @@ public class LineFit extends AbstractFunctionImpl {
             throw new IllegalArgumentException("line_fit requires a template mask");
         }
         var region = maskArgument(arguments, "mask", first);
-        var doppler = intArg(arguments, "doppler", 0);
+        var doppler = booleanArg(arguments, "doppler", false);
         var faintest = doubleArg(arguments, "faintest", 1);
         var amplitude = SpectralLineFit.fit(width, height, cube, positions, shift, fwhm, template, region, doppler, faintest);
         var metadata = new HashMap<>(closestTo(images, positions, shift).metadata());

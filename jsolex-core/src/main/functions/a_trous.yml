@@ -1,0 +1,21 @@
+name: A_TROUS
+category: ENHANCEMENT
+description:
+  fr: "Décompose une image en ondelettes « à trous » : renvoie une liste d'images contenant chacune les détails d'une taille donnée, des plus fins aux plus grossiers, suivie du fond restant. La somme de toutes ces images redonne l'image d'origine : en les recombinant avec des coefficients différents, on peut renforcer ou atténuer les détails selon leur taille."
+  en: "Decomposes an image into \"à trous\" wavelets: returns a list of images each containing the details of a given size, from the finest to the coarsest, followed by the remaining background. The sum of all these images gives back the original image: recombining them with different coefficients strengthens or attenuates the details depending on their size."
+arguments:
+  - name: img
+    description: Image
+  - name: levels
+    optional: true
+    description:
+      fr: "Nombre d'images de détails. La taille des détails double d'une image à la suivante, en commençant à 1 pixel. Par défaut, autant que la taille de l'image le permet."
+      en: "Number of detail images. The size of the details doubles from one image to the next, starting at 1 pixel. By default, as many as the size of the image allows."
+  - name: mask
+    optional: true
+    description:
+      fr: "Masque restreignant les pixels décomposés (créé avec `annulus_mask` ou `range_mask`). Les autres pixels ne sont pas pris en compte : ils valent 0 dans les images de détails et gardent leur valeur dans le fond."
+      en: "Mask restricting the decomposed pixels (created with `annulus_mask` or `range_mask`). The other pixels are not taken into account: they are 0 in the detail images and keep their value in the background."
+examples:
+  - "w=a_trous(img(0); 4)"
+  - "sharper=get_at(w; 0) + 2 * get_at(w; 1) + 1.5 * get_at(w; 2) + get_at(w; 3) + get_at(w; 4)"

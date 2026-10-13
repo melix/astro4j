@@ -33,7 +33,7 @@ class SpectralLineFitTest extends Specification {
         var cube = synthesize({ x, y -> 500 + 40 * x }, { x, y -> 0 }, { x, y -> 0 })
 
         when:
-        var amplitude = fit(cube, ALL, null, 0)
+        var amplitude = fit(cube, ALL, null, false)
 
         then:
         maxAbs(amplitude, 0, WIDTH) < 1e-2
@@ -47,7 +47,7 @@ class SpectralLineFitTest extends Specification {
         var cube = synthesize({ x, y -> 2000 }, { x, y -> x < WIDTH.intdiv(2) ? 0 : 50 }, { x, y -> 0 })
 
         when:
-        var amplitude = fit(cube, { x, y -> x < WIDTH.intdiv(2) }, null, 0)
+        var amplitude = fit(cube, { x, y -> x < WIDTH.intdiv(2) }, null, false)
 
         then:
         Math.abs(amplitude[40][10]) < 1e-2
@@ -59,9 +59,8 @@ class SpectralLineFitTest extends Specification {
         var cube = synthesize({ x, y -> 3000 }, { x, y -> 0 }, { x, y -> 0.15 * (x - WIDTH.intdiv(2)) / WIDTH.intdiv(2) })
 
         when:
-        var uncorrected = fit(cube, ALL, null, 0)
-        var perPixel = fit(cube, ALL, null, 1)
-        var smoothed = fit(cube, ALL, null, 11)
+        var uncorrected = fit(cube, ALL, null, false)
+        var perPixel = fit(cube, ALL, null, true)
 
         then: "the uncorrected fit shows fake emission of opposite signs on both sides"
         uncorrected[40][5] * uncorrected[40][WIDTH - 5] < 0
@@ -70,8 +69,19 @@ class SpectralLineFitTest extends Specification {
         and: "the correction removes most of it"
         Math.abs(perPixel[40][5]) < 0.05 * Math.abs(uncorrected[40][5])
         Math.abs(perPixel[40][WIDTH - 5]) < 0.05 * Math.abs(uncorrected[40][WIDTH - 5])
-        Math.abs(smoothed[40][20]) < 0.05 * Math.abs(uncorrected[40][20])
-        Math.abs(smoothed[40][WIDTH - 20]) < 0.05 * Math.abs(uncorrected[40][WIDTH - 20])
+    }
+
+    def "the shift correction follows a background whose level varies quickly"() {
+        given: "a background shifted on the left, where its level drops quickly, and measured on the right"
+        var cube = synthesize({ x, y -> 500 + 20000 * Math.exp(-x / 4d) }, { x, y -> 0 }, { x, y -> x < WIDTH.intdiv(2) ? 0.1 : 0 })
+        BiPredicate<Integer, Integer> template = { x, y -> x >= 80 }
+
+        when:
+        var uncorrected = fit(cube, template, null, false)
+        var corrected = fit(cube, template, null, true)
+
+        then:
+        (0..50).every { x -> Math.abs(corrected[40][x]) < 0.05 * Math.abs(uncorrected[40][x]) }
     }
 
     def "the shift correction keeps the emission"() {
@@ -79,7 +89,7 @@ class SpectralLineFitTest extends Specification {
         var cube = synthesize({ x, y -> 3000 }, { x, y -> y < HEIGHT.intdiv(2) ? 0 : 40 }, { x, y -> 0.15 * (x - WIDTH.intdiv(2)) / WIDTH.intdiv(2) })
 
         when:
-        var amplitude = fit(cube, { x, y -> y < HEIGHT.intdiv(2) }, null, 1)
+        var amplitude = fit(cube, { x, y -> y < HEIGHT.intdiv(2) }, null, true)
 
         then: "the second order effect of the shift is not corrected, but it is the same on both sides"
         Math.abs(amplitude[60][5] - 40) < 4
@@ -99,7 +109,7 @@ class SpectralLineFitTest extends Specification {
         }
 
         when:
-        var amplitude = fit(cube, { x, y -> x < WIDTH.intdiv(2) }, null, 0)
+        var amplitude = fit(cube, { x, y -> x < WIDTH.intdiv(2) }, null, false)
 
         then:
         Math.abs(amplitude[10][100] - 50) < 1e-2
@@ -116,7 +126,7 @@ class SpectralLineFitTest extends Specification {
         }
 
         when:
-        var amplitude = fit(cube, { x, y -> y > 20 && x < WIDTH.intdiv(2) }, null, 0)
+        var amplitude = fit(cube, { x, y -> y > 20 && x < WIDTH.intdiv(2) }, null, false)
 
         then:
         amplitude[5][5] == 0f
@@ -128,7 +138,7 @@ class SpectralLineFitTest extends Specification {
         var cube = synthesize({ x, y -> 2000 }, { x, y -> x < WIDTH.intdiv(2) ? 0 : 50 }, { x, y -> 0 })
 
         when:
-        var amplitude = fit(cube, { x, y -> x < WIDTH.intdiv(2) }, { x, y -> y < HEIGHT.intdiv(2) }, 0)
+        var amplitude = fit(cube, { x, y -> x < WIDTH.intdiv(2) }, { x, y -> y < HEIGHT.intdiv(2) }, false)
 
         then:
         Math.abs(amplitude[10][100] - 50) < 1e-2
@@ -142,7 +152,7 @@ class SpectralLineFitTest extends Specification {
         cube.each { plane -> plane.each { row -> for (int x = 0; x < row.length; x++) { row[x] += (float) (10 * random.nextGaussian()) } } }
 
         when:
-        var amplitude = fit(cube, { x, y -> x < WIDTH.intdiv(2) }, null, 0)
+        var amplitude = fit(cube, { x, y -> x < WIDTH.intdiv(2) }, null, false)
         var mean = 0d
         var count = 0
         for (int y = 0; y < HEIGHT; y++) {
@@ -163,8 +173,8 @@ class SpectralLineFitTest extends Specification {
         BiPredicate<Integer, Integer> template = { x, y -> x < 20 }
 
         when:
-        var whole = fit(cube, template, null, 0)
-        var faintest = fit(cube, template, null, 0, 0.25)
+        var whole = fit(cube, template, null, false)
+        var faintest = fit(cube, template, null, false, 0.25)
 
         then: "with the whole region, half of the emission of the template is subtracted everywhere"
         Math.abs(whole[40][40] + 15) < 0.5
@@ -187,7 +197,7 @@ class SpectralLineFitTest extends Specification {
         }
 
         when:
-        var amplitude = fit(cube, { x, y -> x < 20 }, null, 0, 0.25)
+        var amplitude = fit(cube, { x, y -> x < 20 }, null, false, 0.25)
 
         then:
         Math.abs(amplitude[40][40]) < 0.05
@@ -229,8 +239,8 @@ class SpectralLineFitTest extends Specification {
         SpectralLineFit.solveLinearSystem([[1d, 2d], [2d, 4d]] as double[][], [1d, 2d] as double[]) == null
     }
 
-    private static float[][] fit(float[][][] cube, BiPredicate<Integer, Integer> template, BiPredicate<Integer, Integer> region, int doppler, double faintest = 1) {
-        SpectralLineFit.fit(WIDTH, HEIGHT, cube, POSITIONS, LINE_POSITION, LINE_FWHM, template, region, doppler, faintest)
+    private static float[][] fit(float[][][] cube, BiPredicate<Integer, Integer> template, BiPredicate<Integer, Integer> region, boolean correctShift, double faintest = 1) {
+        SpectralLineFit.fit(WIDTH, HEIGHT, cube, POSITIONS, LINE_POSITION, LINE_FWHM, template, region, correctShift, faintest)
     }
 
     /**

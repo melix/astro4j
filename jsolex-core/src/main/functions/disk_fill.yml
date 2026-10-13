@@ -12,6 +12,13 @@ arguments:
     description:
       fr: Valeur de remplissage
       en: Fill value
+  - name: radius
+    optional: true
+    default: 1
+    description:
+      fr: "Rayon de la zone remplie, en rayons solaires. Une valeur un peu plus grande que 1 remplit aussi une fine bande autour du disque."
+      en: "Radius of the filled area, in solar radii. A value slightly larger than 1 also fills a thin band around the disk."
 examples:
   - "disk_fill(img(0))"
   - "disk_fill(img: img(0), fill: 200)"
+  - "disk_fill(img: img(0), fill: 0, radius: 1.005)"

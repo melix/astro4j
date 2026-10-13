@@ -69,6 +69,7 @@ import me.champeau.a4j.jsolex.processing.expr.impl.SimpleFunctionCall.StreamingR
 import me.champeau.a4j.jsolex.processing.expr.impl.Stacking;
 import me.champeau.a4j.jsolex.processing.expr.impl.Stretching;
 import me.champeau.a4j.jsolex.processing.expr.impl.Utilities;
+import me.champeau.a4j.jsolex.processing.expr.impl.Wavelets;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParamsIO;
 import me.champeau.a4j.jsolex.processing.params.SpectralRayIO;
@@ -176,6 +177,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     private final Stretching stretching;
     private final Stacking stacking;
     private final Utilities utilities;
+    private final Wavelets wavelets;
 
     /**
      * Creates a new image expression evaluator.
@@ -223,6 +225,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         this.simpleFunctionCall = new SimpleFunctionCall(context, broadcaster);
         this.stretching = new Stretching(context, broadcaster);
         this.utilities = new Utilities(context, broadcaster);
+        this.wavelets = new Wavelets(context, broadcaster);
         this.stacking = new Stacking(context, scaling, crop, simpleFunctionCall, imageDraw, utilities, broadcaster);
         this.mosaicComposition = new MosaicComposition(context, broadcaster, ellipseFit, scaling);
     }
@@ -350,6 +353,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     public Object functionCall(BuiltinFunction function, Map<String, Object> arguments) {
         return switch (function) {
             case A2PX -> angstromsToPixels(arguments);
+            case A_TROUS -> wavelets.aTrous(arguments);
             case ADJUST_CONTRAST -> adjustContrast.adjustContrast(arguments);
             case ADJUST_GAMMA -> adjustContrast.adjustGamma(arguments);
             case ANIM -> animate.createAnimation(arguments);
@@ -384,6 +388,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case ANNULUS_MASK -> masking.annulusMask(arguments);
             case RANGE_MASK -> masking.rangeMask(arguments);
             case INVERT_MASK -> masking.invertMask(arguments);
+            case DENOISE -> wavelets.denoise(arguments);
             case LINE_FIT -> lineFit.lineFit(arguments);
             case COPY_METADATA -> utilities.copyMetadata(arguments);
             case CROP -> crop.crop(arguments);

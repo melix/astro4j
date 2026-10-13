@@ -29,8 +29,8 @@ arguments:
     optional: true
     default: 0
     description:
-      fr: "Correction du décalage en longueur d'onde du spectre de fond, dû par exemple à la rotation solaire : 0 la désactive, 1 la calcule pour chaque pixel, une valeur plus grande la moyenne sur un voisinage de cette taille en pixels, ce qui réduit le bruit."
-      en: "Correction of the wavelength shift of the background spectrum, caused for example by solar rotation: 0 disables it, 1 computes it for each pixel, a larger value averages it over a neighbourhood of that size in pixels, which reduces the noise."
+      fr: "Corrige le décalage en longueur d'onde du spectre de fond, dû par exemple à la rotation solaire : 1 l'active, 0 la désactive."
+      en: "Corrects the wavelength shift of the background spectrum, caused for example by solar rotation: 1 enables it, 0 disables it."
   - name: faintest
     optional: true
     default: 1
@@ -39,4 +39,4 @@ arguments:
       en: "Fraction of the template area, where the emission line is the weakest, on which the background spectrum is measured. If the template area still contains some emission, it would be removed from the whole image: a lower value only keeps its darkest part. 1 uses the whole area."
 examples:
   - "line_fit(img: range(-4; 8); shift: 2.5; fwhm: a2px(0.7); template: annulus_mask(1.3; 1.45))"
-  - "line_fit(img: range(-4; 8); shift: 2.7; fwhm: 3.3; template: annulus_mask(1.3; 1.45); mask: invert_mask(annulus_mask(0; 1)); doppler: 11; faintest: 0.25)"
+  - "line_fit(img: range(-4; 8); shift: 2.7; fwhm: 3.3; template: annulus_mask(1.3; 1.45); mask: invert_mask(annulus_mask(0; 1)); doppler: 1; faintest: 0.25)"

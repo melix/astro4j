@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
+import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
@@ -29,6 +30,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.IntFunction;
 import java.util.stream.IntStream;
 
 /**
@@ -55,6 +57,14 @@ public class LimbCorrection extends AbstractLimbFunction {
         var falloff = Math.max(0, doubleArg(arguments, "falloff", 2));
         var arg = arguments.get("img");
         var ref = arguments.get("ref");
+        if (arg instanceof List<?> list && ref instanceof ImageWrapper refWrapper) {
+            var limb = measure(toMono(refWrapper.unwrapToMemory()), order);
+            if (!limb.valid()) {
+                warnInvalid(limb);
+                return list;
+            }
+            return correctAll(list, _ -> limb, limb.circle(), falloff, newOperation("correct_limb"), 0);
+        }
         if (arg instanceof List<?> list) {
             var references = ref instanceof List<?> refList ? refList : list;
             if (references.size() != list.size()) {
@@ -77,14 +87,7 @@ public class LimbCorrection extends AbstractLimbFunction {
                     median(valid.stream().mapToDouble(l -> l.circle().cy()).toArray()),
                     median(valid.stream().mapToDouble(l -> l.circle().radius()).toArray())
             );
-            var result = new ArrayList<Object>(list.size());
-            for (int i = 0; i < list.size(); i++) {
-                var image = (ImageWrapper) list.get(i);
-                result.add(FileBackedImage.wrap(correct(image.unwrapToMemory(), limbs.get(i), reference, falloff)));
-                broadcaster.broadcast(operation.update((list.size() + i + 1) / (2.0 * list.size())));
-            }
-            broadcaster.broadcast(operation.complete());
-            return result;
+            return correctAll(list, limbs::get, reference, falloff, operation, 0.5);
         }
         if (arg instanceof ImageWrapper wrapper) {
             var image = wrapper.unwrapToMemory();
@@ -95,9 +98,24 @@ public class LimbCorrection extends AbstractLimbFunction {
         throw new IllegalArgumentException("correct_limb only supports mono and RGB images");
     }
 
+    /**
+     * Corrects each image of the list with its limb, reporting the progress from the given
+     * fraction of the operation to its end.
+     */
+    private List<Object> correctAll(List<?> images, IntFunction<Limb> limbs, Circle reference, double falloff, ProgressOperation operation, double progressStart) {
+        var result = new ArrayList<Object>(images.size());
+        for (int i = 0; i < images.size(); i++) {
+            var image = (ImageWrapper) images.get(i);
+            result.add(FileBackedImage.wrap(correct(image.unwrapToMemory(), limbs.apply(i), reference, falloff)));
+            broadcaster.broadcast(operation.update(progressStart + (1 - progressStart) * (i + 1) / images.size()));
+        }
+        broadcaster.broadcast(operation.complete());
+        return result;
+    }
+
     private ImageWrapper correct(ImageWrapper image, Limb limb, Circle reference, double falloff) {
         if (!limb.valid()) {
-            LOGGER.warn("correct_limb: the limb could not be measured reliably (coverage {}%, scatter {} px), image left unchanged", Math.round(100 * limb.coverage()), fmt(limb.scatter()));
+            warnInvalid(limb);
             return image;
         }
         var width = image.width();
@@ -120,6 +138,10 @@ public class LimbCorrection extends AbstractLimbFunction {
                 warp(rgb.g(), width, height, limb, reference, falloff),
                 warp(rgb.b(), width, height, limb, reference, falloff),
                 metadata);
+    }
+
+    private static void warnInvalid(Limb limb) {
+        LOGGER.warn("correct_limb: the limb could not be measured reliably (coverage {}%, scatter {} px), image left unchanged", Math.round(100 * limb.coverage()), fmt(limb.scatter()));
     }
 
     private static String fmt(double value) {

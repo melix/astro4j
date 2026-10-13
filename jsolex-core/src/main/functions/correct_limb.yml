@@ -15,8 +15,8 @@ arguments:
   - name: ref
     optional: true
     description:
-      fr: "Image(s) sur lesquelles mesurer le limbe, lorsque les images à corriger ne le montrent pas bien, par exemple les ailes d'une raie. La correction mesurée sur chaque image de référence est appliquée à l'image de même rang."
-      en: "Image(s) on which the limb is measured, when the images to correct do not show it well, for example the wings of a line. The correction measured on each reference image is applied to the image at the same index."
+      fr: "Image(s) sur lesquelles mesurer la déformation du limbe, lorsque les images à corriger ne le montrent pas bien, par exemple les ailes d'une raie. Avec une liste de références, chaque image est redressée d'après la référence de même rang. Avec une seule référence, toutes les images de la liste sont redressées d'après elle : c'est le cas des images d'un même scan à différents décalages, qui ont exactement la même déformation que la référence. N'utilisez pas une seule référence pour des images de scans différents, car leurs déformations diffèrent."
+      en: "Image(s) on which the deformation of the limb is measured, when the images to correct do not show it well, for example the wings of a line. With a list of references, each image is straightened according to the reference at the same index. With a single reference, all the images of the list are straightened according to it: this is the case of the images of the same scan at different shifts, which have exactly the same deformation as the reference. Do not use a single reference for images from different scans, since their deformations differ."
   - name: falloff
     optional: true
     default: 2
@@ -27,3 +27,4 @@ examples:
   - "correct_limb(img(0))"
   - "correct_limb(img: some_images, order: 4)"
   - "correct_limb(img: wings, ref: centers)"
+  - "correct_limb(img: range(-5; 5); ref: img(-5))"

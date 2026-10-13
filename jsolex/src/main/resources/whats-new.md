@@ -5,7 +5,9 @@
 - New "H-alpha cloud model" tool, in the drop-down list of the right panel: maps of the temperature, mass and velocity of the absorbing material (filaments, fibrils...), obtained by fitting the line profile at each point of the disk.
 - Fixed the solar latitudes and longitudes given to Python scripts and used by the differential rotation measurement, which could be mirrored depending on the flips applied to the image.
 - New `line_fit` script function, which measures an emission line pixel by pixel without mistaking the absorption lines of the background light for emission.
-- Fixed the command line version, which ignored the instrument of the configuration file and always used the Sol'Ex settings.
+- New `denoise` script function, which removes the noise of an image while keeping its details, and `a_trous` function, which splits an image into details of different sizes.
+- The `destripe` function can now strengthen the correction near the solar disk, where the banding is often stronger than in the sky, and `disk_fill` can fill a thin band around the disk.
+- Fixed the command line version, which always used the Sol'Ex settings instead of the instrument of the configuration file, ignored the script parameters it contains, and did not save the images emitted by Python scripts.
 
 ## What's New in Version 5.5.2
 

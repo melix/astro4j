@@ -5,7 +5,9 @@
 - Nouvel outil « Modèle de nuage H-alpha », dans la liste déroulante du panneau de droite : cartes de température, de masse et de vitesse de la matière absorbante (filaments, fibrilles...), obtenues en ajustant le profil de la raie en chaque point du disque.
 - Correction des latitudes et longitudes solaires fournies aux scripts Python et utilisées par la mesure de la rotation différentielle, qui pouvaient être inversées selon les retournements appliqués à l'image.
 - Nouvelle fonction de script `line_fit`, qui mesure une raie d'émission pixel par pixel sans confondre les raies d'absorption de la lumière de fond avec de l'émission.
-- Correction de la version en ligne de commande, qui ignorait l'instrument du fichier de configuration et utilisait toujours les réglages du Sol'Ex.
+- Nouvelle fonction de script `denoise`, qui retire le bruit d'une image en conservant ses détails, et fonction `a_trous`, qui sépare une image en détails de différentes tailles.
+- La fonction `destripe` peut désormais renforcer la correction près du disque solaire, où les bandes sont souvent plus marquées que dans le ciel, et `disk_fill` peut remplir une fine bande autour du disque.
+- Correction de la version en ligne de commande, qui utilisait toujours les réglages du Sol'Ex au lieu de l'instrument du fichier de configuration, ignorait les paramètres des scripts qu'il contient et n'enregistrait pas les images émises par les scripts Python.
 
 ## Nouveautés de la version 5.5.2
 
