@@ -533,6 +533,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </li>
 <li><a href="#_amélioration_dimage">Amélioration d&#8217;image</a>
 <ul class="sectlevel2">
+<li><a href="#_a_trous">A_TROUS</a></li>
 <li><a href="#_adjust_contrast">ADJUST_CONTRAST</a></li>
 <li><a href="#_adjust_gamma">ADJUST_GAMMA</a></li>
 <li><a href="#_asinh_stretch">ASINH_STRETCH</a></li>
@@ -547,6 +548,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_correct_periodic_error">CORRECT_PERIODIC_ERROR</a></li>
 <li><a href="#_curve_transform">CURVE_TRANSFORM</a></li>
 <li><a href="#_deghost">DEGHOST</a></li>
+<li><a href="#_denoise">DENOISE</a></li>
 <li><a href="#_destripe">DESTRIPE</a></li>
 <li><a href="#_disk_fill">DISK_FILL</a></li>
 <li><a href="#_equalize">EQUALIZE</a></li>
@@ -770,7 +772,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>doppler</code></p></td>
 <td class="tableblock halign-center valign-top"></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Correction du décalage en longueur d&#8217;onde du spectre de fond, dû par exemple à la rotation solaire : 0 la désactive, 1 la calcule pour chaque pixel, une valeur plus grande la moyenne sur un voisinage de cette taille en pixels, ce qui réduit le bruit.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Corrige le décalage en longueur d&#8217;onde du spectre de fond, dû par exemple à la rotation solaire : 1 l&#8217;active, 0 la désactive.</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">0</p></td>
 </tr>
 <tr>
@@ -794,7 +796,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </div>
 <div class="listingblock">
 <div class="content">
-<pre>line_fit(img: range(-4; 8); shift: 2.7; fwhm: 3.3; template: annulus_mask(1.3; 1.45); mask: invert_mask(annulus_mask(0; 1)); doppler: 11; faintest: 0.25)</pre>
+<pre>line_fit(img: range(-4; 8); shift: 2.7; fwhm: 3.3; template: annulus_mask(1.3; 1.45); mask: invert_mask(annulus_mask(0; 1)); doppler: 1; faintest: 0.25)</pre>
 </div>
 </div>
 </div>
@@ -3657,6 +3659,62 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <h2 id="_amélioration_dimage">Amélioration d&#8217;image</h2>
 <div class="sectionbody">
 <div class="sect2">
+<h3 id="_a_trous">A_TROUS</h3>
+<div class="paragraph">
+<p>Décompose une image en ondelettes « à trous » : renvoie une liste d&#8217;images contenant chacune les détails d&#8217;une taille donnée, des plus fins aux plus grossiers, suivie du fond restant. La somme de toutes ces images redonne l&#8217;image d&#8217;origine : en les recombinant avec des coefficients différents, on peut renforcer ou atténuer les détails selon leur taille.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 13.6363%;">
+<col style="width: 13.6363%;">
+<col style="width: 59.0909%;">
+<col style="width: 13.6365%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Argument</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Requis ?</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Description</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Valeur par défaut</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>img</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Image</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>levels</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Nombre d&#8217;images de détails. La taille des détails double d&#8217;une image à la suivante, en commençant à 1 pixel. Par défaut, autant que la taille de l&#8217;image le permet.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>mask</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Masque restreignant les pixels décomposés (créé avec <code>annulus_mask</code> ou <code>range_mask</code>). Les autres pixels ne sont pas pris en compte : ils valent 0 dans les images de détails et gardent leur valeur dans le fond.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p><strong>Exemples</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>w=a_trous(img(0); 4)</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>sharper=get_at(w; 0) + 2 * get_at(w; 1) + 1.5 * get_at(w; 2) + get_at(w; 3) + get_at(w; 4)</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
 <h3 id="_adjust_contrast">ADJUST_CONTRAST</h3>
 <div class="paragraph">
 <p>Permet d’appliquer un ajustement très simple du contraste, en coupant les pixels sous une limite minimale ou au-dessus de la limite maximale.</p>
@@ -4267,7 +4325,7 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>ref</code></p></td>
 <td class="tableblock halign-center valign-top"></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Image(s) sur lesquelles mesurer le limbe, lorsque les images à corriger ne le montrent pas bien, par exemple les ailes d&#8217;une raie. La correction mesurée sur chaque image de référence est appliquée à l&#8217;image de même rang.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Image(s) sur lesquelles mesurer la déformation du limbe, lorsque les images à corriger ne le montrent pas bien, par exemple les ailes d&#8217;une raie. Avec une liste de références, chaque image est redressée d&#8217;après la référence de même rang. Avec une seule référence, toutes les images de la liste sont redressées d&#8217;après elle : c&#8217;est le cas des images d&#8217;un même scan à différents décalages, qui ont exactement la même déformation que la référence. N&#8217;utilisez pas une seule référence pour des images de scans différents, car leurs déformations diffèrent.</p></td>
 <td class="tableblock halign-left valign-top"></td>
 </tr>
 <tr>
@@ -4297,6 +4355,11 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <div class="listingblock">
 <div class="content">
 <pre>correct_limb(img: wings, ref: centers)</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>correct_limb(img: range(-5; 5); ref: img(-5))</pre>
 </div>
 </div>
 </div>
@@ -4498,6 +4561,62 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 </div>
 </div>
 <div class="sect2">
+<h3 id="_denoise">DENOISE</h3>
+<div class="paragraph">
+<p>Réduit le bruit d&#8217;une image en ne gardant, à chaque échelle, que les détails qui dépassent nettement le niveau de bruit. Le niveau de bruit est mesuré automatiquement sur l&#8217;image.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 13.6363%;">
+<col style="width: 13.6363%;">
+<col style="width: 59.0909%;">
+<col style="width: 13.6365%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Argument</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Requis ?</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Description</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Valeur par défaut</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>img</code></p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock"><span class="icon"><i class="fa fa-check"></i></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Image(s)</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>mask</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Masque restreignant les pixels débruités (créé avec <code>annulus_mask</code> ou <code>range_mask</code>). Les autres pixels ne sont pas modifiés et ne sont pas pris en compte.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>grain</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Part du bruit conservée, entre 0 et 1. Un peu de grain évite un rendu trop lisse : 0 retire tout le bruit détecté, 1 ne change rien.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">0.25</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p><strong>Exemples</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>denoise(img(0))</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>denoise(img: img(0); mask: invert_mask(annulus_mask(0; 1)); grain: 0.1)</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
 <h3 id="_destripe">DESTRIPE</h3>
 <div class="paragraph">
 <p>Supprime les bandes horizontales (stries) d&#8217;une image. Avec ellipseMode 2, une étape fine supplémentaire supprime aussi les stries locales du ciel, comme les traînées courtes dessinées près du limbe par le halo d&#8217;une région brillante, tout en préservant les protubérances et les structures coronales, plus étendues verticalement.</p>
@@ -4547,6 +4666,12 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <td class="tableblock halign-left valign-top"><p class="tableblock">1</p></td>
 </tr>
 <tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>limbGain</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Avec ellipseMode 2, mettez 1 pour adapter la correction près du disque solaire. Les bandes peuvent y être plusieurs fois plus marquées que dans le ciel, où la correction de chaque ligne est mesurée. Leur force est alors mesurée sur l&#8217;image, selon la distance au limbe et la position autour du disque, et la correction est ajustée en conséquence. 0 (défaut) pour ne pas l&#8217;utiliser.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">0</p></td>
+</tr>
+<tr>
 <td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
 </tr>
 </tbody>
@@ -4567,6 +4692,11 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <div class="listingblock">
 <div class="content">
 <pre>destripe(img: someImage; bs: 192; strips: 1; ellipseMode: 2)</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>destripe(img: stacked; ellipseMode: 2; limbGain: 1)</pre>
 </div>
 </div>
 </div>
@@ -4602,6 +4732,12 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <td class="tableblock halign-left valign-top"><p class="tableblock">detected black point value</p></td>
 </tr>
 <tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>radius</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Rayon de la zone remplie, en rayons solaires. Une valeur un peu plus grande que 1 remplit aussi une fine bande autour du disque.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">1</p></td>
+</tr>
+<tr>
 <td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
 </tr>
 </tbody>
@@ -4617,6 +4753,11 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <div class="listingblock">
 <div class="content">
 <pre>disk_fill(img: img(0), fill: 200)</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>disk_fill(img: img(0), fill: 0, radius: 1.005)</pre>
 </div>
 </div>
 </div>
