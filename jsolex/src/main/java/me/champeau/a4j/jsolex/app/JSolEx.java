@@ -225,6 +225,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.nio.file.StandardWatchEventKinds.OVERFLOW;
@@ -732,10 +733,15 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             stage.setOnCloseRequest(e -> exit());
             startWatcherThread();
             repositoryUpdateService.checkAtStartup();
+            var gpuCheck = new CompletableFuture<Void>();
             Thread.startVirtualThread(() -> {
                 // pre-load reference intensities in background to avoid blocking the UI later on when they're first needed
-                var _ = ReferenceIntensities.INSTANCE;
-                LOGGER.info(message("gpu.support"), OpenCLSupport.isEnabled() ? message("gpu.enabled") : message("gpu.disabled"));
+                try {
+                    var _ = ReferenceIntensities.INSTANCE;
+                    LOGGER.info(message("gpu.support"), OpenCLSupport.isEnabled() ? message("gpu.enabled") : message("gpu.disabled"));
+                } finally {
+                    gpuCheck.complete(null);
+                }
                 UpdateChecker.findLatestRelease().ifPresent(this::maybeWarnAboutNewRelease);
             });
             LOGGER.info(message("java.runtime.version"), System.getProperty("java.version"));
@@ -744,12 +750,10 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             if (config.isAutoStartServer()) {
                 server.start(config.getAutoStartServerPort());
             }
-            OpenGLAvailability.checkAsync().thenAccept(available -> {
-                LOGGER.info(message("opengl.support"), available ? message("opengl.available") : message("opengl.unavailable"));
-                if (OpenGLAvailability.isPreviousCrashDetected()) {
-                    FxUtils.runLater(this::showOpenGLCrashRecoveryDialog);
-                }
-            });
+            OpenGLAvailability.checkAsync()
+                    .thenAccept(available -> LOGGER.info(message("opengl.support"), available ? message("opengl.available") : message("opengl.unavailable")))
+                    .thenCombine(gpuCheck, (_, _) -> null)
+                    .thenRun(() -> FxUtils.runLater(this::maybeShowCrashRecoveryDialog));
             updateServerStatus(false);
             server.addStatusChangeListener(this::updateServerStatus);
             updateLiveStatus();
@@ -1224,29 +1228,61 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         return watcherThread;
     }
 
-    private void showOpenGLCrashRecoveryDialog() {
-        var alert = AlertFactory.warning(message("opengl.crash.detected.details"));
-        alert.setTitle(message("opengl.crash.detected.title"));
-        alert.setHeaderText(message("opengl.crash.detected.header"));
+    /**
+     * Offers to retry or disable the features whose initialization crashed the
+     * application at a previous startup: the OpenGL 3D viewer and GPU acceleration.
+     */
+    private void maybeShowCrashRecoveryDialog() {
+        var openGL = OpenGLAvailability.isPreviousCrashDetected();
+        var openCL = OpenCLSupport.isPreviousCrashDetected();
+        if (!openGL && !openCL) {
+            return;
+        }
+        var features = new ArrayList<String>();
+        if (openGL) {
+            features.add(message("startup.crash.opengl"));
+        }
+        if (openCL) {
+            features.add(message("startup.crash.opencl"));
+        }
+        var alert = AlertFactory.warning(MessageFormat.format(message("startup.crash.details"), toBulletList(features)));
+        alert.setTitle(message("startup.crash.title"));
+        alert.setHeaderText(message("startup.crash.header"));
         alert.getButtonTypes().clear();
-        var retry = new ButtonType(message("opengl.crash.retry"));
-        var deactivate = new ButtonType(message("opengl.crash.deactivate"));
+        var retry = new ButtonType(message("startup.crash.retry"));
+        var deactivate = new ButtonType(message("startup.crash.deactivate"));
         alert.getButtonTypes().addAll(retry, deactivate);
         alert.showAndWait().ifPresent(button -> {
             if (button == retry) {
-                OpenGLAvailability.retryCheck().thenAccept(available ->
-                        FxUtils.runLater(() -> {
-                            if (available) {
-                                AlertFactory.info(message("opengl.crash.retry.success")).showAndWait();
-                            } else {
-                                AlertFactory.warning(message("opengl.crash.retry.failure")).showAndWait();
-                            }
-                        })
-                );
+                Thread.startVirtualThread(() -> {
+                    var failed = new ArrayList<String>();
+                    if (openGL && !OpenGLAvailability.retryCheck().join()) {
+                        failed.add(message("startup.crash.opengl"));
+                    }
+                    if (openCL && !OpenCLSupport.retry()) {
+                        failed.add(message("startup.crash.opencl"));
+                    }
+                    FxUtils.runLater(() -> {
+                        if (failed.isEmpty()) {
+                            AlertFactory.info(message("startup.crash.retry.success")).showAndWait();
+                        } else {
+                            AlertFactory.warning(MessageFormat.format(message("startup.crash.retry.failure"), toBulletList(failed))).showAndWait();
+                        }
+                    });
+                });
             } else if (button == deactivate) {
-                OpenGLAvailability.disableOpenGL();
+                if (openGL) {
+                    OpenGLAvailability.disableOpenGL();
+                }
+                if (openCL) {
+                    config.setGpuAccelerationEnabled(false);
+                }
             }
         });
+    }
+
+    private static String toBulletList(List<String> items) {
+        return items.stream().map(item -> "- " + item).collect(Collectors.joining("\n"));
     }
 
     private void maybeWarnAboutNewRelease(UpdateChecker.ReleaseInfo release) {

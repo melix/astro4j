@@ -9,6 +9,7 @@
 - La fonction `destripe` peut désormais renforcer la correction près du disque solaire, où les bandes sont souvent plus marquées que dans le ciel, et `disk_fill` peut remplir une fine bande autour du disque.
 - Correction de la version en ligne de commande, qui utilisait toujours les réglages du Sol'Ex au lieu de l'instrument du fichier de configuration, ignorait les paramètres des scripts qu'il contient et n'enregistrait pas les images émises par les scripts Python.
 - La fonction `dedistort` est beaucoup plus rapide lorsque l'accélération GPU n'est pas utilisée.
+- Correction de l'accélération GPU, qui restait désactivée sans prévenir après un crash au démarrage : la fenêtre de reprise propose désormais de la réessayer, avec le visualiseur 3D.
 
 ## Nouveautés de la version 5.5.2
 

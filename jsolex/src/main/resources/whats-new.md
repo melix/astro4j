@@ -9,6 +9,7 @@
 - The `destripe` function can now strengthen the correction near the solar disk, where the banding is often stronger than in the sky, and `disk_fill` can fill a thin band around the disk.
 - Fixed the command line version, which always used the Sol'Ex settings instead of the instrument of the configuration file, ignored the script parameters it contains, and did not save the images emitted by Python scripts.
 - The `dedistort` function is much faster when GPU acceleration is not used.
+- Fixed GPU acceleration, which stayed disabled without notice after a crash at startup: the recovery dialog now offers to retry it, along with the 3D viewer.
 
 ## What's New in Version 5.5.2
 
