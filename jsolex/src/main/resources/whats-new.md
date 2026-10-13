@@ -8,6 +8,7 @@
 - New `denoise` script function, which removes the noise of an image while keeping its details, and `a_trous` function, which splits an image into details of different sizes.
 - The `destripe` function can now strengthen the correction near the solar disk, where the banding is often stronger than in the sky, and `disk_fill` can fill a thin band around the disk.
 - Fixed the command line version, which always used the Sol'Ex settings instead of the instrument of the configuration file, ignored the script parameters it contains, and did not save the images emitted by Python scripts.
+- The `dedistort` function is much faster when GPU acceleration is not used.
 
 ## What's New in Version 5.5.2
 
