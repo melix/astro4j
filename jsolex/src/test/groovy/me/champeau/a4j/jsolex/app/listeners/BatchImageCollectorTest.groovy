@@ -26,6 +26,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantReadWriteLock
 
 class BatchImageCollectorTest extends Specification {
@@ -80,52 +81,79 @@ class BatchImageCollectorTest extends Specification {
         imagesByIndex.get(1).get(1).title() == "Image 2"
     }
 
-    def "addImageByLabel adds images to correct label"() {
+    def "addScriptResult adds the outputs of a file by label and by sequence number"() {
         given:
         def imagesByLabel = new ConcurrentHashMap<String, List<ImageWrapper>>()
-        def collector = new BatchImageCollector(
-            imagesByLabel,
-            new ConcurrentHashMap<String, List<Object>>(),
-            new ConcurrentHashMap<Integer, List<ImageWrapper>>(),
-            new ConcurrentHashMap<Integer, List<CandidateImageDescriptor>>(),
-            new ConcurrentHashMap<Integer, List<File>>(),
-            new ReentrantReadWriteLock()
-        )
-        def image1 = createTestImage(100, 100)
-        def image2 = createTestImage(200, 200)
-
-        when:
-        collector.addImageByLabel("continuum", image1)
-        collector.addImageByLabel("continuum", image2)
-        collector.addImageByLabel("doppler", createTestImage(50, 50))
-
-        then:
-        imagesByLabel.get("continuum").size() == 2
-        imagesByLabel.get("doppler").size() == 1
-    }
-
-    def "addImageByIndex adds images to correct sequence number"() {
-        given:
+        def valuesByLabel = new ConcurrentHashMap<String, List<Object>>()
         def imageWrappersByIndex = new ConcurrentHashMap<Integer, List<ImageWrapper>>()
         def collector = new BatchImageCollector(
-            new ConcurrentHashMap<String, List<ImageWrapper>>(),
-            new ConcurrentHashMap<String, List<Object>>(),
+            imagesByLabel,
+            valuesByLabel,
             imageWrappersByIndex,
             new ConcurrentHashMap<Integer, List<CandidateImageDescriptor>>(),
             new ConcurrentHashMap<Integer, List<File>>(),
             new ReentrantReadWriteLock()
         )
-        def image1 = createTestImage(100, 100)
-        def image2 = createTestImage(200, 200)
 
         when:
-        collector.addImageByIndex(5, image1)
-        collector.addImageByIndex(5, image2)
-        collector.addImageByIndex(10, createTestImage(50, 50))
+        collector.addScriptResult(5, [continuum: createTestImage(100, 100), doppler: createTestImage(50, 50)], [score: 1.5d])
+        collector.addScriptResult(10, [continuum: createTestImage(200, 200)], [score: 2.5d])
 
         then:
+        imagesByLabel.get("continuum").size() == 2
+        imagesByLabel.get("doppler").size() == 1
+        valuesByLabel.get("score") == [1.5d, 2.5d]
         imageWrappersByIndex.get(5).size() == 2
         imageWrappersByIndex.get(10).size() == 1
+        imageWrappersByIndex.get(5).every { image -> imagesByLabel.values().flatten().any { it.is(image) } }
+    }
+
+    def "outputs of files processed in parallel are added all at once"() {
+        given:
+        def imagesByLabel = new ConcurrentHashMap<String, List<ImageWrapper>>()
+        def valuesByLabel = new ConcurrentHashMap<String, List<Object>>()
+        def collector = new BatchImageCollector(
+            imagesByLabel,
+            valuesByLabel,
+            new ConcurrentHashMap<Integer, List<ImageWrapper>>(),
+            new ConcurrentHashMap<Integer, List<CandidateImageDescriptor>>(),
+            new ConcurrentHashMap<Integer, List<File>>(),
+            new ReentrantReadWriteLock()
+        )
+        def executor = Executors.newFixedThreadPool(10)
+        def latch = new CountDownLatch(200)
+        def partial = new AtomicInteger()
+        def reader = Thread.start {
+            while (latch.count > 0) {
+                collector.withReadLock {
+                    def sizes = ['line', 'continuum'].collect { imagesByLabel.get(it)?.size() ?: 0 } +
+                        ['first', 'second'].collect { valuesByLabel.get(it)?.size() ?: 0 }
+                    if (sizes.unique().size() > 1) {
+                        partial.incrementAndGet()
+                    }
+                }
+            }
+        }
+
+        when:
+        200.times { i ->
+            executor.submit {
+                try {
+                    collector.addScriptResult(i, [line: createTestImage(i + 1, 1), continuum: createTestImage(i + 1, 1)], [first: i, second: i])
+                } finally {
+                    latch.countDown()
+                }
+            }
+        }
+        latch.await(10, TimeUnit.SECONDS)
+        reader.join()
+        executor.shutdown()
+
+        then:
+        partial.get() == 0
+        valuesByLabel.get("first").size() == 200
+        valuesByLabel.get("first") == valuesByLabel.get("second")
+        imagesByLabel.get("line")*.width() == imagesByLabel.get("continuum")*.width()
     }
 
     def "withReadLock executes operation with read lock"() {
@@ -139,7 +167,7 @@ class BatchImageCollectorTest extends Specification {
             new ConcurrentHashMap<Integer, List<File>>(),
             new ReentrantReadWriteLock()
         )
-        collector.addImageByLabel("test", createTestImage(100, 100))
+        collector.addScriptResult(1, [test: createTestImage(100, 100)], [:])
 
         when:
         def result = collector.withReadLock { collector.getImagesByLabel().size() }
