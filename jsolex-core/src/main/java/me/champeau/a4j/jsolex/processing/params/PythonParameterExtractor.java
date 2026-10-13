@@ -53,6 +53,8 @@ import java.util.regex.Pattern;
  */
 public class PythonParameterExtractor {
 
+    public static final String PARALLEL_SAFE_PROPERTY = "parallel_safe";
+
     private static final Pattern META_PATTERN = Pattern.compile(
         "^\\s*#\\s*meta:([a-zA-Z_][a-zA-Z0-9_]*)(?::([a-z]{2}))?\\s*=\\s*(.+)$"
     );
@@ -68,6 +70,20 @@ public class PythonParameterExtractor {
     private static final Pattern OVERRIDE_PATTERN = Pattern.compile(
         "^\\s*#\\s*meta:" + ImageMathParameterExtractor.OVERRIDES_PROPERTY + ":([a-zA-Z_][a-zA-Z0-9_]*(?:\\.[a-zA-Z_][a-zA-Z0-9_]*)*)\\s*=\\s*(.+)$"
     );
+
+    /**
+     * Tells whether the script declares {@code # meta:parallel_safe = "true"}, in which case
+     * its {@code single()} function can run in parallel, each call in a Python context of
+     * its own. This property is not shown to users, who cannot tell whether it is safe.
+     *
+     * @param scriptContent the script source code
+     * @return true if the script can run in parallel
+     */
+    public static boolean isParallelSafe(String scriptContent) {
+        return scriptContent.lines()
+            .map(META_PATTERN::matcher)
+            .anyMatch(m -> m.matches() && PARALLEL_SAFE_PROPERTY.equals(m.group(1)) && m.group(2) == null && "true".equals(unquote(m.group(3).trim())));
+    }
 
     public ParameterExtractionResult extractParameters(Path scriptFile) throws IOException {
         var content = Files.readString(scriptFile);
@@ -297,7 +313,7 @@ public class PythonParameterExtractor {
         }
     }
 
-    private String unquote(String value) {
+    private static String unquote(String value) {
         if (value == null || value.isEmpty()) {
             return value;
         }

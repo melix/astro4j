@@ -1367,6 +1367,10 @@ public class MetadataEditor {
             sb.append("# meta:requires_images = \"").append(joined).append("\"\n");
         }
 
+        if (PythonParameterExtractor.isParallelSafe(originalScript)) {
+            sb.append("# meta:").append(PythonParameterExtractor.PARALLEL_SAFE_PROPERTY).append(" = \"true\"\n");
+        }
+
         collectOverrides().forEach((path, value) -> sb.append("# meta:")
                 .append(ImageMathParameterExtractor.OVERRIDES_PROPERTY)
                 .append(":")
