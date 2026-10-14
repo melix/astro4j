@@ -58,9 +58,6 @@ public class Deghost extends AbstractFunctionImpl {
     private record Disk(double cx, double cy, double radius) {
     }
 
-    private record Reflection(float[][] map, double outerRadius) {
-    }
-
     public Deghost(Map<Class<?>, Object> context, Broadcaster broadcaster) {
         super(context, broadcaster);
     }
@@ -108,18 +105,17 @@ public class Deghost extends AbstractFunctionImpl {
         if (disk.radius() <= 0) {
             return;
         }
-        var estimate = estimateReflection(data, disk);
-        if (estimate == null) {
+        var reflection = estimateReflection(data, disk);
+        if (reflection == null) {
             return;
         }
-        var reflection = estimate.map();
 
         var height = data.length;
         var width = data[0].length;
         var cx = disk.cx();
         var cy = disk.cy();
         var radius = disk.radius();
-        var outerR = estimate.outerRadius();
+        var outerR = SAMPLE_RADIUS * radius;
         var yFrom = Math.max(0, (int) Math.floor(cy - outerR));
         var yTo = Math.min(height - 1, (int) Math.ceil(cy + outerR));
         var xFrom = Math.max(0, (int) Math.floor(cx - outerR));
@@ -148,7 +144,7 @@ public class Deghost extends AbstractFunctionImpl {
      * grid around the disk, then maps the result back to image space. Returns {@code null} when no significant
      * reflection is present.
      */
-    private Reflection estimateReflection(float[][] data, Disk disk) {
+    private float[][] estimateReflection(float[][] data, Disk disk) {
         var height = data.length;
         var width = data[0].length;
         var cx = disk.cx();
@@ -172,7 +168,6 @@ public class Deghost extends AbstractFunctionImpl {
         }
 
         var removal = new double[RADIAL_SAMPLES][AZIMUTH_SAMPLES];
-        var maxRim = 0.0;
         var found = false;
         var exclusions = new ArrayList<GhostShift>();
         for (int ghost = 0; ghost < MAX_GHOSTS; ghost++) {
@@ -232,9 +227,6 @@ public class Deghost extends AbstractFunctionImpl {
             }
             found = true;
             accumulateRemoval(excess, valid, shift, profile, removal, polar, radius, outerR);
-            for (int it = 0; it < AZIMUTH_SAMPLES; it++) {
-                maxRim = Math.max(maxRim, shift.rimAt(it, radius));
-            }
         }
         if (!found) {
             return null;
@@ -242,18 +234,17 @@ public class Deghost extends AbstractFunctionImpl {
         PolarGrid.smoothAzimuthal(removal, SMOOTH_SIGMA_BINS);
         PolarGrid.smoothRadial(removal, SMOOTH_SIGMA_BINS);
 
-        var removalR = Math.min(outerR, maxRim + RimProfile.RIM_FEATHER * radius);
         var reflection = new float[height][width];
-        var yFrom = Math.max(0, (int) Math.floor(cy - removalR));
-        var yTo = Math.min(height - 1, (int) Math.ceil(cy + removalR));
-        var xFrom = Math.max(0, (int) Math.floor(cx - removalR));
-        var xTo = Math.min(width - 1, (int) Math.ceil(cx + removalR));
+        var yFrom = Math.max(0, (int) Math.floor(cy - outerR));
+        var yTo = Math.min(height - 1, (int) Math.ceil(cy + outerR));
+        var xFrom = Math.max(0, (int) Math.floor(cx - outerR));
+        var xTo = Math.min(width - 1, (int) Math.ceil(cx + outerR));
         for (int y = yFrom; y <= yTo; y++) {
             for (int x = xFrom; x <= xTo; x++) {
                 var dx = x - cx;
                 var dy = y - cy;
                 var r = Math.sqrt(dx * dx + dy * dy);
-                if (r < radius || r > removalR) {
+                if (r < radius || r > outerR) {
                     continue;
                 }
                 var th = Math.atan2(dy, dx);
@@ -262,7 +253,7 @@ public class Deghost extends AbstractFunctionImpl {
                 reflection[y][x] = (float) PolarGrid.samplePolar(removal, fr, ft);
             }
         }
-        return new Reflection(reflection, removalR);
+        return reflection;
     }
 
     /**

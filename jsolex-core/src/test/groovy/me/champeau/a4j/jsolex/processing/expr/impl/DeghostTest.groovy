@@ -254,6 +254,48 @@ class DeghostTest extends Specification {
         assertReflectionRemoved(before, after, 30, 30)
     }
 
+    def "the removal fades out instead of ending on a sharp edge"() {
+        given:
+        def image = imageFrom(resource, circle(cx, cy, radius))
+        def before = image.copy().data()
+
+        when:
+        def after = (deghost().deghost([img: image]) as ImageWrapper32).data()
+
+        then: "along every ray, the removal never drops by more than a tenth of its maximum between two neighbouring pixels, except where the image is clipped at 0"
+        double maxRemoval = 0
+        double maxDrop = 0
+        for (int angle = 0; angle < 360; angle++) {
+            double th = Math.toRadians(angle)
+            double previous = Double.NaN
+            for (double r = radius + 2; r < 1.6 * radius; r++) {
+                int x = (int) Math.round(cx + r * Math.cos(th))
+                int y = (int) Math.round(cy + r * Math.sin(th))
+                if (x < 0 || y < 0 || x >= after[0].length || y >= after.length) {
+                    break
+                }
+                if (after[y][x] <= 0) {
+                    previous = Double.NaN
+                    continue
+                }
+                double removal = before[y][x] - after[y][x]
+                maxRemoval = Math.max(maxRemoval, removal)
+                if (!Double.isNaN(previous)) {
+                    maxDrop = Math.max(maxDrop, previous - removal)
+                }
+                previous = removal
+            }
+        }
+        maxRemoval > 0
+        maxDrop < 0.1 * maxRemoval
+
+        where:
+        resource                         | cx    | cy    | radius
+        '/deghost/real-batch-average.png' | 520.1 | 519.9 | 347.65
+        '/deghost/ghosted-2026-07-05.jpg' | 833.2 | 832.9 | 692.2
+        '/deghost/ghosted-2026-07-19.jpg' | 999.9 | 1000.5 | 666.4
+    }
+
     private static void assertReflectionRemoved(float[][] before, float[][] after, int cornerX, int cornerY) {
         double removed = 0
         double maxIncrease = 0
