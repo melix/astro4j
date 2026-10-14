@@ -4538,6 +4538,12 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <td class="tableblock halign-left valign-top"><p class="tableblock">1</p></td>
 </tr>
 <tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>ref</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Image on which the reflections are detected, for example the stack of all images. Every image then removes the same reflections, so that they do not come and go from one frame of an animation to the next. It must have the same orientation as the processed images.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>debug</code></p></td>
 <td class="tableblock halign-center valign-top"></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Shows the estimated reflection that would be removed instead of subtracting it (for tuning).</p></td>
@@ -4559,6 +4565,11 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <div class="listingblock">
 <div class="content">
 <pre>deghost(img: some_image, strength: 0.8, iterations: 3)</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>deghost(img: frames, ref: full_stack)</pre>
 </div>
 </div>
 </div>

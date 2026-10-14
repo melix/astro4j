@@ -4536,6 +4536,12 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <td class="tableblock halign-left valign-top"><p class="tableblock">1</p></td>
 </tr>
 <tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>ref</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Image sur laquelle les reflets sont détectés, par exemple l&#8217;empilement de toutes les images. Chaque image en retire alors les mêmes reflets, ce qui évite qu&#8217;ils apparaissent et disparaissent d&#8217;une vue à l&#8217;autre dans une animation. Elle doit avoir la même orientation que les images traitées.</p></td>
+<td class="tableblock halign-left valign-top"></td>
+</tr>
+<tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>debug</code></p></td>
 <td class="tableblock halign-center valign-top"></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Affiche l&#8217;estimation du reflet retiré au lieu de la soustraire (pour le réglage).</p></td>
@@ -4557,6 +4563,11 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <div class="listingblock">
 <div class="content">
 <pre>deghost(img: some_image, strength: 0.8, iterations: 3)</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>deghost(img: frames, ref: full_stack)</pre>
 </div>
 </div>
 </div>
