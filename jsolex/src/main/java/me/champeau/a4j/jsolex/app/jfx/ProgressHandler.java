@@ -125,7 +125,9 @@ public final class ProgressHandler {
 
     /**
      * Ensures an operation's root is registered for tracking.
-     * Traverses up the parent chain to find the root.
+     * Traverses up the parent chain to find the root. A completed operation
+     * whose root is no longer tracked is ignored, so that it does not bring
+     * back work which has already finished.
      *
      * @param operation the operation to track
      */
@@ -140,6 +142,9 @@ public final class ProgressHandler {
         }
         // Register the root if not already tracked
         if (!activeRoots.containsKey(current)) {
+            if (operation.progress() >= 1.0) {
+                return;
+            }
             completionMessage.set(""); // Clear completion message when new work starts
             activeRoots.put(current, System.currentTimeMillis());
         }
@@ -314,9 +319,10 @@ public final class ProgressHandler {
             }
             // If all children were completed/skipped, treat this operation as a leaf
             // This handles the case where parent has only completed children
+            // Root operations are only containers, like when they have no children
             if (leaves.size() == sizeBeforeRecursion) {
                 var task = operation.task();
-                if (task != null && !task.isEmpty()) {
+                if (task != null && !task.isEmpty() && operation.parent() != null) {
                     leaves.add(new LeafTask(operation, operation.taskPath(), operation.progress()));
                 }
             }

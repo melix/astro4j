@@ -10,6 +10,7 @@
 - Correction de la version en ligne de commande, qui utilisait toujours les réglages du Sol'Ex au lieu de l'instrument du fichier de configuration, ignorait les paramètres des scripts qu'il contient et n'enregistrait pas les images émises par les scripts Python.
 - La fonction `dedistort` est beaucoup plus rapide lorsque l'accélération GPU n'est pas utilisée.
 - Correction de l'accélération GPU, qui restait désactivée sans prévenir après un crash au démarrage : la fenêtre de reprise propose désormais de la réessayer, avec le visualiseur 3D.
+- Correction de la barre de progression, qui pouvait continuer à tourner après la fin d'un traitement par lots.
 
 ## Nouveautés de la version 5.5.2
 
