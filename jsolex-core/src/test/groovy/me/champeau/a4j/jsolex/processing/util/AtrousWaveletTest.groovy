@@ -135,6 +135,43 @@ class AtrousWaveletTest extends Specification {
         spots < 6
     }
 
+    def "does not leave specks when the noise of neighbouring pixels is correlated"() {
+        given: "a noise correlated with the neighbouring pixel, as after an interpolation"
+        var random = new Random(1)
+        var white = new float[SIZE + 1][SIZE + 1]
+        for (int y = 0; y <= SIZE; y++) {
+            for (int x = 0; x <= SIZE; x++) {
+                white[y][x] = (float) random.nextGaussian()
+            }
+        }
+        var horizontal = new float[SIZE + 1][SIZE]
+        for (int y = 0; y <= SIZE; y++) {
+            for (int x = 0; x < SIZE; x++) {
+                horizontal[y][x] = (float) ((white[y][x] + white[y][x + 1]) / Math.sqrt(2))
+            }
+        }
+        var noisy = new float[SIZE][SIZE]
+        for (int y = 0; y < SIZE; y++) {
+            for (int x = 0; x < SIZE; x++) {
+                noisy[y][x] = (float) (1000 + NOISE * (0.9 * horizontal[y][x] + 0.2 * horizontal[y + 1][x]) / Math.sqrt(0.85))
+            }
+        }
+
+        when:
+        var denoised = AtrousWavelet.denoise(SIZE, SIZE, noisy, null, 0)
+        var specks = 0
+        for (int y = 0; y < SIZE; y++) {
+            for (int x = 0; x < SIZE; x++) {
+                if (Math.abs(denoised[y][x] - 1000) > NOISE) {
+                    specks++
+                }
+            }
+        }
+
+        then:
+        specks < 6
+    }
+
     private static float[][] sum(List<float[][]> scales) {
         var result = new float[SIZE][SIZE]
         scales.each { scale ->

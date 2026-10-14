@@ -97,10 +97,9 @@ public final class AtrousWavelet {
     }
 
     /**
-     * Removes white noise. Wavelet coefficients are kept only when they exceed the universal
-     * threshold {@code σ·sqrt(2·ln N)}, where N is the number of pixels and σ the local noise
-     * level, estimated on the finest scale of the image itself, so that virtually no noise
-     * coefficient survives.
+     * Removes the noise of an image. Wavelet coefficients are kept only when they exceed the
+     * universal threshold {@code σ·sqrt(2·ln N)}, where N is the number of pixels and σ the local
+     * noise level, estimated on the image itself, so that virtually no noise coefficient survives.
      *
      * @param width the width of the image
      * @param height the height of the image
@@ -119,10 +118,11 @@ public final class AtrousWavelet {
 
     private float[][] denoise(float[][] data, double threshold, double grain) {
         var noiseFactors = noiseFactors(levels);
-        var sigma = noiseSigma(data, noiseFactors[0]);
+        var sigmas = noiseSigmas(data, noiseFactors);
         var result = new float[height][width];
         var coarse = transform(data, (level, scale) -> {
             var scaleThreshold = threshold * noiseFactors[level];
+            var sigma = level == 0 ? sigmas.finest() : sigmas.coarser();
             RowStrips.forEach(height, (y0, y1) -> {
                 for (int y = y0; y < y1; y++) {
                     for (int x = 0; x < width; x++) {
@@ -178,22 +178,47 @@ public final class AtrousWavelet {
     }
 
     /**
-     * Estimates the local noise level from the mean absolute value of the finest scale, where the
-     * signal of smooth structures is negligible. Values beyond a few sigmas, caused by sharp edges
-     * or defective pixels, are clipped so that they don't inflate the estimate. The mean is taken
-     * over a few hundred pixels, enough for a precision of about 5 %, while following the
-     * variations of the noise across the image.
+     * Estimates the local noise level on the two finest scales, where the signal of smooth
+     * structures is negligible. If the noise of neighbouring pixels is independent, both give the
+     * same level. When it is correlated, for example after an interpolation, the finest scale
+     * carries less noise than the coarser ones, so these use the larger of the two estimates.
      */
-    private float[][] noiseSigma(float[][] data, double finestFactor) {
+    private NoiseSigmas noiseSigmas(float[][] data, double[] noiseFactors) {
         var smoothed = smooth(data, 0);
-        var absolute = new float[height][width];
+        var finest = localSigma(absoluteDifference(data, smoothed), noiseFactors[0]);
+        if (levels < 2) {
+            return new NoiseSigmas(finest, finest);
+        }
+        var second = localSigma(absoluteDifference(smoothed, smooth(smoothed, 1)), noiseFactors[1]);
         RowStrips.forEach(height, (y0, y1) -> {
             for (int y = y0; y < y1; y++) {
                 for (int x = 0; x < width; x++) {
-                    absolute[y][x] = Math.abs(data[y][x] - smoothed[y][x]);
+                    second[y][x] = Math.max(second[y][x], finest[y][x]);
                 }
             }
         });
+        return new NoiseSigmas(finest, second);
+    }
+
+    private float[][] absoluteDifference(float[][] a, float[][] b) {
+        var result = new float[height][width];
+        RowStrips.forEach(height, (y0, y1) -> {
+            for (int y = y0; y < y1; y++) {
+                for (int x = 0; x < width; x++) {
+                    result[y][x] = Math.abs(a[y][x] - b[y][x]);
+                }
+            }
+        });
+        return result;
+    }
+
+    /**
+     * Estimates the local noise level from the absolute values of the coefficients of a scale.
+     * Values beyond a few sigmas, caused by sharp edges or defective pixels, are clipped so that
+     * they don't inflate the estimate. The mean is taken over a few hundred pixels, enough for a
+     * precision of about 5 %, while following the variations of the noise across the image.
+     */
+    private float[][] localSigma(float[][] absolute, double factor) {
         var level = smoothLevels(absolute, Math.min(levels, NOISE_ESTIMATION_LEVELS));
         for (int pass = 0; pass < 2; pass++) {
             var clipped = new float[height][width];
@@ -211,7 +236,7 @@ public final class AtrousWavelet {
         RowStrips.forEach(height, (y0, y1) -> {
             for (int y = y0; y < y1; y++) {
                 for (int x = 0; x < width; x++) {
-                    sigma[y][x] = (float) (sigma[y][x] * GAUSSIAN_MEAN_ABS_TO_SIGMA / finestFactor);
+                    sigma[y][x] = (float) (sigma[y][x] * GAUSSIAN_MEAN_ABS_TO_SIGMA / factor);
                 }
             }
         });
@@ -324,5 +349,8 @@ public final class AtrousWavelet {
     @FunctionalInterface
     private interface ScaleConsumer {
         void accept(int level, float[][] scale);
+    }
+
+    private record NoiseSigmas(float[][] finest, float[][] coarser) {
     }
 }
