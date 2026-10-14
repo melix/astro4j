@@ -29,6 +29,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.Tooltip;
@@ -601,7 +602,7 @@ public class MultipleImagesViewer extends Pane {
         var openButton = createButton(message("open.in.files"));
         openButton.setOnAction(e -> ExplorerSupport.openInExplorer(filePath));
         var editButton = createButton(message("edit.animation"));
-        editButton.setOnAction(e -> openAnimationEditor(kind, title, filePath, scope, mediaPlayer.getCurrentTime().toSeconds()));
+        editButton.setOnAction(e -> openAnimationEditor(editButton, kind, title, filePath, scope, mediaPlayer.getCurrentTime().toSeconds()));
         mediaPlayer.setOnEndOfMedia(() -> mediaPlayer.seek(Duration.ZERO));
         playButton.setOnAction(e -> mediaPlayer.play());
         stopButton.setOnAction(e -> mediaPlayer.stop());
@@ -680,7 +681,7 @@ public class MultipleImagesViewer extends Pane {
         var openButton = createButton(message("open.in.files"));
         openButton.setOnAction(e -> ExplorerSupport.openInExplorer(filePath));
         var editButton = createButton(message("edit.animation"));
-        editButton.setOnAction(e -> openAnimationEditor(kind, title, filePath, scope, 0));
+        editButton.setOnAction(e -> openAnimationEditor(editButton, kind, title, filePath, scope, 0));
 
         var buttonBox = new HBox(editButton, openButton);
         buttonBox.setSpacing(10);
@@ -706,16 +707,26 @@ public class MultipleImagesViewer extends Pane {
         }
     }
 
-    private void openAnimationEditor(GeneratedImageKind kind, String title, Path filePath, RunScope scope, double positionSeconds) {
+    private void openAnimationEditor(Button editButton, GeneratedImageKind kind, String title, Path filePath, RunScope scope, double positionSeconds) {
+        if (editButton.getGraphic() != null) {
+            return;
+        }
+        var waiting = new ProgressIndicator();
+        waiting.setMaxSize(16, 16);
+        editButton.setGraphic(waiting);
         BackgroundOperations.async(() -> {
             try {
                 var frame = AnimationEditor.readFrame(filePath, positionSeconds);
-                FxUtils.runLater(() -> AnimationEditorDialog.open(owner.getMainStage(), frame, operations -> {
-                    if (!operations.isEmpty()) {
-                        applyAnimationEdit(kind, title, filePath, scope, operations);
-                    }
-                }));
+                FxUtils.runLater(() -> {
+                    editButton.setGraphic(null);
+                    AnimationEditorDialog.open(owner.getMainStage(), frame, operations -> {
+                        if (!operations.isEmpty()) {
+                            applyAnimationEdit(kind, title, filePath, scope, operations);
+                        }
+                    });
+                });
             } catch (Exception e) {
+                FxUtils.runLater(() -> editButton.setGraphic(null));
                 reportAnimationError(e);
             }
         });
