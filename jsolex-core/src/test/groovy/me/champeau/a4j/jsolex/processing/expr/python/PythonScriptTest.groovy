@@ -1918,7 +1918,7 @@ def single():
 
     def "lists passed from Python to builtin functions are copied into plain Java lists"() {
         given:
-        def context = executor.getOrCreateContext()
+        def context = executor.currentContext()
         def pyList = context.eval("python", "[[1.0, 2.0], [3.0]]").as(List)
 
         when:

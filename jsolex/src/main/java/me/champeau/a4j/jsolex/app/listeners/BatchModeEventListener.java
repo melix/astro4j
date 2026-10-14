@@ -660,15 +660,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
 
     @Override
     public void onScriptExecutionResult(ScriptExecutionResultEvent e) {
-        var images = e.getPayload().imagesByLabel();
-        for (Map.Entry<String, ImageWrapper> entry : images.entrySet()) {
-            imageCollector.addImageByLabel(entry.getKey(), entry.getValue());
-            imageCollector.addImageByIndex(sequenceNumber, entry.getValue());
-        }
-        var values = e.getPayload().valuesByLabel();
-        for (Map.Entry<String, Object> entry : values.entrySet()) {
-            imageCollector.addValueByLabel(entry.getKey(), entry.getValue());
-        }
+        imageCollector.addScriptResult(sequenceNumber, e.getPayload().imagesByLabel(), e.getPayload().valuesByLabel());
         perImageScriptErrors.addAll(e.getPayload().invalidExpressions());
     }
 

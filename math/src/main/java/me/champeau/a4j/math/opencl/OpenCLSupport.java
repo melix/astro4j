@@ -25,6 +25,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -52,6 +53,7 @@ public class OpenCLSupport {
     private static final AtomicReference<CompletableFuture<Boolean>> AVAILABILITY_PROBE = new AtomicReference<>();
     private static final AtomicReference<Path> CRASH_MARKER_DIR = new AtomicReference<>();
     private static final AtomicReference<OpenCLContext> SHARED_CONTEXT = new AtomicReference<>();
+    private static final AtomicBoolean PREVIOUS_CRASH_DETECTED = new AtomicBoolean();
 
     private static boolean isExplicitlyEnabled() {
         var propEnabled = System.getProperty(OPENCL_SYSTEM_PROPERTY);
@@ -95,6 +97,7 @@ public class OpenCLSupport {
     private static boolean checkOpenCLAvailable() {
         var marker = crashMarkerPath();
         if (marker != null && Files.exists(marker)) {
+            PREVIOUS_CRASH_DETECTED.set(true);
             LOGGER.warn("OpenCL initialization previously crashed the application, GPU acceleration is disabled. Re-enable GPU acceleration in the settings to retry");
             return false;
         }
@@ -132,9 +135,33 @@ public class OpenCLSupport {
     }
 
     /**
+     * Returns whether the probe found the marker left by a previous probe which
+     * crashed the JVM, in which case OpenCL is disabled until {@link #retry()}.
+     *
+     * @return true if a previous crash was detected
+     */
+    public static boolean isPreviousCrashDetected() {
+        return PREVIOUS_CRASH_DETECTED.get();
+    }
+
+    /**
+     * Deletes the marker left by a crashed probe and probes OpenCL again.
+     * Blocks until the probe completes.
+     *
+     * @return true if OpenCL is now available and enabled
+     */
+    public static boolean retry() {
+        PREVIOUS_CRASH_DETECTED.set(false);
+        deleteCrashMarker();
+        AVAILABILITY_PROBE.set(null);
+        return isEnabled();
+    }
+
+    /**
      * Sets the directory in which the crash marker file is written. The marker
      * exists only while the OpenCL probe is running, so finding one at startup
-     * means the previous probe crashed the JVM and must not be retried.
+     * means the previous probe crashed the JVM and must not be retried unless
+     * the user asks to.
      * When no directory is set, no crash detection is performed.
      *
      * @param directory the directory for the marker file

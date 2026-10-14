@@ -902,35 +902,38 @@ public interface ImageMath {
         var outHeight = (int) Math.round(height * scale);
         var result = new float[outHeight][outWidth];
 
-        for (int y = 0; y < outHeight; y++) {
-            for (int x = 0; x < outWidth; x++) {
-                double sx = x / scale;
-                double sy = y / scale;
-                double ax = sx / gridStep;
-                double ay = sy / gridStep;
+        RowStrips.forEach(outHeight, (yStart, yEnd) -> {
+            var lanczos = new Lanczos();
+            for (int y = yStart; y < yEnd; y++) {
+                for (int x = 0; x < outWidth; x++) {
+                    double sx = x / scale;
+                    double sy = y / scale;
+                    double ax = sx / gridStep;
+                    double ay = sy / gridStep;
 
-                double dx = 0.0;
-                double dy = 0.0;
+                    double dx = 0.0;
+                    double dy = 0.0;
 
-                if (ax >= 0 && ax < gridWidth - 1 && ay >= 0 && ay < gridHeight - 1) {
-                    dx = bicubicGridSample(gridDx, ax, ay, gridWidth, gridHeight);
-                    dy = bicubicGridSample(gridDy, ax, ay, gridWidth, gridHeight);
-                }
-
-                double srcX = sx + dx;
-                double srcY = sy + dy;
-
-                if (srcX >= 0 && srcX < width && srcY >= 0 && srcY < height) {
-                    if (useLanczos) {
-                        result[y][x] = lanczos2D(data, srcX, srcY, width, height);
-                    } else {
-                        result[y][x] = bilinear2D(data, srcX, srcY, width, height);
+                    if (ax >= 0 && ax < gridWidth - 1 && ay >= 0 && ay < gridHeight - 1) {
+                        dx = bicubicGridSample(gridDx, ax, ay, gridWidth, gridHeight);
+                        dy = bicubicGridSample(gridDy, ax, ay, gridWidth, gridHeight);
                     }
-                } else {
-                    result[y][x] = 0.0f;
+
+                    double srcX = sx + dx;
+                    double srcY = sy + dy;
+
+                    if (srcX >= 0 && srcX < width && srcY >= 0 && srcY < height) {
+                        if (useLanczos) {
+                            result[y][x] = lanczos.interpolate(data, srcX, srcY, width, height);
+                        } else {
+                            result[y][x] = bilinear2D(data, srcX, srcY, width, height);
+                        }
+                    } else {
+                        result[y][x] = 0.0f;
+                    }
                 }
             }
-        }
+        });
 
         return new Image(outWidth, outHeight, result);
     }
@@ -964,41 +967,6 @@ public interface ImageMath {
         } else {
             return 0.0;
         }
-    }
-
-    private static float lanczos2D(float[][] image, double xx, double yy, int width, int height) {
-        int LANCZOS_A = 3;
-        int x0 = (int) Math.floor(xx);
-        int y0 = (int) Math.floor(yy);
-
-        double sum = 0.0;
-        double weightSum = 0.0;
-
-        for (int j = y0 - LANCZOS_A + 1; j <= y0 + LANCZOS_A; j++) {
-            for (int i = x0 - LANCZOS_A + 1; i <= x0 + LANCZOS_A; i++) {
-                if (i >= 0 && i < width && j >= 0 && j < height) {
-                    double wx = lanczosKernel(xx - i, LANCZOS_A);
-                    double wy = lanczosKernel(yy - j, LANCZOS_A);
-                    double w = wx * wy;
-                    sum += image[j][i] * w;
-                    weightSum += w;
-                }
-            }
-        }
-
-        return weightSum > 0 ? (float) (sum / weightSum) : 0f;
-    }
-
-    private static double lanczosKernel(double x, int a) {
-        if (x == 0) {
-            return 1.0;
-        }
-        double absX = Math.abs(x);
-        if (absX >= a) {
-            return 0.0;
-        }
-        double pix = Math.PI * x;
-        return (a * Math.sin(pix) * Math.sin(pix / a)) / (pix * pix);
     }
 
     /**

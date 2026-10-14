@@ -254,6 +254,48 @@ class DeghostTest extends Specification {
         assertReflectionRemoved(before, after, 30, 30)
     }
 
+    def "the removal fades out instead of ending on a sharp edge"() {
+        given:
+        def image = imageFrom(resource, circle(cx, cy, radius))
+        def before = image.copy().data()
+
+        when:
+        def after = (deghost().deghost([img: image]) as ImageWrapper32).data()
+
+        then: "along every ray, the removal never drops by more than a tenth of its maximum between two neighbouring pixels, except where the image is clipped at 0"
+        double maxRemoval = 0
+        double maxDrop = 0
+        for (int angle = 0; angle < 360; angle++) {
+            double th = Math.toRadians(angle)
+            double previous = Double.NaN
+            for (double r = radius + 2; r < 1.6 * radius; r++) {
+                int x = (int) Math.round(cx + r * Math.cos(th))
+                int y = (int) Math.round(cy + r * Math.sin(th))
+                if (x < 0 || y < 0 || x >= after[0].length || y >= after.length) {
+                    break
+                }
+                if (after[y][x] <= 0) {
+                    previous = Double.NaN
+                    continue
+                }
+                double removal = before[y][x] - after[y][x]
+                maxRemoval = Math.max(maxRemoval, removal)
+                if (!Double.isNaN(previous)) {
+                    maxDrop = Math.max(maxDrop, previous - removal)
+                }
+                previous = removal
+            }
+        }
+        maxRemoval > 0
+        maxDrop < 0.1 * maxRemoval
+
+        where:
+        resource                         | cx    | cy    | radius
+        '/deghost/real-batch-average.png' | 520.1 | 519.9 | 347.65
+        '/deghost/ghosted-2026-07-05.jpg' | 833.2 | 832.9 | 692.2
+        '/deghost/ghosted-2026-07-19.jpg' | 999.9 | 1000.5 | 666.4
+    }
+
     private static void assertReflectionRemoved(float[][] before, float[][] after, int cornerX, int cornerY) {
         double removed = 0
         double maxIncrease = 0
@@ -276,6 +318,89 @@ class DeghostTest extends Specification {
             }
         }
         return sum / 49
+    }
+
+    def "using the image itself as reference gives the same result"() {
+        given:
+        def image = imageFrom('/deghost/real-batch-average.png', circle(520.1, 519.9, 347.65))
+        def reference = image.copy()
+
+        when:
+        def alone = (deghost().deghost([img: image.copy()]) as ImageWrapper32).data()
+        def withReference = (deghost().deghost([img: image.copy(), ref: reference]) as ImageWrapper32).data()
+
+        then:
+        maxDifference(alone, withReference) < 1e-3
+    }
+
+    def "only the reflections of the reference are removed"() {
+        when:
+        def after = (deghost().deghost([img: syntheticImage(), ref: backgroundImage()]) as ImageWrapper32).data()
+
+        then:
+        maxDifference(after, syntheticImage().data()) < 1e-3
+    }
+
+    def "noisy copies of an image remove the same reflections when they share a reference"() {
+        given:
+        def image = imageFrom(resource, circle(cx, cy, radius))
+        def copies = (1..4).collect { seed -> withNoise(image, noise, seed) }
+
+        when:
+        def alone = copies.collect { (deghost().deghost([img: it, debug: 1]) as ImageWrapper32).data() }
+        def shared = copies.collect { (deghost().deghost([img: it, ref: image, debug: 1]) as ImageWrapper32).data() }
+        def spreadAlone = removalSpread(alone, cx, cy, radius)
+        def spreadShared = removalSpread(shared, cx, cy, radius)
+
+        then:
+        spreadShared < spreadAlone
+
+        where:
+        resource                          | cx    | cy    | radius | noise
+        '/deghost/real-batch-average.png' | 520.1 | 519.9 | 347.65 | 200
+        '/deghost/ghosted-2026-07-05.jpg' | 833.2 | 832.9 | 692.2  | 20
+        '/deghost/ghosted-2026-07-19.jpg' | 999.9 | 1000.5 | 666.4 | 20
+    }
+
+    private static ImageWrapper32 withNoise(ImageWrapper32 image, double sigma, long seed) {
+        def random = new Random(seed)
+        def copy = image.copy()
+        def data = copy.data()
+        for (int y = 0; y < data.length; y++) {
+            for (int x = 0; x < data[0].length; x++) {
+                data[y][x] = (float) Math.max(0, data[y][x] + sigma * random.nextGaussian())
+            }
+        }
+        copy
+    }
+
+    private static double removalSpread(List<float[][]> maps, double cx, double cy, double radius) {
+        double sum = 0
+        long count = 0
+        def height = maps.first().length
+        def width = maps.first()[0].length
+        for (int y = 0; y < height; y += 2) {
+            for (int x = 0; x < width; x += 2) {
+                def r = Math.hypot(x - cx, y - cy)
+                if (r <= radius || r > 1.6 * radius) {
+                    continue
+                }
+                double mean = maps.sum { it[y][x] } / maps.size()
+                maps.each { sum += (it[y][x] - mean) * (it[y][x] - mean) }
+                count += maps.size()
+            }
+        }
+        Math.sqrt(sum / count)
+    }
+
+    private static double maxDifference(float[][] a, float[][] b) {
+        double max = 0
+        for (int y = 0; y < a.length; y++) {
+            for (int x = 0; x < a[0].length; x++) {
+                max = Math.max(max, Math.abs(a[y][x] - b[y][x]))
+            }
+        }
+        max
     }
 
     def "strength 0 is a no-op"() {

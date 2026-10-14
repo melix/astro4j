@@ -29,6 +29,7 @@ import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.listeners.BatchProcessingContext;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.expr.FileCounts;
+import me.champeau.a4j.jsolex.processing.expr.python.PythonScriptExecutor;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.spectrum.ReferenceIntensities;
 import me.champeau.a4j.jsolex.processing.spectrum.SerFileTrimmer;
@@ -472,6 +473,7 @@ public final class BatchProcessingHelper {
                     }
                 }
             } finally {
+                PythonScriptExecutor.closeIdleContexts();
                 onComplete.run();
             }
         }));

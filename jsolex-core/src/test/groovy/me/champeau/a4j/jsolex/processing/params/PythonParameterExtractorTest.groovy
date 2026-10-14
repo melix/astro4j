@@ -433,4 +433,18 @@ def single():
         then:
         result.getDisplayTitle("en") == "Using name instead of title"
     }
+
+    def "detects whether a script is parallel safe"() {
+        expect:
+        PythonParameterExtractor.isParallelSafe(header + "\ndef single():\n    pass\n") == parallelSafe
+
+        where:
+        header                               | parallelSafe
+        '# meta:parallel_safe = "true"'      | true
+        '# meta:parallel_safe = true'        | true
+        '# meta:parallel_safe = "false"'     | false
+        '# meta:parallel_safe:fr = "true"'   | false
+        '# meta:title = "parallel_safe"'     | false
+        ''                                   | false
+    }
 }

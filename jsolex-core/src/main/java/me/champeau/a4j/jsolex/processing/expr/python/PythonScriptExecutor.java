@@ -35,6 +35,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
@@ -42,6 +43,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -61,13 +63,11 @@ public class PythonScriptExecutor {
 
     private static final AtomicReference<Context> SHARED_CONTEXT = new AtomicReference<>();
     private static final ReentrantLock CONTEXT_LOCK = new ReentrantLock();
+    private static final Deque<OwnedContext> IDLE_CONTEXTS = new ConcurrentLinkedDeque<>();
+    private static final ScopedValue<Context> OWNED_CONTEXT = ScopedValue.newInstance();
 
     // GraalPy cannot run on virtual threads, so we use a cached thread pool for script execution
-    private static final ExecutorService PYTHON_EXECUTOR = Executors.newCachedThreadPool(r -> {
-        var thread = new Thread(r, "python-executor");
-        thread.setDaemon(true);
-        return thread;
-    });
+    private static final ExecutorService PYTHON_EXECUTOR = Executors.newCachedThreadPool(r -> newPythonThread(r, "python-executor"));
 
     private static volatile Path graalPyExecutable;
 
@@ -114,60 +114,68 @@ public class PythonScriptExecutor {
     }
 
     /**
-     * Gets or creates the shared GraalPy context.
+     * Returns the context the current task runs in: the context owned by the task
+     * when it runs with {@link #runInOwnContext}, otherwise the shared context.
      * Must be called from a platform thread (via executeOnPlatformThread).
      */
-    private Context getOrCreateContext() {
+    private Context currentContext() {
+        if (OWNED_CONTEXT.isBound()) {
+            return OWNED_CONTEXT.get();
+        }
         var context = SHARED_CONTEXT.get();
         if (context != null) {
             return context;
         }
         synchronized (SHARED_CONTEXT) {
             context = SHARED_CONTEXT.get();
-            if (context != null) {
-                return context;
-            }
-            LOGGER.info("Initializing GraalPy context...");
-
-            // Broadcast progress during initialization
-            ProgressOperation initProgress = null;
-            if (broadcaster != null) {
-                initProgress = ProgressOperation.root(message("python.context.initializing"), _ -> {});
-                broadcaster.broadcast(initProgress);
-            }
-
-            try {
-                var builder = Context.newBuilder("python")
-                        .allowExperimentalOptions(false)
-                        .allowAllAccess(false)
-                        .allowHostAccess(HostAccess.ALL)
-                        .allowCreateThread(true)
-                        .allowNativeAccess(true)
-                        .allowPolyglotAccess(PolyglotAccess.ALL)
-                        .allowIO(IOAccess.ALL)
-                        .option("python.PosixModuleBackend", "java")
-                        .option("python.DontWriteBytecodeFlag", "true")
-                        .option("python.ForceImportSite", "true")
-                        .option("python.CheckHashPycsMode", "never")
-                        .option("python.WarnExperimentalFeatures", "false")
-                        .out(new LoggingOutputStream(line -> LOGGER.info("[Python] {}", line)))
-                        .err(new LoggingOutputStream(line -> LOGGER.warn("[Python] {}", line)));
-
-                // Use custom GraalPy executable if configured
-                if (graalPyExecutable != null) {
-                    LOGGER.info("Using GraalPy executable: {}", graalPyExecutable);
-                    builder.option("python.Executable", graalPyExecutable.toString());
-                }
-                context = builder.build();
+            if (context == null) {
+                context = createContext();
                 SHARED_CONTEXT.set(context);
-                LOGGER.info("GraalPy context initialized");
-            } finally {
-                if (initProgress != null) {
-                    broadcaster.broadcast(initProgress.complete());
-                }
             }
         }
         return context;
+    }
+
+    private Context createContext() {
+        LOGGER.info("Initializing GraalPy context...");
+
+        // Broadcast progress during initialization
+        ProgressOperation initProgress = null;
+        if (broadcaster != null) {
+            initProgress = ProgressOperation.root(message("python.context.initializing"), _ -> {});
+            broadcaster.broadcast(initProgress);
+        }
+
+        try {
+            var builder = Context.newBuilder("python")
+                    .allowExperimentalOptions(false)
+                    .allowAllAccess(false)
+                    .allowHostAccess(HostAccess.ALL)
+                    .allowCreateThread(true)
+                    .allowNativeAccess(true)
+                    .allowPolyglotAccess(PolyglotAccess.ALL)
+                    .allowIO(IOAccess.ALL)
+                    .option("python.PosixModuleBackend", "java")
+                    .option("python.DontWriteBytecodeFlag", "true")
+                    .option("python.ForceImportSite", "true")
+                    .option("python.CheckHashPycsMode", "never")
+                    .option("python.WarnExperimentalFeatures", "false")
+                    .out(new LoggingOutputStream(line -> LOGGER.info("[Python] {}", line)))
+                    .err(new LoggingOutputStream(line -> LOGGER.warn("[Python] {}", line)));
+
+            // Use custom GraalPy executable if configured
+            if (graalPyExecutable != null) {
+                LOGGER.info("Using GraalPy executable: {}", graalPyExecutable);
+                builder.option("python.Executable", graalPyExecutable.toString());
+            }
+            var context = builder.build();
+            LOGGER.info("GraalPy context initialized");
+            return context;
+        } finally {
+            if (initProgress != null) {
+                broadcaster.broadcast(initProgress.complete());
+            }
+        }
     }
 
     /**
@@ -417,12 +425,6 @@ public class PythonScriptExecutor {
     }
 
     /**
-     * Executes a task under the context lock, handling reentrant calls.
-     * If the current thread already holds the lock (nested Python call), executes directly.
-     * Otherwise, submits to the executor and acquires the lock there.
-     * GraalPy cannot run on virtual threads, so we use platform threads.
-     */
-    /**
      * Runs a task with exclusive ownership of the Python context, so that the
      * sequence of operations it performs (loading a script, then calling its
      * functions) cannot be interleaved with operations from another executor.
@@ -432,6 +434,70 @@ public class PythonScriptExecutor {
      */
     public <T> T runExclusively(Supplier<T> task) {
         return runUnderLock(task::get);
+    }
+
+    /**
+     * Runs a task in a Python context of its own instead of the shared one, so that
+     * it can run in parallel with other tasks. Contexts are reused by later tasks
+     * once released. Only for scripts which do not use native modules, since these
+     * cannot be loaded in several contexts.
+     *
+     * @param task the task to run
+     * @return the task result
+     */
+    public <T> T runInOwnContext(Supplier<T> task) {
+        if (OWNED_CONTEXT.isBound()) {
+            return task.get();
+        }
+        var owned = IDLE_CONTEXTS.poll();
+        if (owned == null) {
+            owned = newOwnedContext();
+        }
+        var context = owned.context();
+        try {
+            return submit(owned.thread(), () -> ScopedValue.where(OWNED_CONTEXT, context).call(task::get));
+        } finally {
+            IDLE_CONTEXTS.push(owned);
+        }
+    }
+
+    /**
+     * Creates a context which is only ever entered by its own thread: GraalPy waits,
+     * when closing a context, for every thread which entered it to be released.
+     */
+    private OwnedContext newOwnedContext() {
+        var thread = Executors.newSingleThreadExecutor(r -> newPythonThread(r, "python-context"));
+        try {
+            return new OwnedContext(submit(thread, this::createContext), thread);
+        } catch (RuntimeException e) {
+            thread.shutdown();
+            throw e;
+        }
+    }
+
+    /**
+     * Closes the contexts created by {@link #runInOwnContext} which are not in use,
+     * so that they do not hold memory once processing is done.
+     */
+    public static void closeIdleContexts() {
+        OwnedContext owned;
+        while ((owned = IDLE_CONTEXTS.poll()) != null) {
+            var context = owned.context();
+            owned.thread().execute(() -> {
+                try {
+                    context.close();
+                } catch (RuntimeException e) {
+                    LOGGER.warn("Unable to close Python context", e);
+                }
+            });
+            owned.thread().shutdown();
+        }
+    }
+
+    private static Thread newPythonThread(Runnable runnable, String name) {
+        var thread = new Thread(runnable, name);
+        thread.setDaemon(true);
+        return thread;
     }
 
     private static <T> T call(Callable<T> task) {
@@ -444,24 +510,35 @@ public class PythonScriptExecutor {
         }
     }
 
+    /**
+     * Executes a task under the context lock, handling reentrant calls.
+     * If the current thread already holds the lock (nested Python call), or if the
+     * task runs in its own context, executes directly.
+     * Otherwise, submits to the executor and acquires the lock there.
+     */
     private <T> T runUnderLock(Callable<T> task) {
-        // If we already hold the lock (reentrant call from nested python()), execute directly
-        if (CONTEXT_LOCK.isHeldByCurrentThread()) {
+        if (CONTEXT_LOCK.isHeldByCurrentThread() || OWNED_CONTEXT.isBound()) {
             return call(task);
         }
+        return submit(PYTHON_EXECUTOR, () -> {
+            CONTEXT_LOCK.lock();
+            try {
+                return call(task);
+            } finally {
+                CONTEXT_LOCK.unlock();
+            }
+        });
+    }
 
-        // Otherwise, submit to executor and acquire lock there. The cancellation of the
-        // calling thread must follow the task, so that the script can be interrupted
+    /**
+     * Runs a task on a platform thread, since GraalPy cannot run on virtual threads.
+     * The cancellation of the calling thread follows the task, so that the script
+     * can be interrupted.
+     */
+    private static <T> T submit(ExecutorService executor, Callable<T> task) {
         var cancellation = CancellationSupport.currentFlag();
         try {
-            return PYTHON_EXECUTOR.submit(() -> {
-                CONTEXT_LOCK.lock();
-                try {
-                    return CancellationSupport.callWith(cancellation, () -> call(task));
-                } finally {
-                    CONTEXT_LOCK.unlock();
-                }
-            }).get();
+            return executor.submit(() -> CancellationSupport.callWith(cancellation, () -> call(task))).get();
         } catch (ExecutionException e) {
             var cause = e.getCause();
             if (cause instanceof RuntimeException re) {
@@ -545,7 +622,7 @@ public class PythonScriptExecutor {
 
     private Object doExecuteInline(String script, Map<String, Object> variables, Path scriptDir) {
         try {
-            var context = getOrCreateContext();
+            var context = currentContext();
             registerJsolexModule(context);
             String resolvedScriptDir = null;
             if (scriptDir != null) {
@@ -585,7 +662,7 @@ public class PythonScriptExecutor {
 
     private Object doExecuteFile(String filePath, Map<String, Object> variables) {
         try {
-            var context = getOrCreateContext();
+            var context = currentContext();
             registerJsolexModule(context);
             injectVariables(context, variables);
             var path = Path.of(filePath).toAbsolutePath();
@@ -632,7 +709,7 @@ public class PythonScriptExecutor {
      */
     public boolean hasFunction(String functionName) {
         return runUnderLock(() -> {
-            var context = getOrCreateContext();
+            var context = currentContext();
             var bindings = context.getBindings("python");
             var member = bindings.getMember(functionName);
             return member != null && !member.isNull() && member.canExecute();
@@ -650,7 +727,7 @@ public class PythonScriptExecutor {
     public boolean scriptDefinesFunction(String script, String functionName) {
         return runUnderLock(() -> {
             try {
-                var context = getOrCreateContext();
+                var context = currentContext();
                 var bindings = context.getBindings("python");
                 // Pass script and function name through bindings to avoid escaping issues
                 bindings.putMember("_script_source", script);
@@ -685,7 +762,7 @@ public class PythonScriptExecutor {
 
     private Object doCallFunction(String functionName, Map<String, Object> args) {
         try {
-            var context = getOrCreateContext();
+            var context = currentContext();
             var bindings = context.getBindings("python");
             var func = bindings.getMember(functionName);
             if (func == null || func.isNull() || !func.canExecute()) {
@@ -729,7 +806,7 @@ public class PythonScriptExecutor {
     public Map<String, Object> callSingleFunction() {
         return runUnderLock(() -> {
             try {
-                var context = getOrCreateContext();
+                var context = currentContext();
                 var bindings = context.getBindings("python");
 
                 // Create an outputs object and inject it
@@ -770,7 +847,7 @@ public class PythonScriptExecutor {
     public Map<String, Object> callBatchFunction(Map<String, List<Object>> collectedResults) {
         return runUnderLock(() -> {
             try {
-                var context = getOrCreateContext();
+                var context = currentContext();
                 var bindings = context.getBindings("python");
 
                 // Create a results object with the collected data
@@ -846,7 +923,7 @@ public class PythonScriptExecutor {
      */
     public Map<String, Object> extractOutputs() {
         return runUnderLock(() -> {
-            var context = getOrCreateContext();
+            var context = currentContext();
             var bindings = context.getBindings("python");
             var result = new LinkedHashMap<String, Object>();
 
@@ -1115,5 +1192,8 @@ public class PythonScriptExecutor {
                 buffer.setLength(0);
             }
         }
+    }
+
+    private record OwnedContext(Context context, ExecutorService thread) {
     }
 }

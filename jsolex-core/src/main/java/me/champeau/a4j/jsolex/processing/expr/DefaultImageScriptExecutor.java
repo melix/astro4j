@@ -32,6 +32,7 @@ import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.expr.python.PythonScriptExecutor;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParameterExtractor;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.jsolex.processing.params.PythonParameterExtractor;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
@@ -150,7 +151,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         long nanoTime = System.nanoTime();
         try {
             var pythonExecutor = newPythonExecutor();
-            var scriptContent = kind == SectionKind.BATCH ? FilesUtils.readString(scriptPath) : null;
+            var scriptContent = FilesUtils.readString(scriptPath);
             return runPythonScript(pythonExecutor, kind, scriptContent, () -> pythonExecutor.executeFile(scriptPath.toString(), variables));
         } catch (Exception e) {
             // Capture Python errors and return them as invalid expressions for display
@@ -189,12 +190,14 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
      * The whole sequence runs with exclusive ownership of the Python context: the
      * context is shared by all executors and loading a script redefines its globals,
      * so a concurrent executor must not be able to load its own script in between.
+     * The {@code single()} function of a script declared parallel safe runs in a
+     * context of its own instead, so that several scans can be processed in parallel.
      */
     private ImageMathScriptResult runPythonScript(PythonScriptExecutor pythonExecutor,
                                                   SectionKind kind,
                                                   String scriptContent,
                                                   Supplier<Object> loader) {
-        return pythonExecutor.runExclusively(() -> {
+        Supplier<ImageMathScriptResult> run = () -> {
             if (kind == SectionKind.BATCH && !pythonExecutor.scriptDefinesFunction(scriptContent, "batch")) {
                 return ImageMathScriptResult.EMPTY;
             }
@@ -225,7 +228,11 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                 }
             }
             return toScriptResult(pythonExecutor.callBatchFunction(collectedResults));
-        });
+        };
+        if (kind == SectionKind.SINGLE && PythonParameterExtractor.isParallelSafe(scriptContent)) {
+            return pythonExecutor.runInOwnContext(run);
+        }
+        return pythonExecutor.runExclusively(run);
     }
 
     @SuppressWarnings("unchecked")
