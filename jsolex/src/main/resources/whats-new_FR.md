@@ -12,7 +12,7 @@
 - Correction de l'accélération GPU, qui restait désactivée sans prévenir après un crash au démarrage : la fenêtre de reprise propose désormais de la réessayer, avec le visualiseur 3D.
 - Correction de la barre de progression, qui pouvait continuer à tourner après la fin d'un traitement par lots.
 - Correction des animations rognées ou pivotées, qui n'étaient pas ajoutées au groupe de l'animation d'origine. Une animation d'attente s'affiche aussi pendant l'ouverture de l'éditeur.
-- Correction de la fonction `deghost`, qui pouvait laisser un anneau net autour du disque, là où la suppression s'arrêtait.
+- Correction de la fonction `deghost`, qui pouvait laisser un anneau net autour du disque, là où la suppression s'arrêtait. Elle peut aussi repérer les reflets sur une image de référence, par exemple l'empilement de toutes les images, pour qu'ils ne clignotent plus dans une animation.
 
 ## Nouveautés de la version 5.5.2
 

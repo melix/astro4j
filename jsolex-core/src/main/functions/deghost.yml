@@ -18,6 +18,11 @@ arguments:
     description:
       fr: "Nombre de passes ; plus de passes atténuent davantage le reflet."
       en: "Number of passes; more passes attenuate the reflection further."
+  - name: ref
+    optional: true
+    description:
+      fr: "Image sur laquelle les reflets sont détectés, par exemple l'empilement de toutes les images. Chaque image en retire alors les mêmes reflets, ce qui évite qu'ils apparaissent et disparaissent d'une vue à l'autre dans une animation. Elle doit avoir la même orientation que les images traitées."
+      en: "Image on which the reflections are detected, for example the stack of all images. Every image then removes the same reflections, so that they do not come and go from one frame of an animation to the next. It must have the same orientation as the processed images."
   - name: debug
     optional: true
     default: 0
@@ -27,3 +32,4 @@ arguments:
 examples:
   - "deghost(img(0))"
   - "deghost(img: some_image, strength: 0.8, iterations: 3)"
+  - "deghost(img: frames, ref: full_stack)"

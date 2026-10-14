@@ -12,7 +12,7 @@
 - Fixed GPU acceleration, which stayed disabled without notice after a crash at startup: the recovery dialog now offers to retry it, along with the 3D viewer.
 - Fixed the progress bar, which could keep spinning after the end of a batch.
 - Fixed the cropped or rotated animations, which were not added to the group of the original animation, and a wait indicator is now shown while the editor opens.
-- Fixed the `deghost` function, which could leave a sharp ring around the disk where the removal stopped.
+- Fixed the `deghost` function, which could leave a sharp ring around the disk where the removal stopped. It can also find the reflections on a reference image, such as the stack of all images, so that they no longer flicker in an animation.
 
 ## What's New in Version 5.5.2
 
