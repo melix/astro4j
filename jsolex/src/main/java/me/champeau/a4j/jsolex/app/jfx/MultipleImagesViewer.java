@@ -601,7 +601,7 @@ public class MultipleImagesViewer extends Pane {
         var openButton = createButton(message("open.in.files"));
         openButton.setOnAction(e -> ExplorerSupport.openInExplorer(filePath));
         var editButton = createButton(message("edit.animation"));
-        editButton.setOnAction(e -> openAnimationEditor(kind, title, filePath, mediaPlayer.getCurrentTime().toSeconds()));
+        editButton.setOnAction(e -> openAnimationEditor(kind, title, filePath, scope, mediaPlayer.getCurrentTime().toSeconds()));
         mediaPlayer.setOnEndOfMedia(() -> mediaPlayer.seek(Duration.ZERO));
         playButton.setOnAction(e -> mediaPlayer.play());
         stopButton.setOnAction(e -> mediaPlayer.stop());
@@ -680,7 +680,7 @@ public class MultipleImagesViewer extends Pane {
         var openButton = createButton(message("open.in.files"));
         openButton.setOnAction(e -> ExplorerSupport.openInExplorer(filePath));
         var editButton = createButton(message("edit.animation"));
-        editButton.setOnAction(e -> openAnimationEditor(kind, title, filePath, 0));
+        editButton.setOnAction(e -> openAnimationEditor(kind, title, filePath, scope, 0));
 
         var buttonBox = new HBox(editButton, openButton);
         buttonBox.setSpacing(10);
@@ -706,13 +706,13 @@ public class MultipleImagesViewer extends Pane {
         }
     }
 
-    private void openAnimationEditor(GeneratedImageKind kind, String title, Path filePath, double positionSeconds) {
+    private void openAnimationEditor(GeneratedImageKind kind, String title, Path filePath, RunScope scope, double positionSeconds) {
         BackgroundOperations.async(() -> {
             try {
                 var frame = AnimationEditor.readFrame(filePath, positionSeconds);
                 FxUtils.runLater(() -> AnimationEditorDialog.open(owner.getMainStage(), frame, operations -> {
                     if (!operations.isEmpty()) {
-                        applyAnimationEdit(kind, title, filePath, operations);
+                        applyAnimationEdit(kind, title, filePath, scope, operations);
                     }
                 }));
             } catch (Exception e) {
@@ -721,7 +721,7 @@ public class MultipleImagesViewer extends Pane {
         });
     }
 
-    private void applyAnimationEdit(GeneratedImageKind kind, String title, Path filePath, List<AnimationEditor.Operation> operations) {
+    private void applyAnimationEdit(GeneratedImageKind kind, String title, Path filePath, RunScope source, List<AnimationEditor.Operation> operations) {
         BackgroundOperations.async(() -> {
             var id = editedAnimations.incrementAndGet();
             var fileName = filePath.getFileName().toString();
@@ -735,7 +735,7 @@ public class MultipleImagesViewer extends Pane {
                 FxUtils.runLater(() -> {
                     try {
                         lock.lock();
-                        var scope = resolveRunScope(kind, 0, null);
+                        var scope = resolveRunScope(kind, source.runNumber(), source.runStartTime());
                         if (result.getFileName().toString().toLowerCase(Locale.US).endsWith(".gif")) {
                             addAnimatedGifEntry(kind, resultTitle, result, null, scope, true);
                         } else {
@@ -850,7 +850,7 @@ public class MultipleImagesViewer extends Pane {
                 .orElseGet(() -> addCategory(category));
     }
 
-    private record RunScope(CategoryPane category, String badge, String badgeTooltip) {
+    private record RunScope(CategoryPane category, String badge, String badgeTooltip, int runNumber, LocalDateTime runStartTime) {
     }
 
     private RunScope resolveRunScope(GeneratedImageKind kind, int scriptRunNumber, LocalDateTime runStartTime) {
@@ -858,9 +858,9 @@ public class MultipleImagesViewer extends Pane {
             var prefix = message("displayCategory." + DisplayCategory.IMAGE_MATH.name());
             var badge = "#" + scriptRunNumber;
             var badgeTooltip = String.format(message("script.run.tooltip"), prefix, scriptRunNumber, RUN_TOOLTIP_FORMAT.format(runStartTime));
-            return new RunScope(getOrCreateRunCategory(scriptRunNumber, runStartTime), badge, badgeTooltip);
+            return new RunScope(getOrCreateRunCategory(scriptRunNumber, runStartTime), badge, badgeTooltip, scriptRunNumber, runStartTime);
         }
-        return new RunScope(getOrCreateCategory(kind), null, null);
+        return new RunScope(getOrCreateCategory(kind), null, null, 0, null);
     }
 
     private CategoryPane getOrCreateRunCategory(int runNumber, LocalDateTime startTime) {
