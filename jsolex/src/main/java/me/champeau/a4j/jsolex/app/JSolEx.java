@@ -99,6 +99,7 @@ import me.champeau.a4j.jsolex.app.jfx.NamingPatternEditor;
 import me.champeau.a4j.jsolex.app.jfx.OpenGLAvailability;
 import me.champeau.a4j.jsolex.app.jfx.ProcessParamsController;
 import me.champeau.a4j.jsolex.app.jfx.ProgressHandler;
+import me.champeau.a4j.jsolex.app.jfx.ProgressPathFormatter;
 import me.champeau.a4j.jsolex.app.jfx.ProgressTreeBuilder;
 import me.champeau.a4j.jsolex.app.jfx.ReferenceImageHelper;
 import me.champeau.a4j.jsolex.app.jfx.ScriptParametersDialog;
@@ -667,7 +668,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
                     // Show progress bar and message
                     progressBar.setVisible(true);
                     progressBar.setProgress(snapshot.progress());
-                    progressLabel.setText(snapshot.currentTaskLabel());
+                    progressLabel.setText(ProgressPathFormatter.fit(snapshot.currentTaskPath(), progressLabel));
 
                     // Show task count in progress bar when multiple active tasks
                     if (snapshot.taskCount() > 1) {
@@ -783,7 +784,8 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
      * starting a new session does not keep the previous run's images reachable.
      */
     private void installStandaloneScriptExecutor() {
-        var standalone = createRootOperation("standalone");
+        var standalone = ProgressOperation.root("standalone", op -> {
+        });
         var defaultParams = ProcessParams.loadDefaults();
         prepareForScriptExecution(
                 createNewStandaloneExecutor(defaultParams, standalone, config.findLastOpenDirectory().orElseGet(() -> Path.of(System.getProperty("java.io.tmpdir"))).toFile()),

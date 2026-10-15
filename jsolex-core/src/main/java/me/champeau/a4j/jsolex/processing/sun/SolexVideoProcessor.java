@@ -1325,10 +1325,11 @@ public class SolexVideoProcessor implements Broadcaster {
             try (var scriptsReader = SerFileReader.of(serFile, processParams.videoParams().trustSerFileBitDepth());
                  var scriptExecutor = Executors.newVirtualThreadPerTaskExecutor()) {
                 var scriptFutures = mathImages.scriptFiles().stream().map(scriptFile -> ProcessingLogContext.runAsync(scriptExecutor, () -> {
-                    broadcast(scriptsOperation.update(0, message("running.scripts") + " : " + scriptFile.getName()));
+                    var scriptOperation = scriptsOperation.createChild(scriptFile.getName());
+                    broadcast(scriptOperation);
                     var context = createMetadata(processParams, serFile.toPath(), pixelShiftRange, header, scanDurationSeconds)
                             .imageEmitter(emitter)
-                            .progressOperation(scriptsOperation)
+                            .progressOperation(scriptOperation)
                             .serFileReader(scriptsReader)
                             .ellipse(circle)
                             .imageStats(finalImageStats)
@@ -1384,10 +1385,11 @@ public class SolexVideoProcessor implements Broadcaster {
                     } catch (IOException e) {
                         throw new ProcessingException(e);
                     } finally {
-                        broadcast(scriptsOperation.update(1.0, "Running script " + scriptFile.getName()));
+                        broadcast(scriptOperation.complete());
                     }
                 })).toList();
                 scriptFutures.forEach(CompletableFuture::join);
+                broadcast(scriptsOperation.complete());
             } catch (Exception e) {
                 throw new ProcessingException(e);
             }

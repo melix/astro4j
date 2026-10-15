@@ -136,7 +136,7 @@ public final class BatchProcessingHelper {
         var orderedFiles = maybeSortByCaptureDate(selectedFiles, params);
         var batchItems = createBatchItems(orderedFiles);
         context.setFileCounts(new FileCounts(batchItems.size(), batchItems.size()));
-        var batchContext = createBatchContext(batchItems, orderedFiles.getFirst().getParentFile(), header);
+        var batchContext = createBatchContext(batchItems, orderedFiles.getFirst().getParentFile(), header, progressOperation);
         var table = BatchTableFactory.createBatchTable(batchItems, params);
         Runnable onAddFiles = () -> {
             var additionalFiles = context.chooseAdditionalBatchFiles();
@@ -358,7 +358,8 @@ public final class BatchProcessingHelper {
 
     private BatchProcessingContext createBatchContext(List<BatchItem> batchItems,
                                                       File outputDirectory,
-                                                      Header header) {
+                                                      Header header,
+                                                      ProgressOperation batchOperation) {
         return new BatchProcessingContext(
                 batchItems,
                 new HashSet<>(),
@@ -366,6 +367,7 @@ public final class BatchProcessingHelper {
                 new AtomicBoolean(),
                 outputDirectory,
                 LocalDateTime.now(),
+                new HashMap<>(),
                 new HashMap<>(),
                 new HashMap<>(),
                 new HashMap<>(),
@@ -380,7 +382,8 @@ public final class BatchProcessingHelper {
                 new AtomicBoolean(),
                 new AtomicBoolean(),
                 new CopyOnWriteArrayList<>(),
-                new AtomicReference<>()
+                new AtomicReference<>(),
+                batchOperation
         );
     }
 

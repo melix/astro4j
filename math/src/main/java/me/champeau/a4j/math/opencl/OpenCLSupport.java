@@ -70,6 +70,7 @@ public class OpenCLSupport {
                     try {
                         newProbe.complete(checkOpenCLAvailable());
                     } catch (Throwable t) {
+                        LOGGER.warn("OpenCL initialization failed, disabling GPU acceleration", t);
                         newProbe.complete(false);
                     }
                 }, "opencl-availability-probe");

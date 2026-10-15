@@ -23,6 +23,8 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
 public class ProgressOperation {
+    public static final String PATH_SEPARATOR = " / ";
+
     private final static boolean ENSURE_VALID_PROGRESS = Boolean.getBoolean("jsolex.debug.progress");
     private final static Cleaner CLEANER = Cleaner.create();
 
@@ -84,18 +86,18 @@ public class ProgressOperation {
      * Empty task names are skipped in the path.
      */
     public String taskPath() {
-        if (parent == null) {
-            return task;
+        return String.join(PATH_SEPARATOR, taskPathSegments());
+    }
+
+    /**
+     * Returns the task names from the root down to this operation, skipping empty task names.
+     */
+    public List<String> taskPathSegments() {
+        var segments = parent == null ? new ArrayList<String>() : new ArrayList<>(parent.taskPathSegments());
+        if (task != null && !task.isEmpty()) {
+            segments.add(task);
         }
-        var parentPath = parent.taskPath();
-        var currentTask = task != null ? task : "";
-        if (parentPath == null || parentPath.isEmpty()) {
-            return currentTask;
-        }
-        if (currentTask.isEmpty()) {
-            return parentPath;
-        }
-        return parentPath + " / " + currentTask;
+        return segments;
     }
 
     public double progress() {
