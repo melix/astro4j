@@ -58,19 +58,23 @@ public final class ProgressHandler {
      *
      * @param progress -1 for indeterminate, 0-1 for determinate progress
      * @param taskCount number of active tasks
-     * @param currentTaskLabel label of the current task being displayed
+     * @param currentTaskPath task names from the root down to the current task being displayed
      */
     public record ProgressSnapshot(
             double progress,
             int taskCount,
-            String currentTaskLabel
+            List<String> currentTaskPath
     ) {
         public static ProgressSnapshot hidden() {
-            return new ProgressSnapshot(0, 0, "");
+            return new ProgressSnapshot(0, 0, List.of());
+        }
+
+        public String currentTaskLabel() {
+            return String.join(ProgressOperation.PATH_SEPARATOR, currentTaskPath);
         }
     }
 
-    private record LeafTask(ProgressOperation operation, String taskPath, double progress) {}
+    private record LeafTask(ProgressOperation operation, List<String> taskPath, double progress) {}
 
     /**
      * Creates a new progress handler.
@@ -241,7 +245,7 @@ public final class ProgressHandler {
         var message = completionMessage.get();
         if (!message.isEmpty()) {
             activeRoots.clear();
-            return new ProgressSnapshot(1.0, 0, message);
+            return new ProgressSnapshot(1.0, 0, List.of(message));
         }
 
         long now = System.currentTimeMillis();
@@ -309,7 +313,7 @@ public final class ProgressHandler {
             // Also skip root operations (no parent) with no children - they're just containers
             var task = operation.task();
             if (task != null && !task.isEmpty() && operation.parent() != null) {
-                leaves.add(new LeafTask(operation, operation.taskPath(), operation.progress()));
+                leaves.add(new LeafTask(operation, operation.taskPathSegments(), operation.progress()));
             }
         } else {
             // Recurse into children, but track if we found any incomplete ones
@@ -323,7 +327,7 @@ public final class ProgressHandler {
             if (leaves.size() == sizeBeforeRecursion) {
                 var task = operation.task();
                 if (task != null && !task.isEmpty() && operation.parent() != null) {
-                    leaves.add(new LeafTask(operation, operation.taskPath(), operation.progress()));
+                    leaves.add(new LeafTask(operation, operation.taskPathSegments(), operation.progress()));
                 }
             }
         }

@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.app.listeners;
 
 import me.champeau.a4j.jsolex.app.jfx.BatchItem;
 import me.champeau.a4j.jsolex.app.jfx.CandidateImageDescriptor;
+import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.expr.InvalidExpression;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
@@ -55,6 +56,8 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * @param batchScriptsRunning flag set while batch outputs scripts are executing
  * @param batchPostProcessing flag set from the moment all files are processed until the end of batch handling (review, scripts) is done
  * @param perImageScriptErrors script errors collected while processing individual files, reported together with the batch script errors
+ * @param postProcessingCleanup cleanup to run once the end of batch handling is done
+ * @param batchOperation the progress operation of the whole batch, parent of the operations of each file
  */
 public record BatchProcessingContext(
     List<BatchItem> items,
@@ -78,6 +81,7 @@ public record BatchProcessingContext(
     AtomicBoolean batchScriptsRunning,
     AtomicBoolean batchPostProcessing,
     List<InvalidExpression> perImageScriptErrors,
-    AtomicReference<Runnable> postProcessingCleanup
+    AtomicReference<Runnable> postProcessingCleanup,
+    ProgressOperation batchOperation
 ) {
 }

@@ -116,6 +116,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
     private final File outputDirectory;
     private final LocalDateTime processingDate;
     private final ProgressOperation rootOperation;
+    private final ProgressOperation batchOperation;
     private final Set<SpectralRay> detectedSpectralLines = new HashSet<>();
 
     private final Header referenceHeader;
@@ -156,6 +157,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                                   ProcessParams processParams) {
         this.owner = owner;
         this.rootOperation = rootOperation;
+        this.batchOperation = context.batchOperation();
         this.delegate = delegate;
         this.processParams = processParams;
         this.progressTracker = BatchProgressTracker.fromContext(context);
@@ -419,7 +421,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                     alert.getButtonTypes().addAll(ButtonType.CANCEL, ButtonType.YES);
                     alert.showAndWait().ifPresent(response -> {
                         if (response == ButtonType.YES) {
-                            maybeFilterImages(r -> onImagesFiltered(r, rootOperation));
+                            maybeFilterImages(r -> onImagesFiltered(r, batchOperation));
                         } else {
                             batchFinished();
                         }
@@ -433,7 +435,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
                     batchFinished();
                 });
             } else {
-                maybeFilterImages(r -> onImagesFiltered(r, rootOperation));
+                maybeFilterImages(r -> onImagesFiltered(r, batchOperation));
             }
         }
     }

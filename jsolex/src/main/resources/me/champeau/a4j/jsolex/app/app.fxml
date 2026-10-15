@@ -252,7 +252,7 @@
                     <ProgressBar fx:id="progressBar" prefWidth="200.0" progress="0.0"/>
                     <Label fx:id="progressBarLabel" styleClass="progress-bar-label" mouseTransparent="true"/>
                 </StackPane>
-                <Label fx:id="progressLabel"/>
+                <Label fx:id="progressLabel" maxWidth="500" textOverrun="CENTER_ELLIPSIS"/>
                 <Label fx:id="latestLogLabel" styleClass="latest-log-label" maxWidth="400" HBox.hgrow="SOMETIMES"/>
                 <HBox spacing="10.0" HBox.hgrow="ALWAYS">
                     <AnchorPane prefWidth="200.0" HBox.hgrow="ALWAYS">
