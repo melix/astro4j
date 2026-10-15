@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Supplier;
 
@@ -35,6 +36,7 @@ final class BatchImageCollector {
 
     private final Map<String, List<ImageWrapper>> imagesByLabel;
     private final Map<String, List<Object>> valuesByLabel;
+    private final Map<String, List<Integer>> valueIndicesByLabel;
     private final Map<Integer, List<ImageWrapper>> imageWrappersByIndex;
     private final Map<Integer, List<CandidateImageDescriptor>> imagesByIndex;
     private final Map<Integer, List<File>> filesByIndex;
@@ -43,12 +45,14 @@ final class BatchImageCollector {
     BatchImageCollector(
             Map<String, List<ImageWrapper>> imagesByLabel,
             Map<String, List<Object>> valuesByLabel,
+            Map<String, List<Integer>> valueIndicesByLabel,
             Map<Integer, List<ImageWrapper>> imageWrappersByIndex,
             Map<Integer, List<CandidateImageDescriptor>> imagesByIndex,
             Map<Integer, List<File>> filesByIndex,
             ReentrantReadWriteLock dataLock) {
         this.imagesByLabel = imagesByLabel;
         this.valuesByLabel = valuesByLabel;
+        this.valueIndicesByLabel = valueIndicesByLabel;
         this.imageWrappersByIndex = imageWrappersByIndex;
         this.imagesByIndex = imagesByIndex;
         this.filesByIndex = filesByIndex;
@@ -62,6 +66,7 @@ final class BatchImageCollector {
         return new BatchImageCollector(
                 context.imagesByLabel(),
                 context.valuesByLabel(),
+                context.valueIndicesByLabel(),
                 context.imageWrappersByIndex(),
                 context.imagesByIndex(),
                 context.filesByIndex(),
@@ -109,7 +114,10 @@ final class BatchImageCollector {
                 imagesByLabel.computeIfAbsent(label, unused -> new ArrayList<>()).add(image);
                 imageWrappersByIndex.computeIfAbsent(sequenceNumber, unused -> new ArrayList<>()).add(image);
             });
-            values.forEach((label, value) -> valuesByLabel.computeIfAbsent(label, unused -> new ArrayList<>()).add(value));
+            values.forEach((label, value) -> {
+                valuesByLabel.computeIfAbsent(label, unused -> new ArrayList<>()).add(value);
+                valueIndicesByLabel.computeIfAbsent(label, unused -> new ArrayList<>()).add(sequenceNumber);
+            });
         } finally {
             dataLock.writeLock().unlock();
         }
@@ -151,6 +159,26 @@ final class BatchImageCollector {
      */
     Map<String, List<Object>> getValuesByLabel() {
         return valuesByLabel;
+    }
+
+    /**
+     * Returns the values by label, without the values produced by the files whose sequence
+     * number is in {@code discarded}, so that they stay aligned with the images of the same
+     * files. Caller must hold the appropriate lock.
+     */
+    Map<String, List<Object>> valuesByLabelExcluding(Set<Integer> discarded) {
+        var result = new LinkedHashMap<String, List<Object>>();
+        valuesByLabel.forEach((label, values) -> {
+            var indices = valueIndicesByLabel.get(label);
+            var kept = new ArrayList<>();
+            for (int i = 0; i < values.size(); i++) {
+                if (!discarded.contains(indices.get(i))) {
+                    kept.add(values.get(i));
+                }
+            }
+            result.put(label, kept);
+        });
+        return result;
     }
 
     /**

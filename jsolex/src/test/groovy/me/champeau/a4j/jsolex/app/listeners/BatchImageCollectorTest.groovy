@@ -37,6 +37,7 @@ class BatchImageCollectorTest extends Specification {
         def collector = new BatchImageCollector(
             new ConcurrentHashMap<String, List<ImageWrapper>>(),
             new ConcurrentHashMap<String, List<Object>>(),
+            new ConcurrentHashMap<String, List<Integer>>(),
             new ConcurrentHashMap<Integer, List<ImageWrapper>>(),
             new ConcurrentHashMap<Integer, List<CandidateImageDescriptor>>(),
             filesByIndex,
@@ -63,6 +64,7 @@ class BatchImageCollectorTest extends Specification {
         def collector = new BatchImageCollector(
             new ConcurrentHashMap<String, List<ImageWrapper>>(),
             new ConcurrentHashMap<String, List<Object>>(),
+            new ConcurrentHashMap<String, List<Integer>>(),
             new ConcurrentHashMap<Integer, List<ImageWrapper>>(),
             imagesByIndex,
             new ConcurrentHashMap<Integer, List<File>>(),
@@ -89,6 +91,7 @@ class BatchImageCollectorTest extends Specification {
         def collector = new BatchImageCollector(
             imagesByLabel,
             valuesByLabel,
+            new ConcurrentHashMap<String, List<Integer>>(),
             imageWrappersByIndex,
             new ConcurrentHashMap<Integer, List<CandidateImageDescriptor>>(),
             new ConcurrentHashMap<Integer, List<File>>(),
@@ -108,6 +111,35 @@ class BatchImageCollectorTest extends Specification {
         imageWrappersByIndex.get(5).every { image -> imagesByLabel.values().flatten().any { it.is(image) } }
     }
 
+    def "values of discarded files are excluded when each file has its own collector"() {
+        given:
+        def valuesByLabel = new ConcurrentHashMap<String, List<Object>>()
+        def valueIndicesByLabel = new ConcurrentHashMap<String, List<Integer>>()
+        def lock = new ReentrantReadWriteLock()
+        def collectors = (1..3).collect {
+            new BatchImageCollector(
+                new ConcurrentHashMap<String, List<ImageWrapper>>(),
+                valuesByLabel,
+                valueIndicesByLabel,
+                new ConcurrentHashMap<Integer, List<ImageWrapper>>(),
+                new ConcurrentHashMap<Integer, List<CandidateImageDescriptor>>(),
+                new ConcurrentHashMap<Integer, List<File>>(),
+                lock
+            )
+        }
+        collectors[2].addScriptResult(3, [:], [polarity: "left", score: 1])
+        collectors[0].addScriptResult(1, [:], [polarity: "right"])
+        collectors[1].addScriptResult(2, [:], [polarity: "left", score: 2])
+
+        when:
+        def values = collectors[0].valuesByLabelExcluding([1, 3] as Set)
+
+        then:
+        values.polarity == ["left"]
+        values.score == [2]
+        valuesByLabel.polarity == ["left", "right", "left"]
+    }
+
     def "outputs of files processed in parallel are added all at once"() {
         given:
         def imagesByLabel = new ConcurrentHashMap<String, List<ImageWrapper>>()
@@ -115,6 +147,7 @@ class BatchImageCollectorTest extends Specification {
         def collector = new BatchImageCollector(
             imagesByLabel,
             valuesByLabel,
+            new ConcurrentHashMap<String, List<Integer>>(),
             new ConcurrentHashMap<Integer, List<ImageWrapper>>(),
             new ConcurrentHashMap<Integer, List<CandidateImageDescriptor>>(),
             new ConcurrentHashMap<Integer, List<File>>(),
@@ -162,6 +195,7 @@ class BatchImageCollectorTest extends Specification {
         def collector = new BatchImageCollector(
             imagesByLabel,
             new ConcurrentHashMap<String, List<Object>>(),
+            new ConcurrentHashMap<String, List<Integer>>(),
             new ConcurrentHashMap<Integer, List<ImageWrapper>>(),
             new ConcurrentHashMap<Integer, List<CandidateImageDescriptor>>(),
             new ConcurrentHashMap<Integer, List<File>>(),
@@ -182,6 +216,7 @@ class BatchImageCollectorTest extends Specification {
         def collector = new BatchImageCollector(
             imagesByLabel,
             new ConcurrentHashMap<String, List<Object>>(),
+            new ConcurrentHashMap<String, List<Integer>>(),
             new ConcurrentHashMap<Integer, List<ImageWrapper>>(),
             new ConcurrentHashMap<Integer, List<CandidateImageDescriptor>>(),
             new ConcurrentHashMap<Integer, List<File>>(),
@@ -203,6 +238,7 @@ class BatchImageCollectorTest extends Specification {
         def collector = new BatchImageCollector(
             new ConcurrentHashMap<String, List<ImageWrapper>>(),
             new ConcurrentHashMap<String, List<Object>>(),
+            new ConcurrentHashMap<String, List<Integer>>(),
             new ConcurrentHashMap<Integer, List<ImageWrapper>>(),
             new ConcurrentHashMap<Integer, List<CandidateImageDescriptor>>(),
             filesByIndex,
@@ -239,6 +275,7 @@ class BatchImageCollectorTest extends Specification {
         def collector = new BatchImageCollector(
             imagesByLabel,
             valuesByLabel,
+            new ConcurrentHashMap<String, List<Integer>>(),
             imageWrappersByIndex,
             imagesByIndex,
             filesByIndex,

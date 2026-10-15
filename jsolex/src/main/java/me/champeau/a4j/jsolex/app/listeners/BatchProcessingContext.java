@@ -42,6 +42,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * @param processingDate the processing date
  * @param imagesByLabel images grouped by label
  * @param valuesByLabel non-image values grouped by label
+ * @param valueIndicesByLabel sequence number of the file which produced each value, in the same order as {@code valuesByLabel}
  * @param imageWrappersByIndex images grouped by index
  * @param imagesByIndex image descriptors grouped by index
  * @param filesByIndex files grouped by index
@@ -64,6 +65,7 @@ public record BatchProcessingContext(
     LocalDateTime processingDate,
     Map<String, List<ImageWrapper>> imagesByLabel,
     Map<String, List<Object>> valuesByLabel,
+    Map<String, List<Integer>> valueIndicesByLabel,
     Map<Integer, List<ImageWrapper>> imageWrappersByIndex,
     Map<Integer, List<CandidateImageDescriptor>> imagesByIndex,
     Map<Integer, List<File>> filesByIndex,
