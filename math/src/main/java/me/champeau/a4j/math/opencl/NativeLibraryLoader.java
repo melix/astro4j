@@ -17,11 +17,14 @@ package me.champeau.a4j.math.opencl;
 
 import org.lwjgl.opencl.CL;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.regex.Pattern;
 
 /**
  * Extracts LWJGL native libraries from the classpath/module path at runtime.
@@ -122,8 +125,20 @@ public class NativeLibraryLoader {
 
     private static boolean hasNativesConfiguredExternally() {
         var existingPath = System.getProperty("org.lwjgl.librarypath");
-        if (existingPath != null && !existingPath.isEmpty()) {
-            return hasRequiredLibraries(Path.of(existingPath));
+        if (existingPath == null || existingPath.isEmpty()) {
+            return false;
+        }
+        for (var entry : existingPath.split(Pattern.quote(File.pathSeparator))) {
+            if (entry.isBlank()) {
+                continue;
+            }
+            try {
+                if (hasRequiredLibraries(Path.of(entry.trim()))) {
+                    return true;
+                }
+            } catch (InvalidPathException e) {
+                // ignore invalid entries
+            }
         }
         return false;
     }
