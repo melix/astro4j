@@ -644,8 +644,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 ellipse = geo.correctedCircle();
                 imageStats = new ImageStats(geo.blackpoint());
             } else {
-                Map<Class<?>, Object> metadata = ellipse != null ? MutableMap.of(Ellipse.class, ellipse) : MutableMap.of();
-                images.put(new PixelShift(workflowState.pixelShift()), new ImageWrapper32(workflowState.width(), workflowState.height(), workflowState.reconstructed().data(), metadata).wrap());
+                images.put(new PixelShift(workflowState.pixelShift()), uncorrectedImage(workflowState, ellipse).wrap());
             }
         }
         if (!JSOLEX_RECORDER.equals(header.fileId()) && maybePolynomial.isPresent()) {
@@ -711,6 +710,16 @@ public class SolexVideoProcessor implements Broadcaster {
                 reader,
                 polynomialCoefficients
         ));
+    }
+
+    /**
+     * The image exposed for a pixel shift when no geometry correction was produced: the
+     * rotated image if the workflow ran, otherwise the raw reconstruction.
+     */
+    private static ImageWrapper32 uncorrectedImage(WorkflowState state, Ellipse ellipse) {
+        var source = Optional.ofNullable(state.image()).orElseGet(state::reconstructed);
+        Map<Class<?>, Object> metadata = ellipse != null ? MutableMap.of(Ellipse.class, ellipse) : MutableMap.of();
+        return new ImageWrapper32(source.width(), source.height(), source.data(), metadata);
     }
 
     private ProcessAwareImageEmitterFactory createImageEmitterFactory(List<WorkflowState> imageList, FileNamingStrategy imageNamingStrategy, String baseName) {
@@ -832,6 +841,7 @@ public class SolexVideoProcessor implements Broadcaster {
                         var ief = new ProcessAwareImageEmitterFactory(state, imageNamingStrategy, baseName);
                         var workflow = new ProcessingWorkflow(generationOperation, this, outputDirectory, imageList, step, processParams, ief, serFile.toPath(), header, batchMode);
                         workflow.start();
+                        state.discardRotatedIfCorrected();
                         broadcast(generationOperation.update(((double) progress.incrementAndGet()) / imageList.size()));
                     };
                     Runnable body = () -> CancellationSupport.runWith(cancelFlag, workflowBody);
@@ -1308,8 +1318,7 @@ public class SolexVideoProcessor implements Broadcaster {
                         imageStats = new ImageStats(geo.blackpoint());
                     }
                 } else {
-                    Map<Class<?>, Object> metadata = ellipse != null ? MutableMap.of(Ellipse.class, ellipse) : MutableMap.of();
-                    var wrapper = new ImageWrapper32(workflowState.width(), workflowState.height(), workflowState.reconstructed().data(), metadata);
+                    var wrapper = uncorrectedImage(workflowState, ellipse);
                     images.put(pixelShift, wrapper.wrap());
                     var rounded = Math.round(100d * pixelShift) / 100d;
                     if (!images.containsKey(rounded)) {

@@ -15,6 +15,7 @@
 - Fixed batch scripts which mixed images and values, when some images were rejected during the batch review.
 - Fixed the cropped or rotated animations, which were not added to the group of the original animation, and a wait indicator is now shown while the editor opens.
 - Fixed the `deghost` function, which could leave a sharp ring around the disk where the removal stopped. It can also find the reflections on a reference image, such as the stack of all images, so that they no longer flicker in an animation.
+- Reduced memory usage and temporary disk writes during processing.
 
 ## What's New in Version 5.5.2
 

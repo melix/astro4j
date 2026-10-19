@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.lang.ref.Cleaner;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.SoftReference;
+import java.lang.ref.WeakReference;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -64,7 +65,14 @@ public final class FileBackedImage implements ImageWrapper {
     private static final Map<Path, Integer> REF_COUNT = new HashMap<>();
     private static final Map<Path, Status> STATUS = new ConcurrentHashMap<>();
     private static final Lock LOCK = new ReentrantLock();
-    private static final Map<ImageWrapper, FileBackedImage> WRAP_CACHE = new WeakHashMap<>();
+    /**
+     * Deduplicates wrapping: the same in-memory image always maps to the same
+     * file-backed image while both are alive. Values are weak on purpose: an
+     * image which is neither held nor wrapped again must be collected at the
+     * next GC instead of lingering until its soft reference is cleared and
+     * then being written to disk for nobody.
+     */
+    private static final Map<ImageWrapper, WeakReference<FileBackedImage>> WRAP_CACHE = new WeakHashMap<>();
     private static final Lock CACHE_LOCK = new ReentrantLock();
     private static final int AUTOFLUSH_TIMEOUT = 10_000;
     private static final int DEFAULT_RW_BUFFER_SIZE = 65536;
@@ -120,13 +128,7 @@ public final class FileBackedImage implements ImageWrapper {
                     // wrap path uses CACHE_LOCK as backpressure under pressure,
                     // so we hold it as briefly as possible here to avoid
                     // serializing wraps for non-throttle reasons.
-                    List<FileBackedImage> snapshot;
-                    CACHE_LOCK.lock();
-                    try {
-                        snapshot = new ArrayList<>(WRAP_CACHE.values());
-                    } finally {
-                        CACHE_LOCK.unlock();
-                    }
+                    var snapshot = liveCachedImages();
                     try {
                         var candidates = snapshot.stream()
                                 .filter(fbi -> fbi.unwrapped.get() != null)
@@ -214,7 +216,8 @@ public final class FileBackedImage implements ImageWrapper {
             }
             CACHE_LOCK.lock();
             try {
-                var cached = WRAP_CACHE.get(wrapper);
+                var cachedRef = WRAP_CACHE.get(wrapper);
+                var cached = cachedRef == null ? null : cachedRef.get();
                 if (cached != null) {
                     event.cached = true;
                     return cached;
@@ -224,17 +227,13 @@ public final class FileBackedImage implements ImageWrapper {
                 try {
                     var backingFile = TemporaryFolder.newTempFile("jsolex", ".img");
                     Files.delete(backingFile);
-                    if (wrapper instanceof ImageWrapper32 mono) {
-                        var result = new FileBackedImage(width, height, backingFile, mono.metadata(), null, mono);
-                        WRAP_CACHE.put(wrapper, result);
-                        return result;
-                    }
-                    if (wrapper instanceof RGBImage rgb) {
-                        var fileBackedImage = new FileBackedImage(width, height, backingFile, rgb.metadata(), null, rgb);
-                        WRAP_CACHE.put(wrapper, fileBackedImage);
-                        return fileBackedImage;
-                    }
-                    throw new ProcessingException("Unexpected image type " + wrapper);
+                    var result = switch (wrapper) {
+                        case ImageWrapper32 mono -> new FileBackedImage(width, height, backingFile, mono.metadata(), null, mono);
+                        case RGBImage rgb -> new FileBackedImage(width, height, backingFile, rgb.metadata(), null, rgb);
+                        default -> throw new ProcessingException("Unexpected image type " + wrapper);
+                    };
+                    WRAP_CACHE.put(wrapper, new WeakReference<>(result));
+                    return result;
                 } catch (IOException ex) {
                     throw new ProcessingException(ex);
                 }
@@ -281,16 +280,9 @@ public final class FileBackedImage implements ImageWrapper {
     private static void doFlush() {
         // CACHE_LOCK is held only to snapshot the cache, not during the disk
         // I/O: concurrent wrap() calls are therefore not back-pressured.
-        List<FileBackedImage> fbiToFlush;
-        CACHE_LOCK.lock();
-        try {
-            fbiToFlush = WRAP_CACHE.values()
-                    .stream()
-                    .filter(fbi -> fbi.unwrapped.get() != null)
-                    .toList();
-        } finally {
-            CACHE_LOCK.unlock();
-        }
+        var fbiToFlush = liveCachedImages().stream()
+                .filter(fbi -> fbi.unwrapped.get() != null)
+                .toList();
         if (fbiToFlush.isEmpty()) {
             return;
         }
@@ -311,6 +303,27 @@ public final class FileBackedImage implements ImageWrapper {
             event.commit();
         }
         LOGGER.debug("Flushed images");
+    }
+
+    /**
+     * Snapshots the file-backed images which are still reachable from the
+     * cache. The lock is held only for the copy so that wrap() callers are not
+     * serialized behind disk I/O.
+     */
+    private static List<FileBackedImage> liveCachedImages() {
+        CACHE_LOCK.lock();
+        try {
+            var live = new ArrayList<FileBackedImage>(WRAP_CACHE.size());
+            for (var ref : WRAP_CACHE.values()) {
+                var fbi = ref.get();
+                if (fbi != null) {
+                    live.add(fbi);
+                }
+            }
+            return live;
+        } finally {
+            CACHE_LOCK.unlock();
+        }
     }
 
     /**
@@ -423,7 +436,7 @@ public final class FileBackedImage implements ImageWrapper {
         unwrapped = new ImageReference(read, this, REFERENCE_QUEUE, false);
         CACHE_LOCK.lock();
         try {
-            WRAP_CACHE.put(read, this);
+            WRAP_CACHE.put(read, new WeakReference<>(this));
         } finally {
             CACHE_LOCK.unlock();
         }
@@ -602,7 +615,7 @@ public final class FileBackedImage implements ImageWrapper {
 
     /**
      * Clears the wrap deduplication cache so a new processing session starts from
-     * a clean state. This only drops the weak {@code original -> FileBackedImage}
+     * a clean state. This only drops the {@code original -> FileBackedImage}
      * mapping used to avoid wrapping the same image twice; it does not touch the
      * reference counts or status of images that are still live, so backing files
      * referenced by reachable instances remain valid and are deleted by the
