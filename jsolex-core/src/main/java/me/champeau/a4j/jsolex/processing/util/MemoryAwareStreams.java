@@ -42,6 +42,22 @@ public final class MemoryAwareStreams {
         return underPressure() ? stream : stream.parallel();
     }
 
+    /**
+     * Number of tasks which can run concurrently when each of them needs
+     * {@code bytesPerLane} of heap that cannot be spilled to disk: half of the
+     * heap still available, divided by that working set, between one lane and
+     * one per core.
+     */
+    public static int parallelLanes(long bytesPerLane) {
+        var cores = Runtime.getRuntime().availableProcessors();
+        if (bytesPerLane <= 0) {
+            return cores;
+        }
+        var runtime = Runtime.getRuntime();
+        var available = runtime.maxMemory() - (runtime.totalMemory() - runtime.freeMemory());
+        return (int) Math.clamp(available / 2 / bytesPerLane, 1, cores);
+    }
+
     private static boolean underPressure() {
         var runtime = Runtime.getRuntime();
         return runtime.freeMemory() < PRESSURE_THRESHOLD * runtime.totalMemory();
