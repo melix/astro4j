@@ -86,6 +86,7 @@ import me.champeau.a4j.jsolex.app.jfx.ApplyUserRotation;
 import me.champeau.a4j.jsolex.app.jfx.AssistedEllipseFittingController;
 import me.champeau.a4j.jsolex.app.jfx.BatchProcessingHelper;
 import me.champeau.a4j.jsolex.app.jfx.CustomTooltip;
+import me.champeau.a4j.jsolex.app.jfx.DifferentialVelocityHelpOverlay;
 import me.champeau.a4j.jsolex.app.jfx.DocsHelper;
 import me.champeau.a4j.jsolex.app.jfx.EmbeddedServerController;
 import me.champeau.a4j.jsolex.app.jfx.ExplorerSupport;
@@ -2733,6 +2734,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             tab.setContent(null);
             tab.setDisable(true);
         }
+        rootStackPane.getChildren().removeIf(DifferentialVelocityHelpOverlay.class::isInstance);
     }
 
     private void updateBass2000Availability() {
