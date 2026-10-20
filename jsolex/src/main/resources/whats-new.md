@@ -2,22 +2,22 @@
 
 ## What's New in Version 5.6.0
 
-- New "H-alpha cloud model" tool, in the drop-down list of the right panel: maps of the temperature, mass and velocity of the absorbing material (filaments, fibrils...), obtained by fitting the line profile at each point of the disk.
+- New "H-alpha cloud model" tool, which maps the temperature, mass and velocity of filaments and fibrils.
 - GPU acceleration is now enabled by default.
-- Fixed the solar latitudes and longitudes given to Python scripts and used by the differential rotation measurement, which could be mirrored depending on the flips applied to the image.
-- New `line_fit` script function, which measures an emission line pixel by pixel without mistaking the absorption lines of the background light for emission.
-- New `denoise` script function, which removes the noise of an image while keeping its details, and `a_trous` function, which splits an image into details of different sizes.
-- The `destripe` function can now strengthen the correction near the solar disk, where the banding is often stronger than in the sky, and `disk_fill` can fill a thin band around the disk.
-- Fixed the command line version, which always used the Sol'Ex settings instead of the instrument of the configuration file, ignored the script parameters it contains, and did not save the images emitted by Python scripts.
-- The `dedistort` function is much faster when GPU acceleration is not used.
-- Fixed GPU acceleration, which was always disabled on Windows, even when enabled in the settings.
-- Fixed GPU acceleration, which stayed disabled without notice after a crash at startup: the recovery dialog now offers to retry it, along with the 3D viewer.
-- Fixed the progress bar, which could keep spinning after the end of a batch.
-- Fixed batch scripts which mixed images and values, when some images were rejected during the batch review.
-- Fixed the cropped or rotated animations, which were not added to the group of the original animation, and a wait indicator is now shown while the editor opens.
-- Fixed the `deghost` function, which could leave a sharp ring around the disk where the removal stopped. It can also find the reflections on a reference image, such as the stack of all images, so that they no longer flicker in an animation.
-- Reduced memory usage and temporary disk writes during processing and when generating Doppler animations and panels.
-- Fixed the images of the previous file staying in memory and in the disk cache after opening a new one.
+- Reduced memory and disk usage during processing.
+- Fixed the images of the previous file staying in memory after opening a new one.
+- Fixed GPU acceleration always being disabled on Windows.
+- The recovery dialog shown after a crash at startup can now re-enable GPU acceleration.
+- Fixed the differential rotation measurement on flipped images.
+- Fixed the progress bar spinning after the end of a batch.
+- Fixed batch scripts mixing images and values when images are rejected during the review.
+- Fixed cropped or rotated animations not being added to the group of the original animation.
+- Fixed the `deghost` function leaving a sharp ring around the disk.
+- New `denoise` script function, which removes noise while keeping details.
+- New `line_fit` script function, which measures an emission line pixel by pixel.
+- New `a_trous` script function, which splits an image into details of different sizes.
+- The `dedistort` function is much faster without GPU acceleration.
+- Fixed several issues in the command line version.
 
 ## What's New in Version 5.5.2
 

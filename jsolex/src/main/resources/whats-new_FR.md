@@ -2,22 +2,22 @@
 
 ## Nouveautés de la version 5.6.0
 
-- Nouvel outil « Modèle de nuage H-alpha », dans la liste déroulante du panneau de droite : cartes de température, de masse et de vitesse de la matière absorbante (filaments, fibrilles...), obtenues en ajustant le profil de la raie en chaque point du disque.
+- Nouvel outil « Modèle de nuage H-alpha », qui cartographie la température, la masse et la vitesse des filaments et des fibrilles.
 - L'accélération GPU est désormais activée par défaut.
-- Correction des latitudes et longitudes solaires fournies aux scripts Python et utilisées par la mesure de la rotation différentielle, qui pouvaient être inversées selon les retournements appliqués à l'image.
-- Nouvelle fonction de script `line_fit`, qui mesure une raie d'émission pixel par pixel sans confondre les raies d'absorption de la lumière de fond avec de l'émission.
-- Nouvelle fonction de script `denoise`, qui retire le bruit d'une image en conservant ses détails, et fonction `a_trous`, qui sépare une image en détails de différentes tailles.
-- La fonction `destripe` peut désormais renforcer la correction près du disque solaire, où les bandes sont souvent plus marquées que dans le ciel, et `disk_fill` peut remplir une fine bande autour du disque.
-- Correction de la version en ligne de commande, qui utilisait toujours les réglages du Sol'Ex au lieu de l'instrument du fichier de configuration, ignorait les paramètres des scripts qu'il contient et n'enregistrait pas les images émises par les scripts Python.
-- La fonction `dedistort` est beaucoup plus rapide lorsque l'accélération GPU n'est pas utilisée.
-- Correction de l'accélération GPU, qui était toujours désactivée sous Windows, même lorsqu'elle était activée dans les réglages.
-- Correction de l'accélération GPU, qui restait désactivée sans prévenir après un crash au démarrage : la fenêtre de reprise propose désormais de la réessayer, avec le visualiseur 3D.
-- Correction de la barre de progression, qui pouvait continuer à tourner après la fin d'un traitement par lots.
-- Correction des scripts de fin de traitement par lots qui mélangeaient images et valeurs, lorsque des images avaient été rejetées lors de la revue.
-- Correction des animations rognées ou pivotées, qui n'étaient pas ajoutées au groupe de l'animation d'origine. Une animation d'attente s'affiche aussi pendant l'ouverture de l'éditeur.
-- Correction de la fonction `deghost`, qui pouvait laisser un anneau net autour du disque, là où la suppression s'arrêtait. Elle peut aussi repérer les reflets sur une image de référence, par exemple l'empilement de toutes les images, pour qu'ils ne clignotent plus dans une animation.
-- Réduction de la mémoire utilisée et des écritures temporaires sur disque pendant le traitement et lors de la génération des animations et panneaux Doppler.
-- Correction des images du fichier précédent qui restaient en mémoire et dans le cache disque après l'ouverture d'un nouveau fichier.
+- Réduction de la mémoire et de l'espace disque utilisés pendant le traitement.
+- Correction des images du fichier précédent qui restaient en mémoire après l'ouverture d'un nouveau fichier.
+- Correction de l'accélération GPU, qui était toujours désactivée sous Windows.
+- La fenêtre affichée après un plantage au démarrage permet désormais de réactiver l'accélération GPU.
+- Correction de la mesure de la rotation différentielle sur les images retournées.
+- Correction de la barre de progression qui pouvait continuer à tourner après la fin d'un traitement par lots.
+- Correction des scripts de fin de traitement par lots qui mélangeaient images et valeurs lorsque des images étaient rejetées lors de la revue.
+- Correction des animations rognées ou pivotées, qui n'étaient pas ajoutées au groupe de l'animation d'origine.
+- Correction de la fonction `deghost`, qui pouvait laisser un anneau net autour du disque.
+- Nouvelle fonction de script `denoise`, qui retire le bruit d'une image en conservant ses détails.
+- Nouvelle fonction de script `line_fit`, qui mesure une raie d'émission pixel par pixel.
+- Nouvelle fonction de script `a_trous`, qui sépare une image en détails de différentes tailles.
+- La fonction `dedistort` est beaucoup plus rapide sans accélération GPU.
+- Correction de plusieurs problèmes de la version en ligne de commande.
 
 ## Nouveautés de la version 5.5.2
 
