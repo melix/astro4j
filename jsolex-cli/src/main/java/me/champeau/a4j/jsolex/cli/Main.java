@@ -35,7 +35,9 @@ import me.champeau.a4j.jsolex.processing.params.SpectrumParams;
 import me.champeau.a4j.jsolex.processing.sun.SolexVideoProcessor;
 import me.champeau.a4j.jsolex.processing.util.ForkJoinParallelExecutor;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
+import me.champeau.a4j.jsolex.processing.util.NativeLibrariesUtils;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
+import me.champeau.a4j.math.opencl.OpenCLSupport;
 import me.champeau.a4j.math.tuples.DoublePair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,6 +67,10 @@ import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectorie
 public class Main implements Runnable {
     private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
 
+    static {
+        NativeLibrariesUtils.ensureNativesLoaded();
+    }
+
     /** Creates a new instance. Required by Picocli. */
     public Main() {
     }
@@ -86,6 +92,9 @@ public class Main implements Runnable {
 
     @Option(names = {"--graalpy"}, description = "GraalPy executable to run Python scripts with (for example the graalpy of a virtual environment with numpy installed)")
     File graalPy;
+
+    @Option(names = {"--no-gpu"}, description = "Disable GPU acceleration")
+    boolean noGpu;
 
     @CommandLine.ArgGroup
     SpectrumOptions spectrumOptions = new SpectrumOptions();
@@ -118,6 +127,7 @@ public class Main implements Runnable {
             logger("me.champeau.a4j.jsolex.processing").setLevel(Level.ERROR);
             logger("me.champeau.a4j.math").setLevel(Level.ERROR);
         }
+        OpenCLSupport.configureDefault(noGpu);
         if (graalPy != null) {
             PythonScriptExecutor.setGraalPyExecutable(graalPy.toPath());
         }

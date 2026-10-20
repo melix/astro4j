@@ -31,8 +31,9 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * Provides runtime detection and management of OpenCL support.
  * Unlike {@link me.champeau.a4j.math.VectorApiSupport}, OpenCL acceleration
- * must be explicitly enabled by setting the environment variable
- * {@code OPENCL_ENABLED=true} or system property {@code opencl.enabled=true}.
+ * is only used when the environment variable {@code OPENCL_ENABLED=true} or
+ * the system property {@code opencl.enabled=true} is set. Applications turn it
+ * on by default with {@link #configureDefault(boolean)}.
  */
 public class OpenCLSupport {
     private static final Logger LOGGER = LoggerFactory.getLogger(OpenCLSupport.class);
@@ -143,6 +144,21 @@ public class OpenCLSupport {
      */
     public static boolean isPreviousCrashDetected() {
         return PREVIOUS_CRASH_DETECTED.get();
+    }
+
+    /**
+     * Enables OpenCL unless it is disabled, or was already configured with the
+     * {@value #OPENCL_SYSTEM_PROPERTY} system property or the
+     * {@value #OPENCL_ENV_VAR} environment variable.
+     *
+     * @param gpuDisabled true to disable OpenCL
+     */
+    public static void configureDefault(boolean gpuDisabled) {
+        if (gpuDisabled) {
+            System.setProperty(OPENCL_SYSTEM_PROPERTY, "false");
+        } else if (System.getProperty(OPENCL_SYSTEM_PROPERTY) == null && System.getenv(OPENCL_ENV_VAR) == null) {
+            System.setProperty(OPENCL_SYSTEM_PROPERTY, "true");
+        }
     }
 
     /**

@@ -3,6 +3,7 @@
 ## Nouveautés de la version 5.6.0
 
 - Nouvel outil « Modèle de nuage H-alpha », dans la liste déroulante du panneau de droite : cartes de température, de masse et de vitesse de la matière absorbante (filaments, fibrilles...), obtenues en ajustant le profil de la raie en chaque point du disque.
+- L'accélération GPU est désormais activée par défaut.
 - Correction des latitudes et longitudes solaires fournies aux scripts Python et utilisées par la mesure de la rotation différentielle, qui pouvaient être inversées selon les retournements appliqués à l'image.
 - Nouvelle fonction de script `line_fit`, qui mesure une raie d'émission pixel par pixel sans confondre les raies d'absorption de la lumière de fond avec de l'émission.
 - Nouvelle fonction de script `denoise`, qui retire le bruit d'une image en conservant ses détails, et fonction `a_trous`, qui sépare une image en détails de différentes tailles.

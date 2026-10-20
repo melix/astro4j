@@ -63,6 +63,7 @@ public class Configuration {
     private static final String ANIMATION_FORMATS = "animation.formats";
     private static final String SCRIPT_REPOSITORIES = "script.repositories";
     private static final String GPU_ACCELERATION = "gpu.acceleration";
+    private static final String GPU_ACCELERATION_DEFAULT_APPLIED = "gpu.acceleration.default.applied";
     private static final String BATCH_PARALLELISM = "batch.parallelism";
     private static final String GRAALPY_EXECUTABLE = "graalpy.executable";
     private static final String TEMP_DIRECTORY = "temp.directory";
@@ -101,6 +102,7 @@ public class Configuration {
             System.setProperty("jsolex.locale", selectedLanguage);
         }
 
+        applyGpuAccelerationDefault();
         // Set system property for GPU acceleration if configured
         if (isGpuAccelerationEnabled()) {
             System.setProperty("opencl.enabled", "true");
@@ -454,7 +456,14 @@ public class Configuration {
      * @return true if GPU acceleration is enabled
      */
     public boolean isGpuAccelerationEnabled() {
-        return prefs.getBoolean(GPU_ACCELERATION, false);
+        return prefs.getBoolean(GPU_ACCELERATION, true);
+    }
+
+    private void applyGpuAccelerationDefault() {
+        if (!prefs.getBoolean(GPU_ACCELERATION_DEFAULT_APPLIED, false)) {
+            prefs.putBoolean(GPU_ACCELERATION, true);
+            prefs.putBoolean(GPU_ACCELERATION_DEFAULT_APPLIED, true);
+        }
     }
 
     /**

@@ -44,6 +44,7 @@ import me.champeau.a4j.jsolex.processing.util.ImageSaver;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.DurationFormatter;
 import me.champeau.a4j.jsolex.processing.util.NativeLibrariesUtils;
+import me.champeau.a4j.math.opencl.OpenCLSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine.Command;
@@ -116,6 +117,10 @@ public class ScriptingEntryPoint implements Runnable {
     @Option(names = {"-c", "--config"}, description = "Configuration file")
     public File configFile;
 
+    /** Disables GPU acceleration. */
+    @Option(names = {"--no-gpu"}, description = "Disable GPU acceleration")
+    public boolean noGpu;
+
     private ProgressListener progressListener;
 
     /**
@@ -147,6 +152,7 @@ public class ScriptingEntryPoint implements Runnable {
                 logger("me.champeau.a4j.jsolex.processing").setLevel(Level.ERROR);
                 logger("me.champeau.a4j.math").setLevel(Level.ERROR);
             }
+            OpenCLSupport.configureDefault(noGpu);
             var processParams = createProcessParams();
             var imageFormats = imageFormats();
             var saver = new ImageSaver(CutoffStretchingStrategy.DEFAULT, processParams, imageFormats);
