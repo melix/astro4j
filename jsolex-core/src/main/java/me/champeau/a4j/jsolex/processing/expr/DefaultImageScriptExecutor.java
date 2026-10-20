@@ -167,7 +167,6 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                     List.of(invalidExpression),
                     Collections.emptySet(),
                     Collections.emptySet(),
-                    Collections.emptySet(),
                     false
             );
         } finally {
@@ -280,7 +279,6 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                 List.of(),
                 Collections.emptySet(),
                 Collections.emptySet(),
-                Collections.emptySet(),
                 false
         );
     }
@@ -317,7 +315,6 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                     Map.of(),
                     Map.of(),
                     List.of(invalidExpression),
-                    Collections.emptySet(),
                     Collections.emptySet(),
                     Collections.emptySet(),
                     false
@@ -403,7 +400,6 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
                 filesByLabel,
                 valuesByLabel,
                 invalidExpressions,
-                Collections.emptySet(),
                 evaluator.getShifts(),
                 evaluator.getAutoWavelenghts(),
                 evaluator.usesAutoContinuum()
@@ -527,7 +523,6 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
         Map<String, Object> valuesByLabel = new LinkedHashMap<>();
         List<InvalidExpression> invalidExpressions = new ArrayList<>();
         var resultsLock = new ReentrantLock();
-        var internalShifts = new TreeSet<Double>();
         var assignmentsBySectionName = new LinkedHashMap<String, List<Assignment>>();
         var outputAssignments = new HashSet<Assignment>();
         var nonAssignmentsBySectionIndex = new LinkedHashMap<Integer, List<Expression>>();
@@ -553,15 +548,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
             nonAssignmentsBySectionIndex.put(i, nonAssignments);
         }
 
-        for (int i = 0; i < sections.size(); i++) {
-            var section = sections.get(i);
-            var isOutputSection = section == outputSection;
-            if (isOutputSection) {
-                internalShifts.addAll(evaluator.getShifts());
-                evaluator.clearShifts();
-            }
-
-            var nonAssignments = nonAssignmentsBySectionIndex.get(i);
+        for (var nonAssignments : nonAssignmentsBySectionIndex.values()) {
             for (var expr : nonAssignments) {
                 try {
                     evaluator.evaluate(expr);
@@ -607,7 +594,7 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
             }
         }
 
-        return new ImageMathScriptResult(imagesByLabel, filesByLabel, valuesByLabel, invalidExpressions, internalShifts, evaluator.getShifts(), Collections.emptySet(), evaluator.usesAutoContinuum());
+        return new ImageMathScriptResult(imagesByLabel, filesByLabel, valuesByLabel, invalidExpressions, evaluator.getShifts(), Collections.emptySet(), evaluator.usesAutoContinuum());
     }
 
 

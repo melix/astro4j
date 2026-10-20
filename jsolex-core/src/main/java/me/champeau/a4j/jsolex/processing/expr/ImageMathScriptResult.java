@@ -26,8 +26,7 @@ public record ImageMathScriptResult(
         Map<String, FileOutputResult> filesByLabel,
         Map<String, Object> valuesByLabel,
         List<InvalidExpression> invalidExpressions,
-        Set<Double> internalShifts,
-        Set<Double> outputShifts,
+        Set<Double> pixelShifts,
         Set<Double> requestedWavelenghts,
         boolean autoContinuum) {
     public static final ImageMathScriptResult EMPTY = new ImageMathScriptResult(
@@ -35,7 +34,6 @@ public record ImageMathScriptResult(
             Map.of(),
             Map.of(),
             List.of(),
-            Set.of(),
             Set.of(),
             Set.of(),
             false

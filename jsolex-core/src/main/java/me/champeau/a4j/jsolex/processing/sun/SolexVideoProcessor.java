@@ -727,10 +727,11 @@ public class SolexVideoProcessor implements Broadcaster {
     }
 
     private WorkflowState findReferenceState(List<WorkflowState> imageList) {
-        return imageList.stream()
+        var emittingStates = imageList.stream().filter(i -> !i.isInternal()).toList();
+        return emittingStates.stream()
                 .filter(i -> i.pixelShift() == processParams.spectrumParams().pixelShift())
                 .findFirst()
-                .or(() -> imageList.stream().filter(i -> !i.isInternal()).findFirst())
+                .or(() -> emittingStates.stream().findFirst())
                 .orElse(imageList.getFirst());
     }
 

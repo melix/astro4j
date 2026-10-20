@@ -6,6 +6,7 @@
 <?import javafx.scene.control.Hyperlink?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.MenuButton?>
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
@@ -50,6 +51,12 @@
                     <Hyperlink fx:id="docsLink" text="%open.documentation" onAction="#openDocs"/>
                 </HBox>
 
+                <Label fx:id="sampleNotice" text="%sample.notice" styleClass="info-label" wrapText="true" maxWidth="Infinity" visible="false" managed="false">
+                    <VBox.margin>
+                        <Insets top="8"/>
+                    </VBox.margin>
+                </Label>
+
                 <!-- Script Text Area - This should take most of the space -->
                 <ImageMathTextArea fx:id="scriptTextArea" prefHeight="250" minHeight="200" VBox.vgrow="ALWAYS">
                     <VBox.margin>
@@ -59,8 +66,7 @@
                 
                 <!-- Script Controls - Keep these compact at bottom -->
                 <HBox alignment="CENTER_LEFT" spacing="12" VBox.vgrow="NEVER">
-                    <Label text="%predefined.scripts"/>
-                    <ChoiceBox fx:id="predefinedScripts" prefWidth="200"/>
+                    <MenuButton fx:id="addSampleButton" styleClass="default-button" mnemonicParsing="false" text="%add.sample"/>
                     <Button styleClass="default-button" mnemonicParsing="false" onAction="#newScript" text="%new" minWidth="80"/>
                     <Button styleClass="default-button" mnemonicParsing="false" onAction="#loadScript" text="%load" minWidth="80"/>
                     <Button fx:id="saveButton" styleClass="default-button" mnemonicParsing="false" onAction="#saveScript" text="%save" minWidth="80"/>
