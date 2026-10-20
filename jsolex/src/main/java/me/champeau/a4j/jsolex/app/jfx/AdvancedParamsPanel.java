@@ -356,7 +356,9 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
         }
         config.setAnimationFormats(animationFormats);
 
-        config.setGpuAccelerationEnabled(gpuAcceleration.isSelected());
+        if (gpuAcceleration.isSelected() != initialGpuAcceleration) {
+            config.setGpuAccelerationEnabled(gpuAcceleration.isSelected());
+        }
         if (openGlSupport.isSelected() != initialOpenGlEnabled) {
             if (openGlSupport.isSelected()) {
                 OpenGLAvailability.enableOpenGL();

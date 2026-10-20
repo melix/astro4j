@@ -39,7 +39,6 @@ public interface ImageMath {
      * @return an ImageMath instance
      */
     static ImageMath newInstance() {
-        // OpenCL requires explicit opt-in via OPENCL_ENABLED=true
         if (OpenCLSupport.isEnabled()) {
             return new OpenCLImageMath(OpenCLSupport.getContext());
         }
