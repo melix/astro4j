@@ -100,12 +100,15 @@ public final class WorkflowState {
         return Optional.ofNullable((T) obj);
     }
 
-    public int width() {
-        return image().width();
-    }
-
-    public int height() {
-        return image().height();
+    /**
+     * Drops the rotated image once the geometry-corrected one exists: nothing reads
+     * it afterwards, and keeping it would pin a full-size image per pixel shift
+     * during the Doppler, helium and script phases.
+     */
+    public void discardRotatedIfCorrected() {
+        if (findResult(WorkflowResults.GEOMETRY_CORRECTION).isPresent()) {
+            discardResult(WorkflowResults.ROTATED);
+        }
     }
 
     public double pixelShift() {

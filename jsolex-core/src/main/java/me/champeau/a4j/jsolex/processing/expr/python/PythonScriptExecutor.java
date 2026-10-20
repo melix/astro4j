@@ -433,7 +433,38 @@ public class PythonScriptExecutor {
      * @return the task result
      */
     public <T> T runExclusively(Supplier<T> task) {
-        return runUnderLock(task::get);
+        if (CONTEXT_LOCK.isHeldByCurrentThread() || OWNED_CONTEXT.isBound()) {
+            return task.get();
+        }
+        return runUnderLock(() -> {
+            try {
+                return task.get();
+            } finally {
+                releaseBindings(currentContext());
+            }
+        });
+    }
+
+    /**
+     * Drops what a run left in the context: the bridge, the synthetic module bound to it
+     * and the globals of the script. Contexts are shared or pooled, so without this the
+     * images and the processing session of the last script would stay reachable until
+     * the next run.
+     */
+    private static void releaseBindings(Context context) {
+        try {
+            context.eval("python", """
+                    import sys
+                    sys.modules.pop('jsolex', None)
+                    _keep = {'__builtins__', '__name__', '__doc__', '__package__', '__loader__', '__spec__', 'sys', 'os', 'polyglot',
+                             'VariableAccessor', 'FunctionAccessor', 'Outputs', 'ImageArithmetic', '_keep', '_name'}
+                    for _name in [n for n in list(globals()) if n not in _keep]:
+                        globals().pop(_name, None)
+                    del _keep
+                    """);
+        } catch (RuntimeException e) {
+            LOGGER.debug("Unable to release Python bindings", e);
+        }
     }
 
     /**
@@ -455,7 +486,13 @@ public class PythonScriptExecutor {
         }
         var context = owned.context();
         try {
-            return submit(owned.thread(), () -> ScopedValue.where(OWNED_CONTEXT, context).call(task::get));
+            return submit(owned.thread(), () -> ScopedValue.where(OWNED_CONTEXT, context).call(() -> {
+                try {
+                    return task.get();
+                } finally {
+                    releaseBindings(context);
+                }
+            }));
         } finally {
             IDLE_CONTEXTS.push(owned);
         }

@@ -21,18 +21,27 @@ import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.AnnulusMask;
+import me.champeau.a4j.jsolex.processing.util.CancellationSupport;
 import me.champeau.a4j.jsolex.processing.util.ImageMask;
 import me.champeau.a4j.jsolex.processing.util.MemoryAwareStreams;
+import me.champeau.a4j.jsolex.processing.util.ProcessingException;
+import me.champeau.a4j.jsolex.processing.util.ProcessingLogContext;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.math.regression.Ellipse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Comparator;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiPredicate;
 import java.util.function.DoubleBinaryOperator;
@@ -45,6 +54,7 @@ import java.util.stream.IntStream;
  */
 class AbstractFunctionImpl {
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractFunctionImpl.class);
+    private static final int WORKING_BUFFERS_PER_LANE = 8;
 
     /**
      * The evaluation context containing shared objects.
@@ -305,37 +315,68 @@ class AbstractFunctionImpl {
      * @return the list of results
      */
     @SuppressWarnings("unchecked")
+    /**
+     * Applies a function to every element of a list. Elements are processed concurrently,
+     * but the number of lanes is bounded by the heap which is still available: each lane
+     * holds several full-size working buffers which cannot be spilled to disk, so one lane
+     * per core would exhaust a small heap on large images.
+     */
     public List<Object> expandToImageList(String currentFunction,
                                           String key,
                                           Map<String, Object> arguments,
                                           Function<Map<String, Object>, Object> function) {
-        record IndexedObject(Object image, int idx) {
-        }
-        var listOfImages = (List) arguments.get(key);
-        var array = listOfImages.toArray(new Object[0]);
-        var itemsToProcess = IntStream.range(0, array.length)
-                .mapToObj(i -> new IndexedObject(array[i], i))
-                .toList();
+        var items = new ArrayList<>((List<?>) arguments.get(key));
+        var results = new Object[items.size()];
         var progress = new AtomicInteger(0);
         var parallelOperation = newOperation("ImageMath: " + currentFunction);
-        var processed = MemoryAwareStreams.maybeParallel(itemsToProcess.stream())
-                .map(o -> {
-                    var idx = o.idx;
-                    var image = o.image;
-                    var allArgs = new HashMap<>(arguments);
-                    allArgs.put(key, image);
-                    var p = progress.incrementAndGet();
-                    broadcaster.broadcast(parallelOperation.update(p / (double) array.length));
-                    var result = function.apply(allArgs);
-                    if (result instanceof ImageWrapper img) {
-                        // save memory!
-                        result = FileBackedImage.wrap(img);
-                    }
-                    return new IndexedObject(result, idx);
-                }).toList();
-        // iterate on keys to preserve order
+        var lanes = new Semaphore(MemoryAwareStreams.parallelLanes(workingSetOf(items)));
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            var futures = IntStream.range(0, items.size())
+                    .mapToObj(idx -> ProcessingLogContext.runAsync(executor, () -> {
+                        lanes.acquireUninterruptibly();
+                        try {
+                            CancellationSupport.checkCancelled();
+                            var allArgs = new HashMap<>(arguments);
+                            allArgs.put(key, items.get(idx));
+                            broadcaster.broadcast(parallelOperation.update(progress.incrementAndGet() / (double) items.size()));
+                            var result = function.apply(allArgs);
+                            if (result instanceof ImageWrapper img) {
+                                result = FileBackedImage.wrap(img);
+                            }
+                            results[idx] = result;
+                        } finally {
+                            lanes.release();
+                        }
+                    }))
+                    .toList();
+            joinAll(futures);
+        }
         broadcaster.broadcast(parallelOperation.complete());
-        return processed.stream().sorted(Comparator.comparingInt(IndexedObject::idx)).map(IndexedObject::image).toList();
+        return Collections.unmodifiableList(Arrays.asList(results));
+    }
+
+    private static long workingSetOf(List<?> items) {
+        return items.stream()
+                .filter(ImageWrapper.class::isInstance)
+                .map(ImageWrapper.class::cast)
+                .mapToLong(img -> (long) img.width() * img.height() * Float.BYTES * (img instanceof RGBImage ? 3 : 1))
+                .max()
+                .orElse(0) * WORKING_BUFFERS_PER_LANE;
+    }
+
+    private static void joinAll(List<CompletableFuture<Void>> futures) {
+        for (var future : futures) {
+            try {
+                future.join();
+            } catch (CompletionException e) {
+                switch (e.getCause()) {
+                    case RuntimeException runtime -> throw runtime;
+                    case Error error -> throw error;
+                    case Throwable other -> throw new ProcessingException(other);
+                    case null -> throw e;
+                }
+            }
+        }
     }
 
     private static void applyFunction(int width, int height, float[][] data, DoubleUnaryOperator function) {

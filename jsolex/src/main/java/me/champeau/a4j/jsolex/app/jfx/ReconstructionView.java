@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.app.jfx;
 
 import me.champeau.a4j.jsolex.app.util.FxUtils;
+import javafx.beans.value.ChangeListener;
 import javafx.geometry.Bounds;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -206,9 +207,13 @@ public class ReconstructionView extends BorderPane implements WithRootNode {
             }
         };
         scrollPane.localToSceneTransformProperty().addListener((o, a, b) -> update.run());
+        ChangeListener<Number> sceneWidthListener = (o2, a2, b2) -> update.run();
         sceneProperty().addListener((o, oldScene, scene) -> {
+            if (oldScene != null) {
+                oldScene.widthProperty().removeListener(sceneWidthListener);
+            }
             if (scene != null) {
-                scene.widthProperty().addListener((o2, a2, b2) -> update.run());
+                scene.widthProperty().addListener(sceneWidthListener);
                 FxUtils.runLater(update);
             }
         });

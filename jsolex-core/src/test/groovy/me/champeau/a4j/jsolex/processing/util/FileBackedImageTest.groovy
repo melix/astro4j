@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.util
 
 import spock.lang.Specification
 
+import java.lang.ref.WeakReference
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.CountDownLatch
@@ -205,6 +206,53 @@ class FileBackedImageTest extends Specification {
         then: "no OutOfMemoryError, every image was read correctly, and the GC released some of them"
         mismatches == 0
         handles.count { it.@unwrapped.get() == null } > 0
+    }
+
+    def "an image which is neither held nor wrapped again is collected without being written"() {
+        given: "an FBI under comfortable heap whose only holder is the test"
+        FileBackedImage.setPressureSupplierForTesting({ false } as BooleanSupplier)
+        def data = synthesise(256, 256, 11)
+        def image = new ImageWrapper32(256, 256, data, [:] as Map<Class<?>, Object>)
+        def fbi = FileBackedImage.wrap(image)
+        def backingFile = (Path) fbi.@backingFile
+        def weakImage = new WeakReference<FileBackedImage>(fbi)
+        def weakPixels = new WeakReference<float[][]>(data)
+
+        when: "every reference is dropped"
+        fbi = null
+        image = null
+        data = null
+        def deadline = System.nanoTime() + 10_000_000_000L
+        while (weakImage.get() != null && System.nanoTime() < deadline) {
+            System.gc()
+            Thread.sleep(20)
+        }
+
+        then: "the file-backed image and its pixels were collected, nothing reached the disk"
+        weakImage.get() == null
+        weakPixels.get() == null
+        !Files.exists(backingFile)
+    }
+
+    def "an image which is still held stays deduplicated and is flushed under pressure"() {
+        given: "a held FBI under comfortable heap"
+        FileBackedImage.setPressureSupplierForTesting({ false } as BooleanSupplier)
+        def data = synthesise(128, 128, 12)
+        def image = new ImageWrapper32(128, 128, data, [:] as Map<Class<?>, Object>)
+        def fbi = FileBackedImage.wrap(image)
+        3.times { System.gc(); Thread.sleep(20) }
+
+        expect: "wrapping again returns the same instance"
+        FileBackedImage.wrap(image).is(fbi)
+
+        when: "pressure rises and a flush pass runs"
+        FileBackedImage.setPressureSupplierForTesting({ true } as BooleanSupplier)
+        FileBackedImage.flushImages()
+
+        then: "the held image was written and its pixels are released from the holder"
+        statusSaved(fbi)
+        fbi.@unwrapped.@source == null
+        floatArraysEqual(((ImageWrapper32) fbi.unwrapToMemory()).data(), data)
     }
 
     def "concurrent unwrapToMemory after flush returns equivalent data"() {

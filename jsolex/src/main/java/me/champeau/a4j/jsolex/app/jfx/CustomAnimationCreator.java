@@ -308,15 +308,30 @@ public class CustomAnimationCreator {
             // ignore
         }
         stage.close();
-        if (generateAnim.isSelected()) {
-            BackgroundOperations.async(() -> redshiftProcessor.generateStandaloneAnimation(x, y, width(), height(), minPixelShift(), maxPixelShift(), title.getText(), "custom-anim", annotateAnim.isSelected(), Integer.parseInt(delay.getText()), asRGB(annotationColor.getValue())));
+        var animation = generateAnim.isSelected();
+        var panel = generatePanel.isSelected();
+        if (!animation && !panel) {
+            return;
         }
-        if (generatePanel.isSelected()) {
-            var panelTitle = title.getText().equals(String.format(message("custom.animation"), dopplerId))
-                    ? String.format(message("custom.panel"), dopplerId)
-                    : title.getText();
-            BackgroundOperations.async(() -> redshiftProcessor.generateStandalonePanel(x, y, width(), height(), minPixelShift(), maxPixelShift(), panelTitle, "custom-panel", asRGB(annotationColor.getValue())));
-        }
+        var animationTitle = title.getText();
+        var panelTitle = animationTitle.equals(String.format(message("custom.animation"), dopplerId))
+                ? String.format(message("custom.panel"), dopplerId)
+                : animationTitle;
+        var regionWidth = width();
+        var regionHeight = height();
+        var minShift = minPixelShift();
+        var maxShift = maxPixelShift();
+        var annotate = annotateAnim.isSelected();
+        var frameDelay = Integer.parseInt(delay.getText());
+        var color = asRGB(annotationColor.getValue());
+        BackgroundOperations.async(() -> {
+            if (animation) {
+                redshiftProcessor.generateStandaloneAnimation(x, y, regionWidth, regionHeight, minShift, maxShift, animationTitle, "custom-anim", annotate, frameDelay, color);
+            }
+            if (panel) {
+                redshiftProcessor.generateStandalonePanel(x, y, regionWidth, regionHeight, minShift, maxShift, panelTitle, "custom-panel", color);
+            }
+        });
     }
 
     private static int[] asRGB(Color color) {

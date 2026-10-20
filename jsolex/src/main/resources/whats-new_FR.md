@@ -15,6 +15,8 @@
 - Correction des scripts de fin de traitement par lots qui mélangeaient images et valeurs, lorsque des images avaient été rejetées lors de la revue.
 - Correction des animations rognées ou pivotées, qui n'étaient pas ajoutées au groupe de l'animation d'origine. Une animation d'attente s'affiche aussi pendant l'ouverture de l'éditeur.
 - Correction de la fonction `deghost`, qui pouvait laisser un anneau net autour du disque, là où la suppression s'arrêtait. Elle peut aussi repérer les reflets sur une image de référence, par exemple l'empilement de toutes les images, pour qu'ils ne clignotent plus dans une animation.
+- Réduction de la mémoire utilisée et des écritures temporaires sur disque pendant le traitement et lors de la génération des animations et panneaux Doppler.
+- Correction des images du fichier précédent qui restaient en mémoire et dans le cache disque après l'ouverture d'un nouveau fichier.
 
 ## Nouveautés de la version 5.5.2
 
