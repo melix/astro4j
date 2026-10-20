@@ -450,9 +450,8 @@ public class ImageSelector {
             if (Files.exists(file.toPath())) {
                 try {
                     var result = executor.execute(file.toPath(), ImageMathScriptExecutor.SectionKind.SINGLE);
-                    allShifts.addAll(result.internalShifts());
-                    internalPixelShifts.addAll(result.internalShifts());
-                    allShifts.addAll(result.outputShifts());
+                    allShifts.addAll(result.pixelShifts());
+                    internalPixelShifts.addAll(result.pixelShifts());
                     requestesWaveLengths.addAll(result.requestedWavelenghts());
                     autoContinuum |= result.autoContinuum();
                 } catch (IOException e) {

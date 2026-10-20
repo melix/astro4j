@@ -603,17 +603,21 @@ On the left side, "Scripts to execute", you will find the list of all scripts wh
 
 WARNING: This is really the list of scripts which are _applied_ in that session, not the list of available scripts! Click on the "remove" button to remove scripts from execution in the session.
 
-Scripts must be saved on your local disk and can be shared with other users.
+Scripts are files saved on your local disk, which can be shared with other users.
 Their contents is editable in the rightmost part of the interface.
 
-Start with removing the contents of the sample script and replace it with:
+The "Add a sample" button adds one of the sample scripts provided with JSol'Ex to the list.
+A sample is used as is, there is no need to save it.
+If you modify it, click on "Save as..." to keep your own copy, which then replaces the sample in the list.
+
+Click on "New" and type:
 
 [source]
 ----
 range(-10;10)
 ----
 
-Then click on "Save".
+Then click on "Save as...".
 Select a destination file and proceed: the script is now added to the list on the left, as being executed in this session.
 
 Click on "Ok" to close ImageMath and only keep the "geometry corrected (stretched)" images.

@@ -140,8 +140,7 @@ public class UserFunction {
         if (scriptResult.invalidExpressions().isEmpty()) {
             var result = evaluator.getVariable("result");
             if (result.isPresent()) {
-                scriptResult.internalShifts().forEach(shiftCollector);
-                scriptResult.outputShifts().forEach(shiftCollector);
+                scriptResult.pixelShifts().forEach(shiftCollector);
                 return result.get();
             }
             throw new IllegalStateException("No result variable found in function " + name);

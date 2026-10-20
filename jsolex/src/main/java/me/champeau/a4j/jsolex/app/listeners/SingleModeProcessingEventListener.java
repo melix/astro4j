@@ -1943,11 +1943,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 scriptExecutionContext
         );
         getVariables().forEach(collectingExecutor::putVariable);
-        var shiftCollectionResult = collectingExecutor.execute(script, SectionKind.SINGLE);
-        Set<Double> allShifts = new TreeSet<>();
-        allShifts.addAll(shiftCollectionResult.outputShifts());
-        allShifts.addAll(shiftCollectionResult.internalShifts());
-        return allShifts;
+        return new TreeSet<>(collectingExecutor.execute(script, SectionKind.SINGLE).pixelShifts());
     }
 
     @Override

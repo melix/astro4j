@@ -103,6 +103,7 @@ import me.champeau.a4j.jsolex.app.jfx.ProgressHandler;
 import me.champeau.a4j.jsolex.app.jfx.ProgressPathFormatter;
 import me.champeau.a4j.jsolex.app.jfx.ProgressTreeBuilder;
 import me.champeau.a4j.jsolex.app.jfx.ReferenceImageHelper;
+import me.champeau.a4j.jsolex.app.jfx.SampleScripts;
 import me.champeau.a4j.jsolex.app.jfx.ScriptParametersDialog;
 import me.champeau.a4j.jsolex.app.jfx.ScriptRepositoriesController;
 import me.champeau.a4j.jsolex.app.jfx.SerFileTrimmerController;
@@ -689,6 +690,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             progressTooltip.attachTo(progressBar);
             progressTooltip.addTriggerNode(progressLabel);
             configureIsolatedScriptExecution();
+            SampleScripts.refreshInstalled();
             imageMathScript.setPrefHeight(10000);
             imageMathScript.setAutoFoldMetaBlocks(true);
             initializeScriptLanguageChoice();

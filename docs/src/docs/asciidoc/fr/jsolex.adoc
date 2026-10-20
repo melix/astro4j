@@ -511,14 +511,18 @@ Dans la partie gauche, "Scripts à exécuter", nous trouvons la liste des script
 Les scripts sont des fichiers enregistrés sur votre disque, que vous pouvez partager avec d'autres utilisateurs.
 Leur contenu est éditable dans la partie droite de l'interface.
 
-Effacez le contenu du script d'exemple et remplacez le par:
+Le bouton "Ajouter un exemple" ajoute à la liste l'un des scripts exemples fournis avec JSol'Ex.
+Un exemple est utilisé tel quel, inutile de l'enregistrer.
+Si vous le modifiez, cliquez sur "Enregistrer sous..." pour garder votre propre copie, qui remplace alors l'exemple dans la liste.
+
+Cliquez sur "Nouveau" et saisissez:
 
 [source]
 ----
 range(-10;10)
 ----
 
-Puis cliquez sur "sauvegarder".
+Puis cliquez sur "Enregistrer sous...".
 Choisissez un fichier de destination et enregistrez.
 Le script apparaît désormais dans la liste de gauche, il sera appliqué lors du traitement.
 

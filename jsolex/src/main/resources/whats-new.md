@@ -4,7 +4,10 @@
 
 - New "H-alpha cloud model" tool, which maps the temperature, mass and velocity of filaments and fibrils.
 - GPU acceleration is now enabled by default.
+- Sample scripts of the script editor can now be used directly, without saving them first.
 - Reduced memory and disk usage during processing.
+- Fixed scripts producing extra images for every wavelength they use, in addition to their outputs.
+- Fixed the script editor sometimes not warning about unsaved changes.
 - Fixed the images of the previous file staying in memory after opening a new one.
 - Fixed GPU acceleration always being disabled on Windows.
 - The recovery dialog shown after a crash at startup can now re-enable GPU acceleration.

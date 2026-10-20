@@ -465,10 +465,9 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         );
     }
 
-    private PixelShifts findPixelShifts(ImageMathParams params) {
+    private Set<Double> findPixelShifts(ImageMathParams params) {
         var executor = createScriptExecutor();
-        var normalShifts = new TreeSet<Double>();
-        var internalShifts = new TreeSet<Double>();
+        var shifts = new TreeSet<Double>();
         requestedWaveLengths = new TreeSet<>();
         autoContinuum = false;
         for (var file : params.scriptFiles()) {
@@ -483,8 +482,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
                     }
 
                     var result = executor.execute(file.toPath(), ImageMathScriptExecutor.SectionKind.SINGLE);
-                    internalShifts.addAll(result.internalShifts());
-                    normalShifts.addAll(result.outputShifts());
+                    shifts.addAll(result.pixelShifts());
                     requestedWaveLengths.addAll(result.requestedWavelenghts());
                     autoContinuum |= result.autoContinuum();
                 } catch (IOException e) {
@@ -493,7 +491,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
             }
         }
 
-        return new PixelShifts(normalShifts.stream().toList(), internalShifts.stream().toList());
+        return shifts;
     }
 
     private void openImageMath() {
@@ -843,9 +841,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         if (imageMathParams != null && !imageMathParams.equals(ImageMathParams.NONE)) {
             finalImageMathParams = imageMathParams;
 
-            var scriptPixelShifts = findPixelShifts(finalImageMathParams);
-            normalShifts.addAll(scriptPixelShifts.normalShifts());
-            internalShiftsSet.addAll(scriptPixelShifts.internalShifts());
+            internalShiftsSet.addAll(findPixelShifts(finalImageMathParams));
         }
 
         normalShifts.forEach(internalShiftsSet::remove);
@@ -959,7 +955,6 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         QUICK, FULL, CUSTOM
     }
 
-    private record PixelShifts(List<Double> normalShifts, List<Double> internalShifts) {}
 
     private void determineCurrentMode() {
         if (fullModeCheckBoxes.stream().allMatch(CheckBox::isSelected)) {

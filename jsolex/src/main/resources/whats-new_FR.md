@@ -4,7 +4,10 @@
 
 - Nouvel outil « Modèle de nuage H-alpha », qui cartographie la température, la masse et la vitesse des filaments et des fibrilles.
 - L'accélération GPU est désormais activée par défaut.
+- Les scripts exemples de l'éditeur de scripts peuvent désormais être utilisés directement, sans les enregistrer.
 - Réduction de la mémoire et de l'espace disque utilisés pendant le traitement.
+- Correction des scripts, qui produisaient des images supplémentaires pour chaque longueur d'onde utilisée, en plus de leurs résultats.
+- Correction de l'éditeur de scripts, qui ne prévenait pas toujours des modifications non enregistrées.
 - Correction des images du fichier précédent qui restaient en mémoire après l'ouverture d'un nouveau fichier.
 - Correction de l'accélération GPU, qui était toujours désactivée sous Windows.
 - La fenêtre affichée après un plantage au démarrage permet désormais de réactiver l'accélération GPU.
