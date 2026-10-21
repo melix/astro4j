@@ -561,7 +561,11 @@ public class ProcessingWorkflow {
         }
         var masked = new ImageWrapper32(width, height, sharpened, new HashMap<>(enhanced.metadata()));
         LinearStrechingStrategy.DEFAULT.stretch(masked);
-        new MidtoneTransferFunctionAutostretchStrategy().stretch(masked);
+        new MidtoneTransferFunctionAutostretchStrategy(
+                MidtoneTransferFunctionAutostretchStrategy.DEFAULT_SHADOWS_CLIP,
+                MidtoneTransferFunctionAutostretchStrategy.DEFAULT_TARGET_BG,
+                (x, y) -> maskData[y][x] > 0.999f
+        ).stretch(masked);
 
         // Prominences are kept positive and blended back outside the disk
         var protus = enhanced.copy();

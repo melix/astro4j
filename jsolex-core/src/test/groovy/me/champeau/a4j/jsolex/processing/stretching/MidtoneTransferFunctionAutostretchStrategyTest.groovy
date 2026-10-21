@@ -53,6 +53,48 @@ class MidtoneTransferFunctionAutostretchStrategyTest extends Specification {
         image.data()[0][0] == 0f
     }
 
+    def "statistics restricted to a small disk do not saturate it"() {
+        given:
+        var size = 256
+        var radius = 72
+        var data = new float[size][size]
+        var random = new Random(42)
+        for (int y = 0; y < size; y++) {
+            for (int x = 0; x < size; x++) {
+                data[y][x] = isInDisk(x, y, size, radius) ? (float) (8000 + 4000 * random.nextFloat()) : 300f
+            }
+        }
+        var unmasked = new ImageWrapper32(size, size, data, [:])
+        var masked = unmasked.copy()
+
+        when:
+        new MidtoneTransferFunctionAutostretchStrategy(-2.8, 0.25, null).stretch(unmasked)
+        new MidtoneTransferFunctionAutostretchStrategy(-2.8, 0.25, { x, y -> isInDisk(x, y, size, radius) }).stretch(masked)
+
+        then:
+        unmasked.data()[size / 2 as int][size / 2 as int] / MAX > 0.99
+        Math.abs(medianInDisk(masked, radius) / MAX - 0.25) < 0.05
+    }
+
+    private static boolean isInDisk(int x, int y, int size, int radius) {
+        var dx = x - size / 2
+        var dy = y - size / 2
+        return dx * dx + dy * dy <= radius * radius
+    }
+
+    private static double medianInDisk(ImageWrapper32 image, int radius) {
+        var values = []
+        for (int y = 0; y < image.height(); y++) {
+            for (int x = 0; x < image.width(); x++) {
+                if (isInDisk(x, y, image.width(), radius)) {
+                    values << image.data()[y][x]
+                }
+            }
+        }
+        values.sort()
+        return values[values.size() / 2 as int]
+    }
+
     private static ImageWrapper32 noisyBackground(float level) {
         var width = 128
         var height = 128
