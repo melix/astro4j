@@ -1,5 +1,9 @@
 # Welcome to JSol'Ex {{version}}!
 
+## What's New in Version 5.6.1
+
+- Fixed the negative image being saturated when the image is cropped with a large margin around the Sun.
+
 ## What's New in Version 5.6.0
 
 - New "H-alpha cloud model" tool, which maps the temperature, mass and velocity of filaments and fibrils.

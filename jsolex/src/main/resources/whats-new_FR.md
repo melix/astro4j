@@ -1,5 +1,9 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+## Nouveautés de la version 5.6.1
+
+- Correction de l'image négative, qui était saturée lorsque l'image était recadrée avec une grande marge autour du Soleil.
+
 ## Nouveautés de la version 5.6.0
 
 - Nouvel outil « Modèle de nuage H-alpha », qui cartographie la température, la masse et la vitesse des filaments et des fibrilles.
