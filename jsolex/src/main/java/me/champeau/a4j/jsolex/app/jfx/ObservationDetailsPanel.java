@@ -40,6 +40,9 @@ import me.champeau.a4j.ser.Header;
 
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -303,7 +306,7 @@ public class ObservationDetailsPanel extends BaseParameterPanel {
         return defaults
             .withObserver(observerName.getText())
             .withEmail(email.getText())
-            .withDate(observationDate.getText() != null ? ZonedDateTime.parse(observationDate.getText()) : ZonedDateTime.now())
+            .withDate(observationDate.getText() != null ? ZonedDateTime.parse(observationDate.getText().trim()) : ZonedDateTime.now())
             .withCoordinates(coordinates)
             .withInstrument(instrument.getValue())
             .withTelescope(telescope.getText())
@@ -416,6 +419,64 @@ public class ObservationDetailsPanel extends BaseParameterPanel {
             return Optional.of(new PixelSizeMismatch(cameraName, enteredPixelSize, inferredPixelSize));
         }
         return Optional.empty();
+    }
+
+    /**
+     * Returns the fields which prevent processing: missing or invalid required values, and
+     * optional values which were entered but are invalid.
+     *
+     * @return the invalid fields
+     */
+    public List<InvalidField> findInvalidFields() {
+        var invalid = new ArrayList<InvalidField>();
+        if (!isValidDate(observationDate.getText())) {
+            invalid.add(invalidField("utc.date", observationDate));
+        }
+        if (!isFiniteNumber(pixelSize.getText()) || parseDoubleOrNull(pixelSize.getText()) <= 0) {
+            invalid.add(invalidField("pixel.size", pixelSize));
+        }
+        if (!isBlank(latitude.getText()) || !isBlank(longitude.getText())) {
+            if (!isWithinRange(latitude.getText(), 90)) {
+                invalid.add(invalidField("latitude", latitude));
+            }
+            if (!isWithinRange(longitude.getText(), 180)) {
+                invalid.add(invalidField("longitude", longitude));
+            }
+        }
+        addIfInvalidOptionalPositiveInteger(invalid, "focal.length", focalLength);
+        addIfInvalidOptionalPositiveInteger(invalid, "aperture", aperture);
+        addIfInvalidOptionalPositiveInteger(invalid, "stop", stop);
+        return invalid;
+    }
+
+    private static boolean isBlank(String text) {
+        return text == null || text.isBlank();
+    }
+
+    private static boolean isValidDate(String text) {
+        if (isBlank(text)) {
+            return false;
+        }
+        try {
+            ZonedDateTime.parse(text.trim());
+            return true;
+        } catch (DateTimeParseException e) {
+            return false;
+        }
+    }
+
+    private boolean isWithinRange(String text, double maxAbsoluteValue) {
+        return isFiniteNumber(text) && Math.abs(parseDoubleOrNull(text)) <= maxAbsoluteValue;
+    }
+
+    private void addIfInvalidOptionalPositiveInteger(List<InvalidField> invalid, String labelKey, TextField field) {
+        if (isBlank(field.getText())) {
+            return;
+        }
+        var value = parseIntegerOrNull(field.getText());
+        if (value == null || value <= 0) {
+            invalid.add(invalidField(labelKey, field));
+        }
     }
 
     /**

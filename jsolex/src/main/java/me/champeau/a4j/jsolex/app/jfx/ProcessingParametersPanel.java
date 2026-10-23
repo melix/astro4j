@@ -286,15 +286,10 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
             return;
         }
 
-        try {
-            int fixedWidth = Integer.parseInt(fixedWidthField.getText());
-            boolean showWarning = fixedWidth > sourceWidth * 1.25;
-            fixedWidthWarning.setVisible(showWarning);
-            fixedWidthWarning.setManaged(showWarning);
-        } catch (NumberFormatException e) {
-            fixedWidthWarning.setVisible(false);
-            fixedWidthWarning.setManaged(false);
-        }
+        var fixedWidth = parseIntegerOrNull(fixedWidthField.getText());
+        var showWarning = fixedWidth != null && fixedWidth > sourceWidth * 1.25;
+        fixedWidthWarning.setVisible(showWarning);
+        fixedWidthWarning.setManaged(showWarning);
     }
 
     /**
@@ -573,14 +568,7 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
      */
     public GeometryParams getGeometryParams() {
         var defaults = ProcessParams.loadDefaults().geometryParams();
-        Integer fixedWidth = null;
-        if (autocropChoice.getValue() == AutocropMode.FIXED_WIDTH) {
-            try {
-                fixedWidth = Integer.parseInt(fixedWidthField.getText());
-            } catch (NumberFormatException e) {
-                fixedWidth = 1024;
-            }
-        }
+        var fixedWidth = autocropChoice.getValue() == AutocropMode.FIXED_WIDTH ? parseIntegerOrNull(fixedWidthField.getText()) : null;
         return defaults
                 .withRotation(rotationChoice.getValue())
                 .withAutocropMode(autocropChoice.getValue())
@@ -593,31 +581,47 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
     }
 
     /**
-     * Returns whether the panel contains valid parameters.
+     * Returns the fields which contain missing or invalid values.
      *
-     * @return true if all parameters are valid
+     * @return the invalid fields
      */
-    public boolean isValid() {
-        try {
-            var pixelShifts = parsePixelShifts(pixelShiftingField.getText());
-            if (pixelShifts.isEmpty()) {
-                return false;
-            }
-            parseDoubleLocaleIndependent(dopplerShiftingField.getText());
-            parseDoubleLocaleIndependent(continuumShiftingField.getText());
-            if (autocropChoice.getValue() == AutocropMode.FIXED_WIDTH) {
-                int width = Integer.parseInt(fixedWidthField.getText());
-                if (width <= 0) {
-                    return false;
-                }
-            }
-            if (batchMode && (!horizontalFlipCondition.isValid() || !verticalFlipCondition.isValid())) {
-                return false;
-            }
-            return isWavelengthValid();
-        } catch (NumberFormatException e) {
-            return false;
+    public List<InvalidField> findInvalidFields() {
+        var invalid = new ArrayList<InvalidField>();
+        if (!isWavelengthValid()) {
+            invalid.add(invalidField("wavelength", wavelengthChoice.getValue() == null ? wavelengthChoice : customWavelengthField));
         }
+        if (!arePixelShiftsValid()) {
+            invalid.add(invalidField("pixel.shifting", pixelShiftingField));
+        }
+        if (!isFiniteNumber(dopplerShiftingField.getText())) {
+            invalid.add(invalidField("doppler.shifting", dopplerShiftingField));
+        }
+        if (!isFiniteNumber(continuumShiftingField.getText())) {
+            invalid.add(invalidField("continuum.shift", continuumShiftingField));
+        }
+        if (autocropChoice.getValue() == AutocropMode.FIXED_WIDTH) {
+            var width = parseIntegerOrNull(fixedWidthField.getText());
+            if (width == null || width <= 0) {
+                invalid.add(invalidField("fixed.width", fixedWidthField));
+            }
+        }
+        if (batchMode && !horizontalFlipCondition.isValid()) {
+            invalid.add(invalidField("conditional.hflip", horizontalFlipCondition.pivotField));
+        }
+        if (batchMode && !verticalFlipCondition.isValid()) {
+            invalid.add(invalidField("conditional.vflip", verticalFlipCondition.pivotField));
+        }
+        return invalid;
+    }
+
+    private boolean arePixelShiftsValid() {
+        var text = pixelShiftingField.getText();
+        if (text == null) {
+            return true;
+        }
+        return Stream.of(text.split(";"))
+                .filter(part -> !part.isBlank())
+                .allMatch(this::isFiniteNumber);
     }
 
     /**
@@ -677,13 +681,6 @@ public class ProcessingParametersPanel extends BaseParameterPanel {
         }
 
         return shifts.isEmpty() ? List.of(0.0) : shifts;
-    }
-
-    private static double parseDoubleLocaleIndependent(String value) throws NumberFormatException {
-        // Replace comma with dot to handle different decimal separators
-        // Double.parseDouble always uses US locale (dot as decimal separator)
-        String normalized = value.replace(',', '.');
-        return Double.parseDouble(normalized);
     }
 
     /**
