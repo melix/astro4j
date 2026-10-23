@@ -54,6 +54,8 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Controller for the process parameters dialog.
@@ -334,6 +336,19 @@ public class ProcessParamsController {
     }
 
     private void process() {
+        // Check pixel size mismatch
+        var pixelSizeMismatch = observationPanel.checkPixelSizeMismatch();
+        if (pixelSizeMismatch.isPresent()) {
+            var mismatch = pixelSizeMismatch.get();
+            if (!handlePixelSizeMismatch(mismatch)) {
+                return;
+            }
+        }
+
+        if (!validateFields()) {
+            return;
+        }
+
         // Check altazimuth mode warning
         var obsDetails = observationPanel.getObservationDetails();
         if (obsDetails.altAzMode()) {
@@ -350,19 +365,32 @@ public class ProcessParamsController {
             }
         }
 
-        // Check pixel size mismatch
-        var pixelSizeMismatch = observationPanel.checkPixelSizeMismatch();
-        if (pixelSizeMismatch.isPresent()) {
-            var mismatch = pixelSizeMismatch.get();
-            if (!handlePixelSizeMismatch(mismatch)) {
-                return;
-            }
-        }
-
         collectParameters();
         ProcessParams.saveDefaults(processParams);
         completed = true;
         stage.close();
+    }
+
+    private boolean validateFields() {
+        var invalidProcessingFields = processingPanel.findInvalidFields();
+        var invalidObservationFields = observationPanel.findInvalidFields();
+        if (invalidProcessingFields.isEmpty() && invalidObservationFields.isEmpty()) {
+            return true;
+        }
+        var invalidFields = Stream.concat(invalidProcessingFields.stream(), invalidObservationFields.stream()).toList();
+        var message = I18N.string(JSolEx.class, "process-params", "invalid.fields") + "\n" + invalidFields.stream()
+                .map(field -> "- " + field.label())
+                .collect(Collectors.joining("\n"));
+        var alert = AlertFactory.error(message);
+        alert.initOwner(stage);
+        alert.showAndWait();
+        var sectionId = invalidProcessingFields.isEmpty() ? "observation" : "processing";
+        navigationSidebar.getNavigationItems().stream()
+                .filter(item -> sectionId.equals(item.getId()))
+                .findFirst()
+                .ifPresent(navigationSidebar::selectItem);
+        invalidFields.getFirst().field().requestFocus();
+        return false;
     }
 
     private boolean handlePixelSizeMismatch(ObservationDetailsPanel.PixelSizeMismatch mismatch) {
@@ -373,21 +401,24 @@ public class ProcessParamsController {
         var continueButton = new ButtonType(I18N.string(JSolEx.class, "process-params", "pixelsize.mismatch.continue"));
 
         String message;
+        List<ButtonType> buttons;
         if (mismatch.enteredValue() == null) {
             message = I18N.string(JSolEx.class, "process-params", "pixelsize.mismatch.empty")
                     .replace("{camera}", mismatch.cameraName())
                     .replace("{inferred}", inferredStr);
+            buttons = List.of(fixButton, ButtonType.CANCEL);
         } else {
             message = I18N.string(JSolEx.class, "process-params", "pixelsize.mismatch.different")
                     .replace("{camera}", mismatch.cameraName())
                     .replace("{entered}", String.valueOf(mismatch.enteredValue()))
                     .replace("{inferred}", inferredStr);
+            buttons = List.of(fixButton, continueButton, ButtonType.CANCEL);
         }
 
         var alert = AlertFactory.warning(message);
         alert.initOwner(stage);
         alert.setTitle(I18N.string(JSolEx.class, "process-params", "pixelsize.mismatch.title"));
-        alert.getButtonTypes().setAll(fixButton, continueButton, ButtonType.CANCEL);
+        alert.getButtonTypes().setAll(buttons);
 
         var result = alert.showAndWait();
         if (result.isPresent()) {

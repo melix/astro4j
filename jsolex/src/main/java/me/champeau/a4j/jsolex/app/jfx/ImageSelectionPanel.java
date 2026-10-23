@@ -381,7 +381,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
         result.addAll(controller.getProcessingPanel().getPixelShiftValues());
 
         if (continuum.isSelected() || activeRegions.isSelected() || redshift.isSelected() || ellermanBombs.isSelected()) {
-            result.add(Double.parseDouble(controller.getProcessingPanel().getContinuumShiftValue()));
+            result.add(parseDoubleLocaleIndependent(controller.getProcessingPanel().getContinuumShiftValue()));
         }
 
         return result.stream().toList();
@@ -390,12 +390,12 @@ public class ImageSelectionPanel extends BaseParameterPanel {
     private List<Double> calculateInternalPixelShiftsForSelectedImages() {
         var result = new TreeSet<Double>();
         if (doppler.isSelected() || dopplerRotationCorrected.isSelected() || dopplerEclipse.isSelected()) {
-            var ds = Double.parseDouble(controller.getProcessingPanel().getDopplerShiftValue());
+            var ds = parseDoubleLocaleIndependent(controller.getProcessingPanel().getDopplerShiftValue());
             result.add(ds);
             result.add(-ds);
         }
         if (ellermanBombs.isSelected()) {
-            result.add(Double.parseDouble(controller.getProcessingPanel().getContinuumShiftValue()));
+            result.add(parseDoubleLocaleIndependent(controller.getProcessingPanel().getContinuumShiftValue()));
         }
 
         return result.stream().toList();

@@ -39,6 +39,24 @@ public abstract class BaseParameterPanel extends VBox {
     }
 
     /**
+     * A field whose value prevents processing.
+     * @param label the label of the field
+     * @param field the field to focus
+     */
+    public record InvalidField(String label, Node field) {
+    }
+
+    /**
+     * Creates an invalid field entry.
+     * @param labelKey the i18n key of the field label
+     * @param field the field to focus
+     * @return the invalid field
+     */
+    protected static InvalidField invalidField(String labelKey, Node field) {
+        return new InvalidField(I18N.string(JSolEx.class, "process-params", labelKey), field);
+    }
+
+    /**
      * Creates a titled section container.
      * @param title the section title i18n key
      * @return the section container
@@ -239,7 +257,7 @@ public abstract class BaseParameterPanel extends VBox {
             return defaultValue;
         }
         try {
-            return Double.parseDouble(text.trim());
+            return parseDoubleLocaleIndependent(text);
         } catch (NumberFormatException e) {
             return defaultValue;
         }
@@ -255,10 +273,30 @@ public abstract class BaseParameterPanel extends VBox {
             return null;
         }
         try {
-            return Double.parseDouble(text.trim());
+            return parseDoubleLocaleIndependent(text);
         } catch (NumberFormatException e) {
             return null;
         }
+    }
+
+    /**
+     * Checks if the text is a finite number.
+     * @param text the text to check
+     * @return true if the text is a finite number
+     */
+    protected boolean isFiniteNumber(String text) {
+        var value = parseDoubleOrNull(text);
+        return value != null && Double.isFinite(value);
+    }
+
+    /**
+     * Parses a double, accepting either a dot or a comma as the decimal separator.
+     * @param text the text to parse
+     * @return the parsed double
+     * @throws NumberFormatException if the text is not a valid number
+     */
+    protected static double parseDoubleLocaleIndependent(String text) {
+        return Double.parseDouble(text.trim().replace(',', '.'));
     }
 
     /**
