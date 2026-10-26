@@ -2,6 +2,7 @@
 
 ## Nouveautés de la version 5.6.1
 
+- Traitements GPU plus rapides.
 - Correction d'un plantage lorsqu'un paramètre de traitement est incorrect.
 - Correction de l'image négative, qui était saturée lorsque l'image était recadrée avec une grande marge autour du Soleil.
 

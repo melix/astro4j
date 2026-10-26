@@ -301,7 +301,9 @@ class OpenCLImageMath extends VectorApiImageMath {
 
     private void enqueueConvolution(GpuOp op, GpuConvolutionPlan plan, long input, long temp, long output, int width, int height) {
         if (!plan.separable()) {
-            op.kernel("convolution", "convolve2d")
+            long kernelBytes = (long) plan.kernelWidth() * plan.kernelHeight() * Float.BYTES;
+            var kernelName = kernelBytes <= context.getCapabilities().maxConstantBufferSize() ? "convolve2d_const" : "convolve2d";
+            op.kernel("convolution", kernelName)
                     .arg(input).arg(plan.kernel2d()).arg(output)
                     .arg(width).arg(height).arg(plan.kernelWidth()).arg(plan.kernelHeight()).arg(plan.factor())
                     .run(width, height);

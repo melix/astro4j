@@ -14,45 +14,40 @@
  * limitations under the License.
  */
 
-// 2D convolution kernel with edge clamping
-
-__kernel void convolve2d(
-    __global const float* image,
-    __global const float* convKernel,
-    __global float* output,
-    int imgWidth,
-    int imgHeight,
-    int kWidth,
-    int kHeight,
-    float factor
-) {
-    int x = get_global_id(0);
-    int y = get_global_id(1);
-
-    if (x >= imgWidth || y >= imgHeight) {
-        return;
-    }
-
-    int kcx = kWidth / 2;
-    int kcy = kHeight / 2;
-
-    float sum = 0.0f;
-    for (int ky = 0; ky < kHeight; ky++) {
-        int sy = y + ky - kcy;
-        // Clamp to image bounds
-        sy = clamp(sy, 0, imgHeight - 1);
-
-        for (int kx = 0; kx < kWidth; kx++) {
-            int sx = x + kx - kcx;
-            // Clamp to image bounds
-            sx = clamp(sx, 0, imgWidth - 1);
-
-            sum += convKernel[ky * kWidth + kx] * image[sy * imgWidth + sx];
-        }
-    }
-
-    output[y * imgWidth + x] = sum * factor;
+// 2D convolution with edge clamping. The coefficients are read from constant
+// memory when the kernel fits the device constant buffer, from global memory
+// otherwise; both variants compute exactly the same sums.
+#define DEFINE_CONVOLVE2D(name, kernelSpace) \
+__kernel void name( \
+    __global const float* image, \
+    kernelSpace const float* convKernel, \
+    __global float* output, \
+    int imgWidth, \
+    int imgHeight, \
+    int kWidth, \
+    int kHeight, \
+    float factor \
+) { \
+    int x = get_global_id(0); \
+    int y = get_global_id(1); \
+    if (x >= imgWidth || y >= imgHeight) { \
+        return; \
+    } \
+    int kcx = kWidth / 2; \
+    int kcy = kHeight / 2; \
+    float sum = 0.0f; \
+    for (int ky = 0; ky < kHeight; ky++) { \
+        int sy = clamp(y + ky - kcy, 0, imgHeight - 1); \
+        for (int kx = 0; kx < kWidth; kx++) { \
+            int sx = clamp(x + kx - kcx, 0, imgWidth - 1); \
+            sum += convKernel[ky * kWidth + kx] * image[sy * imgWidth + sx]; \
+        } \
+    } \
+    output[y * imgWidth + x] = sum * factor; \
 }
+
+DEFINE_CONVOLVE2D(convolve2d, __global)
+DEFINE_CONVOLVE2D(convolve2d_const, __constant)
 
 // Horizontal pass of a separable (low-rank) convolution. No factor: the
 // vertical pass applies it on the final value.

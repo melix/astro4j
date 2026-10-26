@@ -19,22 +19,19 @@
 #define LANCZOS_A 3
 #define PI_F 3.14159265358979323846f
 
-// Compute sinc(x) = sin(pi*x) / (pi*x), handling x=0
-inline float sinc(float x) {
-    if (fabs(x) < 1e-7f) {
-        return 1.0f;
+// Lanczos-3 weights of the 6 taps around a sample coordinate with fractional
+// part f in [0, 1): tap t lies at distance d = f + 2 - t and weighs
+// sinc(d) * sinc(d / 3). As d differs from f by an integer,
+// sin(pi * d) = (-1)^t * sin(pi * f) is computed once for all the taps.
+inline void lanczos_weights(float f, float* w) {
+    float sinPiF = sinpi(f);
+    float scale = 3.0f / (PI_F * PI_F);
+    for (int t = 0; t < 2 * LANCZOS_A; t++) {
+        float d = f + (float) (LANCZOS_A - 1 - t);
+        float signedSin = (t & 1) ? -sinPiF : sinPiF;
+        float weight = scale * signedSin * sinpi(d / LANCZOS_A) / (d * d);
+        w[t] = fabs(d) < 1e-7f ? 1.0f : weight;
     }
-    float pix = PI_F * x;
-    return sin(pix) / pix;
-}
-
-// Lanczos kernel: sinc(x) * sinc(x/a) for |x| < a, 0 otherwise
-inline float lanczos_weight(float x) {
-    float absX = fabs(x);
-    if (absX >= LANCZOS_A) {
-        return 0.0f;
-    }
-    return sinc(x) * sinc(x / LANCZOS_A);
 }
 
 // Bilinear interpolation (fast, lower quality)
@@ -70,7 +67,7 @@ inline float bilinear_sample(
 
 // Lanczos-3 interpolation (high quality, slower)
 // The 2D kernel is separable: weights are computed once per row/column
-// instead of once per tap, which divides the transcendental call count by 6.
+// instead of once per tap.
 inline float lanczos_sample(
     __global const float* image,
     float xx, float yy,
@@ -81,10 +78,8 @@ inline float lanczos_sample(
 
     float wx[2 * LANCZOS_A];
     float wy[2 * LANCZOS_A];
-    for (int t = 0; t < 2 * LANCZOS_A; t++) {
-        wx[t] = lanczos_weight(xx - (x0 - LANCZOS_A + 1 + t));
-        wy[t] = lanczos_weight(yy - (y0 - LANCZOS_A + 1 + t));
-    }
+    lanczos_weights(xx - x0, wx);
+    lanczos_weights(yy - y0, wy);
 
     float sum = 0.0f;
     float weightSum = 0.0f;
@@ -121,9 +116,10 @@ inline float cubic_weight(float t) {
     }
 }
 
-// Bicubic interpolation of distortion grid
-inline float bicubic_grid_sample(
-    __global const float* grid,
+// Bicubic interpolation of both displacement grids at the same position
+inline float2 bicubic_grid_sample(
+    __global const float* gridDx,
+    __global const float* gridDy,
     float ax, float ay,
     int gridWidth, int gridHeight
 ) {
@@ -133,14 +129,21 @@ inline float bicubic_grid_sample(
     float dx = ax - x0;
     float dy = ay - y0;
 
-    float result = 0.0f;
+    float wx[4];
+    int xi[4];
+    for (int j = 0; j < 4; j++) {
+        wx[j] = cubic_weight(dx - (j - 1));
+        xi[j] = min(max(x0 - 1 + j, 0), gridWidth - 1);
+    }
+
+    float2 result = (float2)(0.0f, 0.0f);
     for (int i = 0; i < 4; i++) {
         float wy = cubic_weight(dy - (i - 1));
-        int yi = min(max(y0 - 1 + i, 0), gridHeight - 1);
+        int rowOffset = min(max(y0 - 1 + i, 0), gridHeight - 1) * gridWidth;
         for (int j = 0; j < 4; j++) {
-            int xi = min(max(x0 - 1 + j, 0), gridWidth - 1);
-            float wx = cubic_weight(dx - (j - 1));
-            result += grid[yi * gridWidth + xi] * wx * wy;
+            int idx = rowOffset + xi[j];
+            result.x += gridDx[idx] * wx[j] * wy;
+            result.y += gridDy[idx] * wx[j] * wy;
         }
     }
     return result;
@@ -188,8 +191,9 @@ __kernel void dedistort_sparse_lanczos(
     float dy = 0.0f;
 
     if (ax >= 0 && ax < gridWidth - 1 && ay >= 0 && ay < gridHeight - 1) {
-        dx = bicubic_grid_sample(gridDx, ax, ay, gridWidth, gridHeight);
-        dy = bicubic_grid_sample(gridDy, ax, ay, gridWidth, gridHeight);
+        float2 d = bicubic_grid_sample(gridDx, gridDy, ax, ay, gridWidth, gridHeight);
+        dx = d.x;
+        dy = d.y;
     }
 
     float srcX = sx + dx;
@@ -241,8 +245,9 @@ __kernel void dedistort_sparse_bilinear(
     float dy = 0.0f;
 
     if (ax >= 0 && ax < gridWidth - 1 && ay >= 0 && ay < gridHeight - 1) {
-        dx = bicubic_grid_sample(gridDx, ax, ay, gridWidth, gridHeight);
-        dy = bicubic_grid_sample(gridDy, ax, ay, gridWidth, gridHeight);
+        float2 d = bicubic_grid_sample(gridDx, gridDy, ax, ay, gridWidth, gridHeight);
+        dx = d.x;
+        dy = d.y;
     }
 
     float srcX = sx + dx;

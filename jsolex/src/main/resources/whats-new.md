@@ -2,6 +2,7 @@
 
 ## What's New in Version 5.6.1
 
+- Faster GPU processing.
 - Fixed a crash when a processing parameter is invalid.
 - Fixed the negative image being saturated when the image is cropped with a large margin around the Sun.
 

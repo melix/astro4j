@@ -18,10 +18,6 @@
  * replacing expensive CPU operations for large distortion grids.
  */
 
-// Maximum window size supported: 11x11 (halfWindow=5), yielding up to 120 neighbors
-// Uses ~1.9KB private memory per work-item (4 arrays × 120 × 4 bytes)
-#define MAX_NEIGHBORS 120
-
 // Number of histogram bins for approximate median computation
 #define NUM_BINS 512
 
@@ -143,51 +139,125 @@ __kernel void gaussian_smooth_vertical(
     output[gy * gridWidth + gx] = sum / weightSum;
 }
 
-/**
- * Finds approximate median using histogram-based approach.
- * O(n) instead of O(n²) for insertion sort.
- */
-inline float histogram_median(__private float* data, int n, float minVal, float maxVal) {
-    if (n == 0) return 0.0f;
-    if (n == 1) return data[0];
+// Tiled MAD filter: a work-group of at most MAD_LOCAL x MAD_LOCAL work-items
+// shares the grid values of its window plus a halo of MAD_MAX_HALF_WINDOW.
+#define MAD_LOCAL 8
+#define MAD_MAX_HALF_WINDOW 5
+#define MAD_TILE (MAD_LOCAL + 2 * MAD_MAX_HALF_WINDOW)
 
-    float range = maxVal - minVal;
-    if (range < 1e-10f) return minVal;
+// log2(NUM_BINS) bits of a bin index, selected 3 bits per round
+#define BIN_BITS 9
 
-    int histogram[NUM_BINS];
-    for (int i = 0; i < NUM_BINS; i++) {
-        histogram[i] = 0;
+inline int histogram_bin(float value, float minVal, float invBinWidth) {
+    int bin = (int)((value - minVal) * invBinWidth);
+    return clamp(bin, 0, NUM_BINS - 1);
+}
+
+typedef struct {
+    __local const float* tileDx;
+    __local const float* tileDy;
+    int gx, gy;
+    int lx, ly;
+    int halfWindow;
+    int gridWidth, gridHeight;
+} MadWindow;
+
+// Iterates over the neighbours of the window centre, excluding the centre
+// itself and positions outside the grid. The body receives the neighbour
+// values in vdx and vdy.
+#define FOR_EACH_NEIGHBOUR(win, vdx, vdy, body) \
+    for (int ny = (win).gy - (win).halfWindow; ny <= (win).gy + (win).halfWindow; ny++) { \
+        if (ny < 0 || ny >= (win).gridHeight) continue; \
+        int rowOffset = ((win).ly + ny - (win).gy + MAD_MAX_HALF_WINDOW) * MAD_TILE; \
+        for (int nx = (win).gx - (win).halfWindow; nx <= (win).gx + (win).halfWindow; nx++) { \
+            if (nx < 0 || nx >= (win).gridWidth || (nx == (win).gx && ny == (win).gy)) continue; \
+            int tileIdx = rowOffset + (win).lx + nx - (win).gx + MAD_MAX_HALF_WINDOW; \
+            float vdx = (win).tileDx[tileIdx]; \
+            float vdy = (win).tileDy[tileIdx]; \
+            body \
+        } \
     }
 
-    float binWidth = range / NUM_BINS;
-    float invBinWidth = 1.0f / binWidth;
+#define COUNT_BUCKET(key, prefix, shift, counts) { \
+    int match = ((key) >> ((shift) + 3)) == (prefix); \
+    int digit = ((key) >> (shift)) & 7; \
+    counts.s0 += match & (digit == 0); \
+    counts.s1 += match & (digit == 1); \
+    counts.s2 += match & (digit == 2); \
+    counts.s3 += match & (digit == 3); \
+    counts.s4 += match & (digit == 4); \
+    counts.s5 += match & (digit == 5); \
+    counts.s6 += match & (digit == 6); \
+    counts.s7 += match & (digit == 7); \
+}
 
-    for (int i = 0; i < n; i++) {
-        int bin = (int)((data[i] - minVal) * invBinWidth);
-        bin = clamp(bin, 0, NUM_BINS - 1);
-        histogram[bin]++;
-    }
-
-    int target = n / 2;
-    int cumsum = 0;
-    for (int i = 0; i < NUM_BINS; i++) {
-        cumsum += histogram[i];
-        if (cumsum > target) {
-            return minVal + (i + 0.5f) * binWidth;
+// Picks the bucket holding the element of rank k among the counted keys,
+// and updates the rank and the prefix accordingly.
+inline int select_bucket(int8 counts, int* k, int* prefix) {
+    int c[8] = {counts.s0, counts.s1, counts.s2, counts.s3, counts.s4, counts.s5, counts.s6, counts.s7};
+    int acc = 0;
+    int chosen = 7;
+    for (int b = 0; b < 8; b++) {
+        int next = acc + c[b];
+        if (*k < next) {
+            chosen = b;
+            break;
         }
+        acc = next;
     }
-    return (minVal + maxVal) * 0.5f;
+    *k -= acc;
+    *prefix = (*prefix << 3) | chosen;
+    return chosen;
 }
 
 /**
- * MAD-based outlier removal using histogram-based median.
- * Uses O(n) histogram approach instead of O(n²) insertion sort.
- * Can use larger work groups (8x8) due to reduced private memory.
- *
- * Global size: (gridWidth, gridHeight)
- * Local size: can be (8, 8) or similar
+ * Same value as the CPU histogram median over the neighbour values (or their
+ * absolute deviation from a centre when absolute is set): the centre of the bin
+ * holding the element of rank n / 2, found by a radix select on the bin indices
+ * instead of a 512-entry histogram.
  */
-__kernel void mad_filter_grid_histogram(
+inline float2 window_medians(const MadWindow* win, int n,
+                             float2 center, bool absolute,
+                             float2 minVal, float2 maxVal) {
+    float2 range = maxVal - minVal;
+    float2 binWidth = range / NUM_BINS;
+    float2 invBinWidth = 1.0f / binWidth;
+    int kx = n / 2;
+    int ky = n / 2;
+    int prefixX = 0;
+    int prefixY = 0;
+    for (int shift = BIN_BITS - 3; shift >= 0; shift -= 3) {
+        int8 countsX = (int8)(0);
+        int8 countsY = (int8)(0);
+        FOR_EACH_NEIGHBOUR(*win, vdx, vdy, {
+            float ax = absolute ? fabs(vdx - center.x) : vdx;
+            float ay = absolute ? fabs(vdy - center.y) : vdy;
+            int keyX = histogram_bin(ax, minVal.x, invBinWidth.x);
+            int keyY = histogram_bin(ay, minVal.y, invBinWidth.y);
+            COUNT_BUCKET(keyX, prefixX, shift, countsX);
+            COUNT_BUCKET(keyY, prefixY, shift, countsY);
+        })
+        select_bucket(countsX, &kx, &prefixX);
+        select_bucket(countsY, &ky, &prefixY);
+    }
+    float2 median;
+    median.x = minVal.x + (prefixX + 0.5f) * binWidth.x;
+    median.y = minVal.y + (prefixY + 0.5f) * binWidth.y;
+    median.x = (n == 1 || range.x < 1e-10f) ? minVal.x : median.x;
+    median.y = (n == 1 || range.y < 1e-10f) ? minVal.y : median.y;
+    return median;
+}
+
+/**
+ * MAD-based outlier removal with the approximate (histogram bin centre) median
+ * of the CPU implementation. The window is read from a shared tile and the
+ * medians are found by radix select on the bin indices, so no work-item needs
+ * a private histogram. halfWindow must not exceed MAD_MAX_HALF_WINDOW.
+ *
+ * Global size: (gridWidth, gridHeight) rounded up to the local size
+ * Local size: at most (MAD_LOCAL, MAD_LOCAL)
+ */
+__kernel void mad_filter_grid_tiled(
     __global const float* inputDx,
     __global const float* inputDy,
     __global float* outputDx,
@@ -197,78 +267,73 @@ __kernel void mad_filter_grid_histogram(
     const int halfWindow,
     const float madThreshold
 ) {
-    int gx = get_global_id(0);
-    int gy = get_global_id(1);
+    __local float tileDx[MAD_TILE * MAD_TILE];
+    __local float tileDy[MAD_TILE * MAD_TILE];
+
+    int lx = get_local_id(0);
+    int ly = get_local_id(1);
+    int localWidth = get_local_size(0);
+    int localHeight = get_local_size(1);
+    int originX = get_group_id(0) * localWidth;
+    int originY = get_group_id(1) * localHeight;
+
+    for (int i = ly * localWidth + lx; i < MAD_TILE * MAD_TILE; i += localWidth * localHeight) {
+        int tx = originX - MAD_MAX_HALF_WINDOW + i % MAD_TILE;
+        int ty = originY - MAD_MAX_HALF_WINDOW + i / MAD_TILE;
+        bool inside = tx >= 0 && tx < gridWidth && ty >= 0 && ty < gridHeight;
+        int idx = inside ? ty * gridWidth + tx : 0;
+        tileDx[i] = inside ? inputDx[idx] : 0.0f;
+        tileDy[i] = inside ? inputDy[idx] : 0.0f;
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    int gx = originX + lx;
+    int gy = originY + ly;
     if (gx >= gridWidth || gy >= gridHeight) return;
 
+    MadWindow win;
+    win.tileDx = tileDx;
+    win.tileDy = tileDy;
+    win.gx = gx;
+    win.gy = gy;
+    win.lx = lx;
+    win.ly = ly;
+    win.halfWindow = halfWindow;
+    win.gridWidth = gridWidth;
+    win.gridHeight = gridHeight;
+
     int idx = gy * gridWidth + gx;
-    float valueDx = inputDx[idx];
-    float valueDy = inputDy[idx];
+    float2 value = (float2)(inputDx[idx], inputDy[idx]);
 
-    float neighborsDx[MAX_NEIGHBORS];
-    float neighborsDy[MAX_NEIGHBORS];
-
-    float minDx = FLT_MAX, maxDx = -FLT_MAX;
-    float minDy = FLT_MAX, maxDy = -FLT_MAX;
-
+    float2 minVal = (float2)(FLT_MAX, FLT_MAX);
+    float2 maxVal = (float2)(-FLT_MAX, -FLT_MAX);
     int count = 0;
-    for (int ny = gy - halfWindow; ny <= gy + halfWindow; ny++) {
-        if (ny < 0 || ny >= gridHeight) continue;
-        for (int nx = gx - halfWindow; nx <= gx + halfWindow; nx++) {
-            if (nx < 0 || nx >= gridWidth) continue;
-            if (nx == gx && ny == gy) continue;
-            if (count >= MAX_NEIGHBORS) break;
-
-            int nidx = ny * gridWidth + nx;
-            float dx = inputDx[nidx];
-            float dy = inputDy[nidx];
-            neighborsDx[count] = dx;
-            neighborsDy[count] = dy;
-
-            minDx = fmin(minDx, dx);
-            maxDx = fmax(maxDx, dx);
-            minDy = fmin(minDy, dy);
-            maxDy = fmax(maxDy, dy);
-            count++;
-        }
-        if (count >= MAX_NEIGHBORS) break;
-    }
+    FOR_EACH_NEIGHBOUR(win, vdx, vdy, {
+        minVal = fmin(minVal, (float2)(vdx, vdy));
+        maxVal = fmax(maxVal, (float2)(vdx, vdy));
+        count++;
+    })
 
     if (count == 0) {
-        outputDx[idx] = valueDx;
-        outputDy[idx] = valueDy;
+        outputDx[idx] = value.x;
+        outputDy[idx] = value.y;
         return;
     }
 
-    float medianDx = histogram_median(neighborsDx, count, minDx, maxDx);
-    float medianDy = histogram_median(neighborsDy, count, minDy, maxDy);
+    float2 median = window_medians(&win, count, (float2)(0.0f, 0.0f), false, minVal, maxVal);
 
-    float absDiffDx[MAX_NEIGHBORS];
-    float absDiffDy[MAX_NEIGHBORS];
-    float minAbsDx = FLT_MAX, maxAbsDx = -FLT_MAX;
-    float minAbsDy = FLT_MAX, maxAbsDy = -FLT_MAX;
+    float2 minAbs = (float2)(FLT_MAX, FLT_MAX);
+    float2 maxAbs = (float2)(-FLT_MAX, -FLT_MAX);
+    FOR_EACH_NEIGHBOUR(win, vdx, vdy, {
+        float2 a = fabs((float2)(vdx, vdy) - median);
+        minAbs = fmin(minAbs, a);
+        maxAbs = fmax(maxAbs, a);
+    })
 
-    for (int i = 0; i < count; i++) {
-        float adx = fabs(neighborsDx[i] - medianDx);
-        float ady = fabs(neighborsDy[i] - medianDy);
-        absDiffDx[i] = adx;
-        absDiffDy[i] = ady;
-        minAbsDx = fmin(minAbsDx, adx);
-        maxAbsDx = fmax(maxAbsDx, adx);
-        minAbsDy = fmin(minAbsDy, ady);
-        maxAbsDy = fmax(maxAbsDy, ady);
-    }
+    float2 mad = window_medians(&win, count, median, true, minAbs, maxAbs) * 1.4826f;
+    mad = fmax(mad, (float2)(0.1f, 0.1f));
 
-    float madDx = histogram_median(absDiffDx, count, minAbsDx, maxAbsDx) * 1.4826f;
-    float madDy = histogram_median(absDiffDy, count, minAbsDy, maxAbsDy) * 1.4826f;
-
-    madDx = fmax(madDx, 0.1f);
-    madDy = fmax(madDy, 0.1f);
-
-    bool isOutlierDx = fabs(valueDx - medianDx) > madThreshold * madDx;
-    bool isOutlierDy = fabs(valueDy - medianDy) > madThreshold * madDy;
-
-    outputDx[idx] = isOutlierDx ? medianDx : valueDx;
-    outputDy[idx] = isOutlierDy ? medianDy : valueDy;
+    float2 deviation = fabs(value - median);
+    outputDx[idx] = deviation.x > madThreshold * mad.x ? median.x : value.x;
+    outputDy[idx] = deviation.y > madThreshold * mad.y ? median.y : value.y;
 }
-

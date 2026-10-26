@@ -66,18 +66,18 @@ inline int bitrev5(int n) {
 }
 
 
-// In-place 32-point Cooley-Tukey FFT
-// All 32 threads must call this together
+// In-place 32-point Cooley-Tukey FFT on the 32 elements data[0], data[stride],
+// ..., data[31 * stride]. All 32 threads must call this together.
 // direction: -1 for forward FFT, +1 for inverse FFT
-void fft32_inplace(__local float2* data, int tid, int direction) {
+void fft32_inplace(__local float2* data, int stride, int tid, int direction) {
     // Step 1: Bit-reversal permutation
     // Each thread swaps its element with its bit-reversed partner (if needed)
     barrier(CLK_LOCAL_MEM_FENCE);
     int rev = bitrev5(tid);
     if (tid < rev) {
-        float2 temp = data[tid];
-        data[tid] = data[rev];
-        data[rev] = temp;
+        float2 temp = data[tid * stride];
+        data[tid * stride] = data[rev * stride];
+        data[rev * stride] = temp;
     }
     barrier(CLK_LOCAL_MEM_FENCE);
 
@@ -86,16 +86,14 @@ void fft32_inplace(__local float2* data, int tid, int direction) {
 
     // Stage 1: butterflies of size 2 (stride=1)
     {
-        int pair = tid >> 1;      // which pair (0-15)
         int pos = tid & 1;        // position in pair (0 or 1)
-        int i = pair * 2 + pos;
-        int j = pair * 2 + (1 - pos);
 
         if (pos == 0) {
+            int i = tid * stride;
             float2 a = data[i];
-            float2 b = data[i + 1];
+            float2 b = data[i + stride];
             data[i] = a + b;
-            data[i + 1] = a - b;
+            data[i + stride] = a - b;
         }
     }
     barrier(CLK_LOCAL_MEM_FENCE);
@@ -108,8 +106,8 @@ void fft32_inplace(__local float2* data, int tid, int direction) {
         int base = group * 4;
 
         if (pos < 2) {
-            int i = base + pos;
-            int j = base + pos + 2;
+            int i = (base + pos) * stride;
+            int j = i + 2 * stride;
             float2 w = get_twiddle(pos * 8, direction);
 
             float2 a = data[i];
@@ -128,8 +126,8 @@ void fft32_inplace(__local float2* data, int tid, int direction) {
         int base = group * 8;
 
         if (pos < 4) {
-            int i = base + pos;
-            int j = base + pos + 4;
+            int i = (base + pos) * stride;
+            int j = i + 4 * stride;
             float2 w = get_twiddle(pos * 4, direction);
 
             float2 a = data[i];
@@ -148,8 +146,8 @@ void fft32_inplace(__local float2* data, int tid, int direction) {
         int base = group * 16;
 
         if (pos < 8) {
-            int i = base + pos;
-            int j = base + pos + 8;
+            int i = (base + pos) * stride;
+            int j = i + 8 * stride;
             float2 w = get_twiddle(pos * 2, direction);
 
             float2 a = data[i];
@@ -164,8 +162,8 @@ void fft32_inplace(__local float2* data, int tid, int direction) {
     // Twiddle indices: tid * 1 (stride 1 in table)
     {
         if (tid < 16) {
-            int i = tid;
-            int j = tid + 16;
+            int i = tid * stride;
+            int j = i + 16 * stride;
             float2 w = get_twiddle(tid, direction);
 
             float2 a = data[i];
@@ -179,26 +177,15 @@ void fft32_inplace(__local float2* data, int tid, int direction) {
 
 // 2D FFT for 32x32 tile using row-column decomposition
 // Work-group is 32x32 threads (1024 threads)
+// The column pass works in place with a stride of 32, so no transpose is
+// needed; a warp then handles one butterfly row across 32 columns, which is
+// both conflict-free and divergence-free.
 void fft2d_32x32(__local float2 data[32][32], int localX, int localY, int direction) {
     // FFT all rows - thread (localX, localY) works on row localY
-    fft32_inplace(&data[localY][0], localX, direction);
-    barrier(CLK_LOCAL_MEM_FENCE);
+    fft32_inplace(&data[localY][0], 1, localX, direction);
 
-    // Transpose the matrix
-    float2 temp = data[localX][localY];
-    barrier(CLK_LOCAL_MEM_FENCE);
-    data[localY][localX] = temp;
-    barrier(CLK_LOCAL_MEM_FENCE);
-
-    // FFT all columns (now rows after transpose)
-    fft32_inplace(&data[localY][0], localX, direction);
-    barrier(CLK_LOCAL_MEM_FENCE);
-
-    // Transpose back
-    temp = data[localX][localY];
-    barrier(CLK_LOCAL_MEM_FENCE);
-    data[localY][localX] = temp;
-    barrier(CLK_LOCAL_MEM_FENCE);
+    // FFT all columns - thread (localX, localY) works on column localX
+    fft32_inplace(&data[0][localX], 32, localY, direction);
 }
 
 // Parallel reduction to find maximum value and its position
@@ -494,6 +481,29 @@ inline int bitrev(int n, int bits) {
     return r;
 }
 
+// Twiddle factors for a power-of-two FFT of tileSize points: entry k holds
+// exp(direction * i * pi * k / (tileSize / 2)), the same angle the butterfly
+// of position pos at stage s used to compute as sign * pi * pos / mHalf,
+// since k = pos << (logTileSize - s) scales both terms by the same power of
+// two. The table is filled cooperatively by the first tileSize / 2 work-items.
+inline void fill_twiddles(__local float2* twiddles, int lid, int tileSize, int direction) {
+    int halfSize = tileSize >> 1;
+    if (lid < halfSize) {
+        float angle = (float) direction * M_PI_F * lid / (float) halfSize;
+        float c;
+        float s = sincos(angle, &c);
+        twiddles[lid] = (float2)(c, s);
+    }
+}
+
+// One radix-2 butterfly on elements i and j of a strided local array.
+inline void butterfly(__local float2* data, int i, int j, int stride, float2 w) {
+    float2 a = data[i * stride];
+    float2 b = cmul(w, data[j * stride]);
+    data[i * stride] = a + b;
+    data[j * stride] = a - b;
+}
+
 // 1D FFT row kernel using local memory for a single row
 // Global size: (tileSize, numTiles * tileSize) - one thread per element
 // Local size: (tileSize, 1) - one work-group per row
@@ -507,10 +517,12 @@ __kernel void fft_rows(
     int rowGlobal = get_global_id(1);  // Which row across all tiles
 
     __local float2 row[128];  // Max supported tile size
+    __local float2 twiddles[64];
 
     // Load row into local memory
     int baseIdx = rowGlobal * tileSize;
     row[col] = data[baseIdx + col];
+    fill_twiddles(twiddles, col, tileSize, direction);
     barrier(CLK_LOCAL_MEM_FENCE);
 
     // Bit-reversal permutation
@@ -523,27 +535,14 @@ __kernel void fft_rows(
     barrier(CLK_LOCAL_MEM_FENCE);
 
     // Butterfly stages
-    float sign = (float)direction;
     for (int stage = 1; stage <= logTileSize; stage++) {
-        int m = 1 << stage;        // Butterfly group size
-        int mHalf = m >> 1;        // Butterfly pair distance
-
-        int group = col / m;       // Which group
-        int pos = col % m;         // Position within group
+        int mHalf = 1 << (stage - 1);  // Butterfly pair distance
+        int group = col >> stage;      // Which group
+        int pos = col & (2 * mHalf - 1); // Position within group
 
         if (pos < mHalf) {
-            int i = group * m + pos;
-            int j = i + mHalf;
-
-            float angle = sign * M_PI_F * pos / (float)mHalf;
-            float c;
-            float s = sincos(angle, &c);
-            float2 w = (float2)(c, s);
-
-            float2 a = row[i];
-            float2 b = cmul(w, row[j]);
-            row[i] = a + b;
-            row[j] = a - b;
+            int i = (group << stage) + pos;
+            butterfly(row, i, i + mHalf, 1, twiddles[pos << (logTileSize - stage)]);
         }
         barrier(CLK_LOCAL_MEM_FENCE);
     }
@@ -552,43 +551,63 @@ __kernel void fft_rows(
     data[baseIdx + col] = row[col];
 }
 
-// Transpose kernel for 2D FFT using local memory blocking
-// Uses 16x16 work-groups for coalesced memory access
-#define TRANSPOSE_BLOCK_SIZE 16
+// Number of columns transformed by one fft_cols work-group
+#define FFT_COLS_BLOCK 16
 
-__kernel void transpose(
-    __global const float2* src,
-    __global float2* dst,
+// 1D FFT along the columns of each tile, replacing transpose + fft_rows +
+// transpose. A work-group transforms FFT_COLS_BLOCK adjacent columns of one
+// tile held in local memory; global accesses stay coalesced along rows.
+// Global size: (tileSize, numTiles * FFT_COLS_BLOCK)
+// Local size: (FFT_COLS_BLOCK, FFT_COLS_BLOCK)
+__kernel void fft_cols(
+    __global float2* data,           // [numTiles * tileSize * tileSize]
     const int tileSize,
-    const int numTiles
+    const int logTileSize,
+    const int direction              // -1 forward, +1 inverse
 ) {
-    // Local memory with +1 padding to avoid bank conflicts
-    __local float2 block[TRANSPOSE_BLOCK_SIZE][TRANSPOSE_BLOCK_SIZE + 1];
+    int c = get_local_id(0);
+    int t = get_local_id(1);
+    int col = get_group_id(0) * FFT_COLS_BLOCK + c;
+    int tileIdx = get_group_id(1);
 
-    int localX = get_local_id(0);
-    int localY = get_local_id(1);
-    int blockX = get_group_id(0) * TRANSPOSE_BLOCK_SIZE;
-    int blockY = get_group_id(1) * TRANSPOSE_BLOCK_SIZE;
-    int tileIdx = get_group_id(2);
+    __local float2 block[128 * FFT_COLS_BLOCK];  // [row][column]
+    __local float2 twiddles[64];
 
-    if (tileIdx >= numTiles) return;
+    __global float2* tile = data + tileIdx * tileSize * tileSize;
+    __local float2* column = block + c;
 
-    int tileOffset = tileIdx * tileSize * tileSize;
-
-    // Coalesced read: threads in a row read consecutive memory
-    int srcX = blockX + localX;
-    int srcY = blockY + localY;
-    if (srcX < tileSize && srcY < tileSize) {
-        block[localY][localX] = src[tileOffset + srcY * tileSize + srcX];
+    for (int r = t; r < tileSize; r += FFT_COLS_BLOCK) {
+        column[r * FFT_COLS_BLOCK] = tile[r * tileSize + col];
     }
-
+    fill_twiddles(twiddles, t * FFT_COLS_BLOCK + c, tileSize, direction);
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    // Coalesced write: threads in a row write consecutive memory (transposed block position)
-    int dstX = blockY + localX;  // Note: blockY, not blockX
-    int dstY = blockX + localY;  // Note: blockX, not blockY
-    if (dstX < tileSize && dstY < tileSize) {
-        dst[tileOffset + dstY * tileSize + dstX] = block[localX][localY];  // Swapped indices
+    // Bit-reversal permutation
+    for (int r = t; r < tileSize; r += FFT_COLS_BLOCK) {
+        int rev = bitrev(r, logTileSize);
+        if (r < rev) {
+            float2 temp = column[r * FFT_COLS_BLOCK];
+            column[r * FFT_COLS_BLOCK] = column[rev * FFT_COLS_BLOCK];
+            column[rev * FFT_COLS_BLOCK] = temp;
+        }
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    // Butterfly stages: thread t handles butterflies t, t + 16, ... of its column
+    int halfSize = tileSize >> 1;
+    for (int stage = 1; stage <= logTileSize; stage++) {
+        int mHalf = 1 << (stage - 1);
+        for (int b = t; b < halfSize; b += FFT_COLS_BLOCK) {
+            int group = b >> (stage - 1);
+            int pos = b & (mHalf - 1);
+            int i = (group << stage) + pos;
+            butterfly(column, i, i + mHalf, FFT_COLS_BLOCK, twiddles[pos << (logTileSize - stage)]);
+        }
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+
+    for (int r = t; r < tileSize; r += FFT_COLS_BLOCK) {
+        tile[r * tileSize + col] = column[r * FFT_COLS_BLOCK];
     }
 }
 
@@ -650,29 +669,13 @@ __kernel void cross_power_spectrum(
     }
 }
 
-// Scale by 1/N^2 for inverse FFT
-__kernel void scale_ifft(
-    __global float2* data,
-    const int tileSize,
-    const int numTiles
-) {
-    int x = get_global_id(0);
-    int y = get_global_id(1);
-    int tileIdx = get_global_id(2);
-
-    if (x >= tileSize || y >= tileSize || tileIdx >= numTiles) return;
-
-    int idx = tileIdx * tileSize * tileSize + y * tileSize + x;
-    float scale = 1.0f / (float)(tileSize * tileSize);
-    data[idx] = data[idx] * scale;
-}
-
-// FFT shift and extract real part
+// FFT shift and extract real part, scaled by 1/N^2 for the inverse FFT
 __kernel void fft_shift_real(
     __global const float2* input,
     __global float* output,
     const int tileSize,
-    const int numTiles
+    const int numTiles,
+    const float scale
 ) {
     int x = get_global_id(0);
     int y = get_global_id(1);
@@ -688,7 +691,7 @@ __kernel void fft_shift_real(
     int srcIdx = tileOffset + srcY * tileSize + srcX;
     int dstIdx = tileOffset + y * tileSize + x;
 
-    output[dstIdx] = input[srcIdx].x;
+    output[dstIdx] = input[srcIdx].x * scale;
 }
 
 // Find peak in each tile using parallel reduction
@@ -715,6 +718,8 @@ __kernel void find_peaks(
 
     int tileOffset = tileIdx * tileSize * tileSize;
     int tileElements = tileSize * tileSize;
+    int logTileSize = 31 - clz(tileSize);
+    int colMask = tileSize - 1;
     int centerX = tileSize / 2;
     int centerY = tileSize / 2;
 
@@ -727,8 +732,8 @@ __kernel void find_peaks(
     // First pass: find local max and sum
     for (int i = tid; i < tileElements; i += localSize) {
         float val = data[tileOffset + i];
-        int y = i / tileSize;
-        int x = i % tileSize;
+        int y = i >> logTileSize;
+        int x = i & colMask;
         int dy = y - centerY;
         int dx = x - centerX;
         int distSq = dy * dy + dx * dx;
@@ -773,13 +778,13 @@ __kernel void find_peaks(
     // Second pass: all threads cooperate to find the second max,
     // excluding the 3x3 neighborhood around the peak (like CPU does)
     int peakIdx = maxIdxs[0];
-    int peakY = peakIdx / tileSize;
-    int peakX = peakIdx % tileSize;
+    int peakY = peakIdx >> logTileSize;
+    int peakX = peakIdx & colMask;
 
     float localSecondMax = -1e30f;
     for (int i = tid; i < tileElements; i += localSize) {
-        int y = i / tileSize;
-        int x = i % tileSize;
+        int y = i >> logTileSize;
+        int x = i & colMask;
         if (abs(y - peakY) > 1 || abs(x - peakX) > 1) {
             localSecondMax = fmax(localSecondMax, data[tileOffset + i]);
         }
@@ -987,6 +992,8 @@ __kernel void find_peaks_ncc(
 
     int tileOffset = tileIdx * tileSize * tileSize;
     int tileElements = tileSize * tileSize;
+    int logTileSize = 31 - clz(tileSize);
+    int colMask = tileSize - 1;
     int centerX = tileSize / 2;
     int centerY = tileSize / 2;
 
@@ -997,8 +1004,8 @@ __kernel void find_peaks_ncc(
 
     for (int i = tid; i < tileElements; i += localSize) {
         float val = data[tileOffset + i];
-        int y = i / tileSize;
-        int x = i % tileSize;
+        int y = i >> logTileSize;
+        int x = i & colMask;
         int dy = y - centerY;
         int dx = x - centerX;
         int distSq = dy * dy + dx * dx;
@@ -1035,8 +1042,8 @@ __kernel void find_peaks_ncc(
     // Thread 0 computes final result
     if (tid == 0) {
         int peakIdx = maxIdxs[0];
-        int peakY = peakIdx / tileSize;
-        int peakX = peakIdx % tileSize;
+        int peakY = peakIdx >> logTileSize;
+        int peakX = peakIdx & colMask;
         float peakVal = maxVals[0];
 
         // NCC confidence = peak value / normalization factor
@@ -1515,12 +1522,14 @@ __kernel void compute_tile_stats_from_images(
     int tileY = centerY - halfTile;
 
     int pixelsPerTile = tileSize * tileSize;
+    int logTileSize = 31 - clz(tileSize);
+    int colMask = tileSize - 1;
 
     // Pass 1: Compute sum for mean
     float sum = 0.0f;
     for (int i = localId; i < pixelsPerTile; i += 256) {
-        int px = i % tileSize;
-        int py = i / tileSize;
+        int px = i & colMask;
+        int py = i >> logTileSize;
         int srcX = tileX + px;
         int srcY = tileY + py;
 
@@ -1550,8 +1559,8 @@ __kernel void compute_tile_stats_from_images(
     float sumSq = 0.0f;
     float mean = tileMean;
     for (int i = localId; i < pixelsPerTile; i += 256) {
-        int px = i % tileSize;
-        int py = i / tileSize;
+        int px = i & colMask;
+        int py = i >> logTileSize;
         int srcX = tileX + px;
         int srcY = tileY + py;
 

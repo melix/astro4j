@@ -16,11 +16,11 @@
 package me.champeau.a4j.math.regression
 
 import me.champeau.a4j.math.opencl.OpenCLContext
+import me.champeau.a4j.math.opencl.OpenCLSpecification
 import me.champeau.a4j.math.opencl.OpenCLSupport
 import spock.lang.Requires
-import spock.lang.Specification
 
-class DistortionGridFilterTest extends Specification {
+class DistortionGridFilterTest extends OpenCLSpecification {
 
     def "MAD filter removes outliers correctly on CPU"() {
         given: "a grid with known outliers"
@@ -107,10 +107,8 @@ class DistortionGridFilterTest extends Specification {
     }
 
     @Requires({ OpenCLSupport.isAvailable() })
-    def "GPU and CPU MAD filter produce matching results"() {
+    def "GPU and CPU MAD filter produce matching results (#gridWidth x #gridHeight, half window #halfWindow)"() {
         given: "a grid with outliers"
-        int gridWidth = 50
-        int gridHeight = 50
         def gridDxCpu = createGridWithOutliers(gridWidth, gridHeight, 2.0f, 42)
         def gridDyCpu = createGridWithOutliers(gridWidth, gridHeight, 1.5f, 123)
         def gridDxGpu = copyGrid(gridDxCpu)
@@ -120,10 +118,10 @@ class DistortionGridFilterTest extends Specification {
         def filter = DistortionGridFilter.getInstance()
 
         // Force CPU
-        madFilterCPU(filter, gridDxCpu, gridDyCpu, gridWidth, gridHeight, 2, 3.0f)
+        madFilterCPU(filter, gridDxCpu, gridDyCpu, gridWidth, gridHeight, halfWindow, 3.0f)
 
         // Force GPU (if available and grid is large enough)
-        madFilterGPU(filter, gridDxGpu, gridDyGpu, gridWidth, gridHeight, 2, 3.0f)
+        madFilterGPU(filter, gridDxGpu, gridDyGpu, gridWidth, gridHeight, halfWindow, 3.0f)
 
         then: "results should match"
         int mismatches = 0
@@ -139,6 +137,57 @@ class DistortionGridFilterTest extends Specification {
             }
         }
         mismatches == 0
+
+        where:
+        gridWidth | gridHeight | halfWindow
+        50        | 50         | 2
+        61        | 37         | 5
+        130       | 97         | 3
+        5         | 9          | 5
+    }
+
+    @Requires({ OpenCLSupport.isAvailable() })
+    def "fused GPU filtering matches the CPU sequence"() {
+        given: "a noisy grid with outliers and unsampled points"
+        int gridWidth = 120
+        int gridHeight = 90
+        def gridDxCpu = createGridWithOutliers(gridWidth, gridHeight, 2.0f, 7)
+        def gridDyCpu = createGridWithOutliers(gridWidth, gridHeight, -1.5f, 11)
+        def sampled = new boolean[gridHeight][gridWidth]
+        def rng = new Random(5)
+        for (int y = 0; y < gridHeight; y++) {
+            for (int x = 0; x < gridWidth; x++) {
+                sampled[y][x] = rng.nextFloat() > 0.2f
+                if (!sampled[y][x]) {
+                    gridDxCpu[y][x] = 0f
+                    gridDyCpu[y][x] = 0f
+                }
+            }
+        }
+        def gridDxGpu = copyGrid(gridDxCpu)
+        def gridDyGpu = copyGrid(gridDyCpu)
+        def filter = DistortionGridFilter.getInstance()
+
+        when:
+        interpolateUnsampledCPU(filter, gridDxCpu, gridDyCpu, sampled, gridWidth, gridHeight, 3)
+        madFilterCPU(filter, gridDxCpu, gridDyCpu, gridWidth, gridHeight, 5, 1.5f)
+        gaussianSmoothCPU(filter, gridDxCpu, gridDyCpu, gridWidth, gridHeight, 2.0f)
+        filterAndSmoothFusedGPU(filter, gridDxGpu, gridDyGpu, sampled, gridWidth, gridHeight, 3, 5, 1.5f, 2.0f)
+
+        then:
+        int mismatches = 0
+        for (int y = 0; y < gridHeight; y++) {
+            for (int x = 0; x < gridWidth; x++) {
+                if (Math.abs(gridDxCpu[y][x] - gridDxGpu[y][x]) > 0.1f ||
+                    Math.abs(gridDyCpu[y][x] - gridDyGpu[y][x]) > 0.1f) {
+                    if (mismatches < 5) {
+                        System.err.println("Mismatch at ($x, $y): CPU=(${gridDxCpu[y][x]}, ${gridDyCpu[y][x]}), GPU=(${gridDxGpu[y][x]}, ${gridDyGpu[y][x]})")
+                    }
+                    mismatches++
+                }
+            }
+        }
+        mismatches < (gridWidth * gridHeight * 0.02)
     }
 
     @Requires({ OpenCLSupport.isAvailable() })
@@ -313,6 +362,17 @@ class DistortionGridFilterTest extends Specification {
         } catch (Exception e) {
             throw new RuntimeException("Failed to invoke GPU method", e)
         }
+    }
+
+    private static void filterAndSmoothFusedGPU(DistortionGridFilter filter, float[][] gridDx, float[][] gridDy, boolean[][] sampled,
+                                                int gridWidth, int gridHeight, int searchRadius, int halfWindow, float madThreshold, float sigma) {
+        def context = OpenCLSupport.getContext()
+        assert context != null
+        def method = DistortionGridFilter.class.getDeclaredMethod("filterAndSmoothFusedGPU",
+                OpenCLContext.class, float[][].class, float[][].class, boolean[][].class,
+                int.class, int.class, int.class, int.class, float.class, float.class)
+        method.setAccessible(true)
+        method.invoke(filter, context, gridDx, gridDy, sampled, gridWidth, gridHeight, searchRadius, halfWindow, madThreshold, sigma)
     }
 
     private static void gaussianSmoothCPU(DistortionGridFilter filter, float[][] gridDx, float[][] gridDy,
