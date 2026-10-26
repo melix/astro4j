@@ -153,8 +153,6 @@ public class CorrelationTools {
             var targetInputBuffer = op.allocateBuffer(realSize, CL_MEM_READ_ONLY);
             var refComplexBuffer = op.allocateBuffer(complexSize, CL_MEM_READ_WRITE);
             var targetComplexBuffer = op.allocateBuffer(complexSize, CL_MEM_READ_WRITE);
-            var tempBuffer = op.allocateBuffer(complexSize, CL_MEM_READ_WRITE);
-            var realBuffer = op.allocateBuffer(realSize, CL_MEM_READ_WRITE);
             var resultBuffer = op.allocateBuffer(gpuResults.length * Float.BYTES, CL_MEM_WRITE_ONLY);
 
             op.write(refInputBuffer, refFlat);
@@ -165,8 +163,8 @@ public class CorrelationTools {
             applyHann(op, targetInputBuffer, targetComplexBuffer, tileSize, numTiles);
 
             // 2-3. Forward 2D FFT for reference and target
-            fft2D(op, refComplexBuffer, tempBuffer, tileSize, logTileSize, numTiles, -1);
-            fft2D(op, targetComplexBuffer, tempBuffer, tileSize, logTileSize, numTiles, -1);
+            fft2D(op, refComplexBuffer, tileSize, logTileSize, numTiles, -1);
+            fft2D(op, targetComplexBuffer, tileSize, logTileSize, numTiles, -1);
 
             // 4. Cross-power spectrum
             op.kernel("correlation", "cross_power_spectrum")
@@ -179,26 +177,15 @@ public class CorrelationTools {
                     .run();
 
             // 5. Inverse 2D FFT
-            fft2D(op, refComplexBuffer, tempBuffer, tileSize, logTileSize, numTiles, +1);
+            fft2D(op, refComplexBuffer, tileSize, logTileSize, numTiles, +1);
 
-            // 6. Scale by 1/N^2
-            op.kernel("correlation", "scale_ifft")
-                    .arg(refComplexBuffer)
-                    .arg(tileSize)
-                    .arg(numTiles)
-                    .global(tileSize, tileSize, numTiles)
-                    .run();
+            // 6. Scale by 1/N^2, FFT shift and extract real part. The target
+            // spectrum is dead after the cross-power step, so its buffer holds
+            // the real correlation surface.
+            var realBuffer = targetComplexBuffer;
+            enqueueShiftReal(op, refComplexBuffer, realBuffer, tileSize, numTiles);
 
-            // 7. FFT shift + extract real part
-            op.kernel("correlation", "fft_shift_real")
-                    .arg(refComplexBuffer)
-                    .arg(realBuffer)
-                    .arg(tileSize)
-                    .arg(numTiles)
-                    .global(tileSize, tileSize, numTiles)
-                    .run();
-
-            // 8. Find peaks
+            // 7. Find peaks
             op.kernel("correlation", "find_peaks")
                     .arg(realBuffer)
                     .arg(resultBuffer)
@@ -213,7 +200,7 @@ public class CorrelationTools {
         });
     }
 
-    private static void applyHann(GpuOp op, long inputBuffer, long outputComplex, int tileSize, int numTiles) {
+    static void applyHann(GpuOp op, long inputBuffer, long outputComplex, int tileSize, int numTiles) {
         op.kernel("correlation", "apply_hann_window")
                 .arg(inputBuffer)
                 .arg(outputComplex)
@@ -234,17 +221,14 @@ public class CorrelationTools {
         return results;
     }
 
-    private static void fft2D(GpuOp op,
-                              long dataBuffer,
-                              long tempBuffer,
-                              int tileSize,
-                              int logTileSize,
-                              int numTiles,
-                              int direction) {
+    static void fft2D(GpuOp op,
+                      long dataBuffer,
+                      int tileSize,
+                      int logTileSize,
+                      int numTiles,
+                      int direction) {
         enqueueFFTRows(op, dataBuffer, tileSize, logTileSize, numTiles, direction);
-        enqueueTranspose(op, dataBuffer, tempBuffer, tileSize, numTiles);
-        enqueueFFTRows(op, tempBuffer, tileSize, logTileSize, numTiles, direction);
-        enqueueTranspose(op, tempBuffer, dataBuffer, tileSize, numTiles);
+        enqueueFFTCols(op, dataBuffer, tileSize, logTileSize, numTiles, direction);
     }
 
     private static void enqueueFFTRows(GpuOp op, long buffer, int tileSize, int logTileSize, int numTiles, int direction) {
@@ -258,18 +242,27 @@ public class CorrelationTools {
                 .run();
     }
 
-    private static final int TRANSPOSE_BLOCK_SIZE = 16;
+    private static final int FFT_COLS_BLOCK = 16;
 
-    private static void enqueueTranspose(GpuOp op, long src, long dst, int tileSize, int numTiles) {
-        // Round up global size to multiple of block size for local memory blocking
-        int globalXY = ((tileSize + TRANSPOSE_BLOCK_SIZE - 1) / TRANSPOSE_BLOCK_SIZE) * TRANSPOSE_BLOCK_SIZE;
-        op.kernel("correlation", "transpose")
-                .arg(src)
-                .arg(dst)
+    private static void enqueueFFTCols(GpuOp op, long buffer, int tileSize, int logTileSize, int numTiles, int direction) {
+        op.kernel("correlation", "fft_cols")
+                .arg(buffer)
+                .arg(tileSize)
+                .arg(logTileSize)
+                .arg(direction)
+                .global(tileSize, (long) numTiles * FFT_COLS_BLOCK)
+                .local(FFT_COLS_BLOCK, FFT_COLS_BLOCK)
+                .run();
+    }
+
+    private static void enqueueShiftReal(GpuOp op, long complexBuffer, long realBuffer, int tileSize, int numTiles) {
+        op.kernel("correlation", "fft_shift_real")
+                .arg(complexBuffer)
+                .arg(realBuffer)
                 .arg(tileSize)
                 .arg(numTiles)
-                .global(globalXY, globalXY, numTiles)
-                .local(TRANSPOSE_BLOCK_SIZE, TRANSPOSE_BLOCK_SIZE, 1)
+                .arg(1.0f / (float) (tileSize * tileSize))
+                .global(tileSize, tileSize, numTiles)
                 .run();
     }
 
@@ -424,8 +417,6 @@ public class CorrelationTools {
             var targetInputBuffer = op.allocateBuffer(realSize, CL_MEM_READ_ONLY);
             var refComplexBuffer = op.allocateBuffer(complexSize, CL_MEM_READ_WRITE);
             var targetComplexBuffer = op.allocateBuffer(complexSize, CL_MEM_READ_WRITE);
-            var tempBuffer = op.allocateBuffer(complexSize, CL_MEM_READ_WRITE);
-            var realBuffer = op.allocateBuffer(realSize, CL_MEM_READ_WRITE);
             var resultBuffer = op.allocateBuffer(gpuResults.length * Float.BYTES, CL_MEM_WRITE_ONLY);
             var statsBuffer = op.allocateBuffer(statsSize, CL_MEM_READ_WRITE);
 
@@ -450,8 +441,8 @@ public class CorrelationTools {
                     .global(tileSize, tileSize, numTiles).run();
 
             // 3-4. Forward 2D FFT for ref and target
-            fft2D(op, refComplexBuffer, tempBuffer, tileSize, logTileSize, numTiles, -1);
-            fft2D(op, targetComplexBuffer, tempBuffer, tileSize, logTileSize, numTiles, -1);
+            fft2D(op, refComplexBuffer, tileSize, logTileSize, numTiles, -1);
+            fft2D(op, targetComplexBuffer, tileSize, logTileSize, numTiles, -1);
 
             // 5. Cross-power spectrum (no normalization for NCC)
             op.kernel("correlation", "cross_power_spectrum")
@@ -460,19 +451,13 @@ public class CorrelationTools {
                     .global(tileSize, tileSize, numTiles).run();
 
             // 6. Inverse 2D FFT
-            fft2D(op, refComplexBuffer, tempBuffer, tileSize, logTileSize, numTiles, +1);
+            fft2D(op, refComplexBuffer, tileSize, logTileSize, numTiles, +1);
 
-            // 7. Scale by 1/N^2
-            op.kernel("correlation", "scale_ifft")
-                    .arg(refComplexBuffer).arg(tileSize).arg(numTiles)
-                    .global(tileSize, tileSize, numTiles).run();
+            // 7. Scale by 1/N^2, FFT shift and extract real part, reusing the dead target spectrum buffer
+            var realBuffer = targetComplexBuffer;
+            enqueueShiftReal(op, refComplexBuffer, realBuffer, tileSize, numTiles);
 
-            // 8. FFT shift + extract real part
-            op.kernel("correlation", "fft_shift_real")
-                    .arg(refComplexBuffer).arg(realBuffer).arg(tileSize).arg(numTiles)
-                    .global(tileSize, tileSize, numTiles).run();
-
-            // 9. Find peaks with NCC normalization
+            // 8. Find peaks with NCC normalization
             op.kernel("correlation", "find_peaks_ncc")
                     .arg(realBuffer).arg(statsBuffer).arg(resultBuffer)
                     .arg(tileSize).arg(numTiles)
@@ -857,7 +842,6 @@ public class CorrelationTools {
         var gpuResults = new float[numTiles * 3];
 
         int complexSize = numTiles * tileElements * 2 * Float.BYTES;
-        int realSize = numTiles * tileElements * Float.BYTES;
         int statsSize = numTiles * 3 * Float.BYTES;
         int meansSize = numTiles * Float.BYTES;
 
@@ -869,8 +853,6 @@ public class CorrelationTools {
             var targetSumSqBuffer = op.allocateBuffer(meansSize, CL_MEM_READ_WRITE);
             var refComplexBuffer = op.allocateBuffer(complexSize, CL_MEM_READ_WRITE);
             var targetComplexBuffer = op.allocateBuffer(complexSize, CL_MEM_READ_WRITE);
-            var tempBuffer = op.allocateBuffer(complexSize, CL_MEM_READ_WRITE);
-            var realBuffer = op.allocateBuffer(realSize, CL_MEM_READ_WRITE);
             var resultBuffer = op.allocateBuffer(gpuResults.length * Float.BYTES, CL_MEM_WRITE_ONLY);
             var statsBuffer = op.allocateBuffer(statsSize, CL_MEM_READ_WRITE);
 
@@ -903,8 +885,8 @@ public class CorrelationTools {
                     .global(numTiles).run();
 
             // 5-6. Forward 2D FFT for ref and target
-            fft2D(op, refComplexBuffer, tempBuffer, tileSize, logTileSize, numTiles, -1);
-            fft2D(op, targetComplexBuffer, tempBuffer, tileSize, logTileSize, numTiles, -1);
+            fft2D(op, refComplexBuffer, tileSize, logTileSize, numTiles, -1);
+            fft2D(op, targetComplexBuffer, tileSize, logTileSize, numTiles, -1);
 
             // 7. Cross-power spectrum (no normalization for NCC)
             op.kernel("correlation", "cross_power_spectrum")
@@ -913,19 +895,13 @@ public class CorrelationTools {
                     .global(tileSize, tileSize, numTiles).run();
 
             // 8. Inverse 2D FFT
-            fft2D(op, refComplexBuffer, tempBuffer, tileSize, logTileSize, numTiles, +1);
+            fft2D(op, refComplexBuffer, tileSize, logTileSize, numTiles, +1);
 
-            // 9. Scale by 1/N^2
-            op.kernel("correlation", "scale_ifft")
-                    .arg(refComplexBuffer).arg(tileSize).arg(numTiles)
-                    .global(tileSize, tileSize, numTiles).run();
+            // 9. Scale by 1/N^2, FFT shift and extract real part, reusing the dead target spectrum buffer
+            var realBuffer = targetComplexBuffer;
+            enqueueShiftReal(op, refComplexBuffer, realBuffer, tileSize, numTiles);
 
-            // 10. FFT shift + extract real part
-            op.kernel("correlation", "fft_shift_real")
-                    .arg(refComplexBuffer).arg(realBuffer).arg(tileSize).arg(numTiles)
-                    .global(tileSize, tileSize, numTiles).run();
-
-            // 11. Find peaks with NCC normalization
+            // 10. Find peaks with NCC normalization
             op.kernel("correlation", "find_peaks_ncc")
                     .arg(realBuffer).arg(statsBuffer).arg(resultBuffer)
                     .arg(tileSize).arg(numTiles)

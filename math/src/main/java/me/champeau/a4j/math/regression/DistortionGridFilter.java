@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.math.regression;
 
+import me.champeau.a4j.math.opencl.GpuOp;
 import me.champeau.a4j.math.opencl.OpenCLContext;
 import me.champeau.a4j.math.opencl.OpenCLSupport;
 import org.lwjgl.system.MemoryStack;
@@ -40,6 +41,8 @@ public class DistortionGridFilter {
     private static final int MIN_GRID_SIZE_FOR_GPU = 1000;
     // Maximum half-window size supported by GPU kernel (11x11 window = 120 neighbors)
     private static final int MAX_GPU_HALF_WINDOW = 5;
+    private static final int MAD_LOCAL_SIZE = 8;
+    private static final int GAUSSIAN_LOCAL_SIZE = 16;
     private static final int HISTOGRAM_BINS = 512;
     private static final DistortionGridFilter INSTANCE = new DistortionGridFilter();
 
@@ -124,39 +127,15 @@ public class DistortionGridFilter {
                     .run();
 
             // Step 2: MAD filter (dx -> tempDx, dy -> tempDy)
-            int madLocalX = Math.min(8, gridWidth);
-            int madLocalY = Math.min(8, gridHeight);
-            int madGlobalX = ((gridWidth + madLocalX - 1) / madLocalX) * madLocalX;
-            int madGlobalY = ((gridHeight + madLocalY - 1) / madLocalY) * madLocalY;
-            op.kernel("distortion_filter", "mad_filter_grid_histogram")
-                    .arg(dxBuf).arg(dyBuf).arg(tempDxBuf).arg(tempDyBuf)
-                    .arg(gridWidth).arg(gridHeight).arg(halfWindow).arg(madThreshold)
-                    .global(madGlobalX, madGlobalY).local(madLocalX, madLocalY)
-                    .run();
+            enqueueMadFilter(op, dxBuf, dyBuf, tempDxBuf, tempDyBuf, gridWidth, gridHeight, halfWindow, madThreshold);
 
             // Step 3: Gaussian smooth horizontal (tempDx -> dxBuf, tempDy -> dyBuf)
-            op.kernel("distortion_filter", "gaussian_smooth_horizontal")
-                    .arg(tempDxBuf).arg(dxBuf).arg(kernelBuf)
-                    .arg(gridWidth).arg(gridHeight).arg(kernelRadius)
-                    .global(gridWidth, gridHeight).local(1, 1)
-                    .run();
-            op.kernel("distortion_filter", "gaussian_smooth_horizontal")
-                    .arg(tempDyBuf).arg(dyBuf).arg(kernelBuf)
-                    .arg(gridWidth).arg(gridHeight).arg(kernelRadius)
-                    .global(gridWidth, gridHeight).local(1, 1)
-                    .run();
+            enqueueGaussianPass(op, "gaussian_smooth_horizontal", tempDxBuf, dxBuf, kernelBuf, gridWidth, gridHeight, kernelRadius);
+            enqueueGaussianPass(op, "gaussian_smooth_horizontal", tempDyBuf, dyBuf, kernelBuf, gridWidth, gridHeight, kernelRadius);
 
             // Step 4: Gaussian smooth vertical (dxBuf -> tempDx, dyBuf -> tempDy)
-            op.kernel("distortion_filter", "gaussian_smooth_vertical")
-                    .arg(dxBuf).arg(tempDxBuf).arg(kernelBuf)
-                    .arg(gridWidth).arg(gridHeight).arg(kernelRadius)
-                    .global(gridWidth, gridHeight).local(1, 1)
-                    .run();
-            op.kernel("distortion_filter", "gaussian_smooth_vertical")
-                    .arg(dyBuf).arg(tempDyBuf).arg(kernelBuf)
-                    .arg(gridWidth).arg(gridHeight).arg(kernelRadius)
-                    .global(gridWidth, gridHeight).local(1, 1)
-                    .run();
+            enqueueGaussianPass(op, "gaussian_smooth_vertical", dxBuf, tempDxBuf, kernelBuf, gridWidth, gridHeight, kernelRadius);
+            enqueueGaussianPass(op, "gaussian_smooth_vertical", dyBuf, tempDyBuf, kernelBuf, gridWidth, gridHeight, kernelRadius);
 
             op.read(tempDxBuf, flatDx);
             op.read(tempDyBuf, flatDy);
@@ -269,15 +248,7 @@ public class DistortionGridFilter {
             op.write(inputDxBuf, inputDx);
             op.write(inputDyBuf, inputDy);
 
-            int localX = Math.min(8, gridWidth);
-            int localY = Math.min(8, gridHeight);
-            int globalX = ((gridWidth + localX - 1) / localX) * localX;
-            int globalY = ((gridHeight + localY - 1) / localY) * localY;
-            op.kernel("distortion_filter", "mad_filter_grid_histogram")
-                    .arg(inputDxBuf).arg(inputDyBuf).arg(outputDxBuf).arg(outputDyBuf)
-                    .arg(gridWidth).arg(gridHeight).arg(halfWindow).arg(madThreshold)
-                    .global(globalX, globalY).local(localX, localY)
-                    .run();
+            enqueueMadFilter(op, inputDxBuf, inputDyBuf, outputDxBuf, outputDyBuf, gridWidth, gridHeight, halfWindow, madThreshold);
 
             op.read(outputDxBuf, outputDx);
             op.read(outputDyBuf, outputDy);
@@ -346,28 +317,12 @@ public class DistortionGridFilter {
             op.write(kernelBuf, gaussianKernel);
 
             // Horizontal pass for Dx and Dy
-            op.kernel("distortion_filter", "gaussian_smooth_horizontal")
-                    .arg(dxBuf).arg(tempDxBuf).arg(kernelBuf)
-                    .arg(gridWidth).arg(gridHeight).arg(kernelRadius)
-                    .global(gridWidth, gridHeight).local(1, 1)
-                    .run();
-            op.kernel("distortion_filter", "gaussian_smooth_horizontal")
-                    .arg(dyBuf).arg(tempDyBuf).arg(kernelBuf)
-                    .arg(gridWidth).arg(gridHeight).arg(kernelRadius)
-                    .global(gridWidth, gridHeight).local(1, 1)
-                    .run();
+            enqueueGaussianPass(op, "gaussian_smooth_horizontal", dxBuf, tempDxBuf, kernelBuf, gridWidth, gridHeight, kernelRadius);
+            enqueueGaussianPass(op, "gaussian_smooth_horizontal", dyBuf, tempDyBuf, kernelBuf, gridWidth, gridHeight, kernelRadius);
 
             // Vertical pass for Dx and Dy
-            op.kernel("distortion_filter", "gaussian_smooth_vertical")
-                    .arg(tempDxBuf).arg(dxBuf).arg(kernelBuf)
-                    .arg(gridWidth).arg(gridHeight).arg(kernelRadius)
-                    .global(gridWidth, gridHeight).local(1, 1)
-                    .run();
-            op.kernel("distortion_filter", "gaussian_smooth_vertical")
-                    .arg(tempDyBuf).arg(dyBuf).arg(kernelBuf)
-                    .arg(gridWidth).arg(gridHeight).arg(kernelRadius)
-                    .global(gridWidth, gridHeight).local(1, 1)
-                    .run();
+            enqueueGaussianPass(op, "gaussian_smooth_vertical", tempDxBuf, dxBuf, kernelBuf, gridWidth, gridHeight, kernelRadius);
+            enqueueGaussianPass(op, "gaussian_smooth_vertical", tempDyBuf, dyBuf, kernelBuf, gridWidth, gridHeight, kernelRadius);
 
             op.read(dxBuf, flatDx);
             op.read(dyBuf, flatDy);
@@ -375,6 +330,32 @@ public class DistortionGridFilter {
 
         unflatten2D(flatDx, gridDx);
         unflatten2D(flatDy, gridDy);
+    }
+
+    private static void enqueueMadFilter(GpuOp op, long inputDx, long inputDy, long outputDx, long outputDy,
+                                         int gridWidth, int gridHeight, int halfWindow, float madThreshold) {
+        int localX = Math.min(MAD_LOCAL_SIZE, gridWidth);
+        int localY = Math.min(MAD_LOCAL_SIZE, gridHeight);
+        op.kernel("distortion_filter", "mad_filter_grid_tiled")
+                .arg(inputDx).arg(inputDy).arg(outputDx).arg(outputDy)
+                .arg(gridWidth).arg(gridHeight).arg(halfWindow).arg(madThreshold)
+                .global(roundUp(gridWidth, localX), roundUp(gridHeight, localY)).local(localX, localY)
+                .run();
+    }
+
+    private static void enqueueGaussianPass(GpuOp op, String kernel, long input, long output, long weights,
+                                            int gridWidth, int gridHeight, int kernelRadius) {
+        int localX = Math.min(GAUSSIAN_LOCAL_SIZE, gridWidth);
+        int localY = Math.min(GAUSSIAN_LOCAL_SIZE, gridHeight);
+        op.kernel("distortion_filter", kernel)
+                .arg(input).arg(output).arg(weights)
+                .arg(gridWidth).arg(gridHeight).arg(kernelRadius)
+                .global(roundUp(gridWidth, localX), roundUp(gridHeight, localY)).local(localX, localY)
+                .run();
+    }
+
+    private static int roundUp(int size, int multiple) {
+        return ((size + multiple - 1) / multiple) * multiple;
     }
 
     // ========== CPU Implementations ==========

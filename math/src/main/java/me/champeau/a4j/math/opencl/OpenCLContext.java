@@ -298,6 +298,9 @@ public class OpenCLContext implements AutoCloseable {
             var maxComputeUnits = stack.mallocInt(1);
             clGetDeviceInfo(device, CL_DEVICE_MAX_COMPUTE_UNITS, maxComputeUnits, null);
 
+            var maxConstantBufferSize = stack.mallocLong(1);
+            clGetDeviceInfo(device, CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE, maxConstantBufferSize, null);
+
             clGetDeviceInfo(device, CL_DEVICE_EXTENSIONS, (ByteBuffer) null, sizeBuf);
             var extBuf = stack.malloc((int) sizeBuf.get(0));
             clGetDeviceInfo(device, CL_DEVICE_EXTENSIONS, extBuf, null);
@@ -310,6 +313,7 @@ public class OpenCLContext implements AutoCloseable {
                     maxMemAlloc.get(0),
                     globalMemSize.get(0),
                     maxComputeUnits.get(0),
+                    maxConstantBufferSize.get(0),
                     supportsDouble
             );
         }
@@ -679,6 +683,7 @@ public class OpenCLContext implements AutoCloseable {
      * @param maxMemAllocSize  maximum memory allocation size for a single buffer
      * @param globalMemSize    total global memory size on the device
      * @param maxComputeUnits  number of compute units
+     * @param maxConstantBufferSize maximum size in bytes of a buffer passed as a __constant argument
      * @param supportsDouble   whether double precision is supported
      */
     public record DeviceCapabilities(
@@ -687,6 +692,7 @@ public class OpenCLContext implements AutoCloseable {
             long maxMemAllocSize,
             long globalMemSize,
             int maxComputeUnits,
+            long maxConstantBufferSize,
             boolean supportsDouble
     ) {
     }

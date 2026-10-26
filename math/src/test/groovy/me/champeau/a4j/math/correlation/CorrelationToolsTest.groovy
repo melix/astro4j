@@ -250,10 +250,9 @@ class CorrelationToolsTest extends OpenCLSpecification {
 
 
     @Requires({ OpenCLSupport.isAvailable() })
-    def "GPU and CPU NCC produce matching results for 32x32 tiles"() {
+    def "GPU and CPU NCC produce matching results for #tileSize x #tileSize tiles"() {
         given:
         def numTiles = 200
-        def tileSize = 32
         def refTiles = new float[numTiles][tileSize][tileSize]
         def targetTiles = new float[numTiles][tileSize][tileSize]
         def random = new Random(42)
@@ -276,21 +275,55 @@ class CorrelationToolsTest extends OpenCLSpecification {
             assert compareDisplacements("NCC", cpuResults, gpuResults, numTiles) == 0
         }
         true
+
+        where:
+        tileSize << [32, 64, 128]
     }
 
     @Requires({ OpenCLSupport.isAvailable() })
-    def "resident NCC matches batched NCC for 32x32 tiles"() {
+    def "GPU and CPU cross-correlation produce matching results for #tileSize x #tileSize tiles"() {
+        given:
+        def numTiles = 150
+        def refTiles = new float[numTiles][tileSize][tileSize]
+        def targetTiles = new float[numTiles][tileSize][tileSize]
+        def random = new Random(42)
+
+        for (int i = 0; i < numTiles; i++) {
+            def shiftX = random.nextInt(7) - 3
+            def shiftY = random.nextInt(7) - 3
+            refTiles[i] = createCenteredGaussianTile(tileSize)
+            targetTiles[i] = createShiftedGaussianTile(tileSize, shiftX, shiftY)
+        }
+
+        when:
+        def cpuResults = computeCPU(refTiles, targetTiles, false)
+        def gpuResults = computeGPU(refTiles, targetTiles, false)
+
+        then:
+        if (gpuResults == null) {
+            assert OpenCLSupport.getContext() == null
+        } else {
+            assert compareDisplacements("cross-correlation", cpuResults, gpuResults, numTiles) == 0
+        }
+        true
+
+        where:
+        tileSize << [32, 64, 128]
+    }
+
+    @Requires({ OpenCLSupport.isAvailable() })
+    def "resident NCC matches CPU NCC for #tileSize x #tileSize tiles"() {
         given:
         def context = OpenCLSupport.getContext()
-        def tileSize = 32
         def width = 512
         def height = 512
         def refImage = createTestImageData(width, height, 0, 0)
         def targetImage = createTestImageData(width, height, 2, -1)
 
         def positions = []
-        for (int cy = 32; cy <= height - 32; cy += 32) {
-            for (int cx = 32; cx <= width - 32; cx += 32) {
+        def half = tileSize.intdiv(2)
+        for (int cy = half; cy <= height - half; cy += half) {
+            for (int cx = half; cx <= width - half; cx += half) {
                 positions << ([cx, cy] as int[])
             }
         }
@@ -316,6 +349,9 @@ class CorrelationToolsTest extends OpenCLSpecification {
 
         then:
         compareDisplacements("resident NCC", cpuResults, residentResults, numTiles) == 0
+
+        where:
+        tileSize << [32, 64, 128]
     }
 
     private static float[][] createBaseTile(int size) {
@@ -365,11 +401,11 @@ class CorrelationToolsTest extends OpenCLSpecification {
         return createShiftedGaussianTile(size, shiftX, shiftY)
     }
 
-    private static float[][] computeCPU(float[][][] refTiles, float[][][] targetTiles) {
+    private static float[][] computeCPU(float[][][] refTiles, float[][][] targetTiles, boolean normalize = true) {
         int n = refTiles.length
         def results = new float[n][3]
         for (int i = 0; i < n; i++) {
-            def shift = CorrelationTools.correlationShiftFFTWithConfidence(refTiles[i], targetTiles[i], true)
+            def shift = CorrelationTools.correlationShiftFFTWithConfidence(refTiles[i], targetTiles[i], normalize)
             results[i][0] = (float) -shift.dx()
             results[i][1] = (float) -shift.dy()
             results[i][2] = (float) shift.confidence()
@@ -442,7 +478,7 @@ class CorrelationToolsTest extends OpenCLSpecification {
         return (float[][]) method.invoke(CorrelationTools.getInstance(), context, refTiles, targetTiles)
     }
 
-    private static float[][] computeGPU(float[][][] refTiles, float[][][] targetTiles) {
+    private static float[][] computeGPU(float[][][] refTiles, float[][][] targetTiles, boolean normalize = true) {
         def context = OpenCLSupport.getContext()
         if (context == null || !OpenCLSupport.isEnabled()) {
             return null
@@ -455,7 +491,7 @@ class CorrelationToolsTest extends OpenCLSpecification {
             def method = CorrelationTools.class.getDeclaredMethod("batchedCorrelationGPU",
                     OpenCLContext, float[][][].class, float[][][].class, boolean.class)
             method.setAccessible(true)
-            return (float[][]) method.invoke(instance, context, refTiles, targetTiles, true)
+            return (float[][]) method.invoke(instance, context, refTiles, targetTiles, normalize)
         } catch (Exception e) {
             System.err.println("Failed to invoke GPU method: " + e.getMessage())
             e.printStackTrace()
