@@ -52,14 +52,16 @@ public class Clahe extends AbstractFunctionImpl {
     public Object clahe2(Map<String ,Object> arguments) {
         BuiltinFunction.CLAHE2.validateArgs(arguments);
         double clip = doubleArg(arguments, "clip", CLAHE2_DEFAULT_CLIP);
+        boolean diskOnly = booleanArg(arguments, "disk_only", true);
         return monoToMonoImageTransformer("clahe2", "img", arguments, image -> {
             switch (image) {
-                case ImageWrapper32 mono -> applyMultiScaleClahe(mono, clip);
+                case ImageWrapper32 mono -> applyMultiScaleClahe(mono, clip, diskOnly);
                 case RGBImage rgb -> {
                     var tileSizes = computeTileSizesForImage(rgb);
-                    multiScaleClaheChannel(rgb.r(), rgb.width(), rgb.height(), rgb.metadata(), tileSizes, clip);
-                    multiScaleClaheChannel(rgb.g(), rgb.width(), rgb.height(), rgb.metadata(), tileSizes, clip);
-                    multiScaleClaheChannel(rgb.b(), rgb.width(), rgb.height(), rgb.metadata(), tileSizes, clip);
+                    var mask = diskOnly ? diskMask(rgb) : null;
+                    multiScaleClaheChannel(rgb.r(), rgb.width(), rgb.height(), rgb.metadata(), tileSizes, clip, mask);
+                    multiScaleClaheChannel(rgb.g(), rgb.width(), rgb.height(), rgb.metadata(), tileSizes, clip, mask);
+                    multiScaleClaheChannel(rgb.b(), rgb.width(), rgb.height(), rgb.metadata(), tileSizes, clip, mask);
                 }
                 default -> throw new IllegalArgumentException("Unsupported image type for clahe2: " + image.getClass());
             }
@@ -67,16 +69,50 @@ public class Clahe extends AbstractFunctionImpl {
     }
 
     /**
-     * Applies the multi-scale CLAHE strategy in place on a mono image. The tile sizes
-     * are derived from the solar disk diameter (from the image's {@link Ellipse} metadata
-     * if available, otherwise from the image dimensions).
+     * Applies the multi-scale CLAHE strategy in place on a mono image, restricting
+     * tile histograms to the solar disk.
      *
      * @param image the image to enhance, modified in place
      * @param clip the clip limit
+     * @see #applyMultiScaleClahe(ImageWrapper32, double, boolean)
      */
     public static void applyMultiScaleClahe(ImageWrapper32 image, double clip) {
+        applyMultiScaleClahe(image, clip, true);
+    }
+
+    /**
+     * Applies the multi-scale CLAHE strategy in place on a mono image. The tile sizes
+     * are derived from the solar disk diameter (from the image's {@link Ellipse} metadata
+     * if available, otherwise from the image dimensions). When the ellipse is known and
+     * {@code diskOnly} is set, tile histograms only count pixels of the solar disk, so
+     * that the limb is not brightened by the sky pixels of the tiles which straddle it.
+     *
+     * @param image the image to enhance, modified in place
+     * @param clip the clip limit
+     * @param diskOnly whether to restrict tile histograms to the solar disk
+     */
+    public static void applyMultiScaleClahe(ImageWrapper32 image, double clip, boolean diskOnly) {
         var tileSizes = computeTileSizesForImage(image);
-        multiScaleClaheChannel(image.data(), image.width(), image.height(), image.metadata(), tileSizes, clip);
+        var mask = diskOnly ? diskMask(image) : null;
+        multiScaleClaheChannel(image.data(), image.width(), image.height(), image.metadata(), tileSizes, clip, mask);
+    }
+
+    private static boolean[][] diskMask(ImageWrapper image) {
+        var ellipse = image.findMetadata(Ellipse.class);
+        if (ellipse.isEmpty()) {
+            return null;
+        }
+        var e = ellipse.get();
+        var width = image.width();
+        var height = image.height();
+        var mask = new boolean[height][width];
+        for (int y = 0; y < height; y++) {
+            var row = mask[y];
+            for (int x = 0; x < width; x++) {
+                row[x] = e.isWithin(x, y);
+            }
+        }
+        return mask;
     }
 
     private static List<Integer> computeTileSizesForImage(ImageWrapper image) {
@@ -112,11 +148,12 @@ public class Clahe extends AbstractFunctionImpl {
                                                int height,
                                                Map<Class<?>, Object> metadata,
                                                List<Integer> tileSizes,
-                                               double clip) {
+                                               double clip,
+                                               boolean[][] mask) {
         var sum = new float[height][width];
         for (int tileSize : tileSizes) {
             var copy = ImageWrapper.copyData(data);
-            new ClaheStrategy(tileSize, CLAHE2_BINS, clip)
+            new ClaheStrategy(tileSize, CLAHE2_BINS, clip, mask)
                     .stretch(new ImageWrapper32(width, height, copy, new HashMap<>(metadata)));
             for (int y = 0; y < height; y++) {
                 var row = copy[y];
