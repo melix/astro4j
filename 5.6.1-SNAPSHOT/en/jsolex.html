@@ -792,7 +792,7 @@ The search only answers when the identification is certain: a narrow capture win
 <div class="ulist">
 <ul>
 <li>
-<p>Contrast enhancement method: you can choose between Autostretch (JSol&#8217;Ex), CLAHE and CLAHE (multi-scale). Depending on your choice, additional parameters will be available.</p>
+<p>Contrast enhancement method: you can choose between Best method, Autostretch (JSol&#8217;Ex), CLAHE and CLAHE (multi-scale). Best method uses CLAHE (multi-scale) for the calcium lines and Autostretch for the other lines. Depending on your choice, additional parameters will be available. You can change the method and its settings afterwards on the processed image, see <a href="#stretching-steps">Stretching</a>.</p>
 </li>
 </ul>
 </div>
@@ -808,7 +808,7 @@ The search only answers when the identification is certain: a narrow capture win
 <p>background correction: a value close to 0 will strongly suppress the sky background, a value close to 1 will keep it as is</p>
 </li>
 <li>
-<p>prominence amplification: if enabled, allows choosing an amplification factor. The higher the factor, the more visible the prominences will be, at the cost of stronger demarcation with the limb</p>
+<p>prominence enhancement: 0 disables it. The higher the value, the more visible the prominences will be, at the cost of stronger demarcation with the limb</p>
 </li>
 </ul>
 </div>
@@ -1328,6 +1328,26 @@ In addition, right-clicking the image will let you open it into your file explor
 <div class="paragraph">
 <p>Animations and videos have a "Crop / rotate&#8230;&#8203;" button which opens a window showing a single frame (the current one for a video).
 You can rotate it, flip it or crop it, then click "Apply": the operations are applied to every frame and the result appears as a new animation next to the original one.</p>
+</div>
+<div class="sect3">
+<h4 id="stretching-steps">Stretching</h4>
+<div class="paragraph">
+<p>The "Stretching" list at the top of each image selects how its brightness is adjusted.
+The settings of the selected method are shown on the line below: move a slider or type a value in the field next to it, or pick a value in a list for the CLAHE tile size and bins.
+Hover the list to read what the selected method does and what its settings mean.
+The processed image starts with the contrast enhancement method chosen in the processing parameters, followed by a Linear stretch to adjust its black and white points.</p>
+</div>
+<div class="paragraph">
+<p>"+ Add a stretch" applies another method on top of the previous ones, for example a Shadows/highlights adjustment after the Linear stretch.
+The stretches are then listed in the order they are applied: click one to select it, or click its × to remove it.
+The list of methods and the settings of the selected stretch move to the line below, and choosing another method in the list replaces the selected stretch.
+"Reset" restores the original settings of the selected stretch, without changing the other ones.</p>
+</div>
+<div class="paragraph">
+<p>The available methods are No stretch, Linear, Curve, Midtones, Arcsinh, Autostretch, CLAHE, CLAHE (multi-scale) and Shadows/highlights.
+Autostretch is only offered when the solar disk was detected.
+Saved images use the stretches shown on screen.</p>
+</div>
 </div>
 </div>
 <div class="sect2">
