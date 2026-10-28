@@ -4058,7 +4058,7 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <div class="sect2">
 <h3 id="_clahe2">CLAHE2</h3>
 <div class="paragraph">
-<p>Variante adaptative de CLAHE qui calcule la moyenne de plusieurs passes CLAHE à des tailles de tuiles différentes, déterminées automatiquement à partir du diamètre du disque solaire. Cette approche multi-échelle réduit fortement l&#8217;anneau brillant qui apparaît au limbe avec une CLAHE classique.</p>
+<p>Variante adaptative de CLAHE qui calcule la moyenne de plusieurs passes CLAHE à des tailles de tuiles différentes, déterminées automatiquement à partir du diamètre du disque solaire. Les histogrammes des tuiles ne comptent que les pixels du disque solaire, ce qui évite l&#8217;anneau brillant qui apparaît au limbe avec une CLAHE classique.</p>
 </div>
 <table class="tableblock frame-all grid-all stretch">
 <colgroup>
@@ -4087,6 +4087,12 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <td class="tableblock halign-left valign-top"><p class="tableblock">1.5</p></td>
 </tr>
 <tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>disk_only</code></p></td>
+<td class="tableblock halign-center valign-top"></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Limite les histogrammes des tuiles aux pixels du disque solaire (1=activé, 0=désactivé). Lorsque désactivé, le disque est éclairci près du limbe mais les protubérances sont davantage rehaussées.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">1</p></td>
+</tr>
+<tr>
 <td class="tableblock halign-left valign-top" colspan="4"><div class="content"></div></td>
 </tr>
 </tbody>
@@ -4102,6 +4108,11 @@ result = jsolex.funcs.SHARPEN(img=img, amount=1.5)</p>
 <div class="listingblock">
 <div class="content">
 <pre>clahe2(img: img(0), clip: 2.0)</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>clahe2(img: img(0), disk_only: 0)</pre>
 </div>
 </div>
 </div>
