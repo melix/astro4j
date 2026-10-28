@@ -3,6 +3,7 @@
 ## What's New in Version 5.6.1
 
 - Faster GPU processing.
+- The CLAHE2 function no longer brightens the solar disk near the limb.
 - Fixed a crash when a processing parameter is invalid.
 - Fixed the negative image being saturated when the image is cropped with a large margin around the Sun.
 

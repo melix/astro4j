@@ -1,8 +1,8 @@
 name: CLAHE2
 category: ENHANCEMENT
 description:
-  fr: "Variante adaptative de CLAHE qui calcule la moyenne de plusieurs passes CLAHE à des tailles de tuiles différentes, déterminées automatiquement à partir du diamètre du disque solaire. Cette approche multi-échelle réduit fortement l'anneau brillant qui apparaît au limbe avec une CLAHE classique."
-  en: "Adaptive variant of CLAHE that averages several CLAHE passes at different tile sizes, derived automatically from the solar disk diameter. This multi-scale approach strongly reduces the bright limb ring that classic CLAHE produces."
+  fr: "Variante adaptative de CLAHE qui calcule la moyenne de plusieurs passes CLAHE à des tailles de tuiles différentes, déterminées automatiquement à partir du diamètre du disque solaire. Les histogrammes des tuiles ne comptent que les pixels du disque solaire, ce qui évite l'anneau brillant qui apparaît au limbe avec une CLAHE classique."
+  en: "Adaptive variant of CLAHE that averages several CLAHE passes at different tile sizes, derived automatically from the solar disk diameter. Tile histograms only count pixels of the solar disk, which avoids the bright limb ring that classic CLAHE produces."
 arguments:
   - name: img
     description: Image(s)
@@ -12,6 +12,13 @@ arguments:
     description:
       fr: "Valeur de coupure"
       en: "Clip limit"
+  - name: disk_only
+    optional: true
+    default: 1
+    description:
+      fr: "Limite les histogrammes des tuiles aux pixels du disque solaire (1=activé, 0=désactivé). Lorsque désactivé, le disque est éclairci près du limbe mais les protubérances sont davantage rehaussées."
+      en: "Restricts tile histograms to pixels of the solar disk (1=enabled, 0=disabled). When disabled, the disk is brightened near the limb but prominences are enhanced more."
 examples:
   - "clahe2(img(0))"
   - "clahe2(img: img(0), clip: 2.0)"
+  - "clahe2(img: img(0), disk_only: 0)"

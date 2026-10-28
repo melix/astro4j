@@ -28,11 +28,26 @@ public final class ClaheStrategy implements StretchingStrategy {
     private final int tileSize;
     private final int bins;
     private final double clipRatio;
+    private final boolean[][] mask;
 
     public ClaheStrategy(int tileSize, int bins, double clipRatio) {
+        this(tileSize, bins, clipRatio, null);
+    }
+
+    /**
+     * Creates a CLAHE strategy whose tile histograms only count the pixels
+     * selected by the mask. Tiles which contain too few selected pixels use
+     * the histogram of all selected pixels instead, which avoids the bright
+     * band that mixed histograms produce at the edge of the mask. Every pixel
+     * is mapped, whether it is selected or not.
+     *
+     * @param mask the pixels to count in histograms, or null to count all pixels
+     */
+    public ClaheStrategy(int tileSize, int bins, double clipRatio, boolean[][] mask) {
         this.tileSize = tileSize;
         this.bins = bins;
         this.clipRatio = clipRatio;
+        this.mask = mask;
     }
 
     public static ClaheStrategy of(ClaheParams claheParams) {
@@ -40,7 +55,7 @@ public final class ClaheStrategy implements StretchingStrategy {
     }
 
     public ClaheStrategy withClipRatio(double clipRatio) {
-        return new ClaheStrategy(tileSize, bins, clipRatio);
+        return new ClaheStrategy(tileSize, bins, clipRatio, mask);
     }
 
     /**
@@ -56,11 +71,15 @@ public final class ClaheStrategy implements StretchingStrategy {
         int xTilesCount = (int) Math.ceil(width / (double) tileSize);
         int yTilesCount = (int) Math.ceil(height / (double) tileSize);
         var cdf = new CumulativeDistributionFunction[yTilesCount][xTilesCount];
+        var fallback = mask == null ? null : clippedCdf(histogram(width, height, data, 0, 0, Math.max(width, height)));
         for (int y = 0; y < yTilesCount; y++) {
             for (int x = 0; x < xTilesCount; x++) {
                 var histogram = histogram(width, height, data, x, y, tileSize);
-                clipHistogram(histogram, (int) (clipRatio * histogram.pixelCount() / bins));
-                cdf[y][x] = computeCdf(histogram);
+                if (fallback != null && 4 * histogram.pixelCount() < tileArea(width, height, x, y)) {
+                    cdf[y][x] = fallback;
+                } else {
+                    cdf[y][x] = clippedCdf(histogram);
+                }
             }
         }
         for (int y = 0; y < height; y++) {
@@ -149,6 +168,17 @@ public final class ClaheStrategy implements StretchingStrategy {
         }
     }
 
+    private CumulativeDistributionFunction clippedCdf(Histogram histogram) {
+        clipHistogram(histogram, (int) (clipRatio * histogram.pixelCount() / bins));
+        return computeCdf(histogram);
+    }
+
+    private int tileArea(int width, int height, int tileX, int tileY) {
+        int w = Math.min(width, (tileX + 1) * tileSize) - tileX * tileSize;
+        int h = Math.min(height, (tileY + 1) * tileSize) - tileY * tileSize;
+        return w * h;
+    }
+
     private static float centerOf(int tile, int tileSize) {
         return tile * tileSize + (tileSize / 2f);
     }
@@ -229,6 +259,9 @@ public final class ClaheStrategy implements StretchingStrategy {
         int max = -1;
         for (int y = yStart; y < yEnd; y++) {
             for (int x = xStart; x < xEnd; x++) {
+                if (mask != null && !mask[y][x]) {
+                    continue;
+                }
                 float src = data[y][x];
                 int bin = findHistogramBin(src);
                 histogram[bin]++;
