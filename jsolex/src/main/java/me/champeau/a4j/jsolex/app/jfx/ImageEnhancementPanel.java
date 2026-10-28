@@ -45,7 +45,7 @@ import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.RichardsonLucyDeconvolutionParams;
 import me.champeau.a4j.jsolex.processing.params.SharpeningMethod;
 import me.champeau.a4j.jsolex.processing.params.SharpeningParams;
-import me.champeau.a4j.jsolex.processing.stretching.Clahe2Strategy;
+import me.champeau.a4j.jsolex.processing.stretching.AdaptativeClaheStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.ClaheStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.StretchStep;
 import me.champeau.a4j.jsolex.processing.stretching.StretchStepKind;
@@ -561,7 +561,7 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
                 .withValue("bins", claheParams.bins())
                 .withValue("clip", isClahe2 ? ClaheStrategy.DEFAULT_CLIP : claheParams.clipping()));
         clahe2Editor.setStep(StretchStep.defaultsOf(StretchStepKind.CLAHE2)
-                .withValue("clip", isClahe2 ? claheParams.clipping() : Clahe2Strategy.DEFAULT_CLIP));
+                .withValue("clip", isClahe2 ? claheParams.clipping() : AdaptativeClaheStrategy.DEFAULT_CLIP));
         
         
         var bandingParams = params.bandingCorrectionParams();

@@ -89,7 +89,7 @@ class StretchRecipeTest extends Specification {
         enhancement                     | strategy
         ContrastEnhancement.AUTOSTRETCH | new AutohistogramStrategy(2.0, true, 0.3, 1.5)
         ContrastEnhancement.CLAHE       | new ClaheStrategy(16, 128, 1.2)
-        ContrastEnhancement.CLAHE2      | new Clahe2Strategy(1.2)
+        ContrastEnhancement.CLAHE2      | new AdaptativeClaheStrategy(1.2)
     }
 
     def "applying a recipe records each step in the transformation history"() {
@@ -144,7 +144,7 @@ class StretchRecipeTest extends Specification {
 
     def "multi-scale CLAHE tile sizes halve down to the minimum tile size"() {
         expect:
-        Clahe2Strategy.computeTileSizes(rawStart, 256, 6) == expected
+        AdaptativeClaheStrategy.computeTileSizes(rawStart, 256, 6) == expected
 
         where:
         rawStart | expected
@@ -158,7 +158,7 @@ class StretchRecipeTest extends Specification {
         def recipe = StretchRecipe.of(StretchStep.defaultsOf(StretchStepKind.CLAHE2))
         image.metadata().put(StretchRecipe, recipe)
         def expected = image.copy()
-        new Clahe2Strategy(Clahe2Strategy.DEFAULT_CLIP).stretch(expected)
+        new AdaptativeClaheStrategy(AdaptativeClaheStrategy.DEFAULT_CLIP).stretch(expected)
 
         when:
         def materialized = StretchRecipe.materialize(image)

@@ -16,7 +16,7 @@
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
-import me.champeau.a4j.jsolex.processing.stretching.Clahe2Strategy;
+import me.champeau.a4j.jsolex.processing.stretching.AdaptativeClaheStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.ClaheStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 
@@ -41,8 +41,8 @@ public class Clahe extends AbstractFunctionImpl {
 
     public Object clahe2(Map<String ,Object> arguments) {
         BuiltinFunction.CLAHE2.validateArgs(arguments);
-        double clip = doubleArg(arguments, "clip", Clahe2Strategy.DEFAULT_CLIP);
+        double clip = doubleArg(arguments, "clip", AdaptativeClaheStrategy.DEFAULT_CLIP);
         boolean diskOnly = booleanArg(arguments, "disk_only", true);
-        return monoToMonoImageTransformer("clahe2", "img", arguments, image -> new Clahe2Strategy(clip, diskOnly).stretch(image));
+        return monoToMonoImageTransformer("clahe2", "img", arguments, image -> new AdaptativeClaheStrategy(clip, diskOnly).stretch(image));
     }
 }

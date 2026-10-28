@@ -33,7 +33,7 @@ import java.util.Map;
  * of the solar disk, so that the limb is not brightened by the sky pixels of the
  * tiles which straddle it.
  */
-public final class Clahe2Strategy implements StretchingStrategy {
+public final class AdaptativeClaheStrategy implements StretchingStrategy {
     private static final int BINS = 256;
     private static final int MAX_LEVELS = 6;
     public static final double DEFAULT_CLIP = 1.5;
@@ -46,7 +46,7 @@ public final class Clahe2Strategy implements StretchingStrategy {
      *
      * @param clip the clip limit
      */
-    public Clahe2Strategy(double clip) {
+    public AdaptativeClaheStrategy(double clip) {
         this(clip, true);
     }
 
@@ -56,7 +56,7 @@ public final class Clahe2Strategy implements StretchingStrategy {
      * @param clip the clip limit
      * @param diskOnly whether to restrict tile histograms to the solar disk
      */
-    public Clahe2Strategy(double clip, boolean diskOnly) {
+    public AdaptativeClaheStrategy(double clip, boolean diskOnly) {
         this.clip = clip;
         this.diskOnly = diskOnly;
     }

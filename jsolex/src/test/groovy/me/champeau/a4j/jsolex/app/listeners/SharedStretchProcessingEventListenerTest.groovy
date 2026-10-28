@@ -18,7 +18,7 @@ package me.champeau.a4j.jsolex.app.listeners
 import me.champeau.a4j.jsolex.processing.event.GeneratedImage
 import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener
-import me.champeau.a4j.jsolex.processing.stretching.Clahe2Strategy
+import me.champeau.a4j.jsolex.processing.stretching.AdaptativeClaheStrategy
 import me.champeau.a4j.jsolex.processing.stretching.StretchRecipe
 import me.champeau.a4j.jsolex.processing.stretching.StretchStep
 import me.champeau.a4j.jsolex.processing.stretching.StretchStepKind
@@ -38,7 +38,7 @@ class SharedStretchProcessingEventListenerTest extends Specification {
         def image = noise()
         image.metadata().put(StretchRecipe, StretchRecipe.of(StretchStep.defaultsOf(StretchStepKind.CLAHE2)))
         def expected = image.copy()
-        new Clahe2Strategy(Clahe2Strategy.DEFAULT_CLIP).stretch(expected)
+        new AdaptativeClaheStrategy(AdaptativeClaheStrategy.DEFAULT_CLIP).stretch(expected)
         def listener = new SharedStretchProcessingEventListener([first], { second })
 
         when:

@@ -115,10 +115,10 @@ public enum StretchStepKind {
         }
     },
     CLAHE2(false,
-            range("clip", 0.1, 10, Clahe2Strategy.DEFAULT_CLIP, 0.1)) {
+            range("clip", 0.1, 10, AdaptativeClaheStrategy.DEFAULT_CLIP, 0.1)) {
         @Override
         StretchingStrategy toStrategy(StretchStep step) {
-            return new Clahe2Strategy(step.value("clip"));
+            return new AdaptativeClaheStrategy(step.value("clip"));
         }
 
         @Override
