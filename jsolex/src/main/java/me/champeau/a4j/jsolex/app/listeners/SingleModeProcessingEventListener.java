@@ -893,15 +893,13 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 public boolean supports(ActionKind kind) {
                     if (kind.isCrop()) {
                         if (kind == ActionKind.IMAGEMATH_CROP) {
-                            var stretchedImage = addedImageViewer.getStretchedImage();
-                            return stretchedImage.findMetadata(ReferenceCoords.class).isPresent();
+                            return addedImageViewer.getImage().findMetadata(ReferenceCoords.class).isPresent();
                         }
                         return true;
                     }
                     if (kind == ActionKind.EXTRACT_SER_FRAMES) {
                         // Only available if we have reference coordinates and a SER file
-                        var stretchedImage = addedImageViewer.getStretchedImage();
-                        return stretchedImage.findMetadata(ReferenceCoords.class).isPresent() && serFile != null;
+                        return addedImageViewer.getImage().findMetadata(ReferenceCoords.class).isPresent() && serFile != null;
                     }
                     if (adjustedParams == null) {
                         return false;

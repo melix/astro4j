@@ -23,7 +23,10 @@ import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.MidtoneTransferFunctionAutostretchStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.MidtoneTransferFunctionStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.PercentileStretchStrategy;
+import me.champeau.a4j.jsolex.processing.stretching.ShadowsHighlightsStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.SigmoidStretchingStrategy;
+import me.champeau.a4j.jsolex.processing.stretching.StretchStep;
+import me.champeau.a4j.jsolex.processing.stretching.StretchStepKind;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -137,6 +140,15 @@ public class Stretching extends AbstractFunctionImpl {
                 }
             }
         });
+    }
+
+    public Object shadowsHighlights(Map<String, Object> arguments) {
+        BuiltinFunction.SHADOWS_HIGHLIGHTS.validateArgs(arguments);
+        var shadows = doubleArg(arguments, "shadows", ShadowsHighlightsStrategy.DEFAULT_SHADOWS);
+        var highlights = doubleArg(arguments, "highlights", ShadowsHighlightsStrategy.DEFAULT_HIGHLIGHTS);
+        var radius = intArg(arguments, "radius", ShadowsHighlightsStrategy.DEFAULT_RADIUS);
+        var strategy = StretchStep.of(StretchStepKind.SHADOWS_HIGHLIGHTS, shadows, highlights, radius).toStrategy();
+        return monoToMonoImageTransformer("shadows_highlights", "img", arguments, strategy::stretch);
     }
 
     public Object sigmoidStretch(Map<String, Object> arguments) {

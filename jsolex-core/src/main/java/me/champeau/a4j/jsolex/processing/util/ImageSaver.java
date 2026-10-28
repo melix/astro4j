@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.util;
 
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
+import me.champeau.a4j.jsolex.processing.stretching.StretchRecipe;
 import me.champeau.a4j.jsolex.processing.stretching.StretchingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 
@@ -27,7 +28,8 @@ import java.util.stream.Stream;
 
 /**
  * An utility responsible for saving images after
- * applying a stretching strategy.
+ * applying a stretching strategy. Images which carry a
+ * {@link StretchRecipe} are stretched with it first.
  */
 public class ImageSaver {
     private final StretchingStrategy stretchingStrategy;
@@ -46,6 +48,7 @@ public class ImageSaver {
         if (image instanceof FileBackedImage fbi) {
             image = fbi.unwrapToMemory();
         }
+        image = StretchRecipe.materialize(image);
         if (image instanceof ImageWrapper32 mono) {
             var buf = new float[mono.height()][mono.width()];
             var stretched = stretchInto(mono, buf);

@@ -30,12 +30,14 @@ public sealed interface StretchingStrategy permits
     RangeExpansionStrategy,
     SigmoidStretchingStrategy,
     ClaheStrategy,
+    Clahe2Strategy,
     GammaStrategy,
     AutohistogramStrategy,
     ContrastAdjustmentStrategy,
     DynamicStretchStrategy,
     MidtoneTransferFunctionStrategy,
     MidtoneTransferFunctionAutostretchStrategy,
+    ShadowsHighlightsStrategy,
     StretchingChain {
 
     default void stretch(ImageWrapper image) {

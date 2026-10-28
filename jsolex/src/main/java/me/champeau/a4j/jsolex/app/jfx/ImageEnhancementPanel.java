@@ -24,13 +24,13 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
 import javafx.scene.control.Tooltip;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
 import javafx.util.converter.IntegerStringConverter;
 import me.champeau.a4j.jsolex.app.AlertFactory;
 import me.champeau.a4j.jsolex.app.JSolEx;
-import me.champeau.a4j.jsolex.processing.expr.impl.Clahe;
 import me.champeau.a4j.jsolex.processing.params.AutoStretchParams;
 import me.champeau.a4j.jsolex.processing.params.BandingCorrectionMethod;
 import me.champeau.a4j.jsolex.processing.params.BandingCorrectionParams;
@@ -45,8 +45,10 @@ import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.RichardsonLucyDeconvolutionParams;
 import me.champeau.a4j.jsolex.processing.params.SharpeningMethod;
 import me.champeau.a4j.jsolex.processing.params.SharpeningParams;
-import me.champeau.a4j.jsolex.processing.stretching.AutohistogramStrategy;
+import me.champeau.a4j.jsolex.processing.stretching.Clahe2Strategy;
 import me.champeau.a4j.jsolex.processing.stretching.ClaheStrategy;
+import me.champeau.a4j.jsolex.processing.stretching.StretchStep;
+import me.champeau.a4j.jsolex.processing.stretching.StretchStepKind;
 import me.champeau.a4j.jsolex.processing.sun.BandingReduction;
 import me.champeau.a4j.jsolex.processing.sun.FlatCorrection;
 import me.champeau.a4j.jsolex.processing.spectrum.FlatCreator;
@@ -55,17 +57,21 @@ import me.champeau.a4j.math.image.Deconvolution;
 
 import java.nio.file.Path;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * Panel for configuring image enhancement parameters.
  */
 public class ImageEnhancementPanel extends BaseParameterPanel {
+    private static final Map<String, String> PANEL_HELP = Map.of(
+            "background.threshold", "background.threshold.tooltip",
+            "protus.stretch", "protus.stretch.value.tooltip"
+    );
 
     private ChoiceBox<ContrastEnhancement> contrastEnhancementChoice;
-    private TextField autostretchGamma;
-    private TextField bgThreshold;
-    private CheckBox stretchProtus;
-    private TextField protusStretchValue;
+    private StretchStepEditor autoStretchEditor;
+    private StretchStepEditor claheEditor;
+    private StretchStepEditor clahe2Editor;
     private ChoiceBox<DeconvolutionMode> deconvolutionMode;
     private TextField rlRadius;
     private TextField rlSigma;
@@ -80,13 +86,8 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
     private VBox clahe2Section;
     private VBox rlSection;
     private VBox sharpeningSection;
-    private VBox protusStretchRow;
     private VBox jaggingCorrectionSigmaRow;
     
-    private ChoiceBox<Integer> claheTileSize;
-    private ChoiceBox<Integer> claheBins;
-    private TextField claheClipping;
-    private TextField clahe2Clipping;
     
     private TextField flatFilePath;
     private Path selectedFlatFilePath;
@@ -141,11 +142,9 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
             }
         });
         
-        autostretchGamma = new TextField("2.2");
-        bgThreshold = new TextField("0.1");
-        stretchProtus = new CheckBox();
-        stretchProtus.setOnAction(e -> updateParameterVisibility());
-        protusStretchValue = new TextField("1.5");
+        autoStretchEditor = new StretchStepEditor(StretchStep.defaultsOf(StretchStepKind.AUTOSTRETCH), step -> {});
+        claheEditor = new StretchStepEditor(StretchStep.defaultsOf(StretchStepKind.CLAHE), step -> {});
+        clahe2Editor = new StretchStepEditor(StretchStep.defaultsOf(StretchStepKind.CLAHE2), step -> {});
         
         deconvolutionMode = createChoiceBox();
         deconvolutionMode.setItems(FXCollections.observableArrayList(DeconvolutionMode.values()));
@@ -210,34 +209,6 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
         }));
         sharpeningAmount = new TextField("1.0");
         
-        
-        claheTileSize = createChoiceBox();
-        claheTileSize.setItems(FXCollections.observableArrayList(8, 16, 32, 64, 128, 256, 512, 1024));
-        claheTileSize.setValue(ClaheStrategy.DEFAULT_TILE_SIZE);
-        claheTileSize.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "tile.size")));
-        
-        claheBins = createChoiceBox();
-        claheBins.setItems(FXCollections.observableArrayList(32, 64, 128, 256, 512, 1024));
-        claheBins.setValue(ClaheStrategy.DEFAULT_BINS);
-        claheBins.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "bins")));
-        
-        claheClipping = new TextField(String.valueOf(ClaheStrategy.DEFAULT_CLIP));
-        claheClipping.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "clipping")));
-
-        clahe2Clipping = new TextField(String.valueOf(Clahe.CLAHE2_DEFAULT_CLIP));
-        clahe2Clipping.setTooltip(new Tooltip(I18N.string(JSolEx.class, "process-params", "clipping")));
-        
-        claheTileSize.valueProperty().addListener((obs, oldValue, newValue) -> {
-            if (newValue != null && claheBins.getValue() != null && claheBins.getValue() > newValue * newValue) {
-                claheBins.setValue(newValue * newValue);
-            }
-        });
-        
-        claheBins.valueProperty().addListener((obs, oldValue, newValue) -> {
-            if (newValue != null && claheTileSize.getValue() != null && newValue > claheTileSize.getValue() * claheTileSize.getValue()) {
-                claheBins.setValue(oldValue);
-            }
-        });
         
         flatFilePath = new TextField();
         flatFilePath.setPromptText(I18N.string(JSolEx.class, "process-params", "choose.flat.file"));
@@ -373,24 +344,14 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
         autostretchSection.getStyleClass().add("subsection");
 
         var autostretchGrid = createGrid();
-        addGridRow(autostretchGrid, 0, I18N.string(JSolEx.class, "process-params", "gamma") + ":", autostretchGamma);
-        addGridRow(autostretchGrid, 1, I18N.string(JSolEx.class, "process-params", "background.threshold") + ":", bgThreshold, "background.threshold.tooltip");
-        addGridRow(autostretchGrid, 2, I18N.string(JSolEx.class, "process-params", "protus.stretch.value") + ":", stretchProtus, "protus.stretch.value.tooltip");
-        
-        protusStretchRow = new VBox();
-        var protusStretchGrid = createGrid();
-        addGridRow(protusStretchGrid, 0, I18N.string(JSolEx.class, "process-params", "protus.stretch.value") + ":", protusStretchValue, "protus.stretch.value.tooltip");
-        protusStretchRow.getChildren().add(protusStretchGrid);
-        
-        autostretchSection.getChildren().addAll(autostretchGrid, protusStretchRow);
-        
+        addEditorRows(autostretchGrid, autoStretchEditor);
+        autostretchSection.getChildren().add(autostretchGrid);
+
         claheSection = new VBox(8);
         claheSection.getStyleClass().add("subsection");
 
         var claheGrid = createGrid();
-        addGridRow(claheGrid, 0, I18N.string(JSolEx.class, "process-params", "tile.size") + ":", claheTileSize);
-        addGridRow(claheGrid, 1, I18N.string(JSolEx.class, "process-params", "bins") + ":", claheBins);
-        addGridRow(claheGrid, 2, I18N.string(JSolEx.class, "process-params", "clipping") + ":", claheClipping);
+        addEditorRows(claheGrid, claheEditor);
         claheSection.getChildren().add(claheGrid);
         claheSection.setVisible(false);
         claheSection.setManaged(false);
@@ -398,7 +359,7 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
         clahe2Section = new VBox(8);
         clahe2Section.getStyleClass().add("subsection");
         var clahe2Grid = createGrid();
-        addGridRow(clahe2Grid, 0, I18N.string(JSolEx.class, "process-params", "clipping") + ":", clahe2Clipping);
+        addEditorRows(clahe2Grid, clahe2Editor);
         clahe2Section.getChildren().add(clahe2Grid);
         clahe2Section.setVisible(false);
         clahe2Section.setManaged(false);
@@ -548,15 +509,9 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
     
     private void resetToDefaults() {
         contrastEnhancementChoice.setValue(ContrastEnhancement.AUTOSTRETCH);
-        autostretchGamma.setText(String.valueOf(AutohistogramStrategy.DEFAULT_GAMMA));
-        bgThreshold.setText(String.valueOf(AutohistogramStrategy.DEFAULT_BACKGROUND_THRESHOLD));
-        stretchProtus.setSelected(false);
-        protusStretchValue.setText(String.valueOf(AutohistogramStrategy.DEFAULT_PROM_STRETCH));
-        
-        claheTileSize.setValue(ClaheStrategy.DEFAULT_TILE_SIZE);
-        claheBins.setValue(ClaheStrategy.DEFAULT_BINS);
-        claheClipping.setText(String.valueOf(ClaheStrategy.DEFAULT_CLIP));
-        clahe2Clipping.setText(String.valueOf(Clahe.CLAHE2_DEFAULT_CLIP));
+        autoStretchEditor.setStep(StretchStep.defaultsOf(StretchStepKind.AUTOSTRETCH));
+        claheEditor.setStep(StretchStep.defaultsOf(StretchStepKind.CLAHE));
+        clahe2Editor.setStep(StretchStep.defaultsOf(StretchStepKind.CLAHE2));
         
         bandingCorrectionMethod.setValue(BandingCorrectionMethod.BANDING_CORRECTION);
         bandingCorrectionPasses.setText(String.valueOf(BandingReduction.DEFAULT_PASS_COUNT));
@@ -594,21 +549,19 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
      */
     public void loadData(ProcessParams params) {
         contrastEnhancementChoice.setValue(params.contrastEnhancement());
-        autostretchGamma.setText(String.valueOf(params.autoStretchParams().gamma()));
-        bgThreshold.setText(String.valueOf(params.autoStretchParams().bgThreshold()));
-        stretchProtus.setSelected(params.autoStretchParams().protusStretch() > 1.0);
-        protusStretchValue.setText(String.valueOf(params.autoStretchParams().protusStretch()));
-        
+        var autoStretchParams = params.autoStretchParams();
+        autoStretchEditor.setStep(StretchStep.defaultsOf(StretchStepKind.AUTOSTRETCH)
+                .withValue("gamma", autoStretchParams.gamma())
+                .withValue("background.threshold", autoStretchParams.bgThreshold())
+                .withValue("protus.stretch", autoStretchParams.protusStretch()));
         var claheParams = params.claheParams();
-        claheTileSize.setValue(claheParams.tileSize());
-        claheBins.setValue(claheParams.bins());
-        if (params.contrastEnhancement() == ContrastEnhancement.CLAHE2) {
-            claheClipping.setText(String.valueOf(ClaheStrategy.DEFAULT_CLIP));
-            clahe2Clipping.setText(String.valueOf(claheParams.clipping()));
-        } else {
-            claheClipping.setText(String.valueOf(claheParams.clipping()));
-            clahe2Clipping.setText(String.valueOf(Clahe.CLAHE2_DEFAULT_CLIP));
-        }
+        var isClahe2 = params.contrastEnhancement() == ContrastEnhancement.CLAHE2;
+        claheEditor.setStep(StretchStep.defaultsOf(StretchStepKind.CLAHE)
+                .withValue("tile.size", claheParams.tileSize())
+                .withValue("bins", claheParams.bins())
+                .withValue("clip", isClahe2 ? ClaheStrategy.DEFAULT_CLIP : claheParams.clipping()));
+        clahe2Editor.setStep(StretchStep.defaultsOf(StretchStepKind.CLAHE2)
+                .withValue("clip", isClahe2 ? claheParams.clipping() : Clahe2Strategy.DEFAULT_CLIP));
         
         
         var bandingParams = params.bandingCorrectionParams();
@@ -687,11 +640,8 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
      * @return the autostretch parameters
      */
     public AutoStretchParams getAutoStretchParams() {
-        var gamma = parseDouble(autostretchGamma.getText(), AutohistogramStrategy.DEFAULT_GAMMA);
-        var bgThresholdValue = parseDouble(bgThreshold.getText(), AutohistogramStrategy.DEFAULT_BACKGROUND_THRESHOLD);
-        var protusStretch = stretchProtus.isSelected() ? parseDouble(protusStretchValue.getText(), AutohistogramStrategy.DEFAULT_PROM_STRETCH) : 0;
-        
-        return new AutoStretchParams(gamma, bgThresholdValue, protusStretch);
+        var step = autoStretchEditor.currentStep();
+        return new AutoStretchParams(step.value("gamma"), step.value("background.threshold"), step.value("protus.stretch"));
     }
 
     /**
@@ -699,16 +649,25 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
      * @return the CLAHE parameters
      */
     public ClaheParams getClaheParams() {
-        var tileSize = claheTileSize.getValue() != null ? claheTileSize.getValue() : ClaheStrategy.DEFAULT_TILE_SIZE;
-        var bins = claheBins.getValue() != null ? claheBins.getValue() : ClaheStrategy.DEFAULT_BINS;
+        var claheStep = claheEditor.currentStep();
+        var tileSize = (int) claheStep.value("tile.size");
+        var bins = ClaheStrategy.effectiveBins(tileSize, (int) claheStep.value("bins"));
         var clipping = contrastEnhancementChoice.getValue() == ContrastEnhancement.CLAHE2
-                ? parseDouble(clahe2Clipping.getText(), Clahe.CLAHE2_DEFAULT_CLIP)
-                : parseDouble(claheClipping.getText(), ClaheStrategy.DEFAULT_CLIP);
+                ? clahe2Editor.currentStep().value("clip")
+                : claheStep.value("clip");
 
         return new ClaheParams(tileSize, bins, clipping);
     }
     
     
+    private void addEditorRows(GridPane grid, StretchStepEditor editor) {
+        var controls = editor.controls();
+        for (int i = 0; i < controls.size(); i++) {
+            var control = controls.get(i);
+            addGridRow(grid, i, control.label().getText() + ":", control.input(), PANEL_HELP.get(control.parameter().name()));
+        }
+    }
+
     private void updateParameterVisibility() {
         var selectedEnhancement = contrastEnhancementChoice.getValue();
         
@@ -768,11 +727,6 @@ public class ImageEnhancementPanel extends BaseParameterPanel {
             jaggingCorrectionSigmaRow.setManaged(jaggingCorrection.isSelected());
         }
         
-        if (protusStretchRow != null) {
-            protusStretchRow.setVisible(stretchProtus.isSelected());
-            protusStretchRow.setManaged(stretchProtus.isSelected());
-        }
-
         if (bandingCorrectionParamsSection != null && destripeParamsSection != null) {
             var destripe = bandingCorrectionMethod.getValue() == BandingCorrectionMethod.DESTRIPE;
             bandingCorrectionParamsSection.setVisible(!destripe);

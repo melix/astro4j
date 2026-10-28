@@ -50,6 +50,18 @@ public final class ClaheStrategy implements StretchingStrategy {
         this.mask = mask;
     }
 
+    /**
+     * Returns the number of bins which can be used with a tile size: there cannot be
+     * more bins than pixels in a tile.
+     *
+     * @param tileSize the tile size
+     * @param bins the requested number of bins
+     * @return the number of bins to use
+     */
+    public static int effectiveBins(int tileSize, int bins) {
+        return Math.min(bins, tileSize * tileSize);
+    }
+
     public static ClaheStrategy of(ClaheParams claheParams) {
         return new ClaheStrategy(claheParams.tileSize(), claheParams.bins(), claheParams.clipping());
     }

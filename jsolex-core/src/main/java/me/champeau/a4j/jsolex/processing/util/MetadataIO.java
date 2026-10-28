@@ -24,6 +24,7 @@ import com.google.gson.JsonSerializer;
 import me.champeau.a4j.jsolex.processing.params.OutputMetadata;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.ProcessParamsIO;
+import me.champeau.a4j.jsolex.processing.stretching.StretchRecipe;
 import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegions;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageMetadata;
@@ -71,7 +72,8 @@ public final class MetadataIO {
             OutputMetadata.class,
             Ellipse.class,
             ImageMetadata.class,
-            ImageLabel.class
+            ImageLabel.class,
+            StretchRecipe.class
     );
 
     private static final Map<String, Class<?>> BY_NAME = buildIndex();

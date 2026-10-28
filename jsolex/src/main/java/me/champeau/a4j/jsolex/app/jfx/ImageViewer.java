@@ -48,6 +48,8 @@ import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Slider;
 import javafx.scene.control.Tooltip;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.image.Image;
@@ -75,12 +77,10 @@ import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.spectrum.cloud.CloudInversionResult;
 import me.champeau.a4j.jsolex.processing.spectrum.cloud.CloudMap;
 import me.champeau.a4j.jsolex.processing.spectrum.cloud.CloudMapRenderer;
-import me.champeau.a4j.jsolex.processing.stretching.ContrastAdjustmentStrategy;
-import me.champeau.a4j.jsolex.processing.stretching.CurveTransformStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
-import me.champeau.a4j.jsolex.processing.stretching.RangeExpansionStrategy;
-import me.champeau.a4j.jsolex.processing.stretching.StretchingChain;
-import me.champeau.a4j.jsolex.processing.stretching.StretchingStrategy;
+import me.champeau.a4j.jsolex.processing.stretching.StretchRecipe;
+import me.champeau.a4j.jsolex.processing.stretching.StretchStep;
+import me.champeau.a4j.jsolex.processing.stretching.StretchStepKind;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
@@ -102,11 +102,16 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
@@ -124,12 +129,21 @@ public class ImageViewer implements WithRootNode {
     private final Lock displayLock = new ReentrantLock();
     private Node root;
     private Stage stage;
-    private ContrastAdjustmentStrategy contrastAdjustStrategy = ContrastAdjustmentStrategy.DEFAULT;
-    private CurveTransformStrategy curveTransformStrategy = new CurveTransformStrategy(32768, 32768);
-    private boolean preserveStretchSettings;
+    private final AtomicReference<ImageWrapper> stretchedImage = new AtomicReference<>();
+    private final AtomicReference<StretchRecipe> activeRecipe = new AtomicReference<>(StretchRecipe.NONE);
+    private final AtomicReference<StretchCache> stretchCache = new AtomicReference<>();
+    private final AtomicReference<PendingStretch> pendingStretch = new AtomicReference<>();
+    private final AtomicLong stretchGeneration = new AtomicLong();
+    private final AtomicBoolean stretchRunning = new AtomicBoolean();
+    private final AtomicBoolean stretchPending = new AtomicBoolean();
+    private final AtomicBoolean pendingResetZoom = new AtomicBoolean();
+    private final Map<StretchStepKind, StretchStep> stepsByKind = new EnumMap<>(StretchStepKind.class);
+    private StretchRecipe initialRecipe = StretchRecipe.NONE;
+    private int selectedIndex = -1;
+    private StretchStepEditor stretchEditor;
+    private boolean fitUntilUserZooms;
     private boolean unsavedChanges = true;
     private FileBackedImage image;
-    private ImageWrapper stretchedImage;
     private File imageFile;
     private GeneratedImageKind kind;
     private String baseName;
@@ -140,10 +154,15 @@ public class ImageViewer implements WithRootNode {
     private ProgressOperation operation;
     private ProcessParams processParams;
     private FileCounts fileCounts = FileCounts.SINGLE_FILE;
-    private StretchingMode stretchingMode = StretchingMode.LINEAR;
 
     private Label dimensions;
     private VBox stretchingParams;
+    private ChoiceBox<StretchChoice> stretchChoice;
+    private HBox stretchParameters;
+    private HBox stretchChain;
+    private HBox inlineStretchEditor;
+    private HBox stretchEditorLine;
+    private Button resetStretchButton;
     private ZoomableImageView imageView;
     private StackPane imageContainer;
     private ProgressIndicator loadingIndicator;
@@ -185,6 +204,10 @@ public class ImageViewer implements WithRootNode {
      */
     public void init() {
         this.imageView = new ZoomableImageView();
+        imageView.widthProperty().addListener((obs, oldValue, newValue) -> refitIfPending());
+        imageView.heightProperty().addListener((obs, oldValue, newValue) -> refitIfPending());
+        imageView.addEventFilter(ScrollEvent.ANY, e -> fitUntilUserZooms = false);
+        imageView.addEventFilter(MouseEvent.MOUSE_PRESSED, e -> fitUntilUserZooms = false);
         imageView.getCtxMenu().setOnShowing(e -> populateContextMenu(imageView.getCtxMenu()));
         this.loadingIndicator = new ProgressIndicator();
         loadingIndicator.setMaxWidth(80);
@@ -207,8 +230,10 @@ public class ImageViewer implements WithRootNode {
         this.root = pane;
         this.stretchedImageDebounce = new PauseTransition(Duration.seconds(10));
         this.stretchedImageDebounce.setOnFinished(e -> {
-            if (stretchedImage != null && !(stretchedImage instanceof FileBackedImage)) {
-                stretchedImage = FileBackedImage.wrap(stretchedImage);
+            stretchCache.set(null);
+            var current = stretchedImage.get();
+            if (current != null && !(current instanceof FileBackedImage)) {
+                stretchedImage.compareAndSet(current, FileBackedImage.wrap(current));
             }
         });
     }
@@ -258,9 +283,6 @@ public class ImageViewer implements WithRootNode {
         this.description = description;
         this.imageName = imageName;
         this.popupViews = popupViews;
-        if (kind == GeneratedImageKind.IMAGE_MATH || kind == GeneratedImageKind.COLLAGE || kind == GeneratedImageKind.CLOUD_MODEL) {
-            this.stretchingMode = StretchingMode.NO_STRETCH;
-        }
         if (description != null && !description.isBlank()) {
             var helpOverlay = new ImageHelpOverlay(title, description, kind);
             FxUtils.runLater(() -> {
@@ -284,6 +306,8 @@ public class ImageViewer implements WithRootNode {
         if (image != null) {
             var wrapped = FileBackedImage.wrap(image);
             this.image = wrapped;
+            initialRecipe = computeInitialRecipe();
+            useRecipe(initialRecipe, initialRecipe.steps().size() - 1);
             this.imageFile = new File(imageName.getParentFile(), baseName + "_" + imageName.getName() + imageDisplayExtension(params));
             recordImage(baseName, image);
             // Initialize correctAngleP synchronously to avoid race conditions
@@ -414,7 +438,7 @@ public class ImageViewer implements WithRootNode {
         image.findMetadata(Ellipse.class).ifPresent(ellipse -> {
             image.findMetadata(SolarParameters.class).ifPresent(solarParameters -> {
                 EventHandler<ActionEvent> handler = e -> BackgroundOperations.async(() -> {
-                    var prepared = applyTransformations(image.copy());
+                    var prepared = getStretchedImage().copy();
                     if (prepared.unwrapToMemory() instanceof ImageWrapper32 mono) {
                         prepared = RGBImage.toRGB(mono);
                     }
@@ -426,7 +450,7 @@ public class ImageViewer implements WithRootNode {
                     try {
                         var preparedFile = TemporaryFolder.newTempFile("prepared", ".png").toFile();
                         var globeFile = TemporaryFolder.newTempFile("globe", ".png").toFile();
-                        var imageSaver = new ImageSaver(determineStrategy(), processParams, Set.of(ImageFormat.PNG));
+                        var imageSaver = new ImageSaver(CutoffStretchingStrategy.DEFAULT, processParams, Set.of(ImageFormat.PNG));
                         imageSaver.save(prepared, preparedFile);
                         imageSaver.save(withGlobe, globeFile);
                         var distanceMeasurementPane = new DistanceMeasurementPane(new Image(preparedFile.toURI().toString()), new Image(globeFile.toURI().toString()), transformedEllipse, solarParameters);
@@ -576,15 +600,15 @@ public class ImageViewer implements WithRootNode {
         }
         displayLock.lock();
         try {
-            stretchingMode = source.stretchingMode;
-            contrastAdjustStrategy = source.contrastAdjustStrategy;
-            curveTransformStrategy = source.curveTransformStrategy;
-            preserveStretchSettings = true;
+            stepsByKind.putAll(source.stepsByKind);
+            initialRecipe = source.initialRecipe;
+            useRecipe(source.activeRecipe.get(), source.selectedIndex);
+            invalidateStretchCache();
         } finally {
             displayLock.unlock();
         }
         FxUtils.runLater(() -> {
-            invalidateStretchCache();
+            refreshStretchControls();
             syncEarthLayer();
             syncSignatureLayer();
             syncObsDetailsLayer();
@@ -611,17 +635,8 @@ public class ImageViewer implements WithRootNode {
     }
 
     private void doSaveImage() {
-        boolean hasOverlays = hasActiveOverlays();
-        ImageWrapper toSave;
-        StretchingStrategy strategy;
-        if (hasOverlays) {
-            toSave = applyOverlaysToStretchedImage();
-            strategy = CutoffStretchingStrategy.DEFAULT;
-        } else {
-            toSave = applyTransformations(this.image.unwrapToMemory());
-            strategy = determineStrategy();
-        }
-        var files = new ImageSaver(strategy, processParams, Configuration.getInstance().getImageFormats()).save(toSave, imageFile);
+        var toSave = hasActiveOverlays() ? applyOverlaysToStretchedImage() : getStretchedImage();
+        var files = new ImageSaver(CutoffStretchingStrategy.DEFAULT, processParams, Configuration.getInstance().getImageFormats()).save(toSave, imageFile);
         files.stream()
                 .findFirst()
                 .ifPresent(file -> imageView.setImagePathForOpeningInExplorer(file.toPath()));
@@ -632,56 +647,236 @@ public class ImageViewer implements WithRootNode {
         });
     }
 
-    private StretchingStrategy determineStrategy() {
-        return switch (stretchingMode) {
-            case NO_STRETCH -> CutoffStretchingStrategy.DEFAULT;
-            case LINEAR ->
-                    new StretchingChain(RangeExpansionStrategy.DEFAULT, contrastAdjustStrategy, RangeExpansionStrategy.DEFAULT);
-            case CURVE -> curveTransformStrategy;
-        };
+    private StretchRecipe imageRecipe() {
+        return image == null ? StretchRecipe.NONE : image.findMetadata(StretchRecipe.class).orElse(StretchRecipe.NONE);
+    }
+
+    private boolean hasSolarDisk() {
+        return image != null && image.findMetadata(Ellipse.class).isPresent();
+    }
+
+    private StretchRecipe computeInitialRecipe() {
+        var hasSolarDisk = hasSolarDisk();
+        var recipe = new StretchRecipe(imageRecipe().steps().stream()
+                .filter(step -> hasSolarDisk || !step.requiresSolarDisk())
+                .toList());
+        if (!recipe.isEmpty()) {
+            return recipe;
+        }
+        if (kind == GeneratedImageKind.IMAGE_MATH || kind == GeneratedImageKind.COLLAGE || kind == GeneratedImageKind.CLOUD_MODEL) {
+            return StretchRecipe.NONE;
+        }
+        return StretchRecipe.of(StretchStep.defaultsOf(StretchStepKind.LINEAR));
+    }
+
+    private void useRecipe(StretchRecipe recipe, int index) {
+        for (var step : recipe.steps()) {
+            stepsByKind.put(step.kind(), step);
+        }
+        selectedIndex = recipe.isEmpty() ? -1 : Math.clamp(index, 0, recipe.steps().size() - 1);
+        activeRecipe.set(recipe);
+    }
+
+    private StretchStep selectedStep() {
+        return selectedIndex < 0 ? null : activeRecipe.get().steps().get(selectedIndex);
+    }
+
+    private void changeRecipe(StretchRecipe recipe, int index) {
+        useRecipe(recipe, index);
+        refreshStretchControls();
+        stretchAndDisplay();
+    }
+
+    private void resetStretch() {
+        var selected = selectedStep();
+        if (selected == null) {
+            return;
+        }
+        var initialSteps = initialRecipe.steps();
+        var isInitialStep = selectedIndex < initialSteps.size() && initialSteps.get(selectedIndex).kind() == selected.kind();
+        var reset = isInitialStep ? initialSteps.get(selectedIndex) : StretchStep.defaultsOf(selected.kind());
+        changeRecipe(activeRecipe.get().replace(selectedIndex, reset), selectedIndex);
+    }
+
+    private void addStretch() {
+        var recipe = activeRecipe.get().append(StretchStep.defaultsOf(StretchStepKind.LINEAR));
+        changeRecipe(recipe, recipe.steps().size() - 1);
+    }
+
+    private void removeStretch(int index) {
+        var recipe = activeRecipe.get().remove(index);
+        changeRecipe(recipe, index <= selectedIndex ? selectedIndex - 1 : selectedIndex);
+    }
+
+    private void selectStretch(int index) {
+        if (index != selectedIndex) {
+            if (stretchEditor != null) {
+                stretchEditor.flush();
+            }
+            selectedIndex = index;
+            refreshStretchControls();
+        }
+    }
+
+    private List<StretchChoice> stretchChoices() {
+        var hasSolarDisk = hasSolarDisk();
+        var choices = new ArrayList<StretchChoice>();
+        if (activeRecipe.get().steps().size() <= 1) {
+            choices.add(new StretchChoice(null));
+        }
+        for (var stepKind : StretchStepKind.values()) {
+            if (hasSolarDisk || !stepKind.requiresSolarDisk()) {
+                choices.add(new StretchChoice(stepKind));
+            }
+        }
+        return choices;
+    }
+
+    private void onStretchChoiceChanged(StretchChoice choice) {
+        if (choice == null) {
+            return;
+        }
+        var selected = selectedStep();
+        if (choice.kind() == (selected == null ? null : selected.kind())) {
+            return;
+        }
+        if (choice.kind() == null) {
+            changeRecipe(StretchRecipe.NONE, -1);
+        } else {
+            var step = stepsByKind.computeIfAbsent(choice.kind(), StretchStep::defaultsOf);
+            var recipe = activeRecipe.get();
+            changeRecipe(selected == null ? StretchRecipe.of(step) : recipe.replace(selectedIndex, step), Math.max(0, selectedIndex));
+        }
+    }
+
+    private void onStretchSettingsChanged(int index, StretchStep step) {
+        var steps = activeRecipe.get().steps();
+        if (index >= steps.size() || steps.get(index).kind() != step.kind()) {
+            return;
+        }
+        stepsByKind.put(step.kind(), step);
+        activeRecipe.set(activeRecipe.get().replace(index, step));
+        stretchAndDisplay();
+    }
+
+    private void refreshStretchControls() {
+        if (stretchChoice == null) {
+            return;
+        }
+        var steps = activeRecipe.get().steps();
+        var chained = steps.size() > 1;
+        var chips = new ArrayList<Node>();
+        if (chained) {
+            for (int i = 0; i < steps.size(); i++) {
+                if (i > 0) {
+                    var arrow = new Label("→");
+                    arrow.getStyleClass().add("stretch-chain-arrow");
+                    chips.add(arrow);
+                }
+                chips.add(createStretchChip(i, steps.get(i)));
+            }
+        }
+        stretchChain.getChildren().setAll(chips);
+        setShown(stretchChain, chained);
+        var selected = selectedStep();
+        setShown(stretchEditorLine, selected != null);
+        resetStretchButton.setDisable(selected == null);
+        var editorIndent = stretchEditorLine.getChildren().getFirst();
+        if (chained) {
+            inlineStretchEditor.getChildren().clear();
+            stretchEditorLine.getChildren().setAll(editorIndent, stretchChoice, stretchParameters);
+        } else {
+            inlineStretchEditor.getChildren().setAll(stretchChoice);
+            stretchEditorLine.getChildren().setAll(editorIndent, stretchParameters);
+        }
+        stretchChoice.getItems().setAll(stretchChoices());
+        stretchChoice.setValue(new StretchChoice(selected == null ? null : selected.kind()));
+        showStretchParameters();
+    }
+
+    private HBox createStretchChip(int index, StretchStep step) {
+        var name = new Label(StretchStepEditor.stepLabel(step.kind()));
+        var remove = new Label("×");
+        remove.getStyleClass().add("stretch-chip-remove");
+        remove.setOnMouseClicked(e -> {
+            e.consume();
+            removeStretch(index);
+        });
+        var chip = new HBox(6, name, remove);
+        chip.setAlignment(Pos.CENTER_LEFT);
+        chip.getStyleClass().add("stretch-chip");
+        if (index == selectedIndex) {
+            chip.getStyleClass().add("stretch-chip-selected");
+        }
+        chip.setOnMouseClicked(e -> selectStretch(index));
+        remove.setTooltip(new Tooltip(message("stretch.remove")));
+        return chip;
+    }
+
+    private static Tooltip createHelpTooltip(StretchStepKind stepKind) {
+        var help = new Tooltip(StretchStepEditor.stepHelp(stepKind));
+        help.setWrapText(true);
+        help.setMaxWidth(420);
+        return help;
+    }
+
+    private static void setShown(Node node, boolean shown) {
+        node.setVisible(shown);
+        node.setManaged(shown);
+    }
+
+    private void showStretchParameters() {
+        if (stretchParameters == null) {
+            return;
+        }
+        if (stretchEditor != null) {
+            stretchEditor.detach();
+            stretchEditor = null;
+        }
+        var selected = selectedStep();
+        if (selected == null) {
+            stretchParameters.getChildren().clear();
+        } else {
+            var index = selectedIndex;
+            stretchEditor = new StretchStepEditor(selected, step -> onStretchSettingsChanged(index, step));
+            var layout = stretchEditor.inlineLayout();
+            HBox.setHgrow(layout, Priority.ALWAYS);
+            stretchParameters.getChildren().setAll(layout);
+        }
+        stretchChoice.setTooltip(selected == null ? null : createHelpTooltip(selected.kind()));
     }
 
     private void configureStretching() {
         try {
             displayLock.lock();
-            if (!preserveStretchSettings) {
-                this.contrastAdjustStrategy = ContrastAdjustmentStrategy.DEFAULT;
-                this.curveTransformStrategy = new CurveTransformStrategy(32768, 32768);
-            }
-            preserveStretchSettings = false;
             var line2 = new HBox(8);
             line2.setAlignment(Pos.CENTER_LEFT);
             var line3 = new HBox(8);
             line3.setAlignment(Pos.CENTER_LEFT);
-            var linearStretchParams = new HBox(8);
-            linearStretchParams.setAlignment(Pos.CENTER_LEFT);
-            configureContrastAdjustment(linearStretchParams);
-            configureHGrow(linearStretchParams.getChildren());
-            var curveStretchParams = createCurveAdjustment();
-            var strategySelector = new ChoiceBox<StretchingMode>();
-            strategySelector.getItems().addAll(StretchingMode.values());
-            strategySelector.getSelectionModel().select(stretchingMode);
-            strategySelector.getSelectionModel().selectedItemProperty().addListener((obj, oldValue, newValue) -> {
-                stretchingMode = newValue;
-                linearStretchParams.setDisable(stretchingMode != StretchingMode.LINEAR);
-                curveStretchParams.setDisable(stretchingMode != StretchingMode.CURVE);
-                stretchAndDisplay();
-            });
-            linearStretchParams.visibleProperty().bind(strategySelector.getSelectionModel().selectedItemProperty().isEqualTo(StretchingMode.LINEAR));
-            linearStretchParams.managedProperty().bind(strategySelector.getSelectionModel().selectedItemProperty().isEqualTo(StretchingMode.LINEAR));
-            curveStretchParams.visibleProperty().bind(strategySelector.getSelectionModel().selectedItemProperty().isEqualTo(StretchingMode.CURVE));
-            curveStretchParams.managedProperty().bind(strategySelector.getSelectionModel().selectedItemProperty().isEqualTo(StretchingMode.CURVE));
+            var choice = new ChoiceBox<StretchChoice>();
+            choice.valueProperty().addListener((obs, oldValue, newValue) -> onStretchChoiceChanged(newValue));
+            var parameters = new HBox(8);
+            parameters.setAlignment(Pos.CENTER_LEFT);
+            HBox.setHgrow(parameters, Priority.ALWAYS);
             var line1 = new HBox(8);
             line1.setAlignment(Pos.CENTER_LEFT);
             var stretchingLabel = new Label(message("stretching.label"));
             preventEllipsis(stretchingLabel);
-            line1.getChildren().addAll(stretchingLabel, strategySelector, linearStretchParams, curveStretchParams);
+            var chain = new HBox(6);
+            chain.setAlignment(Pos.CENTER_LEFT);
+            var inlineEditor = new HBox(8);
+            inlineEditor.setAlignment(Pos.CENTER_LEFT);
+            var stretchSpacer = new Region();
+            HBox.setHgrow(stretchSpacer, Priority.ALWAYS);
+            var addStretchButton = createButton(message("stretch.add"));
+            addStretchButton.setOnAction(e -> addStretch());
+            var editorIndent = new Region();
+            editorIndent.minWidthProperty().bind(stretchingLabel.widthProperty());
+            var editorLine = new HBox(8, editorIndent);
+            editorLine.setAlignment(Pos.CENTER_LEFT);
             var reset = createButton(message("reset"));
-            reset.setOnAction(event -> {
-                stretchingParams.getChildren().clear();
-                configureStretching();
-                stretchAndDisplay();
-            });
+            reset.setOnAction(event -> resetStretch());
+            line1.getChildren().addAll(stretchingLabel, chain, inlineEditor, addStretchButton, stretchSpacer);
             saveButton = createButton("💾 " + message("save"));
             saveButton.setOnAction(e -> saveImage());
             saveButton.disableProperty().addListener((obs, was, disabled) -> updateSaveButtonStyle(disabled));
@@ -721,7 +916,7 @@ public class ImageViewer implements WithRootNode {
             });
             imageView.setCoordinatesListener((x, y) -> {
                 var extra = "";
-                var imageForPixelValue = stretchedImage != null ? stretchedImage : image;
+                var imageForPixelValue = displayedImage();
                 var unwrappedForPixel = imageForPixelValue.unwrapToMemory();
                 var xx = x.intValue();
                 var yy = y.intValue();
@@ -848,7 +1043,10 @@ public class ImageViewer implements WithRootNode {
                 onDisplayUpdate = null;
                 for (var viewer : siblings) {
                     if (viewer != this) {
-                        viewer.onDisplayUpdate = () -> viewer.imageView.alignWith(imageView);
+                        viewer.onDisplayUpdate = () -> {
+                            viewer.fitUntilUserZooms = false;
+                            viewer.imageView.alignWith(imageView);
+                        };
                     }
                 }
             });
@@ -867,8 +1065,14 @@ public class ImageViewer implements WithRootNode {
                 var titleBox = new HBox(alignButton, titleLabel, new Label("(" + imageFile.getName() + ")"));
                 titleBox.setSpacing(4);
                 titleBox.setAlignment(Pos.CENTER_LEFT);
-                stretchingParams.getChildren().addAll(titleBox, line1, line2, line3);
-                configureHGrow(line1.getChildren());
+                stretchChoice = choice;
+                stretchParameters = parameters;
+                stretchChain = chain;
+                inlineStretchEditor = inlineEditor;
+                stretchEditorLine = editorLine;
+                resetStretchButton = reset;
+                stretchingParams.getChildren().addAll(titleBox, line1, editorLine, line2, line3);
+                refreshStretchControls();
                 configureHGrow(line2.getChildren().stream().filter(e -> !(e instanceof Slider) && !(e instanceof Separator)).toList());
                 configureHGrow(line3.getChildren().stream().filter(e -> !(e instanceof Slider) && !(e instanceof Separator)).toList());
             });
@@ -887,104 +1091,15 @@ public class ImageViewer implements WithRootNode {
         nodes.forEach(e -> HBox.setHgrow(e, Priority.ALWAYS));
     }
 
-    private static float linValueOf(double sliderValue) {
-        var rnd = (int) Math.round(sliderValue);
-        return rnd << 8;
-    }
-
-    private void configureContrastAdjustment(HBox container) {
-        var lo = (int) contrastAdjustStrategy.getMin() >> 8;
-        var hi = (int) contrastAdjustStrategy.getMax() >> 8;
-        var loSlider = new Slider(0, 255, lo);
-        var hiSlider = new Slider(0, 255, hi);
-        var loValueLabel = new Label("" + lo);
-        var hiValueLabel = new Label("" + hi);
-        var loLabel = new Label(message("low") + " ");
-        var hiLabel = new Label(message("high") + " ");
-        preventEllipsis(loValueLabel, hiValueLabel, loLabel, hiLabel);
-        loSlider.setBlockIncrement(10);
-        hiSlider.setBlockIncrement(10);
-        var pause = new PauseTransition(Duration.millis(500));
-        loSlider.valueProperty().addListener((observable, oldValue, newValue) -> {
-            double value = (Double) newValue;
-            pause.setOnFinished(e -> {
-                contrastAdjustStrategy = contrastAdjustStrategy.withRange(linValueOf(loSlider.getValue()), linValueOf(hiSlider.getValue()));
-                stretchAndDisplay();
-                loValueLabel.setText("" + (int) (value));
-            });
-            pause.playFromStart();
-        });
-        hiSlider.valueProperty().addListener((observable, oldValue, newValue) -> {
-            double value = (Double) newValue;
-            pause.setOnFinished(e -> {
-                contrastAdjustStrategy = contrastAdjustStrategy.withRange(linValueOf(loSlider.getValue()), linValueOf(hiSlider.getValue()));
-                stretchAndDisplay();
-                hiValueLabel.setText("" + (int) (value));
-            });
-            pause.playFromStart();
-        });
-        container.getChildren().addAll(List.of(loLabel, loSlider, loValueLabel, hiLabel, hiSlider, hiValueLabel));
-    }
-
-    private HBox createCurveAdjustment() {
-        var container = new HBox(8);
-        container.setAlignment(Pos.CENTER_LEFT);
-        var lo = (int) curveTransformStrategy.getIn() >> 8;
-        var hi = (int) curveTransformStrategy.getOut() >> 8;
-        var loSlider = new Slider(0, 255, lo);
-        var hiSlider = new Slider(0, 255, hi);
-        var inValueLabel = new Label("" + lo);
-        var outValueLabel = new Label("" + hi);
-        var loLabel = new Label(message("in") + " ");
-        var hiLabel = new Label(message("out") + " ");
-        preventEllipsis(loLabel, hiLabel, inValueLabel, outValueLabel);
-        loSlider.setBlockIncrement(10);
-        hiSlider.setBlockIncrement(10);
-        var pause = new PauseTransition(Duration.millis(500));
-        loSlider.valueProperty().addListener((observable, oldValue, newValue) -> {
-            double value = (Double) newValue;
-            pause.setOnFinished(e -> {
-                curveTransformStrategy = new CurveTransformStrategy(linValueOf(loSlider.getValue()), linValueOf(hiSlider.getValue()));
-                stretchAndDisplay();
-                inValueLabel.setText("" + (int) (value));
-            });
-            pause.playFromStart();
-        });
-        hiSlider.valueProperty().addListener((observable, oldValue, newValue) -> {
-            double value = (Double) newValue;
-            pause.setOnFinished(e -> {
-                curveTransformStrategy = new CurveTransformStrategy(linValueOf(loSlider.getValue()), linValueOf(hiSlider.getValue()));
-                stretchAndDisplay();
-                outValueLabel.setText("" + (int) (value));
-            });
-            pause.playFromStart();
-        });
-        container.getChildren().addAll(List.of(loLabel, loSlider, inValueLabel, hiLabel, hiSlider, outValueLabel));
-        configureHGrow(container.getChildren());
-        return container;
-    }
-
-    private ImageWrapper stretch(ImageWrapper image) {
-        var copy = image.copy();
-        var strategy = determineStrategy();
-        new StretchingChain(strategy).stretch(copy);
-        return copy;
-    }
-
     void display() {
         if (image != null && firstShow) {
-            showLoadingIndicator();
-            BackgroundOperations.async(() -> {
-                try {
-                    stretchAndDisplay(true);
-                } finally {
-                    FxUtils.runLater(this::hideLoadingIndicator);
-                }
-            });
             firstShow = false;
+            stretchAndDisplay(true);
+        } else if (image != null && stretchedImage.get() == null) {
+            stretchAndDisplay(false);
         } else if (image != null) {
             BackgroundOperations.async(() -> {
-                var currentStretchedImage = stretchedImage;
+                var currentStretchedImage = stretchedImage.get();
                 maybeRunOnUpdate();
                 if (onStretchedImageUpdate != null && currentStretchedImage != null) {
                     onStretchedImageUpdate.accept(currentStretchedImage.unwrapToMemory());
@@ -1022,13 +1137,14 @@ public class ImageViewer implements WithRootNode {
     private void updateDisplay(Image newImage, boolean resetZoom) {
         try {
             displayLock.lock();
-            var imageForDimensions = stretchedImage != null ? stretchedImage : image;
+            var imageForDimensions = displayedImage();
             if (imageForDimensions != null) {
                 dimensions.setText(imageForDimensions.width() + "x" + imageForDimensions.height());
             }
             imageView.setImage(newImage);
             imageView.setSolarDisk(image != null ? image.findMetadata(Ellipse.class).orElse(null) : null);
             if (resetZoom) {
+                fitUntilUserZooms = true;
                 imageView.resetZoom();
             }
             refreshSaveButton();
@@ -1044,7 +1160,14 @@ public class ImageViewer implements WithRootNode {
         }
     }
 
+    private void refitIfPending() {
+        if (fitUntilUserZooms && imageView.getWidth() > 0 && imageView.getHeight() > 0) {
+            imageView.resetZoom();
+        }
+    }
+
     private void clearPendingAlignment() {
+        fitUntilUserZooms = false;
         onDisplayUpdate = null;
         for (var viewer : siblings) {
             viewer.onDisplayUpdate = null;
@@ -1052,41 +1175,136 @@ public class ImageViewer implements WithRootNode {
     }
 
     private void stretchAndDisplay(boolean resetZoom) {
-        computeStretchedImage();
+        var current = stretchedImage.get();
+        if (current != null) {
+            showStretched(current, resetZoom);
+            return;
+        }
+        if (resetZoom) {
+            pendingResetZoom.set(true);
+        }
+        stretchPending.set(true);
+        startPendingStretches();
+    }
+
+    private void startPendingStretches() {
+        if (stretchRunning.compareAndSet(false, true)) {
+            showLoadingIndicator();
+            BackgroundOperations.async(this::runPendingStretches);
+        }
+    }
+
+    private void runPendingStretches() {
+        try {
+            while (stretchPending.getAndSet(false)) {
+                var resetZoom = pendingResetZoom.getAndSet(false);
+                var generation = stretchGeneration.get();
+                var stretched = computeStretchedImage();
+                if (generation == stretchGeneration.get()) {
+                    showStretched(stretched, resetZoom);
+                } else if (resetZoom) {
+                    pendingResetZoom.set(true);
+                }
+            }
+        } finally {
+            stretchRunning.set(false);
+            if (stretchPending.get()) {
+                startPendingStretches();
+            } else {
+                FxUtils.runLater(() -> {
+                    if (!stretchRunning.get()) {
+                        hideLoadingIndicator();
+                    }
+                });
+            }
+        }
+    }
+
+    private void showStretched(ImageWrapper stretched, boolean resetZoom) {
         if (onStretchedImageUpdate != null) {
-            onStretchedImageUpdate.accept(stretchedImage);
+            onStretchedImageUpdate.accept(stretched);
         }
         FxUtils.runLater(() -> stretchedImageDebounce.playFromStart());
-        var writable = renderForDisplay();
+        var writable = renderForDisplay(stretched);
         FxUtils.runLater(() -> updateDisplay(writable, resetZoom));
     }
 
-    private void computeStretchedImage() {
-        if (stretchedImage != null) {
-            return;
-        }
-        var unwrapped = this.image.unwrapToMemory();
-        var transformedImage = applyTransformations(unwrapped);
-        if (stretchingMode == StretchingMode.NO_STRETCH) {
-            stretchedImage = transformedImage;
-        } else if (transformedImage instanceof ImageWrapper32 mono) {
-            stretchedImage = stretch(mono);
-        } else if (transformedImage instanceof RGBImage rgb) {
-            stretchedImage = stretch(rgb);
-        } else {
-            stretchedImage = transformedImage;
+    private ImageWrapper computeStretchedImage() {
+        while (true) {
+            var current = stretchedImage.get();
+            if (current != null) {
+                return current;
+            }
+            var generation = stretchGeneration.get();
+            var pending = pendingStretch.get();
+            if (pending != null && pending.generation() == generation) {
+                return pending.result().join();
+            }
+            var computation = new PendingStretch(generation, new CompletableFuture<>());
+            if (pendingStretch.compareAndSet(pending, computation)) {
+                return runStretch(computation);
+            }
         }
     }
 
-    private Image renderForDisplay() {
+    private ImageWrapper runStretch(PendingStretch computation) {
+        try {
+            var result = applyTransformations(stretch(image, activeRecipe.get()));
+            var generation = computation.generation();
+            if (generation == stretchGeneration.get()) {
+                stretchedImage.compareAndSet(null, result);
+                if (generation != stretchGeneration.get()) {
+                    stretchedImage.compareAndSet(result, null);
+                } else {
+                    FxUtils.runLater(() -> stretchedImageDebounce.playFromStart());
+                }
+            }
+            computation.result().complete(result);
+            return result;
+        } catch (RuntimeException | Error e) {
+            computation.result().completeExceptionally(e);
+            throw e;
+        } finally {
+            pendingStretch.compareAndSet(computation, null);
+        }
+    }
+
+    private ImageWrapper stretch(FileBackedImage source, StretchRecipe recipe) {
+        var unwrapped = source.unwrapToMemory();
+        if (recipe.isEmpty() || !(unwrapped instanceof ImageWrapper32 || unwrapped instanceof RGBImage)) {
+            return unwrapped.findMetadata(StretchRecipe.class).isPresent() ? StretchRecipe.withoutRecipe(unwrapped) : unwrapped;
+        }
+        var lastStep = recipe.steps().getLast();
+        var prefix = recipe.prefix(recipe.steps().size() - 1);
+        var cache = stretchCache.get();
+        ImageWrapper work;
+        if (cache != null && cache.source() == source && cache.prefix().equals(prefix)) {
+            work = cache.image().copy();
+        } else {
+            work = StretchRecipe.withoutRecipe(unwrapped);
+            if (!prefix.isEmpty()) {
+                prefix.applyTo(work);
+                stretchCache.set(new StretchCache(source, prefix, work.copy()));
+            }
+        }
+        StretchRecipe.of(lastStep).applyTo(work);
+        return work;
+    }
+
+    private Image renderForDisplay(ImageWrapper stretched) {
         return OverlayRenderer.renderToFx(
-                applyColorize(stretchedImage),
+                applyColorize(stretched),
                 overlays,
                 effectiveGlobeStyle(),
                 processParams,
                 kind,
                 baseImageIsPCorrected()
         );
+    }
+
+    private ImageWrapper displayedImage() {
+        var current = stretchedImage.get();
+        return current != null ? current : image;
     }
 
     private ImageWrapper applyColorize(ImageWrapper img) {
@@ -1157,7 +1375,8 @@ public class ImageViewer implements WithRootNode {
     }
 
     private void invalidateStretchCache() {
-        stretchedImage = null;
+        stretchGeneration.incrementAndGet();
+        stretchedImage.set(null);
     }
 
     private String defaultColorizeProfile() {
@@ -1354,7 +1573,7 @@ public class ImageViewer implements WithRootNode {
             pane.getChildren().add(obsDetailsLayer);
         }
         var draw = new ImageDraw(Map.of(ProcessParams.class, processParams, FileCounts.class, fileCounts), Broadcaster.NO_OP);
-        var content = draw.computeObservationDetailsContent(stretchedImage != null ? stretchedImage : image, overlays.obsDetailsTemplate());
+        var content = draw.computeObservationDetailsContent(displayedImage(), overlays.obsDetailsTemplate());
         obsDetailsLayer.update(content, null, autoFontSize(), overlays.obsDetailsColor());
         if (overlays.obsDetailsX() == null || overlays.obsDetailsY() == null) {
             placeObsDetailsDefault();
@@ -1383,7 +1602,7 @@ public class ImageViewer implements WithRootNode {
             pane.getChildren().add(solarParamsLayer);
         }
         var draw = new ImageDraw(Map.of(ProcessParams.class, processParams), Broadcaster.NO_OP);
-        var content = draw.computeSolarParametersContent(stretchedImage != null ? stretchedImage : image);
+        var content = draw.computeSolarParametersContent(displayedImage());
         solarParamsLayer.update(content, null, autoFontSize(), overlays.solarParamsColor());
         if (overlays.solarParamsX() == null || overlays.solarParamsY() == null) {
             placeSolarParamsDefault();
@@ -1569,11 +1788,10 @@ public class ImageViewer implements WithRootNode {
      * @return the stretched image
      */
     public ImageWrapper getStretchedImage() {
-        if (stretchedImage == null && image != null) {
-            computeStretchedImage();
+        if (image == null) {
+            return null;
         }
-        var result = stretchedImage == null ? image : stretchedImage;
-        return result == null ? null : result.unwrapToMemory();
+        return computeStretchedImage().unwrapToMemory();
     }
 
     public ImageWrapper getStretchedImageWithOverlays() {
@@ -1628,11 +1846,8 @@ public class ImageViewer implements WithRootNode {
     }
 
     private ImageWrapper applyOverlaysToStretchedImage() {
-        if (stretchedImage == null) {
-            computeStretchedImage();
-        }
         var baked = OverlayRenderer.apply(
-                applyColorize(stretchedImage.unwrapToMemory()),
+                applyColorize(computeStretchedImage().unwrapToMemory()),
                 overlays,
                 effectiveGlobeStyle(),
                 processParams,
@@ -1701,6 +1916,12 @@ public class ImageViewer implements WithRootNode {
         this.imageFile = currentState.imageFile;
         FxUtils.runLater(() -> {
             updateTitle();
+            var newInitialRecipe = computeInitialRecipe();
+            if (!newInitialRecipe.equals(initialRecipe)) {
+                initialRecipe = newInitialRecipe;
+                useRecipe(newInitialRecipe, newInitialRecipe.steps().size() - 1);
+                refreshStretchControls();
+            }
             imageView.setImage(new Image(imageFile.toURI().toString()));
             imageView.setSolarDisk(image.findMetadata(Ellipse.class).orElse(null));
             stretchAndDisplay();
@@ -1710,6 +1931,19 @@ public class ImageViewer implements WithRootNode {
     private void updateTitle() {
         if (stage != null) {
             stage.titleProperty().set(title + " (" + imageFile.getName() + ") - " + currentImage.get());
+        }
+    }
+
+    private record StretchCache(FileBackedImage source, StretchRecipe prefix, ImageWrapper image) {
+    }
+
+    private record PendingStretch(long generation, CompletableFuture<ImageWrapper> result) {
+    }
+
+    private record StretchChoice(StretchStepKind kind) {
+        @Override
+        public String toString() {
+            return kind == null ? message("stretch.step.none") : StretchStepEditor.stepLabel(kind);
         }
     }
 
@@ -1757,15 +1991,5 @@ public class ImageViewer implements WithRootNode {
         var separator = new Separator(Orientation.VERTICAL);
         separator.getStyleClass().add("toolbar-separator");
         return separator;
-    }
-
-    private enum StretchingMode {
-        LINEAR, CURVE, NO_STRETCH;
-
-
-        @Override
-        public String toString() {
-            return message("stretching." + name().toLowerCase());
-        }
     }
 }
