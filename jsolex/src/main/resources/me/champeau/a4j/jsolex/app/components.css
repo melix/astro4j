@@ -452,6 +452,44 @@
     -fx-text-fill: white;
 }
 
+.stretch-chip {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #dee2e6;
+    -fx-background-radius: 14;
+    -fx-border-radius: 14;
+    -fx-padding: 3 6 3 10;
+    -fx-cursor: hand;
+}
+
+.stretch-chip:hover {
+    -fx-background-color: #f8f9fa;
+}
+
+.stretch-chip-selected,
+.stretch-chip-selected:hover {
+    -fx-background-color: #e7f1ff;
+    -fx-border-color: #007bff;
+}
+
+.stretch-chip-selected > .label {
+    -fx-text-fill: #0b4fa3;
+    -fx-font-weight: bold;
+}
+
+.stretch-chip > .stretch-chip-remove {
+    -fx-text-fill: #6c757d;
+    -fx-font-weight: normal;
+    -fx-padding: 0 3;
+}
+
+.stretch-chip > .stretch-chip-remove:hover {
+    -fx-text-fill: #dc3545;
+}
+
+.stretch-chain-arrow {
+    -fx-text-fill: #6c757d;
+}
+
 /* Icon/symbol buttons in the image viewer toolbar: fixed width so that
    single-glyph controls line up consistently regardless of glyph metrics. */
 .image-viewer-icon-button {

@@ -20,25 +20,24 @@ import me.champeau.a4j.jsolex.processing.event.OutputImageDimensionsDeterminedEv
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.event.SuggestionEvent;
-import me.champeau.a4j.jsolex.processing.expr.impl.Clahe;
 import me.champeau.a4j.jsolex.processing.expr.impl.Colorize;
 import me.champeau.a4j.jsolex.processing.expr.impl.Convolution;
 import me.champeau.a4j.jsolex.processing.expr.impl.DiskFill;
 import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
-import me.champeau.a4j.jsolex.processing.params.AutoStretchParams;
-import me.champeau.a4j.jsolex.processing.params.ClaheParams;
 import me.champeau.a4j.jsolex.processing.params.ContrastEnhancement;
 import me.champeau.a4j.jsolex.processing.params.DeconvolutionMode;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.SharpeningParams;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.stretching.ArcsinhStretchingStrategy;
-import me.champeau.a4j.jsolex.processing.stretching.AutohistogramStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.ClaheStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.MidtoneTransferFunctionAutostretchStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.NegativeImageStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.PercentileStretchStrategy;
+import me.champeau.a4j.jsolex.processing.stretching.StretchRecipe;
+import me.champeau.a4j.jsolex.processing.stretching.StretchStep;
+import me.champeau.a4j.jsolex.processing.stretching.StretchStepKind;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.sun.WorkflowState;
@@ -147,11 +146,9 @@ public class ProcessingWorkflow {
             EllipseFittingTask.Result r = (EllipseFittingTask.Result) existingFitting.get();
             geometryCorrection(r, state.image());
         } else {
-            var clahe = state.image().copy();
-            var claheParams = processParams.claheParams();
-            ClaheStrategy.of(claheParams).stretch(clahe);
-            TransformationHistory.recordTransform(clahe, "CLAHE (tile size: " + claheParams.tileSize() + ", clip limit: " + claheParams.clipping() + ", bins: " + claheParams.bins() + ")");
-            imagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED, null, message("processed"), "clahe", String.format(message("contrast.enhanced.description"), state.pixelShift(), "CLAHE"), clahe);
+            var processed = state.image().copy();
+            processed.metadata().put(StretchRecipe.class, withLinearStretch(StretchRecipe.forContrastEnhancement(ContrastEnhancement.CLAHE, processParams.claheParams(), null)));
+            imagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED, null, message("processed"), "clahe", String.format(message("contrast.enhanced.description"), state.pixelShift(), "CLAHE"), processed);
         }
     }
 
@@ -229,13 +226,12 @@ public class ProcessingWorkflow {
         }
         var enhanced = (ImageWrapper32) g.enhanced().unwrapToMemory();
         broadcaster.broadcast(OutputImageDimensionsDeterminedEvent.of(message("geometry.corrected"), geometryFixed.width(), geometryFixed.height()));
-        boolean requiresStretched = shouldProduce(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED) || shouldProduce(GeneratedImageKind.COLORIZED);
-        var effectiveEnhancement = effectiveContrastEnhancement();
-        var stretched = requiresStretched ? produceStretchedImage(enhanced, processParams.claheParams(), processParams.autoStretchParams(), effectiveEnhancement) : null;
-        if (stretched != null) {
+        if (shouldProduce(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED)) {
+            var effectiveEnhancement = effectiveContrastEnhancement();
             imagesEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED, null, message("processed"), effectiveEnhancement.name().toLowerCase(Locale.US),
-                    String.format(message("contrast.enhanced.description"), state.pixelShift(), effectiveEnhancement), stretched);
+                    String.format(message("contrast.enhanced.description"), state.pixelShift(), effectiveEnhancement), withContrastEnhancementRecipe(enhanced));
         }
+        var stretched = shouldProduce(GeneratedImageKind.COLORIZED) ? produceStretchedImage(enhanced) : null;
         // Each runnable below runs on a parallel worker. Many of the produce*
         // methods stretch/smooth their input image in place, so callers must
         // hand them a private copy — otherwise concurrent runnables racing on
@@ -495,28 +491,32 @@ public class ProcessingWorkflow {
         if (enhancement == ContrastEnhancement.AUTO) {
             var ray = processParams.spectrumParams().ray();
             var isCalcium = ray.equals(SpectralRay.CALCIUM_K) || ray.equals(SpectralRay.CALCIUM_H);
-            return isCalcium ? ContrastEnhancement.CLAHE : ContrastEnhancement.AUTOSTRETCH;
+            return isCalcium ? ContrastEnhancement.CLAHE2 : ContrastEnhancement.AUTOSTRETCH;
         }
         return enhancement;
     }
 
-    private ImageWrapper32 produceStretchedImage(ImageWrapper32 geometryFixed, ClaheParams claheParams, AutoStretchParams autoStretchParams, ContrastEnhancement contrastEnhancement) {
-        var stretched = geometryFixed.copy();
-        switch (contrastEnhancement) {
-            case AUTOSTRETCH -> {
-                var autohistogramStrategy = new AutohistogramStrategy(autoStretchParams.gamma(), true, autoStretchParams.bgThreshold(), autoStretchParams.protusStretch());
-                autohistogramStrategy.stretch(stretched);
-                TransformationHistory.recordTransform(stretched, "AutoStretch (gamma: " + autoStretchParams.gamma() + ")");
-            }
-            case CLAHE -> {
-                ClaheStrategy.of(claheParams).stretch(stretched);
-                TransformationHistory.recordTransform(stretched, "CLAHE (tile size: " + claheParams.tileSize() + ", clip limit: " + claheParams.clipping() + ", bins: " + claheParams.bins() + ")");
-            }
-            case CLAHE2 -> {
-                Clahe.applyMultiScaleClahe(stretched, claheParams.clipping());
-                TransformationHistory.recordTransform(stretched, "CLAHE2 (clip limit: " + claheParams.clipping() + ")");
-            }
+    private StretchRecipe contrastEnhancementRecipe() {
+        var effectiveEnhancement = effectiveContrastEnhancement();
+        if (effectiveEnhancement == ContrastEnhancement.CLAHE2 && processParams.contrastEnhancement() == ContrastEnhancement.AUTO) {
+            return StretchRecipe.of(StretchStep.defaultsOf(StretchStepKind.CLAHE2));
         }
+        return StretchRecipe.forContrastEnhancement(effectiveEnhancement, processParams.claheParams(), processParams.autoStretchParams());
+    }
+
+    private ImageWrapper32 withContrastEnhancementRecipe(ImageWrapper32 image) {
+        var copy = image.copy();
+        copy.metadata().put(StretchRecipe.class, withLinearStretch(contrastEnhancementRecipe()));
+        return copy;
+    }
+
+    private static StretchRecipe withLinearStretch(StretchRecipe recipe) {
+        return recipe.append(StretchStep.defaultsOf(StretchStepKind.LINEAR));
+    }
+
+    private ImageWrapper32 produceStretchedImage(ImageWrapper32 image) {
+        var stretched = image.copy();
+        contrastEnhancementRecipe().applyTo(stretched);
         return stretched;
     }
 
@@ -597,7 +597,7 @@ public class ProcessingWorkflow {
                     var data = geometryFixed.data();
                     var copy = ImageWrapper.copyData(data);
                     var work = new ImageWrapper32(geometryFixed.width(), geometryFixed.height(), copy, geometryFixed.metadata());
-                    var stretched = produceStretchedImage(work, processParams.claheParams(), processParams.autoStretchParams(), effectiveContrastEnhancement());
+                    var stretched = produceStretchedImage(work);
                     new ArcsinhStretchingStrategy(blackPoint, 2, 2).stretch(stretched);
                     var width = geometryFixed.width();
                     var height = geometryFixed.height();

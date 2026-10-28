@@ -1036,12 +1036,15 @@ public class MultipleImagesViewer extends Pane {
         if (owner == null) {
             return;
         }
+        BackgroundOperations.async(() -> {
+            var availableImagesWithInfo = getAllAvailableImagesWithInfo();
+            if (!availableImagesWithInfo.isEmpty()) {
+                FxUtils.runLater(() -> showCollage(availableImagesWithInfo));
+            }
+        });
+    }
 
-        var availableImagesWithInfo = getAllAvailableImagesWithInfo();
-        if (availableImagesWithInfo.isEmpty()) {
-            return;
-        }
-
+    private void showCollage(List<ImageInfo> availableImagesWithInfo) {
         var fxmlLoader = I18N.fxmlLoader(JSolEx.class, "collage");
         try {
             var stage = FXUtils.newStage();

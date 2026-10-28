@@ -1,0 +1,31 @@
+name: SHADOWS_HIGHLIGHTS
+category: ENHANCEMENT
+description:
+  fr: "Éclaircit les zones sombres et/ou assombrit les zones claires de l'image, sans créer de halo au bord du disque solaire. Les détails fins sont préservés."
+  en: "Brightens the dark areas and/or darkens the bright areas of the image, without creating a halo around the solar limb. Fine details are preserved."
+arguments:
+  - name: img
+    description: Image(s)
+    required: true
+  - name: shadows
+    optional: true
+    default: 25
+    description:
+      fr: "Éclaircissement des zones sombres, en pourcentage (-100 à 100). Une valeur négative les assombrit."
+      en: "Brightening of the dark areas, in percent (-100 to 100). A negative value darkens them."
+  - name: highlights
+    optional: true
+    default: 0
+    description:
+      fr: "Assombrissement des zones claires, en pourcentage (-100 à 100). Une valeur négative les éclaircit."
+      en: "Darkening of the bright areas, in percent (-100 to 100). A negative value brightens them."
+  - name: radius
+    optional: true
+    default: 30
+    description:
+      fr: "Taille des zones prises en compte, en pixels (au moins 1)"
+      en: "Size of the areas taken into account, in pixels (at least 1)"
+examples:
+  - "shadows_highlights(img(0))"
+  - "shadows_highlights(img: img(0), shadows: 40, highlights: 20)"
+  - "shadows_highlights(img(0), 30, 10, 50)"

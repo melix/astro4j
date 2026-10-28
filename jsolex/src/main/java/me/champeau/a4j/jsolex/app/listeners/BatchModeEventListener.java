@@ -58,6 +58,7 @@ import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.stretching.CutoffStretchingStrategy;
 import me.champeau.a4j.jsolex.processing.stretching.RangeExpansionStrategy;
+import me.champeau.a4j.jsolex.processing.stretching.StretchRecipe;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.workflow.DefaultImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
@@ -239,7 +240,7 @@ public class BatchModeEventListener implements ProcessingEventListener, ImageMat
         var kind = payload.kind();
         var target = payload.path().toFile();
         var params = adjustedParams != null ? adjustedParams : processParams;
-        var img = image;
+        var img = StretchRecipe.materialize(image);
         double correction = 0;
         if (!kind.cannotPerformManualRotation()) {
             if (params.geometryParams().isAutocorrectAngleP()) {

@@ -2,6 +2,10 @@
 
 ## Nouveautés de la version 5.6.1
 
+- Les méthodes d'étirement peuvent maintenant être combinées sur n'importe quelle image.
+- L'amélioration du contraste de l'image traitée peut maintenant être changée sans retraiter le fichier.
+- Nouveau réglage ombres/hautes lumières.
+- L'amélioration du contraste « Meilleure méthode » utilise désormais le CLAHE multi-échelle pour le calcium.
 - Traitements GPU plus rapides.
 - La fonction CLAHE2 n'éclaircit plus le disque solaire près du limbe.
 - Correction d'un plantage lorsqu'un paramètre de traitement est incorrect.

@@ -126,13 +126,13 @@ Le deuxième panneau de paramètres permet de configurer les options cosmétique
 
 image::params-2-fr.jpg[]
 
-- Méthode d'amélioration du contraste : vous pouvez choisir entre Autostretch (JSol'Ex), CLAHE et CLAHE (multi-échelle). Selon votre choix, des paramètres supplémentaires seront disponibles.
+- Méthode d'amélioration du contraste : vous pouvez choisir entre Meilleure méthode, Autostretch (JSol'Ex), CLAHE et CLAHE (multi-échelle). Meilleure méthode utilise le CLAHE (multi-échelle) pour les raies du calcium et Autostretch pour les autres raies. Selon votre choix, des paramètres supplémentaires seront disponibles. Vous pouvez changer la méthode et ses réglages après coup sur l'image traitée, voir <<stretching-steps>>.
 
 Pour la méthode Autostretch, vous pouvez configurer:
 
 - le gamma : un gamma plus élevé donnera une image plus sombre
 - la correction du fond : une valeur proche de 0 supprimera fortement le fond de ciel, une valeur proche de 1 le conservera tel quel
-- amplification des protubérances : si activée, permet de choisir un facteur d'amplification. Plus le facteur est élevé, plus les protubérances seront visibles, au prix d'une démarcation plus forte avec le limbe
+- amplification des protubérances : 0 la désactive. Plus la valeur est élevée, plus les protubérances seront visibles, au prix d'une démarcation plus forte avec le limbe
 
 Pour la méthode CLAHE, vous pouvez configurer:
 
@@ -394,6 +394,23 @@ Vous pouvez aussi dupliquer une image depuis la barre latérale en faisant un cl
 
 Les animations et vidéos disposent d'un bouton « Rogner / pivoter... » qui ouvre une fenêtre affichant une seule image (l'image en cours pour une vidéo).
 Vous pouvez la pivoter, la retourner ou la rogner, puis cliquer sur « Appliquer » : les opérations sont appliquées à toutes les images et le résultat apparaît comme une nouvelle animation à côté de l'originale.
+
+[[stretching-steps]]
+==== Étirement
+
+La liste « Étirement » en haut de chaque image choisit comment sa luminosité est réglée.
+Les réglages de la méthode choisie sont affichés sur la ligne en dessous : déplacez un curseur ou saisissez une valeur dans le champ à côté, ou choisissez une valeur dans une liste pour la taille des tuiles et les bacs du CLAHE.
+Survolez la liste pour savoir ce que fait la méthode choisie et ce que signifient ses réglages.
+L'image traitée commence par la méthode d'amélioration du contraste choisie dans les paramètres de traitement, suivie d'un étirement linéaire pour régler ses points noir et blanc.
+
+« + Ajouter un étirement » applique une autre méthode par-dessus les précédentes, par exemple un réglage Ombres/hautes lumières après l'étirement linéaire.
+Les étirements sont alors listés dans l'ordre où ils sont appliqués : cliquez sur l'un d'eux pour le sélectionner, ou sur son × pour le retirer.
+La liste des méthodes et les réglages de l'étirement sélectionné passent alors sur la ligne en dessous, et choisir une autre méthode dans la liste remplace l'étirement sélectionné.
+« Réinitialiser » rétablit les réglages d'origine de l'étirement sélectionné, sans toucher aux autres.
+
+Les méthodes disponibles sont Aucun étirement, Linéaire, Courbe, Tons moyens, Arcsinus hyperbolique, Autostretch, CLAHE, CLAHE (multi-échelle) et Ombres/hautes lumières.
+Autostretch n'est proposé que si le disque solaire a été détecté.
+Les images enregistrées utilisent les étirements affichés à l'écran.
 
 === Autres raies spectrales dans la fenêtre de capture
 

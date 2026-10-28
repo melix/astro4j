@@ -491,6 +491,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             case SCALE_FROM_UNIT -> math.scaleFromUnit(arguments);
             case SHARPEN -> convolution.sharpen(arguments);
             case SIDE_BY_SIDE -> imageCombination.sideBySide(arguments);
+            case SHADOWS_HIGHLIGHTS -> stretching.shadowsHighlights(arguments);
             case SIGNED_DIFF -> signedDiff.signedDiff(arguments);
             case SIGMOID_STRETCH -> stretching.sigmoidStretch(arguments);
             case MTF -> stretching.mtf(arguments);

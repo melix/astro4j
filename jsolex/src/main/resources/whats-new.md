@@ -2,6 +2,10 @@
 
 ## What's New in Version 5.6.1
 
+- Stretching methods can now be combined on any image.
+- The contrast enhancement of the processed image can now be changed without processing the file again.
+- New shadows/highlights adjustment.
+- The "Best method" contrast enhancement now uses multi-scale CLAHE for calcium.
 - Faster GPU processing.
 - The CLAHE2 function no longer brightens the solar disk near the limb.
 - Fixed a crash when a processing parameter is invalid.

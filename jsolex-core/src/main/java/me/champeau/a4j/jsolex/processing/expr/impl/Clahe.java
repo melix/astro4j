@@ -16,23 +16,13 @@
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
+import me.champeau.a4j.jsolex.processing.stretching.Clahe2Strategy;
 import me.champeau.a4j.jsolex.processing.stretching.ClaheStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
-import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
-import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
-import me.champeau.a4j.jsolex.processing.util.RGBImage;
-import me.champeau.a4j.math.regression.Ellipse;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 public class Clahe extends AbstractFunctionImpl {
-
-    public static final int CLAHE2_BINS = 256;
-    public static final int CLAHE2_MAX_LEVELS = 6;
-    public static final double CLAHE2_DEFAULT_CLIP = 1.5;
 
     public Clahe(Map<Class<?>, Object> context, Broadcaster broadcaster) {
         super(context, broadcaster);
@@ -51,125 +41,8 @@ public class Clahe extends AbstractFunctionImpl {
 
     public Object clahe2(Map<String ,Object> arguments) {
         BuiltinFunction.CLAHE2.validateArgs(arguments);
-        double clip = doubleArg(arguments, "clip", CLAHE2_DEFAULT_CLIP);
+        double clip = doubleArg(arguments, "clip", Clahe2Strategy.DEFAULT_CLIP);
         boolean diskOnly = booleanArg(arguments, "disk_only", true);
-        return monoToMonoImageTransformer("clahe2", "img", arguments, image -> {
-            switch (image) {
-                case ImageWrapper32 mono -> applyMultiScaleClahe(mono, clip, diskOnly);
-                case RGBImage rgb -> {
-                    var tileSizes = computeTileSizesForImage(rgb);
-                    var mask = diskOnly ? diskMask(rgb) : null;
-                    multiScaleClaheChannel(rgb.r(), rgb.width(), rgb.height(), rgb.metadata(), tileSizes, clip, mask);
-                    multiScaleClaheChannel(rgb.g(), rgb.width(), rgb.height(), rgb.metadata(), tileSizes, clip, mask);
-                    multiScaleClaheChannel(rgb.b(), rgb.width(), rgb.height(), rgb.metadata(), tileSizes, clip, mask);
-                }
-                default -> throw new IllegalArgumentException("Unsupported image type for clahe2: " + image.getClass());
-            }
-        });
-    }
-
-    /**
-     * Applies the multi-scale CLAHE strategy in place on a mono image, restricting
-     * tile histograms to the solar disk.
-     *
-     * @param image the image to enhance, modified in place
-     * @param clip the clip limit
-     * @see #applyMultiScaleClahe(ImageWrapper32, double, boolean)
-     */
-    public static void applyMultiScaleClahe(ImageWrapper32 image, double clip) {
-        applyMultiScaleClahe(image, clip, true);
-    }
-
-    /**
-     * Applies the multi-scale CLAHE strategy in place on a mono image. The tile sizes
-     * are derived from the solar disk diameter (from the image's {@link Ellipse} metadata
-     * if available, otherwise from the image dimensions). When the ellipse is known and
-     * {@code diskOnly} is set, tile histograms only count pixels of the solar disk, so
-     * that the limb is not brightened by the sky pixels of the tiles which straddle it.
-     *
-     * @param image the image to enhance, modified in place
-     * @param clip the clip limit
-     * @param diskOnly whether to restrict tile histograms to the solar disk
-     */
-    public static void applyMultiScaleClahe(ImageWrapper32 image, double clip, boolean diskOnly) {
-        var tileSizes = computeTileSizesForImage(image);
-        var mask = diskOnly ? diskMask(image) : null;
-        multiScaleClaheChannel(image.data(), image.width(), image.height(), image.metadata(), tileSizes, clip, mask);
-    }
-
-    private static boolean[][] diskMask(ImageWrapper image) {
-        var ellipse = image.findMetadata(Ellipse.class);
-        if (ellipse.isEmpty()) {
-            return null;
-        }
-        var e = ellipse.get();
-        var width = image.width();
-        var height = image.height();
-        var mask = new boolean[height][width];
-        for (int y = 0; y < height; y++) {
-            var row = mask[y];
-            for (int x = 0; x < width; x++) {
-                row[x] = e.isWithin(x, y);
-            }
-        }
-        return mask;
-    }
-
-    private static List<Integer> computeTileSizesForImage(ImageWrapper image) {
-        var ellipse = image.findMetadata(Ellipse.class);
-        int rawStart;
-        if (ellipse.isPresent()) {
-            var sa = ellipse.get().semiAxis();
-            var diameter = 2 * Math.max(sa.a(), sa.b());
-            rawStart = (int) (diameter / 5);
-        } else {
-            rawStart = Math.min(image.width(), image.height()) / 4;
-        }
-        return computeTileSizes(rawStart, CLAHE2_BINS, CLAHE2_MAX_LEVELS);
-    }
-
-    static List<Integer> computeTileSizes(int rawStartTileSize, int bins, int maxLevels) {
-        int minTile = Math.max(2, (int) Math.ceil(Math.sqrt(bins)));
-        int startTile = Math.max(minTile, Integer.highestOneBit(Math.max(minTile, rawStartTileSize)));
-        var tileSizes = new ArrayList<Integer>();
-        int t = startTile;
-        while (tileSizes.size() < maxLevels && t >= minTile) {
-            tileSizes.add(t);
-            t /= 2;
-        }
-        if (tileSizes.isEmpty()) {
-            tileSizes.add(minTile);
-        }
-        return tileSizes;
-    }
-
-    private static void multiScaleClaheChannel(float[][] data,
-                                               int width,
-                                               int height,
-                                               Map<Class<?>, Object> metadata,
-                                               List<Integer> tileSizes,
-                                               double clip,
-                                               boolean[][] mask) {
-        var sum = new float[height][width];
-        for (int tileSize : tileSizes) {
-            var copy = ImageWrapper.copyData(data);
-            new ClaheStrategy(tileSize, CLAHE2_BINS, clip, mask)
-                    .stretch(new ImageWrapper32(width, height, copy, new HashMap<>(metadata)));
-            for (int y = 0; y < height; y++) {
-                var row = copy[y];
-                var sumRow = sum[y];
-                for (int x = 0; x < width; x++) {
-                    sumRow[x] += row[x];
-                }
-            }
-        }
-        float n = tileSizes.size();
-        for (int y = 0; y < height; y++) {
-            var dst = data[y];
-            var sumRow = sum[y];
-            for (int x = 0; x < width; x++) {
-                dst[x] = sumRow[x] / n;
-            }
-        }
+        return monoToMonoImageTransformer("clahe2", "img", arguments, image -> new Clahe2Strategy(clip, diskOnly).stretch(image));
     }
 }

@@ -126,6 +126,7 @@ import me.champeau.a4j.jsolex.app.listeners.BatchProcessingContext;
 import me.champeau.a4j.jsolex.app.listeners.DelegatingProcessingEventListener;
 import me.champeau.a4j.jsolex.app.listeners.JSolExInterface;
 import me.champeau.a4j.jsolex.app.listeners.RedshiftImagesProcessor;
+import me.champeau.a4j.jsolex.app.listeners.SharedStretchProcessingEventListener;
 import me.champeau.a4j.jsolex.app.listeners.SingleModeProcessingEventListener;
 import me.champeau.a4j.jsolex.app.script.JSolExScriptExecutor;
 import me.champeau.a4j.jsolex.app.uiapi.UiApi;
@@ -228,8 +229,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static java.nio.file.StandardWatchEventKinds.OVERFLOW;
 import static me.champeau.a4j.jsolex.app.jfx.FXUtils.newStage;
@@ -2482,28 +2483,22 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     }
 
     private ProcessingEventListener delegatingListener(SingleModeProcessingEventListener singleModeProcessingEventListener) {
-        var extraListeners = Stream.<ProcessingEventListener>empty();
-        if (server.isStarted()) {
-            extraListeners = Stream.concat(extraListeners, server.getListeners().stream());
-        }
-        // Use a dynamic wrapper that reads livePushListener at event-fire time rather than
-        // capturing it at construction time. This avoids the race between session restart
-        // completing (virtual thread) and a processing run starting (FX thread).
-        extraListeners = Stream.concat(extraListeners, Stream.of(new ProcessingEventListener() {
-            @Override
-            public void onImageGenerated(ImageGeneratedEvent event) {
-                var currentListener = livePushListener;
-                if (currentListener != null && liveSessionManager != null && liveSessionManager.isActive()) {
-                    currentListener.setBroadcaster(singleModeProcessingEventListener);
-                    currentListener.onImageGenerated(event);
-                }
+        var serverListeners = server.isStarted() ? server.getListeners() : List.<ProcessingEventListener>of();
+        // Read livePushListener at event-fire time rather than capturing it at construction
+        // time. This avoids the race between session restart completing (virtual thread)
+        // and a processing run starting (FX thread).
+        Supplier<ProcessingEventListener> activeLivePushListener = () -> {
+            var currentListener = livePushListener;
+            if (currentListener != null && liveSessionManager != null && liveSessionManager.isActive()) {
+                currentListener.setBroadcaster(singleModeProcessingEventListener);
+                return currentListener;
             }
-        }));
-        var allExtras = extraListeners.toList();
-        var listeners = new ArrayList<ProcessingEventListener>();
-        listeners.add(singleModeProcessingEventListener);
-        listeners.addAll(allExtras);
-        return new DelegatingProcessingEventListener(listeners);
+            return null;
+        };
+        return new DelegatingProcessingEventListener(List.of(
+                singleModeProcessingEventListener,
+                new SharedStretchProcessingEventListener(serverListeners, activeLivePushListener)
+        ));
     }
 
     public LiveSessionManager getLiveSessionManager() {
