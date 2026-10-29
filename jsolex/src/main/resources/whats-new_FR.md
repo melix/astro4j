@@ -1,5 +1,9 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
+## Nouveautés de la version 5.6.2
+
+- Étirement des images plus rapide, en particulier avec CLAHE, CLAHE2 et AutoStretch.
+
 ## Nouveautés de la version 5.6.1
 
 - Les méthodes d'étirement peuvent maintenant être combinées sur n'importe quelle image.

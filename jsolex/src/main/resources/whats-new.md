@@ -1,5 +1,9 @@
 # Welcome to JSol'Ex {{version}}!
 
+## What's New in Version 5.6.2
+
+- Faster image stretching, in particular with CLAHE, CLAHE2 and AutoStretch.
+
 ## What's New in Version 5.6.1
 
 - Stretching methods can now be combined on any image.

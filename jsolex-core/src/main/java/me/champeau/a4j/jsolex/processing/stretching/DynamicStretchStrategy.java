@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.stretching;
 
 import me.champeau.a4j.jsolex.processing.util.Histogram;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.math.RowStrips;
 import org.apache.commons.math3.analysis.polynomials.PolynomialFunction;
 import org.apache.commons.math3.fitting.GaussianCurveFitter;
 import org.apache.commons.math3.fitting.PolynomialCurveFitter;
@@ -54,12 +55,14 @@ public final class DynamicStretchStrategy implements StretchingStrategy {
         var poly = new PolynomialFunction(fit);
         var height = image.height();
         var width = image.width();
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                var v = data[y][x];
-                data[y][x] = (float) Math.clamp(poly.value(v), 0, MAX_PIXEL_VALUE);
+        RowStrips.forEach(height, (yStart, yEnd) -> {
+            for (int y = yStart; y < yEnd; y++) {
+                for (int x = 0; x < width; x++) {
+                    var v = data[y][x];
+                    data[y][x] = (float) Math.clamp(poly.value(v), 0, MAX_PIXEL_VALUE);
+                }
             }
-        }
+        });
         RangeExpansionStrategy.DEFAULT.stretch(image);
     }
 

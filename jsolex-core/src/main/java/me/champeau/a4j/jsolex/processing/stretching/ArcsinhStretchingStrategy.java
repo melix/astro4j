@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.stretching;
 
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
+import me.champeau.a4j.math.RowStrips;
 import me.champeau.a4j.math.opencl.OpenCLContext;
 import me.champeau.a4j.math.opencl.OpenCLSupport;
 
@@ -98,19 +99,21 @@ public final class ArcsinhStretchingStrategy implements StretchingStrategy {
         var data = image.data();
         var height = image.height();
         var width = image.width();
-        for (int y = 0; y < height; y++) {
-            var line = data[y];
-            for (int x = 0; x < width; x++) {
-                var v = line[x];
-                var sv = stretchPixel(v);
-                line[x] = sv;
-                if (Float.valueOf(line[x]).isNaN()) {
-                    line[x] = 0;
+        RowStrips.forEach(height, (yStart, yEnd) -> {
+            for (int y = yStart; y < yEnd; y++) {
+                var line = data[y];
+                for (int x = 0; x < width; x++) {
+                    var v = line[x];
+                    var sv = stretchPixel(v);
+                    line[x] = sv;
+                    if (Float.valueOf(line[x]).isNaN()) {
+                        line[x] = 0;
+                    }
+                    line[x] = Math.max(0, line[x]);
+                    line[x] = Math.min(MAX_PIXEL_VALUE, line[x]);
                 }
-                line[x] = Math.max(0, line[x]);
-                line[x] = Math.min(MAX_PIXEL_VALUE, line[x]);
             }
-        }
+        });
         LinearStrechingStrategy.DEFAULT.stretch(image);
     }
 

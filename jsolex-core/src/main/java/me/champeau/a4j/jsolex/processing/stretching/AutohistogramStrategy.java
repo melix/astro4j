@@ -114,11 +114,13 @@ public final class AutohistogramStrategy implements StretchingStrategy {
                 PROTUS_STRATEGY.stretch(eclipse);
                 var eclipseData = eclipse.data();
                 var expand = ColorCurve.cachedPolynomial(16, (int) Math.clamp(16 * (1 + protusStretch), 16, 255));
-                for (var y = 0; y < height; y++) {
-                    for (var x = 0; x < width; x++) {
-                        eclipseData[y][x] = (float) expand.applyAsDouble(eclipseData[y][x]);
+                RowStrips.forEach(height, (yStart, yEnd) -> {
+                    for (var y = yStart; y < yEnd; y++) {
+                        for (var x = 0; x < width; x++) {
+                            eclipseData[y][x] = (float) expand.applyAsDouble(eclipseData[y][x]);
+                        }
                     }
-                }
+                });
             });
             new GammaStrategy(gamma).stretch(bgNeutralized);
             CompletableFuture.allOf(claheTask, eclipseTask).join();
@@ -126,9 +128,7 @@ public final class AutohistogramStrategy implements StretchingStrategy {
             var blended = new float[height][width];
             blendInto(clahe.data(), eclipse.data(), width, height, 0.6, claheData);
             blendInto(bgNeutralized.data(), claheData, width, height, 0.8, blended);
-            for (var y = 0; y < height; y++) {
-                System.arraycopy(blended[y], 0, output[y], 0, width);
-            }
+            copyInto(blended, output, width, height);
         }
         maybeAdjustBrightness(image, height, width, output);
         CutoffStretchingStrategy.DEFAULT.stretch(image);
@@ -136,13 +136,23 @@ public final class AutohistogramStrategy implements StretchingStrategy {
 
     private static void blendInto(float[][] img1, float[][] img2, int width, int height, double alpha, float[][] out) {
         var beta = 1 - alpha;
-        for (var y = 0; y < height; y++) {
-            for (var x = 0; x < width; x++) {
-                var v1 = img1[y][x];
-                var v2 = img2[y][x];
-                out[y][x] = (float) (alpha * v1 + beta * v2);
+        RowStrips.forEach(height, (yStart, yEnd) -> {
+            for (var y = yStart; y < yEnd; y++) {
+                for (var x = 0; x < width; x++) {
+                    var v1 = img1[y][x];
+                    var v2 = img2[y][x];
+                    out[y][x] = (float) (alpha * v1 + beta * v2);
+                }
             }
-        }
+        });
+    }
+
+    private static void copyInto(float[][] source, float[][] target, int width, int height) {
+        RowStrips.forEach(height, (yStart, yEnd) -> {
+            for (var y = yStart; y < yEnd; y++) {
+                System.arraycopy(source[y], 0, target[y], 0, width);
+            }
+        });
     }
 
     private static ImageWrapper32 createEclipse(ImageWrapper32 denoised, Ellipse e, int width, int height) {
@@ -152,13 +162,15 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         var maxX = (int) Math.min(width - 1, bb.b());
         var minY = (int) Math.max(0, bb.c());
         var maxY = (int) Math.min(height - 1, bb.d());
-        for (var y = minY; y < maxY; y++) {
-            for (var x = minX; x < maxX; x++) {
-                if (e.isWithin(x, y)) {
-                    eclipse.data()[y][x] = 0;
+        RowStrips.forEach(Math.max(0, maxY - minY), (yStart, yEnd) -> {
+            for (var y = minY + yStart; y < minY + yEnd; y++) {
+                for (var x = minX; x < maxX; x++) {
+                    if (e.isWithin(x, y)) {
+                        eclipse.data()[y][x] = 0;
+                    }
                 }
             }
-        }
+        });
         return eclipse;
     }
 
@@ -185,9 +197,7 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         var maxIterations = 25;
         var foundPedestral = false;
         while (--maxIterations >= 0) {
-            for (var y = 0; y < height; y++) {
-                System.arraycopy(currentData[y], 0, scratchData[y], 0, width);
-            }
+            copyInto(currentData, scratchData, width, height);
             neutralizeBg(scratch, 2, 1.5, smoothing, null, bgModelBuffer);
             var bg = neutralizeBg(eclipse, 2, 1.5, smoothing, null, bgModelBuffer);
             if (bg == 0 || bg > prevBg) {
@@ -209,11 +219,14 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         }
         var denoised = current;
         if (pedestral > 0) {
-            for (var y = 0; y < height; y++) {
-                for (var x = 0; x < width; x++) {
-                    denoised.data()[y][x] += pedestral / 2;
+            var halfPedestal = pedestral / 2;
+            RowStrips.forEach(height, (yStart, yEnd) -> {
+                for (var y = yStart; y < yEnd; y++) {
+                    for (var x = 0; x < width; x++) {
+                        denoised.data()[y][x] += halfPedestal;
+                    }
                 }
-            }
+            });
         }
         return denoised;
     }
@@ -266,74 +279,90 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         // gives a "normalized radius squared" that is 0 at the center and 1 at the limb. The
         // fade is a smoothstep between CONTRAST_FADE_INNER (full S-curve) and CONTRAST_FADE_OUTER
         // (identity).
-        double ellA = 0, ellB = 0, ellC = 0, ellD = 0, ellE = 0, ellF = 0, fCenter = -1;
-        var hasEllipse = ellipse != null;
-        if (hasEllipse) {
-            var coeffs = ellipse.getCartesianCoefficients();
-            ellA = coeffs.a();
-            ellB = coeffs.b();
-            ellC = coeffs.c();
-            ellD = coeffs.d();
-            ellE = coeffs.e();
-            ellF = coeffs.f();
-            var c2 = ellipse.center();
-            var cx = c2.a();
-            var cy = c2.b();
-            fCenter = ellA * cx * cx + ellB * cx * cy + ellC * cy * cy + ellD * cx + ellE * cy + ellF;
-            if (fCenter >= 0) {
-                hasEllipse = false; // degenerate; skip the fade
-            }
-        }
-        for (var y = 0; y < height; y++) {
-            for (var x = 0; x < width; x++) {
-                var v = diskData[y][x];
-                if (v > pedestal) {
-                    var t = (v - pedestal) / range;
-                    var arg = beta * t;
-                    var asinhArg = Math.log(arg + Math.sqrt(arg * arg + 1));
-                    var afterAsinh = pedestal + range * asinhArg / asinhBeta;
-                    var contrasted = ca * afterAsinh * afterAsinh * afterAsinh + cb * afterAsinh * afterAsinh + cc * afterAsinh;
-                    double result;
-                    if (hasEllipse) {
-                        var fVal = ellA * x * x + ellB * x * y + ellC * y * y + ellD * x + ellE * y + ellF;
-                        var depth = 1.0 - fVal / fCenter;  // 0 at center, 1 at limb, >1 outside
-                        var s = (depth - CONTRAST_FADE_INNER) / (CONTRAST_FADE_OUTER - CONTRAST_FADE_INNER);
-                        var fadeOut = s <= 0 ? 0.0 : s >= 1 ? 1.0 : s * s * (3 - 2 * s);
-                        result = afterAsinh + (1 - fadeOut) * (contrasted - afterAsinh);
-                    } else {
-                        result = contrasted;
+        var fade = ContrastFade.of(ellipse);
+        RowStrips.forEach(height, (yStart, yEnd) -> {
+            for (var y = yStart; y < yEnd; y++) {
+                for (var x = 0; x < width; x++) {
+                    var v = diskData[y][x];
+                    if (v > pedestal) {
+                        var t = (v - pedestal) / range;
+                        var arg = beta * t;
+                        var asinhArg = Math.log(arg + Math.sqrt(arg * arg + 1));
+                        var afterAsinh = pedestal + range * asinhArg / asinhBeta;
+                        var contrasted = ca * afterAsinh * afterAsinh * afterAsinh + cb * afterAsinh * afterAsinh + cc * afterAsinh;
+                        double result;
+                        if (fade != null) {
+                            var fadeOut = fade.fadeOut(x, y);
+                            result = afterAsinh + (1 - fadeOut) * (contrasted - afterAsinh);
+                        } else {
+                            result = contrasted;
+                        }
+                        diskData[y][x] = (float) Math.clamp(result, 0, MAX_PIXEL_VALUE);
                     }
-                    diskData[y][x] = (float) Math.clamp(result, 0, MAX_PIXEL_VALUE);
                 }
             }
+        });
+    }
+
+    private record ContrastFade(double a, double b, double c, double d, double e, double f, double fCenter) {
+        static ContrastFade of(Ellipse ellipse) {
+            if (ellipse == null) {
+                return null;
+            }
+            var coeffs = ellipse.getCartesianCoefficients();
+            var center = ellipse.center();
+            var cx = center.a();
+            var cy = center.b();
+            var fCenter = coeffs.a() * cx * cx + coeffs.b() * cx * cy + coeffs.c() * cy * cy + coeffs.d() * cx + coeffs.e() * cy + coeffs.f();
+            if (fCenter >= 0) {
+                return null; // degenerate; skip the fade
+            }
+            return new ContrastFade(coeffs.a(), coeffs.b(), coeffs.c(), coeffs.d(), coeffs.e(), coeffs.f(), fCenter);
+        }
+
+        double fadeOut(int x, int y) {
+            var fVal = a * x * x + b * x * y + c * y * y + d * x + e * y + f;
+            var depth = 1.0 - fVal / fCenter;  // 0 at center, 1 at limb, >1 outside
+            var s = (depth - CONTRAST_FADE_INNER) / (CONTRAST_FADE_OUTER - CONTRAST_FADE_INNER);
+            return s <= 0 ? 0.0 : s >= 1 ? 1.0 : s * s * (3 - 2 * s);
         }
     }
 
     private static float diskMedianInside(float[][] data, Ellipse e, int width, int height, float pedestal) {
-        var hist = new int[65536];
-        var count = 0;
+        int minX;
+        int maxX;
+        int minY;
+        int maxY;
         if (e == null) {
-            for (var line : data) {
-                for (var v : line) {
-                    if (v > pedestal) {
-                        hist[(int) Math.clamp(v, 0, 65535)]++;
-                        count++;
+            minX = 0;
+            maxX = width - 1;
+            minY = 0;
+            maxY = height - 1;
+        } else {
+            var bb = e.boundingBox();
+            minX = (int) Math.max(0, bb.a());
+            maxX = (int) Math.min(width - 1, bb.b());
+            minY = (int) Math.max(0, bb.c());
+            maxY = (int) Math.min(height - 1, bb.d());
+        }
+        var partials = RowStrips.map(Math.max(0, maxY - minY + 1), (yStart, yEnd) -> {
+            var partial = new int[65536];
+            for (var y = minY + yStart; y < minY + yEnd; y++) {
+                for (var x = minX; x <= maxX; x++) {
+                    var v = data[y][x];
+                    if ((e == null || e.isWithin(x, y)) && v > pedestal) {
+                        partial[(int) Math.clamp(v, 0, 65535)]++;
                     }
                 }
             }
-        } else {
-            var bb = e.boundingBox();
-            var minX = (int) Math.max(0, bb.a());
-            var maxX = (int) Math.min(width - 1, bb.b());
-            var minY = (int) Math.max(0, bb.c());
-            var maxY = (int) Math.min(height - 1, bb.d());
-            for (var y = minY; y <= maxY; y++) {
-                for (var x = minX; x <= maxX; x++) {
-                    if (e.isWithin(x, y) && data[y][x] > pedestal) {
-                        hist[(int) Math.clamp(data[y][x], 0, 65535)]++;
-                        count++;
-                    }
-                }
+            return partial;
+        });
+        var hist = new int[65536];
+        var count = 0;
+        for (var partial : partials) {
+            for (var i = 0; i < hist.length; i++) {
+                hist[i] += partial[i];
+                count += partial[i];
             }
         }
         if (count == 0) {

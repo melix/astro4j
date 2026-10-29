@@ -65,6 +65,16 @@ public final class RowStrips {
         return sum;
     }
 
+    public static double min(int height, StripToDouble function) {
+        var min = Double.MAX_VALUE;
+        for (var partial : map(height, function::apply)) {
+            if (partial < min) {
+                min = partial;
+            }
+        }
+        return min;
+    }
+
     public static double max(int height, StripToDouble function) {
         var max = -Double.MAX_VALUE;
         for (var partial : map(height, function::apply)) {

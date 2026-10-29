@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.processing.stretching;
 import me.champeau.a4j.jsolex.processing.params.ClaheParams;
 import me.champeau.a4j.jsolex.processing.util.Histogram;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.math.RowStrips;
 
 public final class ClaheStrategy implements StretchingStrategy {
     public static final int DEFAULT_TILE_SIZE = 8;
@@ -84,100 +85,104 @@ public final class ClaheStrategy implements StretchingStrategy {
         int yTilesCount = (int) Math.ceil(height / (double) tileSize);
         var cdf = new CumulativeDistributionFunction[yTilesCount][xTilesCount];
         var fallback = mask == null ? null : clippedCdf(histogram(width, height, data, 0, 0, Math.max(width, height)));
-        for (int y = 0; y < yTilesCount; y++) {
-            for (int x = 0; x < xTilesCount; x++) {
-                var histogram = histogram(width, height, data, x, y, tileSize);
-                if (fallback != null && 4 * histogram.pixelCount() < tileArea(width, height, x, y)) {
-                    cdf[y][x] = fallback;
-                } else {
-                    cdf[y][x] = clippedCdf(histogram);
+        RowStrips.forEach(yTilesCount, (yStart, yEnd) -> {
+            for (int y = yStart; y < yEnd; y++) {
+                for (int x = 0; x < xTilesCount; x++) {
+                    var histogram = histogram(width, height, data, x, y, tileSize);
+                    if (fallback != null && 4 * histogram.pixelCount() < tileArea(width, height, x, y)) {
+                        cdf[y][x] = fallback;
+                    } else {
+                        cdf[y][x] = clippedCdf(histogram);
+                    }
                 }
             }
-        }
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                float src = data[y][x];
-                int bin = findHistogramBin(src);
-                int tileX = x / tileSize;
-                int tileY = y / tileSize;
-                var thisCdf = cdf[tileY][tileX].normalizedHistogram[bin];
-                float interpolatedValue;
-                if (isCornerPixel(x, y, width, height, tileSize)) {
-                    interpolatedValue = thisCdf;
-                } else if (isLeftOrRightBorder(x, y, width, height, tileSize)) {
-                    // linear interpolation between this tile and the bottom/right closest center
-                    float distanceToTileCenter = y - centerOf(tileY, tileSize);
-                    if (distanceToTileCenter <= 0) {
-                        var otherCdf = cdf[tileY - 1][tileX].normalizedHistogram[bin];
-                        interpolatedValue = linearInterpolation(otherCdf, thisCdf, centerOf(tileY - 1, tileSize), centerOf(tileY, tileSize), y);
+        });
+        RowStrips.forEach(height, (yStart, yEnd) -> {
+            for (int y = yStart; y < yEnd; y++) {
+                for (int x = 0; x < width; x++) {
+                    float src = data[y][x];
+                    int bin = findHistogramBin(src);
+                    int tileX = x / tileSize;
+                    int tileY = y / tileSize;
+                    var thisCdf = cdf[tileY][tileX].normalizedHistogram[bin];
+                    float interpolatedValue;
+                    if (isCornerPixel(x, y, width, height, tileSize)) {
+                        interpolatedValue = thisCdf;
+                    } else if (isLeftOrRightBorder(x, y, width, height, tileSize)) {
+                        // linear interpolation between this tile and the bottom/right closest center
+                        float distanceToTileCenter = y - centerOf(tileY, tileSize);
+                        if (distanceToTileCenter <= 0) {
+                            var otherCdf = cdf[tileY - 1][tileX].normalizedHistogram[bin];
+                            interpolatedValue = linearInterpolation(otherCdf, thisCdf, centerOf(tileY - 1, tileSize), centerOf(tileY, tileSize), y);
+                        } else {
+                            var otherCdf = cdf[tileY + 1][tileX].normalizedHistogram[bin];
+                            interpolatedValue = linearInterpolation(thisCdf, otherCdf, centerOf(tileY, tileSize), centerOf(tileY + 1, tileSize), y);
+                        }
+                    } else if (isTopOrBottomBorder(x, y, width, height, tileSize)) {
+                        // linear interpolation between this tile and the left/right closest center
+                        float distanceToTileCenter = x - centerOf(tileX, tileSize);
+                        if (distanceToTileCenter <= 0) {
+                            var otherCdf = cdf[tileY][tileX - 1].normalizedHistogram[bin];
+                            interpolatedValue = linearInterpolation(otherCdf, thisCdf, centerOf(tileX - 1, tileSize), centerOf(tileX, tileSize), x);
+                        } else {
+                            var otherCdf = cdf[tileY][tileX + 1].normalizedHistogram[bin];
+                            interpolatedValue = linearInterpolation(thisCdf, otherCdf, centerOf(tileX, tileSize), centerOf(tileX + 1, tileSize), x);
+                        }
                     } else {
-                        var otherCdf = cdf[tileY + 1][tileX].normalizedHistogram[bin];
-                        interpolatedValue = linearInterpolation(thisCdf, otherCdf, centerOf(tileY, tileSize), centerOf(tileY + 1, tileSize), y);
-                    }
-                } else if (isTopOrBottomBorder(x, y, width, height, tileSize)) {
-                    // linear interpolation between this tile and the left/right closest center
-                    float distanceToTileCenter = x - centerOf(tileX, tileSize);
-                    if (distanceToTileCenter <= 0) {
-                        var otherCdf = cdf[tileY][tileX - 1].normalizedHistogram[bin];
-                        interpolatedValue = linearInterpolation(otherCdf, thisCdf, centerOf(tileX - 1, tileSize), centerOf(tileX, tileSize), x);
-                    } else {
-                        var otherCdf = cdf[tileY][tileX + 1].normalizedHistogram[bin];
-                        interpolatedValue = linearInterpolation(thisCdf, otherCdf, centerOf(tileX, tileSize), centerOf(tileX + 1, tileSize), x);
-                    }
-                } else {
-                    // We are at coordinates (x,y) and we need to interpolate the value at (x,y)
-                    // from the values at (x1,y1), (x1, y2), (x2, y1), (x2, y2)
-                    // where (x1, y1) are the coordinates of the point in the middle of the tile
-                    // which contains (x1,y1) and the value is the cdf value of the tile
-                    float x1, y1, x2, y2;
-                    float v11, v12, v21, v22;
-                    float distanceToTileCenterX = x - centerOf(tileX, tileSize);
-                    float distanceToTileCenterY = y - centerOf(tileY, tileSize);
+                        // We are at coordinates (x,y) and we need to interpolate the value at (x,y)
+                        // from the values at (x1,y1), (x1, y2), (x2, y1), (x2, y2)
+                        // where (x1, y1) are the coordinates of the point in the middle of the tile
+                        // which contains (x1,y1) and the value is the cdf value of the tile
+                        float x1, y1, x2, y2;
+                        float v11, v12, v21, v22;
+                        float distanceToTileCenterX = x - centerOf(tileX, tileSize);
+                        float distanceToTileCenterY = y - centerOf(tileY, tileSize);
 
-                    if (distanceToTileCenterX <= 0) {
-                        if (distanceToTileCenterY <= 0) {
-                            // current point is at 2-2
-                            x1 = centerOf(tileX - 1, tileSize);
-                            y1 = centerOf(tileY - 1, tileSize);
-                            v11 = cdf[tileY - 1][tileX - 1].normalizedHistogram[bin];
-                            v12 = cdf[tileY][tileX - 1].normalizedHistogram[bin];
-                            v21 = cdf[tileY - 1][tileX].normalizedHistogram[bin];
-                            v22 = cdf[tileY][tileX].normalizedHistogram[bin];
+                        if (distanceToTileCenterX <= 0) {
+                            if (distanceToTileCenterY <= 0) {
+                                // current point is at 2-2
+                                x1 = centerOf(tileX - 1, tileSize);
+                                y1 = centerOf(tileY - 1, tileSize);
+                                v11 = cdf[tileY - 1][tileX - 1].normalizedHistogram[bin];
+                                v12 = cdf[tileY][tileX - 1].normalizedHistogram[bin];
+                                v21 = cdf[tileY - 1][tileX].normalizedHistogram[bin];
+                                v22 = cdf[tileY][tileX].normalizedHistogram[bin];
+                            } else {
+                                // current point is at 2-1
+                                x1 = centerOf(tileX - 1, tileSize);
+                                y1 = centerOf(tileY, tileSize);
+                                v11 = cdf[tileY][tileX - 1].normalizedHistogram[bin];
+                                v12 = cdf[tileY + 1][tileX - 1].normalizedHistogram[bin];
+                                v21 = cdf[tileY][tileX].normalizedHistogram[bin];
+                                v22 = cdf[tileY + 1][tileX].normalizedHistogram[bin];
+                            }
                         } else {
-                            // current point is at 2-1
-                            x1 = centerOf(tileX - 1, tileSize);
-                            y1 = centerOf(tileY, tileSize);
-                            v11 = cdf[tileY][tileX - 1].normalizedHistogram[bin];
-                            v12 = cdf[tileY + 1][tileX - 1].normalizedHistogram[bin];
-                            v21 = cdf[tileY][tileX].normalizedHistogram[bin];
-                            v22 = cdf[tileY + 1][tileX].normalizedHistogram[bin];
+                            if (distanceToTileCenterY <= 0) {
+                                // current point is at 1-2
+                                x1 = centerOf(tileX, tileSize);
+                                y1 = centerOf(tileY - 1, tileSize);
+                                v11 = cdf[tileY - 1][tileX].normalizedHistogram[bin];
+                                v12 = cdf[tileY][tileX].normalizedHistogram[bin];
+                                v21 = cdf[tileY - 1][tileX + 1].normalizedHistogram[bin];
+                                v22 = cdf[tileY][tileX + 1].normalizedHistogram[bin];
+                            } else {
+                                // current point is at 1-1
+                                x1 = centerOf(tileX, tileSize);
+                                y1 = centerOf(tileY, tileSize);
+                                v11 = cdf[tileY][tileX].normalizedHistogram[bin];
+                                v12 = cdf[tileY + 1][tileX].normalizedHistogram[bin];
+                                v21 = cdf[tileY][tileX + 1].normalizedHistogram[bin];
+                                v22 = cdf[tileY + 1][tileX + 1].normalizedHistogram[bin];
+                            }
                         }
-                    } else {
-                        if (distanceToTileCenterY <= 0) {
-                            // current point is at 1-2
-                            x1 = centerOf(tileX, tileSize);
-                            y1 = centerOf(tileY - 1, tileSize);
-                            v11 = cdf[tileY - 1][tileX].normalizedHistogram[bin];
-                            v12 = cdf[tileY][tileX].normalizedHistogram[bin];
-                            v21 = cdf[tileY - 1][tileX + 1].normalizedHistogram[bin];
-                            v22 = cdf[tileY][tileX + 1].normalizedHistogram[bin];
-                        } else {
-                            // current point is at 1-1
-                            x1 = centerOf(tileX, tileSize);
-                            y1 = centerOf(tileY, tileSize);
-                            v11 = cdf[tileY][tileX].normalizedHistogram[bin];
-                            v12 = cdf[tileY + 1][tileX].normalizedHistogram[bin];
-                            v21 = cdf[tileY][tileX + 1].normalizedHistogram[bin];
-                            v22 = cdf[tileY + 1][tileX + 1].normalizedHistogram[bin];
-                        }
+                        x2 = x1 + tileSize;
+                        y2 = y1 + tileSize;
+                        interpolatedValue = bilinearInterpolation(v11, v12, v21, v22, x1, y1, x2, y2, x, y);
                     }
-                    x2 = x1 + tileSize;
-                    y2 = y1 + tileSize;
-                    interpolatedValue = bilinearInterpolation(v11, v12, v21, v22, x1, y1, x2, y2, x, y);
+                    data[y][x] = MAX_PIXEL_VALUE * interpolatedValue;
                 }
-                data[y][x] = MAX_PIXEL_VALUE * interpolatedValue;
             }
-        }
+        });
     }
 
     private CumulativeDistributionFunction clippedCdf(Histogram histogram) {
