@@ -792,7 +792,7 @@ The search only answers when the identification is certain: a narrow capture win
 <div class="ulist">
 <ul>
 <li>
-<p>Contrast enhancement method: you can choose between Best method, Autostretch (JSol&#8217;Ex), CLAHE and CLAHE (multi-scale). Best method uses CLAHE (multi-scale) for the calcium lines and Autostretch for the other lines. Depending on your choice, additional parameters will be available. You can change the method and its settings afterwards on the processed image, see <a href="#stretching-steps">Stretching</a>.</p>
+<p>Contrast enhancement method: you can choose between Best method, Autostretch (JSol&#8217;Ex), CLAHE and CLAHE (multi-scale). Best method uses CLAHE (multi-scale) for the calcium lines and Autostretch for the other lines. Depending on your choice, additional parameters will be available. You can change the method and its settings afterwards on the processed image, see <a href="#stretching-steps">Adjustments</a>.</p>
 </li>
 </ul>
 </div>
@@ -1330,23 +1330,23 @@ In addition, right-clicking the image will let you open it into your file explor
 You can rotate it, flip it or crop it, then click "Apply": the operations are applied to every frame and the result appears as a new animation next to the original one.</p>
 </div>
 <div class="sect3">
-<h4 id="stretching-steps">Stretching</h4>
+<h4 id="stretching-steps">Adjustments</h4>
 <div class="paragraph">
-<p>The "Stretching" list at the top of each image selects how its brightness is adjusted.
-The settings of the selected method are shown on the line below: move a slider or type a value in the field next to it, or pick a value in a list for the CLAHE tile size and bins.
+<p>The "Adjustments" list at the top of each image selects how its brightness is adjusted, or how it is blurred or sharpened.
+The settings of the selected method are shown on the line below: move a slider or type a value in the field next to it, or pick a value in a list for the CLAHE tile size and bins and for the blur and sharpening sizes.
 Hover the list to read what the selected method does and what its settings mean.
 The processed image starts with the contrast enhancement method chosen in the processing parameters, followed by a Linear stretch to adjust its black and white points.</p>
 </div>
 <div class="paragraph">
-<p>"+ Add a stretch" applies another method on top of the previous ones, for example a Shadows/highlights adjustment after the Linear stretch.
-The stretches are then listed in the order they are applied: click one to select it, or click its × to remove it.
-The list of methods and the settings of the selected stretch move to the line below, and choosing another method in the list replaces the selected stretch.
-"Reset" restores the original settings of the selected stretch, without changing the other ones.</p>
+<p>"+ Add an adjustment" applies another method on top of the previous ones, for example a Shadows/highlights adjustment or an Unsharp mask after the Linear stretch.
+The adjustments are then listed in the order they are applied: click one to select it, or click its × to remove it.
+The list of methods and the settings of the selected adjustment move to the line below, and choosing another method in the list replaces the selected adjustment.
+"Reset" restores the original settings of the selected adjustment, without changing the other ones.</p>
 </div>
 <div class="paragraph">
-<p>The available methods are No stretch, Linear, Curve, Midtones, Arcsinh, Autostretch, CLAHE, CLAHE (multi-scale) and Shadows/highlights.
+<p>The available methods are None, Linear, Curve, Midtones, Arcsinh, Autostretch, CLAHE, CLAHE (multi-scale), Shadows/highlights, Blur, Sharpen and Unsharp mask.
 Autostretch is only offered when the solar disk was detected.
-Saved images use the stretches shown on screen.</p>
+Saved images use the adjustments shown on screen.</p>
 </div>
 </div>
 </div>
