@@ -2,6 +2,7 @@
 
 ## What's New in Version 5.6.2
 
+- The image viewer can now blur and sharpen images, including with an unsharp mask.
 - Faster image stretching, in particular with CLAHE, CLAHE2 and AutoStretch.
 
 ## What's New in Version 5.6.1

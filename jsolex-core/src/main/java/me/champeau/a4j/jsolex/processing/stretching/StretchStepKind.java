@@ -139,6 +139,41 @@ public enum StretchStepKind {
         String describe(StretchStep step) {
             return "Shadows/highlights (shadows: " + (int) step.value("shadows") + ", highlights: " + (int) step.value("highlights") + ", radius: " + (int) step.value("radius") + ")";
         }
+    },
+    BLUR(false, blurSize()) {
+        @Override
+        StretchingStrategy toStrategy(StretchStep step) {
+            return ConvolutionStrategy.blur((int) step.value("size"));
+        }
+
+        @Override
+        String describe(StretchStep step) {
+            return "Blur (size: " + (int) step.value("size") + ")";
+        }
+    },
+    SHARPEN(false, choice("size", 3, 3, 5, 7, 9, 11)) {
+        @Override
+        StretchingStrategy toStrategy(StretchStep step) {
+            return ConvolutionStrategy.sharpen((int) step.value("size"));
+        }
+
+        @Override
+        String describe(StretchStep step) {
+            return "Sharpen (size: " + (int) step.value("size") + ")";
+        }
+    },
+    UNSHARP_MASK(false,
+            range("strength", 0, 5, 1, 0.1),
+            blurSize()) {
+        @Override
+        StretchingStrategy toStrategy(StretchStep step) {
+            return ConvolutionStrategy.unsharpMask(step.value("strength"), (int) step.value("size"));
+        }
+
+        @Override
+        String describe(StretchStep step) {
+            return "Unsharp mask (strength: " + step.value("strength") + ", size: " + (int) step.value("size") + ")";
+        }
     };
 
     private final boolean requiresSolarDisk;
@@ -178,6 +213,10 @@ public enum StretchStepKind {
             }
         }
         throw new IllegalArgumentException("Unknown parameter " + name + " for " + this);
+    }
+
+    private static StretchParameter blurSize() {
+        return choice("size", 3, 3, 5, 7, 9, 11, 15, 21);
     }
 
     private static float to16Bit(double value8Bit) {

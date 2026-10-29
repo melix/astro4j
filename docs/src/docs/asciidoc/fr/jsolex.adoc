@@ -396,21 +396,21 @@ Les animations et vidéos disposent d'un bouton « Rogner / pivoter... » qui ou
 Vous pouvez la pivoter, la retourner ou la rogner, puis cliquer sur « Appliquer » : les opérations sont appliquées à toutes les images et le résultat apparaît comme une nouvelle animation à côté de l'originale.
 
 [[stretching-steps]]
-==== Étirement
+==== Retouches
 
-La liste « Étirement » en haut de chaque image choisit comment sa luminosité est réglée.
-Les réglages de la méthode choisie sont affichés sur la ligne en dessous : déplacez un curseur ou saisissez une valeur dans le champ à côté, ou choisissez une valeur dans une liste pour la taille des tuiles et les bacs du CLAHE.
+La liste « Retouches » en haut de chaque image choisit comment sa luminosité est réglée, ou comment elle est adoucie ou rendue plus nette.
+Les réglages de la méthode choisie sont affichés sur la ligne en dessous : déplacez un curseur ou saisissez une valeur dans le champ à côté, ou choisissez une valeur dans une liste pour la taille des tuiles et les bacs du CLAHE et pour la taille du flou et de la netteté.
 Survolez la liste pour savoir ce que fait la méthode choisie et ce que signifient ses réglages.
 L'image traitée commence par la méthode d'amélioration du contraste choisie dans les paramètres de traitement, suivie d'un étirement linéaire pour régler ses points noir et blanc.
 
-« + Ajouter un étirement » applique une autre méthode par-dessus les précédentes, par exemple un réglage Ombres/hautes lumières après l'étirement linéaire.
-Les étirements sont alors listés dans l'ordre où ils sont appliqués : cliquez sur l'un d'eux pour le sélectionner, ou sur son × pour le retirer.
-La liste des méthodes et les réglages de l'étirement sélectionné passent alors sur la ligne en dessous, et choisir une autre méthode dans la liste remplace l'étirement sélectionné.
-« Réinitialiser » rétablit les réglages d'origine de l'étirement sélectionné, sans toucher aux autres.
+« + Ajouter une retouche » applique une autre méthode par-dessus les précédentes, par exemple un réglage Ombres/hautes lumières ou un Masque flou après l'étirement linéaire.
+Les retouches sont alors listées dans l'ordre où elles sont appliquées : cliquez sur l'une d'elles pour la sélectionner, ou sur son × pour la retirer.
+La liste des méthodes et les réglages de la retouche sélectionnée passent alors sur la ligne en dessous, et choisir une autre méthode dans la liste remplace la retouche sélectionnée.
+« Réinitialiser » rétablit les réglages d'origine de la retouche sélectionnée, sans toucher aux autres.
 
-Les méthodes disponibles sont Aucun étirement, Linéaire, Courbe, Tons moyens, Arcsinus hyperbolique, Autostretch, CLAHE, CLAHE (multi-échelle) et Ombres/hautes lumières.
+Les méthodes disponibles sont Aucune, Linéaire, Courbe, Tons moyens, Arcsinus hyperbolique, Autostretch, CLAHE, CLAHE (multi-échelle), Ombres/hautes lumières, Flou, Netteté et Masque flou.
 Autostretch n'est proposé que si le disque solaire a été détecté.
-Les images enregistrées utilisent les étirements affichés à l'écran.
+Les images enregistrées utilisent les retouches affichées à l'écran.
 
 === Autres raies spectrales dans la fenêtre de capture
 

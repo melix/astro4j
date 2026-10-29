@@ -19,9 +19,10 @@ import me.champeau.a4j.jsolex.processing.params.AutoStretchParams
 import me.champeau.a4j.jsolex.processing.params.ClaheParams
 import me.champeau.a4j.jsolex.processing.params.ContrastEnhancement
 import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory
-import me.champeau.a4j.jsolex.processing.util.ImageWrapper32
 import me.champeau.a4j.jsolex.processing.util.MetadataIO
 import spock.lang.Specification
+
+import static me.champeau.a4j.jsolex.processing.stretching.StretchingTestImages.noise
 
 class StretchRecipeTest extends Specification {
 
@@ -43,13 +44,16 @@ class StretchRecipeTest extends Specification {
         step.withValue(name, value).value(name) == expected
 
         where:
-        kind                   | name        | value | expected
-        StretchStepKind.LINEAR | "high"      | 300   | 255
-        StretchStepKind.LINEAR | "low"       | -4    | 0
-        StretchStepKind.LINEAR | "low"       | 12.6  | 13
-        StretchStepKind.CLAHE  | "tile.size" | 100   | 128
-        StretchStepKind.CLAHE  | "bins"      | 20    | 32
-        StretchStepKind.CLAHE2 | "clip"      | 2.25  | 2.25
+        kind                         | name        | value | expected
+        StretchStepKind.LINEAR       | "high"      | 300   | 255
+        StretchStepKind.LINEAR       | "low"       | -4    | 0
+        StretchStepKind.LINEAR       | "low"       | 12.6  | 13
+        StretchStepKind.CLAHE        | "tile.size" | 100   | 128
+        StretchStepKind.CLAHE        | "bins"      | 20    | 32
+        StretchStepKind.CLAHE2       | "clip"      | 2.25  | 2.25
+        StretchStepKind.SHARPEN      | "size"      | 4     | 3
+        StretchStepKind.BLUR         | "size"      | 18    | 15
+        StretchStepKind.UNSHARP_MASK | "strength"  | 7     | 5
     }
 
     def "rejects a step with a wrong number of values"() {
@@ -193,16 +197,5 @@ class StretchRecipeTest extends Specification {
 
         then:
         restored[StretchRecipe] == recipe
-    }
-
-    private static ImageWrapper32 noise(long seed) {
-        def random = new Random(seed)
-        def data = new float[64][64]
-        for (int y = 0; y < 64; y++) {
-            for (int x = 0; x < 64; x++) {
-                data[y][x] = (float) (1000 + 30000 * random.nextDouble())
-            }
-        }
-        new ImageWrapper32(64, 64, data, [:] as Map<Class<?>, Object>)
     }
 }

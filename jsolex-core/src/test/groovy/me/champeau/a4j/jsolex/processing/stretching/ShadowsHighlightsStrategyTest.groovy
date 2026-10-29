@@ -22,13 +22,18 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper32
 import me.champeau.a4j.jsolex.processing.util.RGBImage
 import spock.lang.Specification
 
+import static me.champeau.a4j.jsolex.processing.stretching.StretchingTestImages.halves
+import static me.champeau.a4j.jsolex.processing.stretching.StretchingTestImages.image
+import static me.champeau.a4j.jsolex.processing.stretching.StretchingTestImages.maxDifference
+import static me.champeau.a4j.jsolex.processing.stretching.StretchingTestImages.noise
+
 class ShadowsHighlightsStrategyTest extends Specification {
     private static final int SIZE = 200
     private static final int RADIUS = 10
 
     def "zero amounts leave the image unchanged"() {
         given:
-        def image = noise(1)
+        def image = noise(1, SIZE, 50000)
         def expected = image.copy()
 
         when:
@@ -40,7 +45,7 @@ class ShadowsHighlightsStrategyTest extends Specification {
 
     def "lifting the shadows brightens dark areas more than bright ones"() {
         given:
-        def image = halves(5000, 50000)
+        def image = halves(5000, 50000, SIZE)
         def original = image.copy()
 
         when:
@@ -56,7 +61,7 @@ class ShadowsHighlightsStrategyTest extends Specification {
 
     def "darkening the highlights darkens bright areas"() {
         given:
-        def image = halves(5000, 50000)
+        def image = halves(5000, 50000, SIZE)
         def original = image.copy()
 
         when:
@@ -93,7 +98,7 @@ class ShadowsHighlightsStrategyTest extends Specification {
 
     def "non finite pixels become black without affecting their neighbours"() {
         given:
-        def image = noise(7)
+        def image = noise(7, SIZE, 50000)
         def reference = image.copy()
         image.data()[32][32] = Float.NaN
         reference.data()[32][32] = 0f
@@ -109,7 +114,7 @@ class ShadowsHighlightsStrategyTest extends Specification {
 
     def "zero pixels stay at zero"() {
         given:
-        def image = noise(2)
+        def image = noise(2, SIZE, 50000)
         for (int y = 0; y < SIZE; y++) {
             for (int x = 0; x < SIZE / 3; x++) {
                 image.data()[y][x] = 0
@@ -126,7 +131,7 @@ class ShadowsHighlightsStrategyTest extends Specification {
 
     def "color images keep their hue"() {
         given:
-        def mono = halves(4000, 30000)
+        def mono = halves(4000, 30000, SIZE)
         def r = scaled(mono.data(), 1.0f)
         def g = scaled(mono.data(), 0.6f)
         def b = scaled(mono.data(), 0.3f)
@@ -162,7 +167,7 @@ class ShadowsHighlightsStrategyTest extends Specification {
 
     def "shadows_highlights function spreads the brightness range then applies the strategy"() {
         given:
-        def image = noise(3)
+        def image = noise(3, SIZE, 50000)
         def expected = image.copy()
         RangeExpansionStrategy.DEFAULT.stretch(expected)
         new ShadowsHighlightsStrategy(40, 10, 20).stretch(expected)
@@ -177,7 +182,7 @@ class ShadowsHighlightsStrategyTest extends Specification {
 
     def "shadows_highlights function uses default amounts"() {
         given:
-        def image = noise(4)
+        def image = noise(4, SIZE, 50000)
         def expected = image.copy()
         RangeExpansionStrategy.DEFAULT.stretch(expected)
         new ShadowsHighlightsStrategy(ShadowsHighlightsStrategy.DEFAULT_SHADOWS, ShadowsHighlightsStrategy.DEFAULT_HIGHLIGHTS, ShadowsHighlightsStrategy.DEFAULT_RADIUS).stretch(expected)
@@ -191,7 +196,7 @@ class ShadowsHighlightsStrategyTest extends Specification {
 
     def "the stretching step spreads the brightness range before adjusting it"() {
         given:
-        def image = noise(6)
+        def image = noise(6, SIZE, 50000)
         def expected = image.copy()
         RangeExpansionStrategy.DEFAULT.stretch(expected)
         new ShadowsHighlightsStrategy(ShadowsHighlightsStrategy.DEFAULT_SHADOWS, ShadowsHighlightsStrategy.DEFAULT_HIGHLIGHTS, ShadowsHighlightsStrategy.DEFAULT_RADIUS).stretch(expected)
@@ -205,7 +210,7 @@ class ShadowsHighlightsStrategyTest extends Specification {
 
     def "describes the step with its parameters"() {
         given:
-        def image = noise(5)
+        def image = noise(5, SIZE, 50000)
 
         when:
         StretchRecipe.of(StretchStep.defaultsOf(StretchStepKind.SHADOWS_HIGHLIGHTS)).applyTo(image)
@@ -218,27 +223,6 @@ class ShadowsHighlightsStrategyTest extends Specification {
 
     private static Stretching stretching() {
         new Stretching([:] as Map<Class<?>, Object>, Broadcaster.NO_OP)
-    }
-
-    private static ImageWrapper32 noise(long seed) {
-        def random = new Random(seed)
-        def data = new float[SIZE][SIZE]
-        for (int y = 0; y < SIZE; y++) {
-            for (int x = 0; x < SIZE; x++) {
-                data[y][x] = (float) (1000 + 50000 * random.nextDouble())
-            }
-        }
-        image(data)
-    }
-
-    private static ImageWrapper32 halves(float left, float right) {
-        def data = new float[SIZE][SIZE]
-        for (int y = 0; y < SIZE; y++) {
-            for (int x = 0; x < SIZE; x++) {
-                data[y][x] = x < SIZE / 2 ? left : right
-            }
-        }
-        image(data)
     }
 
     private static ImageWrapper32 disk(float inside, float outside) {
@@ -261,19 +245,5 @@ class ShadowsHighlightsStrategyTest extends Specification {
             }
         }
         result
-    }
-
-    private static ImageWrapper32 image(float[][] data) {
-        new ImageWrapper32(SIZE, SIZE, data, [:] as Map<Class<?>, Object>)
-    }
-
-    private static double maxDifference(float[][] a, float[][] b) {
-        double max = 0
-        for (int y = 0; y < a.length; y++) {
-            for (int x = 0; x < a[y].length; x++) {
-                max = Math.max(max, Math.abs(a[y][x] - b[y][x]))
-            }
-        }
-        max
     }
 }
