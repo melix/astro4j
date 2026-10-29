@@ -2,6 +2,7 @@
 
 ## Nouveautés de la version 5.6.2
 
+- La visionneuse d'images peut maintenant adoucir les images ou les rendre plus nettes, y compris avec un masque flou.
 - Étirement des images plus rapide, en particulier avec CLAHE, CLAHE2 et AutoStretch.
 
 ## Nouveautés de la version 5.6.1

@@ -30,6 +30,7 @@ public sealed interface StretchingStrategy permits
     RangeExpansionStrategy,
     SigmoidStretchingStrategy,
     ClaheStrategy,
+    ConvolutionStrategy,
         AdaptativeClaheStrategy,
     GammaStrategy,
     AutohistogramStrategy,

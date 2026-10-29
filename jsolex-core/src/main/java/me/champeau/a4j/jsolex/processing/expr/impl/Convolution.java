@@ -16,23 +16,21 @@
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
+import me.champeau.a4j.jsolex.processing.stretching.ConvolutionStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
-import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.math.image.BlurKernel;
 import me.champeau.a4j.math.image.Deconvolution;
-import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.math.image.Kernel;
 import me.champeau.a4j.math.image.SharpenKernel;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-
-import static me.champeau.a4j.jsolex.processing.expr.AbstractImageExpressionEvaluator.applyOperator;
 
 public class Convolution extends AbstractFunctionImpl {
     private final ImageMath imageMath = ImageMath.newInstance();
@@ -69,9 +67,7 @@ public class Convolution extends AbstractFunctionImpl {
         if (image instanceof ImageWrapper32 mono) {
             return new ImageWrapper32(mono.width(), mono.height(), imageMath.convolve(mono.asImage(), kernel).data(), mono.metadata());
         } else if (image instanceof RGBImage rgb) {
-            var hsl = ImageUtils.fromRGBtoHSL(new float[][][]{rgb.r(), rgb.g(), rgb.b()});
-            hsl[2] = imageMath.convolve(new Image(rgb.width(), rgb.height(), hsl[2]), kernel).data();
-            var transformed = ImageUtils.fromHSLtoRGB(hsl);
+            var transformed = ConvolutionStrategy.filterLightness(rgb, lightness -> imageMath.convolve(lightness, kernel));
             return new RGBImage(rgb.width(), rgb.height(), transformed[0], transformed[1], transformed[2], rgb.metadata());
         }
         throw new IllegalArgumentException("Unsupported image type " + image);
@@ -111,10 +107,8 @@ public class Convolution extends AbstractFunctionImpl {
             var kernelSize = intArg(arguments, "kernel", 3);
             var unwrapped = image.unwrapToMemory();
             if (unwrapped instanceof ImageWrapper32 mono) {
-                var blurred = imageMath.convolve(mono.asImage(), BlurKernel.of(kernelSize));
-                var diff = (ImageWrapper32) applyOperator(mono, ImageWrapper32.fromImage(blurred), null, null, (a, b) -> a - b);
-                var strengthened = (ImageWrapper32) applyOperator(diff, null, null, strength, (a, b) -> a * b);
-                return applyOperator(mono, strengthened, null, null, Double::sum);
+                var sharpened = ConvolutionStrategy.unsharpMask(imageMath, mono.asImage(), strength, kernelSize);
+                return new ImageWrapper32(mono.width(), mono.height(), sharpened.data(), new LinkedHashMap<>(mono.metadata()));
             }
             throw new IllegalArgumentException("unsharp_mask only supports mono images");
         }
