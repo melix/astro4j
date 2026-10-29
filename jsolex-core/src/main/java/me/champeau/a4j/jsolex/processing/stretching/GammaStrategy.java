@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.stretching;
 
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.math.RowStrips;
 import me.champeau.a4j.math.opencl.OpenCLContext;
 import me.champeau.a4j.math.opencl.OpenCLSupport;
 
@@ -55,23 +56,19 @@ public final class GammaStrategy implements StretchingStrategy {
 
     void stretchCPU(ImageWrapper32 image) {
         var data = image.data();
-        float max = 1e-7f;
+        var max = StretchingUtils.max(data, 1e-7f);
         int width = image.width();
         var height = image.height();
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                var v = data[y][x];
-                max = Math.max(v, max);
+        RowStrips.forEach(height, (yStart, yEnd) -> {
+            for (int y = yStart; y < yEnd; y++) {
+                for (int x = 0; x < width; x++) {
+                    var v = data[y][x];
+                    float normalized = v / max;
+                    float corrected = (float) Math.pow(normalized, gamma);
+                    data[y][x] = corrected * Constants.MAX_PIXEL_VALUE;
+                }
             }
-        }
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                var v = data[y][x];
-                float normalized = v / max;
-                float corrected = (float) Math.pow(normalized, gamma);
-                data[y][x] = corrected * Constants.MAX_PIXEL_VALUE;
-            }
-        }
+        });
     }
 
     void stretchGPU(OpenCLContext context, ImageWrapper32 image) {

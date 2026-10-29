@@ -15,8 +15,35 @@
  */
 package me.champeau.a4j.jsolex.processing.stretching;
 
+import me.champeau.a4j.math.RowStrips;
+
 public class StretchingUtils {
     private StretchingUtils() {
+    }
+
+    /**
+     * Returns the maximum of the pixels of an image and of an initial value,
+     * with the semantics of {@link Math#max(float, float)}.
+     *
+     * @param data the pixels
+     * @param initial the initial value
+     * @return the maximum
+     */
+    static float max(float[][] data, float initial) {
+        var partials = RowStrips.map(data.length, (yStart, yEnd) -> {
+            var max = initial;
+            for (int y = yStart; y < yEnd; y++) {
+                for (var v : data[y]) {
+                    max = Math.max(max, v);
+                }
+            }
+            return max;
+        });
+        var max = initial;
+        for (var partial : partials) {
+            max = Math.max(max, partial);
+        }
+        return max;
     }
 
 

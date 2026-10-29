@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.stretching;
 
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.math.RowStrips;
 
 import java.util.function.BiPredicate;
 
@@ -120,14 +121,8 @@ public final class PercentileStretchStrategy implements StretchingStrategy {
         }
         sort(pixels);
         float lowValue = percentileValue(pixels, lowPercentile);
-        float highValue = percentileValue(pixels, highPercentile);
-        if (clipMode == ClipMode.EXTEND) {
-            for (var line : data) {
-                for (var v : line) {
-                    highValue = Math.max(highValue, v);
-                }
-            }
-        }
+        float highPercentileValue = percentileValue(pixels, highPercentile);
+        float highValue = clipMode == ClipMode.EXTEND ? StretchingUtils.max(data, highPercentileValue) : highPercentileValue;
 
         if (highValue <= lowValue) {
             return;
@@ -135,20 +130,22 @@ public final class PercentileStretchStrategy implements StretchingStrategy {
 
         float range = highValue - lowValue;
 
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                float v = data[y][x];
-                if (clipMode == ClipMode.NONE) {
-                    data[y][x] = ((v - lowValue) / range) * MAX_PIXEL_VALUE;
-                } else if (v <= lowValue) {
-                    data[y][x] = 0;
-                } else if (v >= highValue) {
-                    data[y][x] = MAX_PIXEL_VALUE;
-                } else {
-                    data[y][x] = ((v - lowValue) / range) * MAX_PIXEL_VALUE;
+        RowStrips.forEach(height, (yStart, yEnd) -> {
+            for (int y = yStart; y < yEnd; y++) {
+                for (int x = 0; x < width; x++) {
+                    float v = data[y][x];
+                    if (clipMode == ClipMode.NONE) {
+                        data[y][x] = ((v - lowValue) / range) * MAX_PIXEL_VALUE;
+                    } else if (v <= lowValue) {
+                        data[y][x] = 0;
+                    } else if (v >= highValue) {
+                        data[y][x] = MAX_PIXEL_VALUE;
+                    } else {
+                        data[y][x] = ((v - lowValue) / range) * MAX_PIXEL_VALUE;
+                    }
                 }
             }
-        }
+        });
     }
 
     private static float percentileValue(float[] sorted, double percentile) {

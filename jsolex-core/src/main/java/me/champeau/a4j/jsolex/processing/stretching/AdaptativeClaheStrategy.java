@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.processing.stretching;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
+import me.champeau.a4j.math.RowStrips;
 import me.champeau.a4j.math.regression.Ellipse;
 
 import java.util.ArrayList;
@@ -86,12 +87,14 @@ public final class AdaptativeClaheStrategy implements StretchingStrategy {
         var width = image.width();
         var height = image.height();
         var mask = new boolean[height][width];
-        for (int y = 0; y < height; y++) {
-            var row = mask[y];
-            for (int x = 0; x < width; x++) {
-                row[x] = e.isWithin(x, y);
+        RowStrips.forEach(height, (yStart, yEnd) -> {
+            for (int y = yStart; y < yEnd; y++) {
+                var row = mask[y];
+                for (int x = 0; x < width; x++) {
+                    row[x] = e.isWithin(x, y);
+                }
             }
-        }
+        });
         return mask;
     }
 
@@ -134,21 +137,25 @@ public final class AdaptativeClaheStrategy implements StretchingStrategy {
             var copy = ImageWrapper.copyData(data);
             new ClaheStrategy(tileSize, BINS, clip, mask)
                     .stretch(new ImageWrapper32(width, height, copy, new HashMap<>(metadata)));
-            for (int y = 0; y < height; y++) {
-                var row = copy[y];
-                var sumRow = sum[y];
-                for (int x = 0; x < width; x++) {
-                    sumRow[x] += row[x];
+            RowStrips.forEach(height, (yStart, yEnd) -> {
+                for (int y = yStart; y < yEnd; y++) {
+                    var row = copy[y];
+                    var sumRow = sum[y];
+                    for (int x = 0; x < width; x++) {
+                        sumRow[x] += row[x];
+                    }
                 }
-            }
+            });
         }
         float n = tileSizes.size();
-        for (int y = 0; y < height; y++) {
-            var dst = data[y];
-            var sumRow = sum[y];
-            for (int x = 0; x < width; x++) {
-                dst[x] = sumRow[x] / n;
+        RowStrips.forEach(height, (yStart, yEnd) -> {
+            for (int y = yStart; y < yEnd; y++) {
+                var dst = data[y];
+                var sumRow = sum[y];
+                for (int x = 0; x < width; x++) {
+                    dst[x] = sumRow[x] / n;
+                }
             }
-        }
+        });
     }
 }
