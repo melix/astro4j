@@ -66,6 +66,24 @@ class ProgressHandlerTest extends Specification {
         done == ProgressHandler.ProgressSnapshot.hidden()
     }
 
+    def "the label shows the percentage of a task which reports progress"() {
+        given:
+        var root = ProgressOperation.root("file.ser", { })
+        handler.registerRoot(root)
+        var averaging = root.createChild("Averaging")
+        handler.ensureTracked(averaging)
+
+        when:
+        var notStarted = handler.computeSnapshot()
+        averaging.update(0.426)
+        var running = handler.computeSnapshot()
+
+        then:
+        notStarted.currentTaskLabel() == "file.ser / Averaging"
+        running.currentTaskLabel() == "file.ser / Averaging (42%)"
+        running.progress() == -1d
+    }
+
     private ProgressOperation startBatch() {
         var batch = ProgressOperation.root("Batch processing", { })
         handler.registerRoot(batch)

@@ -73,6 +73,18 @@ public final class ProgressPathFormatter {
         return shortened;
     }
 
+    /**
+     * Appends the completion percentage to a task name, once the task reports progress.
+     *
+     * @param task the task name
+     * @param progress the progress of the task, between 0 and 1
+     * @return the task name, followed by its percentage when it is above 0
+     */
+    public static String withPercentage(String task, double progress) {
+        var percent = (int) (progress * 100);
+        return percent > 0 ? task + " (" + percent + "%)" : task;
+    }
+
     private static String shorten(List<String> segments, int keptAtEnd) {
         var tail = segments.subList(segments.size() - keptAtEnd, segments.size());
         return segments.getFirst() + ProgressOperation.PATH_SEPARATOR + ELLIPSIS + ProgressOperation.PATH_SEPARATOR

@@ -297,8 +297,14 @@ public final class ProgressHandler {
         return new ProgressSnapshot(
                 -1,
                 incompleteLeaves.size(),
-                currentLeaf.taskPath
+                displayPath(currentLeaf)
         );
+    }
+
+    private static List<String> displayPath(LeafTask leaf) {
+        var path = new ArrayList<>(leaf.taskPath());
+        path.set(path.size() - 1, ProgressPathFormatter.withPercentage(path.getLast(), leaf.progress()));
+        return List.copyOf(path);
     }
 
     private void collectLeafTasks(ProgressOperation operation, List<LeafTask> leaves) {
