@@ -91,9 +91,7 @@ public final class ProgressTreeBuilder {
 
         var progressPercent = (int) (progress * 100);
         var indent = "  ".repeat(depth);
-        var text = progressPercent > 0
-                ? indent + "\u25CF " + task + " (" + progressPercent + "%)"
-                : indent + "\u25CF " + task;
+        var text = indent + "\u25CF " + ProgressPathFormatter.withPercentage(task, progress);
 
         var label = new Label(text);
         if (progressPercent > 0) {

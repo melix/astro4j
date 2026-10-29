@@ -26,6 +26,7 @@ import me.champeau.a4j.ser.bayer.ImageConverter;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.locks.ReentrantLock;
@@ -81,7 +82,10 @@ public class AverageImageCreator {
         int height = geometry.height();
         int width = geometry.width();
         var progressOperation = rootOperation.createChild(limbDetectionMessage);
-        var maxMean = findMaxMeanBySampling(reader, frameCount, progressOperation, geometry, imageMath);
+        var sampleFrameIds = sampleFrameIds(frameCount);
+        int sampleCount = sampleFrameIds.size();
+        double totalFrames = sampleCount + frameCount;
+        var maxMean = findMaxMeanBySampling(reader, sampleFrameIds, totalFrames, progressOperation, geometry, imageMath);
         var threshold = FRAME_INCLUSION_THRESHOLD * maxMean;
 
         // Per-thread sum accumulators (double precision to avoid overflow) to eliminate lock contention
@@ -110,7 +114,7 @@ public class AverageImageCreator {
                 var frameDataBatch = new ByteBuffer[batchSize];
                 for (int k = 0; k < batchSize; k++) {
                     int frameId = batchStart + k;
-                    broadcaster.broadcast(progressOperation.update(frameId / (double) frameCount));
+                    broadcaster.broadcast(progressOperation.update((sampleCount + frameId) / totalFrames));
                     frameDataBatch[k] = reader.currentFrame().data();
                     reader.nextFrame();
                 }
@@ -179,23 +183,26 @@ public class AverageImageCreator {
         }
     }
 
-    private float findMaxMeanBySampling(SerFileReader reader, int frameCount, ProgressOperation progressOperation, ImageGeometry geometry, ImageMath imageMath) {
+    private static List<Integer> sampleFrameIds(int frameCount) {
         var sampling = Math.max(10, frameCount / 100);
-        var maxMean = new float[]{0f};
-        var maxLock = new ReentrantLock();
-        int height = geometry.height();
-        int width = geometry.width();
         var sampleFrameIds = new ArrayList<Integer>();
         for (int i = 0; i < frameCount; i += sampling) {
             sampleFrameIds.add(i);
         }
+        return sampleFrameIds;
+    }
+
+    private float findMaxMeanBySampling(SerFileReader reader, List<Integer> sampleFrameIds, double totalFrames, ProgressOperation progressOperation, ImageGeometry geometry, ImageMath imageMath) {
+        var maxMean = new float[]{0f};
+        var maxLock = new ReentrantLock();
+        int height = geometry.height();
+        int width = geometry.width();
         int sampleCount = sampleFrameIds.size();
         int laneCount = IO_PARALLELISM;
         var buffers = new float[laneCount][][];
         for (int k = 0; k < laneCount; k++) {
             buffers[k] = new float[height][width];
         }
-        broadcaster.broadcast(progressOperation.update(0 / (double) frameCount));
         try (var executor = ParallelExecutor.newExecutor(IO_PARALLELISM)) {
             for (int batchStart = 0; batchStart < sampleCount; batchStart += laneCount) {
                 int batchEnd = Math.min(batchStart + laneCount, sampleCount);
@@ -203,6 +210,7 @@ public class AverageImageCreator {
                 var frameDataBatch = new ByteBuffer[batchSize];
                 var frameIdBatch = new int[batchSize];
                 for (int k = 0; k < batchSize; k++) {
+                    broadcaster.broadcast(progressOperation.update((batchStart + k) / totalFrames));
                     int frameId = sampleFrameIds.get(batchStart + k);
                     reader.seekFrame(frameId);
                     frameDataBatch[k] = reader.currentFrame().data();
