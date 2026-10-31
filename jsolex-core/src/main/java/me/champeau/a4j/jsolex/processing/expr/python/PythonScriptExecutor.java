@@ -169,6 +169,12 @@ public class PythonScriptExecutor {
                 builder.option("python.Executable", graalPyExecutable.toString());
             }
             var context = builder.build();
+            context.eval("python", """
+                    import os
+                    import sys
+                    if sys.platform == 'linux':
+                        sys.setdlopenflags(sys.getdlopenflags() | getattr(os, 'RTLD_DEEPBIND', 0x8))
+                    """);
             LOGGER.info("GraalPy context initialized");
             return context;
         } finally {
