@@ -1,6 +1,6 @@
 # Welcome to JSol'Ex {{version}}!
 
-## What's New in Version 5.6.2
+## What's New in Version 5.7.0
 
 - The image viewer can now blur and sharpen images, including with an unsharp mask.
 - Faster image stretching, in particular with CLAHE, CLAHE2 and AutoStretch.

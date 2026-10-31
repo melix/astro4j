@@ -1,6 +1,6 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
-## Nouveautés de la version 5.6.2
+## Nouveautés de la version 5.7.0
 
 - La visionneuse d'images peut maintenant adoucir les images ou les rendre plus nettes, y compris avec un masque flou.
 - Étirement des images plus rapide, en particulier avec CLAHE, CLAHE2 et AutoStretch.
