@@ -43,6 +43,7 @@ graalvmNative {
         buildArgs.add("--features=me.champeau.a4j.jsolex.ni.JSolExScriptingFeature")
         buildArgs.addAll("--add-modules", "jdk.incubator.vector")
         buildArgs.add("-H:+VectorAPISupport")
+        buildArgs.add("--add-opens=java.base/java.nio=ALL-UNNAMED")
 //        buildArgs.add("-march=native")
     }
 }

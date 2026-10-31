@@ -1,6 +1,10 @@
 {
   "reflection": [
     {
+      "type": "java.lang.RuntimeException",
+      "jniAccessible": true
+    },
+    {
       "type": "me.champeau.a4j.math.image.OpenCLImageMath"
     },
     {
@@ -801,7 +805,14 @@
       ]
     },
     {
-      "type": "java.lang.Object"
+      "type": "java.lang.Object",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "toString",
+          "parameterTypes": []
+        }
+      ]
     },
     {
       "type": "java.lang.Record"
@@ -932,6 +943,15 @@
       "fields": [
         {
           "name": "att"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "long",
+            "long"
+          ]
         }
       ]
     },
@@ -1639,6 +1659,66 @@
     },
     {
       "type": "nom.tam.fits.compress.ZCompressionProvider"
+    },
+    {
+      "type": "org.apache.arrow.c.ArrayStreamExporter$ExportedArrayStreamPrivateData",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "lastError"
+        }
+      ],
+      "methods": [
+        {
+          "name": "getNext",
+          "parameterTypes": [
+            "long"
+          ]
+        },
+        {
+          "name": "getSchema",
+          "parameterTypes": [
+            "long"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "org.apache.arrow.c.jni.CDataJniException",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "int",
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "org.apache.arrow.c.jni.PrivateData",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "close",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.apache.arrow.memory.Accountant"
+    },
+    {
+      "type": "org.apache.arrow.memory.BufferLedger"
+    },
+    {
+      "type": "org.apache.arrow.memory.unsafe.DefaultAllocationManagerFactory",
+      "fields": [
+        {
+          "name": "FACTORY"
+        }
+      ]
     },
     {
       "type": "org.jcodec.containers.mp4.boxes.PixelAspectExt[]"
@@ -2718,6 +2798,9 @@
       "glob": "application.properties"
     },
     {
+      "glob": "arrow_cdata_jni/**"
+    },
+    {
       "glob": "atlasvi.txt"
     },
     {
@@ -2752,6 +2835,12 @@
     },
     {
       "glob": "me/champeau/a4j/math/opencl/kernels/selftest.cl"
+    },
+    {
+      "glob": "org/apache/arrow/memory/DefaultAllocationManagerFactory.class"
+    },
+    {
+      "glob": "org/apache/arrow/memory/unsafe/DefaultAllocationManagerFactory.class"
     },
     {
       "glob": "version.txt"
