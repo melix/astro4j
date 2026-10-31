@@ -364,7 +364,7 @@ public class PythonScriptExecutor {
                         try:
                             import pyarrow as pa
                             # Fast path: use Arrow
-                            flat = data.astype(np.float32).flatten()
+                            flat = np.ascontiguousarray(data, dtype=np.float32).reshape(-1)
                             arrow_array = pa.array(flat, type=pa.float32())
                             addrs = _java_bridge.arrowAllocate()
                             arrow_array._export_to_c(addrs[0], addrs[1])

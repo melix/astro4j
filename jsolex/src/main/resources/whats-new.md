@@ -4,6 +4,7 @@
 
 - The image viewer can now blur and sharpen images, including with an unsharp mask.
 - Faster image stretching, in particular with CLAHE, CLAHE2 and AutoStretch.
+- Faster conversion of images to and from NumPy in Python scripts.
 - Python virtual environments must now be created with GraalPy 25.4.
 - The standalone scripting tool can now use a GraalPy virtual environment.
 - Fixed the standalone scripting tool failing on computers with a graphics card.
