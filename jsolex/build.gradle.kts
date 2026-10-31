@@ -78,7 +78,7 @@ jlink {
         "sqlite-jdbc",
         "jackson-core", "jackson-databind", "jackson-annotations",
         "python-community", "python-language", "python-resources",
-        "truffle-nfi-libffi", "truffle-nfi-panama", "truffle-nfi", "truffle-api",
+        "truffle-api",
         "polyglot", "profiler-tool", "shadowed", "truffle-compiler", "truffle-runtime"
     )
     options.add("--ignore-signing-information")

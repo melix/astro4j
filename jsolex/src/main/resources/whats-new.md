@@ -4,6 +4,7 @@
 
 - The image viewer can now blur and sharpen images, including with an unsharp mask.
 - Faster image stretching, in particular with CLAHE, CLAHE2 and AutoStretch.
+- Python virtual environments must now be created with GraalPy 25.4.
 
 ## What's New in Version 5.6.1
 

@@ -31,14 +31,13 @@ val jvmMemorySettings = listOf(
 extra["jvmMemorySettings"] = jvmMemorySettings
 
 val nativeAccessArgs = listOf("--enable-preview", "--enable-native-access=javafx.graphics", "--enable-native-access=org.lwjgl.opengl", "--enable-native-access=org.lwjgl")
-val sharedJvmArgs = jvmMemorySettings + nativeAccessArgs
+val sharedJvmArgs = jvmMemorySettings + jitSettings + nativeAccessArgs
 
 application {
     applicationDefaultJvmArgs = sharedJvmArgs
 }
 
-// The Micronaut BOMs bring a newer GraalPy line which runs Python scripts
-// interpreted (without JIT) on GraalVM for JDK 25
+// All GraalVM dependencies use the GraalPy version of the catalog
 val graalpyVersion = the<VersionCatalogsExtension>().named("libs").findVersion("graalpy").get().requiredVersion
 
 configurations.configureEach {

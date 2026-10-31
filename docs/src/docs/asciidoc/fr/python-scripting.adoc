@@ -54,6 +54,7 @@ Sous Windows, vous pouvez tout de même utiliser GraalPy pour du scripting Pytho
 === Étape 1 : Installer GraalPy
 
 Téléchargez et installez GraalPy depuis la https://www.graalvm.org/python/python-developers/[page officielle de GraalPy].
+Installez GraalPy 25.4, la version utilisée par JSol'Ex.
 
 === Étape 2 : Installer les prérequis (Linux / macOS uniquement)
 
@@ -115,6 +116,8 @@ Dans JSol'Ex, allez dans **Fichier -> Paramètres avancés -> Scripting Python**
 Redémarrez JSol'Ex pour que le changement prenne effet.
 
 === Dépannage
+
+**`No module named 'numpy'` après une mise à jour de JSol'Ex** -- L'environnement virtuel a été créé avec une autre version de GraalPy. Installez la version de GraalPy indiquée à l'étape 1, puis recréez l'environnement virtuel et réinstallez vos paquets.
 
 **`pip` n'est pas reconnu (Windows)** -- N'appelez pas `pip` ou `pip.exe` directement. Utilisez `Scripts\python.exe -m pip --no-cache-dir install ...` depuis l'environnement virtuel.
 

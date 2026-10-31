@@ -221,7 +221,7 @@ public class PythonSyntaxHighlighter {
                 try:
                     _reader = io.StringIO(_highlight_code)
                     for tok in tokenize.generate_tokens(_reader.readline):
-                        _tok_type = tok.type
+                        _tok_type = token.tok_name[tok.type]
                         _tok_string = tok.string
                         _start_row, _start_col = tok.start
                         _end_row, _end_col = tok.end
@@ -242,7 +242,7 @@ public class PythonSyntaxHighlighter {
         }
     }
 
-    private record TokenInfo(int type, String string, int startRow, int startCol, int endRow, int endCol) {}
+    private record TokenInfo(String type, String string, int startRow, int startCol, int endRow, int endCol) {}
 
     private List<HighlightSpan> convertTokensToSpans(Value tokensValue, String code) {
         var spans = new ArrayList<HighlightSpan>();
@@ -261,7 +261,7 @@ public class PythonSyntaxHighlighter {
                 continue;
             }
             tokens.add(new TokenInfo(
-                    token.getArrayElement(0).asInt(),
+                    token.getArrayElement(0).asString(),
                     token.getArrayElement(1).asString(),
                     token.getArrayElement(2).asInt(),
                     token.getArrayElement(3).asInt(),
@@ -276,7 +276,7 @@ public class PythonSyntaxHighlighter {
             boolean isFollowedByParen = false;
 
             // Check if this NAME token is followed by '(' (function call)
-            if (token.type == 1 && i + 1 < tokens.size()) {
+            if ("NAME".equals(token.type) && i + 1 < tokens.size()) {
                 var nextToken = tokens.get(i + 1);
                 // Just check the string - token type for OP varies between Python versions
                 if ("(".equals(nextToken.string)) {
@@ -317,12 +317,11 @@ public class PythonSyntaxHighlighter {
         return lineOffsets[row - 1] + col;
     }
 
-    private String mapTokenToStyle(int tokenType, String tokenString, boolean isFollowedByParen) {
+    private String mapTokenToStyle(String tokenType, String tokenString, boolean isFollowedByParen) {
         return switch (tokenType) {
-            case 64, 60 -> "comment"; // COMMENT (64 in Python 3.12+, 60 in older)
-            case 3 -> "token_literal"; // STRING
-            case 2 -> "token_literal"; // NUMBER
-            case 1 -> { // NAME
+            case "COMMENT" -> "comment";
+            case "STRING", "NUMBER" -> "token_literal";
+            case "NAME" -> {
                 if (PYTHON_KEYWORDS.contains(tokenString)) {
                     yield "keyword";
                 } else if (PYTHON_BUILTINS.contains(tokenString) || isFollowedByParen) {

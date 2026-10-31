@@ -53,6 +53,7 @@ On Windows, you can still use GraalPy for pure Python scripting (no `import nump
 === Step 1: Install GraalPy
 
 Download and install GraalPy from the https://www.graalvm.org/python/python-developers/[official GraalPy page].
+Install GraalPy 25.4, the version used by JSol'Ex.
 
 === Step 2: Install prerequisites (Linux / macOS only)
 
@@ -114,6 +115,8 @@ In JSol'Ex, go to **File -> Advanced Parameters -> Python Scripting** and browse
 Restart JSol'Ex for the change to take effect.
 
 === Troubleshooting
+
+**`No module named 'numpy'` after upgrading JSol'Ex** -- The virtual environment was created with a different GraalPy version. Install the GraalPy version given in step 1, then create the virtual environment again and reinstall your packages.
 
 **`pip` is not recognized (Windows)** -- Do not call `pip` or `pip.exe` directly. Use `Scripts\python.exe -m pip --no-cache-dir install ...` from inside the virtual environment.
 

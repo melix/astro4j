@@ -4,6 +4,7 @@
 
 - La visionneuse d'images peut maintenant adoucir les images ou les rendre plus nettes, y compris avec un masque flou.
 - Étirement des images plus rapide, en particulier avec CLAHE, CLAHE2 et AutoStretch.
+- Les environnements virtuels Python doivent maintenant être créés avec GraalPy 25.4.
 
 ## Nouveautés de la version 5.6.1
 
