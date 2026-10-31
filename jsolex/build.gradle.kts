@@ -44,6 +44,7 @@ jlink {
         uses("org.graalvm.polyglot.Engine")
         uses("com.fasterxml.jackson.databind.cfg.MapperBuilder")
         uses("com.fasterxml.jackson.databind.ObjectMapper")
+        uses("com.fasterxml.jackson.databind.Module")
         uses("com.oracle.truffle.api.Truffle")
         uses("com.oracle.truffle.api.impl.DefaultTruffleRuntime")
         uses("nom.tam.fits.compress.CompressionManager")

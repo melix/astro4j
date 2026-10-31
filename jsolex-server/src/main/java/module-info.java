@@ -18,6 +18,7 @@ module me.champeau.a4j.jsolex.server {
     requires me.champeau.a4j.jsolex.core;
     requires me.champeau.a4j.math;
     requires java.desktop;
+    requires static java.compiler;
     requires io.micronaut.micronaut_context;
     requires io.micronaut.micronaut_core;
     requires io.micronaut.micronaut_http;
@@ -40,6 +41,9 @@ module me.champeau.a4j.jsolex.server {
 
     // For Thymeleaf!!!
     requires java.sql;
+    // For Micronaut
+    requires org.jspecify;
+    requires tools.jackson.core;
 
     exports me.champeau.a4j.jsolex.server;
     exports me.champeau.a4j.jsolex.server.ui;

@@ -37,6 +37,18 @@ application {
     applicationDefaultJvmArgs = sharedJvmArgs
 }
 
+// The Micronaut BOMs bring a newer GraalPy line which runs Python scripts
+// interpreted (without JIT) on GraalVM for JDK 25
+val graalpyVersion = the<VersionCatalogsExtension>().named("libs").findVersion("graalpy").get().requiredVersion
+
+configurations.configureEach {
+    resolutionStrategy.eachDependency {
+        if (requested.group.startsWith("org.graalvm.") && requested.group != "org.graalvm.buildtools") {
+            useVersion(graalpyVersion)
+        }
+    }
+}
+
 tasks.withType<JavaExec>().configureEach {
     outputs.upToDateWhen { false }
     providers.systemPropertiesPrefixedBy("sysprop.").get().forEach { s, p ->
