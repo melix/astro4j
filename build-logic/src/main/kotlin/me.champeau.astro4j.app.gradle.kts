@@ -86,4 +86,9 @@ tasks.register<Zip>("nativeZip") {
     archiveClassifier = System.getProperty("os.name").lowercase() + "-" +System.getProperty("os.arch")
     destinationDirectory = layout.buildDirectory.dir("distributions")
     from(tasks.nativeCompile.flatMap(BuildNativeImageTask::getOutputDirectory))
+    eachFile {
+        if (!name.contains('.')) {
+            permissions { unix("rwxr-xr-x") }
+        }
+    }
 }
