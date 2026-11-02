@@ -1,9 +1,14 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
-## Nouveautés de la version 5.6.2
+## Nouveautés de la version 5.7.0
 
 - La visionneuse d'images peut maintenant adoucir les images ou les rendre plus nettes, y compris avec un masque flou.
 - Étirement des images plus rapide, en particulier avec CLAHE, CLAHE2 et AutoStretch.
+- Conversion plus rapide des images vers et depuis NumPy dans les scripts Python.
+- Les environnements virtuels Python doivent maintenant être créés avec GraalPy 25.4.
+- L'outil de script autonome peut maintenant utiliser un environnement virtuel GraalPy.
+- Correction de l'outil de script autonome qui échouait sur les ordinateurs équipés d'une carte graphique.
+- Correction des scripts Python dans la version native de l'outil de script autonome.
 
 ## Nouveautés de la version 5.6.1
 

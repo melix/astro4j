@@ -27,6 +27,7 @@ import me.champeau.a4j.jsolex.processing.expr.DefaultImageScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor;
 import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptResult;
 import me.champeau.a4j.jsolex.processing.expr.ScriptExecutionContext;
+import me.champeau.a4j.jsolex.processing.expr.python.PythonScriptExecutor;
 import me.champeau.a4j.jsolex.processing.params.ImageMathParams;
 import me.champeau.a4j.jsolex.processing.params.NumberParameter;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
@@ -121,6 +122,10 @@ public class ScriptingEntryPoint implements Runnable {
     @Option(names = {"--no-gpu"}, description = "Disable GPU acceleration")
     public boolean noGpu;
 
+    /** GraalPy executable used to run Python scripts. */
+    @Option(names = {"--graalpy"}, description = "GraalPy executable to run Python scripts with (for example the graalpy of a virtual environment with numpy installed)")
+    public File graalPy;
+
     private ProgressListener progressListener;
 
     /**
@@ -153,6 +158,9 @@ public class ScriptingEntryPoint implements Runnable {
                 logger("me.champeau.a4j.math").setLevel(Level.ERROR);
             }
             OpenCLSupport.configureDefault(noGpu);
+            if (graalPy != null) {
+                PythonScriptExecutor.setGraalPyExecutable(graalPy.toPath());
+            }
             var processParams = createProcessParams();
             var imageFormats = imageFormats();
             var saver = new ImageSaver(CutoffStretchingStrategy.DEFAULT, processParams, imageFormats);

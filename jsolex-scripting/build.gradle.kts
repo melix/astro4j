@@ -28,8 +28,22 @@ dependencies {
     implementation(variantOf(libs.lwjgl.glfw) { classifier(lwjglNatives) })
 }
 
+// Required by Apache Arrow, used to hand images to Python scripts
+val arrowJvmArgs = listOf(
+    "--add-opens=java.base/java.nio=org.apache.arrow.memory.core",
+    "--add-opens=java.base/java.nio=ALL-UNNAMED"
+)
+
 application {
     mainClass.set("me.champeau.a4j.jsolex.cli.ScriptingEntryPoint")
+    applicationDefaultJvmArgs = applicationDefaultJvmArgs + arrowJvmArgs + listOf(
+        // Required by the OpenCL image operations
+        "--add-modules=jdk.incubator.vector"
+    )
+}
+
+astro4j {
+    withVectorApi()
 }
 
 graalvmNative {
@@ -43,6 +57,7 @@ graalvmNative {
         buildArgs.add("--features=me.champeau.a4j.jsolex.ni.JSolExScriptingFeature")
         buildArgs.addAll("--add-modules", "jdk.incubator.vector")
         buildArgs.add("-H:+VectorAPISupport")
+        buildArgs.add("--add-opens=java.base/java.nio=ALL-UNNAMED")
 //        buildArgs.add("-march=native")
     }
 }
@@ -59,6 +74,7 @@ tasks.named<JavaExec>("run") {
 }
 
 tasks.withType<JavaExec>().configureEach {
+    jvmArgs(arrowJvmArgs)
 //    jvmArgs("-agentpath:/home/cchampeau/TOOLS/YourKit-JavaProfiler-2023.9/bin/linux-x86-64/libyjpagent.so=_no_java_version_check,sampling")
     args(listOf(
         "-o", "/tmp/out/serie4",

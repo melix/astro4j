@@ -44,6 +44,7 @@ jlink {
         uses("org.graalvm.polyglot.Engine")
         uses("com.fasterxml.jackson.databind.cfg.MapperBuilder")
         uses("com.fasterxml.jackson.databind.ObjectMapper")
+        uses("com.fasterxml.jackson.databind.Module")
         uses("com.oracle.truffle.api.Truffle")
         uses("com.oracle.truffle.api.impl.DefaultTruffleRuntime")
         uses("nom.tam.fits.compress.CompressionManager")
@@ -77,7 +78,7 @@ jlink {
         "sqlite-jdbc",
         "jackson-core", "jackson-databind", "jackson-annotations",
         "python-community", "python-language", "python-resources",
-        "truffle-nfi-libffi", "truffle-nfi-panama", "truffle-nfi", "truffle-api",
+        "truffle-api",
         "polyglot", "profiler-tool", "shadowed", "truffle-compiler", "truffle-runtime"
     )
     options.add("--ignore-signing-information")

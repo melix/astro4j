@@ -31,10 +31,21 @@ val jvmMemorySettings = listOf(
 extra["jvmMemorySettings"] = jvmMemorySettings
 
 val nativeAccessArgs = listOf("--enable-preview", "--enable-native-access=javafx.graphics", "--enable-native-access=org.lwjgl.opengl", "--enable-native-access=org.lwjgl")
-val sharedJvmArgs = jvmMemorySettings + nativeAccessArgs
+val sharedJvmArgs = jvmMemorySettings + jitSettings + nativeAccessArgs
 
 application {
     applicationDefaultJvmArgs = sharedJvmArgs
+}
+
+// All GraalVM dependencies use the GraalPy version of the catalog
+val graalpyVersion = the<VersionCatalogsExtension>().named("libs").findVersion("graalpy").get().requiredVersion
+
+configurations.configureEach {
+    resolutionStrategy.eachDependency {
+        if (requested.group.startsWith("org.graalvm.") && requested.group != "org.graalvm.buildtools") {
+            useVersion(graalpyVersion)
+        }
+    }
 }
 
 tasks.withType<JavaExec>().configureEach {
@@ -75,4 +86,9 @@ tasks.register<Zip>("nativeZip") {
     archiveClassifier = System.getProperty("os.name").lowercase() + "-" +System.getProperty("os.arch")
     destinationDirectory = layout.buildDirectory.dir("distributions")
     from(tasks.nativeCompile.flatMap(BuildNativeImageTask::getOutputDirectory))
+    eachFile {
+        if (!name.contains('.')) {
+            permissions { unix("rwxr-xr-x") }
+        }
+    }
 }

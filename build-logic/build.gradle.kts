@@ -15,10 +15,10 @@ dependencies {
     implementation("org.nosphere.apache:creadur-rat-gradle:0.11.0")
     implementation("org.graalvm.buildtools:native-gradle-plugin:1.1.14")
     implementation("org.beryx.jlink:org.beryx.jlink.gradle.plugin:4.1.1")
-    implementation("org.javamodularity:moduleplugin:1.8.15")
-    implementation("com.diffplug.spotless:spotless-plugin-gradle:7.2.1")
+    implementation("org.javamodularity:moduleplugin:2.1.0")
+    implementation("com.diffplug.spotless:spotless-plugin-gradle:8.10.4")
     implementation("com.github.vlsi.gradle:license-gather-plugin:4.0.0")
-    implementation("io.micronaut.gradle:micronaut-gradle-plugin:4.6.2")
+    implementation("io.micronaut.gradle:micronaut-gradle-plugin:5.0.2")
     implementation("io.github.gradle-nexus:publish-plugin:2.0.0")
     implementation("org.asciidoctor:asciidoctor5-jvm-core-plugin:5.0.0")
     implementation("org.ajoberstar:gradle-git-publish:3.0.0")
@@ -27,11 +27,11 @@ dependencies {
 
 tasks.withType<KotlinJvmCompile>().configureEach {
     compilerOptions {
-        jvmTarget.set(JvmTarget.JVM_21)
+        jvmTarget.set(JvmTarget.JVM_25)
     }
 }
 
 tasks.withType<JavaCompile>().configureEach {
-    sourceCompatibility = "21"
-    targetCompatibility = "21"
+    sourceCompatibility = "25"
+    targetCompatibility = "25"
 }

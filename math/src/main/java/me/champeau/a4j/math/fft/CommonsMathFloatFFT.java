@@ -31,26 +31,15 @@ class CommonsMathFloatFFT implements FloatFFT {
 
     @Override
     public void transform() {
-        if (!FFTSupport.isPowerOf2(real.length)) {
-            throw new IllegalArgumentException("Array length must be a power of 2");
-        }
-
-        double[] doubleData = new double[real.length];
-        for (int i = 0; i < real.length; i++) {
-            doubleData[i] = real[i];
-        }
-
-        var transformer = new FastFourierTransformer(DftNormalization.STANDARD);
-        var result = transformer.transform(doubleData, TransformType.FORWARD);
-
-        for (int i = 0; i < result.length; i++) {
-            real[i] = (float) result[i].getReal();
-            imaginary[i] = (float) result[i].getImaginary();
-        }
+        transform(TransformType.FORWARD);
     }
 
     @Override
     public void inverseTransform() {
+        transform(TransformType.INVERSE);
+    }
+
+    private void transform(TransformType type) {
         if (!FFTSupport.isPowerOf2(real.length)) {
             throw new IllegalArgumentException("Array length must be a power of 2");
         }
@@ -61,7 +50,7 @@ class CommonsMathFloatFFT implements FloatFFT {
         }
 
         var transformer = new FastFourierTransformer(DftNormalization.STANDARD);
-        var result = transformer.transform(complexData, TransformType.INVERSE);
+        var result = transformer.transform(complexData, type);
 
         for (int i = 0; i < result.length; i++) {
             real[i] = (float) result[i].getReal();

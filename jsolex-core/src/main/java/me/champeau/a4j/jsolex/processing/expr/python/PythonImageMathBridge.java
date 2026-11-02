@@ -48,12 +48,15 @@ import org.apache.arrow.c.ArrowSchema;
 import org.apache.arrow.c.Data;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
+import org.apache.arrow.vector.BitVectorHelper;
 import org.apache.arrow.vector.Float4Vector;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.ByteOrder;
+import java.nio.FloatBuffer;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -62,6 +65,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * Bridge class that exposes ImageMath functions to Python scripts.
@@ -519,10 +524,34 @@ public class PythonImageMathBridge implements AutoCloseable {
     }
 
     private long[] arrowExportMono(ImageWrapper32 mono) {
-        var data = mono.data();
-        int height = mono.height();
-        int width = mono.width();
-        int totalElements = width * height;
+        return arrowExport(mono.width(), mono.height(), 1, pixels -> {
+            for (float[] row : mono.data()) {
+                pixels.put(row);
+            }
+        });
+    }
+
+    private long[] arrowExportRGB(RGBImage rgb) {
+        int width = rgb.width();
+        return arrowExport(width, rgb.height(), 3, pixels -> {
+            // Interleave RGB data: [r0, g0, b0, r1, g1, b1, ...]
+            var line = new float[3 * width];
+            for (int y = 0; y < rgb.height(); y++) {
+                var r = rgb.r()[y];
+                var g = rgb.g()[y];
+                var b = rgb.b()[y];
+                for (int x = 0; x < width; x++) {
+                    line[3 * x] = r[x];
+                    line[3 * x + 1] = g[x];
+                    line[3 * x + 2] = b[x];
+                }
+                pixels.put(line);
+            }
+        });
+    }
+
+    private long[] arrowExport(int width, int height, int channels, Consumer<FloatBuffer> writer) {
+        int totalElements = width * height * channels;
         var alloc = getAllocator();
 
         // try-with-resources releases the Java vector after exportVector has
@@ -531,45 +560,22 @@ public class PythonImageMathBridge implements AutoCloseable {
         // Arrow memory (backed by shmem under the unsafe allocator).
         try (var vector = new Float4Vector("pixels", alloc)) {
             vector.allocateNew(totalElements);
-            int index = 0;
-            for (float[] row : data) {
-                for (float value : row) {
-                    vector.set(index++, value);
-                }
-            }
+            vector.getValidityBuffer().setOne(0L, BitVectorHelper.getValidityBufferSizeFromCount(totalElements));
+            writer.accept(floatView(vector, totalElements));
             vector.setValueCount(totalElements);
 
             var arrowArray = ArrowArray.allocateNew(alloc);
             var arrowSchema = ArrowSchema.allocateNew(alloc);
             Data.exportVector(alloc, vector, null, arrowArray, arrowSchema);
-            return new long[]{arrowArray.memoryAddress(), arrowSchema.memoryAddress(), width, height, 1};
+            return new long[]{arrowArray.memoryAddress(), arrowSchema.memoryAddress(), width, height, channels};
         }
     }
 
-    private long[] arrowExportRGB(RGBImage rgb) {
-        int height = rgb.height();
-        int width = rgb.width();
-        int totalElements = width * height * 3;
-        var alloc = getAllocator();
-
-        try (var vector = new Float4Vector("pixels", alloc)) {
-            vector.allocateNew(totalElements);
-            // Interleave RGB data: [r0, g0, b0, r1, g1, b1, ...]
-            int index = 0;
-            for (int y = 0; y < height; y++) {
-                for (int x = 0; x < width; x++) {
-                    vector.set(index++, rgb.r()[y][x]);
-                    vector.set(index++, rgb.g()[y][x]);
-                    vector.set(index++, rgb.b()[y][x]);
-                }
-            }
-            vector.setValueCount(totalElements);
-
-            var arrowArray = ArrowArray.allocateNew(alloc);
-            var arrowSchema = ArrowSchema.allocateNew(alloc);
-            Data.exportVector(alloc, vector, null, arrowArray, arrowSchema);
-            return new long[]{arrowArray.memoryAddress(), arrowSchema.memoryAddress(), width, height, 3};
-        }
+    private static FloatBuffer floatView(Float4Vector vector, int totalElements) {
+        return vector.getDataBuffer()
+                .nioBuffer(0, totalElements * Float4Vector.TYPE_WIDTH)
+                .order(ByteOrder.LITTLE_ENDIAN)
+                .asFloatBuffer();
     }
 
     /**
@@ -583,28 +589,13 @@ public class PythonImageMathBridge implements AutoCloseable {
      */
     @HostAccess.Export
     public ImageWrapper32 arrowImportMono(int width, int height, long arrayAddress, long schemaAddress) {
-        try (var arrowArray = ArrowArray.wrap(arrayAddress);
-             var arrowSchema = ArrowSchema.wrap(schemaAddress)) {
-
-            var vector = (Float4Vector) Data.importVector(getAllocator(), arrowArray, arrowSchema, null);
-            int totalElements = width * height;
-
-            if (vector.getValueCount() < totalElements) {
-                throw new IllegalArgumentException(
-                        "Arrow array has " + vector.getValueCount() + " elements, expected " + totalElements);
-            }
-
+        return arrowImport(width, height, 1, arrayAddress, schemaAddress, pixels -> {
             var result = new float[height][width];
-            int index = 0;
-            for (int y = 0; y < height; y++) {
-                for (int x = 0; x < width; x++) {
-                    result[y][x] = vector.get(index++);
-                }
+            for (float[] row : result) {
+                pixels.get(row);
             }
-
-            vector.close();
             return new ImageWrapper32(width, height, result, new HashMap<>());
-        }
+        });
     }
 
     /**
@@ -618,32 +609,33 @@ public class PythonImageMathBridge implements AutoCloseable {
      */
     @HostAccess.Export
     public RGBImage arrowImportRGB(int width, int height, long arrayAddress, long schemaAddress) {
+        return arrowImport(width, height, 3, arrayAddress, schemaAddress, pixels -> {
+            var r = new float[height][width];
+            var g = new float[height][width];
+            var b = new float[height][width];
+            var line = new float[3 * width];
+            for (int y = 0; y < height; y++) {
+                pixels.get(line);
+                for (int x = 0; x < width; x++) {
+                    r[y][x] = line[3 * x];
+                    g[y][x] = line[3 * x + 1];
+                    b[y][x] = line[3 * x + 2];
+                }
+            }
+            return new RGBImage(width, height, r, g, b, new HashMap<>());
+        });
+    }
+
+    private <T> T arrowImport(int width, int height, int channels, long arrayAddress, long schemaAddress, Function<FloatBuffer, T> reader) {
         try (var arrowArray = ArrowArray.wrap(arrayAddress);
-             var arrowSchema = ArrowSchema.wrap(schemaAddress)) {
-
-            var vector = (Float4Vector) Data.importVector(getAllocator(), arrowArray, arrowSchema, null);
-            int totalElements = width * height * 3;
-
+             var arrowSchema = ArrowSchema.wrap(schemaAddress);
+             var vector = (Float4Vector) Data.importVector(getAllocator(), arrowArray, arrowSchema, null)) {
+            int totalElements = width * height * channels;
             if (vector.getValueCount() < totalElements) {
                 throw new IllegalArgumentException(
                         "Arrow array has " + vector.getValueCount() + " elements, expected " + totalElements);
             }
-
-            var r = new float[height][width];
-            var g = new float[height][width];
-            var b = new float[height][width];
-
-            int index = 0;
-            for (int y = 0; y < height; y++) {
-                for (int x = 0; x < width; x++) {
-                    r[y][x] = vector.get(index++);
-                    g[y][x] = vector.get(index++);
-                    b[y][x] = vector.get(index++);
-                }
-            }
-
-            vector.close();
-            return new RGBImage(width, height, r, g, b, new HashMap<>());
+            return reader.apply(floatView(vector, totalElements));
         }
     }
 

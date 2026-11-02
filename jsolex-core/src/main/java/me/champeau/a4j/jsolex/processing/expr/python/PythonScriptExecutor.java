@@ -169,6 +169,12 @@ public class PythonScriptExecutor {
                 builder.option("python.Executable", graalPyExecutable.toString());
             }
             var context = builder.build();
+            context.eval("python", """
+                    import os
+                    import sys
+                    if sys.platform == 'linux':
+                        sys.setdlopenflags(sys.getdlopenflags() | getattr(os, 'RTLD_DEEPBIND', 0x8))
+                    """);
             LOGGER.info("GraalPy context initialized");
             return context;
         } finally {
@@ -364,7 +370,7 @@ public class PythonScriptExecutor {
                         try:
                             import pyarrow as pa
                             # Fast path: use Arrow
-                            flat = data.astype(np.float32).flatten()
+                            flat = np.ascontiguousarray(data, dtype=np.float32).reshape(-1)
                             arrow_array = pa.array(flat, type=pa.float32())
                             addrs = _java_bridge.arrowAllocate()
                             arrow_array._export_to_c(addrs[0], addrs[1])

@@ -1,12 +1,18 @@
+import java.util.jar.JarEntry
+import java.util.jar.JarFile
+import java.util.jar.JarOutputStream
+
 /**
- * Fixes issues with automatic module names
+ * Fixes issues with automatic module names, and removes the Micronaut
+ * generated module info classes, which are all in split packages
+ * (e.g. io.micronaut.serde.info)
  */
 plugins {
     java
 }
 
 val artifactType = Attribute.of("artifactType", String::class.java)
-val patchedModule = Attribute.of("module-ready", Boolean::class.javaObjectType)
+val patchedModule = moduleReady
 
 dependencies {
     attributesSchema {
@@ -18,8 +24,10 @@ dependencies {
 }
 
 configurations {
-    testRuntimeClasspath {
-        attributes.attribute(patchedModule, true)
+    listOf(compileClasspath, runtimeClasspath, testCompileClasspath, testRuntimeClasspath).forEach {
+        it {
+            attributes.attribute(patchedModule, true)
+        }
     }
 }
 
@@ -30,22 +38,39 @@ dependencies {
     }
 }
 
-
 abstract class AutomaticModuleNameFixup : TransformAction<TransformParameters.None> {
+    companion object {
+        private val MICRONAUT_MODULE_INFO = Regex("io/micronaut/.+/info/[^/]+ModuleInfo\\.class")
+    }
+
     @get:InputArtifact
     abstract val inputArtifact: Provider<FileSystemLocation>
-
-    @get:Inject
-    abstract val archiveOperations: ArchiveOperations
 
     override
     fun transform(outputs: TransformOutputs) {
         val input = inputArtifact.get().asFile
-        val output = outputs.file(
-            input.name.replace("platform-native", "platform.ntve")
-                .replace("-M2", "")
-        )
-
-        input.copyTo(output, overwrite = true)
+        val outputName = input.name.replace("platform-native", "platform.ntve")
+            .replace("-M2", "")
+        JarFile(input).use { jar ->
+            if (jar.entries().asSequence().any { MICRONAUT_MODULE_INFO.matches(it.name) }) {
+                val output = outputs.file(outputName).outputStream()
+                val manifest = jar.manifest
+                val out = if (manifest == null) JarOutputStream(output) else JarOutputStream(output, manifest)
+                out.use {
+                    for (entry in jar.entries()) {
+                        if (entry.name == JarFile.MANIFEST_NAME || MICRONAUT_MODULE_INFO.matches(entry.name)) {
+                            continue
+                        }
+                        out.putNextEntry(JarEntry(entry.name).apply { time = entry.time })
+                        jar.getInputStream(entry).use { it.copyTo(out) }
+                        out.closeEntry()
+                    }
+                }
+            } else if (outputName != input.name) {
+                input.copyTo(outputs.file(outputName), overwrite = true)
+            } else {
+                outputs.file(inputArtifact)
+            }
+        }
     }
 }
