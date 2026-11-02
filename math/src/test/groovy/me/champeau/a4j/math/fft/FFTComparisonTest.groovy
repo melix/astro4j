@@ -119,6 +119,42 @@ class FFTComparisonTest extends Specification {
         size << [256, 512, 1024, 2048]
     }
 
+    @Unroll
+    def "float #implementation FFT of complex data matches the double FFT for size #size"() {
+        given:
+        def floatReal = new float[size]
+        def floatImag = new float[size]
+        def doubleReal = new double[size]
+        def doubleImag = new double[size]
+        for (int i = 0; i < size; i++) {
+            floatReal[i] = (float) (Math.sin(2 * Math.PI * 3 * i / size) * Math.exp(-i / 100.0))
+            floatImag[i] = (float) (Math.cos(2 * Math.PI * 5 * i / size) * Math.exp(-i / 200.0))
+            doubleReal[i] = floatReal[i]
+            doubleImag[i] = floatImag[i]
+        }
+
+        when:
+        def floatFFT = factory(floatReal, floatImag)
+        def doubleFFT = new CommonsMathFFT(doubleReal, doubleImag)
+        floatFFT.transform()
+        doubleFFT.transform()
+
+        then:
+        for (int i = 0; i < size; i++) {
+            def errorReal = Math.abs(floatFFT.real()[i] - doubleFFT.real()[i])
+            def errorImag = Math.abs(floatFFT.imaginary()[i] - doubleFFT.imaginary()[i])
+            assert errorReal < EPSILON : "Real part mismatch at index $i: float=${floatFFT.real()[i]}, double=${doubleFFT.real()[i]}"
+            assert errorImag < EPSILON : "Imag part mismatch at index $i: float=${floatFFT.imaginary()[i]}, double=${doubleFFT.imaginary()[i]}"
+        }
+
+        where:
+        [implementation, factory, size] << [
+                [["Commons Math", { float[] r, float[] i -> new CommonsMathFloatFFT(r, i) }],
+                 ["vectorized", { float[] r, float[] i -> new VectorizedFloatFFT(r, i) }]],
+                [16, 64, 256, 1024]
+        ].combinations().collect { impl, size -> [impl[0], impl[1], size] }
+    }
+
     private static boolean arraysEqual(double[] actual, double[] expected, String description) {
         if (actual.length != expected.length) {
             throw new AssertionError("$description: lengths differ - expected ${expected.length}, got ${actual.length}")
