@@ -9,6 +9,6 @@ val lwjglNatives = when {
 
 val moduleReady: Attribute<Boolean> = Attribute.of("module-ready", Boolean::class.javaObjectType)
 
-// The GraalVM 25.4 JIT miscompiles our Vector API code: Java code runs on C2,
+// The Oracle GraalVM JIT (25.4 and 25.5) miscompiles our Vector API code: Java code runs on C2,
 // while Truffle keeps compiling Python with Graal
 val jitSettings = listOf("-XX:+UnlockExperimentalVMOptions", "-XX:-UseJVMCICompiler")
