@@ -21,7 +21,7 @@ jobs:
         with:
             java-version: '25'
             distribution: 'graalvm'
-            version: ${{ matrix.os != 'macos-15-intel' && '25.4' || '' }}
+            version: ${{ matrix.os != 'macos-15-intel' && '25.5' || '' }}
             github-token: ${{ secrets.GITHUB_TOKEN }}
             native-image-job-reports: 'true'
       - uses: gradle/actions/wrapper-validation@v4

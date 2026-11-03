@@ -54,7 +54,7 @@ Sous Windows, vous pouvez tout de même utiliser GraalPy pour du scripting Pytho
 === Étape 1 : Installer GraalPy
 
 Téléchargez et installez GraalPy depuis la https://www.graalvm.org/python/python-developers/[page officielle de GraalPy].
-Installez GraalPy 25.4, la version utilisée par JSol'Ex.
+Installez GraalPy 25.5, la version utilisée par JSol'Ex.
 
 === Étape 2 : Installer les prérequis (Linux / macOS uniquement)
 

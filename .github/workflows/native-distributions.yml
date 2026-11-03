@@ -19,7 +19,7 @@ jobs:
         with:
           distribution: 'graalvm'
           java-version: '25'
-          version: '25.4'
+          version: '25.5'
           github-token: ${{ secrets.GITHUB_TOKEN }}
           native-image-job-reports: 'true'
       - uses: gradle/actions/wrapper-validation@v4
