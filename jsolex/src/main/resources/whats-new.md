@@ -10,7 +10,7 @@
 - Lower memory use during processing.
 - The "Memory consumption adjustment" setting has been removed, since it is no longer needed.
 - Faster conversion of images to and from NumPy in Python scripts.
-- Python virtual environments must now be created with GraalPy 25.4.
+- Python virtual environments must now be created with GraalPy 25.6.
 - The standalone scripting tool can now use a GraalPy virtual environment.
 - Fixed white corners on images rotated to correct the P angle.
 - Fixed the standalone scripting tool failing on computers with a graphics card.

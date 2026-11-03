@@ -15,7 +15,7 @@ val os = System.getProperty("os.name").lowercase(Locale.ENGLISH)
 val jvmMemorySettings: List<String> by extra
 
 application {
-    applicationDefaultJvmArgs = jvmMemorySettings + jitSettings + listOf(
+    applicationDefaultJvmArgs = jvmMemorySettings + listOf(
         "--enable-preview",
         "--enable-native-access=javafx.graphics",
         // Required for Apache Arrow memory allocation
