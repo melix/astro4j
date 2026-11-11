@@ -104,6 +104,20 @@ class SerFileReaderTest extends Specification {
         firstBytes == secondBytes
     }
 
+    def "frame data is unmapped when the reader is closed"() {
+        given:
+        readSerFile "Mars_150414_002445_OSC_F0001-0500"
+        def buffer = serFile.currentFrame().data()
+
+        when:
+        serFile.close()
+        buffer.get()
+
+        then:
+        thrown(IllegalStateException)
+        serFile.isClosed()
+    }
+
     private void readSerFile(String name) {
         SerFileReaderTest.getResourceAsStream("/${name}.ser").withCloseable { stream ->
             def file = new File(tempDir, "${name}.ser")
