@@ -118,6 +118,7 @@ public class EmbeddedServerController {
                 addServerUrl(server.getContextUri().map(URI::toString).orElse(""));
             }
         }
+        stage.sizeToScene();
     }
 
     private void addServerUrl(String url) {

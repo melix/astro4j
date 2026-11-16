@@ -13,7 +13,7 @@
 <?import javafx.scene.layout.RowConstraints?>
 <?import javafx.scene.layout.VBox?>
 
-<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="203.0" prefWidth="600.0" styleClass="params-dialog" xmlns="http://javafx.com/javafx/19"
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefWidth="600.0" styleClass="params-dialog" xmlns="http://javafx.com/javafx/19"
             xmlns:fx="http://javafx.com/fxml/1" fx:controller="me.champeau.a4j.jsolex.app.jfx.EmbeddedServerController">
     <bottom>
         <ButtonBar prefHeight="40.0" prefWidth="600.0" BorderPane.alignment="CENTER">
@@ -35,7 +35,7 @@
                 <Insets top="16" right="16" bottom="16" left="16"/>
             </padding>
             <VBox styleClass="panel-section" spacing="12">
-                <GridPane styleClass="form-grid" prefHeight="175.0" prefWidth="600.0" BorderPane.alignment="CENTER" hgap="12" vgap="16">
+                <GridPane styleClass="form-grid" prefWidth="600.0" BorderPane.alignment="CENTER" hgap="12" vgap="16">
                 <columnConstraints>
                     <ColumnConstraints hgrow="SOMETIMES"/>
                     <ColumnConstraints hgrow="ALWAYS"/>
@@ -57,7 +57,7 @@
                     </Label>
                 </HBox>
                 <Label styleClass="field-label" text="%server.url" GridPane.rowIndex="2"/>
-                <VBox fx:id="serverUrls" alignment="CENTER_LEFT" prefHeight="200.0" prefWidth="100.0" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+                <VBox fx:id="serverUrls" alignment="CENTER_LEFT" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
                 </GridPane>
             </VBox>
         </VBox>

@@ -22,6 +22,7 @@ import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Arrays;
@@ -58,11 +59,19 @@ public class JSolexServer {
         try {
             var localHost = InetAddress.getLocalHost();
             return Arrays.stream(InetAddress.getAllByName(localHost.getHostName()))
-                .map(address -> "http://" + address.getHostAddress() + ":" + port)
+                .filter(address -> !(address instanceof Inet6Address && address.isLinkLocalAddress()))
+                .map(address -> "http://" + formatHost(address) + ":" + port)
                 .toList();
         } catch (UnknownHostException e) {
         }
         return List.of();
+    }
+
+    private static String formatHost(InetAddress address) {
+        if (address instanceof Inet6Address) {
+            return "[" + address.getHostAddress() + "]";
+        }
+        return address.getHostAddress();
     }
 
     /**
