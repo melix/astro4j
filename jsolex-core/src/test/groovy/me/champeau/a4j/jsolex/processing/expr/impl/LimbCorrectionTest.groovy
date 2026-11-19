@@ -60,7 +60,7 @@ class LimbCorrectionTest extends Specification {
         def shifted = [disk(CENTER + 3, CENTER), disk(CENTER, CENTER - 2), disk(CENTER - 3, CENTER + 2)]
 
         when:
-        def aligned = ((List<ImageWrapper>) correction().correctLimb(Map.of("img", shifted))).collect { (ImageWrapper32) it.unwrapToMemory() }
+        def aligned = ((List<ImageWrapper>) correction().correctLimb(Map.of("img", shifted))).collect { (ImageWrapper32) it }
         def centers = aligned.collect { centroid(it) }
 
         then:
@@ -75,14 +75,14 @@ class LimbCorrectionTest extends Specification {
         def images = [disk(CENTER, CENTER, deviation), disk(CENTER + 4, CENTER, deviation)]
 
         when:
-        def corrected = ((List<ImageWrapper>) correction().correctLimb(Map.of("img", images, "ref", reference))).collect { (ImageWrapper32) it.unwrapToMemory() }
+        def corrected = ((List<ImageWrapper>) correction().correctLimb(Map.of("img", images, "ref", reference))).collect { (ImageWrapper32) it }
         def single = (ImageWrapper32) correction().correctLimb(Map.of("img", images[1], "ref", reference))
 
         then: "the image matching the reference becomes round"
         limbSpread(corrected[0]) < 0.6
 
         and: "the other image is warped exactly as if it had been corrected alone with the same reference"
-        corrected[1].data() == single.data()
+        corrected[1].pixels().toArray() == single.pixels().toArray()
         corrected.collect { it.findMetadata(Ellipse).get().center() }.toSet().size() == 1
     }
 
@@ -139,9 +139,10 @@ class LimbCorrectionTest extends Specification {
 
     private static double[] centroid(ImageWrapper32 image) {
         double sx = 0, sy = 0, n = 0
+        def data = image.pixels().toArray()
         for (int y = 0; y < SIZE; y++) {
             for (int x = 0; x < SIZE; x++) {
-                if (image.data()[y][x] >= LEVEL) {
+                if (data[y][x] >= LEVEL) {
                     sx += x
                     sy += y
                     n++
@@ -156,9 +157,9 @@ class LimbCorrectionTest extends Specification {
         def y0 = (int) Math.floor(y)
         def fx = x - x0
         def fy = y - y0
-        def data = image.data()
-        def top = data[y0][x0] * (1 - fx) + data[y0][x0 + 1] * fx
-        def bottom = data[y0 + 1][x0] * (1 - fx) + data[y0 + 1][x0 + 1] * fx
+        def pixels = image.pixels()
+        def top = pixels.get(x0, y0) * (1 - fx) + pixels.get(x0 + 1, y0) * fx
+        def bottom = pixels.get(x0, y0 + 1) * (1 - fx) + pixels.get(x0 + 1, y0 + 1) * fx
         top * (1 - fy) + bottom * fy
     }
 }

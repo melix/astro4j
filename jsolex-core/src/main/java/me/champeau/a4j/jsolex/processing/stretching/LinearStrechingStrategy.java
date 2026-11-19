@@ -17,7 +17,6 @@ package me.champeau.a4j.jsolex.processing.stretching;
 
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
-import me.champeau.a4j.math.RowStrips;
 
 // Not worth running on GPU: memory transfer overhead dominates the simple linear scaling
 public final class LinearStrechingStrategy implements StretchingStrategy {
@@ -41,58 +40,20 @@ public final class LinearStrechingStrategy implements StretchingStrategy {
 
     @Override
     public void stretch(ImageWrapper32 image) {
-        var data = image.data();
-        double min = min(data);
-        double max = max(data);
+        var pixels = image.pixels();
+        if (image.height() == 0) {
+            return;
+        }
+        double min = pixels.min();
+        double max = pixels.max();
         double range = max - min;
         if (range == 0) {
             return;
         }
-        rescale(data, image.width(), image.height(), range, min);
-    }
-
-    private void rescale(float[][] data, int width, int height, double range, double min) {
-        RowStrips.forEach(height, (yStart, yEnd) -> {
-            for (int y = yStart; y < yEnd; y++) {
-                for (int x = 0; x < width; x++) {
-                    float v = (float) (hi / range * (data[y][x] - min));
-                    data[y][x] = v;
-                }
+        pixels.updateRows((y, row) -> {
+            for (int x = 0; x < row.length; x++) {
+                row[x] = (float) (hi / range * (row[x] - min));
             }
-        });
-    }
-
-    private double min(float[][] array) {
-        if (array.length == 0) {
-            return lo;
-        }
-        return RowStrips.min(array.length, (yStart, yEnd) -> {
-            double min = Double.MAX_VALUE;
-            for (int y = yStart; y < yEnd; y++) {
-                for (float v : array[y]) {
-                    if (v < min) {
-                        min = v;
-                    }
-                }
-            }
-            return min;
-        });
-    }
-
-    private double max(float[][] array) {
-        if (array.length == 0) {
-            return hi;
-        }
-        return RowStrips.max(array.length, (yStart, yEnd) -> {
-            double max = -Double.MAX_VALUE;
-            for (int y = yStart; y < yEnd; y++) {
-                for (float v : array[y]) {
-                    if (v > max) {
-                        max = v;
-                    }
-                }
-            }
-            return max;
         });
     }
 }

@@ -18,7 +18,6 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 
 import java.util.LinkedHashMap;
@@ -38,14 +37,11 @@ public class Saturation extends AbstractFunctionImpl {
         }
         var saturation = doubleArg(arguments, "factor", 1);
         var exponent = Math.pow(2, -saturation);
-        if (arg instanceof FileBackedImage fileBackedImage) {
-            arg = fileBackedImage.unwrapToMemory();
-        }
         if (arg instanceof RGBImage rgb) {
             if (rgb.width() == 0 || rgb.height() == 0) {
                 return rgb;
             }
-            var hsl = ImageUtils.fromRGBtoHSL(new float[][][]{rgb.r(), rgb.g(), rgb.b()});
+            var hsl = ImageUtils.fromRGBtoHSL(new float[][][]{rgb.red().toArray(), rgb.green().toArray(), rgb.blue().toArray()});
             var s = hsl[1];
             for (float[] line : s) {
                 for (int i = 0; i < line.length; i++) {

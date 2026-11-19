@@ -4,6 +4,7 @@
 
 - La visionneuse d'images peut maintenant adoucir les images ou les rendre plus nettes, y compris avec un masque flou.
 - Étirement des images plus rapide, en particulier avec CLAHE, CLAHE2 et AutoStretch.
+- Consommation mémoire réduite : les fichiers peuvent maintenant être traités sur des ordinateurs disposant de moins de mémoire.
 - Conversion plus rapide des images vers et depuis NumPy dans les scripts Python.
 - Les environnements virtuels Python doivent maintenant être créés avec GraalPy 25.4.
 - L'outil de script autonome peut maintenant utiliser un environnement virtuel GraalPy.

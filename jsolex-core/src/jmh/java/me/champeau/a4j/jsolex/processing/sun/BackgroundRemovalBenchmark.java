@@ -64,11 +64,7 @@ public class BackgroundRemovalBenchmark {
     }
 
     private ImageWrapper32 createFreshImage() {
-        var data = new float[size][size];
-        for (int y = 0; y < size; y++) {
-            System.arraycopy(templateData[y], 0, data[y], 0, size);
-        }
-        return new ImageWrapper32(size, size, data, new HashMap<>());
+        return new ImageWrapper32(size, size, templateData, new HashMap<>());
     }
 
     @Benchmark

@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.sun;
 
+import me.champeau.a4j.jsolex.processing.util.ImageMemory;
 import me.champeau.a4j.jsolex.processing.util.ParallelExecutor;
 
 /**
@@ -24,7 +25,7 @@ import me.champeau.a4j.jsolex.processing.util.ParallelExecutor;
  */
 class IOUtils {
     private static double maxMemory() {
-        return Runtime.getRuntime().maxMemory() * .5d;
+        return ImageMemory.budget() * .5d;
     }
 
     private IOUtils() {

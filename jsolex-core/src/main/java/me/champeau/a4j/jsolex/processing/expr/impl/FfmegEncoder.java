@@ -18,7 +18,6 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MemoryAwareStreams;
@@ -67,13 +66,10 @@ public class FfmegEncoder {
                     var fileName = String.format("frame-%04d.png", i);
                     var file = new File(tempDir.toFile(), fileName);
                     var img = images.get(i);
-                    if (img instanceof FileBackedImage fileBackedImage) {
-                        img = fileBackedImage.unwrapToMemory();
-                    }
                     if (img instanceof ImageWrapper32 mono) {
-                        ImageUtils.writeMonoImage(mono.width(), mono.height(), mono.data(), file, Set.of(ImageFormat.PNG));
+                        ImageUtils.writeMonoImage(mono.width(), mono.height(), mono.pixels().toArray(), file, Set.of(ImageFormat.PNG));
                     } else if (img instanceof RGBImage rgb) {
-                        ImageUtils.writeRgbImage(rgb.width(), rgb.height(), rgb.r(), rgb.g(), rgb.b(), file, Set.of(ImageFormat.PNG));
+                        ImageUtils.writeRgbImage(rgb.width(), rgb.height(), rgb.red().toArray(), rgb.green().toArray(), rgb.blue().toArray(), file, Set.of(ImageFormat.PNG));
                     }
                     broadcaster.broadcast(progressOperation.update(progress.incrementAndGet() / (double) images.size()));
                 });

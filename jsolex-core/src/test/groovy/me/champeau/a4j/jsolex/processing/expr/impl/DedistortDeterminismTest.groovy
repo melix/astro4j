@@ -59,7 +59,7 @@ class DedistortDeterminismTest extends Specification {
     private static ImageWrapper32 createShiftedImage(ImageWrapper32 source, float shiftX, float shiftY) {
         var width = source.width()
         var height = source.height()
-        var srcData = source.data()
+        var srcData = source.pixels().toArray()
         var data = new float[height][width]
 
         for (int y = 0; y < height; y++) {
@@ -76,7 +76,7 @@ class DedistortDeterminismTest extends Specification {
 
     private static double imageChecksum(ImageWrapper32 img) {
         double sum = 0
-        for (var row : img.data()) {
+        for (var row : img.pixels().toArray()) {
             for (var v : row) {
                 sum += v
             }
@@ -99,7 +99,7 @@ class DedistortDeterminismTest extends Specification {
         var reference = createSyntheticImage(width, height, 42)
         (0..<10).collect { i ->
             var shifted = createShiftedImage(reference, (float) (i * 1.7 - 5), (float) (i * 0.9 - 3))
-            var noisyData = addNoise(shifted.data(), width, height, 100 + i)
+            var noisyData = addNoise(shifted.pixels().toArray(), width, height, 100 + i)
             var metadata = MutableMap.<Class<?>, Object> of()
             metadata.put(MetadataTable.class, new MetadataTable(Map.of(MetadataTable.FILE_NAME, String.format("image_%02d.ser", i))))
             new ImageWrapper32(width, height, noisyData, metadata)
@@ -110,7 +110,7 @@ class DedistortDeterminismTest extends Specification {
         var reference = createSyntheticImage(width, height, 42)
         var refMetadata = MutableMap.<Class<?>, Object> of()
         refMetadata.put(ConsensusReference.class, ConsensusReference.INSTANCE)
-        new ImageWrapper32(width, height, reference.data(), refMetadata)
+        new ImageWrapper32(reference.pixels(), refMetadata)
     }
 
     private static List<List<Double>> runConsensusDedistort(int runs, List<ImageWrapper32> images, ImageWrapper32 consensusRef) {

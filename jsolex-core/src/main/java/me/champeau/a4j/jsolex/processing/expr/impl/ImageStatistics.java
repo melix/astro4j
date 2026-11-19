@@ -17,7 +17,6 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
-import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -146,12 +145,12 @@ public class ImageStatistics extends AbstractFunctionImpl {
      */
     private double computeNoiseSigma(ImageWrapper32 image, Map<String, Object> arguments) {
         var mask = statsMask(arguments, image);
-        var data = image.data();
         var width = image.width();
         var height = image.height();
         if (width < 3 || height < 3) {
             return 0;
         }
+        var data = image.pixels().toArray();
         var responses = new double[(width - 2) * (height - 2)];
         var count = 0;
         for (int y = 1; y < height - 1; y++) {
@@ -193,7 +192,7 @@ public class ImageStatistics extends AbstractFunctionImpl {
      */
     private void logStatsOf(ImageWrapper32 image, Map<String, Object> arguments, String label, int index) {
         var mask = statsMask(arguments, image);
-        var data = image.data();
+        var data = image.pixels().toArray();
         var collected = new float[image.width() * image.height()];
         var count = 0;
         for (int y = 0; y < image.height(); y++) {
@@ -254,18 +253,13 @@ public class ImageStatistics extends AbstractFunctionImpl {
             }
         } else if (input instanceof ImageWrapper32 img) {
             result.add(img);
-        } else if (input instanceof ImageWrapper wrapper) {
-            var unwrapped = wrapper.unwrapToMemory();
-            if (unwrapped instanceof ImageWrapper32 img) {
-                result.add(img);
-            }
         }
     }
 
     private double computeImageStatistic(ImageWrapper32 image,
                                          Map<String, Object> arguments,
                                          Function<DoubleStream, OptionalDouble> operator) {
-        var data = image.data();
+        var data = image.pixels().toArray();
         var height = data.length;
         var width = height > 0 ? data[0].length : 0;
         var mask = statsMask(arguments, image);

@@ -18,7 +18,7 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.AtrousWavelet;
-import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
+import me.champeau.a4j.jsolex.processing.util.ImagePlane;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 
@@ -41,18 +41,18 @@ public class Wavelets extends AbstractFunctionImpl {
         return monoToMonoImageTransformer("denoise", "img", arguments, image -> {
             var mask = maskArgument(arguments, "mask", image);
             if (image instanceof ImageWrapper32 mono) {
-                denoise(mono.width(), mono.height(), mono.data(), mask, grain);
+                denoise(mono.pixels(), mask, grain);
             } else if (image instanceof RGBImage rgb) {
-                denoise(rgb.width(), rgb.height(), rgb.r(), mask, grain);
-                denoise(rgb.width(), rgb.height(), rgb.g(), mask, grain);
-                denoise(rgb.width(), rgb.height(), rgb.b(), mask, grain);
+                denoise(rgb.red(), mask, grain);
+                denoise(rgb.green(), mask, grain);
+                denoise(rgb.blue(), mask, grain);
             }
         });
     }
 
     public Object aTrous(Map<String, Object> arguments) {
         BuiltinFunction.A_TROUS.validateArgs(arguments);
-        if (!(arguments.get("img") instanceof ImageWrapper wrapper) || !(wrapper.unwrapToMemory() instanceof ImageWrapper32 image)) {
+        if (!(arguments.get("img") instanceof ImageWrapper32 image)) {
             throw new IllegalArgumentException("a_trous only supports a single mono image");
         }
         var levels = intArg(arguments, "levels", AtrousWavelet.defaultLevels(image.width(), image.height()));
@@ -60,16 +60,13 @@ public class Wavelets extends AbstractFunctionImpl {
             throw new IllegalArgumentException("levels must be at least 1");
         }
         var mask = maskArgument(arguments, "mask", image);
-        return AtrousWavelet.decompose(image.width(), image.height(), image.data(), mask, levels)
+        return AtrousWavelet.decompose(image.width(), image.height(), image.pixels().toArray(), mask, levels)
                 .stream()
                 .map(scale -> new ImageWrapper32(image.width(), image.height(), scale, new HashMap<>(image.metadata())))
                 .toList();
     }
 
-    private static void denoise(int width, int height, float[][] data, BiPredicate<Integer, Integer> mask, double grain) {
-        var denoised = AtrousWavelet.denoise(width, height, data, mask, grain);
-        for (int y = 0; y < height; y++) {
-            System.arraycopy(denoised[y], 0, data[y], 0, width);
-        }
+    private static void denoise(ImagePlane pixels, BiPredicate<Integer, Integer> mask, double grain) {
+        pixels.copyFrom(AtrousWavelet.denoise(pixels.width(), pixels.height(), pixels.toArray(), mask, grain));
     }
 }

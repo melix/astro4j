@@ -16,7 +16,6 @@
 package me.champeau.a4j.jsolex.processing.expr.impl
 
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32
 import spock.lang.Specification
 import spock.lang.Subject
@@ -44,9 +43,10 @@ class RotateTest extends Specification {
         int bx = -1
         int by = -1
         float bv = -1f
+        var data = img.pixels().toArray()
         for (int y = 0; y < img.height(); y++) {
             for (int x = 0; x < img.width(); x++) {
-                var v = img.data()[y][x]
+                var v = data[y][x]
                 if (v > bv) {
                     bv = v
                     bx = x
@@ -55,10 +55,6 @@ class RotateTest extends Specification {
             }
         }
         return [bx, by] as int[]
-    }
-
-    private static ImageWrapper32 unwrap(Object o) {
-        return (ImageWrapper32) ((FileBackedImage) o).unwrapToMemory()
     }
 
     def "rotate_deg of a single image rotates by the specified degrees"() {
@@ -79,8 +75,7 @@ class RotateTest extends Specification {
         then:
         result.size() == 2
         for (var item : result) {
-            var img = unwrap(item)
-            var b = findBrightest(img)
+            var b = findBrightest((ImageWrapper32) item)
             assert b[0] == 25
             assert b[1] == 50
         }
@@ -104,8 +99,7 @@ class RotateTest extends Specification {
         then:
         result.size() == 2
         for (var item : result) {
-            var img = unwrap(item)
-            var b = findBrightest(img)
+            var b = findBrightest((ImageWrapper32) item)
             assert b[0] == 50
             assert b[1] == 25
         }
@@ -129,8 +123,7 @@ class RotateTest extends Specification {
         then:
         result.size() == 2
         for (var item : result) {
-            var img = unwrap(item)
-            var b = findBrightest(img)
+            var b = findBrightest((ImageWrapper32) item)
             assert b[0] == 50
             assert b[1] == 75
         }

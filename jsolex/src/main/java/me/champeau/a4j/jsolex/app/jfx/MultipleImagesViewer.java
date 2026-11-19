@@ -977,7 +977,7 @@ public class MultipleImagesViewer extends Pane {
                                 .map(SpectroSolHubImageKind::value)
                                 .orElse(null);
                         return new ImageInfo(
-                                stretched.wrap(),
+                                stretched,
                                 getImageTitle(viewer),
                                 getImageKind(viewer),
                                 spectroSolHubKind,

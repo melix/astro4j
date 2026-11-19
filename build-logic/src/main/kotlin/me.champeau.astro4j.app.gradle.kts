@@ -17,12 +17,16 @@ plugins {
 // deliverable
 
 val jvmMemorySettings = listOf(
-    providers.systemProperty("memory.settings").getOrElse("-XX:MaxRAMPercentage=80"),
+    // The pixels of images live outside of the heap, in direct memory, whose limit is the
+    // maximum heap size by default: the heap and the images can each use this share of the RAM
+    providers.systemProperty("memory.settings").getOrElse("-XX:MaxRAMPercentage=40"),
     "-XX:+UseZGC",
-    // Soft references hold the cached images: the default policy keeps them for about one
-    // second per free megabyte, which is hours on a large heap, so cached images would only
-    // ever be written to disk under memory pressure
-    "-XX:SoftRefLRUPolicyMSPerMB=8",
+    // The memory of an image is given back when the garbage collector finds that the image is
+    // no longer used. With pixels outside of the heap, the heap fills slowly and collections
+    // would be rare: collecting recent objects every second gives back the memory of images
+    // which were only used briefly, the others being given back by the collections requested
+    // when the memory of images gets close to its limit
+    "-XX:ZCollectionIntervalMinor=1",
     "-XX:+ExplicitGCInvokesConcurrent",
     "-XX:+HeapDumpOnOutOfMemoryError",
     "-XX:+UseCompactObjectHeaders",
@@ -30,7 +34,7 @@ val jvmMemorySettings = listOf(
 )
 extra["jvmMemorySettings"] = jvmMemorySettings
 
-val nativeAccessArgs = listOf("--enable-preview", "--enable-native-access=javafx.graphics", "--enable-native-access=org.lwjgl.opengl", "--enable-native-access=org.lwjgl")
+val nativeAccessArgs = listOf("--enable-preview", "--enable-native-access=javafx.graphics", "--enable-native-access=org.lwjgl.opengl", "--enable-native-access=org.lwjgl", "--enable-native-access=ALL-UNNAMED")
 val sharedJvmArgs = jvmMemorySettings + jitSettings + nativeAccessArgs
 
 application {

@@ -55,11 +55,12 @@ public final class GeometryUtils {
         var offsetX = transform.offsetX();
         var offsetY = transform.offsetY();
 
-        var buffer = image.data();
+        var buffer = image.pixels().toArray();
         var extendedWidth = transform.extendedWidth();
         var newWidth = transform.outputWidth();
         var newHeight = transform.outputHeight();
-        var newBuffer = new float[newHeight][newWidth];
+        var corrected = ImagePlane.allocate(newWidth, newHeight);
+        var targetRow = new float[newWidth];
         // on a downscale one output pixel covers several input ones: widen the kernel
         // to the source footprint so the redundant samples are averaged instead of dropped
         var xSupport = sx < 1 ? 1 / sx : 1;
@@ -67,9 +68,9 @@ public final class GeometryUtils {
 
         for (int y = 0; y < newHeight; y++) {
             var v = (y - offsetY) / sy;
-            var targetRow = newBuffer[y];
             if (v < 0 || v > height - 1) {
                 Arrays.fill(targetRow, blackPoint);
+                corrected.setRow(y, targetRow);
                 continue;
             }
             var sheared = shift - v * shear;
@@ -79,9 +80,10 @@ public final class GeometryUtils {
                         ? blackPoint
                         : sampleCatmullRom(buffer, u + sheared, v, width, height, xSupport, ySupport);
             }
+            corrected.setRow(y, targetRow);
         }
 
-        return new ImageWrapper32(newWidth, newHeight, newBuffer, image.metadata());
+        return new ImageWrapper32(corrected, image.metadata());
     }
 
     /**

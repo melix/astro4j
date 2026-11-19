@@ -568,18 +568,19 @@ public class OscillationCorrection {
     }
 
     public static void applyCorrection(ImageWrapper32 image, OscillationModel model) {
-        var data = image.data();
+        var pixels = image.pixels();
+        var line = new float[image.width()];
         var corrected = new float[image.width()];
-        for (var y = 0; y < data.length; y++) {
+        for (var y = 0; y < image.height(); y++) {
             var shift = model.shiftAt(y);
             if (Math.abs(shift) < 1e-3) {
                 continue;
             }
-            var line = data[y];
+            pixels.getRow(y, line);
             for (var x = 0; x < line.length; x++) {
                 corrected[x] = Math.clamp(ImageInterpolation.lanczos1D(line, x + shift), 0, Constants.MAX_PIXEL_VALUE);
             }
-            System.arraycopy(corrected, 0, line, 0, line.length);
+            pixels.setRow(y, corrected);
         }
     }
 

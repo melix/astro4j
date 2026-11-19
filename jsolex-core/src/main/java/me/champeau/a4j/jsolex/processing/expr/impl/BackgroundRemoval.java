@@ -20,7 +20,6 @@ import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.ColumnBackground;
 import me.champeau.a4j.jsolex.processing.sun.ScatteredLight;
 import me.champeau.a4j.jsolex.processing.sun.workflow.AnalysisUtils;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.regression.Ellipse;
@@ -66,9 +65,6 @@ public class BackgroundRemoval extends AbstractFunctionImpl {
             throw new IllegalArgumentException("Cannot perform background removal because ellipse isn't found");
         }
         double tolerance = doubleArg(arguments, "tolerance", .9);
-        if (arg instanceof FileBackedImage fileBackedImage) {
-            arg = fileBackedImage.unwrapToMemory();
-        }
         if (arg instanceof ImageWrapper32 ref) {
             return monoToMonoImageTransformer("remove_bg", "img", arguments, src -> {
                 if (src instanceof ImageWrapper32 image) {
@@ -76,8 +72,9 @@ public class BackgroundRemoval extends AbstractFunctionImpl {
                     var background = AnalysisUtils.estimateBackground(ref, e);
                     var width = image.width();
                     var height = image.height();
-                    var data = image.data();
+                    var data = image.pixels().toArray();
                     me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval.removeBackground(width, height, data, tolerance, background, e);
+                    image.pixels().copyFrom(data);
                 } else {
                     throw new IllegalArgumentException("remove_bg only supports mono images");
                 }
@@ -109,10 +106,8 @@ public class BackgroundRemoval extends AbstractFunctionImpl {
             }
             return monoToMonoImageTransformer("neutralize_bg", "img", arguments, src -> {
                 if (src instanceof ImageWrapper32 image) {
-                    var model = me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval.neutralizeBackground(image, iterations).data();
-                    for (int y = 0; y < image.height(); y++) {
-                        System.arraycopy(model[y], 0, image.data()[y], 0, image.width());
-                    }
+                    var model = me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval.neutralizeBackground(image, iterations).pixels();
+                    image.pixels().copyFrom(model);
                 } else {
                     throw new IllegalArgumentException("neutralize_bg only supports mono images");
                 }
@@ -150,12 +145,7 @@ public class BackgroundRemoval extends AbstractFunctionImpl {
                     var mask = statsMask(arguments, image);
                     var buffer = new float[image.height()][image.width()];
                     Optional<ImageWrapper32> optionalModel = me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval.backgroundModel(image, order, sigma, buffer, mask);
-                    optionalModel.ifPresent(model -> {
-                        var data = model.data();
-                        for (int y = 0; y < image.height(); y++) {
-                            System.arraycopy(data[y], 0, image.data()[y], 0, image.width());
-                        }
-                    });
+                    optionalModel.ifPresent(model -> image.pixels().copyFrom(model.pixels()));
                 } else {
                     throw new IllegalArgumentException("backgroundModel only supports mono images");
                 }
@@ -202,14 +192,11 @@ public class BackgroundRemoval extends AbstractFunctionImpl {
                     var width = image.width();
                     var height = image.height();
                     var usable = mask != null ? mask : ellipse.<BiPredicate<Integer, Integer>>map(e -> (x, y) -> !e.isWithin(x, y)).orElse(null);
-                    var levels = ColumnBackground.estimate(width, height, image.data(), usable, smoothing, sigma);
+                    var levels = ColumnBackground.estimate(width, height, image.pixels().toArray(), usable, smoothing, sigma);
                     if (normalize) {
                         ColumnBackground.normalizeLevels(levels, ellipse.orElse(null));
                     }
-                    var model = ColumnBackground.toImage(width, height, levels);
-                    for (int y = 0; y < height; y++) {
-                        System.arraycopy(model[y], 0, image.data()[y], 0, width);
-                    }
+                    image.pixels().copyFrom(ColumnBackground.toImage(width, height, levels));
                 } else {
                     throw new IllegalArgumentException("column_bg_model only supports mono images");
                 }
@@ -249,7 +236,9 @@ public class BackgroundRemoval extends AbstractFunctionImpl {
             var strength = doubleArg(arguments, "strength", 1);
             return monoToMonoImageTransformer("descatter", "img", arguments, src -> {
                 if (src instanceof ImageWrapper32 image) {
-                    ScatteredLight.remove(image.width(), image.height(), image.data(), ellipse.get(), strength, iterations);
+                    var data = image.pixels().toArray();
+                    ScatteredLight.remove(image.width(), image.height(), data, ellipse.get(), strength, iterations);
+                    image.pixels().copyFrom(data);
                 } else {
                     throw new IllegalArgumentException("descatter only supports mono images");
                 }

@@ -20,7 +20,6 @@ import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.tasks.EllipseFittingTask;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
@@ -39,9 +38,6 @@ public class EllipseFit extends AbstractFunctionImpl {
         var arg = arguments.get("img");
         if (arg instanceof List<?>) {
             return expandToImageList("ellipse_fit", "img", arguments, this::fit);
-        }
-        if (arg instanceof FileBackedImage fileBackedImage) {
-            arg = fileBackedImage.unwrapToMemory();
         }
         if (arg instanceof ImageWrapper32 image) {
             return performEllipseFitting(image);

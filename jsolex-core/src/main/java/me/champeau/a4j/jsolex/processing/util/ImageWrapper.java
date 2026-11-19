@@ -20,7 +20,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 
-public sealed interface ImageWrapper permits ImageWrapper32, RGBImage, FileBackedImage {
+public sealed interface ImageWrapper permits ImageWrapper32, RGBImage {
     int width();
 
     int height();
@@ -41,17 +41,6 @@ public sealed interface ImageWrapper permits ImageWrapper32, RGBImage, FileBacke
     }
 
     ImageWrapper copy();
-
-    default ImageWrapper unwrapToMemory() {
-        if (this instanceof FileBackedImage fbi) {
-            return fbi.unwrapToMemory();
-        }
-        return this;
-    }
-
-    default ImageWrapper wrap() {
-        return FileBackedImage.wrap(this);
-    }
 
     static float[][] copyData(float[][] source) {
         if (source.length == 0) {

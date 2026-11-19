@@ -70,7 +70,7 @@ class PolyFit2DTest extends Specification {
                 def py = y - cy
                 if (px * px + py * py < fitRadius * fitRadius) {
                     def expected = (float) (2.0 * px / radius + 3.0 * py / radius)
-                    assert Math.abs(result.data()[y][x] - expected) < 0.1f
+                    assert Math.abs(result.pixels().get(x, y) - expected) < 0.1f
                 }
             }
         }

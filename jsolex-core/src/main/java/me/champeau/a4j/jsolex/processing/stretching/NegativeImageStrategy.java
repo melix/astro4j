@@ -27,7 +27,7 @@ public final class NegativeImageStrategy implements StretchingStrategy {
 
     @Override
     public void stretch(ImageWrapper32 image) {
-        var data = image.data();
+        var data = image.pixels().toArray();
         var max = StretchingUtils.max(data, 0);
         var height = image.height();
         var width = image.width();
@@ -38,6 +38,7 @@ public final class NegativeImageStrategy implements StretchingStrategy {
                 }
             }
         });
+        image.pixels().copyFrom(data);
     }
 
 }

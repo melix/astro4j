@@ -52,7 +52,7 @@ class LineIdImages extends Specification {
         def image = (ImageWrapper32) FitsUtils.readFitsFile(file)
         int width = image.width()
         int height = image.height()
-        def data = image.data()
+        def data = image.pixels().toArray()
 
         when:
         def analysis = new SpectrumFrameAnalyzer(width, height, false, null).analyze(data)

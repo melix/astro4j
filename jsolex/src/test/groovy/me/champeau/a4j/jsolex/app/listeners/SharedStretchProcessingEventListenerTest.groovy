@@ -49,7 +49,7 @@ class SharedStretchProcessingEventListenerTest extends Specification {
         second.images.size() == 1
         first.images.first().is(second.images.first())
         first.images.first().findMetadata(StretchRecipe).isEmpty()
-        (first.images.first() as ImageWrapper32).data() == expected.data()
+        (first.images.first() as ImageWrapper32).pixels().toArray() == expected.pixels().toArray()
 
         and: "the original image keeps its recipe"
         image.findMetadata(StretchRecipe).isPresent()

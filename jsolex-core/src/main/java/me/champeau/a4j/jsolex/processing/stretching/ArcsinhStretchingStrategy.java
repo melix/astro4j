@@ -96,7 +96,7 @@ public final class ArcsinhStretchingStrategy implements StretchingStrategy {
     }
 
     void stretchCPU(ImageWrapper32 image) {
-        var data = image.data();
+        var data = image.pixels().toArray();
         var height = image.height();
         var width = image.width();
         RowStrips.forEach(height, (yStart, yEnd) -> {
@@ -114,18 +114,19 @@ public final class ArcsinhStretchingStrategy implements StretchingStrategy {
                 }
             }
         });
+        image.pixels().copyFrom(data);
         LinearStrechingStrategy.DEFAULT.stretch(image);
     }
 
     void stretchGPU(OpenCLContext context, ImageWrapper32 image) {
-        var data = image.data();
+        var pixels = image.pixels();
         int width = image.width();
         int height = image.height();
         int n = width * height;
 
         var flatData = new float[n];
         for (int y = 0; y < height; y++) {
-            System.arraycopy(data[y], 0, flatData, y * width, width);
+            pixels.getRow(y, 0, flatData, y * width, width);
         }
 
         context.runOp(op -> {
@@ -143,7 +144,7 @@ public final class ArcsinhStretchingStrategy implements StretchingStrategy {
         });
 
         for (int y = 0; y < height; y++) {
-            System.arraycopy(flatData, y * width, data[y], 0, width);
+            pixels.setRow(y, 0, flatData, y * width, width);
         }
 
         LinearStrechingStrategy.DEFAULT.stretch(image);
@@ -168,9 +169,9 @@ public final class ArcsinhStretchingStrategy implements StretchingStrategy {
     @Override
     public void stretch(RGBImage image) {
         var rgb = new float[][][]{
-                image.r(),
-                image.g(),
-                image.b()
+                image.red().toArray(),
+                image.green().toArray(),
+                image.blue().toArray()
         };
         double max = MAX_PIXEL_VALUE;
         var bp = blackPoint / max;
@@ -192,6 +193,9 @@ public final class ArcsinhStretchingStrategy implements StretchingStrategy {
                 }
             }
         }
+        image.red().copyFrom(rgb[0]);
+        image.green().copyFrom(rgb[1]);
+        image.blue().copyFrom(rgb[2]);
         LinearStrechingStrategy.DEFAULT.stretch(image);
     }
 

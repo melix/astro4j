@@ -55,7 +55,7 @@ class DeepLineCatalogIdentification extends Specification {
             def image = (ImageWrapper32) FitsUtils.readFitsFile(fixture.file)
             int width = image.width()
             int height = image.height()
-            def data = image.data()
+            def data = image.pixels().toArray()
             def analysis = new SpectrumFrameAnalyzer(width, height, false, null).analyze(data)
             def polynomial = analysis.distortionPolynomial().orElse(null)
             if (polynomial == null) {

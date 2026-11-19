@@ -27,7 +27,6 @@ import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.SourceInfo;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MetadataMerger;
@@ -149,13 +148,6 @@ public class Stacking extends AbstractFunctionImpl {
                 return list.getFirst();
             }
             var images = maybeParallel(list.stream())
-                    .filter(ImageWrapper.class::isInstance)
-                    .map(img -> {
-                        if (img instanceof FileBackedImage fbi) {
-                            return fbi.unwrapToMemory();
-                        }
-                        return img;
-                    })
                     .filter(ImageWrapper32.class::isInstance)
                     .map(ImageWrapper32.class::cast)
                     .toList();
@@ -211,7 +203,7 @@ public class Stacking extends AbstractFunctionImpl {
         var tileSize = DistorsionMap.estimateTurbulenceScale(distortionMaps);
 
         var sharpnessMaps = imagesWithError.stream()
-                .map(img -> computeSharpnessMap(img.image().data(), width, height, tileSize))
+                .map(img -> computeSharpnessMap(img.image().pixels().toArray(), width, height, tileSize))
                 .toList();
 
         var maxImagesToKeep = (int) Math.ceil(ratio * imagesWithError.size());
@@ -225,6 +217,10 @@ public class Stacking extends AbstractFunctionImpl {
                     var progress = currentY.incrementAndGet() / (double) height;
                     broadcaster.broadcast(progressOperation.update(progress));
                     var line = result[y];
+                    var rows = new float[imagesWithError.size()][width];
+                    for (int i = 0; i < rows.length; i++) {
+                        imagesWithError.get(i).image().pixels().getRow(y, 0, rows[i], 0, width);
+                    }
                     for (int x = 0; x < width; x++) {
                         double sum = 0;
                         double weightSum = 0;
@@ -252,7 +248,7 @@ public class Stacking extends AbstractFunctionImpl {
                             }
                             if (maxImagesToKeep >= n) {
                                 for (int i = 0; i < n; i++) {
-                                    sum += weights[i] * imagesWithError.get(i).image().data()[y][x];
+                                    sum += weights[i] * rows[i][x];
                                     weightSum += weights[i];
                                 }
                             } else {
@@ -272,13 +268,13 @@ public class Stacking extends AbstractFunctionImpl {
                                     var rank = lowerBound(sorted, weights[i]);
                                     var mask = 1.0 / (1.0 + Math.exp(-(rank - cut) / band));
                                     var weight = weights[i] * mask;
-                                    sum += weight * imagesWithError.get(i).image().data()[y][x];
+                                    sum += weight * rows[i][x];
                                     weightSum += weight;
                                 }
                             }
                         } else {
                             for (int i = 0; i < maxImagesToKeep; i++) {
-                                sum += imagesWithError.get(i).image().data()[y][x];
+                                sum += rows[i][x];
                                 weightSum += 1;
                             }
                         }
@@ -421,13 +417,6 @@ public class Stacking extends AbstractFunctionImpl {
                 return list.getFirst();
             }
             var images = maybeParallel(list.stream())
-                    .filter(ImageWrapper.class::isInstance)
-                    .map(img -> {
-                        if (img instanceof FileBackedImage fbi) {
-                            return fbi.unwrapToMemory();
-                        }
-                        return img;
-                    })
                     .filter(ImageWrapper32.class::isInstance)
                     .map(ImageWrapper32.class::cast)
                     .toList();
@@ -463,13 +452,6 @@ public class Stacking extends AbstractFunctionImpl {
                 return list.getFirst();
             }
             var images = maybeParallel(list.stream())
-                    .filter(ImageWrapper.class::isInstance)
-                    .map(img -> {
-                        if (img instanceof FileBackedImage fbi) {
-                            return fbi.unwrapToMemory();
-                        }
-                        return img;
-                    })
                     .filter(ImageWrapper32.class::isInstance)
                     .map(ImageWrapper32.class::cast)
                     .toList();
@@ -521,7 +503,7 @@ public class Stacking extends AbstractFunctionImpl {
             Arrays.fill(weights, 1);
             reference = computeReferenceImageAndAdjustWeights(sourceImages, bestSourceInfo(), referenceSelection, weights);
         }
-        var referenceData = referenceImage != null ? referenceImage.data() : reference.data();
+        var referenceData = referenceImage != null ? referenceImage.pixels().toArray() : reference.pixels().toArray();
         var signal = 1;
         var imageCount = sourceImages.size();
         var increment = (int) Math.max(2, tileSize * sampling);
@@ -655,8 +637,6 @@ public class Stacking extends AbstractFunctionImpl {
                 yield images.stream()
                         .filter(i -> i.findMetadata(SourceInfo.class).map(bestImageSource::equals).orElse(false))
                         .findFirst()
-                        .map(ImageWrapper::unwrapToMemory)
-                        .map(ImageWrapper32.class::cast)
                         .orElseThrow();
             }
             case CONSENSUS -> {
@@ -677,14 +657,12 @@ public class Stacking extends AbstractFunctionImpl {
         images2 = (List<ImageWrapper>) scaling.radiusRescale(Map.of("images", images2));
         return images2.stream()
                 .map(img -> {
-                    if (img instanceof FileBackedImage fbi) {
-                        return fbi.unwrapToMemory();
-                    } else if (img instanceof ImageWrapper32 img32) {
+                    if (img instanceof ImageWrapper32 img32) {
                         return img32;
                     }
                     throw new IllegalStateException("Unexpected image type: " + img.getClass());
                 })
-                .map(ImageWrapper32.class::cast).toList();
+                .toList();
     }
 
     private void findDisplacement(List<ImageWrapper32> images,
@@ -744,13 +722,13 @@ public class Stacking extends AbstractFunctionImpl {
                         double count = 0;
                         for (int i = 0; i < images.size(); i++) {
                             var w = usePixelWeight ? computeTileWeight(imageMath, referenceIntegral, integralImages.get(i), x, y, tileSize) : weights[i];
-                            var image = images.get(i).data();
+                            var image = images.get(i).pixels();
                             var displacement = distorsions[i].findDistorsion(x, y);
                             var xx = x + displacement.dx();
                             var yy = y + displacement.dy();
                             if (xx >= 0 && xx < width && yy >= 0 && yy < height) {
                                 var interpolatedValue = Dedistort.bilinearInterpolation(image, xx, yy, width, height);
-                                var pixelDiff = heuristicWeight(image[y][x], interpolatedValue);
+                                var pixelDiff = heuristicWeight(image.get(x, y), interpolatedValue);
                                 if (usePixelWeight) {
                                     w = Math.min(w, pixelDiff);
                                 }

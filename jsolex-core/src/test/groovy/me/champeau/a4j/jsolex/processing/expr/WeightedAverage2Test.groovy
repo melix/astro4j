@@ -110,6 +110,6 @@ class WeightedAverage2Test extends Specification {
     }
 
     private static float pixel(Object result) {
-        ((ImageWrapper32) result).data()[0][0]
+        ((ImageWrapper32) result).pixels().get(0, 0)
     }
 }

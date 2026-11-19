@@ -59,8 +59,8 @@ class SignedDiffTest extends Specification {
         ImageWrapper32 result = signedDiff.signedDiff([a: a, b: b]) as ImageWrapper32
 
         then:
-        result.data()[0][0] == -100.0f
-        result.data()[1][1] == -100.0f
+        result.pixels().get(0, 0) == -100.0f
+        result.pixels().get(1, 1) == -100.0f
     }
 
     def "rgb - rgb per-channel signed diff"() {
@@ -72,9 +72,9 @@ class SignedDiffTest extends Specification {
         RGBImage result = signedDiff.signedDiff([a: a, b: b]) as RGBImage
 
         then:
-        result.r()[0][0] == -50.0f
-        result.g()[0][0] == 100.0f
-        result.b()[0][0] == 0.0f
+        result.red().get(0, 0) == -50.0f
+        result.green().get(0, 0) == 100.0f
+        result.blue().get(0, 0) == 0.0f
     }
 
     def "mono - scalar preserves negative values"() {
@@ -85,7 +85,7 @@ class SignedDiffTest extends Specification {
         ImageWrapper32 result = signedDiff.signedDiff([a: img, b: 100.0d]) as ImageWrapper32
 
         then:
-        result.data()[0][0] == -50.0f
+        result.pixels().get(0, 0) == -50.0f
     }
 
     def "scalar - mono correct operand order"() {
@@ -96,7 +96,7 @@ class SignedDiffTest extends Specification {
         ImageWrapper32 result = signedDiff.signedDiff([a: 5.0d, b: img]) as ImageWrapper32
 
         then:
-        result.data()[0][0] == -195.0f
+        result.pixels().get(0, 0) == -195.0f
     }
 
     def "scalar - scalar returns double"() {

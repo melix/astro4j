@@ -17,7 +17,6 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.math.regression.Ellipse;
@@ -38,9 +37,6 @@ public class PolyFit2D extends AbstractFunctionImpl {
         var arg = arguments.get("image");
         if (arg instanceof List) {
             return expandToImageList("poly_fit_2d", "image", arguments, this::polyFit2D);
-        }
-        if (arg instanceof FileBackedImage fbi) {
-            arg = fbi.unwrapToMemory();
         }
         if (arg instanceof RGBImage) {
             throw new IllegalArgumentException("poly_fit_2d does not support RGB images");
@@ -71,7 +67,7 @@ public class PolyFit2D extends AbstractFunctionImpl {
 
         var width = img.width();
         var height = img.height();
-        var data = img.data();
+        var data = img.pixels().toArray();
         var polyTerms = Polynomial2D.termCount(degree);
         var basis = new double[polyTerms];
         var fit = new LeastSquares(polyTerms);

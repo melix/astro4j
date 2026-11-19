@@ -107,7 +107,6 @@ public final class PercentileStretchStrategy implements StretchingStrategy {
 
     @Override
     public void stretch(ImageWrapper32 image) {
-        var data = image.data();
         var width = image.width();
         var height = image.height();
 
@@ -115,6 +114,7 @@ public final class PercentileStretchStrategy implements StretchingStrategy {
             return;
         }
 
+        var data = image.pixels().toArray();
         var pixels = PixelCollection.collect(data, width, height, pixelMask);
         if (pixels.length == 0) {
             return;
@@ -146,6 +146,7 @@ public final class PercentileStretchStrategy implements StretchingStrategy {
                 }
             }
         });
+        image.pixels().copyFrom(data);
     }
 
     private static float percentileValue(float[] sorted, double percentile) {

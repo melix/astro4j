@@ -18,7 +18,6 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
@@ -58,7 +57,7 @@ public class LimbCorrection extends AbstractLimbFunction {
         var arg = arguments.get("img");
         var ref = arguments.get("ref");
         if (arg instanceof List<?> list && ref instanceof ImageWrapper refWrapper) {
-            var limb = measure(toMono(refWrapper.unwrapToMemory()), order);
+            var limb = measure(toMono(refWrapper), order);
             if (!limb.valid()) {
                 warnInvalid(limb);
                 return list;
@@ -73,7 +72,7 @@ public class LimbCorrection extends AbstractLimbFunction {
             var limbs = new ArrayList<Limb>(list.size());
             var operation = newOperation("correct_limb");
             for (int i = 0; i < references.size(); i++) {
-                limbs.add(measure(toMono(((ImageWrapper) references.get(i)).unwrapToMemory()), order));
+                limbs.add(measure(toMono((ImageWrapper) references.get(i)), order));
                 broadcaster.broadcast(operation.update((i + 1) / (2.0 * list.size())));
             }
             var valid = limbs.stream().filter(Limb::valid).toList();
@@ -89,9 +88,8 @@ public class LimbCorrection extends AbstractLimbFunction {
             );
             return correctAll(list, limbs::get, reference, falloff, operation, 0.5);
         }
-        if (arg instanceof ImageWrapper wrapper) {
-            var image = wrapper.unwrapToMemory();
-            var source = ref instanceof ImageWrapper refWrapper ? refWrapper.unwrapToMemory() : image;
+        if (arg instanceof ImageWrapper image) {
+            var source = ref instanceof ImageWrapper refWrapper ? refWrapper : image;
             var limb = measure(toMono(source), order);
             return correct(image, limb, limb.circle(), falloff);
         }
@@ -106,7 +104,7 @@ public class LimbCorrection extends AbstractLimbFunction {
         var result = new ArrayList<Object>(images.size());
         for (int i = 0; i < images.size(); i++) {
             var image = (ImageWrapper) images.get(i);
-            result.add(FileBackedImage.wrap(correct(image.unwrapToMemory(), limbs.apply(i), reference, falloff)));
+            result.add(correct(image, limbs.apply(i), reference, falloff));
             broadcaster.broadcast(operation.update(progressStart + (1 - progressStart) * (i + 1) / images.size()));
         }
         broadcaster.broadcast(operation.complete());
@@ -123,7 +121,7 @@ public class LimbCorrection extends AbstractLimbFunction {
         var metadata = new LinkedHashMap<>(image.metadata());
         metadata.put(Ellipse.class, reference.toEllipse());
         if (image instanceof ImageWrapper32 mono) {
-            var corrected = new ImageWrapper32(width, height, warp(mono.data(), width, height, limb, reference, falloff), metadata);
+            var corrected = new ImageWrapper32(width, height, warp(mono.pixels().toArray(), width, height, limb, reference, falloff), metadata);
             if (LOGGER.isDebugEnabled()) {
                 var check = measure(corrected, limb.order());
                 LOGGER.debug("correct_limb: coverage {}%, order {}, limb deviation rms {} px, modelled {} px, residual {} px, after correction {} px, center shift {} px",
@@ -134,9 +132,9 @@ public class LimbCorrection extends AbstractLimbFunction {
         }
         var rgb = (RGBImage) image;
         return new RGBImage(width, height,
-                warp(rgb.r(), width, height, limb, reference, falloff),
-                warp(rgb.g(), width, height, limb, reference, falloff),
-                warp(rgb.b(), width, height, limb, reference, falloff),
+                warp(rgb.red().toArray(), width, height, limb, reference, falloff),
+                warp(rgb.green().toArray(), width, height, limb, reference, falloff),
+                warp(rgb.blue().toArray(), width, height, limb, reference, falloff),
                 metadata);
     }
 

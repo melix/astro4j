@@ -28,7 +28,6 @@ import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
 import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.GeometryTransform;
 import me.champeau.a4j.jsolex.processing.util.GeometryUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
@@ -118,7 +117,7 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
             flares = flares.transform(p -> new Point2D(transform.transformX(p.x(), p.y()), transform.transformY(p.y())));
             metadata.put(Flares.class, flares);
         }
-        corrected = new ImageWrapper32(corrected.width(), corrected.height(), corrected.data(), metadata);
+        corrected = new ImageWrapper32(corrected.pixels(), metadata);
 
         corrected.transformMetadata(ReferenceCoords.class, coords ->
             coords.addShearShiftCombined(transform.shear(), transform.shift())
@@ -173,8 +172,7 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
             TransformationHistory.recordTransform(corrected, message("autocrop"));
         }
         broadcaster.broadcast(operation.complete());
-        var wrapped = FileBackedImage.wrap(corrected);
-        return new Result(wrapped, wrapped, ellipse, corrected.findMetadata(Ellipse.class).orElse(circle), blackPoint);
+        return new Result(corrected, corrected, ellipse, corrected.findMetadata(Ellipse.class).orElse(circle), blackPoint);
     }
 
     private static int round(double value) {
@@ -189,7 +187,7 @@ public class GeometryCorrector extends AbstractTask<GeometryCorrector.Result> {
             float blackpoint
     ) {
         public Result withEnhanced(ImageWrapper32 enhanced) {
-            return new Result(FileBackedImage.wrap(corrected), FileBackedImage.wrap(enhanced), originalEllipse, correctedCircle, blackpoint);
+            return new Result(corrected, enhanced, originalEllipse, correctedCircle, blackpoint);
         }
     }
 }

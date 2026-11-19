@@ -48,7 +48,6 @@ public final class SigmoidStretchingStrategy implements StretchingStrategy {
 
     @Override
     public void stretch(ImageWrapper32 image) {
-        var data = image.data();
         var width = image.width();
         var height = image.height();
 
@@ -56,6 +55,7 @@ public final class SigmoidStretchingStrategy implements StretchingStrategy {
             return;
         }
 
+        var data = image.pixels().toArray();
         double sigmoidAtZero = sigmoid(0);
         double sigmoidAtOne = sigmoid(1);
         double sigmoidRange = sigmoidAtOne - sigmoidAtZero;
@@ -69,6 +69,7 @@ public final class SigmoidStretchingStrategy implements StretchingStrategy {
                 }
             }
         });
+        image.pixels().copyFrom(data);
     }
 
     private double sigmoid(double x) {

@@ -22,7 +22,6 @@ import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegions;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
@@ -152,18 +151,15 @@ public class Rotate extends AbstractFunctionImpl {
         if (arg instanceof List<?>) {
             return expandToImageList(functionName, "img", arguments, args -> doRotate(functionName, args, angle));
         }
-        if (arg instanceof FileBackedImage fileBackedImage) {
-            arg = fileBackedImage.unwrapToMemory();
-        }
         if (arg instanceof ImageWrapper32 mono) {
             var trn = arbitraryRotation(arguments, mono.asImage(), angle);
             return ImageWrapper32.fromImage(trn, fixMetadata(mono, angle, trn.width(), trn.height()));
         } else if (arg instanceof RGBImage rgb) {
             var height = rgb.height();
             var width = rgb.width();
-            var r = arbitraryRotation(arguments, new Image(width, height, rgb.r()), angle);
-            var g = arbitraryRotation(arguments, new Image(width, height, rgb.g()), angle);
-            var b = arbitraryRotation(arguments, new Image(width, height, rgb.b()), angle);
+            var r = arbitraryRotation(arguments, new Image(width, height, rgb.red().toArray()), angle);
+            var g = arbitraryRotation(arguments, new Image(width, height, rgb.green().toArray()), angle);
+            var b = arbitraryRotation(arguments, new Image(width, height, rgb.blue().toArray()), angle);
             var md = fixMetadata(rgb, angle, r.width(), r.height());
             return new RGBImage(r.width(), r.height(), r.data(), g.data(), b.data(), md);
         }

@@ -54,7 +54,7 @@ class PeriodicErrorCorrectionTest extends Specification {
 
         then: "the corrected scans are much closer to the undistorted disk"
         def before = scans.collect { rmsInsideDisk(it, truth) }
-        def after = corrected.collect { rmsInsideDisk((ImageWrapper32) it.unwrapToMemory(), truth) }
+        def after = corrected.collect { rmsInsideDisk((ImageWrapper32) it, truth) }
         after.sum() < before.sum() / 4
 
         and: "the images keep their metadata"
@@ -169,10 +169,11 @@ class PeriodicErrorCorrectionTest extends Specification {
     private static double rmsInsideDisk(ImageWrapper32 image, float[][] truth) {
         double sum = 0
         int count = 0
+        def data = image.pixels().toArray()
         for (int y = 0; y < SIZE; y++) {
             for (int x = 0; x < SIZE; x++) {
                 if (Math.hypot(x - CENTER, y - CENTER) < RADIUS + 4) {
-                    def diff = image.data()[y][x] - truth[y][x]
+                    def diff = data[y][x] - truth[y][x]
                     sum += diff * diff
                     count++
                 }

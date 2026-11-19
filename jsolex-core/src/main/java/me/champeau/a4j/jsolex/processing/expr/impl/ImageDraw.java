@@ -26,8 +26,8 @@ import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegions;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.sun.workflow.SourceInfo;
 import me.champeau.a4j.jsolex.processing.util.Constants;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.GeoCoordinates;
+import me.champeau.a4j.jsolex.processing.util.ImagePlane;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ActiveRegionMatcher;
@@ -141,11 +141,8 @@ public class ImageDraw extends AbstractFunctionImpl {
     }
 
     public ImageWrapper drawObservationDetails(ImageWrapper img, int x, int y, int fontSize, String color) {
-        if (img instanceof FileBackedImage fileBacked) {
-            return drawObservationDetails(fileBacked.unwrapToMemory(), x, y, fontSize, color);
-        }
         if (color != null && img instanceof ImageWrapper32 mono) {
-            var rgb = new RGBImage(mono.width(), mono.height(), mono.data(), mono.data(), mono.data(), new HashMap<>(mono.metadata()));
+            var rgb = new RGBImage(mono.pixels(), mono.pixels(), mono.pixels(), new HashMap<>(mono.metadata()));
             return drawObservationDetails(rgb, x, y, fontSize, color);
         }
         return drawOnImage(img, (g, image) -> drawObservationDetailsOn(g, image, x, y, fontSize, color));
@@ -227,12 +224,9 @@ public class ImageDraw extends AbstractFunctionImpl {
     }
 
     public Object drawText(ImageWrapper img, String text, int x, int y, String color, int fontSize) {
-        if (img instanceof FileBackedImage fileBacked) {
-            return drawText(fileBacked.unwrapToMemory(), text, x, y, color, fontSize);
-        }
         if (color != null && img instanceof ImageWrapper32 mono) {
             // first convert to RGB
-            var rgb = new RGBImage(mono.width(), mono.height(), mono.data(), mono.data(), mono.data(), new HashMap<>(mono.metadata()));
+            var rgb = new RGBImage(mono.pixels(), mono.pixels(), mono.pixels(), new HashMap<>(mono.metadata()));
             return drawText(rgb, text, x, y, color, fontSize);
         }
         return drawOnImage(img, (g, image) -> {
@@ -490,12 +484,9 @@ public class ImageDraw extends AbstractFunctionImpl {
     }
 
     private Object drawArrow(ImageWrapper img, int x1, int y1, int x2, int y2, String color, int thickness) {
-        if (img instanceof FileBackedImage fileBacked) {
-            return drawArrow(fileBacked.unwrapToMemory(), x1, y1, x2, y2, color, thickness);
-        }
         if (color != null && img instanceof ImageWrapper32 mono) {
             // first convert to RGB
-            var rgb = new RGBImage(mono.width(), mono.height(), mono.data(), mono.data(), mono.data(), new HashMap<>(mono.metadata()));
+            var rgb = new RGBImage(mono.pixels(), mono.pixels(), mono.pixels(), new HashMap<>(mono.metadata()));
             return drawArrow(rgb, x1, y1, x2, y2, color, thickness);
         }
         return drawOnImage(img, (g, image) -> {
@@ -524,12 +515,9 @@ public class ImageDraw extends AbstractFunctionImpl {
     }
 
     public Object drawCircle(ImageWrapper img, int centerX, int centerY, int radius, int thickness, String color) {
-        if (img instanceof FileBackedImage fileBacked) {
-            return drawCircle(fileBacked.unwrapToMemory(), centerX, centerY, radius, thickness, color);
-        }
         if (color != null && img instanceof ImageWrapper32 mono) {
             // first convert to RGB
-            var rgb = new RGBImage(mono.width(), mono.height(), mono.data(), mono.data(), mono.data(), new HashMap<>(mono.metadata()));
+            var rgb = new RGBImage(mono.pixels(), mono.pixels(), mono.pixels(), new HashMap<>(mono.metadata()));
             return drawCircle(rgb, centerX, centerY, radius, thickness, color);
         }
         return drawOnImage(img, (g, image) -> {
@@ -577,12 +565,9 @@ public class ImageDraw extends AbstractFunctionImpl {
     }
 
     public Object drawRectangle(ImageWrapper img, int x1, int y1, int width, int height, String color, int thickness) {
-        if (img instanceof FileBackedImage fileBacked) {
-            return drawRectangle(fileBacked.unwrapToMemory(), x1, y1, width, height, color, thickness);
-        }
         if (color != null && img instanceof ImageWrapper32 mono) {
             // first convert to RGB
-            var rgb = new RGBImage(mono.width(), mono.height(), mono.data(), mono.data(), mono.data(), new HashMap<>(mono.metadata()));
+            var rgb = new RGBImage(mono.pixels(), mono.pixels(), mono.pixels(), new HashMap<>(mono.metadata()));
             return drawRectangle(rgb, x1, y1, width, height, color, thickness);
         }
         return drawOnImage(img, (g, image) -> {
@@ -608,11 +593,8 @@ public class ImageDraw extends AbstractFunctionImpl {
     }
 
     public ImageWrapper drawSolarParameters(ImageWrapper img, int x, int y, String color) {
-        if (img instanceof FileBackedImage fileBacked) {
-            return drawSolarParameters(fileBacked.unwrapToMemory(), x, y, color);
-        }
         if (color != null && img instanceof ImageWrapper32 mono) {
-            var rgb = new RGBImage(mono.width(), mono.height(), mono.data(), mono.data(), mono.data(), new HashMap<>(mono.metadata()));
+            var rgb = new RGBImage(mono.pixels(), mono.pixels(), mono.pixels(), new HashMap<>(mono.metadata()));
             return drawSolarParameters(rgb, x, y, color);
         }
         return drawOnImage(img, (g, image) -> drawSolarParametersOn(g, image, x, y, color));
@@ -782,31 +764,27 @@ public class ImageDraw extends AbstractFunctionImpl {
     private static int maxValue(ImageWrapper wrapper) {
         float max = Integer.MIN_VALUE;
         if (wrapper instanceof ImageWrapper32 mono) {
-            for (float[] line : mono.data()) {
-                for (float d : line) {
-                    max = Math.max(max, d);
-                }
-            }
+            max = maxValue(mono.pixels(), max);
         } else if (wrapper instanceof RGBImage rgb) {
-            for (float[] line : rgb.r()) {
-                for (float d : line) {
-                    max = Math.max(max, d);
-                }
-            }
-            for (float[] line : rgb.g()) {
-                for (float d : line) {
-                    max = Math.max(max, d);
-                }
-            }
-            for (float[] line : rgb.b()) {
-                for (float d : line) {
-                    max = Math.max(max, d);
-                }
-            }
+            max = maxValue(rgb.red(), max);
+            max = maxValue(rgb.green(), max);
+            max = maxValue(rgb.blue(), max);
         } else {
             max = Constants.MAX_PIXEL_VALUE;
         }
         return (int) max >> 8;
+    }
+
+    private static float maxValue(ImagePlane plane, float initial) {
+        var max = initial;
+        var line = new float[plane.width()];
+        for (int y = 0; y < plane.height(); y++) {
+            plane.getRow(y, line);
+            for (float d : line) {
+                max = Math.max(max, d);
+            }
+        }
+        return max;
     }
 
     private void drawProminenceDistanceScale(Graphics2D g,
@@ -1114,11 +1092,8 @@ public class ImageDraw extends AbstractFunctionImpl {
         if (wrapper.width() == 0 || wrapper.height() == 0) {
             return null;
         }
-        if (wrapper instanceof FileBackedImage fileBacked) {
-            wrapper = fileBacked.unwrapToMemory();
-        }
         if (wrapper instanceof ImageWrapper32 mono) {
-            var data = mono.data();
+            var data = mono.pixels().toArray();
             var image = new BufferedImage(mono.width(), mono.height(), BufferedImage.TYPE_USHORT_GRAY);
             short[] converted = ((DataBufferUShort) image.getRaster().getDataBuffer()).getData();
             var width = mono.width();
@@ -1130,7 +1105,7 @@ public class ImageDraw extends AbstractFunctionImpl {
             }
             return image;
         } else if (wrapper instanceof RGBImage rgb) {
-            return toBufferedImage(rgb.width(), rgb.height(), rgb.r(), rgb.g(), rgb.b());
+            return toBufferedImage(rgb.width(), rgb.height(), rgb.red(), rgb.green(), rgb.blue());
         }
         return null;
     }
@@ -1335,8 +1310,7 @@ public class ImageDraw extends AbstractFunctionImpl {
         if (bi == null) {
             return wrapper.width() == 0 || wrapper.height() == 0 ? wrapper : null;
         }
-        var memory = wrapper instanceof FileBackedImage fb ? fb.unwrapToMemory() : wrapper;
-        return Loader.toImageWrapper(bi, memory.metadata());
+        return Loader.toImageWrapper(bi, wrapper.metadata());
     }
 
     public static BufferedImage drawOnImageAsBuffered(ImageWrapper wrapper, BiConsumer<? super Graphics2D, ? super ImageWrapper> consumer) {
@@ -1344,11 +1318,8 @@ public class ImageDraw extends AbstractFunctionImpl {
             return null;
         }
         BufferedImage image = null;
-        if (wrapper instanceof FileBackedImage fileBacked) {
-            wrapper = fileBacked.unwrapToMemory();
-        }
         if (wrapper instanceof ImageWrapper32 mono) {
-            var data = mono.data();
+            var data = mono.pixels().toArray();
             image = new BufferedImage(mono.width(), mono.height(), BufferedImage.TYPE_USHORT_GRAY);
             short[] converted = ((DataBufferUShort) image.getRaster().getDataBuffer()).getData();
             var width = mono.width();
@@ -1359,7 +1330,7 @@ public class ImageDraw extends AbstractFunctionImpl {
                 }
             }
         } else if (wrapper instanceof RGBImage rgb) {
-            image = toBufferedImage(rgb.width(), rgb.height(), rgb.r(), rgb.g(), rgb.b());
+            image = toBufferedImage(rgb.width(), rgb.height(), rgb.red(), rgb.green(), rgb.blue());
         }
         if (image != null) {
             var g = image.createGraphics();
@@ -1375,13 +1346,16 @@ public class ImageDraw extends AbstractFunctionImpl {
         return Math.clamp(round(value), 0, 65535);
     }
 
-    private static BufferedImage toBufferedImage(int width, int height, float[][] r, float[][] g, float[][] b) {
+    private static BufferedImage toBufferedImage(int width, int height, ImagePlane r, ImagePlane g, ImagePlane b) {
         var image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
         var rgbArray = ((DataBufferInt) image.getRaster().getDataBuffer()).getData();
+        var rRow = new float[width];
+        var gRow = new float[width];
+        var bRow = new float[width];
         for (int y = 0; y < height; y++) {
-            var rRow = r[y];
-            var gRow = g[y];
-            var bRow = b[y];
+            r.getRow(y, rRow);
+            g.getRow(y, gRow);
+            b.getRow(y, bRow);
             int rowOffset = y * width;
             for (int x = 0; x < width; x++) {
                 int rv = toUnsignedShort(rRow[x]) >> 8;
@@ -1399,20 +1373,20 @@ public class ImageDraw extends AbstractFunctionImpl {
         }
         int width = rgb.width();
         int height = rgb.height();
-        var image = toBufferedImage(width, height, rgb.r(), rgb.g(), rgb.b());
+        var red = rgb.red();
+        var green = rgb.green();
+        var blue = rgb.blue();
+        var image = toBufferedImage(width, height, red, green, blue);
         var g2 = image.createGraphics();
         int greyValue = Math.clamp((80L * maxValue(rgb)) / 100, 0, 255);
         g2.setColor(new Color(greyValue, greyValue, greyValue));
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         consumer.accept(g2, rgb);
         var rendered = ((DataBufferInt) image.getRaster().getDataBuffer()).getData();
-        var rArr = rgb.r();
-        var gArr = rgb.g();
-        var bArr = rgb.b();
+        var rRow = new float[width];
+        var gRow = new float[width];
+        var bRow = new float[width];
         for (int y = 0; y < height; y++) {
-            var rRow = rArr[y];
-            var gRow = gArr[y];
-            var bRow = bArr[y];
             int rowOffset = y * width;
             for (int x = 0; x < width; x++) {
                 int pixel = rendered[rowOffset + x];
@@ -1420,6 +1394,9 @@ public class ImageDraw extends AbstractFunctionImpl {
                 gRow[x] = ((pixel >> 8) & 0xFF) << 8;
                 bRow[x] = (pixel & 0xFF) << 8;
             }
+            red.setRow(y, rRow);
+            green.setRow(y, gRow);
+            blue.setRow(y, bRow);
         }
         return rgb;
     }
@@ -1471,11 +1448,10 @@ public class ImageDraw extends AbstractFunctionImpl {
                 boolean showLabels = displayParams > 0;
                 boolean fillRegions = displayParams == 0 || displayParams == 1;
                 var activeRegions = metadata.get();
-                var img = wrapper.unwrapToMemory();
-                if (img instanceof ImageWrapper32 mono) {
+                if (wrapper instanceof ImageWrapper32 mono) {
                     var rgb = RGBImage.toRGB(mono);
                     return drawActiveRegions(rgb, activeRegions, fillRegions, showLabels, broadcaster);
-                } else if (img instanceof RGBImage rgb) {
+                } else if (wrapper instanceof RGBImage rgb) {
                     return drawActiveRegions(rgb, activeRegions, fillRegions, showLabels, broadcaster);
                 }
             }
@@ -1486,10 +1462,8 @@ public class ImageDraw extends AbstractFunctionImpl {
     public static RGBImage drawActiveRegions(RGBImage rgb, ActiveRegions activeRegions, boolean fillRegions, boolean showLabels, Broadcaster broadcaster) {
         var width = rgb.width();
         var height = rgb.height();
-        var r = rgb.r();
-        var b = rgb.b();
         if (fillRegions) {
-            drawActiveRegions(activeRegions, width, height, r, b);
+            drawActiveRegions(activeRegions, width, height, rgb.red(), rgb.blue());
         }
         var result = new AtomicReference<>(rgb);
         if (showLabels) {
@@ -1513,15 +1487,15 @@ public class ImageDraw extends AbstractFunctionImpl {
         return result.get();
     }
 
-    private static void drawActiveRegions(ActiveRegions activeRegions, int width, int height, float[][] r, float[][] b) {
+    private static void drawActiveRegions(ActiveRegions activeRegions, int width, int height, ImagePlane r, ImagePlane b) {
         for (var activeRegion : activeRegions.regionList()) {
             var points = activeRegion.points();
             for (var point : points) {
                 var x = (int) Math.round(point.x());
                 var y = (int) Math.round(point.y());
                 if (x >= 0 && x < width && y >= 0 && y < height) {
-                    r[y][x] = Constants.MAX_PIXEL_VALUE;
-                    b[y][x] = Constants.MAX_PIXEL_VALUE;
+                    r.set(x, y, Constants.MAX_PIXEL_VALUE);
+                    b.set(x, y, Constants.MAX_PIXEL_VALUE);
                     var next = points.stream().filter(p -> p.x() > point.x() && p.y() > point.y()).findFirst();
                     next.ifPresent(p -> {
                         var nx = (int) Math.ceil(p.x());
@@ -1530,8 +1504,8 @@ public class ImageDraw extends AbstractFunctionImpl {
                         for (int i = x; i < nx; i++) {
                             for (int j = y; j < ny; j++) {
                                 if (i < width && j < height) {
-                                    r[j][i] = Constants.MAX_PIXEL_VALUE;
-                                    b[j][i] = Constants.MAX_PIXEL_VALUE;
+                                    r.set(i, j, Constants.MAX_PIXEL_VALUE);
+                                    b.set(i, j, Constants.MAX_PIXEL_VALUE);
                                 }
                             }
                         }

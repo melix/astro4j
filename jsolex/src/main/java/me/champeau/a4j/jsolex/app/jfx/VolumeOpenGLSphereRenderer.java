@@ -178,7 +178,7 @@ public class VolumeOpenGLSphereRenderer implements SphereRenderer {
         for (var i = 0; i < shellCount; i++) {
             var shellData = data.shells().get(i);
             var image = shellData.image();
-            var imgData = image.data();
+            var imgData = image.pixels().toArray();
             rawList.add(imgData);
 
             if (i == 0) {
@@ -211,7 +211,7 @@ public class VolumeOpenGLSphereRenderer implements SphereRenderer {
         if (data.hasEnhancedShells()) {
             var rawEnhanced = new ArrayList<float[][]>();
             for (var shellData : data.enhancedShells()) {
-                rawEnhanced.add(shellData.image().data());
+                rawEnhanced.add(shellData.image().pixels().toArray());
             }
             enhancedImageDataList = (textureWidth != rawWidth || textureHeight != rawHeight)
                     ? downsampleAll(rawEnhanced, textureWidth, textureHeight)

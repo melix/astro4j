@@ -22,7 +22,8 @@ import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.tasks.WriteColorizedImageTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.WriteMonoImageTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.WriteRGBImageTask;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
+import me.champeau.a4j.jsolex.processing.util.ImageMemory;
+import me.champeau.a4j.jsolex.processing.util.ImagePlane;
 import me.champeau.a4j.jsolex.processing.util.ProcessingLogContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -67,7 +68,7 @@ import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectorie
 public class DefaultImageEmitter implements ImageEmitter {
     private static final int N_THREADS = Math.max(2, Math.min(
             Runtime.getRuntime().availableProcessors() / 2,
-            (int) (Runtime.getRuntime().maxMemory() / (1L << 30))));
+            (int) (ImageMemory.budget() / (1L << 30))));
     private static final int IN_FLIGHT_LIMIT = N_THREADS * 2;
     private static final Semaphore DEFAULT_PERMITS = new Semaphore(IN_FLIGHT_LIMIT);
     private static final AtomicInteger THREAD_SEQ = new AtomicInteger();
@@ -103,10 +104,10 @@ public class DefaultImageEmitter implements ImageEmitter {
         this.executor = executor;
     }
 
-    private static FileBackedImage snapshot(ImageWrapper32 image, GeneratedImageKind kind, String title, String name) {
+    private static ImageWrapper32 snapshot(ImageWrapper32 image, GeneratedImageKind kind, String title, String name) {
         var metadata = new HashMap<>(image.metadata());
         metadata.put(GeneratedImageMetadata.class, new GeneratedImageMetadata(kind, title, name));
-        return FileBackedImage.wrap(new ImageWrapper32(image.width(), image.height(), image.data(), metadata));
+        return new ImageWrapper32(image.pixels(), metadata);
     }
 
     private void track(Runnable task, Executor exec) {
@@ -173,7 +174,7 @@ public class DefaultImageEmitter implements ImageEmitter {
         // outstanding so await() is a true barrier for these writes too.
         track(() -> new WriteMonoImageTask(broadcaster,
                 operation,
-                () -> (ImageWrapper32) snapshot.unwrapToMemory(),
+                () -> snapshot,
                 outputDir,
                 title,
                 name,
@@ -186,7 +187,7 @@ public class DefaultImageEmitter implements ImageEmitter {
         var snapshot = snapshot(image, kind, title, name);
         submit(() -> new WriteColorizedImageTask(broadcaster,
                 operation,
-                () -> (ImageWrapper32) snapshot.unwrapToMemory(),
+                () -> snapshot,
                 outputDir,
                 title,
                 name,
@@ -201,7 +202,7 @@ public class DefaultImageEmitter implements ImageEmitter {
             var rgb = rgbSupplier.apply(img);
             var copy = new RGBImage(img.width(), img.height(), rgb[0], rgb[1], rgb[2], new HashMap<>(image.metadata()));
             ImageDraw.drawOnImageInPlace(copy, painter);
-            return new float[][][]{copy.r(), copy.g(), copy.b()};
+            return new float[][][]{copy.red().toArray(), copy.green().toArray(), copy.blue().toArray()};
         });
     }
 
@@ -212,7 +213,7 @@ public class DefaultImageEmitter implements ImageEmitter {
         capturedMetadata.put(GeneratedImageMetadata.class, new GeneratedImageMetadata(kind, title, name));
         submit(() -> new WriteRGBImageTask(broadcaster,
                 operation,
-                () -> new ImageWrapper32(width, height, new float[height][width], capturedMetadata),
+                () -> new ImageWrapper32(ImagePlane.allocate(width, height), capturedMetadata),
                 outputDir,
                 title,
                 name,

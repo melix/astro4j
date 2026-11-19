@@ -30,6 +30,7 @@ import me.champeau.a4j.jsolex.processing.sun.BandingReduction;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.WorkflowState;
 import me.champeau.a4j.jsolex.processing.sun.tasks.GeometryCorrector;
+import me.champeau.a4j.jsolex.processing.util.ImagePlane;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
@@ -105,13 +106,13 @@ public class HeliumLineProcessor {
                 .findFirst()
                 .orElse(SpectralRay.HELIUM_D3)
                 .label();
-        if (source.unwrapToMemory() instanceof ImageWrapper32 direct) {
+        if (source instanceof ImageWrapper32 direct) {
             direct.metadata().put(SpectralRay.class, SpectralRay.HELIUM_D3);
             direct.metadata().put(HeliumImageKind.class, HeliumImageKind.DIRECT);
             imageEmitter.newMonoImage(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED, "helium", message("helium.d3.direct"), "helium-direct", message("helium.direct.description"), direct);
             if (evaluator.functionCall(BuiltinFunction.COLORIZE, Map.of("img", direct, "profile", colorProfile)) instanceof RGBImage colorized) {
                 imageEmitter.newColorImage(GeneratedImageKind.COLORIZED, "helium",
-                        message("helium.d3.direct.colorized"), "helium-direct-colorized", message("helium.direct.description"), colorized.width(), colorized.height(), new HashMap<>(colorized.metadata()), () -> new float[][][]{colorized.r(), colorized.g(), colorized.b()});
+                        message("helium.d3.direct.colorized"), "helium-direct-colorized", message("helium.direct.description"), colorized.width(), colorized.height(), new HashMap<>(colorized.metadata()), () -> new float[][][]{colorized.red().toArray(), colorized.green().toArray(), colorized.blue().toArray()});
             }
         }
         var continuumImage = createFixedShiftContinuum(evaluator);
@@ -125,7 +126,7 @@ public class HeliumLineProcessor {
             var ellipse = image.findMetadata(Ellipse.class).orElse(null);
             var bgModel = backgroundModel(image, 2, 2.5).orElse(null);
             if (bgModel == null) {
-                bgModel = new ImageWrapper32(image.width(), image.height(), new float[image.height()][image.width()], Map.of());
+                bgModel = new ImageWrapper32(ImagePlane.allocate(image.width(), image.height()), Map.of());
             }
             bgModel = (ImageWrapper32) evaluator.mul(0.8, bgModel);
             bgModel = (ImageWrapper32) evaluator.functionCall(BuiltinFunction.DISK_FILL, Map.of("img", bgModel));
@@ -133,7 +134,7 @@ public class HeliumLineProcessor {
             var protus = image.copy();
             protus = (ImageWrapper32) evaluator.functionCall(BuiltinFunction.DISK_FILL, Map.of("img", protus, "fill", 0));
             if (ellipse != null) {
-                var protusData = protus.data();
+                var protusData = protus.pixels().toArray();
                 new MidtoneTransferFunctionAutostretchStrategy(-2.5, 0.3, (x, y) -> !ellipse.isWithin(x, y) && protusData[y][x] > 0).stretch(protus);
             } else {
                 new ArcsinhStretchingStrategy(0, 10, 10).stretch(protus);
@@ -153,7 +154,7 @@ public class HeliumLineProcessor {
                 // Blur image * mask (not raw image) so outside-disk values
                 // don't contaminate the local mean estimate near the limb
                 var maskedImageData = new float[image.height()][image.width()];
-                var imgData = image.data();
+                var imgData = image.pixels().toArray();
                 for (int y = 0; y < image.height(); y++) {
                     for (int x = 0; x < image.width(); x++) {
                         maskedImageData[y][x] = imgData[y][x] * mask[y][x];
@@ -161,17 +162,13 @@ public class HeliumLineProcessor {
                 }
                 var blurredImage = imageMath.boxBlur(new Image(image.width(), image.height(), maskedImageData), normKernel);
                 var blurredMask = imageMath.boxBlur(new Image(image.width(), image.height(), mask), normKernel);
-                localNormalize(image, ImageWrapper32.fromImage(blurredImage), ImageWrapper32.fromImage(blurredMask), ellipse);
+                localNormalize(image, blurredImage.data(), blurredMask.data(), ellipse);
                 LinearStrechingStrategy.DEFAULT.stretch(image);
             }
             if (ellipse != null) {
                 stretchDiskOnly(image, ellipse);
                 var denoised = ImageMath.newInstance().convolve(image.asImage(), Kernel33.GAUSSIAN_BLUR);
-                var srcData = denoised.data();
-                var dstData = image.data();
-                for (int y = 0; y < image.height(); y++) {
-                    System.arraycopy(srcData[y], 0, dstData[y], 0, image.width());
-                }
+                image.pixels().copyFrom(denoised.data());
             }
             if (ellipse != null && continuum instanceof ImageWrapper32 continuumImg) {
                 reintroduceContinuum(image, continuumImg, ellipse);
@@ -196,7 +193,7 @@ public class HeliumLineProcessor {
     }
 
     private static float[][][] colorizeGoldenYellow(ImageWrapper32 image) {
-        var mono = image.data();
+        var mono = image.pixels().toArray();
         var height = image.height();
         var width = image.width();
         float max = MAX_PIXEL_VALUE;
@@ -220,25 +217,27 @@ public class HeliumLineProcessor {
         int maxIterations = 10;
         double convergenceRatio = 0.05;
         double firstPassDeviation = 0;
+        var data = image.pixels().toArray();
         for (int iter = 0; iter < maxIterations; iter++) {
             broadcaster.broadcast(progressOperation.update(
                     (double) iter / maxIterations,
                     message("helium.banding.reduction") + " (band=" + bandSize + ", pass=" + (iter + 1) + ")"
             ));
-            var deviation = BandingReduction.reduceBanding(image.width(), image.height(), image.data(), bandSize, ellipse, BandingReduction.Mode.INSIDE_DISK);
+            var deviation = BandingReduction.reduceBanding(image.width(), image.height(), data, bandSize, ellipse, BandingReduction.Mode.INSIDE_DISK);
             if (iter == 0) {
                 firstPassDeviation = deviation;
                 if (firstPassDeviation < 1e-6) {
-                    return;
+                    break;
                 }
             } else if (deviation < firstPassDeviation * convergenceRatio) {
-                return;
+                break;
             }
         }
+        image.pixels().copyFrom(data);
     }
 
     private static void stretchDiskOnly(ImageWrapper32 image, Ellipse ellipse) {
-        var data = image.data();
+        var data = image.pixels().toArray();
         var width = image.width();
         var height = image.height();
         double sum = 0;
@@ -278,11 +277,12 @@ public class HeliumLineProcessor {
                 }
             }
         }
+        image.pixels().copyFrom(data);
     }
 
     private static void reintroduceContinuum(ImageWrapper32 image, ImageWrapper32 continuum, Ellipse ellipse) {
-        var data = image.data();
-        var contData = continuum.data();
+        var data = image.pixels().toArray();
+        var contData = continuum.pixels().toArray();
         var width = image.width();
         var height = image.height();
         float midpoint = MAX_PIXEL_VALUE / 2f;
@@ -306,10 +306,11 @@ public class HeliumLineProcessor {
                 }
             }
         }
+        image.pixels().copyFrom(data);
     }
 
     private static void darkenBackground(ImageWrapper32 image, Ellipse ellipse) {
-        var data = image.data();
+        var data = image.pixels().toArray();
         var width = image.width();
         var height = image.height();
         var center = ellipse.center();
@@ -329,12 +330,11 @@ public class HeliumLineProcessor {
                 }
             }
         }
+        image.pixels().copyFrom(data);
     }
 
-    private static void localNormalize(ImageWrapper32 image, ImageWrapper32 blurredImage, ImageWrapper32 blurredMask, Ellipse ellipse) {
-        var data = image.data();
-        var imgData = blurredImage.data();
-        var maskData = blurredMask.data();
+    private static void localNormalize(ImageWrapper32 image, float[][] imgData, float[][] maskData, Ellipse ellipse) {
+        var data = image.pixels().toArray();
         for (int y = 0; y < image.height(); y++) {
             for (int x = 0; x < image.width(); x++) {
                 if (ellipse.isWithin(x, y) && maskData[y][x] > 0.1f) {
@@ -345,6 +345,7 @@ public class HeliumLineProcessor {
                 }
             }
         }
+        image.pixels().copyFrom(data);
     }
 
     public static List<Double> computeContinuumPixelShifts(ProcessParams processParams) {
@@ -380,7 +381,7 @@ public class HeliumLineProcessor {
             return null;
         }
         if (images.size() == 1) {
-            return (ImageWrapper32) images.getFirst().unwrapToMemory();
+            return (ImageWrapper32) images.getFirst();
         }
         return (ImageWrapper32) evaluator.functionCall(BuiltinFunction.AVG, Map.of("list", images));
     }

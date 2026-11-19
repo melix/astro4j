@@ -19,7 +19,6 @@ import me.champeau.a4j.jsolex.app.jfx.gl.GlMatrix;
 import me.champeau.a4j.jsolex.app.jfx.gl.ShaderProgram;
 import me.champeau.a4j.jsolex.app.jfx.gl.SphereMeshBuilder;
 import me.champeau.a4j.jsolex.processing.spectrum.SphericalTomographyData;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.regression.Ellipse;
@@ -66,7 +65,6 @@ public class OpenGLSphereRenderer implements SphereRenderer {
 
     private boolean texturesLoaded = false;
     private boolean dataPreprocessed = false;
-    private List<ImageWrapper> unwrappedImages;
     private List<float[][]> imageDataList;
     private List<float[][]> enhancedImageDataList;
     private double minRadius;
@@ -149,15 +147,11 @@ public class OpenGLSphereRenderer implements SphereRenderer {
 
         var shellCount = data.shellCount();
 
-        unwrappedImages = new ArrayList<>();
         imageDataList = new ArrayList<>();
 
         for (var i = 0; i < shellCount; i++) {
             var shellData = data.shells().get(i);
-            var imageWrapper = unwrapImage(shellData.image());
-            unwrappedImages.add(imageWrapper);
-
-            var imgData = getImageData(imageWrapper);
+            var imgData = getImageData(shellData.image());
             imageDataList.add(imgData);
         }
 
@@ -251,8 +245,7 @@ public class OpenGLSphereRenderer implements SphereRenderer {
         LOGGER.debug("Preparing {} enhanced images", enhancedShells.size());
         for (var i = 0; i < enhancedShells.size(); i++) {
             var shellData = enhancedShells.get(i);
-            var imageWrapper = unwrapImage(shellData.image());
-            var imgData = getImageData(imageWrapper);
+            var imgData = getImageData(shellData.image());
 
             // Apply same downsampling as raw images if needed
             if (textureWidth != imgData[0].length || textureHeight != imgData.length) {
@@ -315,7 +308,7 @@ public class OpenGLSphereRenderer implements SphereRenderer {
         }
 
         for (var i = 0; i < shellCount; i++) {
-            var imageWrapper = unwrappedImages.get(i);
+            var imageWrapper = data.shells().get(i).image();
             var imgData = currentDataList.get(i);
             var radius = data.shells().get(i).normalizedRadius();
             var isBase = Math.abs(radius - minRadius) < 0.0001;
@@ -342,13 +335,6 @@ public class OpenGLSphereRenderer implements SphereRenderer {
             ));
         }
         shellRenderData.sort(Comparator.comparingDouble(ShellRenderData::normalizedRadius));
-    }
-
-    private ImageWrapper unwrapImage(ImageWrapper image) {
-        if (image instanceof FileBackedImage fileBackedImage) {
-            return unwrapImage(fileBackedImage.unwrapToMemory());
-        }
-        return image;
     }
 
     /**
@@ -590,7 +576,7 @@ public class OpenGLSphereRenderer implements SphereRenderer {
 
     private float[][] getImageData(ImageWrapper image) {
         if (image instanceof ImageWrapper32 iw32) {
-            return iw32.data();
+            return iw32.pixels().toArray();
         }
         throw new IllegalArgumentException("Unsupported image type: " + image.getClass());
     }

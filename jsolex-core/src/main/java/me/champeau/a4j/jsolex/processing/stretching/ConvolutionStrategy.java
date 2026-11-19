@@ -107,23 +107,22 @@ public final class ConvolutionStrategy implements StretchingStrategy {
      * @return the red, green and blue channels of the filtered image
      */
     public static float[][][] filterLightness(RGBImage image, UnaryOperator<Image> filter) {
-        var hsl = ImageUtils.fromRGBtoHSL(new float[][][]{image.r(), image.g(), image.b()});
+        var hsl = ImageUtils.fromRGBtoHSL(new float[][][]{image.red().toArray(), image.green().toArray(), image.blue().toArray()});
         hsl[2] = filter.apply(new Image(image.width(), image.height(), hsl[2])).data();
         return ImageUtils.fromHSLtoRGB(hsl);
     }
 
     @Override
     public void stretch(ImageWrapper32 image) {
-        var filtered = filterAndClip(image.asImage(), MAX_PIXEL_VALUE);
-        System.arraycopy(filtered, 0, image.data(), 0, image.height());
+        image.pixels().copyFrom(filterAndClip(image.asImage(), MAX_PIXEL_VALUE));
     }
 
     @Override
     public void stretch(RGBImage image) {
         var rgb = filterLightness(image, lightness -> lightness.withData(filterAndClip(lightness, 1f)));
-        System.arraycopy(rgb[0], 0, image.r(), 0, image.height());
-        System.arraycopy(rgb[1], 0, image.g(), 0, image.height());
-        System.arraycopy(rgb[2], 0, image.b(), 0, image.height());
+        image.red().copyFrom(rgb[0]);
+        image.green().copyFrom(rgb[1]);
+        image.blue().copyFrom(rgb[2]);
     }
 
     private float[][] filterAndClip(Image image, float max) {

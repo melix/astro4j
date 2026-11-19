@@ -18,13 +18,14 @@ package me.champeau.a4j.jsolex.processing.stretching;
 import me.champeau.a4j.jsolex.processing.color.ColorCurve;
 import me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval;
 import me.champeau.a4j.jsolex.processing.util.Histogram;
-import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
+import me.champeau.a4j.jsolex.processing.util.ImagePlane;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.RowStrips;
 import me.champeau.a4j.math.regression.Ellipse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -47,7 +48,7 @@ public final class AutohistogramStrategy implements StretchingStrategy {
     public static final double DEFAULT_PROM_STRETCH = 0;
 
     private static final ClaheStrategy CLAHE_STRATEGY = new ClaheStrategy(16, 64, 1.1);
-    private static final StretchingStrategy PROTUS_STRATEGY = new ClaheStrategy(8, 64, 0.8);
+    private static final ClaheStrategy PROTUS_STRATEGY = new ClaheStrategy(8, 64, 0.8);
     private static final float DISK_MIDTONE_TARGET = 0.45f * MAX_PIXEL_VALUE;
     private static final float MIN_PEDESTAL = 0.005f * MAX_PIXEL_VALUE;
     private static final float MIDTONE_CONTRAST_SLOPE = 1.25f;
@@ -100,19 +101,16 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         var height = image.height();
         var width = image.width();
         var ellipse = image.findMetadata(Ellipse.class);
-        var output = image.data();
+        float[][] output;
         if (ellipse.isPresent()) {
             var e = ellipse.get();
             var bgNeutralized = iterativeBgNeutralize(image, e, width, height);
-            // Take both copies before forking: from this point clahe, eclipse and
-            // bgNeutralized hold disjoint buffers, so the three stretches that
-            // follow can run in parallel without aliasing each other.
-            var clahe = bgNeutralized.copy();
-            var eclipse = createEclipse(bgNeutralized, e.rescale(1.005, 1.005), width, height);
-            var claheTask = CompletableFuture.runAsync(() -> CLAHE_STRATEGY.stretch(clahe));
+            var claheData = bgNeutralized.pixels().toArray();
+            var eclipseData = bgNeutralized.pixels().toArray();
+            clearDisk(eclipseData, e.rescale(1.005, 1.005), width, height);
+            var claheTask = CompletableFuture.runAsync(() -> CLAHE_STRATEGY.stretch(width, height, claheData));
             var eclipseTask = CompletableFuture.runAsync(() -> {
-                PROTUS_STRATEGY.stretch(eclipse);
-                var eclipseData = eclipse.data();
+                PROTUS_STRATEGY.stretch(width, height, eclipseData);
                 var expand = ColorCurve.cachedPolynomial(16, (int) Math.clamp(16 * (1 + protusStretch), 16, 255));
                 RowStrips.forEach(height, (yStart, yEnd) -> {
                     for (var y = yStart; y < yEnd; y++) {
@@ -124,13 +122,14 @@ public final class AutohistogramStrategy implements StretchingStrategy {
             });
             new GammaStrategy(gamma).stretch(bgNeutralized);
             CompletableFuture.allOf(claheTask, eclipseTask).join();
-            var claheData = new float[height][width];
-            var blended = new float[height][width];
-            blendInto(clahe.data(), eclipse.data(), width, height, 0.6, claheData);
-            blendInto(bgNeutralized.data(), claheData, width, height, 0.8, blended);
-            copyInto(blended, output, width, height);
+            output = bgNeutralized.pixels().toArray();
+            blendInto(claheData, eclipseData, width, height, 0.6, claheData);
+            blendInto(output, claheData, width, height, 0.8, output);
+        } else {
+            output = image.pixels().toArray();
         }
         maybeAdjustBrightness(image, height, width, output);
+        image.pixels().copyFrom(output);
         CutoffStretchingStrategy.DEFAULT.stretch(image);
     }
 
@@ -147,31 +146,42 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         });
     }
 
-    private static void copyInto(float[][] source, float[][] target, int width, int height) {
+    private static ImageWrapper32 createEclipse(ImageWrapper32 denoised, Ellipse e, int width, int height) {
+        var bounds = DiskBounds.of(e, width, height);
+        var eclipse = denoised.pixels().mapRows((y, row) -> clearDisk(row, y, e, bounds));
+        return new ImageWrapper32(eclipse, new LinkedHashMap<>(denoised.metadata()));
+    }
+
+    private static void clearDisk(float[][] data, Ellipse e, int width, int height) {
+        var bounds = DiskBounds.of(e, width, height);
         RowStrips.forEach(height, (yStart, yEnd) -> {
             for (var y = yStart; y < yEnd; y++) {
-                System.arraycopy(source[y], 0, target[y], 0, width);
+                clearDisk(data[y], y, e, bounds);
             }
         });
     }
 
-    private static ImageWrapper32 createEclipse(ImageWrapper32 denoised, Ellipse e, int width, int height) {
-        var eclipse = denoised.copy();
-        var bb = e.boundingBox();
-        var minX = (int) Math.max(0, bb.a());
-        var maxX = (int) Math.min(width - 1, bb.b());
-        var minY = (int) Math.max(0, bb.c());
-        var maxY = (int) Math.min(height - 1, bb.d());
-        RowStrips.forEach(Math.max(0, maxY - minY), (yStart, yEnd) -> {
-            for (var y = minY + yStart; y < minY + yEnd; y++) {
-                for (var x = minX; x < maxX; x++) {
-                    if (e.isWithin(x, y)) {
-                        eclipse.data()[y][x] = 0;
-                    }
-                }
+    private static void clearDisk(float[] row, int y, Ellipse e, DiskBounds bounds) {
+        if (y < bounds.minY() || y >= bounds.maxY()) {
+            return;
+        }
+        for (var x = bounds.minX(); x < bounds.maxX(); x++) {
+            if (e.isWithin(x, y)) {
+                row[x] = 0;
             }
-        });
-        return eclipse;
+        }
+    }
+
+    private record DiskBounds(int minX, int maxX, int minY, int maxY) {
+        static DiskBounds of(Ellipse e, int width, int height) {
+            var bb = e.boundingBox();
+            return new DiskBounds(
+                    (int) Math.max(0, bb.a()),
+                    (int) Math.min(width - 1, bb.b()),
+                    (int) Math.max(0, bb.c()),
+                    (int) Math.min(height - 1, bb.d())
+            );
+        }
     }
 
     private ImageWrapper32 iterativeBgNeutralize(ImageWrapper32 image, Ellipse e, int width, int height) {
@@ -183,10 +193,8 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         // Ping-pong between two buffers across the iteration loop instead of allocating
         // a fresh float[h][w] copy on every iteration. Each iteration reads from the
         // "current" buffer and writes into the "scratch" buffer; on accept they swap.
-        var currentData = ImageWrapper.copyData(image.data());
-        var scratchData = new float[height][width];
-        var current = new ImageWrapper32(width, height, currentData, meta);
-        var scratch = new ImageWrapper32(width, height, scratchData, meta);
+        var current = new ImageWrapper32(image.pixels().copy(), meta);
+        var scratch = new ImageWrapper32(ImagePlane.allocate(width, height), meta);
         var eclipse = createEclipse(current, rescaledEllipse, width, height);
         // Shared scratch buffer for the polynomial background model used by both
         // neutralizeBg calls below; reused across all iterations.
@@ -197,17 +205,13 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         var maxIterations = 25;
         var foundPedestral = false;
         while (--maxIterations >= 0) {
-            copyInto(currentData, scratchData, width, height);
-            neutralizeBg(scratch, 2, 1.5, smoothing, null, bgModelBuffer);
+            neutralizeBg(current, scratch.pixels(), 2, 1.5, smoothing, null, bgModelBuffer);
             var bg = neutralizeBg(eclipse, 2, 1.5, smoothing, null, bgModelBuffer);
             if (bg == 0 || bg > prevBg) {
                 break;
             }
             LOGGER.debug("Background neutralization: {} -> {}", prevBg, bg);
             prevBg = bg;
-            var tmpData = currentData;
-            currentData = scratchData;
-            scratchData = tmpData;
             var tmp = current;
             current = scratch;
             scratch = tmp;
@@ -220,11 +224,9 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         var denoised = current;
         if (pedestral > 0) {
             var halfPedestal = pedestral / 2;
-            RowStrips.forEach(height, (yStart, yEnd) -> {
-                for (var y = yStart; y < yEnd; y++) {
-                    for (var x = 0; x < width; x++) {
-                        denoised.data()[y][x] += halfPedestal;
-                    }
+            denoised.pixels().updateRows((y, row) -> {
+                for (var x = 0; x < width; x++) {
+                    row[x] += halfPedestal;
                 }
             });
         }
@@ -420,29 +422,38 @@ public final class AutohistogramStrategy implements StretchingStrategy {
      * {@code disk}; its prior contents are fully overwritten.
      */
     public static double neutralizeBg(ImageWrapper32 disk, int degree, double sigma, float smoothing, Ellipse e, float[][] backgroundBuffer) {
-        var diskData = disk.data();
-        var optionalModel = BackgroundRemoval.backgroundModel(disk, degree, sigma, backgroundBuffer);
-        if (optionalModel.isPresent()) {
-            var data = optionalModel.get().data();
-            var width = disk.width();
-            var height = disk.height();
-            var sum = RowStrips.sum(height, (yStart, yEnd) -> {
-                double partial = 0;
-                for (var y = yStart; y < yEnd; y++) {
-                    for (var x = 0; x < width; x++) {
-                        var v = data[y][x];
-                        partial += v;
-                        if (e == null || !e.isWithin(x, y)) {
-                            var smoothed = smoothing * v;
-                            diskData[y][x] = Math.clamp(diskData[y][x] - smoothed, 0, MAX_PIXEL_VALUE);
-                        }
+        return neutralizeBg(disk, disk.pixels(), degree, sigma, smoothing, e, backgroundBuffer);
+    }
+
+    private static double neutralizeBg(ImageWrapper32 disk, ImagePlane target, int degree, double sigma, float smoothing, Ellipse e, float[][] backgroundBuffer) {
+        var pixels = disk.pixels();
+        if (!BackgroundRemoval.computeBackgroundModel(disk, degree, sigma, backgroundBuffer, null)) {
+            if (target != pixels) {
+                target.copyFrom(pixels);
+            }
+            return 0;
+        }
+        var width = disk.width();
+        var height = disk.height();
+        var sum = RowStrips.sum(height, (yStart, yEnd) -> {
+            double partial = 0;
+            var row = new float[width];
+            for (var y = yStart; y < yEnd; y++) {
+                var model = backgroundBuffer[y];
+                pixels.getRow(y, row);
+                for (var x = 0; x < width; x++) {
+                    var v = model[x];
+                    partial += v;
+                    if (e == null || !e.isWithin(x, y)) {
+                        var smoothed = smoothing * v;
+                        row[x] = Math.clamp(row[x] - smoothed, 0, MAX_PIXEL_VALUE);
                     }
                 }
-                return partial;
-            });
-            return sum / (width * height);
-        }
-        return 0;
+                target.setRow(y, row);
+            }
+            return partial;
+        });
+        return sum / (width * height);
     }
 
 }

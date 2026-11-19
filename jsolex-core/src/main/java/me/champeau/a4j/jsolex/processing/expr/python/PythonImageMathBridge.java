@@ -29,7 +29,6 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.SourceInfo;
 import me.champeau.a4j.jsolex.processing.sun.workflow.SpectralLinePolynomial;
 import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
 import me.champeau.a4j.jsolex.processing.util.CancellationSupport;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.util.FitsUtils;
@@ -37,6 +36,7 @@ import me.champeau.a4j.jsolex.processing.util.HeliographicProjection;
 import me.champeau.a4j.ser.ImageGeometry;
 import me.champeau.a4j.ser.SerFileReader;
 import me.champeau.a4j.ser.bayer.ImageConverter;
+import me.champeau.a4j.jsolex.processing.util.ImagePlane;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
@@ -151,7 +151,7 @@ public class PythonImageMathBridge implements AutoCloseable {
     @HostAccess.Export
     public void save(ImageWrapper img, String path) {
         var processParams = (ProcessParams) context.get(ProcessParams.class);
-        FitsUtils.writeFitsFile(unwrap(img), Path.of(path).toFile(), processParams);
+        FitsUtils.writeFitsFile(img, Path.of(path).toFile(), processParams);
     }
 
     /**
@@ -175,14 +175,13 @@ public class PythonImageMathBridge implements AutoCloseable {
         var effectiveName = name != null ? name : title;
         switch (value) {
             case ImageWrapper img -> {
-                var unwrapped = unwrap(img);
-                if (unwrapped instanceof ImageWrapper32 mono) {
+                if (img instanceof ImageWrapper32 mono) {
                     imageEmitter.newMonoImage(GeneratedImageKind.IMAGE_MATH, category, title, effectiveName, description, mono);
-                } else if (unwrapped instanceof RGBImage rgb) {
+                } else if (img instanceof RGBImage rgb) {
                     imageEmitter.newColorImage(GeneratedImageKind.IMAGE_MATH, category, title, effectiveName, description,
-                            rgb.width(), rgb.height(), rgb.metadata(), () -> new float[][][]{rgb.r(), rgb.g(), rgb.b()});
+                            rgb.width(), rgb.height(), rgb.metadata(), () -> new float[][][]{rgb.red().toArray(), rgb.green().toArray(), rgb.blue().toArray()});
                 } else {
-                    LOGGER.warn("Unsupported image type for emit: {}", unwrapped.getClass().getName());
+                    LOGGER.warn("Unsupported image type for emit: {}", img.getClass().getName());
                 }
             }
             case FileOutputResult fileOutput -> {
@@ -224,7 +223,7 @@ public class PythonImageMathBridge implements AutoCloseable {
      */
     @HostAccess.Export
     public List<Class<?>> imageTypes() {
-        return List.of(ImageWrapper32.class, RGBImage.class, FileBackedImage.class);
+        return List.of(ImageWrapper32.class, RGBImage.class);
     }
 
     /**
@@ -467,9 +466,8 @@ public class PythonImageMathBridge implements AutoCloseable {
      */
     @HostAccess.Export
     public float[][] getData(ImageWrapper img) {
-        var unwrapped = unwrap(img);
-        if (unwrapped instanceof ImageWrapper32 mono) {
-            return mono.data();
+        if (img instanceof ImageWrapper32 mono) {
+            return mono.pixels().toArray();
         }
         throw new IllegalArgumentException("getData only works on mono images");
     }
@@ -498,9 +496,7 @@ public class PythonImageMathBridge implements AutoCloseable {
      */
     @HostAccess.Export
     public void copyMetadataFrom(ImageWrapper source, ImageWrapper target) {
-        var srcUnwrapped = unwrap(source);
-        var tgtUnwrapped = unwrap(target);
-        tgtUnwrapped.metadata().putAll(srcUnwrapped.metadata());
+        target.metadata().putAll(source.metadata());
     }
 
     // ========== Apache Arrow Zero-Copy Methods ==========
@@ -514,18 +510,21 @@ public class PythonImageMathBridge implements AutoCloseable {
      */
     @HostAccess.Export
     public long[] arrowExport(ImageWrapper img) {
-        var unwrapped = unwrap(img);
-        if (unwrapped instanceof ImageWrapper32 mono) {
+        if (img instanceof ImageWrapper32 mono) {
             return arrowExportMono(mono);
-        } else if (unwrapped instanceof RGBImage rgb) {
+        } else if (img instanceof RGBImage rgb) {
             return arrowExportRGB(rgb);
         }
-        throw new IllegalArgumentException("Unsupported image type: " + unwrapped.getClass().getName());
+        throw new IllegalArgumentException("Unsupported image type: " + img.getClass().getName());
     }
 
     private long[] arrowExportMono(ImageWrapper32 mono) {
-        return arrowExport(mono.width(), mono.height(), 1, pixels -> {
-            for (float[] row : mono.data()) {
+        int width = mono.width();
+        return arrowExport(width, mono.height(), 1, pixels -> {
+            var plane = mono.pixels();
+            var row = new float[width];
+            for (int y = 0; y < mono.height(); y++) {
+                plane.getRow(y, row);
                 pixels.put(row);
             }
         });
@@ -536,10 +535,13 @@ public class PythonImageMathBridge implements AutoCloseable {
         return arrowExport(width, rgb.height(), 3, pixels -> {
             // Interleave RGB data: [r0, g0, b0, r1, g1, b1, ...]
             var line = new float[3 * width];
+            var r = new float[width];
+            var g = new float[width];
+            var b = new float[width];
             for (int y = 0; y < rgb.height(); y++) {
-                var r = rgb.r()[y];
-                var g = rgb.g()[y];
-                var b = rgb.b()[y];
+                rgb.red().getRow(y, r);
+                rgb.green().getRow(y, g);
+                rgb.blue().getRow(y, b);
                 for (int x = 0; x < width; x++) {
                     line[3 * x] = r[x];
                     line[3 * x + 1] = g[x];
@@ -590,11 +592,13 @@ public class PythonImageMathBridge implements AutoCloseable {
     @HostAccess.Export
     public ImageWrapper32 arrowImportMono(int width, int height, long arrayAddress, long schemaAddress) {
         return arrowImport(width, height, 1, arrayAddress, schemaAddress, pixels -> {
-            var result = new float[height][width];
-            for (float[] row : result) {
+            var result = ImagePlane.allocate(width, height);
+            var row = new float[width];
+            for (int y = 0; y < height; y++) {
                 pixels.get(row);
+                result.setRow(y, row);
             }
-            return new ImageWrapper32(width, height, result, new HashMap<>());
+            return new ImageWrapper32(result, new HashMap<>());
         });
     }
 
@@ -610,19 +614,25 @@ public class PythonImageMathBridge implements AutoCloseable {
     @HostAccess.Export
     public RGBImage arrowImportRGB(int width, int height, long arrayAddress, long schemaAddress) {
         return arrowImport(width, height, 3, arrayAddress, schemaAddress, pixels -> {
-            var r = new float[height][width];
-            var g = new float[height][width];
-            var b = new float[height][width];
+            var red = ImagePlane.allocate(width, height);
+            var green = ImagePlane.allocate(width, height);
+            var blue = ImagePlane.allocate(width, height);
+            var r = new float[width];
+            var g = new float[width];
+            var b = new float[width];
             var line = new float[3 * width];
             for (int y = 0; y < height; y++) {
                 pixels.get(line);
                 for (int x = 0; x < width; x++) {
-                    r[y][x] = line[3 * x];
-                    g[y][x] = line[3 * x + 1];
-                    b[y][x] = line[3 * x + 2];
+                    r[x] = line[3 * x];
+                    g[x] = line[3 * x + 1];
+                    b[x] = line[3 * x + 2];
                 }
+                red.setRow(y, r);
+                green.setRow(y, g);
+                blue.setRow(y, b);
             }
-            return new RGBImage(width, height, r, g, b, new HashMap<>());
+            return new RGBImage(red, green, blue, new HashMap<>());
         });
     }
 
@@ -1361,13 +1371,12 @@ public class PythonImageMathBridge implements AutoCloseable {
     private static Object wrapImages(String functionName, Object result) {
         var transform = "Python: " + functionName;
         if (result instanceof ImageWrapper image) {
-            return FileBackedImage.wrap(TransformationHistory.recordTransform(image, transform));
+            return TransformationHistory.recordTransform(image, transform);
         }
         if (result instanceof List<?> list && !list.isEmpty() && list.stream().allMatch(ImageWrapper.class::isInstance)) {
             return list.stream()
                     .map(ImageWrapper.class::cast)
                     .map(image -> TransformationHistory.recordTransform(image, transform))
-                    .map(FileBackedImage::wrap)
                     .toList();
         }
         return result;
@@ -1379,13 +1388,6 @@ public class PythonImageMathBridge implements AutoCloseable {
         } catch (IllegalArgumentException e) {
             return null;
         }
-    }
-
-    private ImageWrapper unwrap(ImageWrapper img) {
-        if (img instanceof FileBackedImage fileBacked) {
-            return fileBacked.unwrapToMemory();
-        }
-        return img;
     }
 
     @SuppressWarnings("unchecked")

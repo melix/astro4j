@@ -296,7 +296,7 @@ public abstract class PythonStubsGenerator extends AbstractBuiltinFunctionGenera
 
         out.println("def getData(img: ImageWrapper) -> List[List[float]]:");
         out.println("    \"\"\"");
-        out.println("    Get the raw pixel data from an image as a 2D array.");
+        out.println("    Get a copy of the pixel data of an image as a 2D array.");
         out.println("    For use with NumPy: np.array(jsolex.getData(img))");
         out.println("    \"\"\"");
         out.println("    ...");

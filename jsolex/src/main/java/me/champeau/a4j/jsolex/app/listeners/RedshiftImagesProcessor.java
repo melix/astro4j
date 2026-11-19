@@ -44,7 +44,6 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.util.AnimationFormat;
 import me.champeau.a4j.jsolex.processing.util.Constants;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -479,8 +478,6 @@ public class RedshiftImagesProcessor {
                     broadcaster.broadcast(progressOperation.update(progress.incrementAndGet() / totalImages));
                     return annotated;
                 })
-                .map(FileBackedImage::wrap)
-                .map(ImageWrapper.class::cast)
                 .toList();
             broadcaster.broadcast(progressOperation.complete());
         } else {
@@ -667,11 +664,11 @@ public class RedshiftImagesProcessor {
                 var r = rgb[0];
                 var g = rgb[1];
                 var b = rgb[2];
+                var line = new float[width];
 
                 for (int i = 0; i < snapshotsToDisplay.size(); i++) {
                     var snap = snapshotsToDisplay.get(i);
-                    var mono = (ImageWrapper32) snap.unwrapToMemory();
-                    var data = mono.data();
+                    var pixels = ((ImageWrapper32) snap).pixels();
                     var row = i / cols;
                     var col = i % cols;
                     var yOffset = row * height;
@@ -684,8 +681,9 @@ public class RedshiftImagesProcessor {
                     var legendOverlay = legendImage.getData();
                     var legendPixel = new int[1];
                     for (int y = 0; y < height; y++) {
+                        pixels.getRow(y, 0, line, 0, width);
                         for (int x = 0; x < width; x++) {
-                            var gray = data[y][x];
+                            var gray = line[x];
                             legendOverlay.getPixel(x, y, legendPixel);
                             if (legendPixel[0] > 0) {
                                 r[yOffset + y][xOffset + x] = Constants.MAX_PIXEL_VALUE * annotationColor[0] / 255;

@@ -67,7 +67,7 @@ public final class SphericalTomographyExtractor {
         var maxAbsShift = Math.max(Math.abs(minShift), Math.abs(maxShift));
 
         var shells = sortedShifts.stream().map(pixelShift -> {
-                    var image = shiftImages.get(pixelShift).unwrapToMemory();
+                    var image = shiftImages.get(pixelShift);
                     if (image instanceof ImageWrapper32 i32) {
                         var shift = pixelShift.pixelShift();
                         var wavelengthOffset = shift * dispersion.angstromsPerPixel();
@@ -137,17 +137,11 @@ public final class SphericalTomographyExtractor {
             ClaheParams claheParams,
             AutoStretchParams autoStretchParams
     ) {
-        if (!(original.unwrapToMemory() instanceof ImageWrapper32(var width, var height, var data, var metadata))) {
+        if (!(original instanceof ImageWrapper32 mono)) {
             return original;
         }
 
-        // Create a deep copy of the image data
-        var copyData = new float[height][width];
-        for (var y = 0; y < height; y++) {
-            System.arraycopy(data[y], 0, copyData[y], 0, width);
-        }
-
-        var copy = new ImageWrapper32(width, height, copyData, metadata);
+        var copy = new ImageWrapper32(mono.pixels().copy(), mono.metadata());
 
         StretchRecipe.forContrastEnhancement(contrastEnhancement, claheParams, autoStretchParams).toStrategy().stretch(copy);
 

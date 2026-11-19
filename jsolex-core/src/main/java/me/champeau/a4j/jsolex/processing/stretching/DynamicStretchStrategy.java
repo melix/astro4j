@@ -46,7 +46,7 @@ public final class DynamicStretchStrategy implements StretchingStrategy {
         double a = 0.8*findLinearGrowthLimit(image);
         double linearSlope = target / a;
         double compressedSlope = (MAX_PIXEL_VALUE - target) / (MAX_PIXEL_VALUE - a);
-        var data = image.data();
+        var data = image.pixels().toArray();
         var observations = new ArrayList<WeightedObservedPoint>(65536);
         for (int i = 0; i < 65536; i++) {
             observations.add(new WeightedObservedPoint(1.0, i, i < a ? linearSlope * i : target + compressedSlope * (i - a)));
@@ -63,11 +63,12 @@ public final class DynamicStretchStrategy implements StretchingStrategy {
                 }
             }
         });
+        image.pixels().copyFrom(data);
         RangeExpansionStrategy.DEFAULT.stretch(image);
     }
 
     private int findLinearGrowthLimit(ImageWrapper32 image) {
-        var histogram = Histogram.of(image.data(), 256);
+        var histogram = Histogram.of(image.pixels().toArray(), 256);
         var values = histogram.values();
         var observations = new ArrayList<WeightedObservedPoint>(2 * FIT_RANGE + 1);
         for (int i = Math.max(0, source - FIT_RANGE); i < Math.min(255, source + FIT_RANGE); i++) {

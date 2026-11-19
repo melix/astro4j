@@ -24,7 +24,6 @@ import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.util.Constants;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.jsolex.processing.util.Wavelen;
@@ -55,13 +54,10 @@ public class Colorize extends AbstractFunctionImpl {
         }
         var profileAsNumber = getArgument(Object.class, arguments, "profile");
         if (profileAsNumber.orElse(null) instanceof Number referenceWl) {
-            if (arg instanceof FileBackedImage fileBackedImage) {
-                arg = fileBackedImage.unwrapToMemory();
-            }
             if (arg instanceof ImageWrapper32 mono) {
                 return RGBImage.fromMono(mono, data -> {
                     var ray = new SpectralRay("tmp", null, Wavelen.ofAngstroms(referenceWl.doubleValue()), true, List.of());
-                    return doColorize(mono.width(), mono.height(), data.data(), ray.toRGB());
+                    return doColorize(mono.width(), mono.height(), data.pixels().toArray(), ray.toRGB());
                 });
             }
         }
@@ -73,28 +69,22 @@ public class Colorize extends AbstractFunctionImpl {
             int gOut = intArg(arguments, "gOut", 255);
             int bIn = intArg(arguments, "bIn", 0);
             int bOut = intArg(arguments, "bOut", 255);
-            if (arg instanceof FileBackedImage fileBackedImage) {
-                arg = fileBackedImage.unwrapToMemory();
-            }
             if (arg instanceof ImageWrapper32 mono) {
                 return RGBImage.fromMono(mono, data -> {
                     var curve = new ColorCurve("adhoc", rIn, rOut, gIn, gOut, bIn, bOut);
-                    return doColorize(mono.width(), mono.height(), data.data(), curve);
+                    return ImageUtils.convertToRGB(curve, data.pixels().toArray());
                 });
             }
         } else {
-            if (arg instanceof FileBackedImage fileBackedImage) {
-                arg = fileBackedImage.unwrapToMemory();
-            }
             var rays = SpectralRayIO.loadDefaults();
             for (SpectralRay ray : rays) {
                 if (ray.label().equalsIgnoreCase(profile) && (arg instanceof ImageWrapper32 mono)) {
                     var curve = ray.colorCurve();
                     if (curve != null) {
-                        return RGBImage.fromMono(mono, data -> doColorize(mono.width(), mono.height(), data.data(), curve));
+                        return RGBImage.fromMono(mono, data -> ImageUtils.convertToRGB(curve, data.pixels().toArray()));
                     } else if (ray.wavelength().nanos() != 0) {
                         var rgb = ray.toRGB();
-                        return RGBImage.fromMono(mono, data -> doColorize(mono.width(), mono.height(), data.data(), rgb));
+                        return RGBImage.fromMono(mono, data -> doColorize(mono.width(), mono.height(), data.pixels().toArray(), rgb));
                     }
                 }
             }
@@ -103,22 +93,10 @@ public class Colorize extends AbstractFunctionImpl {
         throw new IllegalArgumentException("colorize first argument must be an image or a list of images");
     }
 
-    private static float[][][] doColorize(int width, int height, float[][] data, ColorCurve curve) {
-        var copy = new float[height][width];
-        for (int y = 0; y < height; y++) {
-            float[] line = data[y];
-            System.arraycopy(line, 0, copy[y], 0, line.length);
-        }
-        return ImageUtils.convertToRGB(curve, copy);
-    }
-
     public static float[][][] doColorize(int width, int height, float[][] mono, int[] rgb) {
-        var copy = new float[height][width];
-        for (int y = 0; y < mono.length; y++) {
-            float[] line = mono[y];
-            System.arraycopy(line, 0, copy[y], 0, line.length);
-        }
-        new GammaStrategy(1.2).stretch(new ImageWrapper32(width, height, copy, Map.of()));
+        var stretched = new ImageWrapper32(width, height, mono, Map.of());
+        new GammaStrategy(1.2).stretch(stretched);
+        var copy = stretched.pixels().toArray();
         var r = new float[height][width];
         var g = new float[height][width];
         var b = new float[height][width];
@@ -138,6 +116,6 @@ public class Colorize extends AbstractFunctionImpl {
         new LinearStrechingStrategy(0, 0.9f * Constants.MAX_PIXEL_VALUE).stretch(
             rgbImage
         );
-        return new float[][][]{r, g, b};
+        return new float[][][]{rgbImage.red().toArray(), rgbImage.green().toArray(), rgbImage.blue().toArray()};
     }
 }

@@ -87,6 +87,7 @@ jlink {
 application {
     mainModule.set("me.champeau.a4j.jsolex")
     mainClass.set("me.champeau.a4j.jsolex.app.JSolEx")
+    applicationDefaultJvmArgs += listOf("--enable-native-access=me.champeau.a4j.jsolex.core")
 }
 
 astro4j {

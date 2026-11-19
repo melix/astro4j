@@ -161,21 +161,22 @@ public class JaggingCorrection {
     }
 
     public static void applyCorrection(ImageWrapper32 image, JaggingModel model) {
-        var data = image.data();
+        var pixels = image.pixels();
         var polynomials = model.polynomials();
+        var line = new float[image.width()];
         var corrected = new float[image.width()];
-        for (var y = 0; y < data.length && y < polynomials.length; y++) {
+        for (var y = 0; y < image.height() && y < polynomials.length; y++) {
             var poly = polynomials[y];
             if (poly == null) {
                 continue;
             }
-            var line = data[y];
+            pixels.getRow(y, line);
             for (var x = 0; x < line.length; x++) {
                 double srcX = poly.applyAsDouble(x);
                 float value = srcX == x ? line[x] : ImageInterpolation.lanczos1D(line, srcX);
                 corrected[x] = Math.clamp(value, 0, Constants.MAX_PIXEL_VALUE);
             }
-            System.arraycopy(corrected, 0, line, 0, line.length);
+            pixels.setRow(y, corrected);
         }
     }
 

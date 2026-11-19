@@ -23,6 +23,7 @@ import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.regression.Ellipse;
 
+import java.util.LinkedHashMap;
 import java.util.function.Supplier;
 
 public class CoronagraphTask extends AbstractTask<ImageWrapper32> {
@@ -44,14 +45,20 @@ public class CoronagraphTask extends AbstractTask<ImageWrapper32> {
         // The disk-fill, background-removal and stretching steps below mutate
         // their target buffer in place. The base class no longer provides a
         // defensive copy, so we make our own owned copy here.
-        var work = workImage.copy();
-        DiskFill.doFillWithGradient(fitting, work.data(), 0);
+        var data = workImage.pixels().toArray();
+        DiskFill.doFillWithGradient(fitting, data, 0);
+        var ellipse = workImage.findMetadata(Ellipse.class).orElse(null);
+        var neutralized = new float[height][width];
         for (int i = 0; i < 2; i++) {
-            work = BackgroundRemoval.neutralizeBackground(work);
+            if (BackgroundRemoval.blindBackgroundNeutralization(data, neutralized, ellipse).isPresent()) {
+                var previous = data;
+                data = neutralized;
+                neutralized = previous;
+            }
         }
-        var buffer = work.data();
+        var work = new ImageWrapper32(width, height, data, new LinkedHashMap<>(workImage.metadata()));
         new ArcsinhStretchingStrategy(0, 50, 50).stretch(work);
-        return new ImageWrapper32(width, height, buffer, work.metadata());
+        return work;
     }
 
 }

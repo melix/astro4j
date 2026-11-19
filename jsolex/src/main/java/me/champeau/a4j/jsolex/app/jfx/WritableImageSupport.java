@@ -17,7 +17,6 @@ package me.champeau.a4j.jsolex.app.jfx;
 
 import javafx.scene.image.PixelFormat;
 import javafx.scene.image.WritableImage;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
@@ -28,15 +27,15 @@ public class WritableImageSupport {
 
     public static WritableImage asWritable(ImageWrapper source) {
         return switch (source) {
-            case FileBackedImage fbi -> asWritable(fbi.unwrapToMemory());
             case ImageWrapper32 mono -> {
                 var image = new WritableImage(mono.width(), mono.height());
                 var writer = image.getPixelWriter();
-                float[][] data = mono.data();
+                var row = new float[mono.width()];
                 byte[] pixels = new byte[3 * mono.width() * mono.height()];
                 for (int y = 0; y < mono.height(); y++) {
+                    mono.pixels().getRow(y, row);
                     for (int x = 0; x < mono.width(); x++) {
-                        int value = (int) data[y][x];
+                        int value = (int) row[x];
                         var v = (byte) (value >> 8);
                         var offset = 3 * (y * mono.width() + x);
                         pixels[offset] = v;
@@ -50,15 +49,18 @@ public class WritableImageSupport {
             case RGBImage rgb -> {
                 var image = new WritableImage(rgb.width(), rgb.height());
                 var writer = image.getPixelWriter();
-                float[][] r = rgb.r();
-                float[][] g = rgb.g();
-                float[][] b = rgb.b();
+                var r = new float[rgb.width()];
+                var g = new float[rgb.width()];
+                var b = new float[rgb.width()];
                 byte[] pixels = new byte[3 * rgb.width() * rgb.height()];
                 for (int y = 0; y < rgb.height(); y++) {
+                    rgb.red().getRow(y, r);
+                    rgb.green().getRow(y, g);
+                    rgb.blue().getRow(y, b);
                     for (int x = 0; x < rgb.width(); x++) {
-                        int vr = (int) r[y][x];
-                        int vg = (int) g[y][x];
-                        int vb = (int) b[y][x];
+                        int vr = (int) r[x];
+                        int vg = (int) g[x];
+                        int vb = (int) b[x];
                         int offset = 3 * (y * rgb.width() + x);
                         pixels[offset] = (byte) (vr >> 8);
                         pixels[offset + 1] = (byte) (vg >> 8);

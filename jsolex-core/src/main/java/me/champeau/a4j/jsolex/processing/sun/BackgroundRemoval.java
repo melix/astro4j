@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.sun;
 
 import me.champeau.a4j.jsolex.processing.util.Constants;
+import me.champeau.a4j.jsolex.processing.util.ImagePlane;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.RowStrips;
 import me.champeau.a4j.math.regression.Ellipse;
@@ -31,7 +32,9 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalDouble;
 import java.util.function.BiPredicate;
+import java.util.function.DoubleSupplier;
 
 import static me.champeau.a4j.jsolex.processing.sun.ImageUtils.bilinearSmoothing;
 import static me.champeau.a4j.jsolex.processing.sun.workflow.AnalysisUtils.estimateBackground;
@@ -97,17 +100,18 @@ public class BackgroundRemoval {
         if (maxIterations <= 0) {
             return image;
         }
-        // Reuse a single output buffer across iterations: each call reads from
-        // the previous iteration's result (which lives in `buffer`) and writes
-        // back into the same `buffer`. This is safe because the underlying
-        // ops tolerate same-array input and output. Saves N-1 large
-        // allocations per call vs the previous fresh-buffer-per-iteration.
         var buffer = new float[image.height()][image.width()];
-        var img = blindBackgroundNeutralization(image, buffer).neutralized();
-        for (int i = 1; i < maxIterations; i++) {
-            img = blindBackgroundNeutralization(img, buffer).neutralized();
+        var neutralized = false;
+        for (int i = 0; i < maxIterations; i++) {
+            var averageBackground = neutralized
+                    ? blindBackgroundNeutralization(buffer, buffer, image.findMetadata(Ellipse.class).orElse(null))
+                    : blindBackgroundNeutralization(image, buffer);
+            neutralized = neutralized || averageBackground.isPresent();
         }
-        return img;
+        if (!neutralized) {
+            return image;
+        }
+        return new ImageWrapper32(image.width(), image.height(), buffer, new LinkedHashMap<>(image.metadata()));
     }
 
     /**
@@ -129,38 +133,56 @@ public class BackgroundRemoval {
      * @return the neutralization result containing the processed image and average background level
      */
     public static BlindBackgroundNeutralizationResult blindBackgroundNeutralization(ImageWrapper32 image) {
-        return blindBackgroundNeutralization(image, new float[image.height()][image.width()]);
+        var output = new float[image.height()][image.width()];
+        var averageBackground = blindBackgroundNeutralization(image, output);
+        if (averageBackground.isEmpty()) {
+            return new BlindBackgroundNeutralizationResult(image, 0);
+        }
+        var neutralized = new ImageWrapper32(image.width(), image.height(), output, new LinkedHashMap<>(image.metadata()));
+        return new BlindBackgroundNeutralizationResult(neutralized, averageBackground.getAsDouble());
+    }
+
+    private static OptionalDouble blindBackgroundNeutralization(ImageWrapper32 image, float[][] output) {
+        var pixels = image.pixels();
+        var ellipse = image.findMetadata(Ellipse.class).orElse(null);
+        var outsideDisk = ellipse == null ? 0 : estimateBackground(image, ellipse);
+        return blindBackgroundNeutralization(() -> copyWithoutZeroPixels(pixels, output), output, ellipse, () -> outsideDisk);
     }
 
     /**
-     * Same as {@link #blindBackgroundNeutralization(ImageWrapper32)} but uses a
-     * caller-supplied output buffer for the working image. The buffer is reused
-     * across all retry rounds (bins=64..1024) — the previous attempt's contents
-     * are simply overwritten by the next round's {@code removeZeroPixels} pass.
-     * The buffer may alias {@code image.data()}.
+     * Performs blind background neutralization on pixels. The output array may be the
+     * source array itself, so that successive passes can work in place on a single buffer.
+     *
+     * @param source  the pixels to process
+     * @param output  the array which receives the neutralized pixels
+     * @param ellipse the solar disk, if known
+     * @return the average background level, or empty if the background could not be
+     * neutralized, in which case the output array holds the result of the last, rejected attempt
      */
-    public static BlindBackgroundNeutralizationResult blindBackgroundNeutralization(ImageWrapper32 image, float[][] outputBuffer) {
-        int bins = 64;
-        var neut = blindBackgroundNeutralization2(image, bins, outputBuffer);
-        while (neut.isEmpty() && bins < 1024) {
-            bins *= 2;
-            neut = blindBackgroundNeutralization2(image, bins, outputBuffer);
-        }
-        return neut.orElse(new BlindBackgroundNeutralizationResult(image, 0));
+    public static OptionalDouble blindBackgroundNeutralization(float[][] source, float[][] output, Ellipse ellipse) {
+        return blindBackgroundNeutralization(() -> replaceZeroPixels(source, output), output, ellipse, () -> estimateBackground(source, ellipse));
     }
 
-    private static Optional<BlindBackgroundNeutralizationResult> blindBackgroundNeutralization2(ImageWrapper32 image, int bins, float[][] outputBuffer) {
-        var copy = removeZeroPixels(image, outputBuffer);
-        var data = copy.data();
-        var background = 0.8 * estimateBackgroundLevel(copy.data(), bins);
-        LOGGER.debug("Background neutralization level: {}", background);
-        var ellipse = image.findMetadata(Ellipse.class).orElse(null);
-        if (ellipse != null) {
-            background = 0.8 * estimateBackground(image, ellipse);
+    private static OptionalDouble blindBackgroundNeutralization(Runnable reset, float[][] data, Ellipse ellipse, DoubleSupplier outsideDisk) {
+        int bins = 64;
+        var averageBackground = blindBackgroundNeutralization(reset, data, ellipse, outsideDisk, bins);
+        while (averageBackground.isEmpty() && bins < 1024) {
+            bins *= 2;
+            averageBackground = blindBackgroundNeutralization(reset, data, ellipse, outsideDisk, bins);
         }
+        return averageBackground;
+    }
+
+    private static OptionalDouble blindBackgroundNeutralization(Runnable reset, float[][] data, Ellipse ellipse, DoubleSupplier outsideDisk, int bins) {
+        reset.run();
+        var background = 0.8 * estimateBackgroundLevel(data, bins);
+        LOGGER.debug("Background neutralization level: {}", background);
+        if (ellipse != null) {
+            background = 0.8 * outsideDisk.getAsDouble();
+        }
+        var height = data.length;
+        var width = data[0].length;
         // Find samples for 2d order regression
-        var height = image.height();
-        var width = image.width();
         int estimatedSamples = ((width / 8) + 1) * ((height / 8) + 1);
         List<double[]> samples = new ArrayList<>(estimatedSamples);
         List<Double> values = new ArrayList<>(estimatedSamples);
@@ -183,7 +205,7 @@ public class BackgroundRemoval {
 
         if (samples.size() < 16) {
             LOGGER.warn(message("cannot.perform.bg.neutralization"));
-            return Optional.of(new BlindBackgroundNeutralizationResult(copy, background));
+            return OptionalDouble.of(background);
         }
 
         // Perform 2nd order fitting
@@ -213,9 +235,9 @@ public class BackgroundRemoval {
         }
         if (avgBackground > 8 * background) {
             // something went very wrong, probably bad estimate of the background
-            return Optional.empty();
+            return OptionalDouble.empty();
         }
-        return Optional.of(new BlindBackgroundNeutralizationResult(copy, avgBackground));
+        return OptionalDouble.of(avgBackground);
     }
 
     /**
@@ -236,7 +258,8 @@ public class BackgroundRemoval {
      * must have dimensions {@code [image.height()][image.width()]}; every cell is
      * overwritten by {@code generateBackgroundCPU} so prior contents are irrelevant.
      * Use this overload when the caller can pool/reuse the buffer to avoid the
-     * per-call {@code float[h][w]} allocation.
+     * per-call {@code float[h][w]} allocation. The returned image holds a copy
+     * of the buffer.
      */
     public static Optional<ImageWrapper32> backgroundModel(ImageWrapper32 image, int degree, double sigma, float[][] background) {
         return backgroundModel(image, degree, sigma, background, null);
@@ -256,7 +279,24 @@ public class BackgroundRemoval {
      * @return the background model if sufficient samples are available, empty otherwise
      */
     public static Optional<ImageWrapper32> backgroundModel(ImageWrapper32 image, int degree, double sigma, float[][] background, BiPredicate<Integer, Integer> mask) {
-        var data = image.data();
+        if (computeBackgroundModel(image, degree, sigma, background, mask)) {
+            return Optional.of(new ImageWrapper32(image.width(), image.height(), background, new HashMap<>(image.metadata())));
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Computes the background model of an image into the given buffer, without creating an image.
+     *
+     * @param image      the image to process
+     * @param degree     the polynomial degree for the model
+     * @param sigma      the sigma threshold for outlier filtering
+     * @param background the output buffer, of dimensions {@code [image.height()][image.width()]}
+     * @param mask       selects the pixels to sample, or {@code null} to sample outside the disk
+     * @return true if the buffer holds the model, false if there were not enough samples
+     */
+    public static boolean computeBackgroundModel(ImageWrapper32 image, int degree, double sigma, float[][] background, BiPredicate<Integer, Integer> mask) {
+        var pixels = image.pixels();
         int height = image.height();
         int width = image.width();
         var ellipse = image.findMetadata(Ellipse.class).orElse(null);
@@ -272,7 +312,7 @@ public class BackgroundRemoval {
             for (int x = 0; x < width; x += step) {
                 var sampled = mask != null ? mask.test(x, y) : (ellipse == null || !ellipse.isWithin(x, y));
                 if (sampled) {
-                    double z = data[y][x];
+                    double z = pixels.get(x, y);
                     var terms = generatePolynomialTerms(x, y, width, height, degree);
                     xMatrix.add(terms);
                     yVector.add(z);
@@ -281,7 +321,7 @@ public class BackgroundRemoval {
         }
         if (yVector.isEmpty()) {
             LOGGER.debug("No sample selected for background model");
-            return Optional.empty();
+            return false;
         }
 
         // Filter samples using sigma
@@ -310,7 +350,7 @@ public class BackgroundRemoval {
         // Check for sufficient samples
         if (xMatrix.size() < numTerms) {
             LOGGER.debug("Insufficient samples: {} < {} for background model", xMatrix.size(), numTerms);
-            return Optional.empty();
+            return false;
         }
 
         var mX = MatrixUtils.createRealMatrix(xMatrix.toArray(new double[0][]));
@@ -328,7 +368,7 @@ public class BackgroundRemoval {
         var coefficients = solver.solve(mXty);
 
         generateBackgroundCPU(background, coefficients, width, height, degree);
-        return Optional.of(new ImageWrapper32(width, height, background, new HashMap<>(image.metadata())));
+        return true;
     }
 
     private static double[] generatePolynomialTermsDeg1(double x, double y, int width, int height) {
@@ -514,22 +554,23 @@ public class BackgroundRemoval {
      * @return a copy of the image with zero pixels replaced by the minimal non-zero value
      */
     public static ImageWrapper32 removeZeroPixels(ImageWrapper32 image) {
-        return removeZeroPixels(image, new float[image.height()][image.width()]);
+        var data = image.pixels().toArray();
+        replaceZeroPixels(data, data);
+        return new ImageWrapper32(image.width(), image.height(), data, new LinkedHashMap<>(image.metadata()));
     }
 
-    /**
-     * Same as {@link #removeZeroPixels(ImageWrapper32)} but writes the result
-     * into a caller-supplied {@code float[height][width]} output buffer instead
-     * of allocating one. The output buffer's prior contents are fully
-     * overwritten. {@code output} may alias {@code image.data()} (the function
-     * tolerates same-array input and output).
-     */
-    public static ImageWrapper32 removeZeroPixels(ImageWrapper32 image, float[][] output) {
-        var src = image.data();
-        int height = src.length;
-        int width = src[0].length;
+    private static void copyWithoutZeroPixels(ImagePlane source, float[][] output) {
+        for (int y = 0; y < output.length; y++) {
+            source.getRow(y, output[y]);
+        }
+        replaceZeroPixels(output, output);
+    }
+
+    private static void replaceZeroPixels(float[][] source, float[][] output) {
+        int height = source.length;
+        int width = source[0].length;
         var minValue = Float.MAX_VALUE;
-        for (var line : src) {
+        for (var line : source) {
             for (float v : line) {
                 if (v >= 1 && v < minValue) {
                     minValue = v;
@@ -537,14 +578,13 @@ public class BackgroundRemoval {
             }
         }
         for (int y = 0; y < height; y++) {
-            var srcLine = src[y];
-            var dstLine = output[y];
+            var sourceLine = source[y];
+            var outputLine = output[y];
             for (int x = 0; x < width; x++) {
-                float v = srcLine[x];
-                dstLine[x] = (v == 0) ? minValue : v;
+                float v = sourceLine[x];
+                outputLine[x] = (v == 0) ? minValue : v;
             }
         }
-        return new ImageWrapper32(width, height, output, new LinkedHashMap<>(image.metadata()));
     }
 
     /**

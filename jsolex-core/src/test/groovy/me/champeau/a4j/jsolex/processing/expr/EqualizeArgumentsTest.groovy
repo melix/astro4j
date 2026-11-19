@@ -18,7 +18,6 @@ package me.champeau.a4j.jsolex.processing.expr
 import me.champeau.a4j.jsolex.expr.BuiltinFunction
 import me.champeau.a4j.jsolex.processing.expr.impl.AdjustContrast
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster
-import me.champeau.a4j.jsolex.processing.util.ImageWrapper
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32
 import spock.lang.Specification
 import spock.lang.Subject
@@ -99,6 +98,6 @@ class EqualizeArgumentsTest extends Specification {
     }
 
     private static float pixel(Object img) {
-        ((ImageWrapper32) ((ImageWrapper) img).unwrapToMemory()).data()[0][0]
+        ((ImageWrapper32) img).pixels().get(0, 0)
     }
 }

@@ -69,6 +69,7 @@ class JaggingCorrectionTest extends Specification {
         and: "the disk borders are realigned with the ellipse"
         // a few sigma-clipped lines receive an interpolated correction which can be
         // off by several pixels, so the alignment is checked with the RMS error
+        def corrected = image.pixels().toArray()
         def squares = 0d
         def count = 0
         for (int y = 400; y < 800; y++) {
@@ -76,7 +77,7 @@ class JaggingCorrectionTest extends Specification {
             def x1 = Math.min(pair.a(), pair.b())
             int edge = -1
             for (int x = 0; x < width; x++) {
-                if (data[y][x] > 15000f) {
+                if (corrected[y][x] > 15000f) {
                     edge = x
                     break
                 }

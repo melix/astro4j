@@ -55,7 +55,7 @@ public final class GammaStrategy implements StretchingStrategy {
     }
 
     void stretchCPU(ImageWrapper32 image) {
-        var data = image.data();
+        var data = image.pixels().toArray();
         var max = StretchingUtils.max(data, 1e-7f);
         int width = image.width();
         var height = image.height();
@@ -69,17 +69,18 @@ public final class GammaStrategy implements StretchingStrategy {
                 }
             }
         });
+        image.pixels().copyFrom(data);
     }
 
     void stretchGPU(OpenCLContext context, ImageWrapper32 image) {
-        var data = image.data();
+        var pixels = image.pixels();
         int width = image.width();
         int height = image.height();
         int n = width * height;
 
         var flatData = new float[n];
         for (int y = 0; y < height; y++) {
-            System.arraycopy(data[y], 0, flatData, y * width, width);
+            pixels.getRow(y, 0, flatData, y * width, width);
         }
 
         int numGroups = (n + WORK_GROUP_SIZE - 1) / WORK_GROUP_SIZE;
@@ -121,7 +122,7 @@ public final class GammaStrategy implements StretchingStrategy {
         });
 
         for (int y = 0; y < height; y++) {
-            System.arraycopy(flatData, y * width, data[y], 0, width);
+            pixels.setRow(y, 0, flatData, y * width, width);
         }
     }
 

@@ -85,7 +85,6 @@ import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.jsolex.processing.util.Constants;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.ImageSaver;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
@@ -143,7 +142,7 @@ public class ImageViewer implements WithRootNode {
     private StretchStepEditor stretchEditor;
     private boolean fitUntilUserZooms;
     private boolean unsavedChanges = true;
-    private FileBackedImage image;
+    private ImageWrapper image;
     private File imageFile;
     private GeneratedImageKind kind;
     private String baseName;
@@ -229,13 +228,7 @@ public class ImageViewer implements WithRootNode {
         BorderPane.setMargin(stretchingParams, new Insets(0, 0, 8, 0));
         this.root = pane;
         this.stretchedImageDebounce = new PauseTransition(Duration.seconds(10));
-        this.stretchedImageDebounce.setOnFinished(e -> {
-            stretchCache.set(null);
-            var current = stretchedImage.get();
-            if (current != null && !(current instanceof FileBackedImage)) {
-                stretchedImage.compareAndSet(current, FileBackedImage.wrap(current));
-            }
-        });
+        this.stretchedImageDebounce.setOnFinished(e -> stretchCache.set(null));
     }
 
     /**
@@ -304,8 +297,7 @@ public class ImageViewer implements WithRootNode {
             });
         }
         if (image != null) {
-            var wrapped = FileBackedImage.wrap(image);
-            this.image = wrapped;
+            this.image = image;
             initialRecipe = computeInitialRecipe();
             useRecipe(initialRecipe, initialRecipe.steps().size() - 1);
             this.imageFile = new File(imageName.getParentFile(), baseName + "_" + imageName.getName() + imageDisplayExtension(params));
@@ -439,7 +431,7 @@ public class ImageViewer implements WithRootNode {
             image.findMetadata(SolarParameters.class).ifPresent(solarParameters -> {
                 EventHandler<ActionEvent> handler = e -> BackgroundOperations.async(() -> {
                     var prepared = getStretchedImage().copy();
-                    if (prepared.unwrapToMemory() instanceof ImageWrapper32 mono) {
+                    if (prepared instanceof ImageWrapper32 mono) {
                         prepared = RGBImage.toRGB(mono);
                     }
                     var transformedEllipse = prepared.findMetadata(Ellipse.class).orElse(ellipse);
@@ -486,7 +478,7 @@ public class ImageViewer implements WithRootNode {
         image.findMetadata(Ellipse.class).ifPresent(ignored -> {
             EventHandler<ActionEvent> handler = evt -> BackgroundOperations.async(() -> {
                 var sourceDir = imageFile != null ? imageFile.getParentFile() : null;
-                SingleImage3DViewer.show(getStretchedImage().unwrapToMemory(), title, processParams, sourceDir);
+                SingleImage3DViewer.show(getStretchedImage(), title, processParams, sourceDir);
             });
             var targetNode = target.get();
             if (targetNode instanceof Button button) {
@@ -514,8 +506,7 @@ public class ImageViewer implements WithRootNode {
     }
 
     private void recordImage(String baseName, ImageWrapper image) {
-        var fileBackedImage = FileBackedImage.wrap(image);
-        imageHistory.add(new ImageState(processParams, baseName, fileBackedImage, imageFile));
+        imageHistory.add(new ImageState(processParams, baseName, image, imageFile));
     }
 
     private String imageDisplayExtension(ProcessParams params) {
@@ -581,7 +572,7 @@ public class ImageViewer implements WithRootNode {
     }
 
     private void saveAnnotationsOnCopy() {
-        var copy = annotatedCopyFactory.apply(image.unwrapToMemory().copy());
+        var copy = annotatedCopyFactory.apply(image.copy());
         if (copy != null) {
             copy.transferOverlaysFrom(this);
             copy.doSaveImage();
@@ -917,14 +908,13 @@ public class ImageViewer implements WithRootNode {
             imageView.setCoordinatesListener((x, y) -> {
                 var extra = "";
                 var imageForPixelValue = displayedImage();
-                var unwrappedForPixel = imageForPixelValue.unwrapToMemory();
                 var xx = x.intValue();
                 var yy = y.intValue();
-                if (unwrappedForPixel instanceof ImageWrapper32 mono) {
+                if (imageForPixelValue instanceof ImageWrapper32 mono) {
                     if (xx < 0 || xx >= mono.width() || yy < 0 || yy >= mono.height()) {
                         return;
                     }
-                    var pixelValue = mono.data()[yy][xx];
+                    var pixelValue = mono.pixels().get(xx, yy);
                     extra = ", " + String.format("%.0f", pixelValue);
                 }
                 var cloudValue = cloudModelValue(xx, yy);
@@ -1102,7 +1092,7 @@ public class ImageViewer implements WithRootNode {
                 var currentStretchedImage = stretchedImage.get();
                 maybeRunOnUpdate();
                 if (onStretchedImageUpdate != null && currentStretchedImage != null) {
-                    onStretchedImageUpdate.accept(currentStretchedImage.unwrapToMemory());
+                    onStretchedImageUpdate.accept(currentStretchedImage);
                 }
             });
         }
@@ -1269,10 +1259,9 @@ public class ImageViewer implements WithRootNode {
         }
     }
 
-    private ImageWrapper stretch(FileBackedImage source, StretchRecipe recipe) {
-        var unwrapped = source.unwrapToMemory();
-        if (recipe.isEmpty() || !(unwrapped instanceof ImageWrapper32 || unwrapped instanceof RGBImage)) {
-            return unwrapped.findMetadata(StretchRecipe.class).isPresent() ? StretchRecipe.withoutRecipe(unwrapped) : unwrapped;
+    private ImageWrapper stretch(ImageWrapper source, StretchRecipe recipe) {
+        if (recipe.isEmpty() || !(source instanceof ImageWrapper32 || source instanceof RGBImage)) {
+            return source.findMetadata(StretchRecipe.class).isPresent() ? StretchRecipe.withoutRecipe(source) : source;
         }
         var lastStep = recipe.steps().getLast();
         var prefix = recipe.prefix(recipe.steps().size() - 1);
@@ -1281,7 +1270,7 @@ public class ImageViewer implements WithRootNode {
         if (cache != null && cache.source() == source && cache.prefix().equals(prefix)) {
             work = cache.image().copy();
         } else {
-            work = StretchRecipe.withoutRecipe(unwrapped);
+            work = StretchRecipe.withoutRecipe(source);
             if (!prefix.isEmpty()) {
                 prefix.applyTo(work);
                 stretchCache.set(new StretchCache(source, prefix, work.copy()));
@@ -1311,7 +1300,7 @@ public class ImageViewer implements WithRootNode {
         if (img == null || overlays == null || !overlays.isColorizeActive()) {
             return img;
         }
-        if (!(img.unwrapToMemory() instanceof ImageWrapper32 mono)) {
+        if (!(img instanceof ImageWrapper32 mono)) {
             return img;
         }
         ImageWrapper colorized;
@@ -1327,34 +1316,46 @@ public class ImageViewer implements WithRootNode {
             if (rgb == null) {
                 return img;
             }
-            colorized = RGBImage.fromMono(mono, data -> Colorize.doColorize(mono.width(), mono.height(), data.data(), rgb));
+            colorized = RGBImage.fromMono(mono, data -> Colorize.doColorize(mono.width(), mono.height(), data.pixels().toArray(), rgb));
         }
-        if (overlays.colorizePreserveBrightness() && colorized.unwrapToMemory() instanceof RGBImage rgbImage) {
+        if (overlays.colorizePreserveBrightness() && colorized instanceof RGBImage rgbImage) {
             return preserveBrightness(mono, rgbImage);
         }
         return colorized;
     }
 
     private static RGBImage preserveBrightness(ImageWrapper32 mono, RGBImage rgb) {
-        var src = mono.data();
-        var r = rgb.r();
-        var g = rgb.g();
-        var b = rgb.b();
+        var width = rgb.width();
+        var monoPixels = mono.pixels();
+        var red = rgb.red();
+        var green = rgb.green();
+        var blue = rgb.blue();
+        var src = new float[width];
+        var r = new float[width];
+        var g = new float[width];
+        var b = new float[width];
         for (int y = 0; y < rgb.height(); y++) {
-            for (int x = 0; x < rgb.width(); x++) {
-                var target = src[y][x];
-                var luminance = 0.299f * r[y][x] + 0.587f * g[y][x] + 0.114f * b[y][x];
+            monoPixels.getRow(y, 0, src, 0, width);
+            red.getRow(y, r);
+            green.getRow(y, g);
+            blue.getRow(y, b);
+            for (int x = 0; x < width; x++) {
+                var target = src[x];
+                var luminance = 0.299f * r[x] + 0.587f * g[x] + 0.114f * b[x];
                 if (luminance > 1e-4f) {
                     var scale = target / luminance;
-                    r[y][x] = Math.min(Constants.MAX_PIXEL_VALUE, r[y][x] * scale);
-                    g[y][x] = Math.min(Constants.MAX_PIXEL_VALUE, g[y][x] * scale);
-                    b[y][x] = Math.min(Constants.MAX_PIXEL_VALUE, b[y][x] * scale);
+                    r[x] = Math.min(Constants.MAX_PIXEL_VALUE, r[x] * scale);
+                    g[x] = Math.min(Constants.MAX_PIXEL_VALUE, g[x] * scale);
+                    b[x] = Math.min(Constants.MAX_PIXEL_VALUE, b[x] * scale);
                 } else {
-                    r[y][x] = target;
-                    g[y][x] = target;
-                    b[y][x] = target;
+                    r[x] = target;
+                    g[x] = target;
+                    b[x] = target;
                 }
             }
+            red.setRow(y, r);
+            green.setRow(y, g);
+            blue.setRow(y, b);
         }
         return rgb;
     }
@@ -1403,7 +1404,7 @@ public class ImageViewer implements WithRootNode {
     private void toggleOverlayPanel(Node anchor) {
         if (overlayPanel == null) {
             boolean hasEllipse = image != null && image.findMetadata(Ellipse.class).isPresent();
-            boolean colorizable = image != null && image.unwrapToMemory() instanceof ImageWrapper32;
+            boolean colorizable = image instanceof ImageWrapper32;
             overlayPanel = new OverlayPanel(
                     kind,
                     hasEllipse,
@@ -1791,7 +1792,7 @@ public class ImageViewer implements WithRootNode {
         if (image == null) {
             return null;
         }
-        return computeStretchedImage().unwrapToMemory();
+        return computeStretchedImage();
     }
 
     public ImageWrapper getStretchedImageWithOverlays() {
@@ -1847,7 +1848,7 @@ public class ImageViewer implements WithRootNode {
 
     private ImageWrapper applyOverlaysToStretchedImage() {
         var baked = OverlayRenderer.apply(
-                applyColorize(computeStretchedImage().unwrapToMemory()),
+                applyColorize(computeStretchedImage()),
                 overlays,
                 effectiveGlobeStyle(),
                 processParams,
@@ -1898,7 +1899,7 @@ public class ImageViewer implements WithRootNode {
      */
     public synchronized void setImage(String baseName, ProcessParams params, ImageWrapper image, Path path) {
         this.processParams = params;
-        this.image = FileBackedImage.wrap(image);
+        this.image = image;
         this.imageFile = new File(path.toFile().getParentFile(), baseName + "_" + path.getFileName() + imageDisplayExtension(processParams));
         this.imageView.setImagePathForOpeningInExplorer(path);
         recordImage(baseName, image);
@@ -1934,7 +1935,7 @@ public class ImageViewer implements WithRootNode {
         }
     }
 
-    private record StretchCache(FileBackedImage source, StretchRecipe prefix, ImageWrapper image) {
+    private record StretchCache(ImageWrapper source, StretchRecipe prefix, ImageWrapper image) {
     }
 
     private record PendingStretch(long generation, CompletableFuture<ImageWrapper> result) {
@@ -1950,7 +1951,7 @@ public class ImageViewer implements WithRootNode {
     private record ImageState(
             ProcessParams processParams,
             String baseName,
-            FileBackedImage image,
+            ImageWrapper image,
             File imageFile
     ) {
 

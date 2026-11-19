@@ -66,7 +66,6 @@ public final class MidtoneTransferFunctionAutostretchStrategy implements Stretch
 
     @Override
     public void stretch(ImageWrapper32 image) {
-        var data = image.data();
         var width = image.width();
         var height = image.height();
 
@@ -74,7 +73,7 @@ public final class MidtoneTransferFunctionAutostretchStrategy implements Stretch
             return;
         }
 
-        var params = calculateMTFParams(data, width, height);
+        var params = calculateMTFParams(image.pixels().toArray(), width, height);
 
         var mtfStrategy = new MidtoneTransferFunctionStrategy(clampTo8Bit(params.shadows), params.midtones, clampTo8Bit(params.highlights));
         mtfStrategy.stretch(image);

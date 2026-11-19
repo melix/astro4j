@@ -61,8 +61,8 @@ public class DopplerSupport {
         var second = states.stream().filter(s -> s.pixelShift() == -lookupShift).findFirst();
         first.ifPresent(s1 -> second.ifPresent(s2 -> {
             s1.findResult(WorkflowResults.GEOMETRY_CORRECTION).ifPresent(i1 -> s2.findResult(WorkflowResults.GEOMETRY_CORRECTION).ifPresent(i2 -> {
-                var grey1 = (ImageWrapper32) ((GeometryCorrector.Result) i1).corrected().unwrapToMemory();
-                var grey2 = (ImageWrapper32) ((GeometryCorrector.Result) i2).corrected().unwrapToMemory();
+                var grey1 = (ImageWrapper32) ((GeometryCorrector.Result) i1).corrected();
+                var grey2 = (ImageWrapper32) ((GeometryCorrector.Result) i2).corrected();
                 var width = grey1.width();
                 var height = grey1.height();
                 var metadata = MetadataMerger.merge(List.of(grey1, grey2));
@@ -90,8 +90,8 @@ public class DopplerSupport {
             var g1 = BackgroundRemoval.neutralizeBackground(grey1Eclipse);
             grey2Eclipse.findMetadata(Ellipse.class).ifPresent(eclipse2 -> {
                 var g2 = BackgroundRemoval.neutralizeBackground(grey2Eclipse);
-                DiskFill.doFill(eclipse1, g1.data(), 0, null);
-                DiskFill.doFill(eclipse2, g2.data(), 0, null);
+                fillDisk(eclipse1, g1);
+                fillDisk(eclipse2, g2);
                 var stretch = new ArcsinhStretchingStrategy(0, 50, 50);
                 stretch.stretch(g1);
                 stretch.stretch(g2);
@@ -102,13 +102,21 @@ public class DopplerSupport {
                         message("doppler.eclipse.description"),
                         width,
                         height,
-                        metadata, () -> {
-                            var dopplerImage = DopplerSupport.toDopplerImage(width, height, g1, g2);
-                            RangeExpansionStrategy.DEFAULT.stretch(new RGBImage(width, height, dopplerImage[0], dopplerImage[1], dopplerImage[2], metadata));
-                            return dopplerImage;
-                        });
+                        metadata, () -> expandRange(width, height, DopplerSupport.toDopplerImage(width, height, g1, g2), metadata));
             });
         });
+    }
+
+    private static void fillDisk(Ellipse ellipse, ImageWrapper32 image) {
+        var data = image.pixels().toArray();
+        DiskFill.doFill(ellipse, data, 0, null);
+        image.pixels().copyFrom(data);
+    }
+
+    private static float[][][] expandRange(int width, int height, float[][][] rgb, Map<Class<?>, Object> metadata) {
+        var image = new RGBImage(width, height, rgb[0], rgb[1], rgb[2], metadata);
+        RangeExpansionStrategy.DEFAULT.stretch(image);
+        return new float[][][]{image.red().toArray(), image.green().toArray(), image.blue().toArray()};
     }
 
     private void produceRotationCorrectedDopplerImage(ImageWrapper32 grey1, ImageWrapper32 grey2,
@@ -143,8 +151,8 @@ public class DopplerSupport {
         if (radius <= 0) {
             return false;
         }
-        var d1 = grey1.data();
-        var d2 = grey2.data();
+        var d1 = grey1.pixels().toArray();
+        var d2 = grey2.pixels().toArray();
 
         // Fit a 2D polynomial of degree 3 to (d1 - d2) within the disk
         var fit = new LeastSquares(POLY_TERMS);
@@ -181,6 +189,8 @@ public class DopplerSupport {
                 d2[y][x] = Math.max(0, d2[y][x] + halfCorrection);
             }
         }
+        grey1.pixels().copyFrom(d1);
+        grey2.pixels().copyFrom(d2);
         return true;
     }
 
@@ -188,8 +198,8 @@ public class DopplerSupport {
         float[][] r = new float[height][width];
         float[][] g = new float[height][width];
         float[][] b = new float[height][width];
-        var d1 = grey1.data();
-        var d2 = grey2.data();
+        var d1 = grey1.pixels().toArray();
+        var d2 = grey2.pixels().toArray();
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 r[y][x] = d1[y][x];
@@ -209,7 +219,6 @@ public class DopplerSupport {
         });
         ImageUtils.fromHSLtoRGB(hsl, rgb);
         var metadata = MetadataMerger.merge(List.of(grey1, grey2));
-        RangeExpansionStrategy.DEFAULT.stretch(new RGBImage(width, height, r, g, b, metadata));
-        return rgb;
+        return expandRange(width, height, rgb, metadata);
     }
 }

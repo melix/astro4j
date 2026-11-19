@@ -67,13 +67,13 @@ public class Utilities extends AbstractFunctionImpl {
     public static ImageWrapper32 blend(ImageWrapper32 disk, ImageWrapper32 protus, Ellipse ellipse, double start, double end) {
         int height = protus.height();
         int width = protus.width();
-        var diskData = disk.data();
-        var protusData = protus.data();
+        var diskData = disk.pixels().toArray();
+        var protusData = protus.pixels().toArray();
         var cx = ellipse.center().a();
         var cy = ellipse.center().b();
         var radius = (ellipse.semiAxis().a() + ellipse.semiAxis().b()) / 2;
         var result = disk.copy();
-        var outputData = result.data();
+        var outputData = result.pixels().toArray();
         var range = end - start;
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
@@ -90,6 +90,7 @@ public class Utilities extends AbstractFunctionImpl {
                 }
             }
         }
+        result.pixels().copyFrom(outputData);
         return result;
     }
 
@@ -148,20 +149,17 @@ public class Utilities extends AbstractFunctionImpl {
             return expandToImageList("extractChannel", "img", arguments, args -> extractChannel(args, channel));
         }
         var image = arguments.get("img");
-        if (image instanceof ImageWrapper wrapper) {
-            wrapper = wrapper.unwrapToMemory();
-            if (wrapper instanceof ImageWrapper32 mono) {
-                return mono;
-            }
-            if (wrapper instanceof RGBImage rgb) {
-                var metadata = new HashMap<>(rgb.metadata());
-                return switch (channel) {
-                    case 0 -> new ImageWrapper32(rgb.width(), rgb.height(), rgb.r(), metadata);
-                    case 1 -> new ImageWrapper32(rgb.width(), rgb.height(), rgb.g(), metadata);
-                    case 2 -> new ImageWrapper32(rgb.width(), rgb.height(), rgb.b(), metadata);
-                    default -> throw new IllegalArgumentException("Channel must be an int between 0 and 2");
-                };
-            }
+        if (image instanceof ImageWrapper32 mono) {
+            return mono;
+        }
+        if (image instanceof RGBImage rgb) {
+            var metadata = new HashMap<>(rgb.metadata());
+            return switch (channel) {
+                case 0 -> new ImageWrapper32(rgb.red(), metadata);
+                case 1 -> new ImageWrapper32(rgb.green(), metadata);
+                case 2 -> new ImageWrapper32(rgb.blue(), metadata);
+                default -> throw new IllegalArgumentException("Channel must be an int between 0 and 2");
+            };
         }
         throw new IllegalArgumentException("Unexpected argument type: " + image.getClass());
     }
@@ -199,9 +197,9 @@ public class Utilities extends AbstractFunctionImpl {
         if (!(source instanceof ImageWrapper sourceWrapper)) {
             throw new IllegalArgumentException("copy_metadata: 'from' must be an image, got " + (source == null ? "null" : source.getClass()));
         }
-        var copy = targetWrapper.unwrapToMemory().copy();
+        var copy = targetWrapper.copy();
         copy.metadata().clear();
-        copy.metadata().putAll(sourceWrapper.unwrapToMemory().metadata());
+        copy.metadata().putAll(sourceWrapper.metadata());
         return copy;
     }
 
@@ -211,14 +209,11 @@ public class Utilities extends AbstractFunctionImpl {
             return expandToImageList("toMono", "img", arguments, this::toMono);
         }
         var image = arguments.get("img");
-        if (image instanceof ImageWrapper wrapper) {
-            wrapper = wrapper.unwrapToMemory();
-            if (wrapper instanceof ImageWrapper32 mono) {
-                return mono;
-            }
-            if (wrapper instanceof RGBImage rgb) {
-                return rgb.toMono();
-            }
+        if (image instanceof ImageWrapper32 mono) {
+            return mono;
+        }
+        if (image instanceof RGBImage rgb) {
+            return rgb.toMono();
         }
         throw new IllegalArgumentException("Unexpected argument type: " + image.getClass());
     }
@@ -296,10 +291,11 @@ public class Utilities extends AbstractFunctionImpl {
         var height = inputs.height();
         var sum = new double[height][width];
         var totalWeight = inputs.forEachImage((image, weight) -> {
-            var data = image.data();
+            var pixels = image.pixels();
+            var dataRow = new float[width];
             for (int y = 0; y < height; y++) {
                 var sumRow = sum[y];
-                var dataRow = data[y];
+                pixels.getRow(y, dataRow);
                 for (int x = 0; x < width; x++) {
                     sumRow[x] += weight * dataRow[x];
                 }
@@ -328,11 +324,12 @@ public class Utilities extends AbstractFunctionImpl {
         var sum = new double[height][width];
         var sumSquares = new double[height][width];
         var totalWeight = inputs.forEachImage((image, weight) -> {
-            var data = image.data();
+            var pixels = image.pixels();
+            var dataRow = new float[width];
             for (int y = 0; y < height; y++) {
                 var sumRow = sum[y];
                 var squaresRow = sumSquares[y];
-                var dataRow = data[y];
+                pixels.getRow(y, dataRow);
                 for (int x = 0; x < width; x++) {
                     double value = dataRow[x];
                     sumRow[x] += weight * value;
@@ -358,13 +355,14 @@ public class Utilities extends AbstractFunctionImpl {
         var keptSum = new double[height][width];
         var keptWeight = new double[height][width];
         inputs.forEachImage((image, weight) -> {
-            var data = image.data();
+            var pixels = image.pixels();
+            var dataRow = new float[width];
             for (int y = 0; y < height; y++) {
                 var meanRow = mean[y];
                 var thresholdRow = threshold[y];
                 var keptSumRow = keptSum[y];
                 var keptWeightRow = keptWeight[y];
-                var dataRow = data[y];
+                pixels.getRow(y, dataRow);
                 for (int x = 0; x < width; x++) {
                     double value = dataRow[x];
                     if (Math.abs(value - meanRow[x]) <= thresholdRow[x]) {
@@ -430,8 +428,7 @@ public class Utilities extends AbstractFunctionImpl {
     /**
      * A set of images to combine and their respective weights. The combination is performed
      * in floating point, so images normalized before being combined keep their full dynamic
-     * range. Images are unwrapped one at a time so that combining a large set doesn't require
-     * holding every image in memory.
+     * range.
      */
     private record WeightedInputs(
             String name,
@@ -443,7 +440,7 @@ public class Utilities extends AbstractFunctionImpl {
         double forEachImage(WeightedImageConsumer consumer) {
             double totalWeight = 0;
             for (int i = 0; i < images.size(); i++) {
-                if (!(images.get(i).unwrapToMemory() instanceof ImageWrapper32 mono)) {
+                if (!(images.get(i) instanceof ImageWrapper32 mono)) {
                     throw new IllegalArgumentException(name + " only supports mono images");
                 }
                 consumer.accept(mono, weights[i]);

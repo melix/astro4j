@@ -298,10 +298,10 @@ public class SpectralRayEditor {
     private void updateSunDiskPreview(SpectralRay newRay) {
         var curve = newRay.colorCurve();
         var colorImage = RGBImage.fromMono(MONO_SUN_IMAGE, monoImage -> {
+            var mono = monoImage.pixels().toArray();
             if (curve != null) {
-                return ImageUtils.convertToRGB(curve, monoImage.data());
+                return ImageUtils.convertToRGB(curve, mono);
             } else {
-                var mono = monoImage.data();
                 var rgbColor = newRay.toRGB();
                 if (rgbColor[0] == 0 && rgbColor[1] == 0 && rgbColor[2] == 0) {
                     return new float[][][]{mono, mono, mono};
@@ -322,9 +322,9 @@ public class SpectralRayEditor {
                 return new float[][][]{r, g, b};
             }
         });
-        var r = colorImage.r();
-        var g = colorImage.g();
-        var b = colorImage.b();
+        var r = colorImage.red().toArray();
+        var g = colorImage.green().toArray();
+        var b = colorImage.blue().toArray();
         Path tmpFile;
         try {
             tmpFile = TemporaryFolder.newTempFile("img", ".png");

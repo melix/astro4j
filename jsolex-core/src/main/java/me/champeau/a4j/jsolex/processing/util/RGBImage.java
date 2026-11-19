@@ -19,31 +19,77 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Function;
 
-public record RGBImage(
-    int width,
-    int height,
-    float[][] r,
-    float[][] g,
-    float[][] b,
-    Map<Class<?>, Object> metadata
-) implements ImageWrapper {
-    public RGBImage {
-        if (r.length != height || g.length != height || b.length != height) {
+/**
+ * A color image made of three independent channels.
+ */
+public final class RGBImage implements ImageWrapper {
+    private final ImagePlane red;
+    private final ImagePlane green;
+    private final ImagePlane blue;
+    private final Map<Class<?>, Object> metadata;
+
+    public RGBImage(ImagePlane red, ImagePlane green, ImagePlane blue, Map<Class<?>, Object> metadata) {
+        if (red.height() != green.height() || red.height() != blue.height()) {
             throw new IllegalArgumentException("Inconsistent image height");
         }
-        if (height > 0 && (r[0].length != width || g[0].length != width || b[0].length != width)) {
+        if (red.width() != green.width() || red.width() != blue.width()) {
             throw new IllegalArgumentException("Inconsistent image width");
         }
+        this.red = red;
+        this.green = green;
+        this.blue = blue;
+        this.metadata = metadata;
+    }
+
+    /**
+     * Creates an image holding a copy of the given channels.
+     *
+     * @param width the width
+     * @param height the height
+     * @param r the red channel, indexed by row then column
+     * @param g the green channel, indexed by row then column
+     * @param b the blue channel, indexed by row then column
+     * @param metadata the metadata
+     */
+    public RGBImage(int width, int height, float[][] r, float[][] g, float[][] b, Map<Class<?>, Object> metadata) {
+        this(ImagePlane.of(width, height, r), ImagePlane.of(width, height, g), ImagePlane.of(width, height, b), metadata);
+    }
+
+    @Override
+    public int width() {
+        return red.width();
+    }
+
+    @Override
+    public int height() {
+        return red.height();
+    }
+
+    public ImagePlane red() {
+        return red;
+    }
+
+    public ImagePlane green() {
+        return green;
+    }
+
+    public ImagePlane blue() {
+        return blue;
+    }
+
+    @Override
+    public Map<Class<?>, Object> metadata() {
+        return metadata;
     }
 
     @Override
     public RGBImage copy() {
-        return new RGBImage(width, height, ImageWrapper.copyData(r), ImageWrapper.copyData(g), ImageWrapper.copyData(b), new LinkedHashMap<>(metadata));
+        return new RGBImage(red.copy(), green.copy(), blue.copy(), new LinkedHashMap<>(metadata));
     }
 
     public static RGBImage toRGB(ImageWrapper32 mono) {
-        var monoData = mono.data();
-        return new RGBImage(mono.width(), mono.height(), ImageWrapper.copyData(monoData), ImageWrapper.copyData(monoData), ImageWrapper.copyData(monoData), new LinkedHashMap<>(mono.metadata()));
+        var pixels = mono.pixels();
+        return new RGBImage(pixels.copy(), pixels.copy(), pixels.copy(), new LinkedHashMap<>(mono.metadata()));
     }
 
     public static RGBImage fromMono(ImageWrapper32 mono, Function<ImageWrapper32, float[][][]> converter) {
@@ -56,13 +102,22 @@ public record RGBImage(
     }
 
     public ImageWrapper32 toMono() {
-        float[][] monoData = new float[height][width];
+        int width = width();
+        int height = height();
+        var mono = ImagePlane.allocate(width, height);
+        var r = new float[width];
+        var g = new float[width];
+        var b = new float[width];
+        var luminance = new float[width];
         for (int y = 0; y < height; y++) {
-            monoData[y] = new float[width];
+            red.getRow(y, r);
+            green.getRow(y, g);
+            blue.getRow(y, b);
             for (int x = 0; x < width; x++) {
-                monoData[y][x] = 0.299f * r[y][x] + 0.587f * g[y][x] + 0.114f * b[y][x];
+                luminance[x] = 0.299f * r[x] + 0.587f * g[x] + 0.114f * b[x];
             }
+            mono.setRow(y, luminance);
         }
-        return new ImageWrapper32(width, height, monoData, new LinkedHashMap<>(metadata));
+        return new ImageWrapper32(mono, new LinkedHashMap<>(metadata));
     }
 }

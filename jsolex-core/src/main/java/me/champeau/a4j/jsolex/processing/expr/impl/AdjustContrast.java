@@ -22,7 +22,7 @@ import me.champeau.a4j.jsolex.processing.stretching.GammaStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.tasks.ImageAnalysis;
 import me.champeau.a4j.jsolex.processing.util.Constants;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
+import me.champeau.a4j.jsolex.processing.util.ImagePlane;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
@@ -117,7 +117,7 @@ public class AdjustContrast extends AbstractFunctionImpl {
         if (list.size() < 2) {
             return list;
         }
-        var firstImage = ((ImageWrapper) list.getFirst()).unwrapToMemory();
+        var firstImage = list.getFirst();
         if (firstImage instanceof ImageWrapper32) {
             return equalizeMono(list);
         } else if (firstImage instanceof RGBImage) {
@@ -131,13 +131,13 @@ public class AdjustContrast extends AbstractFunctionImpl {
         var stats = list.stream()
                 .parallel()
                 .map(i -> {
-                    var img = ((ImageWrapper) i).unwrapToMemory();
+                    var img = (ImageWrapper) i;
                     if (!(img instanceof ImageWrapper32 mono)) {
                         throw new IllegalArgumentException("equalize requires all images to be of the same type");
                     }
                     return new Object() {
                         private final ImageWrapper32 image = mono.copy();
-                        private final ImageAnalysis analysis = ImageAnalysis.of(image.data());
+                        private final ImageAnalysis analysis = ImageAnalysis.of(image.pixels().toArray());
                     };
                 })
                 .collect(Collectors.toMap(o -> o.image, o -> o.analysis, (e1, e2) -> e1, LinkedHashMap::new));
@@ -154,8 +154,8 @@ public class AdjustContrast extends AbstractFunctionImpl {
                 .map(e -> {
                     var image = e.getKey();
                     var analysis = e.getValue();
-                    equalizeChannel(image.data(), analysis, (float) average, (float) stddev);
-                    return FileBackedImage.wrap(image);
+                    equalizeChannel(image.pixels(), analysis, (float) average, (float) stddev);
+                    return image;
                 })
                 .toList();
     }
@@ -165,16 +165,16 @@ public class AdjustContrast extends AbstractFunctionImpl {
         var stats = list.stream()
                 .parallel()
                 .map(i -> {
-                    var img = ((ImageWrapper) i).unwrapToMemory();
+                    var img = (ImageWrapper) i;
                     if (!(img instanceof RGBImage rgb)) {
                         throw new IllegalArgumentException("equalize requires all images to be of the same type");
                     }
                     return new Object() {
                         private final RGBImage image = rgb.copy();
                         private final ChannelStats analysis = new ChannelStats(
-                                ImageAnalysis.of(image.r()),
-                                ImageAnalysis.of(image.g()),
-                                ImageAnalysis.of(image.b())
+                                ImageAnalysis.of(image.red().toArray()),
+                                ImageAnalysis.of(image.green().toArray()),
+                                ImageAnalysis.of(image.blue().toArray())
                         );
                     };
                 })
@@ -208,15 +208,16 @@ public class AdjustContrast extends AbstractFunctionImpl {
                 .map(e -> {
                     var image = e.getKey();
                     var analysis = e.getValue();
-                    equalizeChannel(image.r(), analysis.r, (float) avgR, (float) stddevR);
-                    equalizeChannel(image.g(), analysis.g, (float) avgG, (float) stddevG);
-                    equalizeChannel(image.b(), analysis.b, (float) avgB, (float) stddevB);
-                    return FileBackedImage.wrap(image);
+                    equalizeChannel(image.red(), analysis.r, (float) avgR, (float) stddevR);
+                    equalizeChannel(image.green(), analysis.g, (float) avgG, (float) stddevG);
+                    equalizeChannel(image.blue(), analysis.b, (float) avgB, (float) stddevB);
+                    return image;
                 })
                 .toList();
     }
 
-    private static void equalizeChannel(float[][] data, ImageAnalysis analysis, float targetAvg, float targetStddev) {
+    private static void equalizeChannel(ImagePlane plane, ImageAnalysis analysis, float targetAvg, float targetStddev) {
+        var data = plane.toArray();
         int height = data.length;
         int width = data[0].length;
         for (int y = 0; y < height; y++) {
@@ -227,5 +228,6 @@ public class AdjustContrast extends AbstractFunctionImpl {
                 data[y][x] = (float) Math.clamp(v, 0, Constants.MAX_PIXEL_VALUE);
             }
         }
+        plane.copyFrom(data);
     }
 }

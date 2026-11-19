@@ -31,7 +31,7 @@ import java.util.Map;
  * <p>
  * This serializer performs no compression itself: callers wrap the streams with
  * the compression scheme of their choice (a {@link java.util.zip.DeflaterOutputStream}
- * for the temporary file cache, a zip entry for session exports, etc.).
+ * for raw image files, a zip entry for session exports, etc.).
  */
 public final class ImageSerializer {
     private static final byte MONO = 0;
@@ -48,40 +48,44 @@ public final class ImageSerializer {
      * @param image the image to write (must be an {@link ImageWrapper32} or {@link RGBImage})
      */
     public static void write(DataOutputStream out, ImageWrapper image) throws IOException {
-        var source = image.unwrapToMemory();
-        if (source instanceof ImageWrapper32 mono) {
+        if (image instanceof ImageWrapper32 mono) {
             var width = mono.width();
             var height = mono.height();
             out.writeByte(MONO);
             out.writeInt(height);
             out.writeInt(width);
-            var data = mono.data();
+            var pixels = mono.pixels();
+            var row = new float[width];
             var rowBytes = new byte[width * Float.BYTES];
             var shuffled = new byte[rowBytes.length];
             var rowFloats = ByteBuffer.wrap(rowBytes).asFloatBuffer();
             for (int y = 0; y < height; y++) {
+                pixels.getRow(y, row);
                 rowFloats.clear();
-                rowFloats.put(data[y]);
+                rowFloats.put(row);
                 shuffleBytes(rowBytes, shuffled, width);
                 out.write(shuffled);
             }
-        } else if (source instanceof RGBImage rgb) {
+        } else if (image instanceof RGBImage rgb) {
             var width = rgb.width();
             var height = rgb.height();
             out.writeByte(RGB);
             out.writeInt(height);
             out.writeInt(width);
-            var r = rgb.r();
-            var g = rgb.g();
-            var b = rgb.b();
+            var red = rgb.red();
+            var green = rgb.green();
+            var blue = rgb.blue();
+            var rRow = new float[width];
+            var gRow = new float[width];
+            var bRow = new float[width];
             var rowBytes = new byte[width * 3 * Float.BYTES];
             var shuffled = new byte[rowBytes.length];
             var rowFloats = ByteBuffer.wrap(rowBytes).asFloatBuffer();
             for (int y = 0; y < height; y++) {
+                red.getRow(y, rRow);
+                green.getRow(y, gRow);
+                blue.getRow(y, bRow);
                 rowFloats.clear();
-                var rRow = r[y];
-                var gRow = g[y];
-                var bRow = b[y];
                 for (int x = 0; x < width; x++) {
                     rowFloats.put(rRow[x]).put(gRow[x]).put(bRow[x]);
                 }
@@ -89,7 +93,7 @@ public final class ImageSerializer {
                 out.write(shuffled);
             }
         } else {
-            throw new IllegalArgumentException("Unsupported image type: " + source.getClass());
+            throw new IllegalArgumentException("Unsupported image type: " + image.getClass());
         }
     }
 
@@ -107,7 +111,8 @@ public final class ImageSerializer {
         int width = in.readInt();
         return switch (kind) {
             case MONO -> {
-                float[][] data = new float[height][width];
+                var pixels = ImagePlane.allocate(width, height);
+                var row = new float[width];
                 var rowBytes = new byte[width * Float.BYTES];
                 var shuffled = new byte[rowBytes.length];
                 var rowFloats = ByteBuffer.wrap(rowBytes).asFloatBuffer();
@@ -115,14 +120,18 @@ public final class ImageSerializer {
                     in.readFully(shuffled);
                     unshuffleBytes(shuffled, rowBytes, width);
                     rowFloats.clear();
-                    rowFloats.get(data[y]);
+                    rowFloats.get(row);
+                    pixels.setRow(y, row);
                 }
-                yield new ImageWrapper32(width, height, data, metadata);
+                yield new ImageWrapper32(pixels, metadata);
             }
             case RGB -> {
-                float[][] r = new float[height][width];
-                float[][] g = new float[height][width];
-                float[][] b = new float[height][width];
+                var red = ImagePlane.allocate(width, height);
+                var green = ImagePlane.allocate(width, height);
+                var blue = ImagePlane.allocate(width, height);
+                var rRow = new float[width];
+                var gRow = new float[width];
+                var bRow = new float[width];
                 var rowBytes = new byte[width * 3 * Float.BYTES];
                 var shuffled = new byte[rowBytes.length];
                 var rowFloats = ByteBuffer.wrap(rowBytes).asFloatBuffer();
@@ -130,16 +139,16 @@ public final class ImageSerializer {
                     in.readFully(shuffled);
                     unshuffleBytes(shuffled, rowBytes, width * 3);
                     rowFloats.clear();
-                    var rRow = r[y];
-                    var gRow = g[y];
-                    var bRow = b[y];
                     for (int x = 0; x < width; x++) {
                         rRow[x] = rowFloats.get();
                         gRow[x] = rowFloats.get();
                         bRow[x] = rowFloats.get();
                     }
+                    red.setRow(y, rRow);
+                    green.setRow(y, gRow);
+                    blue.setRow(y, bRow);
                 }
-                yield new RGBImage(width, height, r, g, b, metadata);
+                yield new RGBImage(red, green, blue, metadata);
             }
             default -> throw new IllegalStateException("Undefined image kind " + kind);
         };

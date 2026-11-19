@@ -65,7 +65,7 @@ final class OverlayRenderer {
             return source;
         }
         var bi = renderToBuffered(source, state, globeStyle, processParams, kind, baseImageIsPCorrected);
-        return Loader.toImageWrapper(bi, source.unwrapToMemory().metadata());
+        return Loader.toImageWrapper(bi, source.metadata());
     }
 
     private static BufferedImage renderToBuffered(ImageWrapper source,
@@ -74,7 +74,7 @@ final class OverlayRenderer {
                                                   ProcessParams processParams,
                                                   GeneratedImageKind kind,
                                                   boolean baseImageIsPCorrected) {
-        var prepared = prepareForColor(source.unwrapToMemory(), state);
+        var prepared = prepareForColor(source, state);
         var bi = ImageDraw.toBufferedImage(prepared);
         var g = bi.createGraphics();
         try {
@@ -147,7 +147,7 @@ final class OverlayRenderer {
         var ctx = new HashMap<Class<?>, Object>();
         ctx.put(ProcessParams.class, processParams);
         var draw = new ImageDraw(ctx, Broadcaster.NO_OP);
-        return (ImageWrapper) draw.drawEarth(Map.of("img", source.unwrapToMemory(), "x", x, "y", y));
+        return (ImageWrapper) draw.drawEarth(Map.of("img", source, "x", x, "y", y));
     }
 
     static ImageWrapper bakeSignature(ImageWrapper source, ImageOverlayState state, int x, int y, ProcessParams processParams) {
@@ -212,10 +212,10 @@ final class OverlayRenderer {
     }
 
     private static ImageWrapper prepareForColorAt(ImageWrapper source, String color) {
-        if (color != null && source.unwrapToMemory() instanceof ImageWrapper32 mono) {
+        if (color != null && source instanceof ImageWrapper32 mono) {
             return RGBImage.toRGB(mono);
         }
-        return source.unwrapToMemory();
+        return source;
     }
 
     private static Color parseColor(String hex) {

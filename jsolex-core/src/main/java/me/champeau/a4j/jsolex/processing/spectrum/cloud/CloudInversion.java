@@ -199,7 +199,7 @@ public final class CloudInversion {
         if (factor == 1) {
             return invertImages(input, options, monotonic, 1);
         }
-        var reference = (ImageWrapper32) input.images().getFirst().unwrapToMemory();
+        var reference = (ImageWrapper32) input.images().getFirst();
         return invertImages(bin(input, factor), options, monotonic, factor).atFullSize(reference.width(), reference.height(), resultMetadata(reference), input.images());
     }
 
@@ -240,10 +240,10 @@ public final class CloudInversion {
     private static Input bin(Input input, int factor) {
         var images = new ArrayList<ImageWrapper>(input.images().size());
         for (var image : input.images()) {
-            var source = (ImageWrapper32) image.unwrapToMemory();
+            var source = (ImageWrapper32) image;
             var width = source.width() / factor;
             var height = source.height() / factor;
-            var data = source.data();
+            var data = source.pixels().toArray();
             var binned = new float[height][width];
             var norm = 1f / (factor * factor);
             RowStrips.forEach(height, (yStart, yEnd) -> {
@@ -278,8 +278,8 @@ public final class CloudInversion {
     }
 
     private static CloudInversionResult invertImages(Input input, Options options, DoubleConsumer progress, int binning) {
-        var data = input.images().stream().map(i -> ((ImageWrapper32) i.unwrapToMemory()).data()).toList();
-        var reference = (ImageWrapper32) input.images().getFirst().unwrapToMemory();
+        var data = input.images().stream().map(i -> ((ImageWrapper32) i).pixels().toArray()).toList();
+        var reference = (ImageWrapper32) input.images().getFirst();
         var width = reference.width();
         var height = reference.height();
         var disk = Disk.of(input.disk());
@@ -371,18 +371,19 @@ public final class CloudInversion {
      */
     private static List<float[][]> blockAverage(List<ImageWrapper> sources, int x, int y, int factor) {
         return sources.stream().map(image -> {
-            var data = ((ImageWrapper32) image.unwrapToMemory()).data();
+            var pixels = ((ImageWrapper32) image).pixels();
+            var rows = new float[y + 1][];
+            rows[y] = new float[x + 1];
             if (factor == 1) {
-                return data;
+                rows[y][x] = pixels.get(x, y);
+                return rows;
             }
             var sum = 0f;
             for (var dy = 0; dy < factor; dy++) {
                 for (var dx = 0; dx < factor; dx++) {
-                    sum += data[y * factor + dy][x * factor + dx];
+                    sum += pixels.get(x * factor + dx, y * factor + dy);
                 }
             }
-            var rows = new float[y + 1][];
-            rows[y] = new float[x + 1];
             rows[y][x] = sum / (factor * factor);
             return rows;
         }).toList();

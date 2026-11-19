@@ -18,7 +18,6 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.FlatCorrection;
-import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
 import java.util.List;
@@ -52,14 +51,12 @@ public class ArtifificialFlatCorrector extends AbstractFunctionImpl {
         if (arguments.get("img") instanceof List) {
             return expandToImageList("flat_correction", "img", arguments, this::performFlatCorrection);
         }
-        if (arguments.get("img") instanceof ImageWrapper wrapper) {
-            if (wrapper.unwrapToMemory() instanceof ImageWrapper32 mono) {
-                double loPercentile = doubleArg(arguments, "lo", FlatCorrection.DEFAULT_LO_PERCENTILE);
-                double hiPercentile = doubleArg(arguments, "hi", FlatCorrection.DEFAULT_HI_PERCENTILE);
-                int order = intArg(arguments, "order", FlatCorrection.DEFAULT_ORDER);
-                var corrector = new FlatCorrection(loPercentile, hiPercentile, order);
-                return corrector.correctImage(mono);
-            }
+        if (arguments.get("img") instanceof ImageWrapper32 mono) {
+            double loPercentile = doubleArg(arguments, "lo", FlatCorrection.DEFAULT_LO_PERCENTILE);
+            double hiPercentile = doubleArg(arguments, "hi", FlatCorrection.DEFAULT_HI_PERCENTILE);
+            int order = intArg(arguments, "order", FlatCorrection.DEFAULT_ORDER);
+            var corrector = new FlatCorrection(loPercentile, hiPercentile, order);
+            return corrector.correctImage(mono);
         }
         throw new IllegalArgumentException("flat_correction only supports mono images");
     }

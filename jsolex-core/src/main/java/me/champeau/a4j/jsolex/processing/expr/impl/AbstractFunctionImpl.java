@@ -17,7 +17,6 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.AnnulusMask;
@@ -35,6 +34,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -318,7 +318,7 @@ class AbstractFunctionImpl {
     /**
      * Applies a function to every element of a list. Elements are processed concurrently,
      * but the number of lanes is bounded by the heap which is still available: each lane
-     * holds several full-size working buffers which cannot be spilled to disk, so one lane
+     * holds several full-size working buffers on the heap, so one lane
      * per core would exhaust a small heap on large images.
      */
     public List<Object> expandToImageList(String currentFunction,
@@ -339,11 +339,7 @@ class AbstractFunctionImpl {
                             var allArgs = new HashMap<>(arguments);
                             allArgs.put(key, items.get(idx));
                             broadcaster.broadcast(parallelOperation.update(progress.incrementAndGet() / (double) items.size()));
-                            var result = function.apply(allArgs);
-                            if (result instanceof ImageWrapper img) {
-                                result = FileBackedImage.wrap(img);
-                            }
-                            results[idx] = result;
+                            results[idx] = function.apply(allArgs);
                         } finally {
                             lanes.release();
                         }
@@ -401,7 +397,7 @@ class AbstractFunctionImpl {
         if (arg instanceof List<?>) {
             return expandToImageList(name, key, arguments, e -> monoToMonoImageTransformer(name, key, e, consumer));
         } else if (arg instanceof ImageWrapper image) {
-            var copy = image.unwrapToMemory().copy();
+            var copy = image.copy();
             consumer.accept(copy);
             return copy;
         }
@@ -469,19 +465,18 @@ class AbstractFunctionImpl {
     }
 
     private Object applyUnary(Object img, DoubleUnaryOperator unary) {
-        if (img instanceof FileBackedImage fileBackedImage) {
-            img = fileBackedImage.unwrapToMemory();
-        }
         if (img instanceof ImageWrapper32 mono) {
-            var copy = mono.copy();
-            applyFunction(mono.width(), mono.height(), copy.data(), unary);
-            return copy;
+            var data = mono.pixels().toArray();
+            applyFunction(mono.width(), mono.height(), data, unary);
+            return new ImageWrapper32(mono.width(), mono.height(), data, new LinkedHashMap<>(mono.metadata()));
         } else if (img instanceof RGBImage rgb) {
-            var copy = rgb.copy();
-            applyFunction(rgb.width(), rgb.height(), copy.r(), unary);
-            applyFunction(rgb.width(), rgb.height(), copy.g(), unary);
-            applyFunction(rgb.width(), rgb.height(), copy.b(), unary);
-            return copy;
+            var r = rgb.red().toArray();
+            var g = rgb.green().toArray();
+            var b = rgb.blue().toArray();
+            applyFunction(rgb.width(), rgb.height(), r, unary);
+            applyFunction(rgb.width(), rgb.height(), g, unary);
+            applyFunction(rgb.width(), rgb.height(), b, unary);
+            return new RGBImage(rgb.width(), rgb.height(), r, g, b, new LinkedHashMap<>(rgb.metadata()));
         } else if (img instanceof Number number) {
             return unary.applyAsDouble(number.doubleValue());
         }
@@ -489,19 +484,20 @@ class AbstractFunctionImpl {
     }
 
     private Object applyUnary(Object img, MonoImageTransformer transformer) {
-        if (img instanceof FileBackedImage fileBackedImage) {
-            img = fileBackedImage.unwrapToMemory();
-        }
         if (img instanceof ImageWrapper32 mono) {
-            var copy = mono.copy();
-            transformer.transform(mono.width(), mono.height(), copy.data());
+            var data = mono.pixels().toArray();
+            transformer.transform(mono.width(), mono.height(), data);
+            var copy = new ImageWrapper32(mono.width(), mono.height(), data, new LinkedHashMap<>(mono.metadata()));
             transformer.postProcess(copy);
             return copy;
         } else if (img instanceof RGBImage rgb) {
-            var copy = rgb.copy();
-            transformer.transform(rgb.width(), rgb.height(), copy.r());
-            transformer.transform(rgb.width(), rgb.height(), copy.g());
-            transformer.transform(rgb.width(), rgb.height(), copy.b());
+            var r = rgb.red().toArray();
+            var g = rgb.green().toArray();
+            var b = rgb.blue().toArray();
+            transformer.transform(rgb.width(), rgb.height(), r);
+            transformer.transform(rgb.width(), rgb.height(), g);
+            transformer.transform(rgb.width(), rgb.height(), b);
+            var copy = new RGBImage(rgb.width(), rgb.height(), r, g, b, new LinkedHashMap<>(rgb.metadata()));
             transformer.postProcess(copy);
             return copy;
         }

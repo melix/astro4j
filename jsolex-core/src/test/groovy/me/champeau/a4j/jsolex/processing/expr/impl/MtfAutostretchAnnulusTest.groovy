@@ -71,7 +71,7 @@ class MtfAutostretchAnnulusTest extends Specification {
     private static float limbValue(ImageWrapper32 image) {
         int cx = (int) (image.width() / 2)
         int cy = (int) (image.height() / 2)
-        return image.data()[cy][cx + (int) (1.1 * R)]
+        return image.pixels().get(cx + (int) (1.1 * R), cy)
     }
 
     private static double relativeDifference(float a, float b) {

@@ -18,7 +18,6 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageStats;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
@@ -54,21 +53,18 @@ public class DiskFill extends AbstractFunctionImpl {
     }
 
     private static Object doFillAnyImageKind(Object img, Ellipse ellipse, float fill, Float outsideFill) {
-        if (img instanceof FileBackedImage fileBackedImage) {
-            img = fileBackedImage.unwrapToMemory();
-        }
         if (img instanceof ImageWrapper32 mono) {
-            var copy = mono.copy();
+            var data = mono.pixels().toArray();
             if (outsideFill == null) {
-                doFillWithGradient(ellipse, copy.data(), fill);
+                doFillWithGradient(ellipse, data, fill);
             } else {
-                doFillWithGradient(ellipse, copy.data(), fill, outsideFill);
+                doFillWithGradient(ellipse, data, fill, outsideFill);
             }
-            return copy;
+            return new ImageWrapper32(mono.width(), mono.height(), data, new LinkedHashMap<>(mono.metadata()));
         } else if (img instanceof RGBImage rgb) {
-            var r = ImageWrapper.copyData(rgb.r());
-            var g = ImageWrapper.copyData(rgb.g());
-            var b = ImageWrapper.copyData(rgb.b());
+            var r = rgb.red().toArray();
+            var g = rgb.green().toArray();
+            var b = rgb.blue().toArray();
             if (outsideFill == null) {
                 doFillWithGradient(ellipse, r, fill);
                 doFillWithGradient(ellipse, g, fill);

@@ -126,7 +126,7 @@ public class SpectrumController {
         }
         var binnings = binning != null ? new int[]{binning} : DEFAULT_BINNINGS;
         var frames = average == null ? DEFAULT_AVERAGED_FRAMES : Math.clamp(average, 1, MAX_AVERAGED_FRAMES);
-        var identification = identifier.identify(frame.data(), frame.width(), frame.height(), shg, size, frames, binnings);
+        var identification = identifier.identify(frame.pixels().toArray(), frame.width(), frame.height(), shg, size, frames, binnings);
         return HttpResponse.ok(toResponse(identification, shg, size, (System.nanoTime() - start) / 1_000_000, dumped));
     }
 
@@ -186,11 +186,10 @@ public class SpectrumController {
     }
 
     private static ImageWrapper32 mono(ImageWrapper image) {
-        var unwrapped = image.unwrapToMemory();
-        if (unwrapped instanceof RGBImage rgb) {
+        if (image instanceof RGBImage rgb) {
             return rgb.toMono();
         }
-        return (ImageWrapper32) unwrapped;
+        return (ImageWrapper32) image;
     }
 
     private static HttpResponse<ErrorResponse> error(String message) {

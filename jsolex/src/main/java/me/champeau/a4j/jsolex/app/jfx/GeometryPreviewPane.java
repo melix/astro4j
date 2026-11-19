@@ -153,7 +153,7 @@ public class GeometryPreviewPane extends BorderPane {
 
             var metadata = new HashMap<>(corrected.metadata());
             metadata.put(Ellipse.class, GeometryUtils.computeCorrectedCircle(ellipse, transform));
-            return performAutocrop(new ImageWrapper32(corrected.width(), corrected.height(), corrected.data(), metadata));
+            return performAutocrop(new ImageWrapper32(corrected.pixels(), metadata));
         } catch (Exception e) {
             throw new RuntimeException("Failed to apply geometry correction", e);
         }
@@ -176,16 +176,19 @@ public class GeometryPreviewPane extends BorderPane {
             return image;
         }
         var imageCopy = image.copy();
-        var data = imageCopy.data();
+        var pixels = imageCopy.pixels();
         var height = imageCopy.height();
         var width = imageCopy.width();
+        var row = new float[width];
         for (int y = 0; y < height; y++) {
+            pixels.getRow(y, row);
             for (int x = 0; x < width; x++) {
-                var originalValue = data[y][x];
+                var originalValue = row[x];
                 if (!ellipse.isWithin(x, y)) {
-                    data[y][x] = Constants.MAX_PIXEL_VALUE - originalValue;
+                    row[x] = Constants.MAX_PIXEL_VALUE - originalValue;
                 }
             }
+            pixels.setRow(y, row);
         }
 
         return imageCopy;

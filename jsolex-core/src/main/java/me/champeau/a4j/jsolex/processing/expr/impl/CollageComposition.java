@@ -18,7 +18,6 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.CollageParameters;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MetadataMerger;
@@ -73,7 +72,7 @@ public class CollageComposition extends AbstractFunctionImpl {
                 break;
             }
             var imgObj = imageList.get(imageIndex);
-            var img = unwrapToImage(imgObj);
+            var img = asImage(imgObj);
             imageSelections.add(new CollageParameters.ImageSelection(
                     img,
                     "",
@@ -119,10 +118,8 @@ public class CollageComposition extends AbstractFunctionImpl {
         return new BackgroundColor(0, 0, 0);
     }
 
-    private static ImageWrapper unwrapToImage(Object imgObj) {
-        if (imgObj instanceof FileBackedImage fbi) {
-            return fbi.unwrapToMemory();
-        } else if (imgObj instanceof ImageWrapper iw) {
+    private static ImageWrapper asImage(Object imgObj) {
+        if (imgObj instanceof ImageWrapper iw) {
             return iw;
         }
         throw new IllegalArgumentException("Expected an image but got " + imgObj.getClass().getSimpleName());
@@ -175,13 +172,7 @@ public class CollageComposition extends AbstractFunctionImpl {
                                    parameters.backgroundColorG() != parameters.backgroundColorB();
 
             var images = parameters.images().stream()
-                .map(imageSelection -> {
-                    var img = imageSelection.image();
-                    if (img instanceof FileBackedImage fbi) {
-                        return fbi.unwrapToMemory();
-                    }
-                    return img;
-                })
+                .map(CollageParameters.ImageSelection::image)
                 .toList();
 
             for (var img : images) {
@@ -354,19 +345,12 @@ public class CollageComposition extends AbstractFunctionImpl {
 
     private RgbData extractRgbData(ImageWrapper image) {
         if (image instanceof RGBImage rgb) {
-            return new RgbData(rgb.r(), rgb.g(), rgb.b());
+            return new RgbData(rgb.red().toArray(), rgb.green().toArray(), rgb.blue().toArray());
         } else if (image instanceof ImageWrapper32 mono) {
-            var monoData = mono.data();
+            var monoData = mono.pixels().toArray();
             return new RgbData(monoData, monoData, monoData);
         }
-        var unwrapped = image.unwrapToMemory();
-        if (unwrapped instanceof RGBImage rgb) {
-            return new RgbData(rgb.r(), rgb.g(), rgb.b());
-        } else if (unwrapped instanceof ImageWrapper32 mono) {
-            var monoData = mono.data();
-            return new RgbData(monoData, monoData, monoData);
-        }
-        logUnsupportedImageType(unwrapped);
+        logUnsupportedImageType(image);
         return null;
     }
 
@@ -376,13 +360,9 @@ public class CollageComposition extends AbstractFunctionImpl {
 
     private float[][] extractMonoData(ImageWrapper image) {
         if (image instanceof ImageWrapper32 mono) {
-            return mono.data();
+            return mono.pixels().toArray();
         }
-        var unwrapped = image.unwrapToMemory();
-        if (unwrapped instanceof ImageWrapper32 mono) {
-            return mono.data();
-        }
-        logUnsupportedImageType(unwrapped);
+        logUnsupportedImageType(image);
         return null;
     }
 

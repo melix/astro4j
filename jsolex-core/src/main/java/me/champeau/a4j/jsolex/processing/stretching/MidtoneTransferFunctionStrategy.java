@@ -55,7 +55,6 @@ public final class MidtoneTransferFunctionStrategy implements StretchingStrategy
     
     @Override
     public void stretch(ImageWrapper32 image) {
-        var data = image.data();
         var width = image.width();
         var height = image.height();
         
@@ -63,6 +62,7 @@ public final class MidtoneTransferFunctionStrategy implements StretchingStrategy
             return;
         }
         
+        var data = image.pixels().toArray();
         // Apply MTF transformation to all pixels
         RowStrips.forEach(height, (yStart, yEnd) -> {
             for (var y = yStart; y < yEnd; y++) {
@@ -73,6 +73,7 @@ public final class MidtoneTransferFunctionStrategy implements StretchingStrategy
                 }
             }
         });
+        image.pixels().copyFrom(data);
     }
     
     // MTF transformation: MTF(x, m, lo, hi)

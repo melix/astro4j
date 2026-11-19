@@ -97,7 +97,7 @@ public final class GongOrientationAnalyzer {
             }
 
             var result = AngularCorrelation.detectAngularOffset(
-                mono.data(), cx, cy, radius,
+                mono.pixels().toArray(), cx, cy, radius,
                 gongGray, gongCx, gongCy, gongRadius
             );
 

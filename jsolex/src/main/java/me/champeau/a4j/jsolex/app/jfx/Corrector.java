@@ -17,13 +17,15 @@ package me.champeau.a4j.jsolex.app.jfx;
 
 import me.champeau.a4j.jsolex.processing.expr.impl.Rotate;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
+import me.champeau.a4j.jsolex.processing.util.ImagePlane;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MetadataSupport;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
+
+import java.util.LinkedHashMap;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.message;
 
@@ -44,20 +46,16 @@ public class Corrector {
      */
     public static ImageWrapper rotate(ImageWrapper image, double angle, boolean resize) {
         return (ImageWrapper) MetadataSupport.applyMetadata(String.format(message("rotate.radians.format"), angle), () -> {
-            var img = image;
             var imageMath = ImageMath.newInstance();
-            if (img instanceof FileBackedImage fileBackedImage) {
-                img = fileBackedImage.unwrapToMemory();
-            }
-            if (img instanceof ImageWrapper32 mono) {
+            if (image instanceof ImageWrapper32 mono) {
                 var trn = imageMath.rotate(mono.asImage(), angle, -1, resize);
                 return ImageWrapper32.fromImage(trn, Rotate.fixMetadata(mono, angle, trn.width(), trn.height()));
-            } else if (img instanceof RGBImage rgb) {
+            } else if (image instanceof RGBImage rgb) {
                 var height = rgb.height();
                 var width = rgb.width();
-                var r = imageMath.rotate(new Image(width, height, rgb.r()), angle, -1, resize);
-                var g = imageMath.rotate(new Image(width, height, rgb.g()), angle, -1, resize);
-                var b = imageMath.rotate(new Image(width, height, rgb.b()), angle, -1, resize);
+                var r = imageMath.rotate(new Image(width, height, rgb.red().toArray()), angle, -1, resize);
+                var g = imageMath.rotate(new Image(width, height, rgb.green().toArray()), angle, -1, resize);
+                var b = imageMath.rotate(new Image(width, height, rgb.blue().toArray()), angle, -1, resize);
                 return new RGBImage(r.width(), r.height(), r.data(), g.data(), b.data(), Rotate.fixMetadata(rgb, angle, r.width(), r.height()));
             }
             throw new IllegalArgumentException("Unsupported image type");
@@ -71,22 +69,10 @@ public class Corrector {
      */
     public static ImageWrapper verticalFlip(ImageWrapper image) {
         var result = (ImageWrapper) MetadataSupport.applyMetadata(message("flip.vertical"), () -> {
-            var img = image;
-            if (img instanceof FileBackedImage fileBackedImage) {
-                img = fileBackedImage.unwrapToMemory();
-            }
-            if (img instanceof ImageWrapper32 mono) {
-                var copy = mono.copy();
-                verticalFlip(copy.data(), copy.width(), copy.height());
-                return copy;
-            } else if (img instanceof RGBImage rgb) {
-                var r = ImageWrapper.copyData(rgb.r());
-                var g = ImageWrapper.copyData(rgb.g());
-                var b = ImageWrapper.copyData(rgb.b());
-                verticalFlip(r, rgb.width(), rgb.height());
-                verticalFlip(g, rgb.width(), rgb.height());
-                verticalFlip(b, rgb.width(), rgb.height());
-                return new RGBImage(rgb.width(), rgb.height(), r, g, b, rgb.metadata());
+            if (image instanceof ImageWrapper32 mono) {
+                return new ImageWrapper32(verticalFlip(mono.pixels()), new LinkedHashMap<>(mono.metadata()));
+            } else if (image instanceof RGBImage rgb) {
+                return new RGBImage(verticalFlip(rgb.red()), verticalFlip(rgb.green()), verticalFlip(rgb.blue()), rgb.metadata());
             }
             throw new IllegalArgumentException("Unsupported image type");
         });
@@ -94,10 +80,14 @@ public class Corrector {
         return result;
     }
 
-    private static void verticalFlip(float[][] data, int width, int height) {
-        var tmp = ImageWrapper.copyData(data);
+    private static ImagePlane verticalFlip(ImagePlane source) {
+        int height = source.height();
+        var flipped = ImagePlane.allocate(source.width(), height);
+        var row = new float[source.width()];
         for (int y = 0; y < height; y++) {
-            System.arraycopy(tmp[height - y - 1], 0, data[y], 0, width);
+            source.getRow(height - y - 1, row);
+            flipped.setRow(y, row);
         }
+        return flipped;
     }
 }

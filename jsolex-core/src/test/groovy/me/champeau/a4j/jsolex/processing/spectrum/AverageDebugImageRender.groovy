@@ -44,7 +44,7 @@ class AverageDebugImageRender extends Specification {
         def image = (ImageWrapper32) FitsUtils.readFitsFile(file)
         int width = image.width()
         int height = image.height()
-        def data = image.data()
+        def data = image.pixels().toArray()
         def details = new SpectrumAnalyzer.QueryDetails(
                 new SpectralRay('Fe 5302', null, Wavelen.ofAngstroms(5302.3d), false, []),
                 2.0d, 1, SpectroHeliograph.MLASTRO_SHG_700)
@@ -71,9 +71,9 @@ class AverageDebugImageRender extends Specification {
     private static void write(rgb, File target) {
         int w = rgb.width()
         int h = rgb.height()
-        def r = rgb.r()
-        def g = rgb.g()
-        def b = rgb.b()
+        def r = rgb.red().toArray()
+        def g = rgb.green().toArray()
+        def b = rgb.blue().toArray()
         def max = 0f
         for (int y = 0; y < h; y++) {
             for (int x = 0; x < w; x++) {

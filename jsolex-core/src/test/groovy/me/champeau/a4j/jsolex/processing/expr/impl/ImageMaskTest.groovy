@@ -82,8 +82,8 @@ class ImageMaskTest extends Specification {
         def mask = masking().annulusMask([rmin: 1.1, rmax: 1.5])
 
         when:
-        def stretched = (stretching().percentileStretch([img: annulusImage(), mask: mask]) as ImageWrapper32).data()
-        def unrestricted = (stretching().percentileStretch([img: annulusImage()]) as ImageWrapper32).data()
+        def stretched = (stretching().percentileStretch([img: annulusImage(), mask: mask]) as ImageWrapper32).pixels().toArray()
+        def unrestricted = (stretching().percentileStretch([img: annulusImage()]) as ImageWrapper32).pixels().toArray()
 
         then: "the mid-annulus value lands mid-range instead of in the shadows"
         def midAnnulus = stretched[100][(int) (CX + 1.3 * R)]
@@ -101,9 +101,9 @@ class ImageMaskTest extends Specification {
         def byValue = masking().rangeMask([lo: 10000, hi: 20000])
 
         when:
-        def geometric = (stretching().mtfAutostretch([img: annulusImage(), mask: byGeometry]) as ImageWrapper32).data()
-        def byRange = (stretching().mtfAutostretch([img: annulusImage(), mask: byValue]) as ImageWrapper32).data()
-        def unrestricted = (stretching().mtfAutostretch([img: annulusImage()]) as ImageWrapper32).data()
+        def geometric = (stretching().mtfAutostretch([img: annulusImage(), mask: byGeometry]) as ImageWrapper32).pixels().toArray()
+        def byRange = (stretching().mtfAutostretch([img: annulusImage(), mask: byValue]) as ImageWrapper32).pixels().toArray()
+        def unrestricted = (stretching().mtfAutostretch([img: annulusImage()]) as ImageWrapper32).pixels().toArray()
 
         then:
         geometric == byRange
@@ -115,7 +115,7 @@ class ImageMaskTest extends Specification {
         def mask = masking().invertMask([mask: masking().annulusMask([rmin: 1.1, rmax: 1.5])])
 
         when: "stats are computed over the constant 50000 region only"
-        def stretched = (stretching().percentileStretch([img: annulusImage(), mask: mask]) as ImageWrapper32).data()
+        def stretched = (stretching().percentileStretch([img: annulusImage(), mask: mask]) as ImageWrapper32).pixels().toArray()
 
         then: "the annulus values, below the stats range, are clipped to black"
         stretched[100][(int) (CX + 1.3 * R)] == 0f
@@ -126,10 +126,10 @@ class ImageMaskTest extends Specification {
         def mask = masking().annulusMask([rmin: 3.0, rmax: 4.0])
 
         when:
-        def stretched = (stretching().percentileStretch([img: annulusImage(), mask: mask]) as ImageWrapper32).data()
+        def stretched = (stretching().percentileStretch([img: annulusImage(), mask: mask]) as ImageWrapper32).pixels().toArray()
 
         then:
-        stretched == annulusImage().data()
+        stretched == annulusImage().pixels().toArray()
     }
 
     def "stretching functions reject masks of the wrong type"() {

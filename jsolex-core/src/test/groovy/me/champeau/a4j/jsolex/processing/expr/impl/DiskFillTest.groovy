@@ -50,7 +50,7 @@ class DiskFillTest extends Specification {
     }
 
     private static float valueAt(ImageWrapper32 image, double distance) {
-        image.data()[(int) CENTER][(int) Math.round(CENTER + distance)]
+        image.pixels().get((int) Math.round(CENTER + distance), (int) CENTER)
     }
 
     private static ImageWrapper32 image() {

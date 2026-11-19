@@ -21,7 +21,6 @@ import me.champeau.a4j.jsolex.processing.stretching.StretchingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 
 import java.io.File;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -45,55 +44,27 @@ public class ImageSaver {
 
     public List<File> save(ImageWrapper image, File target) {
         var files = List.<File>of();
-        if (image instanceof FileBackedImage fbi) {
-            image = fbi.unwrapToMemory();
-        }
         image = StretchRecipe.materialize(image);
         if (image instanceof ImageWrapper32 mono) {
-            var buf = new float[mono.height()][mono.width()];
-            var stretched = stretchInto(mono, buf);
-            files = ImageUtils.writeMonoImage(image.width(), image.height(), stretched.data(), target, imageFormats);
+            var stretched = mono.copy();
+            stretchingStrategy.stretch(stretched);
+            files = ImageUtils.writeMonoImage(image.width(), image.height(), stretched.pixels().toArray(), target, imageFormats);
             if (imageFormats.contains(ImageFormat.FITS)) {
                 var fits = toFits(target);
                 files = Stream.concat(files.stream(), Stream.of(fits)).toList();
                 FitsUtils.writeFitsFile(stretched, fits, processParams);
             }
         } else if (image instanceof RGBImage rgb) {
-            var bufs = new float[3][rgb.height()][rgb.width()];
-            var stretched = stretchInto(rgb, bufs);
-            var r = stretched.r();
-            var g = stretched.g();
-            var b = stretched.b();
-            files = ImageUtils.writeRgbImage(rgb.width(), rgb.height(), r, g, b, target, imageFormats);
+            var stretched = rgb.copy();
+            stretchingStrategy.stretch(stretched);
+            files = ImageUtils.writeRgbImage(rgb.width(), rgb.height(), stretched.red().toArray(), stretched.green().toArray(), stretched.blue().toArray(), target, imageFormats);
             if (imageFormats.contains(ImageFormat.FITS)) {
                 var fits = toFits(target);
                 files = Stream.concat(files.stream(), Stream.of(fits)).toList();
-                FitsUtils.writeFitsFile(new RGBImage(image.width(), image.height(), r, g, b, rgb.metadata()), fits, processParams);
+                FitsUtils.writeFitsFile(new RGBImage(stretched.red(), stretched.green(), stretched.blue(), rgb.metadata()), fits, processParams);
             }
         }
         return files;
-    }
-
-    private ImageWrapper32 stretchInto(ImageWrapper32 image, float[][] buf) {
-        copyInto(image.data(), buf);
-        var stretched = new ImageWrapper32(image.width(), image.height(), buf, new LinkedHashMap<>(image.metadata()));
-        stretchingStrategy.stretch(stretched);
-        return stretched;
-    }
-
-    private RGBImage stretchInto(RGBImage image, float[][][] bufs) {
-        copyInto(image.r(), bufs[0]);
-        copyInto(image.g(), bufs[1]);
-        copyInto(image.b(), bufs[2]);
-        var stretched = new RGBImage(image.width(), image.height(), bufs[0], bufs[1], bufs[2], new LinkedHashMap<>(image.metadata()));
-        stretchingStrategy.stretch(stretched);
-        return stretched;
-    }
-
-    private static void copyInto(float[][] src, float[][] dst) {
-        for (int y = 0; y < src.length; y++) {
-            System.arraycopy(src[y], 0, dst[y], 0, src[y].length);
-        }
     }
 
     private File toFits(File target) {

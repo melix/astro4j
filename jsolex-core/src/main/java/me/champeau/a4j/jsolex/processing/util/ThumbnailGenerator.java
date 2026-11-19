@@ -18,9 +18,6 @@ package me.champeau.a4j.jsolex.processing.util;
 
 public class ThumbnailGenerator {
     public static ImageWrapper generateThumbnail(ImageWrapper source, int maxWidth, int maxHeight) {
-        if (source instanceof FileBackedImage fbi) {
-            source = fbi.unwrapToMemory();
-        }
         var sourceWidth = source.width();
         var sourceHeight = source.height();
 
@@ -45,7 +42,7 @@ public class ThumbnailGenerator {
     }
 
     private static ImageWrapper createMonoThumbnail(ImageWrapper32 source, int newWidth, int newHeight) {
-        var sourceData = source.data();
+        var sourcePixels = source.pixels();
         var thumbnailData = new float[newHeight][newWidth];
 
         var scaleX = (double) source.width() / newWidth;
@@ -59,7 +56,7 @@ public class ThumbnailGenerator {
                 sourceX = Math.min(sourceX, source.width() - 1);
                 sourceY = Math.min(sourceY, source.height() - 1);
 
-                thumbnailData[y][x] = sourceData[sourceY][sourceX];
+                thumbnailData[y][x] = sourcePixels.get(sourceX, sourceY);
             }
         }
 
@@ -67,9 +64,9 @@ public class ThumbnailGenerator {
     }
 
     private static ImageWrapper createRGBThumbnail(RGBImage source, int newWidth, int newHeight) {
-        var sourceR = source.r();
-        var sourceG = source.g();
-        var sourceB = source.b();
+        var sourceR = source.red();
+        var sourceG = source.green();
+        var sourceB = source.blue();
 
         var thumbnailR = new float[newHeight][newWidth];
         var thumbnailG = new float[newHeight][newWidth];
@@ -86,9 +83,9 @@ public class ThumbnailGenerator {
                 sourceX = Math.min(sourceX, source.width() - 1);
                 sourceY = Math.min(sourceY, source.height() - 1);
 
-                thumbnailR[y][x] = sourceR[sourceY][sourceX];
-                thumbnailG[y][x] = sourceG[sourceY][sourceX];
-                thumbnailB[y][x] = sourceB[sourceY][sourceX];
+                thumbnailR[y][x] = sourceR.get(sourceX, sourceY);
+                thumbnailG[y][x] = sourceG.get(sourceX, sourceY);
+                thumbnailB[y][x] = sourceB.get(sourceX, sourceY);
             }
         }
 

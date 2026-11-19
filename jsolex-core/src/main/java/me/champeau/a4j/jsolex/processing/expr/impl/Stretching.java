@@ -122,7 +122,7 @@ public class Stretching extends AbstractFunctionImpl {
             if (!(image instanceof ImageWrapper32 mono)) {
                 throw new IllegalArgumentException("lift only supports mono images");
             }
-            var data = mono.data();
+            var data = mono.pixels().toArray();
             float min = 0;
             for (var line : data) {
                 for (var v : line) {
@@ -138,6 +138,7 @@ public class Stretching extends AbstractFunctionImpl {
                         line[i] += shift;
                     }
                 }
+                mono.pixels().copyFrom(data);
             }
         });
     }

@@ -19,7 +19,6 @@ import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords;
 import me.champeau.a4j.jsolex.processing.sun.workflow.SourceInfo;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
@@ -92,7 +91,7 @@ public class PeriodicErrorCorrection extends AbstractLimbFunction {
         var circles = new ArrayList<Optional<Circle>>(images.size());
         for (int i = 0; i < references.size(); i++) {
             var reference = (ImageWrapper) references.get(i);
-            var scan = Timing.of(reference).flatMap(timing -> measure(toMono(reference.unwrapToMemory()), timing, origin));
+            var scan = Timing.of(reference).flatMap(timing -> measure(toMono(reference), timing, origin));
             scan.ifPresent(scans::add);
             circles.add(scan.map(Scan::circle));
             broadcaster.broadcast(operation.update((i + 1) / (2.0 * images.size())));
@@ -109,12 +108,12 @@ public class PeriodicErrorCorrection extends AbstractLimbFunction {
         var result = new ArrayList<Object>(images.size());
         var maxDrift = 0d;
         for (int i = 0; i < images.size(); i++) {
-            var image = ((ImageWrapper) images.get(i)).unwrapToMemory();
+            var image = (ImageWrapper) images.get(i);
             var timing = timings.get(i);
             var lineFrames = lineFrames(circles.get(i).orElse(fallback), timing.geometry());
             var drift = Drift.of(model, timing.start() - origin, timing.frameRate(), lineFrames);
             maxDrift = Math.max(maxDrift, drift.maxAmplitude(lineFrames));
-            result.add(FileBackedImage.wrap(correct(image, timing.geometry(), drift)));
+            result.add(correct(image, timing.geometry(), drift));
             broadcaster.broadcast(operation.update((images.size() + i + 1) / (2.0 * images.size())));
         }
         LOGGER.info("correct_periodic_error: period {} s, {} harmonics, {} scans measured, limb deviation rms {} px before, {} px after, drift up to {} px",
@@ -444,13 +443,13 @@ public class PeriodicErrorCorrection extends AbstractLimbFunction {
             }
         });
         if (image instanceof ImageWrapper32 mono) {
-            return new ImageWrapper32(width, height, resample(mono.data(), width, height, gridDx, gridDy), image.metadata());
+            return new ImageWrapper32(width, height, resample(mono.pixels().toArray(), width, height, gridDx, gridDy), image.metadata());
         }
         if (image instanceof RGBImage rgb) {
             return new RGBImage(width, height,
-                    resample(rgb.r(), width, height, gridDx, gridDy),
-                    resample(rgb.g(), width, height, gridDx, gridDy),
-                    resample(rgb.b(), width, height, gridDx, gridDy),
+                    resample(rgb.red().toArray(), width, height, gridDx, gridDy),
+                    resample(rgb.green().toArray(), width, height, gridDx, gridDy),
+                    resample(rgb.blue().toArray(), width, height, gridDx, gridDy),
                     image.metadata());
         }
         throw new IllegalArgumentException("correct_periodic_error only supports mono and RGB images");

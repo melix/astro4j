@@ -17,7 +17,6 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MetadataMerger;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
@@ -43,8 +42,8 @@ public class SignedDiff extends AbstractFunctionImpl {
         if (DEPRECATION_WARNED.compareAndSet(false, true)) {
             LOGGER.warn("signed_diff is deprecated: the subtraction operator now preserves negative values, so 'a - b' is equivalent");
         }
-        var a = unwrap(arguments.get("a"));
-        var b = unwrap(arguments.get("b"));
+        var a = arguments.get("a");
+        var b = arguments.get("b");
         if (a instanceof ImageWrapper32 imgA && b instanceof ImageWrapper32 imgB) {
             return diffMono(imgA, imgB);
         }
@@ -72,21 +71,14 @@ public class SignedDiff extends AbstractFunctionImpl {
         throw new IllegalArgumentException("Unsupported operand types for signed_diff");
     }
 
-    private static Object unwrap(Object o) {
-        if (o instanceof FileBackedImage fbi) {
-            return fbi.unwrapToMemory();
-        }
-        return o;
-    }
-
     private static ImageWrapper32 diffMono(ImageWrapper32 a, ImageWrapper32 b) {
         var width = a.width();
         var height = a.height();
         if (width != b.width() || height != b.height()) {
             throw new IllegalArgumentException("Both images must have the same dimensions");
         }
-        var da = a.data();
-        var db = b.data();
+        var da = a.pixels().toArray();
+        var db = b.pixels().toArray();
         var result = new float[height][width];
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
@@ -103,9 +95,9 @@ public class SignedDiff extends AbstractFunctionImpl {
         if (width != b.width() || height != b.height()) {
             throw new IllegalArgumentException("Both images must have the same dimensions");
         }
-        var rr = diffChannel(a.r(), b.r(), width, height);
-        var gg = diffChannel(a.g(), b.g(), width, height);
-        var bb = diffChannel(a.b(), b.b(), width, height);
+        var rr = diffChannel(a.red().toArray(), b.red().toArray(), width, height);
+        var gg = diffChannel(a.green().toArray(), b.green().toArray(), width, height);
+        var bb = diffChannel(a.blue().toArray(), b.blue().toArray(), width, height);
         var metadata = MetadataMerger.merge(List.of(a, b));
         return new RGBImage(width, height, rr, gg, bb, metadata);
     }
@@ -123,7 +115,7 @@ public class SignedDiff extends AbstractFunctionImpl {
     private static ImageWrapper32 diffMonoScalar(ImageWrapper32 img, float scalar) {
         var width = img.width();
         var height = img.height();
-        var data = img.data();
+        var data = img.pixels().toArray();
         var result = new float[height][width];
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
@@ -136,7 +128,7 @@ public class SignedDiff extends AbstractFunctionImpl {
     private static ImageWrapper32 diffScalarMono(float scalar, ImageWrapper32 img) {
         var width = img.width();
         var height = img.height();
-        var data = img.data();
+        var data = img.pixels().toArray();
         var result = new float[height][width];
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
@@ -149,18 +141,18 @@ public class SignedDiff extends AbstractFunctionImpl {
     private static RGBImage diffRGBScalar(RGBImage img, float scalar) {
         var width = img.width();
         var height = img.height();
-        var rr = subtractScalarFromChannel(img.r(), scalar, width, height);
-        var gg = subtractScalarFromChannel(img.g(), scalar, width, height);
-        var bb = subtractScalarFromChannel(img.b(), scalar, width, height);
+        var rr = subtractScalarFromChannel(img.red().toArray(), scalar, width, height);
+        var gg = subtractScalarFromChannel(img.green().toArray(), scalar, width, height);
+        var bb = subtractScalarFromChannel(img.blue().toArray(), scalar, width, height);
         return new RGBImage(width, height, rr, gg, bb, new LinkedHashMap<>(img.metadata()));
     }
 
     private static RGBImage diffScalarRGB(float scalar, RGBImage img) {
         var width = img.width();
         var height = img.height();
-        var rr = subtractChannelFromScalar(scalar, img.r(), width, height);
-        var gg = subtractChannelFromScalar(scalar, img.g(), width, height);
-        var bb = subtractChannelFromScalar(scalar, img.b(), width, height);
+        var rr = subtractChannelFromScalar(scalar, img.red().toArray(), width, height);
+        var gg = subtractChannelFromScalar(scalar, img.green().toArray(), width, height);
+        var bb = subtractChannelFromScalar(scalar, img.blue().toArray(), width, height);
         return new RGBImage(width, height, rr, gg, bb, new LinkedHashMap<>(img.metadata()));
     }
 

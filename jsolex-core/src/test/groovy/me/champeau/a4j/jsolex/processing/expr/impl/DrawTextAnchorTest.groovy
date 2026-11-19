@@ -40,7 +40,7 @@ class DrawTextAnchorTest extends Specification {
     /** Bounding box of the pixels which were painted, as [minX, minY, maxX, maxY]. */
     private static List<Integer> inkBounds(RGBImage image) {
         var minX = WIDTH, minY = HEIGHT, maxX = -1, maxY = -1
-        var data = image.r()
+        var data = image.red().toArray()
         for (int y = 0; y < HEIGHT; y++) {
             for (int x = 0; x < WIDTH; x++) {
                 if (data[y][x] > 0) {

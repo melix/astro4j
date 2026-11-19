@@ -21,7 +21,6 @@ import me.champeau.a4j.jsolex.processing.sun.detection.Flares;
 import me.champeau.a4j.jsolex.processing.sun.detection.RedshiftArea;
 import me.champeau.a4j.jsolex.processing.sun.detection.Redshifts;
 import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegions;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
@@ -275,7 +274,7 @@ public class Scaling extends AbstractFunctionImpl {
                     ImageWrapper withEllipse = img;
                     var ellipse = img.findMetadata(Ellipse.class).orElse(null);
                     if (ellipse == null) {
-                        withEllipse = FileBackedImage.wrap((ImageWrapper) ellipseFit.fit(Map.of("img", img)));
+                        withEllipse = (ImageWrapper) ellipseFit.fit(Map.of("img", img));
                     }
                     return withEllipse;
                 })
@@ -296,10 +295,10 @@ public class Scaling extends AbstractFunctionImpl {
                 var img = entry.getKey();
                 var radius = entry.getValue();
                 if (radius.equals(maxRadiusValue)) {
-                    result.add(FileBackedImage.wrap(img));
+                    result.add(img);
                 } else {
                     var scale = maxRadiusValue / radius;
-                    result.add(FileBackedImage.wrap(doRescale(img, (int) Math.round(img.width() * scale), (int) Math.round(img.height() * scale))));
+                    result.add(doRescale(img, (int) Math.round(img.width() * scale), (int) Math.round(img.height() * scale)));
                 }
             }
             var minWidth = result.stream().mapToInt(ImageWrapper::width).min().orElse(0);
@@ -318,13 +317,11 @@ public class Scaling extends AbstractFunctionImpl {
     }
 
     private ImageWrapper centerImageInCanvas(ImageWrapper img, int canvasWidth, int canvasHeight, int offsetX, int offsetY) {
-        if (img instanceof FileBackedImage fileBackedImage) {
-            img = fileBackedImage.unwrapToMemory();
-        }
         var metadata = new LinkedHashMap<>(img.metadata());
 
         if (img instanceof ImageWrapper32 mono) {
             var canvas = new float[canvasHeight][canvasWidth];
+            var data = mono.pixels().toArray();
 
             for (int y = 0; y < img.height(); y++) {
                 for (int x = 0; x < img.width(); x++) {
@@ -332,7 +329,7 @@ public class Scaling extends AbstractFunctionImpl {
                     int canvasY = y + offsetY;
 
                     if (canvasX >= 0 && canvasX < canvasWidth && canvasY >= 0 && canvasY < canvasHeight) {
-                        canvas[canvasY][canvasX] = mono.data()[y][x];
+                        canvas[canvasY][canvasX] = data[y][x];
                     }
                 }
             }
@@ -343,6 +340,9 @@ public class Scaling extends AbstractFunctionImpl {
             var canvasR = new float[canvasHeight][canvasWidth];
             var canvasG = new float[canvasHeight][canvasWidth];
             var canvasB = new float[canvasHeight][canvasWidth];
+            var r = rgb.red().toArray();
+            var g = rgb.green().toArray();
+            var b = rgb.blue().toArray();
 
             for (int y = 0; y < img.height(); y++) {
                 for (int x = 0; x < img.width(); x++) {
@@ -350,9 +350,9 @@ public class Scaling extends AbstractFunctionImpl {
                     int canvasY = y + offsetY;
 
                     if (canvasX >= 0 && canvasX < canvasWidth && canvasY >= 0 && canvasY < canvasHeight) {
-                        canvasR[canvasY][canvasX] = rgb.r()[y][x];
-                        canvasG[canvasY][canvasX] = rgb.g()[y][x];
-                        canvasB[canvasY][canvasX] = rgb.b()[y][x];
+                        canvasR[canvasY][canvasX] = r[y][x];
+                        canvasG[canvasY][canvasX] = g[y][x];
+                        canvasB[canvasY][canvasX] = b[y][x];
                     }
                 }
             }
@@ -393,9 +393,6 @@ public class Scaling extends AbstractFunctionImpl {
 
     private ImageWrapper doRescale(ImageWrapper img, int width, int height) {
         var metadata = fixMetadata(img, width, height);
-        if (img instanceof FileBackedImage fileBackedImage) {
-            img = fileBackedImage.unwrapToMemory();
-        }
         if (img instanceof ImageWrapper32 mono) {
             return ImageWrapper32.fromImage(
                     imageMath.rescale(mono.asImage(),
@@ -404,9 +401,9 @@ public class Scaling extends AbstractFunctionImpl {
                     ),
                     metadata);
         } else if (img instanceof RGBImage rgb) {
-            var r = new Image(rgb.width(), rgb.height(), rgb.r());
-            var g = new Image(rgb.width(), rgb.height(), rgb.g());
-            var b = new Image(rgb.width(), rgb.height(), rgb.b());
+            var r = new Image(rgb.width(), rgb.height(), rgb.red().toArray());
+            var g = new Image(rgb.width(), rgb.height(), rgb.green().toArray());
+            var b = new Image(rgb.width(), rgb.height(), rgb.blue().toArray());
             return new RGBImage(
                     width,
                     height,

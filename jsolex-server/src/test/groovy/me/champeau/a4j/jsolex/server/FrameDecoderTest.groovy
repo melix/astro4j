@@ -34,8 +34,9 @@ class FrameDecoderTest extends Specification {
         then:
         image.width() == 3
         image.height() == 2
-        image.data()[0] as List == [0f, 100f * scale, 200f * scale]
-        image.data()[1] as List == [30f * scale, 40f * scale, 50f * scale]
+        def data = image.pixels().toArray()
+        data[0] as List == [0f, 100f * scale, 200f * scale]
+        data[1] as List == [30f * scale, 40f * scale, 50f * scale]
 
         where:
         format            | scale
@@ -52,7 +53,7 @@ class FrameDecoderTest extends Specification {
         def image = FrameDecoder.decode(body, 2, 1, format)
 
         then:
-        image.data()[0] as List == [100f * scale, 180f * scale]
+        image.pixels().toArray()[0] as List == [100f * scale, 180f * scale]
 
         where:
         format            | scale
@@ -68,7 +69,7 @@ class FrameDecoderTest extends Specification {
         def image = FrameDecoder.decode(body, 2, 1, PixelFormat.RGB32)
 
         then:
-        image.data()[0] as List == [100f * 256, 180f * 256]
+        image.pixels().toArray()[0] as List == [100f * 256, 180f * 256]
     }
 
     def "brings every phase of a Bayer mosaic to the same mean"() {
@@ -87,7 +88,7 @@ class FrameDecoderTest extends Specification {
         def image = FrameDecoder.decode(body, width, height, PixelFormat.RAW16)
 
         then:
-        image.data().every { row -> row.every { Math.abs(it - 550f) < 1e-3 } }
+        image.pixels().toArray().every { row -> row.every { Math.abs(it - 550f) < 1e-3 } }
     }
 
     def "rejects a body whose length does not match the format"() {

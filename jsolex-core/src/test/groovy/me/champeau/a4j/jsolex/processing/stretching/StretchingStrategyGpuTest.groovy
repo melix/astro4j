@@ -42,10 +42,9 @@ class StretchingStrategyGpuTest extends Specification {
     @Unroll
     def "GammaStrategy GPU matches CPU for gamma=#gamma"() {
         given:
-        def cpuData = createRandomImage(512, 512)
-        def gpuData = copyData(cpuData)
-        def cpuImage = new ImageWrapper32(512, 512, cpuData, [:])
-        def gpuImage = new ImageWrapper32(512, 512, gpuData, [:])
+        def data = createRandomImage(512, 512)
+        def cpuImage = new ImageWrapper32(512, 512, data, [:])
+        def gpuImage = new ImageWrapper32(512, 512, data, [:])
         def strategy = new GammaStrategy(gamma)
 
         when:
@@ -56,7 +55,7 @@ class StretchingStrategyGpuTest extends Specification {
 
         then:
         if (context != null) {
-            compareImages(cpuData, gpuData, 1e-2f)
+            compareImages(cpuImage.pixels().toArray(), gpuImage.pixels().toArray(), 1e-2f)
         }
 
         where:
@@ -66,10 +65,9 @@ class StretchingStrategyGpuTest extends Specification {
     @Unroll
     def "ArcsinhStretchingStrategy GPU matches CPU for blackPoint=#bp stretch=#str"() {
         given:
-        def cpuData = createRandomImage(512, 512)
-        def gpuData = copyData(cpuData)
-        def cpuImage = new ImageWrapper32(512, 512, cpuData, [:])
-        def gpuImage = new ImageWrapper32(512, 512, gpuData, [:])
+        def data = createRandomImage(512, 512)
+        def cpuImage = new ImageWrapper32(512, 512, data, [:])
+        def gpuImage = new ImageWrapper32(512, 512, data, [:])
         def strategy = new ArcsinhStretchingStrategy(bp as float, str as float, 100)
 
         when:
@@ -80,7 +78,7 @@ class StretchingStrategyGpuTest extends Specification {
 
         then:
         if (context != null) {
-            compareImages(cpuData, gpuData, 1e-2f)
+            compareImages(cpuImage.pixels().toArray(), gpuImage.pixels().toArray(), 1e-2f)
         }
 
         where:
@@ -99,16 +97,6 @@ class StretchingStrategyGpuTest extends Specification {
             }
         }
         return data
-    }
-
-    private static float[][] copyData(float[][] data) {
-        int height = data.length
-        int width = data[0].length
-        var copy = new float[height][width]
-        for (int y = 0; y < height; y++) {
-            System.arraycopy(data[y], 0, copy[y], 0, width)
-        }
-        return copy
     }
 
     private static boolean compareImages(float[][] cpuData, float[][] gpuData, float tolerance) {

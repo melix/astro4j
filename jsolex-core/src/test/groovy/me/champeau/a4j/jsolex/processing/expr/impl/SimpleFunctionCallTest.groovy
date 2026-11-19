@@ -16,7 +16,6 @@
 package me.champeau.a4j.jsolex.processing.expr.impl
 
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32
 import spock.lang.Specification
 import spock.lang.Subject
@@ -50,7 +49,7 @@ class SimpleFunctionCallTest extends Specification {
         then:
         for (int y = 0; y < 4; y++) {
             for (int x = 0; x < 4; x++) {
-                assert Math.abs(streamed.data()[y][x] - reference.data()[y][x]) < 1e-2
+                assert Math.abs(streamed.pixels().get(x, y) - reference.pixels().get(x, y)) < 1e-2
             }
         }
 
@@ -61,20 +60,19 @@ class SimpleFunctionCallTest extends Specification {
         'min' | DoubleStream::min       | SimpleFunctionCall.StreamingReduction.MIN
     }
 
-    def "avg streams file backed images without unwrapping them all"() {
+    def "avg streaming reduction computes the mean of the images"() {
         given:
         def random = new Random(11)
         def images = (0..<6).collect { image(random) }
-        def fileBacked = images.collect { FileBackedImage.wrap(it) }
 
         when:
-        def result = functions.applyFunction('avg', [list: fileBacked], DoubleStream::average, SimpleFunctionCall.StreamingReduction.AVERAGE)
+        def result = functions.applyFunction('avg', [list: images], DoubleStream::average, SimpleFunctionCall.StreamingReduction.AVERAGE)
 
         then:
         for (int y = 0; y < 4; y++) {
             for (int x = 0; x < 4; x++) {
-                double expected = images.sum { it.data()[y][x] } / images.size()
-                assert Math.abs(result.data()[y][x] - expected) < 1e-2
+                double expected = images.sum { it.pixels().get(x, y) } / images.size()
+                assert Math.abs(result.pixels().get(x, y) - expected) < 1e-2
             }
         }
     }

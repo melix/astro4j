@@ -113,10 +113,10 @@ class DeghostTest extends Specification {
 
     def "attenuates the reflection while preserving the sharp feature and untouched regions"() {
         given:
-        def before = syntheticImage().data()
+        def before = syntheticImage().pixels().toArray()
 
         when:
-        def after = (deghost().deghost([img: syntheticImage()]) as ImageWrapper32).data()
+        def after = (deghost().deghost([img: syntheticImage()]) as ImageWrapper32).pixels().toArray()
         saveRenders('single-ghost', before, after)
 
         then: "the reflection band is strongly attenuated"
@@ -151,10 +151,10 @@ class DeghostTest extends Specification {
         given: "two same-radius disk copies: one shifted far left (beyond the old fixed removal extent), one shifted right-down"
         double aAmp = 600
         def image = imageFrom('/deghost/two-ghosts.png', diskEllipse())
-        def before = image.copy().data()
+        def before = image.pixels().toArray()
 
         when:
-        def after = (deghost().deghost([img: image]) as ImageWrapper32).data()
+        def after = (deghost().deghost([img: image]) as ImageWrapper32).pixels().toArray()
         saveRenders('two-ghosts', before, after)
 
         then: "the left crescent, the right crescent and the outer part of the left crescent are all strongly attenuated"
@@ -186,10 +186,10 @@ class DeghostTest extends Specification {
     def "removes the reflections of a real batch average"() {
         given: "a real stacked series with two disk reflections, one large towards the upper left, a thinner one towards the lower right"
         def image = imageFrom('/deghost/real-batch-average.png', circle(520.1, 519.9, 347.65))
-        def before = image.copy().data()
+        def before = image.pixels().toArray()
 
         when:
-        def after = (deghost().deghost([img: image]) as ImageWrapper32).data()
+        def after = (deghost().deghost([img: image]) as ImageWrapper32).pixels().toArray()
         saveRenders('real-batch', before, after)
 
         then: "both reflection crescents are strongly attenuated"
@@ -217,10 +217,10 @@ class DeghostTest extends Specification {
             file.withOutputStream { it << input }
         }
         def image = FitsUtils.readFitsFile(file) as ImageWrapper32
-        def before = image.copy().data()
+        def before = image.pixels().toArray()
 
         when:
-        def after = (deghost().deghost([img: image]) as ImageWrapper32).data()
+        def after = (deghost().deghost([img: image]) as ImageWrapper32).pixels().toArray()
         saveRenders('real-batch-fits', before, after)
 
         then:
@@ -231,10 +231,10 @@ class DeghostTest extends Specification {
     def "attenuates the reflections of a stacked corona image with prominences"() {
         given:
         def image = imageFrom('/deghost/ghosted-2026-07-05.jpg', circle(833.2, 832.9, 692.2))
-        def before = image.copy().data()
+        def before = image.pixels().toArray()
 
         when:
-        def after = (deghost().deghost([img: image]) as ImageWrapper32).data()
+        def after = (deghost().deghost([img: image]) as ImageWrapper32).pixels().toArray()
         saveRenders('ghosted-2026-07-05', before, after)
 
         then:
@@ -244,10 +244,10 @@ class DeghostTest extends Specification {
     def "attenuates the reflections of a stacked corona image with a tilted frame"() {
         given:
         def image = imageFrom('/deghost/ghosted-2026-07-19.jpg', circle(999.9, 1000.5, 666.4))
-        def before = image.copy().data()
+        def before = image.pixels().toArray()
 
         when:
-        def after = (deghost().deghost([img: image]) as ImageWrapper32).data()
+        def after = (deghost().deghost([img: image]) as ImageWrapper32).pixels().toArray()
         saveRenders('ghosted-2026-07-19', before, after)
 
         then:
@@ -257,10 +257,10 @@ class DeghostTest extends Specification {
     def "the removal fades out instead of ending on a sharp edge"() {
         given:
         def image = imageFrom(resource, circle(cx, cy, radius))
-        def before = image.copy().data()
+        def before = image.pixels().toArray()
 
         when:
-        def after = (deghost().deghost([img: image]) as ImageWrapper32).data()
+        def after = (deghost().deghost([img: image]) as ImageWrapper32).pixels().toArray()
 
         then: "along every ray, the removal never drops by more than a tenth of its maximum between two neighbouring pixels, except where the image is clipped at 0"
         double maxRemoval = 0
@@ -326,8 +326,8 @@ class DeghostTest extends Specification {
         def reference = image.copy()
 
         when:
-        def alone = (deghost().deghost([img: image.copy()]) as ImageWrapper32).data()
-        def withReference = (deghost().deghost([img: image.copy(), ref: reference]) as ImageWrapper32).data()
+        def alone = (deghost().deghost([img: image.copy()]) as ImageWrapper32).pixels().toArray()
+        def withReference = (deghost().deghost([img: image.copy(), ref: reference]) as ImageWrapper32).pixels().toArray()
 
         then:
         maxDifference(alone, withReference) < 1e-3
@@ -335,10 +335,10 @@ class DeghostTest extends Specification {
 
     def "only the reflections of the reference are removed"() {
         when:
-        def after = (deghost().deghost([img: syntheticImage(), ref: backgroundImage()]) as ImageWrapper32).data()
+        def after = (deghost().deghost([img: syntheticImage(), ref: backgroundImage()]) as ImageWrapper32).pixels().toArray()
 
         then:
-        maxDifference(after, syntheticImage().data()) < 1e-3
+        maxDifference(after, syntheticImage().pixels().toArray()) < 1e-3
     }
 
     def "noisy copies of an image remove the same reflections when they share a reference"() {
@@ -347,8 +347,8 @@ class DeghostTest extends Specification {
         def copies = (1..4).collect { seed -> withNoise(image, noise, seed) }
 
         when:
-        def alone = copies.collect { (deghost().deghost([img: it, debug: 1]) as ImageWrapper32).data() }
-        def shared = copies.collect { (deghost().deghost([img: it, ref: image, debug: 1]) as ImageWrapper32).data() }
+        def alone = copies.collect { (deghost().deghost([img: it, debug: 1]) as ImageWrapper32).pixels().toArray() }
+        def shared = copies.collect { (deghost().deghost([img: it, ref: image, debug: 1]) as ImageWrapper32).pixels().toArray() }
         def spreadAlone = removalSpread(alone, cx, cy, radius)
         def spreadShared = removalSpread(shared, cx, cy, radius)
 
@@ -364,14 +364,13 @@ class DeghostTest extends Specification {
 
     private static ImageWrapper32 withNoise(ImageWrapper32 image, double sigma, long seed) {
         def random = new Random(seed)
-        def copy = image.copy()
-        def data = copy.data()
+        def data = image.pixels().toArray()
         for (int y = 0; y < data.length; y++) {
             for (int x = 0; x < data[0].length; x++) {
                 data[y][x] = (float) Math.max(0, data[y][x] + sigma * random.nextGaussian())
             }
         }
-        copy
+        new ImageWrapper32(image.width(), image.height(), data, new LinkedHashMap<>(image.metadata()))
     }
 
     private static double removalSpread(List<float[][]> maps, double cx, double cy, double radius) {
@@ -405,10 +404,10 @@ class DeghostTest extends Specification {
 
     def "strength 0 is a no-op"() {
         given:
-        def before = syntheticImage().data()
+        def before = syntheticImage().pixels().toArray()
 
         when:
-        def after = (deghost().deghost([img: syntheticImage(), strength: 0d]) as ImageWrapper32).data()
+        def after = (deghost().deghost([img: syntheticImage(), strength: 0d]) as ImageWrapper32).pixels().toArray()
 
         then:
         Math.abs(after[200][335] - before[200][335]) < 1e-3
@@ -416,11 +415,11 @@ class DeghostTest extends Specification {
 
     def "more iterations attenuate the reflection further"() {
         given:
-        double before = crescentExcess(syntheticImage().data())
+        double before = crescentExcess(syntheticImage().pixels().toArray())
 
         when:
-        double one = crescentExcess((deghost().deghost([img: syntheticImage(), strength: 0.5d, iterations: 1]) as ImageWrapper32).data())
-        double three = crescentExcess((deghost().deghost([img: syntheticImage(), strength: 0.5d, iterations: 3]) as ImageWrapper32).data())
+        double one = crescentExcess((deghost().deghost([img: syntheticImage(), strength: 0.5d, iterations: 1]) as ImageWrapper32).pixels().toArray())
+        double three = crescentExcess((deghost().deghost([img: syntheticImage(), strength: 0.5d, iterations: 3]) as ImageWrapper32).pixels().toArray())
 
         then:
         one < before
@@ -430,10 +429,10 @@ class DeghostTest extends Specification {
 
     def "no reflection leaves the image unchanged"() {
         given:
-        def before = backgroundImage().data()
+        def before = backgroundImage().pixels().toArray()
 
         when:
-        def after = (deghost().deghost([img: backgroundImage()]) as ImageWrapper32).data()
+        def after = (deghost().deghost([img: backgroundImage()]) as ImageWrapper32).pixels().toArray()
         saveRenders('background', before, after)
 
         then:
@@ -443,8 +442,8 @@ class DeghostTest extends Specification {
 
     def "debug shows the estimated reflection instead of subtracting it"() {
         when:
-        def dbg = (deghost().deghost([img: syntheticImage(), debug: 1]) as ImageWrapper32).data()
-        saveRenders('single-ghost-debug', syntheticImage().data(), dbg)
+        def dbg = (deghost().deghost([img: syntheticImage(), debug: 1]) as ImageWrapper32).pixels().toArray()
+        saveRenders('single-ghost-debug', syntheticImage().pixels().toArray(), dbg)
 
         then: "the reflection side carries the estimate, the anti-reflection side is zero"
         dbg[200][326] > 300
@@ -454,11 +453,11 @@ class DeghostTest extends Specification {
     def "handles a disk large relative to the frame (sampling off-image) without crashing"() {
         given: "a disk whose sampling radius runs off the frame edges"
         def image = imageFrom('/deghost/large-disk.png', circle(150, 150, 130))
-        def before = image.copy().data()
+        def before = image.pixels().toArray()
 
         when:
         def result = deghost().deghost([img: image])
-        saveRenders('large-disk', before, (result as ImageWrapper32).data())
+        saveRenders('large-disk', before, (result as ImageWrapper32).pixels().toArray())
 
         then:
         noExceptionThrown()

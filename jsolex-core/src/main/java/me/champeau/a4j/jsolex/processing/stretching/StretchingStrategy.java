@@ -66,9 +66,9 @@ public sealed interface StretchingStrategy permits
      * @param image the RGB image to stretch
      */
     default void stretch(RGBImage image) {
-        var r = image.r();
-        var g = image.g();
-        var b = image.b();
+        var r = image.red().toArray();
+        var g = image.green().toArray();
+        var b = image.blue().toArray();
         int height = r.length;
         int width = r[0].length;
         var rgb = new float[][][]{r, g, b};
@@ -81,18 +81,23 @@ public sealed interface StretchingStrategy permits
                 row[x] *= 65535f;
             }
         }
-        stretch(new ImageWrapper32(width, height, lightness, image.metadata()));
+        var lightnessImage = new ImageWrapper32(width, height, lightness, image.metadata());
+        stretch(lightnessImage);
         for (int y = 0; y < height; y++) {
             var row = lightness[y];
+            lightnessImage.pixels().getRow(y, row);
             for (int x = 0; x < width; x++) {
                 row[x] /= 65535f;
             }
         }
         ImageUtils.fromHSLtoRGB(hsl, rgb);
 
-        stretch(new ImageWrapper32(width, height, r, image.metadata()));
-        stretch(new ImageWrapper32(width, height, g, image.metadata()));
-        stretch(new ImageWrapper32(width, height, b, image.metadata()));
+        image.red().copyFrom(r);
+        image.green().copyFrom(g);
+        image.blue().copyFrom(b);
+        stretch(new ImageWrapper32(image.red(), image.metadata()));
+        stretch(new ImageWrapper32(image.green(), image.metadata()));
+        stretch(new ImageWrapper32(image.blue(), image.metadata()));
     }
 
 }

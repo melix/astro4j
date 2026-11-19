@@ -172,8 +172,8 @@ import me.champeau.a4j.jsolex.processing.util.JitWarmup;
 import me.champeau.a4j.jsolex.processing.util.Bass2000ConfigService;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.DurationFormatter;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
+import me.champeau.a4j.jsolex.processing.util.ImageMemory;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.LiveSessionManager;
 import me.champeau.a4j.jsolex.processing.util.LocaleUtils;
@@ -246,7 +246,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
 
     static {
         System.setProperty("java.util.concurrent.ForkJoinPool.common.exceptionHandler", LoggingSupport.class.getName());
-        if (Runtime.getRuntime().maxMemory() < MINIMAL_MEMORY) {
+        if (ImageMemory.budget() < MINIMAL_MEMORY) {
             System.err.println("Detected low memory environment, limiting parallelism to 2 threads");
             System.setProperty("java.util.concurrent.ForkJoinPool.common.parallelism", "2");
         }
@@ -763,7 +763,6 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             server.addStatusChangeListener(this::updateServerStatus);
             updateLiveStatus();
             maybeShowWelcomeMessage(rootScene);
-            Runtime.getRuntime().addShutdownHook(new Thread(FileBackedImage::onShutdown));
         } catch (IOException exception) {
             throw new ProcessingException(exception);
         }
@@ -1337,13 +1336,10 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     }
 
     private void configureMemoryStatus() {
-        // The JavaFX application thread must never block on disk I/O when
-        // FileBackedImage flushes images to disk under memory pressure.
-        FileBackedImage.setMustNotBlockSupplier(Platform::isFxApplicationThread);
         var timeline = new Timeline();
         timeline.getKeyFrames().add(new KeyFrame(Duration.seconds(1), event -> {
-            var usedMemory = (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) >> 20;
-            var maxMemory = Runtime.getRuntime().maxMemory() >> 20;
+            var usedMemory = (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory() + ImageMemory.used()) >> 20;
+            var maxMemory = ImageMemory.budget() >> 20;
             memory.setProgress(usedMemory / (double) maxMemory);
             memoryLabel.setText(String.format("%d M / %d M", usedMemory, maxMemory));
         }));
@@ -2699,7 +2695,6 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         scriptRunStartTime = null;
         batchTab = null;
         clearDisplayedImages();
-        FileBackedImage.clearCache();
     }
 
     @Override

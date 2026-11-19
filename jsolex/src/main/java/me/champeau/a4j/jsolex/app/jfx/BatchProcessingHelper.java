@@ -36,6 +36,7 @@ import me.champeau.a4j.jsolex.processing.spectrum.SerFileTrimmer;
 import me.champeau.a4j.jsolex.processing.sun.TrimmingParameters;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.jsolex.processing.util.CancellationSupport;
+import me.champeau.a4j.jsolex.processing.util.ImageMemory;
 import me.champeau.a4j.ser.Header;
 import me.champeau.a4j.ser.SerFileReader;
 
@@ -523,22 +524,22 @@ public final class BatchProcessingHelper {
     }
 
     /**
-     * Caps batch parallelism to at most one worker per 4 GB of JVM heap, with
+     * Caps batch parallelism to at most one worker per 4 GB of memory, with
      * a floor of 1. The cap exists because each parallel file processing
      * holds a substantial in-flight working set (raw frames, reconstructed
      * images, async writers) — running more files concurrently than the
-     * heap can comfortably hold leads to thrashing and OOMs regardless of
+     * memory can comfortably hold leads to thrashing and OOMs regardless of
      * the per-process throttling we apply elsewhere. If the user-configured
      * parallelism exceeds the memory-derived cap we log a warning and use
      * the cap; otherwise the user's setting wins.
      */
     private static int capParallelismForMemory(int configured) {
-        long maxHeapBytes = Runtime.getRuntime().maxMemory();
+        long memoryBudget = ImageMemory.budget();
         long bytesPerWorker = 4L * 1024 * 1024 * 1024;
-        int memoryCap = (int) Math.max(1, maxHeapBytes / bytesPerWorker);
+        int memoryCap = (int) Math.max(1, memoryBudget / bytesPerWorker);
         if (configured > memoryCap) {
-            long heapGb = maxHeapBytes / (1024 * 1024 * 1024);
-            LOGGER.warn(message("batch.parallelism.capped"), configured, memoryCap, heapGb);
+            long budgetGb = memoryBudget / (1024 * 1024 * 1024);
+            LOGGER.warn(message("batch.parallelism.capped"), configured, memoryCap, budgetGb);
             return memoryCap;
         }
         return configured;

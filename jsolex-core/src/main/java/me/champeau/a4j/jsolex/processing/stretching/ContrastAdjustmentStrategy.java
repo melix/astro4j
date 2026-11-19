@@ -45,8 +45,9 @@ public final class ContrastAdjustmentStrategy implements StretchingStrategy {
 
     @Override
     public void stretch(ImageWrapper32 image) {
-        var data = image.data();
+        var data = image.pixels().toArray();
         truncate(data);
+        image.pixels().copyFrom(data);
     }
 
     private void truncate(float[][] data) {

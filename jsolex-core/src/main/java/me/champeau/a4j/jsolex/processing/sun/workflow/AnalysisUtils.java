@@ -36,7 +36,7 @@ public class AnalysisUtils {
     public static double estimateBlackPoint(ImageWrapper32 image, Ellipse ellipse) {
         var width = image.width();
         var height = image.height();
-        var buffer = image.data();
+        var buffer = image.pixels().toArray();
         double blackEstimate = Double.MAX_VALUE;
         int cpt = 0;
         var cx = ellipse.center().a();
@@ -63,9 +63,19 @@ public class AnalysisUtils {
      * @return the estimated background level
      */
     public static double estimateBackground(ImageWrapper32 image, Ellipse ellipse) {
-        var width = image.width();
-        var height = image.height();
-        var buffer = image.data();
+        return estimateBackground(image.pixels().toArray(), ellipse);
+    }
+
+    /**
+     * Estimates the background level of pixels outside the solar disk.
+     *
+     * @param buffer  the pixels, indexed by row then column
+     * @param ellipse the solar disk ellipse
+     * @return the estimated background level
+     */
+    public static double estimateBackground(float[][] buffer, Ellipse ellipse) {
+        var height = buffer.length;
+        var width = height == 0 ? 0 : buffer[0].length;
         double avg = Double.MAX_VALUE;
         int cpt = 0;
         for (int x = 0; x < width; x++) {

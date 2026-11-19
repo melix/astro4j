@@ -70,8 +70,9 @@ public final class ShadowsHighlightsStrategy implements StretchingStrategy {
         if (isIdentity()) {
             return;
         }
-        var data = image.data();
+        var data = image.pixels().toArray();
         adjust(data, data, image.width(), image.height());
+        image.pixels().copyFrom(data);
     }
 
     @Override
@@ -81,9 +82,9 @@ public final class ShadowsHighlightsStrategy implements StretchingStrategy {
         }
         var width = image.width();
         var height = image.height();
-        var r = image.r();
-        var g = image.g();
-        var b = image.b();
+        var r = image.red().toArray();
+        var g = image.green().toArray();
+        var b = image.blue().toArray();
         var luminance = new float[height][width];
         RowStrips.forEach(height, (yStart, yEnd) -> {
             for (int y = yStart; y < yEnd; y++) {
@@ -109,6 +110,9 @@ public final class ShadowsHighlightsStrategy implements StretchingStrategy {
                 }
             }
         });
+        image.red().copyFrom(r);
+        image.green().copyFrom(g);
+        image.blue().copyFrom(b);
     }
 
     private static void checkAmount(String name, double amount) {

@@ -721,7 +721,7 @@ public class Bass2000SubmissionController {
         var result = output.imagesByLabel().get("geometryCorrected");
 
         if (result instanceof ImageWrapper image) {
-            return image.unwrapToMemory();
+            return image;
         }
         return null;
     }

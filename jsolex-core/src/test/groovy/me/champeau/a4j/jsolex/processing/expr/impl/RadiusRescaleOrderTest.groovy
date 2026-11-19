@@ -56,7 +56,7 @@ class RadiusRescaleOrderTest extends Specification {
 
         then: "the tag of each output must still be its input position"
         result.size() == images.size()
-        def tags = result.collect { (int) Math.round(it.unwrapToMemory().data()[0][0]) }
+        def tags = result.collect { (int) Math.round(it.pixels().get(0, 0)) }
         println "input  order = ${(0..<radii.size()).toList()}"
         println "output order = $tags"
         tags == (0..<radii.size()).toList()

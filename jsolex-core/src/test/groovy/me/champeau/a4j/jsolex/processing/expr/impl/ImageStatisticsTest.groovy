@@ -372,7 +372,7 @@ class ImageStatisticsTest extends Specification {
         var clean = clippedImage(random, 0d, 0f)
         var polluted = clippedImage(new Random(2), 0d, 0f)
         for (int i = 0; i < 2000; i++) {
-            polluted.data()[(int) (i / 60)][(int) (i % 60)] = i % 2 == 0 ? Float.NaN : Float.POSITIVE_INFINITY
+            polluted.pixels().set((int) (i % 60), (int) (i / 60), i % 2 == 0 ? Float.NaN : Float.POSITIVE_INFINITY)
         }
 
         when:

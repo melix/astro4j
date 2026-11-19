@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.stretching;
 
 import me.champeau.a4j.jsolex.processing.params.ClaheParams;
 import me.champeau.a4j.jsolex.processing.util.Histogram;
+import me.champeau.a4j.jsolex.processing.util.ImagePlane;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.RowStrips;
 
@@ -78,17 +79,39 @@ public final class ClaheStrategy implements StretchingStrategy {
     @Override
     public void stretch(ImageWrapper32 image) {
         RangeExpansionStrategy.DEFAULT.stretch(image);
-        var width = image.width();
-        var height = image.height();
-        var data = image.data();
+        equalize(new PlaneRows(image.pixels()));
+    }
+
+    /**
+     * Stretches pixels in place.
+     *
+     * @param width  the width
+     * @param height the height
+     * @param data   the pixels, indexed by row then column
+     */
+    public void stretch(int width, int height, float[][] data) {
+        RangeExpansionStrategy.DEFAULT.stretch(width, height, data);
+        equalize(new ArrayRows(width, height, data));
+    }
+
+    private void equalize(Rows pixels) {
+        int width = pixels.width();
+        int height = pixels.height();
         int xTilesCount = (int) Math.ceil(width / (double) tileSize);
         int yTilesCount = (int) Math.ceil(height / (double) tileSize);
         var cdf = new CumulativeDistributionFunction[yTilesCount][xTilesCount];
-        var fallback = mask == null ? null : clippedCdf(histogram(width, height, data, 0, 0, Math.max(width, height)));
+        var fallback = mask == null ? null : clippedCdf(maskedHistogram(pixels));
         RowStrips.forEach(yTilesCount, (yStart, yEnd) -> {
+            var buffers = new float[tileSize][width];
+            var rows = new float[tileSize][];
             for (int y = yStart; y < yEnd; y++) {
+                int firstRow = y * tileSize;
+                int rowCount = Math.min(height, firstRow + tileSize) - firstRow;
+                for (int i = 0; i < rowCount; i++) {
+                    rows[i] = pixels.read(firstRow + i, buffers[i]);
+                }
                 for (int x = 0; x < xTilesCount; x++) {
-                    var histogram = histogram(width, height, data, x, y, tileSize);
+                    var histogram = histogram(width, rows, firstRow, rowCount, x);
                     if (fallback != null && 4 * histogram.pixelCount() < tileArea(width, height, x, y)) {
                         cdf[y][x] = fallback;
                     } else {
@@ -98,9 +121,11 @@ public final class ClaheStrategy implements StretchingStrategy {
             }
         });
         RowStrips.forEach(height, (yStart, yEnd) -> {
+            var buffer = new float[width];
             for (int y = yStart; y < yEnd; y++) {
+                var row = pixels.read(y, buffer);
                 for (int x = 0; x < width; x++) {
-                    float src = data[y][x];
+                    float src = row[x];
                     int bin = findHistogramBin(src);
                     int tileX = x / tileSize;
                     int tileY = y / tileSize;
@@ -179,8 +204,9 @@ public final class ClaheStrategy implements StretchingStrategy {
                         y2 = y1 + tileSize;
                         interpolatedValue = bilinearInterpolation(v11, v12, v21, v22, x1, y1, x2, y2, x, y);
                     }
-                    data[y][x] = MAX_PIXEL_VALUE * interpolatedValue;
+                    row[x] = MAX_PIXEL_VALUE * interpolatedValue;
                 }
+                pixels.write(y, row);
             }
         });
     }
@@ -266,29 +292,51 @@ public final class ClaheStrategy implements StretchingStrategy {
         return new CumulativeDistributionFunction(cumulative);
     }
 
-    private Histogram histogram(int width, int height, float[][] data, int tileX, int tileY, int tileSize) {
-        int[] histogram = new int[bins];
+    private Histogram histogram(int width, float[][] rows, int firstRow, int rowCount, int tileX) {
+        var histogram = new HistogramBuilder(bins);
         int xStart = tileX * tileSize;
         int xEnd = Math.min(width, (tileX + 1) * tileSize);
-        int yStart = tileY * tileSize;
-        int yEnd = Math.min(height, (tileY + 1) * tileSize);
-        int size = 0;
-        int max = -1;
-        for (int y = yStart; y < yEnd; y++) {
+        for (int i = 0; i < rowCount; i++) {
+            histogram.add(rows[i], firstRow + i, xStart, xEnd);
+        }
+        return histogram.build();
+    }
+
+    private Histogram maskedHistogram(Rows pixels) {
+        var histogram = new HistogramBuilder(bins);
+        var buffer = new float[pixels.width()];
+        for (int y = 0; y < pixels.height(); y++) {
+            histogram.add(pixels.read(y, buffer), y, 0, pixels.width());
+        }
+        return histogram.build();
+    }
+
+    private final class HistogramBuilder {
+        private final int[] values;
+        private int size;
+        private int max = -1;
+
+        private HistogramBuilder(int bins) {
+            this.values = new int[bins];
+        }
+
+        void add(float[] row, int y, int xStart, int xEnd) {
             for (int x = xStart; x < xEnd; x++) {
                 if (mask != null && !mask[y][x]) {
                     continue;
                 }
-                float src = data[y][x];
-                int bin = findHistogramBin(src);
-                histogram[bin]++;
+                int bin = findHistogramBin(row[x]);
+                values[bin]++;
                 size++;
-                if (histogram[bin] > max) {
-                    max = histogram[bin];
+                if (values[bin] > max) {
+                    max = values[bin];
                 }
             }
         }
-        return new Histogram(histogram, size, max);
+
+        Histogram build() {
+            return new Histogram(values, size, max);
+        }
     }
 
     private int findHistogramBin(float src) {
@@ -333,5 +381,49 @@ public final class ClaheStrategy implements StretchingStrategy {
             float[] normalizedHistogram
     ) {
 
+    }
+
+    private interface Rows {
+        int width();
+
+        int height();
+
+        float[] read(int y, float[] buffer);
+
+        void write(int y, float[] row);
+    }
+
+    private record ArrayRows(int width, int height, float[][] data) implements Rows {
+        @Override
+        public float[] read(int y, float[] buffer) {
+            return data[y];
+        }
+
+        @Override
+        public void write(int y, float[] row) {
+        }
+    }
+
+    private record PlaneRows(ImagePlane plane) implements Rows {
+        @Override
+        public int width() {
+            return plane.width();
+        }
+
+        @Override
+        public int height() {
+            return plane.height();
+        }
+
+        @Override
+        public float[] read(int y, float[] buffer) {
+            plane.getRow(y, buffer);
+            return buffer;
+        }
+
+        @Override
+        public void write(int y, float[] row) {
+            plane.setRow(y, row);
+        }
     }
 }

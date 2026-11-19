@@ -50,7 +50,7 @@ public final class CurveTransformStrategy implements StretchingStrategy {
     @Override
     public void stretch(ImageWrapper32 image) {
         var curve = ColorCurve.cachedPolynomial((int) in, (int) out);
-        var data = image.data();
+        var data = image.pixels().toArray();
         int width = image.width();
         int height = image.height();
         RowStrips.forEach(height, (yStart, yEnd) -> {
@@ -64,5 +64,6 @@ public final class CurveTransformStrategy implements StretchingStrategy {
                 }
             }
         });
+        image.pixels().copyFrom(data);
     }
 }

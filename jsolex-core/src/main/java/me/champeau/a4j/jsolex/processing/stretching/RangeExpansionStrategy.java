@@ -30,9 +30,19 @@ public final class RangeExpansionStrategy implements StretchingStrategy {
 
     @Override
     public void stretch(ImageWrapper32 image) {
-        var data = image.data();
-        var height = image.height();
-        var width = image.width();
+        var pixels = image.pixels();
+        var max = pixels.max();
+        pixels.updateRows((y, row) -> expand(row, max));
+    }
+
+    /**
+     * Stretches pixels in place.
+     *
+     * @param width  the width
+     * @param height the height
+     * @param data   the pixels, indexed by row then column
+     */
+    public void stretch(int width, int height, float[][] data) {
         var max = RowStrips.max(height, (yStart, yEnd) -> {
             double stripMax = -Double.MAX_VALUE;
             for (int y = yStart; y < yEnd; y++) {
@@ -47,11 +57,15 @@ public final class RangeExpansionStrategy implements StretchingStrategy {
         });
         RowStrips.forEach(height, (yStart, yEnd) -> {
             for (int y = yStart; y < yEnd; y++) {
-                for (int x = 0; x < width; x++) {
-                    data[y][x] = (float) ((MAX_VALUE / max) * data[y][x]);
-                }
+                expand(data[y], max);
             }
         });
+    }
+
+    private static void expand(float[] row, double max) {
+        for (int x = 0; x < row.length; x++) {
+            row[x] = (float) ((MAX_VALUE / max) * row[x]);
+        }
     }
 
 }

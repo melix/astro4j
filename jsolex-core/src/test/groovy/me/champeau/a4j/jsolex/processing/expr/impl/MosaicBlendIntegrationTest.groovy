@@ -45,7 +45,7 @@ class MosaicBlendIntegrationTest extends Specification {
         int w = image.width()
         int h = image.height()
         var bi = new BufferedImage(w, h, BufferedImage.TYPE_BYTE_GRAY)
-        var data = image.data()
+        var data = image.pixels().toArray()
         for (int y = 0; y < h; y++) {
             for (int x = 0; x < w; x++) {
                 int v = Math.clamp((int) (data[y][x]) >> 8, 0, 255)
@@ -63,7 +63,7 @@ class MosaicBlendIntegrationTest extends Specification {
         float[][] out = new float[height][width]
         int sx = (width - src.width()) / 2
         int sy = (height - src.height()) / 2
-        var srcData = src.data()
+        var srcData = src.pixels().toArray()
         for (int y = 0; y < src.height(); y++) {
             int ty = y + sy
             if (ty < 0 || ty >= height) continue
@@ -92,7 +92,7 @@ class MosaicBlendIntegrationTest extends Specification {
 
         when: "running multiBandBlend (via mosaicBlend) directly"
         var blender = new TestableMosaicBlender()
-        var smoothLower = lower.data()
+        var smoothLower = lower.pixels().toArray()
         var result = blender.blend(upper, lower, smoothLower, background)
 
         and: "save to a file for visual inspection"
@@ -106,7 +106,7 @@ class MosaicBlendIntegrationTest extends Specification {
     }
 
     private static void printRowProfile(String name, ImageWrapper32 img, int height) {
-        var data = img.data()
+        var data = img.pixels().toArray()
         int w = img.width()
         def samples = []
         int step = (int) Math.max(1, (int) (height / 40))
