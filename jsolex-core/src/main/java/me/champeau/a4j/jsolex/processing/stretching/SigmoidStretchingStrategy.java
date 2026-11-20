@@ -16,7 +16,6 @@
 package me.champeau.a4j.jsolex.processing.stretching;
 
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
-import me.champeau.a4j.math.RowStrips;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
 
@@ -55,21 +54,17 @@ public final class SigmoidStretchingStrategy implements StretchingStrategy {
             return;
         }
 
-        var data = image.pixels().toArray();
         double sigmoidAtZero = sigmoid(0);
         double sigmoidAtOne = sigmoid(1);
         double sigmoidRange = sigmoidAtOne - sigmoidAtZero;
 
-        RowStrips.forEach(height, (yStart, yEnd) -> {
-            for (int y = yStart; y < yEnd; y++) {
-                for (int x = 0; x < width; x++) {
-                    double normalized = data[y][x] / MAX_PIXEL_VALUE;
-                    double transformed = (sigmoid(normalized) - sigmoidAtZero) / sigmoidRange;
-                    data[y][x] = (float) Math.clamp(transformed * MAX_PIXEL_VALUE, 0, MAX_PIXEL_VALUE);
-                }
+        image.pixels().updateRows((y, row) -> {
+            for (int x = 0; x < width; x++) {
+                double normalized = row[x] / MAX_PIXEL_VALUE;
+                double transformed = (sigmoid(normalized) - sigmoidAtZero) / sigmoidRange;
+                row[x] = (float) Math.clamp(transformed * MAX_PIXEL_VALUE, 0, MAX_PIXEL_VALUE);
             }
         });
-        image.pixels().copyFrom(data);
     }
 
     private double sigmoid(double x) {

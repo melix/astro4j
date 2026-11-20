@@ -13,13 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.processing.util;
+package me.champeau.a4j.utilities;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-
-import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectoriesIfNeeded;
 
 public class TemporaryFolder {
     /**
@@ -96,7 +94,7 @@ public class TemporaryFolder {
 
     public static Path newTempFile(String prefix, String suffix) throws IOException {
         var tempDir = tempDir();
-        createDirectoriesIfNeeded(tempDir);
+        Files.createDirectories(tempDir);
         var tempFile = Files.createTempFile(tempDir, prefix, suffix);
         tempFile.toFile().deleteOnExit();
         return tempFile;
@@ -121,13 +119,13 @@ public class TemporaryFolder {
     public static Path newTempDir(String dirName) throws IOException {
         var tempDir = tempDir().resolve(dirName);
         tempDir.toFile().deleteOnExit();
-        createDirectoriesIfNeeded(tempDir);
+        Files.createDirectories(tempDir);
         return tempDir;
     }
 
     public static Path newUniqueTempDir(String prefix) throws IOException {
         var tempDir = tempDir();
-        createDirectoriesIfNeeded(tempDir);
+        Files.createDirectories(tempDir);
         var dir = Files.createTempDirectory(tempDir, prefix);
         dir.toFile().deleteOnExit();
         return dir;

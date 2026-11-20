@@ -107,9 +107,13 @@ public final class ConvolutionStrategy implements StretchingStrategy {
      * @return the red, green and blue channels of the filtered image
      */
     public static float[][][] filterLightness(RGBImage image, UnaryOperator<Image> filter) {
-        var hsl = ImageUtils.fromRGBtoHSL(new float[][][]{image.red().toArray(), image.green().toArray(), image.blue().toArray()});
+        return ImageUtils.fromHSLtoRGB(filteredHsl(image, filter));
+    }
+
+    private static float[][][] filteredHsl(RGBImage image, UnaryOperator<Image> filter) {
+        var hsl = ImageUtils.fromRGBtoHSL(image.red(), image.green(), image.blue());
         hsl[2] = filter.apply(new Image(image.width(), image.height(), hsl[2])).data();
-        return ImageUtils.fromHSLtoRGB(hsl);
+        return hsl;
     }
 
     @Override
@@ -119,10 +123,8 @@ public final class ConvolutionStrategy implements StretchingStrategy {
 
     @Override
     public void stretch(RGBImage image) {
-        var rgb = filterLightness(image, lightness -> lightness.withData(filterAndClip(lightness, 1f)));
-        image.red().copyFrom(rgb[0]);
-        image.green().copyFrom(rgb[1]);
-        image.blue().copyFrom(rgb[2]);
+        var hsl = filteredHsl(image, lightness -> lightness.withData(filterAndClip(lightness, 1f)));
+        ImageUtils.fromHSLtoRGB(hsl, image.red(), image.green(), image.blue());
     }
 
     private float[][] filterAndClip(Image image, float max) {

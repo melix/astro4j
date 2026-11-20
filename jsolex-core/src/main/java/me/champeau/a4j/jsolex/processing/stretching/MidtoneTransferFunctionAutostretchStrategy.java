@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.stretching;
 
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.math.image.ImagePlane;
 
 import java.util.function.BiPredicate;
 
@@ -73,7 +74,7 @@ public final class MidtoneTransferFunctionAutostretchStrategy implements Stretch
             return;
         }
 
-        var params = calculateMTFParams(image.pixels().toArray(), width, height);
+        var params = calculateMTFParams(image.pixels());
 
         var mtfStrategy = new MidtoneTransferFunctionStrategy(clampTo8Bit(params.shadows), params.midtones, clampTo8Bit(params.highlights));
         mtfStrategy.stretch(image);
@@ -83,8 +84,8 @@ public final class MidtoneTransferFunctionAutostretchStrategy implements Stretch
         return Math.clamp(value / 256, 0, 255);
     }
 
-    private MTFParams calculateMTFParams(float[][] data, int width, int height) {
-        var pixels = PixelCollection.collect(data, width, height, pixelMask);
+    private MTFParams calculateMTFParams(ImagePlane data) {
+        var pixels = PixelCollection.collect(data, pixelMask);
         var totalPixels = pixels.length;
 
         if (totalPixels == 0) {

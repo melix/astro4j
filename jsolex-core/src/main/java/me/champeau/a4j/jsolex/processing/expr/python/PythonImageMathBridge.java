@@ -36,7 +36,7 @@ import me.champeau.a4j.jsolex.processing.util.HeliographicProjection;
 import me.champeau.a4j.ser.ImageGeometry;
 import me.champeau.a4j.ser.SerFileReader;
 import me.champeau.a4j.ser.bayer.ImageConverter;
-import me.champeau.a4j.jsolex.processing.util.ImagePlane;
+import me.champeau.a4j.math.image.ImagePlane;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
@@ -52,6 +52,7 @@ import org.apache.arrow.vector.BitVectorHelper;
 import org.apache.arrow.vector.Float4Vector;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Value;
+import org.graalvm.polyglot.proxy.ProxyArray;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -459,17 +460,33 @@ public class PythonImageMathBridge implements AutoCloseable {
     // ========== Image Properties ==========
 
     /**
-     * Gets the raw pixel data from an image as a 2D array.
+     * Gets the raw pixel data from an image as a 2D array, indexed by row then
+     * column. Changes made to the array are applied to the image.
      *
      * @param img the image
      * @return the pixel data
      */
     @HostAccess.Export
-    public float[][] getData(ImageWrapper img) {
+    public ProxyArray getData(ImageWrapper img) {
+        return new LivePixels(mono(img, "getData").pixels());
+    }
+
+    /**
+     * Returns a copy of the pixel data of an image, indexed by row then column.
+     *
+     * @param img the image
+     * @return a copy of the pixel data
+     */
+    @HostAccess.Export
+    public float[][] copyData(ImageWrapper img) {
+        return mono(img, "copyData").pixels().toArray();
+    }
+
+    private static ImageWrapper32 mono(ImageWrapper img, String function) {
         if (img instanceof ImageWrapper32 mono) {
-            return mono.pixels().toArray();
+            return mono;
         }
-        throw new IllegalArgumentException("getData only works on mono images");
+        throw new IllegalArgumentException(function + " only works on mono images");
     }
 
     /**
@@ -1446,12 +1463,18 @@ public class PythonImageMathBridge implements AutoCloseable {
         if (value == null) {
             return null;
         }
+        if (value instanceof LivePixels pixels) {
+            return pixels.toArray();
+        }
         if (value instanceof Value v) {
             if (v.isNull()) {
                 return null;
             }
             if (v.isHostObject()) {
                 return v.asHostObject();
+            }
+            if (v.isProxyObject() && v.asProxyObject() instanceof LivePixels pixels) {
+                return pixels.toArray();
             }
             if (v.isBoolean()) {
                 return v.asBoolean();
@@ -1494,6 +1517,9 @@ public class PythonImageMathBridge implements AutoCloseable {
     }
 
     private float[][] convertToFloatArray(Object data, int width, int height) {
+        if (data instanceof LivePixels pixels) {
+            return pixels.toArray();
+        }
         var result = new float[height][width];
         if (data instanceof Value value && value.hasArrayElements()) {
             for (int y = 0; y < height && y < value.getArraySize(); y++) {

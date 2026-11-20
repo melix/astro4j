@@ -4,12 +4,14 @@
 
 - La visionneuse d'images peut maintenant adoucir les images ou les rendre plus nettes, y compris avec un masque flou.
 - Étirement des images plus rapide, en particulier avec CLAHE, CLAHE2 et AutoStretch.
-- Consommation mémoire réduite : les fichiers peuvent maintenant être traités sur des ordinateurs disposant de moins de mémoire.
+- Consommation mémoire réduite pendant le traitement.
+- Le réglage « Ajustement de la consommation mémoire » a été supprimé, car il n'est plus nécessaire.
 - Conversion plus rapide des images vers et depuis NumPy dans les scripts Python.
 - Les environnements virtuels Python doivent maintenant être créés avec GraalPy 25.4.
 - L'outil de script autonome peut maintenant utiliser un environnement virtuel GraalPy.
 - Correction de l'outil de script autonome qui échouait sur les ordinateurs équipés d'une carte graphique.
 - Correction des scripts Python dans la version native de l'outil de script autonome.
+- Correction d'erreurs qui pouvaient interrompre le traitement à l'ouverture d'un nouveau fichier ou à l'affichage d'une image.
 
 ## Nouveautés de la version 5.6.1
 

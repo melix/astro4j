@@ -82,37 +82,49 @@ public final class ShadowsHighlightsStrategy implements StretchingStrategy {
         }
         var width = image.width();
         var height = image.height();
-        var r = image.red().toArray();
-        var g = image.green().toArray();
-        var b = image.blue().toArray();
+        var red = image.red();
+        var green = image.green();
+        var blue = image.blue();
         var luminance = new float[height][width];
         RowStrips.forEach(height, (yStart, yEnd) -> {
+            var r = new float[width];
+            var g = new float[width];
+            var b = new float[width];
             for (int y = yStart; y < yEnd; y++) {
+                red.getRow(y, r);
+                green.getRow(y, g);
+                blue.getRow(y, b);
                 for (int x = 0; x < width; x++) {
-                    luminance[y][x] = (float) (RED_WEIGHT * r[y][x] + GREEN_WEIGHT * g[y][x] + BLUE_WEIGHT * b[y][x]);
+                    luminance[y][x] = (float) (RED_WEIGHT * r[x] + GREEN_WEIGHT * g[x] + BLUE_WEIGHT * b[x]);
                 }
             }
         });
         var adjusted = new float[height][width];
         adjust(luminance, adjusted, width, height);
         RowStrips.forEach(height, (yStart, yEnd) -> {
+            var r = new float[width];
+            var g = new float[width];
+            var b = new float[width];
             for (int y = yStart; y < yEnd; y++) {
+                red.getRow(y, r);
+                green.getRow(y, g);
+                blue.getRow(y, b);
                 for (int x = 0; x < width; x++) {
                     var lum = luminance[y][x];
                     if (lum <= 0) {
                         continue;
                     }
-                    var max = Math.max(r[y][x], Math.max(g[y][x], b[y][x]));
+                    var max = Math.max(r[x], Math.max(g[x], b[x]));
                     var ratio = Math.min(adjusted[y][x] / lum, MAX_PIXEL_VALUE / max);
-                    r[y][x] *= ratio;
-                    g[y][x] *= ratio;
-                    b[y][x] *= ratio;
+                    r[x] *= ratio;
+                    g[x] *= ratio;
+                    b[x] *= ratio;
                 }
+                red.setRow(y, r);
+                green.setRow(y, g);
+                blue.setRow(y, b);
             }
         });
-        image.red().copyFrom(r);
-        image.green().copyFrom(g);
-        image.blue().copyFrom(b);
     }
 
     private static void checkAmount(String name, double amount) {

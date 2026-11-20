@@ -1900,6 +1900,112 @@ def single():
 
     // ==================== Memory Management Tests ====================
 
+    def "getData reads the pixels of an image"() {
+        given:
+        def img = createImage(4, 2, 10.0f)
+        img.pixels().set(3, 1, 7.0f)
+
+        when:
+        def result = executor.executeInline('''
+data = jsolex.getData(img)
+result = [len(data), len(data[0]), data[1][3], data[0][0], sum(sum(row) for row in data)]
+''', [img: img])
+
+        then:
+        result == [2.0d, 4.0d, 7.0d, 10.0d, 77.0d]
+    }
+
+    def "changes made to the result of getData are applied to the image"() {
+        given:
+        def img = createImage(4, 2, 10.0f)
+
+        when:
+        executor.executeInline('''
+data = jsolex.getData(img)
+data[1][2] = 5.5
+data[1][3] += 1
+data[0] = [1, 2, 3, 4]
+result = None
+''', [img: img])
+
+        then:
+        img.pixels().get(2, 1) == 5.5f
+        img.pixels().get(3, 1) == 11.0f
+        img.pixels().get(0, 1) == 10.0f
+        img.pixels().toArray()[0] == [1f, 2f, 3f, 4f] as float[]
+    }
+
+    def "changes made to the result of copyData do not change the image"() {
+        given:
+        def img = createImage(4, 2, 10.0f)
+
+        when:
+        def result = executor.executeInline('''
+data = jsolex.copyData(img)
+data[1][2] = 5.5
+result = data[1][2]
+''', [img: img])
+
+        then:
+        result == 5.5d
+        img.pixels().get(2, 1) == 10.0f
+    }
+
+    def "the result of getData is returned to Java as an array"() {
+        given:
+        def img = createImage(4, 2, 10.0f)
+        img.pixels().set(3, 1, 7.0f)
+
+        when:
+        def result = executor.executeInline('''
+result = jsolex.getData(img)
+''', [img: img])
+
+        then:
+        result instanceof float[][]
+        result == img.pixels().toArray()
+    }
+
+    def "an image can be created from the result of getData"() {
+        given:
+        def img = createImage(4, 2, 10.0f)
+
+        when:
+        def result = executor.executeInline('''
+data = jsolex.getData(img)
+copy = jsolex.createMono(4, 2, data)
+data[0][0] = 99
+result = copy
+''', [img: img])
+
+        then:
+        result instanceof ImageWrapper32
+        result.pixels().toArray() == createImage(4, 2, 10.0f).pixels().toArray()
+        img.pixels().get(0, 0) == 99.0f
+    }
+
+    def "pixels outside of the image cannot be read with getData"() {
+        given:
+        def img = createImage(4, 2, 10.0f)
+
+        when:
+        def result = executor.executeInline('''
+data = jsolex.getData(img)
+try:
+    data[2][0]
+    result = "no error"
+except IndexError:
+    result = "row"
+try:
+    data[0][4]
+except IndexError:
+    result = result + " column"
+''', [img: img])
+
+        then:
+        result == "row column"
+    }
+
     def "images returned by builtin functions are Java images, like in ImageMath"() {
         given:
         def img = createImage(4, 2, 10.0f)

@@ -61,7 +61,7 @@ public class Convolution extends AbstractFunctionImpl {
 
     private Object convolve(ImageWrapper image, Kernel kernel) {
         if (image instanceof ImageWrapper32 mono) {
-            return new ImageWrapper32(mono.width(), mono.height(), imageMath.convolve(mono.asImage(), kernel).data(), mono.metadata());
+            return new ImageWrapper32(imageMath.convolve(mono.pixels(), kernel), mono.metadata());
         } else if (image instanceof RGBImage rgb) {
             var transformed = ConvolutionStrategy.filterLightness(rgb, lightness -> imageMath.convolve(lightness, kernel));
             return new RGBImage(rgb.width(), rgb.height(), transformed[0], transformed[1], transformed[2], rgb.metadata());

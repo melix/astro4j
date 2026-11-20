@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.util;
 
+import me.champeau.a4j.math.image.ImagePlane;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Function;

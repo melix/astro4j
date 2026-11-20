@@ -48,7 +48,7 @@ public class ImageSaver {
         if (image instanceof ImageWrapper32 mono) {
             var stretched = mono.copy();
             stretchingStrategy.stretch(stretched);
-            files = ImageUtils.writeMonoImage(image.width(), image.height(), stretched.pixels().toArray(), target, imageFormats);
+            files = ImageUtils.writeMonoImage(stretched.pixels(), target, imageFormats);
             if (imageFormats.contains(ImageFormat.FITS)) {
                 var fits = toFits(target);
                 files = Stream.concat(files.stream(), Stream.of(fits)).toList();
@@ -57,7 +57,7 @@ public class ImageSaver {
         } else if (image instanceof RGBImage rgb) {
             var stretched = rgb.copy();
             stretchingStrategy.stretch(stretched);
-            files = ImageUtils.writeRgbImage(rgb.width(), rgb.height(), stretched.red().toArray(), stretched.green().toArray(), stretched.blue().toArray(), target, imageFormats);
+            files = ImageUtils.writeRgbImage(stretched.red(), stretched.green(), stretched.blue(), target, imageFormats);
             if (imageFormats.contains(ImageFormat.FITS)) {
                 var fits = toFits(target);
                 files = Stream.concat(files.stream(), Stream.of(fits)).toList();

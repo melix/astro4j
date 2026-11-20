@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.util;
 
+import me.champeau.a4j.utilities.TemporaryFolder;
 import me.champeau.a4j.jsolex.processing.expr.impl.FfmegEncoder;
 import org.jcodec.api.FrameGrab;
 import org.jcodec.api.JCodecException;

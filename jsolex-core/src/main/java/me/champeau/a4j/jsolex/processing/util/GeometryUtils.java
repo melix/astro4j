@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.util;
 
+import me.champeau.a4j.math.image.ImagePlane;
 import me.champeau.a4j.math.regression.Ellipse;
 import me.champeau.a4j.math.tuples.DoubleSextuplet;
 
@@ -55,7 +56,6 @@ public final class GeometryUtils {
         var offsetX = transform.offsetX();
         var offsetY = transform.offsetY();
 
-        var buffer = image.pixels().toArray();
         var extendedWidth = transform.extendedWidth();
         var newWidth = transform.outputWidth();
         var newHeight = transform.outputHeight();
@@ -65,6 +65,7 @@ public final class GeometryUtils {
         // to the source footprint so the redundant samples are averaged instead of dropped
         var xSupport = sx < 1 ? 1 / sx : 1;
         var ySupport = sy < 1 ? 1 / sy : 1;
+        var sourceRows = new RowWindow(image.pixels(), (int) Math.ceil(2 * KERNEL_RADIUS * ySupport) + 1);
 
         for (int y = 0; y < newHeight; y++) {
             var v = (y - offsetY) / sy;
@@ -78,7 +79,7 @@ public final class GeometryUtils {
                 var u = (x - offsetX) / sx;
                 targetRow[x] = u < 0 || u > extendedWidth - 1
                         ? blackPoint
-                        : sampleCatmullRom(buffer, u + sheared, v, width, height, xSupport, ySupport);
+                        : sampleCatmullRom(sourceRows, u + sheared, v, width, height, xSupport, ySupport);
             }
             corrected.setRow(y, targetRow);
         }
@@ -92,7 +93,7 @@ public final class GeometryUtils {
      * A support greater than one widens the kernel along that axis, which is the
      * anti-aliasing footprint required when the axis is being downscaled.
      *
-     * @param data the source pixels
+     * @param data the window on the source rows
      * @param x the fractional source column
      * @param y the fractional source row
      * @param width the image width
@@ -101,20 +102,20 @@ public final class GeometryUtils {
      * @param ySupport the vertical kernel widening factor
      * @return the interpolated value
      */
-    private static float sampleCatmullRom(float[][] data, double x, double y, int width, int height, double xSupport, double ySupport) {
+    private static float sampleCatmullRom(RowWindow data, double x, double y, int width, int height, double xSupport, double ySupport) {
         double value;
         if (ySupport == 1) {
             var j = (int) Math.floor(y);
             var t = y - j;
             if (t == 0) {
-                value = sampleRow(data[clamp(j, height)], x, width, xSupport);
+                value = sampleRow(data.row(clamp(j, height)), x, width, xSupport);
             } else {
                 var weights = CubicWeights.of(t);
                 value = weights.apply(
-                        sampleRow(data[clamp(j - 1, height)], x, width, xSupport),
-                        sampleRow(data[clamp(j, height)], x, width, xSupport),
-                        sampleRow(data[clamp(j + 1, height)], x, width, xSupport),
-                        sampleRow(data[clamp(j + 2, height)], x, width, xSupport)
+                        sampleRow(data.row(clamp(j - 1, height)), x, width, xSupport),
+                        sampleRow(data.row(clamp(j, height)), x, width, xSupport),
+                        sampleRow(data.row(clamp(j + 1, height)), x, width, xSupport),
+                        sampleRow(data.row(clamp(j + 2, height)), x, width, xSupport)
                 );
             }
         } else {
@@ -125,7 +126,7 @@ public final class GeometryUtils {
             for (int j = from; j <= to; j++) {
                 var w = catmullRom((j - y) / ySupport);
                 if (w != 0) {
-                    sum += w * sampleRow(data[clamp(j, height)], x, width, xSupport);
+                    sum += w * sampleRow(data.row(clamp(j, height)), x, width, xSupport);
                     weightSum += w;
                 }
             }
@@ -184,6 +185,29 @@ public final class GeometryUtils {
             return length - 1;
         }
         return index;
+    }
+
+    private static final class RowWindow {
+        private final ImagePlane plane;
+        private final float[][] rows;
+        private final int[] indices;
+
+        private RowWindow(ImagePlane plane, int capacity) {
+            this.plane = plane;
+            var size = Math.max(1, Math.min(plane.height(), capacity));
+            this.rows = new float[size][plane.width()];
+            this.indices = new int[size];
+            Arrays.fill(indices, -1);
+        }
+
+        private float[] row(int y) {
+            var slot = y % rows.length;
+            if (indices[slot] != y) {
+                plane.getRow(y, rows[slot]);
+                indices[slot] = y;
+            }
+            return rows[slot];
+        }
     }
 
     private record CubicWeights(double wm1, double w0, double w1, double w2) {

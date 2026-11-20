@@ -620,7 +620,7 @@ public class Stacking extends AbstractFunctionImpl {
             case SHARPNESS -> IntStream.range(0, images.size())
                     .mapToObj(i -> {
                         var img = images.get(i);
-                        var v = imageMath.estimateSharpness(img.asImage());
+                        var v = imageMath.estimateSharpness(img.pixels());
                         weights[i] = v;
                         return new Object() {
                             private final double sharpness = v;
@@ -706,8 +706,8 @@ public class Stacking extends AbstractFunctionImpl {
                                     ImageWrapper32 referenceImage,
                                     float[][][] dedistorted) {
         boolean usePixelWeight = weights[0] == -1;
-        var integralImages = usePixelWeight ? images.stream().map(ImageWrapper32::asImage).map(imageMath::integralImage).toList() : null;
-        var referenceIntegral = usePixelWeight ? imageMath.integralImage(referenceImage.asImage()) : null;
+        var integralImages = usePixelWeight ? images.stream().map(img -> imageMath.integralImage(img.pixels())).toList() : null;
+        var referenceIntegral = usePixelWeight ? imageMath.integralImage(referenceImage.pixels()) : null;
         var result = new float[height][width];
         var currentY = new AtomicInteger();
         var progressOperation = newOperation().createChild(message(STACKING_MESSAGE));

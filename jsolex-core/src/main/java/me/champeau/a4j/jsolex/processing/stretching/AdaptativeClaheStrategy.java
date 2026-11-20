@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.stretching;
 
-import me.champeau.a4j.jsolex.processing.util.ImagePlane;
+import me.champeau.a4j.math.image.ImagePlane;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
@@ -151,8 +151,8 @@ public final class AdaptativeClaheStrategy implements StretchingStrategy {
                 for (int x = 0; x < width; x++) {
                     sumRow[x] = sumRow[x] / n;
                 }
+                plane.setRow(y, sumRow);
             }
         });
-        plane.copyFrom(sum);
     }
 }

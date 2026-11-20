@@ -93,7 +93,7 @@ import me.champeau.a4j.jsolex.processing.util.MetadataSupport;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.jsolex.processing.util.SolarParameters;
 import me.champeau.a4j.jsolex.processing.util.SolarParametersUtils;
-import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
+import me.champeau.a4j.utilities.TemporaryFolder;
 import me.champeau.a4j.math.regression.Ellipse;
 
 import java.awt.*;
@@ -154,7 +154,7 @@ public class ImageViewer implements WithRootNode {
     private ProcessParams processParams;
     private FileCounts fileCounts = FileCounts.SINGLE_FILE;
 
-    private Label dimensions;
+    private final Label dimensions = new Label();
     private VBox stretchingParams;
     private ChoiceBox<StretchChoice> stretchChoice;
     private HBox stretchParameters;
@@ -875,7 +875,6 @@ public class ImageViewer implements WithRootNode {
             var openExplorerButton = createButton("📂 " + message("open.in.explorer"));
             openExplorerButton.setOnAction(e -> imageView.openInExplorer());
             openExplorerButton.disableProperty().bind(imageView.cannotOpenInExplorerProperty());
-            dimensions = new Label();
             var zoomLabel = new Label(I18N.string(JSolEx.class, "common", "zoom"));
             var zoomMinus = createIconButton("-");
             zoomMinus.setOnAction(evt -> {
@@ -1316,7 +1315,7 @@ public class ImageViewer implements WithRootNode {
             if (rgb == null) {
                 return img;
             }
-            colorized = RGBImage.fromMono(mono, data -> Colorize.doColorize(mono.width(), mono.height(), data.pixels().toArray(), rgb));
+            colorized = Colorize.doColorize(mono, rgb);
         }
         if (overlays.colorizePreserveBrightness() && colorized instanceof RGBImage rgbImage) {
             return preserveBrightness(mono, rgbImage);

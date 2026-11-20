@@ -317,6 +317,7 @@ public class PythonScriptExecutor {
                     _jsolex_module.setVariable = _java_bridge.setVariable
                     _jsolex_module.getProcessParams = _java_bridge.getProcessParams
                     _jsolex_module.getData = _java_bridge.getData
+                    _jsolex_module.copyData = _java_bridge.copyData
                     _jsolex_module.createMono = _java_bridge.createMono
                     
                     # Arrow methods (low-level, for advanced users)
@@ -344,8 +345,8 @@ public class PythonScriptExecutor {
                             else:
                                 return arrow_array.to_numpy().reshape((h, w, channels))
                         except ImportError:
-                            # Slow path: use getData
-                            data = _java_bridge.getData(img)
+                            # Slow path: use a copy of the pixel data
+                            data = _java_bridge.copyData(img)
                             return np.array(data)
                     
                     def _fromNumpy(data):
@@ -1077,6 +1078,9 @@ public class PythonScriptExecutor {
         }
         if (value.isString()) {
             return value.asString();
+        }
+        if (value.isProxyObject() && value.asProxyObject() instanceof LivePixels pixels) {
+            return pixels.toArray();
         }
         if (value.hasArrayElements()) {
             return convertPythonList(value);

@@ -23,6 +23,8 @@ import org.lwjgl.system.MemoryUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.foreign.MemorySegment;
+import java.lang.ref.Reference;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
@@ -35,6 +37,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 import static org.lwjgl.opencl.CL10.*;
+import static org.lwjgl.system.MemoryUtil.NULL;
 
 /**
  * Manages the OpenCL context, device, and command queue lifecycle.
@@ -472,6 +475,30 @@ public class OpenCLContext implements AutoCloseable {
         }
     }
 
+    /**
+     * Writes the content of a native memory segment to {@code buffer}, without
+     * intermediate copy. Blocking — returns once the write is complete on the device.
+     */
+    public void writeBuffer(long buffer, MemorySegment data) {
+        requireNative(data);
+        try {
+            int err = nclEnqueueWriteBuffer(commandQueue, buffer, CL_TRUE, 0, data.byteSize(), data.address(), 0, NULL, NULL);
+            if (err != CL_SUCCESS) {
+                var ex = new OpenCLException("Failed to write buffer: " + err + " | " + getMemoryStats());
+                recordError("writeBuffer", ex);
+                throw ex;
+            }
+        } finally {
+            Reference.reachabilityFence(data);
+        }
+    }
+
+    private static void requireNative(MemorySegment data) {
+        if (!data.isNative()) {
+            throw new IllegalArgumentException("Expected a native memory segment");
+        }
+    }
+
     private FloatBuffer acquireWriteBuffer(int minCapacity) {
         if (minCapacity > WRITE_BUFFER_MAX_CAPACITY) {
             return MemoryUtil.memAllocFloat(minCapacity);
@@ -541,6 +568,26 @@ public class OpenCLContext implements AutoCloseable {
             floatBuffer.get(data);
         } finally {
             MemoryUtil.memFree(floatBuffer);
+        }
+    }
+
+    /**
+     * Reads {@code buffer} into a native memory segment, without intermediate
+     * copy, finishing pending kernel work first so the read sees the post-kernel
+     * contents. The segment receives as many bytes as it holds.
+     */
+    public void readBuffer(long buffer, MemorySegment data) {
+        requireNative(data);
+        requireFinishSuccess(clFinish(commandQueue), "readBuffer");
+        try {
+            int err = nclEnqueueReadBuffer(commandQueue, buffer, CL_TRUE, 0, data.byteSize(), data.address(), 0, NULL, NULL);
+            if (err != CL_SUCCESS) {
+                var ex = new OpenCLException("Failed to read buffer: " + err + " | " + getMemoryStats());
+                recordError("readBuffer", ex);
+                throw ex;
+            }
+        } finally {
+            Reference.reachabilityFence(data);
         }
     }
 

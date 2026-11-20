@@ -20,6 +20,7 @@ import me.champeau.a4j.jsolex.processing.ser.FastImageConverter;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.math.RowStrips;
+import me.champeau.a4j.math.image.ImagePlane;
 import me.champeau.a4j.math.regression.Ellipse;
 import me.champeau.a4j.ser.ColorMode;
 import me.champeau.a4j.ser.bayer.BilinearDemosaicingStrategy;
@@ -41,6 +42,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.IntFunction;
 
 import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectoriesIfNeeded;
 import static me.champeau.a4j.ser.bayer.BayerMatrixSupport.GREEN;
@@ -60,14 +62,34 @@ public class ImageUtils {
             float[][] data,
             File outputFile,
             Set<ImageFormat> imageFormats) {
+        return writeMonoImage(width, height, y -> data[y], outputFile, imageFormats);
+    }
+
+    public static List<File> writeMonoImage(
+            ImagePlane pixels,
+            File outputFile,
+            Set<ImageFormat> imageFormats) {
+        return writeMonoImage(pixels.width(), pixels.height(), rowReader(pixels), outputFile, imageFormats);
+    }
+
+    private static List<File> writeMonoImage(int width, int height, IntFunction<float[]> rows, File outputFile, Set<ImageFormat> imageFormats) {
         var image = new BufferedImage(width, height, BufferedImage.TYPE_USHORT_GRAY);
         short[] converted = ((DataBufferUShort) image.getRaster().getDataBuffer()).getData();
         for (int y = 0; y < height; y++) {
+            var row = rows.apply(y);
             for (int x = 0; x < width; x++) {
-                converted[y * width + x] = (short) Math.round(data[y][x]);
+                converted[y * width + x] = (short) Math.round(row[x]);
             }
         }
         return writeAllFormats(outputFile, imageFormats, image);
+    }
+
+    private static IntFunction<float[]> rowReader(ImagePlane plane) {
+        var row = new float[plane.width()];
+        return y -> {
+            plane.getRow(y, row);
+            return row;
+        };
     }
 
     private static List<File> writeAllFormats(File outputFile, Set<ImageFormat> imageFormats, BufferedImage image) {
@@ -155,13 +177,38 @@ public class ImageUtils {
             File outputFile,
             Set<ImageFormat> imageFormats
     ) {
+        return writeRgbImage(width, height, y -> r[y], y -> g[y], y -> b[y], outputFile, imageFormats);
+    }
+
+    public static List<File> writeRgbImage(
+            ImagePlane r,
+            ImagePlane g,
+            ImagePlane b,
+            File outputFile,
+            Set<ImageFormat> imageFormats
+    ) {
+        return writeRgbImage(r.width(), r.height(), rowReader(r), rowReader(g), rowReader(b), outputFile, imageFormats);
+    }
+
+    private static List<File> writeRgbImage(
+            int width,
+            int height,
+            IntFunction<float[]> r,
+            IntFunction<float[]> g,
+            IntFunction<float[]> b,
+            File outputFile,
+            Set<ImageFormat> imageFormats
+    ) {
         var image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
         int[] rgb = new int[width * height];
-        for (int x = 0; x < width; x++) {
-            for (int y = 0; y < height; y++) {
-                int rv = Math.round(r[y][x]);
-                int gv = Math.round(g[y][x]);
-                int bv = Math.round(b[y][x]);
+        for (int y = 0; y < height; y++) {
+            var rRow = r.apply(y);
+            var gRow = g.apply(y);
+            var bRow = b.apply(y);
+            for (int x = 0; x < width; x++) {
+                int rv = Math.round(rRow[x]);
+                int gv = Math.round(gRow[x]);
+                int bv = Math.round(bRow[x]);
                 rv = (rv >> 8) & 0xFF;
                 gv = (gv >> 8) & 0xFF;
                 bv = (bv >> 8) & 0xFF;
@@ -201,25 +248,49 @@ public class ImageUtils {
         float[][] r = new float[height][width];
         float[][] g = new float[height][width];
         float[][] b = new float[height][width];
-        // Hoist the precomputed polynomials out of the inner loop and apply
-        // them directly: avoids allocating an IntPair per cache lookup and a
-        // DoubleTriplet per pixel — both were dominant per-pixel allocations.
+        for (int y = 0; y < height; y++) {
+            convertRowToRGB(curve, mono[y], r[y], g[y], b[y]);
+        }
+        return new float[][][]{r, g, b};
+    }
+
+    /**
+     * Colorizes a monochrome image with a color curve.
+     *
+     * @param curve the color curve
+     * @param mono the monochrome image
+     * @return the red, green and blue planes
+     */
+    public static ImagePlane[] convertToRGB(ColorCurve curve, ImagePlane mono) {
+        var width = mono.width();
+        var height = mono.height();
+        var r = ImagePlane.allocate(width, height);
+        var g = ImagePlane.allocate(width, height);
+        var b = ImagePlane.allocate(width, height);
+        var line = new float[width];
+        var rRow = new float[width];
+        var gRow = new float[width];
+        var bRow = new float[width];
+        for (int y = 0; y < height; y++) {
+            mono.getRow(y, line);
+            convertRowToRGB(curve, line, rRow, gRow, bRow);
+            r.setRow(y, rRow);
+            g.setRow(y, gRow);
+            b.setRow(y, bRow);
+        }
+        return new ImagePlane[]{r, g, b};
+    }
+
+    private static void convertRowToRGB(ColorCurve curve, float[] line, float[] rRow, float[] gRow, float[] bRow) {
         var rPoly = curve.rPoly();
         var gPoly = curve.gPoly();
         var bPoly = curve.bPoly();
-        for (int y = 0; y < height; y++) {
-            float[] line = mono[y];
-            float[] rRow = r[y];
-            float[] gRow = g[y];
-            float[] bRow = b[y];
-            for (int x = 0; x < line.length; x++) {
-                double v = line[x];
-                rRow[x] = clampToRange(rPoly.applyAsDouble(v));
-                gRow[x] = clampToRange(gPoly.applyAsDouble(v));
-                bRow[x] = clampToRange(bPoly.applyAsDouble(v));
-            }
+        for (int x = 0; x < line.length; x++) {
+            double v = line[x];
+            rRow[x] = clampToRange(rPoly.applyAsDouble(v));
+            gRow[x] = clampToRange(gPoly.applyAsDouble(v));
+            bRow[x] = clampToRange(bPoly.applyAsDouble(v));
         }
-        return new float[][][]{r, g, b};
     }
 
     /**
@@ -347,54 +418,95 @@ public class ImageUtils {
 
         RowStrips.forEach(height, (yStart, yEnd) -> {
             for (int y = yStart; y < yEnd; y++) {
-                for (int x = 0; x < width; x++) {
-                    float r = rChannel[y][x] / MAX_VALUE;
-                    float g = gChannel[y][x] / MAX_VALUE;
-                    float b = bChannel[y][x] / MAX_VALUE;
-
-                    float max = Math.max(r, Math.max(g, b));
-                    float min = Math.min(r, Math.min(g, b));
-                    float delta = max - min;
-
-                    // Calculate the hue
-                    float hue = 0.0f;
-                    if (delta == 0) {
-                        hue = 0.0f;
-                    } else if (max == r) {
-                        hue = ((g - b) / delta) % 6;
-                    } else if (max == g) {
-                        hue = (b - r) / delta + 2;
-                    } else if (max == b) {
-                        hue = (r - g) / delta + 4;
-                    }
-                    hue *= 60.0f;
-                    if (hue < 0) {
-                        hue += 360.0f;
-                    }
-
-                    // Calculate the lightness
-                    float lightness = (max + min) / 2;
-
-                    // Calculate the saturation
-                    float saturation;
-                    if (delta == 0) {
-                        saturation = 0;
-                    } else {
-                        saturation = delta / (1 - Math.abs(2 * lightness - 1));
-                    }
-                    // Handle the case when lightness is close to or equal to zero
-                    if (lightness <= 0.0001f) {
-                        saturation = 0;
-                    }
-                    // handle rounding errors
-                    output[0][y][x] = Math.max(0, Math.min(360, hue));
-                    output[1][y][x] = Math.max(0, Math.min(saturation, 1.0f));
-                    output[2][y][x] = Math.max(0, Math.min(lightness, 1.0f));
-                }
+                rgbToHsl(rChannel[y], gChannel[y], bChannel[y], output[0][y], output[1][y], output[2][y], width);
             }
         });
 
         return output;
+    }
+
+    /**
+     * Converts the red, green and blue planes of an image to hue, saturation and lightness.
+     *
+     * @param r the red plane
+     * @param g the green plane
+     * @param b the blue plane
+     * @return the hue, saturation and lightness channels
+     */
+    public static float[][][] fromRGBtoHSL(ImagePlane r, ImagePlane g, ImagePlane b) {
+        int width = r.width();
+        int height = r.height();
+        var output = new float[3][height][width];
+        RowStrips.forEach(height, (yStart, yEnd) -> {
+            var rRow = new float[width];
+            var gRow = new float[width];
+            var bRow = new float[width];
+            for (int y = yStart; y < yEnd; y++) {
+                r.getRow(y, rRow);
+                g.getRow(y, gRow);
+                b.getRow(y, bRow);
+                rgbToHsl(rRow, gRow, bRow, output[0][y], output[1][y], output[2][y], width);
+            }
+        });
+        return output;
+    }
+
+    /**
+     * Converts a row of red, green and blue pixels to hue, saturation and lightness.
+     *
+     * @param rRow the red pixels
+     * @param gRow the green pixels
+     * @param bRow the blue pixels
+     * @param hRow the array which receives the hue
+     * @param sRow the array which receives the saturation
+     * @param lRow the array which receives the lightness
+     * @param width the number of pixels to convert
+     */
+    public static void rgbToHsl(float[] rRow, float[] gRow, float[] bRow, float[] hRow, float[] sRow, float[] lRow, int width) {
+        for (int x = 0; x < width; x++) {
+            float r = rRow[x] / MAX_VALUE;
+            float g = gRow[x] / MAX_VALUE;
+            float b = bRow[x] / MAX_VALUE;
+
+            float max = Math.max(r, Math.max(g, b));
+            float min = Math.min(r, Math.min(g, b));
+            float delta = max - min;
+
+            // Calculate the hue
+            float hue = 0.0f;
+            if (delta == 0) {
+                hue = 0.0f;
+            } else if (max == r) {
+                hue = ((g - b) / delta) % 6;
+            } else if (max == g) {
+                hue = (b - r) / delta + 2;
+            } else if (max == b) {
+                hue = (r - g) / delta + 4;
+            }
+            hue *= 60.0f;
+            if (hue < 0) {
+                hue += 360.0f;
+            }
+
+            // Calculate the lightness
+            float lightness = (max + min) / 2;
+
+            // Calculate the saturation
+            float saturation;
+            if (delta == 0) {
+                saturation = 0;
+            } else {
+                saturation = delta / (1 - Math.abs(2 * lightness - 1));
+            }
+            // Handle the case when lightness is close to or equal to zero
+            if (lightness <= 0.0001f) {
+                saturation = 0;
+            }
+            // handle rounding errors
+            hRow[x] = Math.max(0, Math.min(360, hue));
+            sRow[x] = Math.max(0, Math.min(saturation, 1.0f));
+            lRow[x] = Math.max(0, Math.min(lightness, 1.0f));
+        }
     }
 
     public static float[][][] fromHSLtoRGB(float[][][] hsl) {
@@ -416,57 +528,97 @@ public class ImageUtils {
 
         RowStrips.forEach(height, (yStart, yEnd) -> {
             for (int y = yStart; y < yEnd; y++) {
-                for (int x = 0; x < width; x++) {
-                    float h = hChannel[y][x];
-                    float s = sChannel[y][x];
-                    float l = lChannel[y][x];
-
-                    // Calculate chroma
-                    float chroma = (1 - Math.abs(2 * l - 1)) * s;
-
-                    // Calculate hue segment and offset within segment
-                    float hueSegment = h / 60.0f;
-
-                    // Calculate intermediate values
-                    float k = chroma * (1 - Math.abs((hueSegment % 2) - 1));
-                    float m = l - chroma / 2;
-
-                    float r, g, b;
-                    if (hueSegment < 1) {
-                        r = chroma;
-                        g = k;
-                        b = 0;
-                    } else if (hueSegment < 2) {
-                        r = k;
-                        g = chroma;
-                        b = 0;
-                    } else if (hueSegment < 3) {
-                        r = 0;
-                        g = chroma;
-                        b = k;
-                    } else if (hueSegment < 4) {
-                        r = 0;
-                        g = k;
-                        b = chroma;
-                    } else if (hueSegment < 5) {
-                        r = k;
-                        g = 0;
-                        b = chroma;
-                    } else {
-                        r = chroma;
-                        g = 0;
-                        b = k;
-                    }
-
-                    // Adjust values by adding the lightness offset
-                    output[0][y][x] = (r + m) * MAX_VALUE;
-                    output[1][y][x] = (g + m) * MAX_VALUE;
-                    output[2][y][x] = (b + m) * MAX_VALUE;
-                }
+                hslToRgb(hChannel[y], sChannel[y], lChannel[y], output[0][y], output[1][y], output[2][y], width);
             }
         });
 
         return output;
+    }
+
+    /**
+     * Converts hue, saturation and lightness channels to red, green and blue, written
+     * to the given planes.
+     *
+     * @param hsl the hue, saturation and lightness channels
+     * @param r the plane which receives the red pixels
+     * @param g the plane which receives the green pixels
+     * @param b the plane which receives the blue pixels
+     */
+    public static void fromHSLtoRGB(float[][][] hsl, ImagePlane r, ImagePlane g, ImagePlane b) {
+        int width = r.width();
+        int height = r.height();
+        RowStrips.forEach(height, (yStart, yEnd) -> {
+            var rRow = new float[width];
+            var gRow = new float[width];
+            var bRow = new float[width];
+            for (int y = yStart; y < yEnd; y++) {
+                hslToRgb(hsl[0][y], hsl[1][y], hsl[2][y], rRow, gRow, bRow, width);
+                r.setRow(y, rRow);
+                g.setRow(y, gRow);
+                b.setRow(y, bRow);
+            }
+        });
+    }
+
+    /**
+     * Converts a row of hue, saturation and lightness values to red, green and blue pixels.
+     *
+     * @param hRow the hue
+     * @param sRow the saturation
+     * @param lRow the lightness
+     * @param rRow the array which receives the red pixels
+     * @param gRow the array which receives the green pixels
+     * @param bRow the array which receives the blue pixels
+     * @param width the number of pixels to convert
+     */
+    public static void hslToRgb(float[] hRow, float[] sRow, float[] lRow, float[] rRow, float[] gRow, float[] bRow, int width) {
+        for (int x = 0; x < width; x++) {
+            float h = hRow[x];
+            float s = sRow[x];
+            float l = lRow[x];
+
+            // Calculate chroma
+            float chroma = (1 - Math.abs(2 * l - 1)) * s;
+
+            // Calculate hue segment and offset within segment
+            float hueSegment = h / 60.0f;
+
+            // Calculate intermediate values
+            float k = chroma * (1 - Math.abs((hueSegment % 2) - 1));
+            float m = l - chroma / 2;
+
+            float r, g, b;
+            if (hueSegment < 1) {
+                r = chroma;
+                g = k;
+                b = 0;
+            } else if (hueSegment < 2) {
+                r = k;
+                g = chroma;
+                b = 0;
+            } else if (hueSegment < 3) {
+                r = 0;
+                g = chroma;
+                b = k;
+            } else if (hueSegment < 4) {
+                r = 0;
+                g = k;
+                b = chroma;
+            } else if (hueSegment < 5) {
+                r = k;
+                g = 0;
+                b = chroma;
+            } else {
+                r = chroma;
+                g = 0;
+                b = k;
+            }
+
+            // Adjust values by adding the lightness offset
+            rRow[x] = (r + m) * MAX_VALUE;
+            gRow[x] = (g + m) * MAX_VALUE;
+            bRow[x] = (b + m) * MAX_VALUE;
+        }
     }
 
 }

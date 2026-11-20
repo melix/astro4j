@@ -740,7 +740,7 @@ public class RedshiftImagesProcessor {
                 false,
                 false)
         ).withExtraParams(params.extraParams().withAutosave(false));
-        var solexVideoProcessor = new SolexVideoProcessor(serFile, outputDirectory, 0, tmpParams, LocalDateTime.now(), false, Configuration.getInstance().getMemoryRestrictionMultiplier(), rootOperation);
+        var solexVideoProcessor = new SolexVideoProcessor(serFile, outputDirectory, 0, tmpParams, LocalDateTime.now(), false, rootOperation);
         solexVideoProcessor.setRedshifts(new Redshifts(redshifts));
         solexVideoProcessor.setPolynomial(polynomial);
         solexVideoProcessor.setAverageImage(averageImage);

@@ -17,6 +17,7 @@ package me.champeau.a4j.jsolex.processing.util;
 
 import me.champeau.a4j.math.RowStrips;
 import me.champeau.a4j.math.image.Image;
+import me.champeau.a4j.math.image.ImagePlane;
 
 import java.util.Arrays;
 
@@ -36,11 +37,23 @@ public record Histogram(
         return of(image.data(), bins);
     }
 
+    public static Histogram of(ImagePlane image, int bins) {
+        return of(image.height(), image.width(), bins, (y, buffer) -> {
+            image.getRow(y, buffer);
+            return buffer;
+        });
+    }
+
     public static Histogram of(float[][] image, int bins) {
-        var builders = RowStrips.map(image.length, (yStart, yEnd) -> {
+        return of(image.length, 0, bins, (y, buffer) -> image[y]);
+    }
+
+    private static Histogram of(int height, int width, int bins, RowReader rows) {
+        var builders = RowStrips.map(height, (yStart, yEnd) -> {
             var builder = builder(bins);
+            var buffer = new float[width];
             for (int y = yStart; y < yEnd; y++) {
-                for (float d : image[y]) {
+                for (float d : rows.read(y, buffer)) {
                     builder.record(d);
                 }
             }
@@ -51,6 +64,10 @@ public record Histogram(
             merged.add(builders.get(i));
         }
         return merged.build();
+    }
+
+    private interface RowReader {
+        float[] read(int y, float[] buffer);
     }
 
     /**

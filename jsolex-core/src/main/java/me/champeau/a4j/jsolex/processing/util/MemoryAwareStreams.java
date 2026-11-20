@@ -21,13 +21,12 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 /**
- * Helpers to opt streams into parallel execution only when memory
+ * Helpers to opt streams into parallel execution only when the heap
  * has enough headroom. Use these on streams whose per-element body
  * allocates large intermediate buffers or images.
  * <p>
- * Under memory pressure (more than 80% of the heap or of the memory
- * reserved for the pixels of images is used) the returned stream is
- * sequential, avoiding the multiplicative memory cost of parallel
+ * Under heap pressure (more than 80% of the heap is used) the returned
+ * stream is sequential, avoiding the multiplicative memory cost of parallel
  * allocation when it can't be afforded.
  */
 public final class MemoryAwareStreams {
@@ -62,11 +61,10 @@ public final class MemoryAwareStreams {
     }
 
     /**
-     * Tells if memory is getting scarce, either on the heap, where algorithms
-     * allocate their working buffers, or for the pixels of images, which live
-     * outside of the heap.
+     * Tells if the heap, where algorithms allocate their working buffers, is
+     * getting scarce.
      */
     public static boolean underPressure() {
-        return HeapPressure.current() > PRESSURE_THRESHOLD || ImageMemory.pressure() > PRESSURE_THRESHOLD;
+        return HeapPressure.current() > PRESSURE_THRESHOLD;
     }
 }

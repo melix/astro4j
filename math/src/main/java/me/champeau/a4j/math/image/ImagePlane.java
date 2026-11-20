@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.champeau.a4j.jsolex.processing.util;
+package me.champeau.a4j.math.image;
 
 import me.champeau.a4j.math.RowStrips;
 
@@ -69,6 +69,16 @@ public final class ImagePlane {
 
     public int height() {
         return height;
+    }
+
+    /**
+     * Returns the memory holding the pixels of this plane: 32-bit floats in
+     * native byte order, row after row. Writing to it modifies the plane.
+     *
+     * @return the segment of this plane
+     */
+    public MemorySegment segment() {
+        return segment;
     }
 
     public float get(int x, int y) {

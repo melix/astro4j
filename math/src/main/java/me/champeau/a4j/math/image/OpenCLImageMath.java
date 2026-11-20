@@ -16,9 +16,13 @@
 package me.champeau.a4j.math.image;
 
 import me.champeau.a4j.math.opencl.GpuOp;
+import me.champeau.a4j.math.opencl.KernelCall;
 import me.champeau.a4j.math.opencl.OpenCLContext;
 import me.champeau.a4j.math.opencl.OpenCLException;
 import org.lwjgl.BufferUtils;
+
+import java.util.function.Supplier;
+import java.util.function.UnaryOperator;
 
 import static org.lwjgl.opencl.CL10.*;
 
@@ -55,11 +59,19 @@ class OpenCLImageMath extends VectorApiImageMath {
     }
 
     private boolean shouldUseGPU(Image image) {
-        return image.width() * image.height() >= minPixelsForGPU;
+        return shouldUseGPU(image.width(), image.height());
+    }
+
+    private boolean shouldUseGPU(int width, int height) {
+        return width * height >= minPixelsForGPU;
     }
 
     private boolean shouldUseGPUForConvolution(Image image) {
-        return image.width() * image.height() >= minPixelsForConvolution;
+        return shouldUseGPUForConvolution(image.width(), image.height());
+    }
+
+    private boolean shouldUseGPUForConvolution(int width, int height) {
+        return width * height >= minPixelsForConvolution;
     }
 
     @Override
@@ -227,39 +239,82 @@ class OpenCLImageMath extends VectorApiImageMath {
 
     @Override
     public Image convolve(Image image, Kernel kernel) {
-        if (!shouldUseGPUForConvolution(image)) {
+        return runOnGPU(shouldUseGPUForConvolution(image), "convolution", image.width(), image.height(),
+                () -> convolveGPU(imageInput(image), image.width(), image.height(), OpenCLImageMath::readImage, kernel),
+                () -> super.convolve(image, kernel));
+    }
+
+    @Override
+    public double estimateSharpness(ImagePlane plane) {
+        return PlaneOperations.estimateSharpness(convolve(plane, Kernel33.LAPLACIAN), convolve(plane, Kernel33.LAPLACIAN_B));
+    }
+
+    @Override
+    public ImagePlane convolve(ImagePlane plane, Kernel kernel) {
+        return runOnGPU(shouldUseGPUForConvolution(plane.width(), plane.height()), "convolution", plane.width(), plane.height(),
+                () -> convolveGPU(planeInput(plane), plane.width(), plane.height(), OpenCLImageMath::readPlane, kernel),
+                () -> super.convolve(plane, kernel));
+    }
+
+    private <T> T convolveGPU(GpuInput input, int width, int height, GpuOutput<T> output, Kernel kernel) {
+        var n = width * height;
+        return context.runOp(op -> {
+            var plan = prepareConvolutionPlan(op, kernel);
+            var imageBuffer = op.allocateBuffer(n * Float.BYTES, CL_MEM_READ_ONLY);
+            input.write(op, imageBuffer);
+            long tempBuffer = plan.separable() ? op.allocateBuffer(n * Float.BYTES, CL_MEM_READ_WRITE) : 0;
+            var outputBuffer = op.allocateBuffer(n * Float.BYTES, CL_MEM_READ_WRITE);
+            enqueueConvolution(op, plan, imageBuffer, tempBuffer, outputBuffer, width, height);
+            return output.read(op, outputBuffer, width, height);
+        });
+    }
+
+    private <T> T runOnGPU(boolean useGPU, String operation, int width, int height, Supplier<T> gpu, Supplier<T> cpu) {
+        if (!useGPU) {
             if (!allowFallback) {
-                throw new OpenCLException("GPU convolution required but image too small: " + image.width() + "x" + image.height());
+                throw new OpenCLException("GPU " + operation + " required but image too small: " + width + "x" + height);
             }
-            return super.convolve(image, kernel);
+            return cpu.get();
         }
         try {
-            return convolveGPU(image, kernel);
+            return gpu.get();
         } catch (OpenCLException e) {
             if (!allowFallback) {
                 throw e;
             }
-            return super.convolve(image, kernel);
+            return cpu.get();
         }
     }
 
-    private Image convolveGPU(Image image, Kernel kernel) {
-        var width = image.width();
-        var height = image.height();
-        var n = width * height;
-        var flatImage = flatten(image.data(), width, height);
+    @FunctionalInterface
+    private interface GpuInput {
+        void write(GpuOp op, long buffer);
+    }
 
-        return context.runOp(op -> {
-            var plan = prepareConvolutionPlan(op, kernel);
-            var imageBuffer = op.allocateBuffer(n * Float.BYTES, CL_MEM_READ_ONLY);
-            op.write(imageBuffer, flatImage);
-            long tempBuffer = plan.separable() ? op.allocateBuffer(n * Float.BYTES, CL_MEM_READ_WRITE) : 0;
-            var outputBuffer = op.allocateBuffer(n * Float.BYTES, CL_MEM_READ_WRITE);
-            enqueueConvolution(op, plan, imageBuffer, tempBuffer, outputBuffer, width, height);
-            var result = new float[n];
-            op.read(outputBuffer, result);
-            return image.withData(unflatten(result, width, height));
-        });
+    @FunctionalInterface
+    private interface GpuOutput<T> {
+        T read(GpuOp op, long buffer, int width, int height);
+    }
+
+    private static GpuInput imageInput(Image image) {
+        var flat = flatten(image.data(), image.width(), image.height());
+        return (op, buffer) -> op.write(buffer, flat);
+    }
+
+    private static GpuInput planeInput(ImagePlane plane) {
+        return (op, buffer) -> op.write(buffer, plane.segment());
+    }
+
+    private static Image readImage(GpuOp op, long buffer, int width, int height) {
+        var result = new float[width * height];
+        op.read(buffer, result);
+        return new Image(width, height, unflatten(result, width, height));
+    }
+
+    private static ImagePlane readPlane(GpuOp op, long buffer, int width, int height) {
+        var result = ImagePlane.allocate(width, height);
+        op.read(buffer, result.segment());
+        return result;
     }
 
     /**
@@ -459,134 +514,73 @@ class OpenCLImageMath extends VectorApiImageMath {
 
     @Override
     public Image rotateAndScale(Image image, double angle, float blackpoint, double scaleX, double scaleY) {
-        if (!shouldUseGPU(image)) {
-            if (!allowFallback) {
-                throw new OpenCLException("GPU rotateAndScale required but image too small");
-            }
-            return super.rotateAndScale(image, angle, blackpoint, scaleX, scaleY);
-        }
-        try {
-            return rotateAndScaleGPU(image, angle, blackpoint, scaleX, scaleY);
-        } catch (OpenCLException e) {
-            if (!allowFallback) {
-                throw e;
-            }
-            return super.rotateAndScale(image, angle, blackpoint, scaleX, scaleY);
-        }
+        return runOnGPU(shouldUseGPU(image), "rotateAndScale", image.width(), image.height(),
+                () -> rotateAndScaleGPU(imageInput(image), image.width(), image.height(), OpenCLImageMath::readImage, angle, blackpoint, scaleX, scaleY),
+                () -> super.rotateAndScale(image, angle, blackpoint, scaleX, scaleY));
     }
 
-    private Image rotateAndScaleGPU(Image image, double angle, float blackpoint, double scaleX, double scaleY) {
-        var srcWidth = image.width();
-        var srcHeight = image.height();
+    @Override
+    public ImagePlane rotateAndScale(ImagePlane plane, double angle, float blackpoint, double scaleX, double scaleY) {
+        return runOnGPU(shouldUseGPU(plane.width(), plane.height()), "rotateAndScale", plane.width(), plane.height(),
+                () -> rotateAndScaleGPU(planeInput(plane), plane.width(), plane.height(), OpenCLImageMath::readPlane, angle, blackpoint, scaleX, scaleY),
+                () -> super.rotateAndScale(plane, angle, blackpoint, scaleX, scaleY));
+    }
+
+    private <T> T rotateAndScaleGPU(GpuInput input, int srcWidth, int srcHeight, GpuOutput<T> output,
+                                    double angle, float blackpoint, double scaleX, double scaleY) {
         double cos = Math.cos(angle);
         double sin = Math.sin(angle);
         int dstWidth = (int) ((Math.round(Math.abs(srcWidth * cos) + Math.abs(srcHeight * sin))) * scaleX);
         int dstHeight = (int) ((Math.round(Math.abs(srcHeight * cos) + Math.abs(srcWidth * sin))) * scaleY);
-
-        var flatInput = flatten(image.data(), srcWidth, srcHeight);
-        int srcN = srcWidth * srcHeight;
-        int dstN = dstWidth * dstHeight;
-
-        return context.runOp(op -> {
-            var inputBuffer = op.allocateBuffer(srcN * Float.BYTES, CL_MEM_READ_ONLY);
-            var outputBuffer = op.allocateBuffer(dstN * Float.BYTES, CL_MEM_WRITE_ONLY);
-            op.write(inputBuffer, flatInput);
-            op.kernel("transform", "rotate_scale")
-                    .arg(inputBuffer).arg(outputBuffer)
-                    .arg(srcWidth).arg(srcHeight).arg(dstWidth).arg(dstHeight)
-                    .arg((float) cos).arg((float) sin)
-                    .arg((float) scaleX).arg((float) scaleY)
-                    .arg(blackpoint)
-                    .run(dstWidth, dstHeight);
-            var result = new float[dstN];
-            op.read(outputBuffer, result);
-            return new Image(dstWidth, dstHeight, unflatten(result, dstWidth, dstHeight));
-        });
+        return transformGPU(input, srcWidth, srcHeight, dstWidth, dstHeight, output, "rotate_scale", call -> call
+                .arg(srcWidth).arg(srcHeight).arg(dstWidth).arg(dstHeight)
+                .arg((float) cos).arg((float) sin)
+                .arg((float) scaleX).arg((float) scaleY)
+                .arg(blackpoint));
     }
 
     @Override
     public Image rotate(Image image, double angle, float blackpoint, boolean resize) {
-        if (!shouldUseGPU(image)) {
-            if (!allowFallback) {
-                throw new OpenCLException("GPU rotate required but image too small");
-            }
-            return super.rotate(image, angle, blackpoint, resize);
-        }
-        try {
-            return rotateGPU(image, angle, blackpoint, resize);
-        } catch (OpenCLException e) {
-            if (!allowFallback) {
-                throw e;
-            }
-            return super.rotate(image, angle, blackpoint, resize);
-        }
+        return runOnGPU(shouldUseGPU(image), "rotate", image.width(), image.height(),
+                () -> rotateGPU(imageInput(image), image.width(), image.height(), OpenCLImageMath::readImage, angle, blackpoint, resize),
+                () -> super.rotate(image, angle, blackpoint, resize));
     }
 
-    private Image rotateGPU(Image image, double angle, float blackpoint, boolean resize) {
-        var srcWidth = image.width();
-        var srcHeight = image.height();
+    @Override
+    public ImagePlane rotate(ImagePlane plane, double angle, float blackpoint, boolean resize) {
+        return runOnGPU(shouldUseGPU(plane.width(), plane.height()), "rotate", plane.width(), plane.height(),
+                () -> rotateGPU(planeInput(plane), plane.width(), plane.height(), OpenCLImageMath::readPlane, angle, blackpoint, resize),
+                () -> super.rotate(plane, angle, blackpoint, resize));
+    }
+
+    private <T> T rotateGPU(GpuInput input, int srcWidth, int srcHeight, GpuOutput<T> output,
+                            double angle, float blackpoint, boolean resize) {
         double cos = Math.cos(angle);
         double sin = Math.sin(angle);
         int dstWidth = resize ? (int) (Math.round(Math.abs(srcWidth * cos) + Math.abs(srcHeight * sin))) : srcWidth;
         int dstHeight = resize ? (int) (Math.round(Math.abs(srcHeight * cos) + Math.abs(srcWidth * sin))) : srcHeight;
-
-        var flatInput = flatten(image.data(), srcWidth, srcHeight);
-        int srcN = srcWidth * srcHeight;
-        int dstN = dstWidth * dstHeight;
-
-        return context.runOp(op -> {
-            var inputBuffer = op.allocateBuffer(srcN * Float.BYTES, CL_MEM_READ_ONLY);
-            var outputBuffer = op.allocateBuffer(dstN * Float.BYTES, CL_MEM_WRITE_ONLY);
-            op.write(inputBuffer, flatInput);
-            op.kernel("transform", "rotate")
-                    .arg(inputBuffer).arg(outputBuffer)
-                    .arg(srcWidth).arg(srcHeight).arg(dstWidth).arg(dstHeight)
-                    .arg((float) cos).arg((float) sin).arg(blackpoint)
-                    .run(dstWidth, dstHeight);
-            var result = new float[dstN];
-            op.read(outputBuffer, result);
-            return new Image(dstWidth, dstHeight, unflatten(result, dstWidth, dstHeight));
-        });
+        return transformGPU(input, srcWidth, srcHeight, dstWidth, dstHeight, output, "rotate", call -> call
+                .arg(srcWidth).arg(srcHeight).arg(dstWidth).arg(dstHeight)
+                .arg((float) cos).arg((float) sin).arg(blackpoint));
     }
 
     @Override
     public Image rescale(Image image, int newWidth, int newHeight) {
-        if (!shouldUseGPU(image)) {
-            if (!allowFallback) {
-                throw new OpenCLException("GPU rescale required but image too small");
-            }
-            return super.rescale(image, newWidth, newHeight);
-        }
-        try {
-            return rescaleGPU(image, newWidth, newHeight);
-        } catch (OpenCLException e) {
-            if (!allowFallback) {
-                throw e;
-            }
-            return super.rescale(image, newWidth, newHeight);
-        }
+        return runOnGPU(shouldUseGPU(image), "rescale", image.width(), image.height(),
+                () -> rescaleGPU(imageInput(image), image.width(), image.height(), OpenCLImageMath::readImage, newWidth, newHeight),
+                () -> super.rescale(image, newWidth, newHeight));
     }
 
-    private Image rescaleGPU(Image image, int dstWidth, int dstHeight) {
-        var srcWidth = image.width();
-        var srcHeight = image.height();
+    @Override
+    public ImagePlane rescale(ImagePlane plane, int newWidth, int newHeight) {
+        return runOnGPU(shouldUseGPU(plane.width(), plane.height()), "rescale", plane.width(), plane.height(),
+                () -> rescaleGPU(planeInput(plane), plane.width(), plane.height(), OpenCLImageMath::readPlane, newWidth, newHeight),
+                () -> super.rescale(plane, newWidth, newHeight));
+    }
 
-        var flatInput = flatten(image.data(), srcWidth, srcHeight);
-        int srcN = srcWidth * srcHeight;
-        int dstN = dstWidth * dstHeight;
-
-        return context.runOp(op -> {
-            var inputBuffer = op.allocateBuffer(srcN * Float.BYTES, CL_MEM_READ_ONLY);
-            var outputBuffer = op.allocateBuffer(dstN * Float.BYTES, CL_MEM_WRITE_ONLY);
-            op.write(inputBuffer, flatInput);
-            op.kernel("transform", "rescale")
-                    .arg(inputBuffer).arg(outputBuffer)
-                    .arg(srcWidth).arg(srcHeight).arg(dstWidth).arg(dstHeight)
-                    .run(dstWidth, dstHeight);
-            var result = new float[dstN];
-            op.read(outputBuffer, result);
-            return new Image(dstWidth, dstHeight, unflatten(result, dstWidth, dstHeight));
-        });
+    private <T> T rescaleGPU(GpuInput input, int srcWidth, int srcHeight, GpuOutput<T> output, int dstWidth, int dstHeight) {
+        return transformGPU(input, srcWidth, srcHeight, dstWidth, dstHeight, output, "rescale", call -> call
+                .arg(srcWidth).arg(srcHeight).arg(dstWidth).arg(dstHeight));
     }
 
     @Override
@@ -594,67 +588,51 @@ class OpenCLImageMath extends VectorApiImageMath {
         if (!horizontalMirror && !verticalMirror) {
             return source;
         }
-        if (!shouldUseGPU(source)) {
-            if (!allowFallback) {
-                throw new OpenCLException("GPU mirror required but image too small");
-            }
-            return super.mirror(source, horizontalMirror, verticalMirror);
-        }
-        try {
-            return mirrorGPU(source, horizontalMirror, verticalMirror);
-        } catch (OpenCLException e) {
-            if (!allowFallback) {
-                throw e;
-            }
-            return super.mirror(source, horizontalMirror, verticalMirror);
-        }
+        return runOnGPU(shouldUseGPU(source), "mirror", source.width(), source.height(),
+                () -> mirrorGPU(imageInput(source), source.width(), source.height(), OpenCLImageMath::readImage, horizontalMirror, verticalMirror),
+                () -> super.mirror(source, horizontalMirror, verticalMirror));
     }
 
-    private Image mirrorGPU(Image source, boolean horizontalMirror, boolean verticalMirror) {
-        var width = source.width();
-        var height = source.height();
-        var n = width * height;
-        var flatInput = flatten(source.data(), width, height);
+    @Override
+    public ImagePlane mirror(ImagePlane plane, boolean horizontalMirror, boolean verticalMirror) {
+        if (!horizontalMirror && !verticalMirror) {
+            return super.mirror(plane, false, false);
+        }
+        return runOnGPU(shouldUseGPU(plane.width(), plane.height()), "mirror", plane.width(), plane.height(),
+                () -> mirrorGPU(planeInput(plane), plane.width(), plane.height(), OpenCLImageMath::readPlane, horizontalMirror, verticalMirror),
+                () -> super.mirror(plane, horizontalMirror, verticalMirror));
+    }
 
+    private <T> T mirrorGPU(GpuInput input, int width, int height, GpuOutput<T> output, boolean horizontalMirror, boolean verticalMirror) {
+        return transformGPU(input, width, height, width, height, output, "mirror", call -> call
+                .arg(width).arg(height)
+                .arg(horizontalMirror ? 1 : 0).arg(verticalMirror ? 1 : 0));
+    }
+
+    private <T> T transformGPU(GpuInput input, int srcWidth, int srcHeight, int dstWidth, int dstHeight,
+                               GpuOutput<T> output, String kernelName, UnaryOperator<KernelCall> arguments) {
+        int srcN = srcWidth * srcHeight;
+        int dstN = dstWidth * dstHeight;
         return context.runOp(op -> {
-            var inputBuffer = op.allocateBuffer(n * Float.BYTES, CL_MEM_READ_ONLY);
-            var outputBuffer = op.allocateBuffer(n * Float.BYTES, CL_MEM_WRITE_ONLY);
-            op.write(inputBuffer, flatInput);
-            op.kernel("transform", "mirror")
-                    .arg(inputBuffer).arg(outputBuffer)
-                    .arg(width).arg(height)
-                    .arg(horizontalMirror ? 1 : 0).arg(verticalMirror ? 1 : 0)
-                    .run(width, height);
-            var result = new float[n];
-            op.read(outputBuffer, result);
-            return new Image(width, height, unflatten(result, width, height));
+            var inputBuffer = op.allocateBuffer(srcN * Float.BYTES, CL_MEM_READ_ONLY);
+            var outputBuffer = op.allocateBuffer(dstN * Float.BYTES, CL_MEM_WRITE_ONLY);
+            input.write(op, inputBuffer);
+            arguments.apply(op.kernel("transform", kernelName).arg(inputBuffer).arg(outputBuffer))
+                    .run(dstWidth, dstHeight);
+            return output.read(op, outputBuffer, dstWidth, dstHeight);
         });
     }
 
     @Override
     public Image dedistort(Image source, float[][] gridDx, float[][] gridDy, int gridStep, boolean useLanczos) {
-        if (!shouldUseGPU(source)) {
-            if (!allowFallback) {
-                throw new OpenCLException("GPU dedistort required but image too small");
-            }
-            return super.dedistort(source, gridDx, gridDy, gridStep, useLanczos);
-        }
-        try {
-            return dedistortGPU(source, gridDx, gridDy, gridStep, useLanczos);
-        } catch (OpenCLException e) {
-            if (!allowFallback) {
-                throw e;
-            }
-            return super.dedistort(source, gridDx, gridDy, gridStep, useLanczos);
-        }
+        return runOnGPU(shouldUseGPU(source), "dedistort", source.width(), source.height(),
+                () -> dedistortGPU(imageInput(source), source.width(), source.height(), OpenCLImageMath::readImage, gridDx, gridDy, gridStep, useLanczos),
+                () -> super.dedistort(source, gridDx, gridDy, gridStep, useLanczos));
     }
 
-    private Image dedistortGPU(Image source, float[][] gridDx, float[][] gridDy, int gridStep, boolean useLanczos) {
-        var width = source.width();
-        var height = source.height();
+    private <T> T dedistortGPU(GpuInput input, int width, int height, GpuOutput<T> output,
+                               float[][] gridDx, float[][] gridDy, int gridStep, boolean useLanczos) {
         var n = width * height;
-        var flatInput = flatten(source.data(), width, height);
-
         var gridHeight = gridDx.length;
         var gridWidth = gridDx[0].length;
         var gridN = gridWidth * gridHeight;
@@ -667,7 +645,7 @@ class OpenCLImageMath extends VectorApiImageMath {
             var outputBuffer = op.allocateBuffer(n * Float.BYTES, CL_MEM_WRITE_ONLY);
             var gridDxBuffer = op.allocateBuffer(gridN * Float.BYTES, CL_MEM_READ_ONLY);
             var gridDyBuffer = op.allocateBuffer(gridN * Float.BYTES, CL_MEM_READ_ONLY);
-            op.write(inputBuffer, flatInput);
+            input.write(op, inputBuffer);
             op.write(gridDxBuffer, flatGridDx);
             op.write(gridDyBuffer, flatGridDy);
             op.kernel("dedistort", kernelName)
@@ -675,9 +653,7 @@ class OpenCLImageMath extends VectorApiImageMath {
                     .arg(width).arg(height).arg(gridWidth).arg(gridHeight).arg(gridStep)
                     .arg(width).arg(height).arg(1.0f)
                     .run(width, height);
-            var result = new float[n];
-            op.read(outputBuffer, result);
-            return new Image(width, height, unflatten(result, width, height));
+            return output.read(op, outputBuffer, width, height);
         });
     }
 

@@ -172,7 +172,6 @@ final class DifferentialRotationMeasurement {
     static Optional<Scan> processScan(File serFile,
                                       ProcessParams baseParams,
                                       Path outputDirectory,
-                                      int memoryRestrictionMultiplier,
                                       ProgressOperation operation,
                                       Consumer<EllipseFittingRequestEvent> ellipseFittingHandler) {
         try {
@@ -186,7 +185,7 @@ final class DifferentialRotationMeasurement {
                     .withExtraParams(baseParams.extraParams().withAutosave(false));
             var averageImage = new AtomicReference<AverageImageComputedEvent.AverageImage>();
             var scanImages = new AtomicReference<Map<PixelShift, ImageWrapper>>(Map.of());
-            var processor = new SolexVideoProcessor(serFile, outputDirectory, 0, scanParams, LocalDateTime.now(), false, memoryRestrictionMultiplier, operation);
+            var processor = new SolexVideoProcessor(serFile, outputDirectory, 0, scanParams, LocalDateTime.now(), false, operation);
             processor.addEventListener(new ProcessingEventListener() {
                 @Override
                 public void onAverageImageComputed(AverageImageComputedEvent e) {

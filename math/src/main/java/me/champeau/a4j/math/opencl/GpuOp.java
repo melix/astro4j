@@ -18,6 +18,7 @@ package me.champeau.a4j.math.opencl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.foreign.MemorySegment;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.LinkedHashMap;
@@ -102,6 +103,14 @@ public final class GpuOp implements AutoCloseable {
     }
 
     /**
+     * Uploads the content of a native memory segment to {@code buffer}.
+     */
+    public void write(long buffer, MemorySegment data) {
+        context.writeBuffer(buffer, data);
+        bytesUploaded += data.byteSize();
+    }
+
+    /**
      * Uploads {@code data} to {@code buffer}.
      */
     public void writeInts(long buffer, int[] data) {
@@ -116,6 +125,15 @@ public final class GpuOp implements AutoCloseable {
     public void read(long buffer, float[] data) {
         context.readBuffer(buffer, data);
         bytesDownloaded += data.length * (long) Float.BYTES;
+    }
+
+    /**
+     * Downloads {@code buffer} contents into a native memory segment. Blocks
+     * until any pending kernel work that wrote to the buffer has completed.
+     */
+    public void read(long buffer, MemorySegment data) {
+        context.readBuffer(buffer, data);
+        bytesDownloaded += data.byteSize();
     }
 
     /**

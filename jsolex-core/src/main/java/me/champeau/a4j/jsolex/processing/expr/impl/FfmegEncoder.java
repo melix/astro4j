@@ -22,7 +22,7 @@ import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MemoryAwareStreams;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
-import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
+import me.champeau.a4j.utilities.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,9 +67,9 @@ public class FfmegEncoder {
                     var file = new File(tempDir.toFile(), fileName);
                     var img = images.get(i);
                     if (img instanceof ImageWrapper32 mono) {
-                        ImageUtils.writeMonoImage(mono.width(), mono.height(), mono.pixels().toArray(), file, Set.of(ImageFormat.PNG));
+                        ImageUtils.writeMonoImage(mono.pixels(), file, Set.of(ImageFormat.PNG));
                     } else if (img instanceof RGBImage rgb) {
-                        ImageUtils.writeRgbImage(rgb.width(), rgb.height(), rgb.red().toArray(), rgb.green().toArray(), rgb.blue().toArray(), file, Set.of(ImageFormat.PNG));
+                        ImageUtils.writeRgbImage(rgb.red(), rgb.green(), rgb.blue(), file, Set.of(ImageFormat.PNG));
                     }
                     broadcaster.broadcast(progressOperation.update(progress.incrementAndGet() / (double) images.size()));
                 });

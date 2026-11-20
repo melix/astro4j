@@ -15,6 +15,8 @@
  */
 package me.champeau.a4j.jsolex.processing.stretching;
 
+import me.champeau.a4j.math.image.ImagePlane;
+
 import java.util.function.BiPredicate;
 
 final class PixelCollection {
@@ -25,14 +27,13 @@ final class PixelCollection {
     /**
      * Collects the pixel values selected by the mask, or all of them when the mask is null.
      */
-    static float[] collect(float[][] data, int width, int height, BiPredicate<Integer, Integer> pixelMask) {
+    static float[] collect(ImagePlane data, BiPredicate<Integer, Integer> pixelMask) {
+        var width = data.width();
+        var height = data.height();
         if (pixelMask == null) {
             var pixels = new float[width * height];
-            var index = 0;
             for (int y = 0; y < height; y++) {
-                for (int x = 0; x < width; x++) {
-                    pixels[index++] = data[y][x];
-                }
+                data.getRow(y, 0, pixels, y * width, width);
             }
             return pixels;
         }
@@ -45,11 +46,13 @@ final class PixelCollection {
             }
         }
         var pixels = new float[count];
+        var row = new float[width];
         var index = 0;
         for (int y = 0; y < height; y++) {
+            data.getRow(y, row);
             for (int x = 0; x < width; x++) {
                 if (pixelMask.test(x, y)) {
-                    pixels[index++] = data[y][x];
+                    pixels[index++] = row[x];
                 }
             }
         }

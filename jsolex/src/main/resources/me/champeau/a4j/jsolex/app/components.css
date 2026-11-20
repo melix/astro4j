@@ -1770,6 +1770,33 @@
 }
 
 /* Geometry indicator badges (tilt and X/Y ratio) */
+.memory-bar {
+    -fx-background-color: #e6e6e6;
+    -fx-background-radius: 3;
+    -fx-pref-height: 18;
+}
+
+.memory-heap {
+    -fx-background-color: #7fa7d6;
+}
+
+.memory-images {
+    -fx-background-color: #e3a857;
+}
+
+.memory-images:low {
+    -fx-background-color: #d9534f;
+}
+
+.memory-label {
+    -fx-text-fill: #444444;
+    -fx-font-size: 11px;
+}
+
+.memory-label:low {
+    -fx-text-fill: white;
+}
+
 .geometry-badge {
     -fx-background-radius: 8;
     -fx-padding: 2 8;

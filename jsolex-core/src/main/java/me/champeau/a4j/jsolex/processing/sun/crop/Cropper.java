@@ -15,7 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.sun.crop;
 
-import me.champeau.a4j.math.image.Image;
+import me.champeau.a4j.math.image.ImagePlane;
 import me.champeau.a4j.math.regression.Ellipse;
 import me.champeau.a4j.math.tuples.DoublePair;
 import org.slf4j.Logger;
@@ -35,8 +35,7 @@ public class Cropper {
 
     }
 
-    public static CropResult cropToSquare(Image image, Ellipse sunDisk, float blackPoint, Double diameterFactor, Integer rounding) {
-        var source = image.data();
+    public static CropResult cropToSquare(ImagePlane image, Ellipse sunDisk, float blackPoint, Double diameterFactor, Integer rounding) {
         // at this stage, the new fitting should give us a good estimate of the center and radius
         // because if geometry correction worked, the disk should be circle, so we can crop to a square
         var center = sunDisk.center();
@@ -59,21 +58,8 @@ public class Cropper {
         var half = square / 2;
         var originX = cropOrigin(cx, half);
         var originY = cropOrigin(cy, half);
-        var cropped = new float[square][square];
-        for (float[] floats : cropped) {
-            Arrays.fill(floats, blackPoint);
-        }
-        for (int yy = 0; yy < square; yy++) {
-            for (int xx = 0; xx < square; xx++) {
-                int sourceX = originX + xx;
-                int sourceY = originY + yy;
-                if (sourceX >= 0 && sourceY >= 0 && sourceX < width && sourceY < height) {
-                    cropped[yy][xx] = source[sourceY][sourceX];
-                }
-            }
-        }
         return new CropResult(
-                new Image(square, square, cropped),
+                crop(image, originX, originY, square, square, blackPoint),
                 new DoublePair(originX, originY)
         );
     }
@@ -82,37 +68,36 @@ public class Cropper {
         return (int) Math.round(center) - halfSize;
     }
 
-    public static CropResult cropToRectangle(Image image, Ellipse sunDisk, float blackPoint, int width, int height) {
-        var source = image.data();
-        var sourceWidth = image.width();
-        var sourceHeight = image.height();
+    public static CropResult cropToRectangle(ImagePlane image, Ellipse sunDisk, float blackPoint, int width, int height) {
         var center = sunDisk.center();
         var cx = center.a();
         var cy = center.b();
         var originX = cropOrigin(cx, width / 2);
         var originY = cropOrigin(cy, height / 2);
-        var cropped = new float[height][width];
-        for (float[] line : cropped) {
-            Arrays.fill(line, blackPoint);
-        }
-        for (int yy = 0; yy < height; yy++) {
-            for (int xx = 0; xx < width; xx++) {
-                int sourceX = originX + xx;
-                int sourceY = originY + yy;
-                if (sourceX >= 0 && sourceY >= 0 && sourceX < sourceWidth && sourceY < sourceHeight) {
-                    cropped[yy][xx] = source[sourceY][sourceX];
-                }
-            }
-        }
-
         return new CropResult(
-                new Image(width, height, cropped),
+                crop(image, originX, originY, width, height, blackPoint),
                 new DoublePair(originX, originY)
         );
     }
 
+    private static ImagePlane crop(ImagePlane source, int originX, int originY, int width, int height, float blackPoint) {
+        var cropped = ImagePlane.allocate(width, height);
+        var row = new float[width];
+        var fromX = Math.max(0, originX);
+        var toX = Math.min(source.width(), originX + width);
+        for (int yy = 0; yy < height; yy++) {
+            Arrays.fill(row, blackPoint);
+            var sourceY = originY + yy;
+            if (sourceY >= 0 && sourceY < source.height() && fromX < toX) {
+                source.getRow(sourceY, fromX, row, fromX - originX, toX - fromX);
+            }
+            cropped.setRow(yy, row);
+        }
+        return cropped;
+    }
+
     public record CropResult(
-            Image cropped,
+            ImagePlane cropped,
             DoublePair centerShift
     ) {
     }

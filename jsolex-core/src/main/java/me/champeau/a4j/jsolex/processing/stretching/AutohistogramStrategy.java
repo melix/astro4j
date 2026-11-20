@@ -18,7 +18,7 @@ package me.champeau.a4j.jsolex.processing.stretching;
 import me.champeau.a4j.jsolex.processing.color.ColorCurve;
 import me.champeau.a4j.jsolex.processing.sun.BackgroundRemoval;
 import me.champeau.a4j.jsolex.processing.util.Histogram;
-import me.champeau.a4j.jsolex.processing.util.ImagePlane;
+import me.champeau.a4j.math.image.ImagePlane;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.RowStrips;
 import me.champeau.a4j.math.regression.Ellipse;
@@ -101,7 +101,7 @@ public final class AutohistogramStrategy implements StretchingStrategy {
         var height = image.height();
         var width = image.width();
         var ellipse = image.findMetadata(Ellipse.class);
-        float[][] output;
+        float[][] output = null;
         if (ellipse.isPresent()) {
             var e = ellipse.get();
             var bgNeutralized = iterativeBgNeutralize(image, e, width, height);
@@ -125,11 +125,13 @@ public final class AutohistogramStrategy implements StretchingStrategy {
             output = bgNeutralized.pixels().toArray();
             blendInto(claheData, eclipseData, width, height, 0.6, claheData);
             blendInto(output, claheData, width, height, 0.8, output);
-        } else {
+        } else if (adjustBrightness) {
             output = image.pixels().toArray();
         }
-        maybeAdjustBrightness(image, height, width, output);
-        image.pixels().copyFrom(output);
+        if (output != null) {
+            maybeAdjustBrightness(image, height, width, output);
+            image.pixels().copyFrom(output);
+        }
         CutoffStretchingStrategy.DEFAULT.stretch(image);
     }
 

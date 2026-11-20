@@ -99,7 +99,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.WorkflowResults;
 import me.champeau.a4j.jsolex.processing.util.CancellationSupport;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
-import me.champeau.a4j.jsolex.processing.util.ImagePlane;
+import me.champeau.a4j.math.image.ImagePlane;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.LocaleUtils;
@@ -111,7 +111,7 @@ import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.jsolex.processing.util.SolarParametersUtils;
 import me.champeau.a4j.jsolex.processing.util.SpectralLineFrameImageCreator;
-import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
+import me.champeau.a4j.utilities.TemporaryFolder;
 import me.champeau.a4j.jsolex.processing.util.Wavelen;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.Image;
@@ -180,8 +180,6 @@ public class SolexVideoProcessor implements Broadcaster {
     private final int sequenceNumber;
     private final LocalDateTime processingDate;
     private final boolean batchMode;
-    private final int batchParallelism;
-    private final int memoryRestrictionMultiplier;
     private final ProgressOperation rootOperation;
     private final Path outputDirectory;
     private ProcessParams processParams;
@@ -208,8 +206,6 @@ public class SolexVideoProcessor implements Broadcaster {
                                ProcessParams processParametersProvider,
                                LocalDateTime processingDate,
                                boolean batchMode,
-                               int batchParallelism,
-                               int memoryRestrictionMultiplier,
                                ProgressOperation rootOperation,
                                Map<Class<?>, Object> additionalContext) {
         this.serFile = serFile;
@@ -218,8 +214,6 @@ public class SolexVideoProcessor implements Broadcaster {
         this.processParams = processParametersProvider;
         this.processingDate = processingDate;
         this.batchMode = batchMode;
-        this.batchParallelism = batchParallelism;
-        this.memoryRestrictionMultiplier = memoryRestrictionMultiplier;
         this.rootOperation = rootOperation;
         this.additionalContext = additionalContext != null ? additionalContext : Map.of();
         this.sharedImageEmitter = new DefaultImageEmitter(this, rootOperation, outputDirectory.toFile());
@@ -231,9 +225,8 @@ public class SolexVideoProcessor implements Broadcaster {
                                ProcessParams processParametersProvider,
                                LocalDateTime processingDate,
                                boolean batchMode,
-                               int memoryRestrictionMultiplier,
                                ProgressOperation rootOperation) {
-        this(serFile, outputDirectory, sequenceNumber, processParametersProvider, processingDate, batchMode, 1, memoryRestrictionMultiplier, rootOperation, null);
+        this(serFile, outputDirectory, sequenceNumber, processParametersProvider, processingDate, batchMode, rootOperation, null);
     }
 
     private static ThreadFactory daemonThreadFactory(String namePrefix) {
@@ -435,7 +428,7 @@ public class SolexVideoProcessor implements Broadcaster {
         }
         long imageSizeInBytes = width * newHeight * 4L * 3;
         long maxMemory = Runtime.getRuntime().maxMemory();
-        int batchSize = (int) (Math.ceil(maxMemory / (4d * imageSizeInBytes * memoryRestrictionMultiplier)));
+        int batchSize = (int) (Math.ceil(maxMemory / (4d * imageSizeInBytes)));
         checkAvailableDiskSpace(imageList, imageSizeInBytes);
         var detected = analyzeAverageImage(width, height, averageImage, header);
         var analysis = detected.result();
@@ -535,7 +528,6 @@ public class SolexVideoProcessor implements Broadcaster {
             var totalImages = imageList.size();
             long sd = System.nanoTime();
             List<List<WorkflowState>> batches = batches(imageList, batchSize);
-            LOGGER.info(message("memory.pressure"), memoryRestrictionMultiplier);
             if (batches.size() > 1) {
                 LOGGER.info(message("reconstruction.batches"), batches.size(), batchSize);
             }
@@ -959,28 +951,25 @@ public class SolexVideoProcessor implements Broadcaster {
                 JaggingCorrection.applyCorrection(reconstructed, correctionModels.jaggingModel());
             }
         }
-        var recon = reconstructed.asImage();
-        var rotateLeft = ImageMath.newInstance().rotateLeft(recon);
+        var originalWidth = reconstructed.width();
+        var rotateLeft = ImageMath.newInstance().rotateLeft(reconstructed.pixels());
         var metadata = new HashMap<>(reconstructed.metadata());
         metadata.putAll(createMetadata(processParams, serFile.toPath(), pixelShiftRange, header, scanDurationSeconds).build().toMap());
 
         var refCoords = metadata.get(ReferenceCoords.class);
         if (refCoords instanceof ReferenceCoords coords) {
-            var originalWidth = recon.width();
             metadata.put(ReferenceCoords.class, coords.addLeftRotation(originalWidth));
         }
         if (redshifts != null) {
             metadata.put(Redshifts.class, redshifts);
         }
         if (activeRegions != null) {
-            var width = recon.width();
-            metadata.put(ActiveRegions.class, activeRegions.transform(p -> new Point2D(p.y(), width - p.x())));
+            metadata.put(ActiveRegions.class, activeRegions.transform(p -> new Point2D(p.y(), originalWidth - p.x())));
         }
         if (flares != null) {
-            var width = recon.width();
-            metadata.put(Flares.class, flares.transform(p -> new Point2D(p.y(), width - p.x())));
+            metadata.put(Flares.class, flares.transform(p -> new Point2D(p.y(), originalWidth - p.x())));
         }
-        rotated = ImageWrapper32.fromImage(rotateLeft, metadata);
+        rotated = new ImageWrapper32(rotateLeft, metadata);
         TransformationHistory.recordTransform(rotated, message("rotate.left"));
 
         maybePerformFlips(rotated);
@@ -1492,17 +1481,9 @@ public class SolexVideoProcessor implements Broadcaster {
         var hflip = processParams.geometryParams().isHorizontalMirror();
         var vflip = processParams.geometryParams().isVerticalMirror();
         if (hflip || vflip) {
-            var original = rotated.pixels().toArray();
             var width = rotated.width();
             var height = rotated.height();
-            var flipped = new float[height][width];
-            for (int y = 0; y < height; y++) {
-                for (int x = 0; x < width; x++) {
-                    var nx = hflip ? width - x - 1 : x;
-                    var ny = vflip ? height - y - 1 : y;
-                    flipped[ny][nx] = original[y][x];
-                }
-            }
+            var flipped = ImageMath.newInstance().mirror(rotated.pixels(), hflip, vflip);
             rotated.findMetadata(Redshifts.class).ifPresent(redshifts -> {
                 var rotatedRedshifts = redshifts.redshifts().stream()
                         .map(area -> {
@@ -1583,22 +1564,10 @@ public class SolexVideoProcessor implements Broadcaster {
             return rotated;
         }
 
-        var original = rotated.pixels().toArray();
         var width = rotated.width();
         var height = rotated.height();
-        var newWidth = height;
-        var newHeight = width;
-        var newData = new float[newHeight][newWidth];
-
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                if (kind == RotationKind.LEFT) {
-                    newData[width - x - 1][y] = original[y][x];
-                } else {
-                    newData[x][height - y - 1] = original[y][x];
-                }
-            }
-        }
+        var imageMath = ImageMath.newInstance();
+        var newData = kind == RotationKind.LEFT ? imageMath.rotateLeft(rotated.pixels()) : imageMath.rotateRight(rotated.pixels());
 
         var newMetadata = new HashMap<>(rotated.metadata());
 
@@ -1670,7 +1639,7 @@ public class SolexVideoProcessor implements Broadcaster {
         });
 
 
-        var newImage = new ImageWrapper32(newWidth, newHeight, newData, newMetadata);
+        var newImage = new ImageWrapper32(newData, newMetadata);
 
         // Add rotation to ReferenceCoords history
         newImage.transformMetadata(ReferenceCoords.class, coords -> {

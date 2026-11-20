@@ -30,15 +30,14 @@ import me.champeau.a4j.jsolex.processing.expr.stacking.SamplingStrategy;
 import me.champeau.a4j.jsolex.processing.expr.stacking.SparseDistortionField;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.MetadataTable;
-import me.champeau.a4j.jsolex.processing.util.ImagePlane;
+import me.champeau.a4j.math.image.ImagePlane;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
-import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
+import me.champeau.a4j.utilities.TemporaryFolder;
 import me.champeau.a4j.math.correlation.CorrelationStrategy;
 import me.champeau.a4j.math.correlation.NCCCorrelationStrategy;
 import me.champeau.a4j.math.fft.FFTSupport;
-import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.math.correlation.CorrelationTools;
 import me.champeau.a4j.math.opencl.GPUImageCache;
@@ -584,7 +583,7 @@ public class Dedistort extends AbstractFunctionImpl {
             var passName = String.format("Iteration %d [%s]", iteration + 1, strategy.getName());
 
             var iterationMap = computeDistortionMapWithStrategy(
-                    referenceData, currentImage, width, height,
+                    referenceData, reference.pixels(), currentImage.pixels(), width, height,
                     tileSize, sampling, signal, strategy, passName, iterationOperation);
 
             // Check convergence: stop if distortion increased or improvement < threshold
@@ -632,35 +631,6 @@ public class Dedistort extends AbstractFunctionImpl {
         return new ImageWrapper32(finalImage.pixels(), metadata);
     }
 
-    private DistorsionMap computeDistortionMap(float[][] referenceData,
-                                               ImageWrapper32 currentImage,
-                                               int width,
-                                               int height,
-                                               int tileSize,
-                                               double sampling,
-                                               float signal,
-                                               String passName,
-                                               ProgressOperation parent) {
-        return computeDistortionMap(referenceData, currentImage, width, height,
-                tileSize, sampling, signal, null, passName, parent);
-    }
-
-    private DistorsionMap computeDistortionMap(float[][] referenceData,
-                                               ImageWrapper32 currentImage,
-                                               int width,
-                                               int height,
-                                               int tileSize,
-                                               double sampling,
-                                               float signal,
-                                               float[][] targetSignalData,
-                                               String passName,
-                                               ProgressOperation parent) {
-        // Default to grid sampling strategy
-        var strategy = new GridSamplingStrategy(sampling);
-        return computeDistortionMapWithStrategy(referenceData, currentImage, width, height,
-                tileSize, sampling, signal, strategy, passName, parent);
-    }
-
     /**
      * Computes a distortion map using the specified sampling strategy.
      * This is the unified algorithm used by both grid and interest-point sampling.
@@ -668,7 +638,8 @@ public class Dedistort extends AbstractFunctionImpl {
      * correlation steps differ in implementation.
      */
     private DistorsionMap computeDistortionMapWithStrategy(float[][] referenceData,
-                                                           ImageWrapper32 currentImage,
+                                                           ImagePlane referencePixels,
+                                                           ImagePlane currentPixels,
                                                            int width,
                                                            int height,
                                                            int tileSize,
@@ -690,7 +661,7 @@ public class Dedistort extends AbstractFunctionImpl {
             saveInterestPointDebugImage(referenceData, positions, width, height, passName);
         }
 
-        return computeDistortionMapWithPositions(referenceData, currentImage, width, height,
+        return computeDistortionMapWithPositions(referencePixels, currentPixels, width, height,
                 tileSize, sampling, strategy, positions, passName, progressOperation);
     }
 
@@ -698,8 +669,8 @@ public class Dedistort extends AbstractFunctionImpl {
      * Computes a distortion map using pre-selected sample positions.
      * Use this when the same positions should be reused across multiple comparisons.
      */
-    private DistorsionMap computeDistortionMapWithPositions(float[][] referenceData,
-                                                            ImageWrapper32 currentImage,
+    private DistorsionMap computeDistortionMapWithPositions(ImagePlane referencePixels,
+                                                            ImagePlane currentPixels,
                                                             int width,
                                                             int height,
                                                             int tileSize,
@@ -725,7 +696,7 @@ public class Dedistort extends AbstractFunctionImpl {
         // Extract tiles and compute phase correlations
         broadcaster.broadcast(progressOperation.update(0.1, "Computing displacements"));
         var sparseField = computeDisplacementsAtPositions(
-                referenceData, currentImage.pixels().toArray(), width, height,
+                referencePixels, currentPixels, width, height,
                 safeTileSize, positions, progressOperation);
 
         LOGGER.debug("{}: sparse field has {} samples", passName, sparseField.getSampleCount());
@@ -746,17 +717,17 @@ public class Dedistort extends AbstractFunctionImpl {
      * Uses GPU if available, falls back to CPU otherwise.
      * Tiles are grouped by size to ensure GPU batches contain uniform tile sizes.
      */
-    private SparseDistortionField computeDisplacementsAtPositions(float[][] referenceData,
-                                                                  float[][] targetData,
+    private SparseDistortionField computeDisplacementsAtPositions(ImagePlane referenceData,
+                                                                  ImagePlane targetData,
                                                                   int width,
                                                                   int height,
                                                                   int baseTileSize,
                                                                   SamplingStrategy.SamplePositions positions,
                                                                   ProgressOperation progressOperation) {
-        // Verify reference and target are different arrays
+        // Verify reference and target are different planes
         boolean sameData = (referenceData == targetData);
         if (sameData) {
-            LOGGER.warn("Reference and target data are the same array! Displacements will be zero.");
+            LOGGER.warn("Reference and target data are the same plane! Displacements will be zero.");
         } else {
             // Check if the data content is actually different
             double sumDiff = 0;
@@ -764,7 +735,7 @@ public class Dedistort extends AbstractFunctionImpl {
             int sampleStep = Math.max(1, Math.min(width, height) / 100);
             for (int y = 0; y < height && sampleCount < 1000; y += sampleStep) {
                 for (int x = 0; x < width && sampleCount < 1000; x += sampleStep) {
-                    sumDiff += Math.abs(referenceData[y][x] - targetData[y][x]);
+                    sumDiff += Math.abs(referenceData.get(x, y) - targetData.get(x, y));
                     sampleCount++;
                 }
             }
@@ -796,8 +767,8 @@ public class Dedistort extends AbstractFunctionImpl {
             var dataTile = new float[ts][ts];
 
             for (int yy = 0; yy < ts; yy++) {
-                System.arraycopy(referenceData[y + yy], x, referenceTile[yy], 0, ts);
-                System.arraycopy(targetData[y + yy], x, dataTile[yy], 0, ts);
+                referenceData.getRow(y + yy, x, referenceTile[yy], 0, ts);
+                targetData.getRow(y + yy, x, dataTile[yy], 0, ts);
             }
 
             var batch = tilesBySize.computeIfAbsent(ts, TileBatch::new);
@@ -1026,14 +997,13 @@ public class Dedistort extends AbstractFunctionImpl {
         var gridDy = distorsionMap.getGridDy();
         var gridStep = distorsionMap.getStep();
 
-        var resultData = tryDedistortGPU(image, distorsionMap, width, height, scale);
-        if (resultData == null) {
-            var sourceImage = new Image(width, height, image.pixels().toArray());
-            resultData = IMAGE_MATH.dedistort(sourceImage, gridDx, gridDy, gridStep, true, scale).data();
+        var result = tryDedistortGPU(image, distorsionMap, width, height, scale);
+        if (result == null) {
+            result = IMAGE_MATH.dedistort(image.pixels(), gridDx, gridDy, gridStep, true, scale);
         }
 
         broadcaster.broadcast(progressOperation.complete());
-        return new ImageWrapper32((int) Math.round(width * scale), (int) Math.round(height * scale), resultData, MutableMap.of());
+        return new ImageWrapper32(result, MutableMap.of());
     }
 
     /**
@@ -1043,7 +1013,7 @@ public class Dedistort extends AbstractFunctionImpl {
      * single-allocation limit, or the warp fails, so the caller can fall back to the CPU
      * implementation.
      */
-    private static float[][] tryDedistortGPU(ImageWrapper32 image, DistorsionMap distorsionMap, int width, int height, double scale) {
+    private static ImagePlane tryDedistortGPU(ImageWrapper32 image, DistorsionMap distorsionMap, int width, int height, double scale) {
         if (!OpenCLSupport.isEnabled()) {
             return null;
         }
@@ -1059,7 +1029,7 @@ public class Dedistort extends AbstractFunctionImpl {
             LOGGER.debug("GPU dedistort skipped: output buffer ({} bytes) exceeds device limit, using CPU", outputBytes);
             return null;
         }
-        try (var gpuImage = GPUImage.upload(image.pixels().toArray(), width, height, context);
+        try (var gpuImage = GPUImage.upload(image.pixels(), context);
              var gpuGrid = GPUDistortionGrid.fromDistorsionMap(distorsionMap, context);
              var warped = GPUDedistort.dedistort(gpuImage, gpuGrid, true, scale)) {
             return warped.download();
@@ -1188,12 +1158,12 @@ public class Dedistort extends AbstractFunctionImpl {
                         imageCount, maxResidentImages, budget);
 
                 List<ImageWrapper32> imageListForCache = currentImages;
-                gpuCache = new GPUImageCache(
+                gpuCache = GPUImageCache.ofPlanes(
                         context,
                         imageCount,
                         width,
                         height,
-                        idx -> flattenImageData(imageListForCache.get(idx).pixels())
+                        idx -> imageListForCache.get(idx).pixels()
                 );
             } else {
                 LOGGER.debug("GPU-resident warping disabled: {} images, max resident={}", imageCount, maxResidentImages);
@@ -1316,12 +1286,12 @@ public class Dedistort extends AbstractFunctionImpl {
                                     cacheCapacity, imageCount, safeTileSize, multiscale, budget);
                         }
 
-                        iterationCache = new GPUImageCache(
+                        iterationCache = GPUImageCache.ofPlanes(
                                 context,
                                 cacheCapacity,
                                 width,
                                 height,
-                                idx -> flattenImageData(currentImages.get(idx).pixels())
+                                idx -> currentImages.get(idx).pixels()
                         );
                         effectiveCache = iterationCache;
                     } else if (iteration == 0) {
@@ -1390,7 +1360,7 @@ public class Dedistort extends AbstractFunctionImpl {
 
                                     var passName = String.format("Iter %d - Pair %d→%d (tile=%d, %s)",
                                             finalIteration + 1, i + 1, j + 1, tileSize, strategy.getName());
-                                    var pairMap = computeDistortionMapWithPositions(sourceImage.pixels().toArray(), targetImage, width, height,
+                                    var pairMap = computeDistortionMapWithPositions(sourceImage.pixels(), targetImage.pixels(), width, height,
                                             tileSize, sampling, strategy, positions, passName, pairOperation);
 
                                     cpuResults.put(pairKey, pairMap);
@@ -1593,8 +1563,7 @@ public class Dedistort extends AbstractFunctionImpl {
                         gpuCache.replaceBuffer(i, warpedBuffer);
 
                         // Download warped image for final results
-                        var warpedData = warpedGpuImage.download();
-                        currentImages.set(i, new ImageWrapper32(width, height, warpedData, MutableMap.of()));
+                        currentImages.set(i, new ImageWrapper32(warpedGpuImage.download(), MutableMap.of()));
                     }
                 }
             }
@@ -1616,19 +1585,6 @@ public class Dedistort extends AbstractFunctionImpl {
 
     private static long encodeDirectedPair(int source, int target, int imageCount) {
         return (long) source * imageCount + target;
-    }
-
-    /**
-     * Flattens the pixels of an image to a 1D array for GPU upload.
-     */
-    private static float[] flattenImageData(ImagePlane data) {
-        int height = data.height();
-        int width = data.width();
-        var flat = new float[height * width];
-        for (int y = 0; y < height; y++) {
-            data.getRow(y, 0, flat, y * width, width);
-        }
-        return flat;
     }
 
     /**

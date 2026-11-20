@@ -25,8 +25,8 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.math.Point2D;
-import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
+import me.champeau.a4j.math.image.ImagePlane;
 import me.champeau.a4j.math.regression.Ellipse;
 
 import java.util.ArrayList;
@@ -320,48 +320,36 @@ public class Scaling extends AbstractFunctionImpl {
         var metadata = new LinkedHashMap<>(img.metadata());
 
         if (img instanceof ImageWrapper32 mono) {
-            var canvas = new float[canvasHeight][canvasWidth];
-            var data = mono.pixels().toArray();
-
-            for (int y = 0; y < img.height(); y++) {
-                for (int x = 0; x < img.width(); x++) {
-                    int canvasX = x + offsetX;
-                    int canvasY = y + offsetY;
-
-                    if (canvasX >= 0 && canvasX < canvasWidth && canvasY >= 0 && canvasY < canvasHeight) {
-                        canvas[canvasY][canvasX] = data[y][x];
-                    }
-                }
-            }
-
+            var canvas = placeInCanvas(mono.pixels(), canvasWidth, canvasHeight, offsetX, offsetY);
             updateMetadataForOffset(metadata, offsetX, offsetY);
-            return new ImageWrapper32(canvasWidth, canvasHeight, canvas, metadata);
+            return new ImageWrapper32(canvas, metadata);
         } else if (img instanceof RGBImage rgb) {
-            var canvasR = new float[canvasHeight][canvasWidth];
-            var canvasG = new float[canvasHeight][canvasWidth];
-            var canvasB = new float[canvasHeight][canvasWidth];
-            var r = rgb.red().toArray();
-            var g = rgb.green().toArray();
-            var b = rgb.blue().toArray();
-
-            for (int y = 0; y < img.height(); y++) {
-                for (int x = 0; x < img.width(); x++) {
-                    int canvasX = x + offsetX;
-                    int canvasY = y + offsetY;
-
-                    if (canvasX >= 0 && canvasX < canvasWidth && canvasY >= 0 && canvasY < canvasHeight) {
-                        canvasR[canvasY][canvasX] = r[y][x];
-                        canvasG[canvasY][canvasX] = g[y][x];
-                        canvasB[canvasY][canvasX] = b[y][x];
-                    }
-                }
-            }
-
+            var canvasR = placeInCanvas(rgb.red(), canvasWidth, canvasHeight, offsetX, offsetY);
+            var canvasG = placeInCanvas(rgb.green(), canvasWidth, canvasHeight, offsetX, offsetY);
+            var canvasB = placeInCanvas(rgb.blue(), canvasWidth, canvasHeight, offsetX, offsetY);
             updateMetadataForOffset(metadata, offsetX, offsetY);
-            return new RGBImage(canvasWidth, canvasHeight, canvasR, canvasG, canvasB, metadata);
+            return new RGBImage(canvasR, canvasG, canvasB, metadata);
         }
 
         throw new IllegalArgumentException("Unsupported image type for centering");
+    }
+
+    private static ImagePlane placeInCanvas(ImagePlane source, int canvasWidth, int canvasHeight, int offsetX, int offsetY) {
+        var canvas = ImagePlane.allocate(canvasWidth, canvasHeight);
+        var fromX = Math.max(0, -offsetX);
+        var toX = Math.min(source.width(), canvasWidth - offsetX);
+        if (fromX >= toX) {
+            return canvas;
+        }
+        var row = new float[toX - fromX];
+        for (int y = 0; y < source.height(); y++) {
+            var canvasY = y + offsetY;
+            if (canvasY >= 0 && canvasY < canvasHeight) {
+                source.getRow(y, fromX, row, 0, row.length);
+                canvas.setRow(canvasY, fromX + offsetX, row, 0, row.length);
+            }
+        }
+        return canvas;
     }
 
     private void updateMetadataForOffset(Map<Class<?>, Object> metadata, int offsetX, int offsetY) {
@@ -394,22 +382,12 @@ public class Scaling extends AbstractFunctionImpl {
     private ImageWrapper doRescale(ImageWrapper img, int width, int height) {
         var metadata = fixMetadata(img, width, height);
         if (img instanceof ImageWrapper32 mono) {
-            return ImageWrapper32.fromImage(
-                    imageMath.rescale(mono.asImage(),
-                            width,
-                            height
-                    ),
-                    metadata);
+            return new ImageWrapper32(imageMath.rescale(mono.pixels(), width, height), metadata);
         } else if (img instanceof RGBImage rgb) {
-            var r = new Image(rgb.width(), rgb.height(), rgb.red().toArray());
-            var g = new Image(rgb.width(), rgb.height(), rgb.green().toArray());
-            var b = new Image(rgb.width(), rgb.height(), rgb.blue().toArray());
             return new RGBImage(
-                    width,
-                    height,
-                    imageMath.rescale(r, width, height).data(),
-                    imageMath.rescale(g, width, height).data(),
-                    imageMath.rescale(b, width, height).data(),
+                    imageMath.rescale(rgb.red(), width, height),
+                    imageMath.rescale(rgb.green(), width, height),
+                    imageMath.rescale(rgb.blue(), width, height),
                     metadata
             );
         }

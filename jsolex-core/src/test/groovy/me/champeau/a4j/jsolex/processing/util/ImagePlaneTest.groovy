@@ -15,11 +15,10 @@
  */
 package me.champeau.a4j.jsolex.processing.util
 
+import me.champeau.a4j.math.image.ImageMemory
+import me.champeau.a4j.math.image.ImagePlane
 import spock.lang.Specification
 import spock.util.concurrent.PollingConditions
-
-import java.lang.foreign.ValueLayout
-import java.nio.file.Files
 
 class ImagePlaneTest extends Specification {
 
@@ -146,21 +145,6 @@ class ImagePlaneTest extends Specification {
         plane.max() == gradient(300, 200)[199][299] * 2 + 199
     }
 
-    def "images which do not fit in the budget are stored in temporary files"() {
-        given:
-        def before = listTemporaryFiles()
-
-        when:
-        def segment = ImageMemory.mapTemporaryFile(1 << 20)
-        segment.setAtIndex(ValueLayout.JAVA_FLOAT, 1000, 42f)
-
-        then:
-        segment.byteSize() == 1 << 20
-        segment.getAtIndex(ValueLayout.JAVA_FLOAT, 0) == 0f
-        segment.getAtIndex(ValueLayout.JAVA_FLOAT, 1000) == 42f
-        System.getProperty("os.name") != "Linux" || listTemporaryFiles() == before
-    }
-
     def "the memory of images which are no longer used is given back"() {
         given:
         def conditions = new PollingConditions(timeout: 30, delay: 0.2)
@@ -188,13 +172,5 @@ class ImagePlaneTest extends Specification {
             }
         }
         data
-    }
-
-    private static Set<String> listTemporaryFiles() {
-        def dir = TemporaryFolder.tempDir()
-        if (!Files.isDirectory(dir)) {
-            return [] as Set
-        }
-        Files.list(dir).withCloseable { stream -> stream.map { it.fileName.toString() }.toList() as Set }
     }
 }

@@ -24,7 +24,6 @@ import javafx.scene.control.ProgressIndicator;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
-import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.app.jfx.BatchOperations;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
@@ -342,7 +341,6 @@ final class Spectral3DVisualizationHelper {
                     var solexVideoProcessor = new SolexVideoProcessor(
                             serFile, outputDirectory, 0, tmpParams,
                             LocalDateTime.now(), false,
-                            Configuration.getInstance().getMemoryRestrictionMultiplier(),
                             rootOperation
                     );
                     solexVideoProcessor.setRedshifts(new Redshifts(List.of()));

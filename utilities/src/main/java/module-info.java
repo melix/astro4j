@@ -18,5 +18,6 @@
  */
 module me.champeau.a4j.utilities {
     requires jdk.jfr;
+    requires jdk.management;
     exports me.champeau.a4j.utilities;
 }

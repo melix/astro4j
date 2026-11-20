@@ -21,7 +21,6 @@ import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
-import javafx.scene.control.Slider;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.control.TextField;
@@ -49,8 +48,6 @@ import java.util.EnumSet;
  */
 public class AdvancedParamsPanel extends BaseParameterPanel {
     private final TextField watchModeWaitTimeMillis;
-    private final Slider memoryRestrictionMultiplier;
-    private final Label memoryRestrictionHelp;
     private final TextField bass2000FtpUrl;
     private final CheckBox pippCompatibleFits;
     private final ChoiceBox<String> languageSelector;
@@ -70,7 +67,6 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
     private final Button browseTempDir;
     private final Button clearTempDir;
 
-    private int initialMemoryRestriction;
     private String initialLanguage;
     private boolean initialGpuAcceleration;
     private boolean initialOpenGlEnabled;
@@ -85,8 +81,6 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
 
         languageSelector = createChoiceBox();
         watchModeWaitTimeMillis = createTextField("", I18N.string(JSolEx.class, "advanced-params", "watch.mode.wait.time.tooltip"));
-        memoryRestrictionMultiplier = new Slider(1, 32, 1);
-        memoryRestrictionHelp = new Label();
         bass2000FtpUrl = createTextField("", I18N.string(JSolEx.class, "advanced-params", "bass2000.ftp.url.tooltip"));
         pippCompatibleFits = createCheckBox("", I18N.string(JSolEx.class, "advanced-params", "pipp.compatible.fits.tooltip"));
         generatePng = createCheckBox("PNG", I18N.string(JSolEx.class, "advanced-params", "generate.png.files"));
@@ -167,35 +161,17 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
                 waitTimeBox,
                 "watch.mode.wait.time.tooltip");
 
-        memoryRestrictionMultiplier.setBlockIncrement(1.0);
-        memoryRestrictionMultiplier.setMajorTickUnit(8.0);
-        memoryRestrictionMultiplier.setMinorTickCount(1);
-        memoryRestrictionMultiplier.setTooltip(new Tooltip(I18N.string(JSolEx.class, "advanced-params", "memory.restriction.tooltip")));
-        memoryRestrictionHelp.getStyleClass().add("help-text");
-        memoryRestrictionHelp.textProperty().bind(
-                memoryRestrictionMultiplier.valueProperty().map(v ->
-                        "(" + v.intValue() + ") " + computeMemoryUsageHelpLabel(v))
-        );
-
-        var memoryBox = new VBox(8);
-        memoryBox.getChildren().addAll(memoryRestrictionMultiplier, memoryRestrictionHelp);
-
         addGridRow(performanceGrid, 1,
-                I18N.string(JSolEx.class, "advanced-params", "memory.restriction"),
-                memoryBox,
-                "memory.restriction.tooltip");
-
-        addGridRow(performanceGrid, 2,
                 I18N.string(JSolEx.class, "advanced-params", "gpu.acceleration"),
                 gpuAcceleration,
                 "gpu.acceleration.tooltip");
 
-        addGridRow(performanceGrid, 3,
+        addGridRow(performanceGrid, 2,
                 I18N.string(JSolEx.class, "advanced-params", "opengl.support"),
                 openGlSupport,
                 "opengl.support.tooltip");
 
-        addGridRow(performanceGrid, 4,
+        addGridRow(performanceGrid, 3,
                 I18N.string(JSolEx.class, "advanced-params", "batch.parallelism"),
                 batchParallelism,
                 "batch.parallelism.tooltip");
@@ -284,8 +260,6 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
 
         watchModeWaitTimeMillis.setText(String.valueOf(config.getWatchModeWaitTimeMilis()));
 
-        initialMemoryRestriction = config.getMemoryRestrictionMultiplier();
-        memoryRestrictionMultiplier.setValue(initialMemoryRestriction);
 
         bass2000FtpUrl.setText(config.getBass2000FtpUrl());
         pippCompatibleFits.setSelected(config.isWritePippCompatibleFits());
@@ -326,7 +300,6 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
         var config = Configuration.getInstance();
 
         config.setWatchModeWaitTimeMilis(Integer.parseInt(watchModeWaitTimeMillis.getText()));
-        config.setMemoryRestrictionMultiplier((int) memoryRestrictionMultiplier.getValue());
         config.setBass2000FtpUrl(bass2000FtpUrl.getText());
         config.setWritePippCompatibleFits(pippCompatibleFits.isSelected());
 
@@ -388,17 +361,15 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
      * @return true if restart is required
      */
     public boolean requiresRestart() {
-        var newMemoryRestriction = (int) memoryRestrictionMultiplier.getValue();
         var newLanguage = selectedLanguageCode();
 
-        var memoryChanged = initialMemoryRestriction != newMemoryRestriction;
         var languageChanged = !newLanguage.equals(initialLanguage);
         var gpuChanged = initialGpuAcceleration != gpuAcceleration.isSelected();
         var openGlChanged = initialOpenGlEnabled != openGlSupport.isSelected();
         var graalPyChanged = !graalPyExecutable.getText().equals(initialGraalPyExecutable);
         var tempDirChanged = !temporaryDirectory.getText().equals(initialTemporaryDirectory);
 
-        return memoryChanged || languageChanged || gpuChanged || openGlChanged || graalPyChanged || tempDirChanged;
+        return languageChanged || gpuChanged || openGlChanged || graalPyChanged || tempDirChanged;
     }
 
     private String selectedLanguageCode() {
@@ -410,19 +381,6 @@ public class AdvancedParamsPanel extends BaseParameterPanel {
             return "fr";
         }
         return "en";
-    }
-
-    private String computeMemoryUsageHelpLabel(Number value) {
-        if (value.doubleValue() < 4) {
-            return I18N.string(JSolEx.class, "advanced-params", "memory.usage.high");
-        }
-        if (value.doubleValue() < 8) {
-            return I18N.string(JSolEx.class, "advanced-params", "memory.usage.conservative");
-        }
-        if (value.doubleValue() >= 16) {
-            return I18N.string(JSolEx.class, "advanced-params", "memory.usage.very.conservative");
-        }
-        return I18N.string(JSolEx.class, "advanced-params", "memory.usage.low");
     }
 
     @Override

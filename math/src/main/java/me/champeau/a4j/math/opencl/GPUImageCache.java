@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.math.opencl;
 
+import me.champeau.a4j.math.image.ImagePlane;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,7 +44,7 @@ public final class GPUImageCache implements AutoCloseable {
     private final int width;
     private final int height;
     private final int maxCachedImages;
-    private final IntFunction<float[]> imageDataSupplier;
+    private final ImageWriter imageWriter;
     private final LRUCache cache;
 
     private int cacheHits;
@@ -63,12 +64,44 @@ public final class GPUImageCache implements AutoCloseable {
                          int width,
                          int height,
                          IntFunction<float[]> imageDataSupplier) {
+        this(context, maxCachedImages, width, height, (index, buffer) -> context.writeBuffer(buffer, imageDataSupplier.apply(index)));
+    }
+
+    private GPUImageCache(OpenCLContext context,
+                          int maxCachedImages,
+                          int width,
+                          int height,
+                          ImageWriter imageWriter) {
         this.context = context;
         this.width = width;
         this.height = height;
         this.maxCachedImages = Math.max(2, maxCachedImages); // Need at least 2 for pair correlation
-        this.imageDataSupplier = imageDataSupplier;
+        this.imageWriter = imageWriter;
         this.cache = new LRUCache(this.maxCachedImages);
+    }
+
+    /**
+     * Creates a new GPU image cache whose images are uploaded directly from
+     * image planes.
+     *
+     * @param context         the OpenCL context
+     * @param maxCachedImages maximum number of images to keep in GPU memory
+     * @param width           image width in pixels
+     * @param height          image height in pixels
+     * @param planeSupplier   function that provides the plane of a given index
+     * @return a new cache
+     */
+    public static GPUImageCache ofPlanes(OpenCLContext context,
+                                         int maxCachedImages,
+                                         int width,
+                                         int height,
+                                         IntFunction<ImagePlane> planeSupplier) {
+        return new GPUImageCache(context, maxCachedImages, width, height, (index, buffer) -> context.writeBuffer(buffer, planeSupplier.apply(index).segment()));
+    }
+
+    @FunctionalInterface
+    private interface ImageWriter {
+        void write(int imageIndex, long buffer);
     }
 
     /**
@@ -191,8 +224,7 @@ public final class GPUImageCache implements AutoCloseable {
         long buffer = context.allocateBuffer(bufferSize, CL_MEM_READ_ONLY);
 
         try {
-            var data = imageDataSupplier.apply(imageIndex);
-            context.writeBuffer(buffer, data);
+            imageWriter.write(imageIndex, buffer);
             cache.put(imageIndex, new CacheEntry(buffer, imageIndex));
             return buffer;
         } catch (Exception e) {

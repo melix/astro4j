@@ -29,6 +29,7 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
+import javafx.css.PseudoClass;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -57,6 +58,7 @@ import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
+import javafx.scene.control.Tooltip;
 import javafx.scene.control.skin.ComboBoxListViewSkin;
 import javafx.scene.image.Image;
 import javafx.scene.input.Clipboard;
@@ -91,6 +93,7 @@ import me.champeau.a4j.jsolex.app.jfx.DocsHelper;
 import me.champeau.a4j.jsolex.app.jfx.EmbeddedServerController;
 import me.champeau.a4j.jsolex.app.jfx.ExplorerSupport;
 import me.champeau.a4j.jsolex.app.jfx.ExposureCalculator;
+import me.champeau.a4j.jsolex.app.jfx.FXUtils;
 import me.champeau.a4j.jsolex.app.jfx.I18N;
 import me.champeau.a4j.jsolex.app.jfx.ImageMathEditor;
 import me.champeau.a4j.jsolex.app.jfx.ImageViewer;
@@ -173,7 +176,6 @@ import me.champeau.a4j.jsolex.processing.util.Bass2000ConfigService;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.DurationFormatter;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
-import me.champeau.a4j.jsolex.processing.util.ImageMemory;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.LiveSessionManager;
 import me.champeau.a4j.jsolex.processing.util.LocaleUtils;
@@ -182,11 +184,13 @@ import me.champeau.a4j.jsolex.processing.util.NativeLibrariesUtils;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.ProcessingLogContext;
 import me.champeau.a4j.jsolex.processing.util.SpectroSolHubClient;
-import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
+import me.champeau.a4j.utilities.SystemMemory;
+import me.champeau.a4j.utilities.TemporaryFolder;
 import me.champeau.a4j.jsolex.processing.util.VersionUtil;
 import me.champeau.a4j.jsolex.processing.util.spectrosolhub.SpectroSolHubException;
 import me.champeau.a4j.jsolex.server.ui.UiApiServer;
 import me.champeau.a4j.math.VectorApiSupport;
+import me.champeau.a4j.math.image.ImageMemory;
 import me.champeau.a4j.math.opencl.OpenCLSupport;
 import me.champeau.a4j.math.regression.Ellipse;
 import me.champeau.a4j.ser.Header;
@@ -246,7 +250,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
 
     static {
         System.setProperty("java.util.concurrent.ForkJoinPool.common.exceptionHandler", LoggingSupport.class.getName());
-        if (ImageMemory.budget() < MINIMAL_MEMORY) {
+        if (Runtime.getRuntime().maxMemory() < MINIMAL_MEMORY) {
             System.err.println("Detected low memory environment, limiting parallelism to 2 threads");
             System.setProperty("java.util.concurrent.ForkJoinPool.common.parallelism", "2");
         }
@@ -255,6 +259,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
 
     private static final Logger LOGGER = LoggerFactory.getLogger(JSolEx.class);
     private static final String LOG_EXTENSION = ".log";
+    private static final PseudoClass LOW_MEMORY = PseudoClass.getPseudoClass("low");
     private static final String DISCORD_INVITE = "https://discord.gg/y9NCGaWzve";
     private static final int PANEL_ROW_WIDTH_INSET = 24;
     // Must match -fx-fixed-cell-size and the vertical padding/border of .panel-selector-list in components.css
@@ -338,7 +343,11 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     @FXML
     private ChoiceBox<ImageMathEditor.ScriptLanguage> scriptLanguageChoice;
     @FXML
-    private ProgressBar memory;
+    private StackPane memoryBar;
+    @FXML
+    private Region heapMemory;
+    @FXML
+    private Region imageMemory;
     @FXML
     private Label memoryLabel;
 
@@ -656,9 +665,9 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         this.rootStage = stage;
         var fxmlLoader = I18N.fxmlLoader(getClass(), "app");
         fxmlLoader.setController(this);
-        configureMemoryStatus();
         try {
             var root = (Parent) fxmlLoader.load();
+            configureMemoryStatus();
             progressHandler = new ProgressHandler(snapshot -> {
                 latestProgress.set(snapshot);
                 if (snapshot.taskCount() == 0 && snapshot.currentTaskLabel().isEmpty()) {
@@ -1336,12 +1345,25 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     }
 
     private void configureMemoryStatus() {
+        var tooltip = new Tooltip();
+        Tooltip.install(memoryBar, tooltip);
+        var tooltipFormat = I18N.string(JSolEx.class, "app", "memory.tooltip");
+        var lowMemory = I18N.string(JSolEx.class, "app", "memory.low");
         var timeline = new Timeline();
         timeline.getKeyFrames().add(new KeyFrame(Duration.seconds(1), event -> {
-            var usedMemory = (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory() + ImageMemory.used()) >> 20;
-            var maxMemory = ImageMemory.budget() >> 20;
-            memory.setProgress(usedMemory / (double) maxMemory);
-            memoryLabel.setText(String.format("%d M / %d M", usedMemory, maxMemory));
+            var runtime = Runtime.getRuntime();
+            var heapUsed = runtime.totalMemory() - runtime.freeMemory();
+            var imagesUsed = ImageMemory.used();
+            var width = memoryBar.getWidth();
+            var heapWidth = Math.min(width, width * heapUsed / SystemMemory.total());
+            heapMemory.setPrefWidth(heapWidth);
+            imageMemory.setPrefWidth(Math.min(width - heapWidth, width * imagesUsed / SystemMemory.total()));
+            var low = heapUsed + imagesUsed > SystemMemory.usable();
+            imageMemory.pseudoClassStateChanged(LOW_MEMORY, low);
+            memoryLabel.pseudoClassStateChanged(LOW_MEMORY, low);
+            memoryLabel.setText(FXUtils.formatBytes(heapUsed + imagesUsed));
+            var details = String.format(tooltipFormat, FXUtils.formatBytes(heapUsed), FXUtils.formatBytes(runtime.maxMemory()), FXUtils.formatBytes(imagesUsed));
+            tooltip.setText(low ? details + " · " + lowMemory : details);
         }));
         timeline.setCycleCount(Animation.INDEFINITE);
         timeline.play();
@@ -3104,7 +3126,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
                 LoggingSupport.LOGGER.info(message("output.dir.set"), outputDirectory);
                 var processorContext = new HashMap<Class<?>, Object>();
                 processorContext.put(AnimationFormat.class, config.getAnimationFormats());
-                var processor = new SolexVideoProcessor(selectedFile, outputDirectory.toPath(), sequenceNumber, params, processingDate, batchMode, batchMode ? config.getBatchParallelism() : 1, config.getMemoryRestrictionMultiplier(), operation, processorContext);
+                var processor = new SolexVideoProcessor(selectedFile, outputDirectory.toPath(), sequenceNumber, params, processingDate, batchMode, operation, processorContext);
                 processor.setOnReconstructionComplete(onReconstructionComplete);
                 var listener = createListener(operation, baseName, params, batchMode, sequenceNumber, context);
                 processor.addEventListener(listener);

@@ -164,7 +164,6 @@ public class Main implements Runnable {
                     processParams,
                     LocalDateTime.now(),
                     false,
-                    4,
                     ProgressOperation.root("cli", p -> {
                     }));
             processor.addEventListener(new LoggingListener(processParams, miscOptions.getImageFormats()));

@@ -22,8 +22,7 @@ import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.tasks.WriteColorizedImageTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.WriteMonoImageTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.WriteRGBImageTask;
-import me.champeau.a4j.jsolex.processing.util.ImageMemory;
-import me.champeau.a4j.jsolex.processing.util.ImagePlane;
+import me.champeau.a4j.math.image.ImagePlane;
 import me.champeau.a4j.jsolex.processing.util.ProcessingLogContext;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -68,7 +67,7 @@ import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectorie
 public class DefaultImageEmitter implements ImageEmitter {
     private static final int N_THREADS = Math.max(2, Math.min(
             Runtime.getRuntime().availableProcessors() / 2,
-            (int) (ImageMemory.budget() / (1L << 30))));
+            (int) (Runtime.getRuntime().maxMemory() / (1L << 30))));
     private static final int IN_FLIGHT_LIMIT = N_THREADS * 2;
     private static final Semaphore DEFAULT_PERMITS = new Semaphore(IN_FLIGHT_LIMIT);
     private static final AtomicInteger THREAD_SEQ = new AtomicInteger();

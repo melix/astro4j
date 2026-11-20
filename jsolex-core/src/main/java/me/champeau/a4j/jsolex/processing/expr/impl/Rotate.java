@@ -26,8 +26,8 @@ import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.math.Point2D;
-import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
+import me.champeau.a4j.math.image.ImagePlane;
 import me.champeau.a4j.math.regression.Ellipse;
 
 import java.util.Arrays;
@@ -104,15 +104,15 @@ public class Rotate extends AbstractFunctionImpl {
         });
     }
 
-    private Image arbitraryRotation(Map<String, Object> arguments, Image image, double angle) {
+    private ImagePlane arbitraryRotation(Map<String, Object> arguments, ImagePlane plane, double angle) {
         var blackpoint = getArgument(Number.class, arguments, "bp")
                 .map(Number::floatValue)
-                .orElseGet(() -> estimateBorderLevel(image));
+                .orElseGet(() -> estimateBorderLevel(plane));
         var resize = getArgument(Number.class, arguments, "resize")
                 .map(Number::intValue)
                 .map(i -> i == 1)
                 .orElse(false);
-        return imageMath.rotate(image, angle, blackpoint, resize);
+        return imageMath.rotate(plane, angle, blackpoint, resize);
     }
 
     /**
@@ -122,25 +122,22 @@ public class Rotate extends AbstractFunctionImpl {
      * black triangles, which is what filling with zero produces on any image whose background is
      * not black.
      *
-     * @param image the image being rotated
+     * @param plane the pixels of the image being rotated
      * @return the estimated background level of the border
      */
-    private static float estimateBorderLevel(Image image) {
-        var width = image.width();
-        var height = image.height();
+    private static float estimateBorderLevel(ImagePlane plane) {
+        var width = plane.width();
+        var height = plane.height();
         if (width == 0 || height == 0) {
             return 0;
         }
-        var data = image.data();
         var samples = new float[2 * width + 2 * height];
-        var count = 0;
-        for (var x = 0; x < width; x++) {
-            samples[count++] = data[0][x];
-            samples[count++] = data[height - 1][x];
-        }
+        plane.getRow(0, 0, samples, 0, width);
+        plane.getRow(height - 1, 0, samples, width, width);
+        var count = 2 * width;
         for (var y = 0; y < height; y++) {
-            samples[count++] = data[y][0];
-            samples[count++] = data[y][width - 1];
+            samples[count++] = plane.get(0, y);
+            samples[count++] = plane.get(width - 1, y);
         }
         Arrays.sort(samples, 0, count);
         return samples[count / 2];
@@ -152,16 +149,13 @@ public class Rotate extends AbstractFunctionImpl {
             return expandToImageList(functionName, "img", arguments, args -> doRotate(functionName, args, angle));
         }
         if (arg instanceof ImageWrapper32 mono) {
-            var trn = arbitraryRotation(arguments, mono.asImage(), angle);
-            return ImageWrapper32.fromImage(trn, fixMetadata(mono, angle, trn.width(), trn.height()));
+            var rotated = arbitraryRotation(arguments, mono.pixels(), angle);
+            return new ImageWrapper32(rotated, fixMetadata(mono, angle, rotated.width(), rotated.height()));
         } else if (arg instanceof RGBImage rgb) {
-            var height = rgb.height();
-            var width = rgb.width();
-            var r = arbitraryRotation(arguments, new Image(width, height, rgb.red().toArray()), angle);
-            var g = arbitraryRotation(arguments, new Image(width, height, rgb.green().toArray()), angle);
-            var b = arbitraryRotation(arguments, new Image(width, height, rgb.blue().toArray()), angle);
-            var md = fixMetadata(rgb, angle, r.width(), r.height());
-            return new RGBImage(r.width(), r.height(), r.data(), g.data(), b.data(), md);
+            var r = arbitraryRotation(arguments, rgb.red(), angle);
+            var g = arbitraryRotation(arguments, rgb.green(), angle);
+            var b = arbitraryRotation(arguments, rgb.blue(), angle);
+            return new RGBImage(r, g, b, fixMetadata(rgb, angle, r.width(), r.height()));
         }
         throw new IllegalArgumentException("Unsupported image type");
     }

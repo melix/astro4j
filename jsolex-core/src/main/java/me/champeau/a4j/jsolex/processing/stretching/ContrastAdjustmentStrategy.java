@@ -17,7 +17,6 @@ package me.champeau.a4j.jsolex.processing.stretching;
 
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
-import me.champeau.a4j.math.RowStrips;
 
 // Not worth running on GPU: memory transfer overhead dominates the simple clamp operation
 public final class ContrastAdjustmentStrategy implements StretchingStrategy {
@@ -45,22 +44,13 @@ public final class ContrastAdjustmentStrategy implements StretchingStrategy {
 
     @Override
     public void stretch(ImageWrapper32 image) {
-        var data = image.pixels().toArray();
-        truncate(data);
-        image.pixels().copyFrom(data);
-    }
-
-    private void truncate(float[][] data) {
-        RowStrips.forEach(data.length, (yStart, yEnd) -> {
-            for (int y = yStart; y < yEnd; y++) {
-                var line = data[y];
-                for (int x = 0; x < line.length; x++) {
-                    float v = line[x];
-                    if (v < min) {
-                        line[x] = 0;
-                    } else if (v > max) {
-                        line[x] = max;
-                    }
+        image.pixels().updateRows((y, line) -> {
+            for (int x = 0; x < line.length; x++) {
+                float v = line[x];
+                if (v < min) {
+                    line[x] = 0;
+                } else if (v > max) {
+                    line[x] = max;
                 }
             }
         });

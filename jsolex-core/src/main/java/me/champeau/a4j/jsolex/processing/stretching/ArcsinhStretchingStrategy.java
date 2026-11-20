@@ -18,6 +18,7 @@ package me.champeau.a4j.jsolex.processing.stretching;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.math.RowStrips;
+import me.champeau.a4j.math.image.ImagePlane;
 import me.champeau.a4j.math.opencl.OpenCLContext;
 import me.champeau.a4j.math.opencl.OpenCLSupport;
 
@@ -96,25 +97,18 @@ public final class ArcsinhStretchingStrategy implements StretchingStrategy {
     }
 
     void stretchCPU(ImageWrapper32 image) {
-        var data = image.pixels().toArray();
-        var height = image.height();
-        var width = image.width();
-        RowStrips.forEach(height, (yStart, yEnd) -> {
-            for (int y = yStart; y < yEnd; y++) {
-                var line = data[y];
-                for (int x = 0; x < width; x++) {
-                    var v = line[x];
-                    var sv = stretchPixel(v);
-                    line[x] = sv;
-                    if (Float.valueOf(line[x]).isNaN()) {
-                        line[x] = 0;
-                    }
-                    line[x] = Math.max(0, line[x]);
-                    line[x] = Math.min(MAX_PIXEL_VALUE, line[x]);
+        image.pixels().updateRows((y, line) -> {
+            for (int x = 0; x < line.length; x++) {
+                var v = line[x];
+                var sv = stretchPixel(v);
+                line[x] = sv;
+                if (Float.valueOf(line[x]).isNaN()) {
+                    line[x] = 0;
                 }
+                line[x] = Math.max(0, line[x]);
+                line[x] = Math.min(MAX_PIXEL_VALUE, line[x]);
             }
         });
-        image.pixels().copyFrom(data);
         LinearStrechingStrategy.DEFAULT.stretch(image);
     }
 
@@ -168,34 +162,36 @@ public final class ArcsinhStretchingStrategy implements StretchingStrategy {
 
     @Override
     public void stretch(RGBImage image) {
-        var rgb = new float[][][]{
-                image.red().toArray(),
-                image.green().toArray(),
-                image.blue().toArray()
-        };
+        var planes = new ImagePlane[]{image.red(), image.green(), image.blue()};
         double max = MAX_PIXEL_VALUE;
         var bp = blackPoint / max;
         int height = image.height();
         int width = image.width();
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                double mean = (0.2126 * rgb[0][y][x] + 0.7152 * rgb[1][y][x] + 0.0722 * rgb[2][y][x]);
-                for (int j = 0; j < rgb.length; j++) {
-                    double original = rgb[j][y][x] / max;
-                    var pixel = Math.max(0, original - bp);
-                    double stretched = (pixel * asinh(original * stretch)) / (mean * asinh);
-                    rgb[j][y][x] = (float) (stretched * max);
-                    if (Float.valueOf(rgb[j][y][x]).isNaN()) {
-                        rgb[j][y][x] = 0;
+        RowStrips.forEach(height, (yStart, yEnd) -> {
+            var rgb = new float[planes.length][width];
+            for (int y = yStart; y < yEnd; y++) {
+                for (int j = 0; j < planes.length; j++) {
+                    planes[j].getRow(y, rgb[j]);
+                }
+                for (int x = 0; x < width; x++) {
+                    double mean = (0.2126 * rgb[0][x] + 0.7152 * rgb[1][x] + 0.0722 * rgb[2][x]);
+                    for (int j = 0; j < rgb.length; j++) {
+                        double original = rgb[j][x] / max;
+                        var pixel = Math.max(0, original - bp);
+                        double stretched = (pixel * asinh(original * stretch)) / (mean * asinh);
+                        rgb[j][x] = (float) (stretched * max);
+                        if (Float.valueOf(rgb[j][x]).isNaN()) {
+                            rgb[j][x] = 0;
+                        }
+                        rgb[j][x] = Math.max(0, rgb[j][x]);
+                        rgb[j][x] = Math.min(MAX_PIXEL_VALUE, rgb[j][x]);
                     }
-                    rgb[j][y][x] = Math.max(0, rgb[j][y][x]);
-                    rgb[j][y][x] = Math.min(MAX_PIXEL_VALUE, rgb[j][y][x]);
+                }
+                for (int j = 0; j < planes.length; j++) {
+                    planes[j].setRow(y, rgb[j]);
                 }
             }
-        }
-        image.red().copyFrom(rgb[0]);
-        image.green().copyFrom(rgb[1]);
-        image.blue().copyFrom(rgb[2]);
+        });
         LinearStrechingStrategy.DEFAULT.stretch(image);
     }
 

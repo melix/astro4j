@@ -148,7 +148,7 @@ import me.champeau.a4j.jsolex.processing.util.Dispersion;
 import me.champeau.a4j.jsolex.processing.util.DurationFormatter;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import me.champeau.a4j.jsolex.processing.util.Histogram;
-import me.champeau.a4j.jsolex.processing.util.ImagePlane;
+import me.champeau.a4j.math.image.ImagePlane;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.LocaleUtils;
@@ -1161,7 +1161,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                         progressBar.setProgress((double) index / serFiles.size());
                     });
                 }
-                var scan = i == 0 ? Optional.of(currentScan) : DifferentialRotationMeasurement.processScan(serFile, baseParams, outputDirectory, Configuration.getInstance().getMemoryRestrictionMultiplier(), rootOperation, this::onEllipseFittingRequest);
+                var scan = i == 0 ? Optional.of(currentScan) : DifferentialRotationMeasurement.processScan(serFile, baseParams, outputDirectory, rootOperation, this::onEllipseFittingRequest);
                 var points = scan.map(s -> DifferentialRotationMeasurement.measure(s, config,
                                 progress -> FxUtils.runLater(() -> progressBar.setProgress((index + progress) / serFiles.size()))))
                         .orElse(List.of());
@@ -1887,7 +1887,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                         false,
                         false)
         ).withExtraParams(params.extraParams().withAutosave(false));
-        var solexVideoProcessor = new SolexVideoProcessor(serFile, outputDirectory, 0, tmpParams, LocalDateTime.now(), false, Configuration.getInstance().getMemoryRestrictionMultiplier(), rootOperation);
+        var solexVideoProcessor = new SolexVideoProcessor(serFile, outputDirectory, 0, tmpParams, LocalDateTime.now(), false, rootOperation);
         solexVideoProcessor.addEventListener(new ProcessingEventListener() {
             @Override
             public void onProcessingDone(ProcessingDoneEvent e) {
@@ -2884,7 +2884,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 ).withRequestedImages(
                         params.requestedImages().withPixelShifts(List.of(dataPoint.pixelShift()))
                 );
-                var solexVideoProcessor = new SolexVideoProcessor(serFile, outputDirectory, 0, newParams, LocalDateTime.now(), false, Configuration.getInstance().getMemoryRestrictionMultiplier(), rootOperation);
+                var solexVideoProcessor = new SolexVideoProcessor(serFile, outputDirectory, 0, newParams, LocalDateTime.now(), false, rootOperation);
                 solexVideoProcessor.addEventListener(this);
                 solexVideoProcessor.addEventListener(new ProcessingEventListener() {
                     @Override

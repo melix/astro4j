@@ -52,10 +52,13 @@ import me.champeau.a4j.jsolex.processing.sun.tasks.GeometryCorrector;
 import me.champeau.a4j.jsolex.processing.util.CancellationSupport;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.Deconvolution;
+import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
+import me.champeau.a4j.math.image.ImagePlane;
 import me.champeau.a4j.math.image.SharpenKernel;
 import me.champeau.a4j.math.regression.Ellipse;
 import me.champeau.a4j.ser.Header;
@@ -67,6 +70,7 @@ import java.nio.file.Path;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -396,7 +400,7 @@ public class ProcessingWorkflow {
             return g;
         }
         var corrected = (ImageWrapper32) g.corrected();
-        var image = corrected.asImage();
+        var pixels = corrected.pixels();
         List<String> enhancements = new ArrayList<>();
         if (processParams.geometryParams().deconvolutionMode() == DeconvolutionMode.RICHARDSON_LUCY) {
             var deconv = new Deconvolution(imageMath);
@@ -407,10 +411,12 @@ public class ProcessingWorkflow {
                 var kernel = Deconvolution.generateGaussianPSF(radius, sigma);
                 var iterations = deconvolutionParams.get().iterations();
                 var decon = newOperation(message("deconvolution"));
+                var image = new Image(pixels.width(), pixels.height(), pixels.toArray());
                 for (int i = 0; i < iterations; i++) {
                     broadcaster.broadcast(ProgressEvent.of(decon.update(1d / iterations * i, message("deconvolution") + " " + (i + 1) + "/" + iterations)));
                     image = deconv.richardsonLucy(image, kernel, 1);
                 }
+                pixels = ImagePlane.of(image.width(), image.height(), image.data());
                 enhancements.add("Richardson-Lucy deconvolution (" + iterations + " iterations, radius: " + radius + ", sigma: " + sigma + ")");
                 broadcaster.broadcast(ProgressEvent.of(decon.update(1d, message("deconvolution"))));
             }
@@ -421,18 +427,18 @@ public class ProcessingWorkflow {
             }
             case SharpeningParams.Sharpen sharpen -> {
                 enhancements.add("Sharpening (kernel size: " + sharpen.kernelSize() + ")");
-                image = imageMath.convolve(image, SharpenKernel.of(sharpen.kernelSize()));
+                pixels = imageMath.convolve(pixels, SharpenKernel.of(sharpen.kernelSize()));
             }
             case SharpeningParams.UnsharpMask unsharpMask -> {
                 enhancements.add("Unsharp mask (kernel size: " + unsharpMask.kernelSize() + ", strength: " + unsharpMask.strength() + ")");
                 var convolution = new Convolution(Map.of(), Broadcaster.NO_OP);
-                var unsharp = (ImageWrapper32) convolution.unsharpMask(Map.of("img", ImageWrapper32.fromImage(image), "kernel", unsharpMask.kernelSize(), "strength", unsharpMask.strength()));
-                image = unsharp.asImage();
+                var unsharp = (ImageWrapper32) convolution.unsharpMask(Map.of("img", new ImageWrapper32(pixels, MutableMap.of()), "kernel", unsharpMask.kernelSize(), "strength", unsharpMask.strength()));
+                pixels = unsharp.pixels();
             }
         }
         if (!enhancements.isEmpty()) {
             var metadata = new HashMap<>(corrected.metadata());
-            var result = new ImageWrapper32(corrected.width(), corrected.height(), image.data(), metadata);
+            var result = new ImageWrapper32(pixels, metadata);
             for (String enhancement : enhancements) {
                 TransformationHistory.recordTransform(result, enhancement);
             }
@@ -533,34 +539,30 @@ public class ProcessingWorkflow {
         var kernelSize = (binning == null || binning == 1) ? 7 : 3;
 
         // Inverted disk: brighten, invert, apply a power-law contrast curve then sharpen
-        var disk = enhanced.copy();
-        var diskData = disk.pixels().toArray();
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                diskData[y][x] = Math.min(Constants.MAX_PIXEL_VALUE, NEGATIVE_DISK_BOOST * diskData[y][x]);
+        var disk = new ImageWrapper32(enhanced.pixels().mapRows((y, row) -> {
+            for (int x = 0; x < row.length; x++) {
+                row[x] = Math.min(Constants.MAX_PIXEL_VALUE, NEGATIVE_DISK_BOOST * row[x]);
             }
-        }
-        disk.pixels().copyFrom(diskData);
+        }), new LinkedHashMap<>(enhanced.metadata()));
         NegativeImageStrategy.DEFAULT.stretch(disk);
-        diskData = disk.pixels().toArray();
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                diskData[y][x] = (float) Math.pow(diskData[y][x], NEGATIVE_CONTRAST_EXPONENT);
+        disk.pixels().updateRows((y, row) -> {
+            for (int x = 0; x < row.length; x++) {
+                row[x] = (float) Math.pow(row[x], NEGATIVE_CONTRAST_EXPONENT);
             }
-        }
-        disk.pixels().copyFrom(diskData);
+        });
         LinearStrechingStrategy.DEFAULT.stretch(disk);
-        var sharpened = imageMath.convolve(disk.asImage(), SharpenKernel.of(kernelSize)).data();
+        var sharpened = imageMath.convolve(disk.pixels(), SharpenKernel.of(kernelSize));
 
         // Restrict the inversion to the solar disk, keeping an antialiased edge
         var maskData = new float[height][width];
         DiskFill.doFillWithGradient(ellipse, maskData, 1f, 0f);
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                sharpened[y][x] *= maskData[y][x];
+        sharpened.updateRows((y, row) -> {
+            var maskRow = maskData[y];
+            for (int x = 0; x < row.length; x++) {
+                row[x] *= maskRow[x];
             }
-        }
-        var masked = new ImageWrapper32(width, height, sharpened, new HashMap<>(enhanced.metadata()));
+        });
+        var masked = new ImageWrapper32(sharpened, new HashMap<>(enhanced.metadata()));
         LinearStrechingStrategy.DEFAULT.stretch(masked);
         new MidtoneTransferFunctionAutostretchStrategy(
                 MidtoneTransferFunctionAutostretchStrategy.DEFAULT_SHADOWS_CLIP,
@@ -574,14 +576,13 @@ public class ProcessingWorkflow {
         DiskFill.doFillWithGradient(ellipse, protusData, blackPoint);
         protus.pixels().copyFrom(protusData);
         new ArcsinhStretchingStrategy(0, NEGATIVE_PROMINENCE_STRETCH, NEGATIVE_PROMINENCE_STRETCH).stretch(protus);
-        protusData = protus.pixels().toArray();
-        var maskedData = masked.pixels().toArray();
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                maskedData[y][x] = Math.min(Constants.MAX_PIXEL_VALUE, maskedData[y][x] + protusData[y][x]);
+        var stretchedProtus = protus.pixels().toArray();
+        masked.pixels().updateRows((y, row) -> {
+            var protusRow = stretchedProtus[y];
+            for (int x = 0; x < row.length; x++) {
+                row[x] = Math.min(Constants.MAX_PIXEL_VALUE, row[x] + protusRow[x]);
             }
-        }
-        masked.pixels().copyFrom(maskedData);
+        });
         emitNegativeImage(masked);
     }
 

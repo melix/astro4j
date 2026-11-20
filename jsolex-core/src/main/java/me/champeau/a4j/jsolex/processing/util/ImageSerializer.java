@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.util;
 
+import me.champeau.a4j.math.image.ImagePlane;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
