@@ -242,7 +242,7 @@ class SpectralLineLocatorTest extends Specification {
     private static Fixture load(String resource) {
         def file = new File(SpectralLineLocatorTest.getResource(resource).toURI())
         def image = (ImageWrapper32) FitsUtils.readFitsFile(file)
-        return new Fixture(image.width(), image.height(), image.data())
+        return new Fixture(image.width(), image.height(), image.pixels().toArray())
     }
 
     private static SpectrumFrameAnalyzer.Result analyze(Fixture fixture) {

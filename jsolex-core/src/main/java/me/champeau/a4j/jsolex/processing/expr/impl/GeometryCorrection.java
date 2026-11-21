@@ -22,7 +22,6 @@ import me.champeau.a4j.jsolex.processing.sun.WorkflowState;
 import me.champeau.a4j.jsolex.processing.sun.tasks.GeometryCorrector;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.WorkflowResults;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.math.regression.Ellipse;
@@ -48,9 +47,6 @@ public class GeometryCorrection extends AbstractFunctionImpl {
         var arg = arguments.get("img");
         if (arg instanceof List<?>) {
             return expandToImageList("fix_geometry", "img", arguments, this::fixGeometry);
-        }
-        if (arg instanceof FileBackedImage fbi) {
-            arg = fbi.unwrapToMemory();
         }
         if (arg instanceof ImageWrapper32 tmp) {
             return fixGeometry(tmp);
@@ -81,7 +77,7 @@ public class GeometryCorrection extends AbstractFunctionImpl {
                 null
         );
         try {
-            return (ImageWrapper32) task.get().corrected().unwrapToMemory();
+            return (ImageWrapper32) task.get().corrected();
         } catch (Exception e) {
             throw new ProcessingException(e);
         }

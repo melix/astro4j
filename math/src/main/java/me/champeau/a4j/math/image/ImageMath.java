@@ -21,8 +21,6 @@ import me.champeau.a4j.math.opencl.OpenCLSupport;
 
 import java.util.Arrays;
 
-import static java.lang.Math.round;
-
 /**
  * Interface for image processing operations with multiple backend implementations.
  * Implementations may use OpenCL, Vector API, or fallback scalar operations.
@@ -201,47 +199,14 @@ public interface ImageMath {
      * @return the transformed image
      */
     default Image rotateAndScale(Image image, double angle, float blackpoint, double scaleX, double scaleY) {
-        var data = image.data();
-        var width = image.width();
-        var height = image.height();
-        double cos = Math.cos(angle);
-        double sin = Math.sin(angle);
-        int newWidth = (int) ((round(Math.abs(width * cos) + Math.abs(height * sin))) * scaleX);
-        int newHeight = (int) ((round(Math.abs(height * cos) + Math.abs(width * sin))) * scaleY);
-        int centerX = width / 2;
-        int centerY = height / 2;
-        int newCenterX = newWidth / 2;
-        int newCenterY = newHeight / 2;
+        var sampling = PlaneOperations.rotationAndScale(image.data(), image.width(), image.height(), angle, scaleX, scaleY);
+        var newWidth = sampling.newWidth();
+        var newHeight = sampling.newHeight();
         float[][] output = new float[newHeight][newWidth];
-        for (float[] line : output) {
-            Arrays.fill(line, blackpoint);
-        }
         for (int y = 0; y < newHeight; y++) {
-            for (int x = 0; x < newWidth; x++) {
-                var rx = (x - newCenterX) / scaleX;
-                var ry = (y - newCenterY) / scaleY;
-                var sx = rx * cos + ry * sin + centerX;
-                var sy = -rx * sin + ry * cos + centerY;
-                var sourceX1 = (int) sx;
-                var sourceY1 = (int) sy;
-                var sourceX2 = sourceX1 + 1;
-                var sourceY2 = sourceY1 + 1;
-                var fracX = sx - sourceX1;
-                var fracY = sy - sourceY1;
-                if (sourceX1 >= 0 && sourceX2 < width && sourceY1 >= 0 && sourceY2 < height && fracX >= 0 && fracY >= 0) {
-                    var val11 = data[sourceY1][sourceX1];
-                    var val12 = data[sourceY2][sourceX1];
-                    var val21 = data[sourceY1][sourceX2];
-                    var val22 = data[sourceY2][sourceX2];
-                    var interpVal = (float) ((1 - fracX) * (1 - fracY) * val11 +
-                            fracX * (1 - fracY) * val21 +
-                            (1 - fracX) * fracY * val12 +
-                            fracX * fracY * val22);
-                    output[y][x] = interpVal;
-                }
-            }
+            Arrays.fill(output[y], blackpoint);
+            sampling.rotateAndScaleRow(scaleX, scaleY, y, output[y]);
         }
-
         return new Image(newWidth, newHeight, output);
     }
 
@@ -255,74 +220,21 @@ public interface ImageMath {
      * @return the rotated image
      */
     default Image rotate(Image image, double angle, float blackpoint, boolean resize) {
-        var data = image.data();
-        var width = image.width();
-        var height = image.height();
-        double cos = Math.cos(angle);
-        double sin = Math.sin(angle);
-        int newWidth = resize ? (int) (round(Math.abs(width * cos) + Math.abs(height * sin))) : width;
-        int newHeight = resize ? (int) (round(Math.abs(height * cos) + Math.abs(width * sin))) : height;
-        int centerX = width / 2;
-        int centerY = height / 2;
-        int newCenterX = newWidth / 2;
-        int newCenterY = newHeight / 2;
+        var sampling = PlaneOperations.rotation(image.data(), image.width(), image.height(), angle, resize);
+        var newWidth = sampling.newWidth();
+        var newHeight = sampling.newHeight();
         float[][] output = new float[newHeight][newWidth];
-        for (float[] line : output) {
-            Arrays.fill(line, blackpoint);
-        }
-        double meanFill = 0;
-        double missFill = 0;
+        var fill = blackpoint < 0 ? new double[2] : null;
         for (int y = 0; y < newHeight; y++) {
-            for (int x = 0; x < newWidth; x++) {
-                var rx = (x - newCenterX);
-                var ry = (y - newCenterY);
-                var sx = rx * cos + ry * sin + centerX;
-                var sy = -rx * sin + ry * cos + centerY;
-                var sourceX1 = (int) sx;
-                var sourceY1 = (int) sy;
-                var sourceX2 = sourceX1 + 1;
-                var sourceY2 = sourceY1 + 1;
-                var fracX = sx - sourceX1;
-                var fracY = sy - sourceY1;
-                if (sourceX1 >= 0 && sourceX2 < width && sourceY1 >= 0 && sourceY2 < height && fracX >= 0 && fracY >= 0) {
-                    var val11 = data[sourceY1][sourceX1];
-                    var val12 = data[sourceY2][sourceX1];
-                    var val21 = data[sourceY1][sourceX2];
-                    var val22 = data[sourceY2][sourceX2];
-                    var interpVal = (float) ((1 - fracX) * (1 - fracY) * val11 +
-                            fracX * (1 - fracY) * val21 +
-                            (1 - fracX) * fracY * val12 +
-                            fracX * fracY * val22);
-                    output[y][x] = interpVal;
-                } else {
-                    int prevSX = Math.min(Math.max(0, sourceX1), width - 1);
-                    int prevSY = Math.min(Math.max(0, sourceY1), height - 1);
-                    var cur = data[prevSY][prevSX];
-                    meanFill = meanFill + ((cur - meanFill) / (++missFill));
-                }
-            }
+            Arrays.fill(output[y], blackpoint);
+            sampling.rotateRow(y, output[y], fill);
         }
-        if (blackpoint < 0) {
-            // fill "missing" pixels with average computed value
+        if (fill != null) {
+            var meanFill = (float) fill[0];
             for (int y = 0; y < newHeight; y++) {
-                for (int x = 0; x < newWidth; x++) {
-                    var rx = (x - newCenterX);
-                    var ry = (y - newCenterY);
-                    var sx = rx * cos + ry * sin + centerX;
-                    var sy = -rx * sin + ry * cos + centerY;
-                    var sourceX1 = (int) sx;
-                    var sourceY1 = (int) sy;
-                    var sourceX2 = sourceX1 + 1;
-                    var sourceY2 = sourceY1 + 1;
-                    var fracX = sx - sourceX1;
-                    var fracY = sy - sourceY1;
-                    if (sourceX1 < 0 || sourceX2 >= width || sourceY1 < 0 || sourceY2 >= height || (fracX < 0) || (fracY < 0)) {
-                        output[y][x] = (float) meanFill;
-                    }
-                }
+                sampling.fillMissingRow(y, output[y], meanFill);
             }
         }
-
         return new Image(newWidth, newHeight, output);
     }
 
@@ -335,42 +247,11 @@ public interface ImageMath {
      * @return the rescaled image
      */
     default Image rescale(Image image, int newWidth, int newHeight) {
-        var data = image.data();
-        var width = image.width();
-        var height = image.height();
-        int centerX = width / 2;
-        int centerY = height / 2;
-        int newCenterX = newWidth / 2;
-        int newCenterY = newHeight / 2;
-        double scaleX = (double) newWidth / width;
-        double scaleY = (double) newHeight / height;
+        var sampling = PlaneOperations.rescaling(image.data(), image.width(), image.height(), newWidth, newHeight);
         float[][] output = new float[newHeight][newWidth];
         for (int y = 0; y < newHeight; y++) {
-            for (int x = 0; x < newWidth; x++) {
-                var rx = (x - newCenterX) / scaleX;
-                var ry = (y - newCenterY) / scaleY;
-                var sx = rx + centerX;
-                var sy = ry + centerY;
-                var sourceX1 = (int) sx;
-                var sourceY1 = (int) sy;
-                var sourceX2 = sourceX1 + 1;
-                var sourceY2 = sourceY1 + 1;
-                var fracX = sx - sourceX1;
-                var fracY = sy - sourceY1;
-                if (sourceX1 >= 0 && sourceX2 < width && sourceY1 >= 0 && sourceY2 < height) {
-                    var val11 = data[sourceY1][sourceX1];
-                    var val12 = data[sourceY2][sourceX1];
-                    var val21 = data[sourceY1][sourceX2];
-                    var val22 = data[sourceY2][sourceX2];
-                    var interpVal = (float) ((1 - fracX) * (1 - fracY) * val11 +
-                            fracX * (1 - fracY) * val21 +
-                            (1 - fracX) * fracY * val12 +
-                            fracX * fracY * val22);
-                    output[y][x] = interpVal;
-                }
-            }
+            sampling.rescaleRow(y, output[y]);
         }
-
         return new Image(newWidth, newHeight, output);
     }
 
@@ -892,80 +773,17 @@ public interface ImageMath {
      * @return the warped image, sized {@code round(scale*width)} x {@code round(scale*height)}
      */
     default Image dedistort(Image source, float[][] gridDx, float[][] gridDy, int gridStep, boolean useLanczos, double scale) {
-        var data = source.data();
-        var width = source.width();
-        var height = source.height();
-        var gridHeight = gridDx.length;
-        var gridWidth = gridDx[0].length;
-        var outWidth = (int) Math.round(width * scale);
-        var outHeight = (int) Math.round(height * scale);
+        var warp = new PlaneOperations.Warp(source.data(), source.width(), source.height(), gridDx, gridDy, gridStep, useLanczos, scale);
+        var outWidth = warp.outWidth();
+        var outHeight = warp.outHeight();
         var result = new float[outHeight][outWidth];
-
         RowStrips.forEach(outHeight, (yStart, yEnd) -> {
             var lanczos = new Lanczos();
             for (int y = yStart; y < yEnd; y++) {
-                for (int x = 0; x < outWidth; x++) {
-                    double sx = x / scale;
-                    double sy = y / scale;
-                    double ax = sx / gridStep;
-                    double ay = sy / gridStep;
-
-                    double dx = 0.0;
-                    double dy = 0.0;
-
-                    if (ax >= 0 && ax < gridWidth - 1 && ay >= 0 && ay < gridHeight - 1) {
-                        dx = bicubicGridSample(gridDx, ax, ay, gridWidth, gridHeight);
-                        dy = bicubicGridSample(gridDy, ax, ay, gridWidth, gridHeight);
-                    }
-
-                    double srcX = sx + dx;
-                    double srcY = sy + dy;
-
-                    if (srcX >= 0 && srcX < width && srcY >= 0 && srcY < height) {
-                        if (useLanczos) {
-                            result[y][x] = lanczos.interpolate(data, srcX, srcY, width, height);
-                        } else {
-                            result[y][x] = bilinear2D(data, srcX, srcY, width, height);
-                        }
-                    } else {
-                        result[y][x] = 0.0f;
-                    }
-                }
+                warp.warpRow(lanczos, y, result[y]);
             }
         });
-
         return new Image(outWidth, outHeight, result);
-    }
-
-    private static double bicubicGridSample(float[][] grid, double x, double y, int gridWidth, int gridHeight) {
-        int x0 = (int) Math.floor(x);
-        int y0 = (int) Math.floor(y);
-        double dx = x - x0;
-        double dy = y - y0;
-
-        double result = 0.0;
-        for (int i = 0; i < 4; i++) {
-            double wy = cubicWeight(dy - (i - 1));
-            int yi = Math.min(Math.max(y0 - 1 + i, 0), gridHeight - 1);
-            for (int j = 0; j < 4; j++) {
-                int xi = Math.min(Math.max(x0 - 1 + j, 0), gridWidth - 1);
-                double wx = cubicWeight(dx - (j - 1));
-                result += grid[yi][xi] * wx * wy;
-            }
-        }
-        return result;
-    }
-
-    private static double cubicWeight(double t) {
-        double a = -0.5;
-        double absT = Math.abs(t);
-        if (absT <= 1.0) {
-            return (a + 2.0) * absT * absT * absT - (a + 3.0) * absT * absT + 1.0;
-        } else if (absT < 2.0) {
-            return a * absT * absT * absT - 5.0 * a * absT * absT + 8.0 * a * absT - 4.0 * a;
-        } else {
-            return 0.0;
-        }
     }
 
     /**
@@ -997,6 +815,151 @@ public interface ImageMath {
             }
         }
         return image.withData(result);
+    }
+
+    /**
+     * Rotates an image by 90 degrees counter-clockwise.
+     *
+     * @param plane the source pixels
+     * @return a new plane
+     */
+    default ImagePlane rotateLeft(ImagePlane plane) {
+        return PlaneOperations.rotateQuarter(plane, false);
+    }
+
+    /**
+     * Rotates an image by 90 degrees clockwise.
+     *
+     * @param plane the source pixels
+     * @return a new plane
+     */
+    default ImagePlane rotateRight(ImagePlane plane) {
+        return PlaneOperations.rotateQuarter(plane, true);
+    }
+
+    /**
+     * Same as {@link #rotateAndScale(Image, double, float, double, double)}, on a plane.
+     *
+     * @param plane the source pixels
+     * @param angle the rotation angle, in radians
+     * @param blackpoint the value of pixels outside of the source
+     * @param scaleX the horizontal scale
+     * @param scaleY the vertical scale
+     * @return a new plane
+     */
+    default ImagePlane rotateAndScale(ImagePlane plane, double angle, float blackpoint, double scaleX, double scaleY) {
+        var sampling = PlaneOperations.rotationAndScale(plane.toArray(), plane.width(), plane.height(), angle, scaleX, scaleY);
+        return PlaneOperations.render(sampling.newWidth(), sampling.newHeight(), () -> (y, row) -> {
+            Arrays.fill(row, blackpoint);
+            sampling.rotateAndScaleRow(scaleX, scaleY, y, row);
+        });
+    }
+
+    /**
+     * Same as {@link #rotate(Image, double, float, boolean)}, on a plane.
+     *
+     * @param plane the source pixels
+     * @param angle the rotation angle, in radians
+     * @param blackpoint the value of pixels outside of the source
+     * @param resize whether the output is resized to contain the whole rotated image
+     * @return a new plane
+     */
+    default ImagePlane rotate(ImagePlane plane, double angle, float blackpoint, boolean resize) {
+        var sampling = PlaneOperations.rotation(plane.toArray(), plane.width(), plane.height(), angle, resize);
+        var newWidth = sampling.newWidth();
+        var newHeight = sampling.newHeight();
+        if (blackpoint < 0) {
+            var output = ImagePlane.allocate(newWidth, newHeight);
+            var row = new float[newWidth];
+            var fill = new double[2];
+            for (int y = 0; y < newHeight; y++) {
+                Arrays.fill(row, blackpoint);
+                sampling.rotateRow(y, row, fill);
+                output.setRow(y, row);
+            }
+            var meanFill = (float) fill[0];
+            output.updateRows((y, line) -> sampling.fillMissingRow(y, line, meanFill));
+            return output;
+        }
+        return PlaneOperations.render(newWidth, newHeight, () -> (y, row) -> {
+            Arrays.fill(row, blackpoint);
+            sampling.rotateRow(y, row, null);
+        });
+    }
+
+    /**
+     * Same as {@link #rescale(Image, int, int)}, on a plane.
+     *
+     * @param plane the source pixels
+     * @param newWidth the new width
+     * @param newHeight the new height
+     * @return a new plane
+     */
+    default ImagePlane rescale(ImagePlane plane, int newWidth, int newHeight) {
+        var sampling = PlaneOperations.rescaling(plane.toArray(), plane.width(), plane.height(), newWidth, newHeight);
+        return PlaneOperations.render(newWidth, newHeight, () -> sampling::rescaleRow);
+    }
+
+    /**
+     * Same as {@link #mirror(Image, boolean, boolean)}, on a plane.
+     *
+     * @param plane the source pixels
+     * @param horizontalMirror whether to flip horizontally
+     * @param verticalMirror whether to flip vertically
+     * @return a new plane
+     */
+    default ImagePlane mirror(ImagePlane plane, boolean horizontalMirror, boolean verticalMirror) {
+        return PlaneOperations.mirror(plane, horizontalMirror, verticalMirror);
+    }
+
+    /**
+     * Same as {@link #convolve(Image, Kernel)}, on a plane.
+     *
+     * @param plane the source pixels
+     * @param kernel the kernel
+     * @return a new plane
+     */
+    default ImagePlane convolve(ImagePlane plane, Kernel kernel) {
+        return PlaneOperations.convolve(plane, kernel);
+    }
+
+    /**
+     * Same as {@link #estimateSharpness(Image)}, on a plane.
+     *
+     * @param plane the source pixels
+     * @return the sharpness estimate
+     */
+    default double estimateSharpness(ImagePlane plane) {
+        return PlaneOperations.estimateSharpness(plane);
+    }
+
+    /**
+     * Same as {@link #integralImage(Image)}, on a plane.
+     *
+     * @param plane the source pixels
+     * @return the integral image
+     */
+    default Image integralImage(ImagePlane plane) {
+        return PlaneOperations.integralImage(plane);
+    }
+
+    /**
+     * Same as {@link #dedistort(Image, float[][], float[][], int, boolean, double)}, on a plane.
+     *
+     * @param plane the source pixels
+     * @param gridDx the horizontal displacements
+     * @param gridDy the vertical displacements
+     * @param gridStep the step of the displacement grid
+     * @param useLanczos whether to use Lanczos interpolation
+     * @param scale the scale of the output
+     * @return a new plane
+     */
+    default ImagePlane dedistort(ImagePlane plane, float[][] gridDx, float[][] gridDy, int gridStep, boolean useLanczos, double scale) {
+        var warp = new PlaneOperations.Warp(plane.toArray(), plane.width(), plane.height(), gridDx, gridDy, gridStep, useLanczos, scale);
+        return PlaneOperations.render(warp.outWidth(), warp.outHeight(), () -> {
+            var lanczos = new Lanczos();
+            return (y, row) -> warp.warpRow(lanczos, y, row);
+        });
     }
 
     static float bilinear2D(float[][] image, double xx, double yy, int width, int height) {

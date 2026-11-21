@@ -4,11 +4,15 @@
 
 - The image viewer can now blur and sharpen images, including with an unsharp mask.
 - Faster image stretching, in particular with CLAHE, CLAHE2 and AutoStretch.
+- Lower memory use during processing.
+- The "Memory consumption adjustment" setting has been removed, since it is no longer needed.
 - Faster conversion of images to and from NumPy in Python scripts.
 - Python virtual environments must now be created with GraalPy 25.4.
 - The standalone scripting tool can now use a GraalPy virtual environment.
 - Fixed the standalone scripting tool failing on computers with a graphics card.
 - Fixed Python scripts in the native version of the standalone scripting tool.
+- Fixed errors which could stop processing when a new file was opened or an image was displayed.
+- Fixed an error when creating an animation or a panel before processing had finished.
 
 ## What's New in Version 5.6.1
 

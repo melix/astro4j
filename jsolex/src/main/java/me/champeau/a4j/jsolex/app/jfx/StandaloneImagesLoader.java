@@ -31,7 +31,6 @@ import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
@@ -180,10 +179,6 @@ public class StandaloneImagesLoader {
                                                int totalFiles) {
         var context = MutableMap.<Class<?>, Object>of();
         var ellipseFit = new EllipseFit(context, broadcaster);
-
-        if (imageWrapper instanceof FileBackedImage fbi) {
-            imageWrapper = fbi.unwrapToMemory();
-        }
 
         ImageWrapper32 monoImage;
         if (imageWrapper instanceof ImageWrapper32 mono) {

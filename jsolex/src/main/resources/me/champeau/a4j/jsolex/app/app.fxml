@@ -263,9 +263,12 @@
                                 <Label fx:id="tiltIndicator" styleClass="geometry-badge" visible="false" managed="false"/>
                                 <Label fx:id="xyRatioIndicator" styleClass="geometry-badge" visible="false" managed="false"/>
                                 <Label fx:id="polynomialIndicator" styleClass="geometry-badge" visible="false" managed="false"/>
-                                <StackPane>
-                                    <ProgressBar fx:id="memory" prefWidth="200.0" progress="0.0" blendMode="SOFT_LIGHT"/>
-                                    <Label fx:id="memoryLabel" style="-fx-text-fill: #666666"/>
+                                <StackPane fx:id="memoryBar" styleClass="memory-bar" prefWidth="200.0" minWidth="200.0" maxWidth="200.0" alignment="CENTER_LEFT">
+                                    <HBox maxWidth="-Infinity">
+                                        <Region fx:id="heapMemory" styleClass="memory-heap"/>
+                                        <Region fx:id="imageMemory" styleClass="memory-images"/>
+                                    </HBox>
+                                    <Label fx:id="memoryLabel" styleClass="memory-label" StackPane.alignment="CENTER"/>
                                 </StackPane>
                                 <Button onAction="#donate" style="-fx-background-color: transparent; -fx-text-fill: red; -fx-font-size: 12px;" text="♥">
                                     <tooltip>

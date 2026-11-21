@@ -88,14 +88,13 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.SpectralLinePolynomial;
 import me.champeau.a4j.jsolex.processing.sun.workflow.TruncatedDisk;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.Dispersion;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
 import me.champeau.a4j.jsolex.processing.util.ImageSaver;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MetadataMerger;
 import me.champeau.a4j.jsolex.processing.util.MutableMap;
-import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
+import me.champeau.a4j.utilities.TemporaryFolder;
 import me.champeau.a4j.jsolex.processing.util.Wavelen;
 import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.math.regression.Ellipse;
@@ -568,7 +567,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         int samplesSize = samples.size();
         if (samplesSize > 0) {
             var list = samples.stream()
-                    .map(img -> ((ImageWrapper32) img.unwrapToMemory()))
+                    .map(ImageWrapper32.class::cast)
                     .filter(image -> {
                         var metadata = image.findMetadata(PixelShift.class);
                         if (metadata.isPresent()) {
@@ -583,9 +582,12 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
                         // check if there are too many saturated pixels
                         int count = 0;
                         var limit = image.width() * image.height() / 8;
+                        var pixels = image.pixels();
+                        var row = new float[image.width()];
                         for (int y = 0; y < image.height(); y++) {
+                            pixels.getRow(y, row);
                             for (int x = 0; x < image.width(); x++) {
-                                if (image.data()[y][x] == Constants.MAX_PIXEL_VALUE) {
+                                if (row[x] == Constants.MAX_PIXEL_VALUE) {
                                     count++;
                                 }
                                 if (count == limit) {
@@ -596,7 +598,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
                         return true;
                     })
                     .map(img -> {
-                        var data = img.data();
+                        var data = img.pixels().toArray();
                         var avg = imageMath.averageOf(data);
                         return new ImageWithAverage(img, avg);
                     })
@@ -637,10 +639,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
             }
             data = new DistortionCorrection(average.data(), width, height).polynomialCorrection(polynomial::applyAsDouble);
         } else {
-            data = new float[height][];
-            for (int y = 0; y < height; y++) {
-                data[y] = average.data()[y].clone();
-            }
+            data = average.data();
         }
         return new ImageWrapper32(width, height, data, MutableMap.of());
     }
@@ -951,8 +950,8 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
                                        Number rightScalar,
                                        DoubleBinaryOperator operator) {
         if (leftImage != null && rightImage != null) {
-            var leftData = leftImage.data();
-            var rightData = rightImage.data();
+            var leftData = leftImage.pixels().toArray();
+            var rightData = rightImage.pixels().toArray();
             var length = leftData.length;
             var width = leftImage.width();
             var height = leftImage.height();
@@ -970,7 +969,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         }
         if (leftImage != null && rightScalar != null) {
             var scalar = rightScalar.doubleValue();
-            var leftData = leftImage.data();
+            var leftData = leftImage.pixels().toArray();
             var width = leftImage.width();
             var height = leftImage.height();
             var result = new float[height][width];
@@ -983,7 +982,7 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
         }
         if (rightImage != null && leftScalar != null) {
             var scalar = leftScalar.doubleValue();
-            var rightData = rightImage.data();
+            var rightData = rightImage.pixels().toArray();
             var width = rightImage.width();
             var height = rightImage.height();
             var result = new float[height][width];
@@ -1003,9 +1002,6 @@ public abstract class AbstractImageExpressionEvaluator extends ExpressionEvaluat
     private static ImageWrapper32 asImage(Object source) {
         if (source instanceof ImageWrapper32 image) {
             return image;
-        }
-        if (source instanceof FileBackedImage fileBackedImage) {
-            return asImage(fileBackedImage.unwrapToMemory());
         }
         return null;
     }

@@ -16,7 +16,6 @@
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MetadataMerger;
@@ -45,8 +44,7 @@ public class SimpleFunctionCall extends AbstractFunctionImpl {
 
     /**
      * Applies a reduction to a list of numbers or images. When a streaming reduction is
-     * provided, images are unwrapped one at a time instead of being all loaded in memory,
-     * which makes it possible to combine large sets of images on machines with little memory.
+     * provided, images are combined one at a time instead of pixel by pixel.
      *
      * @param reduction the incremental equivalent of {@code operator}, or null if the
      * operator cannot be expressed as a fold (for example a median)
@@ -87,7 +85,7 @@ public class SimpleFunctionCall extends AbstractFunctionImpl {
                     .mapToDouble(Number::doubleValue))
                 .orElse(0);
         }
-        if (ImageWrapper32.class.isAssignableFrom(type) || FileBackedImage.class.isAssignableFrom(type)) {
+        if (ImageWrapper32.class.isAssignableFrom(type)) {
             var wrappers = list.stream().map(ImageWrapper.class::cast).toList();
             var first = wrappers.getFirst();
             var width = first.width();
@@ -100,11 +98,10 @@ public class SimpleFunctionCall extends AbstractFunctionImpl {
                 return new ImageWrapper32(width, height, reduceStreaming(name, wrappers, width, height, reduction), metadata);
             }
             var images = wrappers.stream()
-                .map(i -> i instanceof FileBackedImage fbi ? fbi.unwrapToMemory() : i)
                 .map(ImageWrapper32.class::cast)
                 .toList();
-            var length = images.getFirst().data().length;
-            if (images.stream().anyMatch(i -> i.data().length != length)) {
+            var length = images.getFirst().height();
+            if (images.stream().anyMatch(i -> i.height() != length)) {
                 throw new IllegalArgumentException(name + " function call failed: all images must have the same dimensions");
             }
             float[][] result = new float[height][width];
@@ -112,7 +109,7 @@ public class SimpleFunctionCall extends AbstractFunctionImpl {
                 for (int x = 0; x < width; x++) {
                     int finalY = y;
                     int finalX = x;
-                    result[y][x] = (float) operator.apply(images.stream().mapToDouble(img -> img.data()[finalY][finalX])).orElse(0);
+                    result[y][x] = (float) operator.apply(images.stream().mapToDouble(img -> img.pixels().get(finalX, finalY))).orElse(0);
                 }
             }
             return new ImageWrapper32(width, height, result, metadata);
@@ -125,15 +122,15 @@ public class SimpleFunctionCall extends AbstractFunctionImpl {
         for (var row : accumulator) {
             Arrays.fill(row, reduction.identity());
         }
+        var dataRow = new float[width];
         for (var wrapper : wrappers) {
-            var unwrapped = wrapper instanceof FileBackedImage fbi ? fbi.unwrapToMemory() : wrapper;
-            var data = ((ImageWrapper32) unwrapped).data();
-            if (data.length != height) {
+            var pixels = ((ImageWrapper32) wrapper).pixels();
+            if (pixels.height() != height) {
                 throw new IllegalArgumentException(name + " function call failed: all images must have the same dimensions");
             }
             for (int y = 0; y < height; y++) {
                 var accumulatorRow = accumulator[y];
-                var dataRow = data[y];
+                pixels.getRow(y, dataRow);
                 for (int x = 0; x < width; x++) {
                     accumulatorRow[x] = reduction.accumulator().applyAsDouble(accumulatorRow[x], dataRow[x]);
                 }

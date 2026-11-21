@@ -32,10 +32,11 @@ public record ImageAnalysis(float avg, float stddev, float min, float max, Histo
 
     public static ImageAnalysis of(ImageWrapper32 image, boolean useEllipse) {
         var ellipse = useEllipse ? image.findMetadata(Ellipse.class).orElse(null) : null;
+        var data = image.pixels().toArray();
         if (ellipse != null) {
-            return masked(image.data(), image.width(), image.height(), ellipse);
+            return masked(data, image.width(), image.height(), ellipse);
         } else {
-            return of(image.data());
+            return of(data);
         }
     }
 

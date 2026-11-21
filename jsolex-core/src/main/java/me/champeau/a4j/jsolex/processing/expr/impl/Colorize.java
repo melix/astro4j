@@ -24,11 +24,12 @@ import me.champeau.a4j.jsolex.processing.stretching.LinearStrechingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.util.Constants;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.jsolex.processing.util.Wavelen;
+import me.champeau.a4j.math.image.ImagePlane;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -55,14 +56,9 @@ public class Colorize extends AbstractFunctionImpl {
         }
         var profileAsNumber = getArgument(Object.class, arguments, "profile");
         if (profileAsNumber.orElse(null) instanceof Number referenceWl) {
-            if (arg instanceof FileBackedImage fileBackedImage) {
-                arg = fileBackedImage.unwrapToMemory();
-            }
             if (arg instanceof ImageWrapper32 mono) {
-                return RGBImage.fromMono(mono, data -> {
-                    var ray = new SpectralRay("tmp", null, Wavelen.ofAngstroms(referenceWl.doubleValue()), true, List.of());
-                    return doColorize(mono.width(), mono.height(), data.data(), ray.toRGB());
-                });
+                var ray = new SpectralRay("tmp", null, Wavelen.ofAngstroms(referenceWl.doubleValue()), true, List.of());
+                return doColorize(mono, ray.toRGB());
             }
         }
         var profile = stringArg(arguments, "profile", null);
@@ -73,28 +69,20 @@ public class Colorize extends AbstractFunctionImpl {
             int gOut = intArg(arguments, "gOut", 255);
             int bIn = intArg(arguments, "bIn", 0);
             int bOut = intArg(arguments, "bOut", 255);
-            if (arg instanceof FileBackedImage fileBackedImage) {
-                arg = fileBackedImage.unwrapToMemory();
-            }
             if (arg instanceof ImageWrapper32 mono) {
-                return RGBImage.fromMono(mono, data -> {
-                    var curve = new ColorCurve("adhoc", rIn, rOut, gIn, gOut, bIn, bOut);
-                    return doColorize(mono.width(), mono.height(), data.data(), curve);
-                });
+                var curve = new ColorCurve("adhoc", rIn, rOut, gIn, gOut, bIn, bOut);
+                return toRGBImage(mono, ImageUtils.convertToRGB(curve, mono.pixels()));
             }
         } else {
-            if (arg instanceof FileBackedImage fileBackedImage) {
-                arg = fileBackedImage.unwrapToMemory();
-            }
             var rays = SpectralRayIO.loadDefaults();
             for (SpectralRay ray : rays) {
                 if (ray.label().equalsIgnoreCase(profile) && (arg instanceof ImageWrapper32 mono)) {
                     var curve = ray.colorCurve();
                     if (curve != null) {
-                        return RGBImage.fromMono(mono, data -> doColorize(mono.width(), mono.height(), data.data(), curve));
+                        return toRGBImage(mono, ImageUtils.convertToRGB(curve, mono.pixels()));
                     } else if (ray.wavelength().nanos() != 0) {
                         var rgb = ray.toRGB();
-                        return RGBImage.fromMono(mono, data -> doColorize(mono.width(), mono.height(), data.data(), rgb));
+                        return doColorize(mono, rgb);
                     }
                 }
             }
@@ -103,41 +91,42 @@ public class Colorize extends AbstractFunctionImpl {
         throw new IllegalArgumentException("colorize first argument must be an image or a list of images");
     }
 
-    private static float[][][] doColorize(int width, int height, float[][] data, ColorCurve curve) {
-        var copy = new float[height][width];
-        for (int y = 0; y < height; y++) {
-            float[] line = data[y];
-            System.arraycopy(line, 0, copy[y], 0, line.length);
-        }
-        return ImageUtils.convertToRGB(curve, copy);
+    public static float[][][] doColorize(int width, int height, float[][] mono, int[] rgb) {
+        var planes = colorizeInPlace(ImagePlane.of(width, height, mono), rgb);
+        return new float[][][]{planes[0].toArray(), planes[1].toArray(), planes[2].toArray()};
     }
 
-    public static float[][][] doColorize(int width, int height, float[][] mono, int[] rgb) {
-        var copy = new float[height][width];
-        for (int y = 0; y < mono.length; y++) {
-            float[] line = mono[y];
-            System.arraycopy(line, 0, copy[y], 0, line.length);
-        }
-        new GammaStrategy(1.2).stretch(new ImageWrapper32(width, height, copy, Map.of()));
-        var r = new float[height][width];
-        var g = new float[height][width];
-        var b = new float[height][width];
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                var gray = copy[y][x];
-                r[y][x] = gray * rgb[0] / 255f;
-                g[y][x] = gray * rgb[1] / 255f;
-                b[y][x] = gray * rgb[2] / 255f;
-            }
-        }
-        var rgbImage = new RGBImage(
-            width, height,
-            r, g, b,
-            Map.of()
-        );
+    /**
+     * Colorizes a monochrome image with the given color.
+     *
+     * @param mono the monochrome image
+     * @param rgb the red, green and blue components of the color, between 0 and 255
+     * @return the colorized image
+     */
+    public static RGBImage doColorize(ImageWrapper32 mono, int[] rgb) {
+        return toRGBImage(mono, colorizeInPlace(mono.pixels().copy(), rgb));
+    }
+
+    private static ImagePlane[] colorizeInPlace(ImagePlane gray, int[] rgb) {
+        new GammaStrategy(1.2).stretch(new ImageWrapper32(gray, Map.of()));
+        var r = scale(gray, rgb[0]);
+        var g = scale(gray, rgb[1]);
+        var b = scale(gray, rgb[2]);
         new LinearStrechingStrategy(0, 0.9f * Constants.MAX_PIXEL_VALUE).stretch(
-            rgbImage
+            new RGBImage(r, g, b, Map.of())
         );
-        return new float[][][]{r, g, b};
+        return new ImagePlane[]{r, g, b};
+    }
+
+    private static ImagePlane scale(ImagePlane gray, int component) {
+        return gray.mapRows((y, row) -> {
+            for (int x = 0; x < row.length; x++) {
+                row[x] = row[x] * component / 255f;
+            }
+        });
+    }
+
+    private static RGBImage toRGBImage(ImageWrapper32 mono, ImagePlane[] rgb) {
+        return new RGBImage(rgb[0], rgb[1], rgb[2], new LinkedHashMap<>(mono.metadata()));
     }
 }

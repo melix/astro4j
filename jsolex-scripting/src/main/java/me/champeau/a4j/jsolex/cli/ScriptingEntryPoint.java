@@ -207,8 +207,6 @@ public class ScriptingEntryPoint implements Runnable {
                 processParams,
                 LocalDateTime.now(),
                 true,
-                1,
-                1,
                 ProgressOperation.root("cli", p -> {
                 }),
                 Map.of(AnimationFormat.class, animationFormats())

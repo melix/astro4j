@@ -38,6 +38,6 @@ public class WriteMonoImageTask extends AbstractImageWriterTask {
 
     @Override
     public ImageWrapper createImageWrapper() {
-        return new ImageWrapper32(width, height, getBuffer(), getMetadata());
+        return new ImageWrapper32(workImage.pixels(), getMetadata());
     }
 }

@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - 'cc/masking'
+      - 'cc/offheap-images'
     tags:
       - '*'
   workflow_dispatch:

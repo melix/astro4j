@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.stretching;
 
+import me.champeau.a4j.math.image.ImagePlane;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
@@ -22,9 +23,7 @@ import me.champeau.a4j.math.RowStrips;
 import me.champeau.a4j.math.regression.Ellipse;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Multi-scale CLAHE: the image is equalized with several tile sizes derived from
@@ -66,16 +65,16 @@ public final class AdaptativeClaheStrategy implements StretchingStrategy {
     public void stretch(ImageWrapper32 image) {
         var tileSizes = computeTileSizesForImage(image);
         var mask = diskOnly ? diskMask(image) : null;
-        multiScaleClaheChannel(image.data(), image.width(), image.height(), image.metadata(), tileSizes, mask);
+        multiScaleClaheChannel(image.pixels(), image.width(), image.height(), tileSizes, mask);
     }
 
     @Override
     public void stretch(RGBImage image) {
         var tileSizes = computeTileSizesForImage(image);
         var mask = diskOnly ? diskMask(image) : null;
-        multiScaleClaheChannel(image.r(), image.width(), image.height(), image.metadata(), tileSizes, mask);
-        multiScaleClaheChannel(image.g(), image.width(), image.height(), image.metadata(), tileSizes, mask);
-        multiScaleClaheChannel(image.b(), image.width(), image.height(), image.metadata(), tileSizes, mask);
+        multiScaleClaheChannel(image.red(), image.width(), image.height(), tileSizes, mask);
+        multiScaleClaheChannel(image.green(), image.width(), image.height(), tileSizes, mask);
+        multiScaleClaheChannel(image.blue(), image.width(), image.height(), tileSizes, mask);
     }
 
     private static boolean[][] diskMask(ImageWrapper image) {
@@ -126,17 +125,15 @@ public final class AdaptativeClaheStrategy implements StretchingStrategy {
         return tileSizes;
     }
 
-    private void multiScaleClaheChannel(float[][] data,
+    private void multiScaleClaheChannel(ImagePlane plane,
                                         int width,
                                         int height,
-                                        Map<Class<?>, Object> metadata,
                                         List<Integer> tileSizes,
                                         boolean[][] mask) {
         var sum = new float[height][width];
         for (int tileSize : tileSizes) {
-            var copy = ImageWrapper.copyData(data);
-            new ClaheStrategy(tileSize, BINS, clip, mask)
-                    .stretch(new ImageWrapper32(width, height, copy, new HashMap<>(metadata)));
+            var copy = plane.toArray();
+            new ClaheStrategy(tileSize, BINS, clip, mask).stretch(width, height, copy);
             RowStrips.forEach(height, (yStart, yEnd) -> {
                 for (int y = yStart; y < yEnd; y++) {
                     var row = copy[y];
@@ -150,11 +147,11 @@ public final class AdaptativeClaheStrategy implements StretchingStrategy {
         float n = tileSizes.size();
         RowStrips.forEach(height, (yStart, yEnd) -> {
             for (int y = yStart; y < yEnd; y++) {
-                var dst = data[y];
                 var sumRow = sum[y];
                 for (int x = 0; x < width; x++) {
-                    dst[x] = sumRow[x] / n;
+                    sumRow[x] = sumRow[x] / n;
                 }
+                plane.setRow(y, sumRow);
             }
         });
     }

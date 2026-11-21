@@ -19,7 +19,6 @@ import me.champeau.a4j.jsolex.processing.params.OutputMetadata;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.SpectroSolHubImageKind;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -63,9 +62,6 @@ public interface ImageMathScriptExecutor {
                 continue;
             }
             var image = entry.getValue();
-            if (image instanceof FileBackedImage fileBackedImage) {
-                image = fileBackedImage.unwrapToMemory();
-            }
             var metadata = outputsMetadata.get(label);
             var displayTitle = metadata != null ? metadata.getDisplayTitle(language) : label;
             var description = metadata != null ? metadata.getDisplayDescription(language) : null;
@@ -87,7 +83,7 @@ public interface ImageMathScriptExecutor {
                     rgb.width(),
                     rgb.height(),
                     rgb.metadata(),
-                    () -> new float[][][]{rgb.r(), rgb.g(), rgb.b()});
+                    () -> new float[][][]{rgb.red().toArray(), rgb.green().toArray(), rgb.blue().toArray()});
             }
         }
         for (Map.Entry<String, FileOutputResult> entry : result.filesByLabel().entrySet()) {

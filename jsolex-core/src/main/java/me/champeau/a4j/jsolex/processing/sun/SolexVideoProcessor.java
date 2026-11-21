@@ -98,8 +98,8 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.TruncatedDisk;
 import me.champeau.a4j.jsolex.processing.sun.workflow.WorkflowResults;
 import me.champeau.a4j.jsolex.processing.util.CancellationSupport;
 import me.champeau.a4j.jsolex.processing.util.Constants;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
+import me.champeau.a4j.math.image.ImagePlane;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.LocaleUtils;
@@ -111,7 +111,7 @@ import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.jsolex.processing.util.SolarParametersUtils;
 import me.champeau.a4j.jsolex.processing.util.SpectralLineFrameImageCreator;
-import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
+import me.champeau.a4j.utilities.TemporaryFolder;
 import me.champeau.a4j.jsolex.processing.util.Wavelen;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.Image;
@@ -180,8 +180,6 @@ public class SolexVideoProcessor implements Broadcaster {
     private final int sequenceNumber;
     private final LocalDateTime processingDate;
     private final boolean batchMode;
-    private final int batchParallelism;
-    private final int memoryRestrictionMultiplier;
     private final ProgressOperation rootOperation;
     private final Path outputDirectory;
     private ProcessParams processParams;
@@ -208,8 +206,6 @@ public class SolexVideoProcessor implements Broadcaster {
                                ProcessParams processParametersProvider,
                                LocalDateTime processingDate,
                                boolean batchMode,
-                               int batchParallelism,
-                               int memoryRestrictionMultiplier,
                                ProgressOperation rootOperation,
                                Map<Class<?>, Object> additionalContext) {
         this.serFile = serFile;
@@ -218,8 +214,6 @@ public class SolexVideoProcessor implements Broadcaster {
         this.processParams = processParametersProvider;
         this.processingDate = processingDate;
         this.batchMode = batchMode;
-        this.batchParallelism = batchParallelism;
-        this.memoryRestrictionMultiplier = memoryRestrictionMultiplier;
         this.rootOperation = rootOperation;
         this.additionalContext = additionalContext != null ? additionalContext : Map.of();
         this.sharedImageEmitter = new DefaultImageEmitter(this, rootOperation, outputDirectory.toFile());
@@ -231,9 +225,8 @@ public class SolexVideoProcessor implements Broadcaster {
                                ProcessParams processParametersProvider,
                                LocalDateTime processingDate,
                                boolean batchMode,
-                               int memoryRestrictionMultiplier,
                                ProgressOperation rootOperation) {
-        this(serFile, outputDirectory, sequenceNumber, processParametersProvider, processingDate, batchMode, 1, memoryRestrictionMultiplier, rootOperation, null);
+        this(serFile, outputDirectory, sequenceNumber, processParametersProvider, processingDate, batchMode, rootOperation, null);
     }
 
     private static ThreadFactory daemonThreadFactory(String namePrefix) {
@@ -435,7 +428,7 @@ public class SolexVideoProcessor implements Broadcaster {
         }
         long imageSizeInBytes = width * newHeight * 4L * 3;
         long maxMemory = Runtime.getRuntime().maxMemory();
-        int batchSize = (int) (Math.ceil(maxMemory / (4d * imageSizeInBytes * memoryRestrictionMultiplier)));
+        int batchSize = (int) (Math.ceil(maxMemory / (4d * imageSizeInBytes)));
         checkAvailableDiskSpace(imageList, imageSizeInBytes);
         var detected = analyzeAverageImage(width, height, averageImage, header);
         var analysis = detected.result();
@@ -535,7 +528,6 @@ public class SolexVideoProcessor implements Broadcaster {
             var totalImages = imageList.size();
             long sd = System.nanoTime();
             List<List<WorkflowState>> batches = batches(imageList, batchSize);
-            LOGGER.info(message("memory.pressure"), memoryRestrictionMultiplier);
             if (batches.size() > 1) {
                 LOGGER.info(message("reconstruction.batches"), batches.size(), batchSize);
             }
@@ -566,7 +558,6 @@ public class SolexVideoProcessor implements Broadcaster {
                 } catch (Exception e) {
                     throw new ProcessingException(e);
                 }
-                Thread.startVirtualThread(FileBackedImage::flushImages);
             }
 
             onReconstructionComplete.run();
@@ -640,11 +631,11 @@ public class SolexVideoProcessor implements Broadcaster {
                 mainEllipse = (EllipseFittingTask.Result) workflowState.findResult(WorkflowResults.MAIN_ELLIPSE_FITTING).orElse(null);
             }
             if (result.isPresent() && result.get() instanceof GeometryCorrector.Result geo) {
-                images.put(new PixelShift(workflowState.pixelShift()), FileBackedImage.wrap(geo.corrected()));
+                images.put(new PixelShift(workflowState.pixelShift()), geo.corrected());
                 ellipse = geo.correctedCircle();
                 imageStats = new ImageStats(geo.blackpoint());
             } else {
-                images.put(new PixelShift(workflowState.pixelShift()), uncorrectedImage(workflowState, ellipse).wrap());
+                images.put(new PixelShift(workflowState.pixelShift()), uncorrectedImage(workflowState, ellipse));
             }
         }
         if (!JSOLEX_RECORDER.equals(header.fileId()) && maybePolynomial.isPresent()) {
@@ -719,7 +710,7 @@ public class SolexVideoProcessor implements Broadcaster {
     private static ImageWrapper32 uncorrectedImage(WorkflowState state, Ellipse ellipse) {
         var source = Optional.ofNullable(state.image()).orElseGet(state::reconstructed);
         Map<Class<?>, Object> metadata = ellipse != null ? MutableMap.of(Ellipse.class, ellipse) : MutableMap.of();
-        return new ImageWrapper32(source.width(), source.height(), source.data(), metadata);
+        return new ImageWrapper32(source.pixels(), metadata);
     }
 
     private ProcessAwareImageEmitterFactory createImageEmitterFactory(List<WorkflowState> imageList, FileNamingStrategy imageNamingStrategy, String baseName) {
@@ -960,28 +951,25 @@ public class SolexVideoProcessor implements Broadcaster {
                 JaggingCorrection.applyCorrection(reconstructed, correctionModels.jaggingModel());
             }
         }
-        var recon = reconstructed.asImage();
-        var rotateLeft = ImageMath.newInstance().rotateLeft(recon);
+        var originalWidth = reconstructed.width();
+        var rotateLeft = ImageMath.newInstance().rotateLeft(reconstructed.pixels());
         var metadata = new HashMap<>(reconstructed.metadata());
         metadata.putAll(createMetadata(processParams, serFile.toPath(), pixelShiftRange, header, scanDurationSeconds).build().toMap());
 
         var refCoords = metadata.get(ReferenceCoords.class);
         if (refCoords instanceof ReferenceCoords coords) {
-            var originalWidth = recon.width();
             metadata.put(ReferenceCoords.class, coords.addLeftRotation(originalWidth));
         }
         if (redshifts != null) {
             metadata.put(Redshifts.class, redshifts);
         }
         if (activeRegions != null) {
-            var width = recon.width();
-            metadata.put(ActiveRegions.class, activeRegions.transform(p -> new Point2D(p.y(), width - p.x())));
+            metadata.put(ActiveRegions.class, activeRegions.transform(p -> new Point2D(p.y(), originalWidth - p.x())));
         }
         if (flares != null) {
-            var width = recon.width();
-            metadata.put(Flares.class, flares.transform(p -> new Point2D(p.y(), width - p.x())));
+            metadata.put(Flares.class, flares.transform(p -> new Point2D(p.y(), originalWidth - p.x())));
         }
-        rotated = ImageWrapper32.fromImage(rotateLeft, metadata);
+        rotated = new ImageWrapper32(rotateLeft, metadata);
         TransformationHistory.recordTransform(rotated, message("rotate.left"));
 
         maybePerformFlips(rotated);
@@ -991,7 +979,10 @@ public class SolexVideoProcessor implements Broadcaster {
     }
 
     private ImageWrapper32 maybeRemoveZeroPixels(ImageWrapper32 reconstructed) {
-        for (var line : reconstructed.data()) {
+        var pixels = reconstructed.pixels();
+        var line = new float[reconstructed.width()];
+        for (int y = 0; y < reconstructed.height(); y++) {
+            pixels.getRow(y, line);
             for (float v : line) {
                 if (v == 0) {
                     LOGGER.debug(message("zero.pixel.warning"));
@@ -1018,9 +1009,7 @@ public class SolexVideoProcessor implements Broadcaster {
         broadcast(operation.complete());
         // rotate back to original orientation
         rotated = imageMath.rotateRight(rotated);
-        for (int y = 0; y < reconstructed.height(); y++) {
-            System.arraycopy(rotated.data()[y], 0, reconstructed.data()[y], 0, reconstructed.width());
-        }
+        reconstructed.pixels().copyFrom(rotated.data());
         var transform = switch (bandingParams.method()) {
             case BANDING_CORRECTION -> "Banding reduction (band size: " + bandingParams.width() + " passes: " + passes + ")";
             case DESTRIPE -> "Destripe (band size: " + BandingReduction.destripeBandSize(bandingParams.destripeParams().bandSize(), height) + " passes: " + passes + ")";
@@ -1281,6 +1270,9 @@ public class SolexVideoProcessor implements Broadcaster {
                         g.setFont(g.getFont().deriveFont(16f));
                         g.drawString(String.format(Locale.US, "Frame %d shift %.2f", frameNb, redshift.relPixelShift()), 16, img.height() - 16);
                     });
+                    copyPixels(copy.red(), rgb.r());
+                    copyPixels(copy.green(), rgb.g());
+                    copyPixels(copy.blue(), rgb.b());
                 });
                 var targetFile = outputDirectory.resolve(fileNamingStrategy.render(sequenceNumber, "redshift", Constants.TYPE_PROCESSED, "redshift", baseName + "_" + redshift.id(), image));
                 broadcast(new ImageGeneratedEvent(
@@ -1288,12 +1280,18 @@ public class SolexVideoProcessor implements Broadcaster {
                                 GeneratedImageKind.REDSHIFT,
                                 String.format(Locale.US, "Redshift %s (%s)", redshift.id(), speedLabel),
                                 targetFile,
-                                FileBackedImage.wrap(image),
+                                image,
                                 message("individual.redshift.image.description")
                         )
                 ));
                 LOGGER.info(message("found.speed"), speedLabel, redshift.x1(), redshift.y1(), redshift.x2(), redshift.y2(), redshift.relPixelShift());
             }
+        }
+    }
+
+    private static void copyPixels(ImagePlane source, float[][] target) {
+        for (int y = 0; y < target.length; y++) {
+            source.getRow(y, target[y]);
         }
     }
 
@@ -1320,7 +1318,7 @@ public class SolexVideoProcessor implements Broadcaster {
                     }
                 } else {
                     var wrapper = uncorrectedImage(workflowState, ellipse);
-                    images.put(pixelShift, wrapper.wrap());
+                    images.put(pixelShift, wrapper);
                     var rounded = Math.round(100d * pixelShift) / 100d;
                     if (!images.containsKey(rounded)) {
                         images.put(rounded, wrapper);
@@ -1483,17 +1481,9 @@ public class SolexVideoProcessor implements Broadcaster {
         var hflip = processParams.geometryParams().isHorizontalMirror();
         var vflip = processParams.geometryParams().isVerticalMirror();
         if (hflip || vflip) {
-            var original = rotated.data();
             var width = rotated.width();
             var height = rotated.height();
-            var flipped = new float[height][width];
-            for (int y = 0; y < height; y++) {
-                for (int x = 0; x < width; x++) {
-                    var nx = hflip ? width - x - 1 : x;
-                    var ny = vflip ? height - y - 1 : y;
-                    flipped[ny][nx] = original[y][x];
-                }
-            }
+            var flipped = ImageMath.newInstance().mirror(rotated.pixels(), hflip, vflip);
             rotated.findMetadata(Redshifts.class).ifPresent(redshifts -> {
                 var rotatedRedshifts = redshifts.redshifts().stream()
                         .map(area -> {
@@ -1564,7 +1554,7 @@ public class SolexVideoProcessor implements Broadcaster {
                 }
                 rotated.metadata().put(ReferenceCoords.class, updated);
             });
-            System.arraycopy(flipped, 0, original, 0, original.length);
+            rotated.pixels().copyFrom(flipped);
             TransformationHistory.recordTransform(rotated, message("flip"));
         }
     }
@@ -1574,22 +1564,10 @@ public class SolexVideoProcessor implements Broadcaster {
             return rotated;
         }
 
-        var original = rotated.data();
         var width = rotated.width();
         var height = rotated.height();
-        var newWidth = height;
-        var newHeight = width;
-        var newData = new float[newHeight][newWidth];
-
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                if (kind == RotationKind.LEFT) {
-                    newData[width - x - 1][y] = original[y][x];
-                } else {
-                    newData[x][height - y - 1] = original[y][x];
-                }
-            }
-        }
+        var imageMath = ImageMath.newInstance();
+        var newData = kind == RotationKind.LEFT ? imageMath.rotateLeft(rotated.pixels()) : imageMath.rotateRight(rotated.pixels());
 
         var newMetadata = new HashMap<>(rotated.metadata());
 
@@ -1661,7 +1639,7 @@ public class SolexVideoProcessor implements Broadcaster {
         });
 
 
-        var newImage = new ImageWrapper32(newWidth, newHeight, newData, newMetadata);
+        var newImage = new ImageWrapper32(newData, newMetadata);
 
         // Add rotation to ReferenceCoords history
         newImage.transformMetadata(ReferenceCoords.class, coords -> {
@@ -1890,9 +1868,9 @@ public class SolexVideoProcessor implements Broadcaster {
                             gc.drawRect(flare.sourceX() - margin, 0, margin * 2 + 1, height - 1);
                         });
                         return new float[][][]{
-                                rgb.r(),
-                                rgb.g(),
-                                rgb.b()
+                                rgb.red().toArray(),
+                                rgb.green().toArray(),
+                                rgb.blue().toArray()
                         };
                     }
             );
@@ -1916,7 +1894,7 @@ public class SolexVideoProcessor implements Broadcaster {
             LOGGER.error(message("master.flat.not.found") + " " + masterFlat);
             return Optional.empty();
         }
-        var loaded = Loader.loadImage(masterFlat.toFile()).unwrapToMemory();
+        var loaded = Loader.loadImage(masterFlat.toFile());
         if (!(loaded instanceof ImageWrapper32 flatImage)) {
             LOGGER.error(message("invalid.master.flat.type"));
             return Optional.empty();
@@ -1925,7 +1903,7 @@ public class SolexVideoProcessor implements Broadcaster {
             LOGGER.error(message("invalid.master.flat.size"), flatImage.width(), flatImage.height(), expectedWidth, expectedHeight);
             return Optional.empty();
         }
-        var flat = prepareFlatFromAverage(flatImage.data(), flatImage.width(), flatImage.height(), FlatCreator.DEFAULT_CUTOFF, processParams.enhancementParams().slitDetectionSigma());
+        var flat = prepareFlatFromAverage(flatImage.pixels().toArray(), flatImage.width(), flatImage.height(), FlatCreator.DEFAULT_CUTOFF, processParams.enhancementParams().slitDetectionSigma());
 
         // normalize to [0, 1] range
         var max = 0f;
@@ -1966,7 +1944,7 @@ public class SolexVideoProcessor implements Broadcaster {
         emitter.newColorImage(GeneratedImageKind.DEBUG, null, message("average"), "average", message("average.image.description"), width, 2 * height + SpectralLineFrameImageCreator.SPACING, MutableMap.of(), () -> {
             var rgb = new SpectralLineFrameImageCreator(detected.analyzer(), averageImage, width, height)
                     .generateDebugImage(usedPolynomial, superseded);
-            return new float[][][]{rgb.r(), rgb.g(), rgb.b()};
+            return new float[][][]{rgb.red().toArray(), rgb.green().toArray(), rgb.blue().toArray()};
         });
     }
 

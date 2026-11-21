@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.expr.stacking;
 
+import me.champeau.a4j.math.image.ImagePlane;
 import me.champeau.a4j.math.opencl.OpenCLContext;
 
 import static org.lwjgl.opencl.CL10.CL_MEM_READ_WRITE;
@@ -42,19 +43,22 @@ public class GPUImage implements AutoCloseable {
     }
 
     /**
-     * Uploads image data from CPU to GPU.
+     * Uploads the pixels of an image plane from CPU to GPU.
      *
-     * @param data    2D image data [height][width]
-     * @param width   image width
-     * @param height  image height
+     * @param plane   the pixels to upload
      * @param context OpenCL context
      * @return GPU-resident image
      */
-    public static GPUImage upload(float[][] data, int width, int height, OpenCLContext context) {
-        var flatData = flatten(data, width, height);
-        int sizeInBytes = width * height * Float.BYTES;
-        long buffer = context.allocateBuffer(sizeInBytes, CL_MEM_READ_WRITE);
-        context.writeBuffer(buffer, flatData);
+    public static GPUImage upload(ImagePlane plane, OpenCLContext context) {
+        var width = plane.width();
+        var height = plane.height();
+        long buffer = context.allocateBuffer(width * height * Float.BYTES, CL_MEM_READ_WRITE);
+        try {
+            plane.withSegment(segment -> context.writeBuffer(buffer, segment));
+        } catch (RuntimeException e) {
+            context.releaseBuffer(buffer);
+            throw e;
+        }
         return new GPUImage(width, height, buffer, context);
     }
 
@@ -75,13 +79,13 @@ public class GPUImage implements AutoCloseable {
     /**
      * Downloads image data from GPU to CPU.
      *
-     * @return 2D image data [height][width]
+     * @return a new plane holding the pixels
      */
-    public float[][] download() {
+    public ImagePlane download() {
         checkNotClosed();
-        var flatData = new float[width * height];
-        context.readBuffer(buffer, flatData);
-        return unflatten(flatData, width, height);
+        var plane = ImagePlane.allocate(width, height);
+        plane.withSegment(segment -> context.readBuffer(buffer, segment));
+        return plane;
     }
 
     /**
@@ -138,21 +142,5 @@ public class GPUImage implements AutoCloseable {
         if (closed) {
             throw new IllegalStateException("GPUImage has been closed");
         }
-    }
-
-    private static float[] flatten(float[][] data, int width, int height) {
-        var result = new float[width * height];
-        for (int y = 0; y < height; y++) {
-            System.arraycopy(data[y], 0, result, y * width, width);
-        }
-        return result;
-    }
-
-    private static float[][] unflatten(float[] data, int width, int height) {
-        var result = new float[height][width];
-        for (int y = 0; y < height; y++) {
-            System.arraycopy(data, y * width, result[y], 0, width);
-        }
-        return result;
     }
 }

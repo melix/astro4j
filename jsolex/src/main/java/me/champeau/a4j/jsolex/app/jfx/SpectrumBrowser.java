@@ -557,7 +557,7 @@ public class SpectrumBrowser extends BorderPane {
     private SpectrumFrameAnalyzer.Result detectDistortion(ImageWrapper32 image) {
         var polynomialImage = cropForPolynomialDetection(image);
         var analyzer = new SpectrumFrameAnalyzer(image.width(), polynomialImage.height(), false, null);
-        analyzer.analyze(polynomialImage.data());
+        analyzer.analyze(polynomialImage.pixels().toArray());
         return analyzer.result();
     }
 
@@ -595,12 +595,13 @@ public class SpectrumBrowser extends BorderPane {
         }
         var width = image.width();
         var height = image.height();
-        var identification = new SpectralWindowIdentifier().identify(image.data(), width, height, instrument, pixelSize.get(), 1, 1);
+        var data = image.pixels().toArray();
+        var identification = new SpectralWindowIdentifier().identify(data, width, height, instrument, pixelSize.get(), 1, 1);
         if (!identification.identified()) {
             showIdentificationFailure();
             return;
         }
-        var corrected = new DistortionCorrection(image.data(), width, height).polynomialCorrection(identification.polynomial().asPolynomial());
+        var corrected = new DistortionCorrection(data, width, height).polynomialCorrection(identification.polynomial().asPolynomial());
         int minX = identification.leftBorder();
         if (minX > 0) {
             minX += 5 * width / 100;
@@ -663,9 +664,9 @@ public class SpectrumBrowser extends BorderPane {
         int yMax = Math.min(image.height(), minLine + CROP_HEIGHT);
         int restrictedHeight = yMax - yMin;
         var cropped = new float[restrictedHeight][image.width()];
-        var width = image.width();
+        var pixels = image.pixels();
         for (int y = yMin; y < yMax; y++) {
-            System.arraycopy(image.data()[y], 0, cropped[y - yMin], 0, width);
+            pixels.getRow(y, cropped[y - yMin]);
         }
         return new ImageWrapper32(image.width(), restrictedHeight, cropped, Map.of());
     }

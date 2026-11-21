@@ -61,12 +61,14 @@ public class DistorsionDebugImageCreator {
         var scaledHeight = (int) Math.round(panelHeight * scale);
         imageEmitter.newColorImage(GeneratedImageKind.DEBUG, null, "displacement", "displacementXY_" + index, null, scaledWidth, scaledHeight, new HashMap<>(stacked.metadata()), () -> {
             var heatmap = new float[3][panelHeight][panelWidth];
+            var originalData = original.pixels().toArray();
+            var referenceData = referenceImage.pixels().toArray();
             float[][] diffImage = new float[height][width];
             float minDiff = Float.POSITIVE_INFINITY;
             float maxDiff = Float.NEGATIVE_INFINITY;
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
-                    diffImage[y][x] = original.data()[y][x] - dedistorted[y][x];
+                    diffImage[y][x] = originalData[y][x] - dedistorted[y][x];
                     minDiff = Math.min(minDiff, diffImage[y][x]);
                     maxDiff = Math.max(maxDiff, diffImage[y][x]);
                 }
@@ -133,12 +135,12 @@ public class DistorsionDebugImageCreator {
                 displayY += height + separator;
                 for (int x = 0; x < stacked.width(); x++) {
                     var displayX = x + separator;
-                    var reference = referenceImage.data()[y][x];
+                    var reference = referenceData[y][x];
                     heatmap[0][displayY][displayX] = reference;
                     heatmap[1][displayY][displayX] = reference;
                     heatmap[2][displayY][displayX] = reference;
                     displayX += width + separator;
-                    var orig = original.data()[y][x];
+                    var orig = originalData[y][x];
                     heatmap[0][displayY][displayX] = orig;
                     heatmap[1][displayY][displayX] = orig;
                     heatmap[2][displayY][displayX] = orig;
@@ -199,7 +201,7 @@ public class DistorsionDebugImageCreator {
             });
             RGBImage image = (RGBImage) scaling.relativeRescale(Map.of("img", heatmapImage, "sx", scale, "sy", scale));
 
-            return new float[][][]{image.r(), image.g(), image.b()};
+            return new float[][][]{image.red().toArray(), image.green().toArray(), image.blue().toArray()};
         });
     }
 

@@ -41,7 +41,7 @@ class WeightedAverageTest extends Specification {
 
         then:
         result instanceof ImageWrapper32
-        result.data()[0][0] == 10f
+        result.pixels().get(0, 0) == 10f
     }
 
     def "weighted_avg2 accepts a single image and a single weight"() {
@@ -50,7 +50,7 @@ class WeightedAverageTest extends Specification {
 
         then:
         result instanceof ImageWrapper32
-        result.data()[0][0] == 10f
+        result.pixels().get(0, 0) == 10f
     }
 
     def "weighted_avg2 accepts single element lists"() {
@@ -59,7 +59,7 @@ class WeightedAverageTest extends Specification {
 
         then:
         result instanceof ImageWrapper32
-        result.data()[0][0] == 10f
+        result.pixels().get(0, 0) == 10f
     }
 
     def "weighted_avg2 still averages multiple images"() {
@@ -67,7 +67,7 @@ class WeightedAverageTest extends Specification {
         def result = utilities.weightedAverage2([images: [image(10f), image(20f)], weights: [1d, 3d], sigma: 2.5d])
 
         then:
-        result.data()[0][0] == 17.5f
+        result.pixels().get(0, 0) == 17.5f
     }
 
     def "weighted_avg2 rejects a mismatch between images and weights"() {
@@ -111,7 +111,7 @@ class WeightedAverageTest extends Specification {
         def result = utilities.weightedAverage2([images: images, weights: weights, sigma: 1d])
 
         then:
-        result.data()[0][0] == 100f
+        result.pixels().get(0, 0) == 100f
     }
 
     def "weighted_avg matches a reference implementation"() {
@@ -127,7 +127,7 @@ class WeightedAverageTest extends Specification {
         var expected = referenceWeightedAverage(images, weights)
         for (int y = 0; y < 8; y++) {
             for (int x = 0; x < 8; x++) {
-                assert Math.abs(result.data()[y][x] - expected[y][x]) < 1e-2
+                assert Math.abs(result.pixels().get(x, y) - expected[y][x]) < 1e-2
             }
         }
     }
@@ -145,7 +145,7 @@ class WeightedAverageTest extends Specification {
         var expected = referenceWeightedAverage2(images, weights, 2.5d)
         for (int y = 0; y < 8; y++) {
             for (int x = 0; x < 8; x++) {
-                assert Math.abs(result.data()[y][x] - expected[y][x]) < 1e-2
+                assert Math.abs(result.pixels().get(x, y) - expected[y][x]) < 1e-2
             }
         }
     }
@@ -167,7 +167,7 @@ class WeightedAverageTest extends Specification {
                 double sum = 0
                 double totalWeight = 0
                 for (int i = 0; i < images.size(); i++) {
-                    sum += weights[i] * images[i].data()[y][x]
+                    sum += weights[i] * images[i].pixels().get(x, y)
                     totalWeight += weights[i]
                 }
                 expected[y][x] = totalWeight == 0 ? 0 : sum / totalWeight
@@ -183,21 +183,21 @@ class WeightedAverageTest extends Specification {
                 double sum = 0
                 double totalWeight = 0
                 for (int i = 0; i < images.size(); i++) {
-                    sum += weights[i] * images[i].data()[y][x]
+                    sum += weights[i] * images[i].pixels().get(x, y)
                     totalWeight += weights[i]
                 }
                 var mean = sum / totalWeight
                 double variance = 0
                 for (int i = 0; i < images.size(); i++) {
-                    var delta = images[i].data()[y][x] - mean
+                    var delta = images[i].pixels().get(x, y) - mean
                     variance += weights[i] * delta * delta
                 }
                 var threshold = sigma * Math.sqrt(variance / totalWeight)
                 double keptSum = 0
                 double keptWeight = 0
                 for (int i = 0; i < images.size(); i++) {
-                    if (Math.abs(images[i].data()[y][x] - mean) <= threshold) {
-                        keptSum += weights[i] * images[i].data()[y][x]
+                    if (Math.abs(images[i].pixels().get(x, y) - mean) <= threshold) {
+                        keptSum += weights[i] * images[i].pixels().get(x, y)
                         keptWeight += weights[i]
                     }
                 }

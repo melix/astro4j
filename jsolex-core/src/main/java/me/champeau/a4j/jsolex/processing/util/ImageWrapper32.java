@@ -15,31 +15,34 @@
  */
 package me.champeau.a4j.jsolex.processing.util;
 
+import me.champeau.a4j.math.image.ImagePlane;
 import me.champeau.a4j.math.image.Image;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * A wrapper for images which are using 32-bit floats.
- * @param width the width of the image
- * @param height the height of the image
- * @param data the image data
- * @param metadata the image metadata
+ * A monochrome image with 32-bit floating point pixels.
  */
-public record ImageWrapper32(
-        int width,
-        int height,
-        float[][] data,
-        Map<Class<?>, Object> metadata
-) implements ImageWrapper {
-    public ImageWrapper32 {
-        if (data.length != height) {
-            throw new IllegalArgumentException("Inconsistent image height");
-        }
-        if (data.length>0 && data[0].length != width) {
-            throw new IllegalArgumentException("Inconsistent image width");
-        }
+public final class ImageWrapper32 implements ImageWrapper {
+    private final ImagePlane pixels;
+    private final Map<Class<?>, Object> metadata;
+
+    public ImageWrapper32(ImagePlane pixels, Map<Class<?>, Object> metadata) {
+        this.pixels = pixels;
+        this.metadata = metadata;
+    }
+
+    /**
+     * Creates an image holding a copy of the given pixels.
+     *
+     * @param width the width
+     * @param height the height
+     * @param data the pixels, indexed by row then column
+     * @param metadata the metadata
+     */
+    public ImageWrapper32(int width, int height, float[][] data, Map<Class<?>, Object> metadata) {
+        this(ImagePlane.of(width, height, data), metadata);
     }
 
     /**
@@ -48,23 +51,47 @@ public record ImageWrapper32(
      * @return a new empty image
      */
     public static ImageWrapper32 createEmpty() {
-        return new ImageWrapper32(0, 0, new float[0][0], MutableMap.of());
+        return new ImageWrapper32(ImagePlane.allocate(0, 0), MutableMap.of());
     }
 
+    @Override
+    public int width() {
+        return pixels.width();
+    }
+
+    @Override
+    public int height() {
+        return pixels.height();
+    }
+
+    public ImagePlane pixels() {
+        return pixels;
+    }
+
+    @Override
+    public Map<Class<?>, Object> metadata() {
+        return metadata;
+    }
+
+    /**
+     * Returns a copy of this image for use by the math library.
+     *
+     * @return a new image
+     */
     public Image asImage() {
-        return new Image(width, height, data);
+        return new Image(width(), height(), pixels.toArray());
     }
 
     public static ImageWrapper32 fromImage(Image image) {
-        return new ImageWrapper32(image.width(), image.height(), image.data(), MutableMap.of());
+        return fromImage(image, MutableMap.of());
     }
 
     public static ImageWrapper32 fromImage(Image image, Map<Class<?>, Object> metadata) {
         return new ImageWrapper32(image.width(), image.height(), image.data(), metadata);
     }
 
+    @Override
     public ImageWrapper32 copy() {
-        float[][] copy = ImageWrapper.copyData(data);
-        return new ImageWrapper32(width, height, copy, new LinkedHashMap<>(metadata));
+        return new ImageWrapper32(pixels.copy(), new LinkedHashMap<>(metadata));
     }
 }

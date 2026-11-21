@@ -36,7 +36,6 @@ import me.champeau.a4j.jsolex.processing.expr.impl.Utilities;
 import me.champeau.a4j.jsolex.processing.file.FileNamingStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.util.Constants;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
@@ -133,9 +132,6 @@ public class StackingWorkflow {
         var cropped = crop.autocrop2(Map.of("img", stackedImages));
         if (cropped instanceof List<?> list) {
             var croppedImages = list.stream()
-                    .filter(ImageWrapper.class::isInstance)
-                    .map(ImageWrapper.class::cast)
-                    .map(ImageWrapper::unwrapToMemory)
                     .filter(ImageWrapper32.class::isInstance)
                     .map(ImageWrapper32.class::cast)
                     .toList();
@@ -146,7 +142,7 @@ public class StackingWorkflow {
                             GeneratedImageKind.COMPOSITION,
                             "mosaic",
                             outputDirectory.toPath().resolve(fileName),
-                            FileBackedImage.wrap(mosaic),
+                            mosaic,
                             message("mosaic.description")
                     )
             ));
@@ -167,7 +163,7 @@ public class StackingWorkflow {
                             GeneratedImageKind.COMPOSITION,
                             label,
                             outputDirectory.toPath().resolve(fileName),
-                            FileBackedImage.wrap(stackedImage),
+                            stackedImage,
                             null
                     )
             ));
@@ -213,7 +209,6 @@ public class StackingWorkflow {
         private static ImageWrapper32 toMono(ImageWrapper image) {
             return switch (image) {
                 case ImageWrapper32 img32 -> img32;
-                case FileBackedImage img -> toMono(img.unwrapToMemory());
                 case RGBImage rgbImage -> rgbImage.toMono();
             };
         }

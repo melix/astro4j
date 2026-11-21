@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.util;
 
+import me.champeau.a4j.math.image.ImagePlane;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.stretching.RangeExpansionStrategy;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
@@ -40,24 +41,25 @@ public class DebugImageHelper {
                                              Ellipse ellipse,
                                              Point2D... interestPoints) {
         if (processParams.extraParams().generateDebugImages()) {
-            var copy = bandingFixed.copy();
-            RangeExpansionStrategy.DEFAULT.stretch(copy);
             var width = bandingFixed.width();
             var height = bandingFixed.height();
-            drawEllipse(width, height, ellipse, copy.data());
+            var overlay = bandingFixed.pixels().toArray();
+            RangeExpansionStrategy.DEFAULT.stretch(width, height, overlay);
+            drawEllipse(width, height, ellipse, overlay);
             for (Point2D point : interestPoints) {
-                plot(point, width, height, copy.data(), 12);
+                plot(point, width, height, overlay, 12);
             }
-            produceOverlayImage(processedImagesEmitter, width, height, copy.data(), bandingFixed.data(), bandingFixed.metadata());
+            produceOverlayImage(processedImagesEmitter, width, height, overlay, bandingFixed.pixels(), bandingFixed.metadata());
         }
     }
 
-    private static void produceOverlayImage(ImageEmitter processedImagesEmitter, int width, int height, float[][] newData, float[][] original, Map<Class<?>, Object> metadata) {
+    private static void produceOverlayImage(ImageEmitter processedImagesEmitter, int width, int height, float[][] newData, ImagePlane original, Map<Class<?>, Object> metadata) {
         processedImagesEmitter.newColorImage(GeneratedImageKind.DEBUG, null, message("tilt.detection"), "tilt", message("tilt.detection.description"), width, height, metadata, () -> {
+            var originalData = original.toArray();
             float[][][] rgb = new float[3][][];
             rgb[0] = newData;
-            rgb[1] = original;
-            rgb[2] = original;
+            rgb[1] = originalData;
+            rgb[2] = originalData;
             return rgb;
         });
     }

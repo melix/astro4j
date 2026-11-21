@@ -24,7 +24,6 @@ import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.DrawUtils;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.MetadataMerger;
@@ -97,12 +96,7 @@ public class MosaicComposition extends AbstractFunctionImpl {
             arg = map.get("list");
         }
         if (arg instanceof List<?> list) {
-            var images = list.stream().filter(ImageWrapper.class::isInstance).map(img -> {
-                if (img instanceof FileBackedImage fbi) {
-                    return fbi.unwrapToMemory();
-                }
-                return img;
-            }).filter(ImageWrapper32.class::isInstance).map(ImageWrapper32.class::cast).toList();
+            var images = list.stream().filter(ImageWrapper32.class::isInstance).map(ImageWrapper32.class::cast).toList();
             if (images.isEmpty()) {
                 return List.of();
             }
@@ -136,7 +130,6 @@ public class MosaicComposition extends AbstractFunctionImpl {
             broadcaster.broadcast(mainOperation.update(0.05));
             var rescaled = scaling.performRadiusRescale(backgroundNeutralized)
                 .stream()
-                .map(ImageWrapper::unwrapToMemory)
                 .map(ImageWrapper32.class::cast).toList();
             broadcaster.broadcast(mainOperation.update(0.1));
             var adjustment = normalizeHistograms(rescaled);
@@ -187,7 +180,8 @@ public class MosaicComposition extends AbstractFunctionImpl {
             Map<Point2D, Optional<DistorsionSample>> cachedInterestPoints = new ConcurrentHashMap<>();
             first = corrected.getFirst();
             var second = corrected.get(1);
-            var warpedCompareData = ImageWrapper.copyData(first.data());
+            var warpedCompareData = first.pixels().toArray();
+            var otherData = second.pixels().toArray();
             var threshold = background;
             var noUpdateCount = 0;
             var pairOperation = parentOperation.createChild(String.format(message("mosaic.assembling.pair"), pairsDone, totalPairs, 0));
@@ -199,10 +193,9 @@ public class MosaicComposition extends AbstractFunctionImpl {
                 var compare = corrected.get(1);
                 var referenceIntegral = imageMath.integralImage(reference.asImage());
                 var compareIntegral = integralImages.get(compare);
-                var referenceData = reference.data();
+                var referenceData = reference.pixels().toArray();
                 var feat = findInterestPoints(reference, referenceIntegral, compareIntegral, threshold, distorsionGridSize);
                 var length = width * height;
-                var otherData = compare.data();
                 var assembledData = ImageWrapper.copyData(referenceData);
                 var updated = false;
                 Map<Point2D, List<Point2D>> localInterestPoints = new HashMap<>();
@@ -221,7 +214,7 @@ public class MosaicComposition extends AbstractFunctionImpl {
                                 assembleSingleTile(distorsionGridSize, x, y, x, y, width, height, assembledData, otherData, warpedCompareData, mask);
                             } else {
                                 var point = new Point2D(x, y);
-                                var samples = findBestMatches(cachedInterestPoints, reference, referenceIntegral, localPoints, compare, compareIntegral, distorsionGridSize, step, x, y, dist);
+                                var samples = findBestMatches(cachedInterestPoints, reference, referenceData, referenceIntegral, localPoints, otherData, compareIntegral, distorsionGridSize, step, x, y, dist);
                                 if (!samples.isEmpty()) {
                                     var restrictedSamples = samples.stream().filter(s -> s.distanceTo(point) <= dist).toList();
                                     var avgError = restrictedSamples.stream().mapToDouble(DistorsionSample::error).average().orElse(0);
@@ -308,7 +301,7 @@ public class MosaicComposition extends AbstractFunctionImpl {
      * (top/bottom, left/right, diagonal) works.
      */
     private ImageWrapper32 mosaicBlend(ImageWrapper32 reference, ImageWrapper32 compare, float[][] smoothCompareData, float background, int width, int height) {
-        var referenceData = reference.data();
+        var referenceData = reference.pixels().toArray();
         var refThreshold = computeValidityThreshold(referenceData, width, height, background);
         var cmpThreshold = computeValidityThreshold(smoothCompareData, width, height, background);
         LOGGER.debug("Validity thresholds: ref={} cmp={} (background={})", refThreshold, cmpThreshold, background);
@@ -564,7 +557,7 @@ public class MosaicComposition extends AbstractFunctionImpl {
     }
 
     private float[][] buildSmoothWarpedCompare(ImageWrapper32 second, Map<Point2D, Optional<DistorsionSample>> cachedInterestPoints, int width, int height) {
-        var source = second.data();
+        var source = second.pixels().toArray();
         var samples = cachedInterestPoints.values().stream()
                 .filter(Optional::isPresent)
                 .map(Optional::get)
@@ -572,12 +565,12 @@ public class MosaicComposition extends AbstractFunctionImpl {
                 .toList();
         if (samples.size() < 8) {
             LOGGER.warn("Only {} distorsion samples available; using identity warp for mosaic blend", samples.size());
-            return ImageWrapper.copyData(source);
+            return source;
         }
         var globalModel = buildDistorsionModel(samples);
         if (!globalModel.isValid() || globalModel == DistorsionModel.NO_DISTORSION) {
             LOGGER.warn("Invalid distorsion model; using identity warp for mosaic blend");
-            return ImageWrapper.copyData(source);
+            return source;
         }
         var out = new float[height][width];
         var polyX = globalModel.modelForX().asPolynomial();
@@ -717,14 +710,12 @@ public class MosaicComposition extends AbstractFunctionImpl {
         return Collections.unmodifiableList(result);
     }
 
-    private List<DistorsionSample> findBestMatches(Map<Point2D, Optional<DistorsionSample>> cache, ImageWrapper32 reference, Image referenceIntegral, List<Point2D> referencePoints, ImageWrapper32 other, Image otherIntegral, int tileSize, int step,
+    private List<DistorsionSample> findBestMatches(Map<Point2D, Optional<DistorsionSample>> cache, ImageWrapper32 reference, float[][] referenceData, Image referenceIntegral, List<Point2D> referencePoints, float[][] data, Image otherIntegral, int tileSize, int step,
                                                    int refX, int refY, double maxDist) {
         var progressOperation = newOperation().createChild(FINDING_MATCHES_MESSAGE.formatted(step));
         broadcaster.broadcast(progressOperation);
         var width = reference.width();
         var height = reference.height();
-        var referenceData = reference.data();
-        var data = other.data();
         var maxDistSquared = maxDist * maxDist;
         try {
             return referencePoints.stream().parallel().<DistorsionSample>mapMulti((referencePoint, consumer) -> {
@@ -766,9 +757,10 @@ public class MosaicComposition extends AbstractFunctionImpl {
      * @return the adjusted images and a shared background-level estimate
      */
     private HistogramNormalization normalizeHistograms(List<ImageWrapper32> images) {
-        record ImageWithBackground(ImageWrapper32 image, float background) {
-            public int pixelsAboveBackground() {
-                var data = image.data();
+        record ImageWithBackground(ImageWrapper32 image, float background, int pixelsAboveBackground) {
+            static ImageWithBackground of(ImageWrapper32 image) {
+                var data = image.pixels().toArray();
+                var background = estimateBackgroundLevel(data);
                 var count = 0;
                 for (var line : data) {
                     for (var v : line) {
@@ -777,7 +769,7 @@ public class MosaicComposition extends AbstractFunctionImpl {
                         }
                     }
                 }
-                return count;
+                return new ImageWithBackground(image, background, count);
             }
         }
         var progressOperation = newOperation().createChild(message("normalizing.histograms"));
@@ -791,7 +783,7 @@ public class MosaicComposition extends AbstractFunctionImpl {
                 var avgs = new float[nImages];
                 for (var i = 0; i < nImages; i++) {
                     var img = adjusted.get(i);
-                    var signal = estimateBackgroundLevel(img.data(), 64);
+                    var signal = estimateBackgroundLevel(img.pixels().toArray(), 64);
                     avgs[i] = averageOfPixelsAbove(img, signal);
                     maxAvg = Math.max(avgs[i], maxAvg);
                 }
@@ -806,7 +798,7 @@ public class MosaicComposition extends AbstractFunctionImpl {
                 }
             }
 
-            var backgrounds = adjusted.stream().parallel().map(img -> new ImageWithBackground(img, estimateBackgroundLevel(img.data()))).toList();
+            var backgrounds = adjusted.stream().parallel().map(ImageWithBackground::of).toList();
             adjusted = backgrounds.stream().sorted(Comparator.comparingInt(ImageWithBackground::pixelsAboveBackground).reversed()).map(ImageWithBackground::image).collect(Collectors.toCollection(ArrayList::new));
             var averageBackground = backgrounds.stream().mapToDouble(ImageWithBackground::background).average().orElse(0);
             var background = (float) (0.8 * averageBackground);
@@ -820,7 +812,7 @@ public class MosaicComposition extends AbstractFunctionImpl {
         var correction = target / current;
         var result = image.copy();
         if (correction != 1) {
-            var data = result.data();
+            var data = result.pixels().toArray();
             var height = result.height();
             var width = result.width();
             for (var y = 0; y < height; y++) {
@@ -828,12 +820,13 @@ public class MosaicComposition extends AbstractFunctionImpl {
                     data[y][x] = Math.max(0, Math.min(Constants.MAX_PIXEL_VALUE, data[y][x] * correction));
                 }
             }
+            result.pixels().copyFrom(data);
         }
         return result;
     }
 
     private static float averageOfPixelsAbove(ImageWrapper32 image, float threshold) {
-        var data = image.data();
+        var data = image.pixels().toArray();
         var total = 0d;
         var count = 0;
         var height = image.height();
@@ -860,6 +853,7 @@ public class MosaicComposition extends AbstractFunctionImpl {
             return;
         }
         var cpt = DEBUG_COUNTER.incrementAndGet();
+        var pixels = corrected.stream().limit(2).map(image -> image.pixels().toArray()).toList();
         IntStream.range(0, candidates.size()).mapToObj(i -> new Object() {
                 private final DistorsionSample candidate = candidates.get(i);
                 private final int idx = i;
@@ -871,7 +865,7 @@ public class MosaicComposition extends AbstractFunctionImpl {
                 var bi = new BufferedImage(width * 2, height, BufferedImage.TYPE_INT_RGB);
                 var g = bi.createGraphics();
                 for (var i = 0; i < 2; i++) {
-                    var img = corrected.get(i).data();
+                    var img = pixels.get(i);
                     var offset = width * i;
                     for (var y = 0; y < height; y++) {
                         for (var x = 0; x < width; x++) {
@@ -907,7 +901,7 @@ public class MosaicComposition extends AbstractFunctionImpl {
             });
         var tmp = new float[2 * height][width];
         for (var i = 0; i < 2; i++) {
-            var img = corrected.get(i).data();
+            var img = pixels.get(i);
             for (var y = 0; y < height; y++) {
                 for (var x = 0; x < width; x++) {
                     tmp[y * 2 + i][x] = img[y][x];

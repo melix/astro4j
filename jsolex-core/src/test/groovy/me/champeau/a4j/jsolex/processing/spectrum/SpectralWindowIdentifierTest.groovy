@@ -240,7 +240,7 @@ class SpectralWindowIdentifierTest extends Specification {
     private static Frame load(String resource) {
         def file = new File(SpectralWindowIdentifierTest.getResource(resource).toURI())
         def image = (ImageWrapper32) FitsUtils.readFitsFile(file)
-        return new Frame(image.width(), image.height(), image.data())
+        return new Frame(image.width(), image.height(), image.pixels().toArray())
     }
 
     private record Frame(int width, int height, float[][] data) {

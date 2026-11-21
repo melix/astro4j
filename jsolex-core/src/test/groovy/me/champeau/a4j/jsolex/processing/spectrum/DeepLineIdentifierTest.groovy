@@ -217,7 +217,7 @@ class DeepLineIdentifierTest extends Specification {
     private static Fixture load(String resource) {
         def file = new File(DeepLineIdentifierTest.getResource(resource).toURI())
         def image = (ImageWrapper32) FitsUtils.readFitsFile(file)
-        return new Fixture(image.width(), image.height(), image.data())
+        return new Fixture(image.width(), image.height(), image.pixels().toArray())
     }
 
     private record Fixture(int width, int height, float[][] data) {

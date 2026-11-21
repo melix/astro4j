@@ -23,6 +23,8 @@ import me.champeau.a4j.math.regression.Ellipse;
  * Utility class for image analysis operations.
  */
 public class AnalysisUtils {
+    private static final int STRIP_PIXELS = 1 << 18;
+
     private AnalysisUtils() {
     }
 
@@ -36,23 +38,14 @@ public class AnalysisUtils {
     public static double estimateBlackPoint(ImageWrapper32 image, Ellipse ellipse) {
         var width = image.width();
         var height = image.height();
-        var buffer = image.data();
-        double blackEstimate = Double.MAX_VALUE;
-        int cpt = 0;
         var cx = ellipse.center().a();
         var cy = ellipse.center().b();
-        for (int x = 0; x < width; x++) {
-            for (int y = 0; y < height; y++) {
-                if (!ellipse.isWithin(x, y)) {
-                    var v = buffer[y][x];
-                    if (v > 0 && Float.isFinite(v)) {
-                        var offcenter = 2 * Math.sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy)) / (width + height);
-                        blackEstimate = blackEstimate + (offcenter * v - blackEstimate) / (++cpt);
-                    }
-                }
-            }
-        }
-        return cpt == 0 ? 0 : blackEstimate;
+        var mean = new RunningMean();
+        forEachBackgroundPixel(image.pixels()::getRow, width, height, ellipse, (x, y, v) -> {
+            var offcenter = 2 * Math.sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy)) / (width + height);
+            mean.add(offcenter * v);
+        });
+        return mean.result();
     }
 
     /**
@@ -63,22 +56,74 @@ public class AnalysisUtils {
      * @return the estimated background level
      */
     public static double estimateBackground(ImageWrapper32 image, Ellipse ellipse) {
-        var width = image.width();
-        var height = image.height();
-        var buffer = image.data();
-        double avg = Double.MAX_VALUE;
-        int cpt = 0;
-        for (int x = 0; x < width; x++) {
+        return estimateBackground(image.pixels()::getRow, image.width(), image.height(), ellipse);
+    }
+
+    /**
+     * Estimates the background level of pixels outside the solar disk.
+     *
+     * @param buffer  the pixels, indexed by row then column
+     * @param ellipse the solar disk ellipse
+     * @return the estimated background level
+     */
+    public static double estimateBackground(float[][] buffer, Ellipse ellipse) {
+        var height = buffer.length;
+        var width = height == 0 ? 0 : buffer[0].length;
+        return estimateBackground((y, x, target, offset, length) -> System.arraycopy(buffer[y], x, target, offset, length), width, height, ellipse);
+    }
+
+    private static double estimateBackground(RowReader rows, int width, int height, Ellipse ellipse) {
+        var mean = new RunningMean();
+        forEachBackgroundPixel(rows, width, height, ellipse, (x, y, v) -> mean.add(v));
+        return mean.result();
+    }
+
+    private static void forEachBackgroundPixel(RowReader rows, int width, int height, Ellipse ellipse, PixelConsumer consumer) {
+        if (width == 0 || height == 0) {
+            return;
+        }
+        var stripWidth = Math.clamp(STRIP_PIXELS / height, 1, width);
+        var strip = new float[stripWidth * height];
+        for (int x0 = 0; x0 < width; x0 += stripWidth) {
+            var w = Math.min(stripWidth, width - x0);
             for (int y = 0; y < height; y++) {
-                if (!ellipse.isWithin(x, y)) {
-                    var v = buffer[y][x];
-                    if (v > 0 && Float.isFinite(v)) {
-                        avg = avg + (v - avg) / (++cpt);
+                rows.read(y, x0, strip, y * w, w);
+            }
+            for (int dx = 0; dx < w; dx++) {
+                var x = x0 + dx;
+                for (int y = 0; y < height; y++) {
+                    if (!ellipse.isWithin(x, y)) {
+                        var v = strip[y * w + dx];
+                        if (v > 0 && Float.isFinite(v)) {
+                            consumer.accept(x, y, v);
+                        }
                     }
                 }
             }
         }
-        return cpt == 0 ? 0 : avg;
+    }
+
+    @FunctionalInterface
+    private interface RowReader {
+        void read(int y, int x, float[] target, int offset, int length);
+    }
+
+    @FunctionalInterface
+    private interface PixelConsumer {
+        void accept(int x, int y, float v);
+    }
+
+    private static final class RunningMean {
+        private double value = Double.MAX_VALUE;
+        private int count;
+
+        void add(double v) {
+            value = value + (v - value) / (++count);
+        }
+
+        double result() {
+            return count == 0 ? 0 : value;
+        }
     }
 
     /**

@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.util;
 
+import me.champeau.a4j.utilities.TemporaryFolder;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;

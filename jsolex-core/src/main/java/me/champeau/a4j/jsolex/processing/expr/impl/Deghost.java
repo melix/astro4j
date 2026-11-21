@@ -21,7 +21,6 @@ import me.champeau.a4j.jsolex.processing.expr.impl.deghost.GhostShift;
 import me.champeau.a4j.jsolex.processing.expr.impl.deghost.PolarGrid;
 import me.champeau.a4j.jsolex.processing.expr.impl.deghost.RimProfile;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.math.image.ImageMath;
 import me.champeau.a4j.math.regression.Ellipse;
@@ -86,9 +85,6 @@ public class Deghost extends AbstractFunctionImpl {
         if (arg instanceof List<?>) {
             return expandToImageList("deghost", "img", arguments, args -> deghost(args, reference));
         }
-        if (arg instanceof FileBackedImage fileBackedImage) {
-            arg = fileBackedImage.unwrapToMemory();
-        }
         if (!(arg instanceof ImageWrapper32)) {
             throw new IllegalArgumentException("deghost only supports mono images");
         }
@@ -126,9 +122,6 @@ public class Deghost extends AbstractFunctionImpl {
         if (ref == null) {
             return null;
         }
-        if (ref instanceof FileBackedImage fileBackedImage) {
-            ref = fileBackedImage.unwrapToMemory();
-        }
         if (!(ref instanceof ImageWrapper32 image)) {
             throw new IllegalArgumentException("deghost only supports a mono reference image");
         }
@@ -141,7 +134,7 @@ public class Deghost extends AbstractFunctionImpl {
             return new Reference(List.of(), 1);
         }
         var outerR = SAMPLE_RADIUS * disk.radius();
-        var detection = detect(samplePolar(image.data(), disk, outerR), disk.radius(), outerR);
+        var detection = detect(samplePolar(image.pixels().toArray(), disk, outerR), disk.radius(), outerR);
         return new Reference(detection.reflections(), disk.radius());
     }
 
@@ -152,7 +145,7 @@ public class Deghost extends AbstractFunctionImpl {
         if (disk.radius() <= 0) {
             return;
         }
-        var data = image.data();
+        var data = image.pixels().toArray();
         var reflection = estimateReflection(data, disk, reference);
         if (reflection == null) {
             return;
@@ -185,6 +178,7 @@ public class Deghost extends AbstractFunctionImpl {
                 }
             }
         }
+        image.pixels().copyFrom(data);
     }
 
     /**

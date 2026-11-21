@@ -115,8 +115,8 @@ class NoAutomaticClampingTest extends Specification {
         var result = (ImageWrapper32) stretching.lift(["img": image])
 
         then: "the whole image is translated, differences are unchanged"
-        result.data()[0][0] == 0f
-        result.data()[0][1] == 3000f
+        result.pixels().get(0, 0) == 0f
+        result.pixels().get(1, 0) == 3000f
     }
 
     def "a scalar on the left of a non commutative operator keeps its side"() {
@@ -141,6 +141,6 @@ class NoAutomaticClampingTest extends Specification {
 
     private static float pixel(Object result) {
         var image = result instanceof List ? result.first() : result
-        ((ImageWrapper32) image).data()[0][0]
+        ((ImageWrapper32) image).pixels().get(0, 0)
     }
 }

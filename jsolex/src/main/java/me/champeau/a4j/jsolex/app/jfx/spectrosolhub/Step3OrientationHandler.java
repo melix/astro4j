@@ -50,7 +50,6 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.util.SolarParametersUtils;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.GONG;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -332,11 +331,7 @@ class Step3OrientationHandler implements StepHandler {
 
     private void displayUserImage(MultipleImagesViewer.ImageInfo representative) {
         try {
-            var wrapper = representative.image();
-            if (wrapper instanceof FileBackedImage fbi) {
-                wrapper = fbi.unwrapToMemory();
-            }
-            var image = wrapper.copy();
+            var image = representative.image().copy();
             image = applyPAngleCorrectionIfNeeded(image, representative.kind());
             image = scaling.rescaleToRadius(image, 225, 512, 512);
             LinearStrechingStrategy.DEFAULT.stretch(image);
@@ -386,9 +381,6 @@ class Step3OrientationHandler implements StepHandler {
     private ScoredCandidate scoreAgainstGong(MultipleImagesViewer.ImageInfo candidate, Image gongImage) {
         try {
             var wrapper = candidate.image();
-            if (wrapper instanceof FileBackedImage fbi) {
-                wrapper = fbi.unwrapToMemory();
-            }
             var detection = GongOrientationAnalyzer.detect(wrapper, 0, gongImage, false);
             return new ScoredCandidate(candidate, detection.score(), wrapper instanceof ImageWrapper32);
         } catch (Exception e) {

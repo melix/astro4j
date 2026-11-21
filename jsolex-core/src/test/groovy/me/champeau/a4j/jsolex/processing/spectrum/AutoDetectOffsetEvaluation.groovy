@@ -57,7 +57,7 @@ class AutoDetectOffsetEvaluation extends Specification {
             def image = (ImageWrapper32) FitsUtils.readFitsFile(fixture.file)
             def width = image.width()
             def height = image.height()
-            def data = image.data()
+            def data = image.pixels().toArray()
             def analysis = new SpectrumFrameAnalyzer(width, height, false, null).analyze(data)
             def polynomial = analysis.distortionPolynomial().orElse(null)
             if (polynomial == null) {
@@ -107,7 +107,8 @@ class AutoDetectOffsetEvaluation extends Specification {
         and: "the misidentified Fe 5302 scan, with its own instrument"
         def f = new File(AutoDetectOffsetEvaluation.getResource('/lineid/fe5302-misidentified.fits').toURI())
         def img = (ImageWrapper32) FitsUtils.readFitsFile(f)
-        def a = new SpectrumFrameAnalyzer(img.width(), img.height(), false, null).analyze(img.data())
+        def pixels = img.pixels().toArray()
+        def a = new SpectrumFrameAnalyzer(img.width(), img.height(), false, null).analyze(pixels)
         def poly = a.distortionPolynomial().get()
         def cands = []
         for (var line : SpectralRay.predefined()) {
@@ -116,7 +117,7 @@ class AutoDetectOffsetEvaluation extends Specification {
             }
         }
         def m = cands.stream().collect(Collectors.toMap(d -> d,
-                d -> SpectrumAnalyzer.computeDataPoints(d, poly, a.leftBorder().orElse(0), a.rightBorder().orElse(img.width()), img.width(), img.height(), img.data()),
+                d -> SpectrumAnalyzer.computeDataPoints(d, poly, a.leftBorder().orElse(0), a.rightBorder().orElse(img.width()), img.width(), img.height(), pixels),
                 (x, y) -> x, LinkedHashMap::new))
         def fixedFe = SpectrumAnalyzer.findBestMatch(m)
         def offsetFe = bestWithOffset(m)

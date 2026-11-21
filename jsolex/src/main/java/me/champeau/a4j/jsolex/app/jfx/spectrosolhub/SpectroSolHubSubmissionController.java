@@ -37,8 +37,7 @@ import com.google.gson.Gson;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.params.SpectralRay;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
-import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
+import me.champeau.a4j.utilities.TemporaryFolder;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
@@ -487,17 +486,16 @@ public class SpectroSolHubSubmissionController {
     }
 
     static byte[] imageToJpeg(ImageWrapper image) throws IOException {
-        if (image instanceof FileBackedImage fbi) {
-            image = fbi.unwrapToMemory();
-        }
-
         BufferedImage buffered;
         if (image instanceof ImageWrapper32 mono) {
             buffered = new BufferedImage(mono.width(), mono.height(), BufferedImage.TYPE_USHORT_GRAY);
             short[] data = ((DataBufferUShort) buffered.getRaster().getDataBuffer()).getData();
+            var pixels = mono.pixels();
+            var row = new float[mono.width()];
             for (int y = 0; y < mono.height(); y++) {
+                pixels.getRow(y, row);
                 for (int x = 0; x < mono.width(); x++) {
-                    data[y * mono.width() + x] = (short) Math.round(mono.data()[y][x]);
+                    data[y * mono.width() + x] = (short) Math.round(row[x]);
                 }
             }
             var rgb = new BufferedImage(mono.width(), mono.height(), BufferedImage.TYPE_INT_RGB);
@@ -511,11 +509,17 @@ public class SpectroSolHubSubmissionController {
         } else if (image instanceof RGBImage rgb) {
             buffered = new BufferedImage(rgb.width(), rgb.height(), BufferedImage.TYPE_INT_RGB);
             int[] data = ((DataBufferInt) buffered.getRaster().getDataBuffer()).getData();
+            var red = new float[rgb.width()];
+            var green = new float[rgb.width()];
+            var blue = new float[rgb.width()];
             for (int y = 0; y < rgb.height(); y++) {
+                rgb.red().getRow(y, red);
+                rgb.green().getRow(y, green);
+                rgb.blue().getRow(y, blue);
                 for (int x = 0; x < rgb.width(); x++) {
-                    int r = Math.round(rgb.r()[y][x]) >> 8 & 0xFF;
-                    int g = Math.round(rgb.g()[y][x]) >> 8 & 0xFF;
-                    int b = Math.round(rgb.b()[y][x]) >> 8 & 0xFF;
+                    int r = Math.round(red[x]) >> 8 & 0xFF;
+                    int g = Math.round(green[x]) >> 8 & 0xFF;
+                    int b = Math.round(blue[x]) >> 8 & 0xFF;
                     data[y * rgb.width() + x] = (r << 16) | (g << 8) | b;
                 }
             }

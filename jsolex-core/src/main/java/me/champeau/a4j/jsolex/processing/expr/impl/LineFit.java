@@ -19,7 +19,6 @@ import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.SpectralLineFit;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
-import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
 import java.util.ArrayList;
@@ -51,7 +50,7 @@ public class LineFit extends AbstractFunctionImpl {
             }
             var pixelShift = image.findMetadata(PixelShift.class)
                     .orElseThrow(() -> new IllegalArgumentException("line_fit requires images with a pixel shift, for example obtained with range"));
-            cube[i] = image.data();
+            cube[i] = image.pixels().toArray();
             positions[i] = pixelShift.pixelShift();
         }
         var shift = getAsNumber(arguments, "shift").doubleValue();
@@ -92,7 +91,7 @@ public class LineFit extends AbstractFunctionImpl {
     }
 
     private static ImageWrapper32 asMonoImage(Object item) {
-        if (item instanceof ImageWrapper wrapper && wrapper.unwrapToMemory() instanceof ImageWrapper32 mono) {
+        if (item instanceof ImageWrapper32 mono) {
             return mono;
         }
         throw new IllegalArgumentException("line_fit only supports mono images");

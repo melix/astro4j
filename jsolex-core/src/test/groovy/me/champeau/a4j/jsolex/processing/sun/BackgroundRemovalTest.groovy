@@ -36,7 +36,7 @@ class BackgroundRemovalTest extends Specification {
 
         then:
         result.isPresent()
-        def bgData = result.get().data()
+        def bgData = result.get().pixels().toArray()
         !hasNaN(bgData, width, height)
         !hasInfinity(bgData, width, height)
 
@@ -57,7 +57,7 @@ class BackgroundRemovalTest extends Specification {
 
         then:
         result.isPresent()
-        def bgData = result.get().data()
+        def bgData = result.get().pixels().toArray()
         !hasNaN(bgData, width, height)
         !hasInfinity(bgData, width, height)
 
@@ -80,8 +80,8 @@ class BackgroundRemovalTest extends Specification {
         def mask = { Integer x, Integer y -> x < width / 2 } as BiPredicate
 
         when:
-        def masked = BackgroundRemoval.backgroundModel(image, 1, 2.0d, new float[height][width], mask).get().data()
-        def unmasked = BackgroundRemoval.backgroundModel(image, 1, 2.0d).get().data()
+        def masked = BackgroundRemoval.backgroundModel(image, 1, 2.0d, new float[height][width], mask).get().pixels().toArray()
+        def unmasked = BackgroundRemoval.backgroundModel(image, 1, 2.0d).get().pixels().toArray()
 
         then: "the masked model extrapolates the ramp over the bright half"
         Math.abs(masked[height / 2 as int][width - 1] - 300f) < 5f
@@ -99,8 +99,8 @@ class BackgroundRemovalTest extends Specification {
         def mask = { Integer x, Integer y -> true } as BiPredicate
 
         when:
-        def masked = BackgroundRemoval.backgroundModel(image, 1, 2.0d, new float[height][width], mask).get().data()
-        def unmasked = BackgroundRemoval.backgroundModel(image, 1, 2.0d).get().data()
+        def masked = BackgroundRemoval.backgroundModel(image, 1, 2.0d, new float[height][width], mask).get().pixels().toArray()
+        def unmasked = BackgroundRemoval.backgroundModel(image, 1, 2.0d).get().pixels().toArray()
 
         then: "the model follows a background centred on zero"
         Math.abs(masked[height / 2 as int][width / 2 as int]) < 10f

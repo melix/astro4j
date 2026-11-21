@@ -23,7 +23,7 @@ import me.champeau.a4j.jsolex.processing.util.ImageSerializer;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.MetadataIO;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
-import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
+import me.champeau.a4j.utilities.TemporaryFolder;
 import me.champeau.a4j.math.regression.Ellipse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

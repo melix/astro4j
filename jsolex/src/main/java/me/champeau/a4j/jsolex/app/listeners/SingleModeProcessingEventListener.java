@@ -148,6 +148,7 @@ import me.champeau.a4j.jsolex.processing.util.Dispersion;
 import me.champeau.a4j.jsolex.processing.util.DurationFormatter;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import me.champeau.a4j.jsolex.processing.util.Histogram;
+import me.champeau.a4j.math.image.ImagePlane;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.LocaleUtils;
@@ -901,10 +902,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                         // Only available if we have reference coordinates and a SER file
                         return addedImageViewer.getImage().findMetadata(ReferenceCoords.class).isPresent() && serFile != null;
                     }
-                    if (adjustedParams == null) {
-                        return false;
-                    }
-                    return true;
+                    return adjustedParams != null && imageEmitter != null;
                 }
 
                 @Override
@@ -1160,7 +1158,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                         progressBar.setProgress((double) index / serFiles.size());
                     });
                 }
-                var scan = i == 0 ? Optional.of(currentScan) : DifferentialRotationMeasurement.processScan(serFile, baseParams, outputDirectory, Configuration.getInstance().getMemoryRestrictionMultiplier(), rootOperation, this::onEllipseFittingRequest);
+                var scan = i == 0 ? Optional.of(currentScan) : DifferentialRotationMeasurement.processScan(serFile, baseParams, outputDirectory, rootOperation, this::onEllipseFittingRequest);
                 var points = scan.map(s -> DifferentialRotationMeasurement.measure(s, config,
                                 progress -> FxUtils.runLater(() -> progressBar.setProgress((index + progress) / serFiles.size()))))
                         .orElse(List.of());
@@ -1480,15 +1478,15 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
         var histograms = cachedHistograms.computeIfAbsent(imageWrapper, unused -> {
             if (imageWrapper instanceof ImageWrapper32 mono) {
                 return List.of(new CachedHistogram(Histogram.of(
-                        new Image(mono.width(), mono.height(), mono.data()), BINS
+                        mono.asImage(), BINS
                 ), "grey"));
             } else if (imageWrapper instanceof RGBImage rgbImage) {
-                var rgb = new float[][][]{rgbImage.r(), rgbImage.g(), rgbImage.b()};
+                var rgb = new ImagePlane[]{rgbImage.red(), rgbImage.green(), rgbImage.blue()};
                 List<CachedHistogram> result = new ArrayList<>(rgb.length);
                 for (var i = 0; i < rgb.length; i++) {
                     var channel = rgb[i];
                     result.add(new CachedHistogram(Histogram.of(
-                            new Image(rgbImage.width(), rgbImage.height(), channel), BINS
+                            new Image(rgbImage.width(), rgbImage.height(), channel.toArray()), BINS
                     ), RGB_COLORS[i]));
                 }
                 return result;
@@ -1886,7 +1884,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                         false,
                         false)
         ).withExtraParams(params.extraParams().withAutosave(false));
-        var solexVideoProcessor = new SolexVideoProcessor(serFile, outputDirectory, 0, tmpParams, LocalDateTime.now(), false, Configuration.getInstance().getMemoryRestrictionMultiplier(), rootOperation);
+        var solexVideoProcessor = new SolexVideoProcessor(serFile, outputDirectory, 0, tmpParams, LocalDateTime.now(), false, rootOperation);
         solexVideoProcessor.addEventListener(new ProcessingEventListener() {
             @Override
             public void onProcessingDone(ProcessingDoneEvent e) {
@@ -2883,7 +2881,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 ).withRequestedImages(
                         params.requestedImages().withPixelShifts(List.of(dataPoint.pixelShift()))
                 );
-                var solexVideoProcessor = new SolexVideoProcessor(serFile, outputDirectory, 0, newParams, LocalDateTime.now(), false, Configuration.getInstance().getMemoryRestrictionMultiplier(), rootOperation);
+                var solexVideoProcessor = new SolexVideoProcessor(serFile, outputDirectory, 0, newParams, LocalDateTime.now(), false, rootOperation);
                 solexVideoProcessor.addEventListener(this);
                 solexVideoProcessor.addEventListener(new ProcessingEventListener() {
                     @Override

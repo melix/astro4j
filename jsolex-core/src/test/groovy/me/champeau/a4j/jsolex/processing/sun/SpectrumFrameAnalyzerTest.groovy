@@ -85,7 +85,7 @@ class SpectrumFrameAnalyzerTest extends Specification {
         def image = FitsUtils.readFitsFile(file)
         def width = image.width()
         def height = image.height()
-        def data = ((ImageWrapper32)image).data()
+        def data = ((ImageWrapper32)image).pixels().toArray()
         def analyzer = new SpectrumFrameAnalyzer(width, height, false, null)
         def result = analyzer.analyze(data)
         def polynomial = result.distortionPolynomial().get()

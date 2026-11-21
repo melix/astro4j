@@ -16,7 +16,6 @@
 package me.champeau.a4j.jsolex.processing.stretching;
 
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
-import me.champeau.a4j.math.RowStrips;
 
 import java.util.function.BiPredicate;
 
@@ -107,7 +106,6 @@ public final class PercentileStretchStrategy implements StretchingStrategy {
 
     @Override
     public void stretch(ImageWrapper32 image) {
-        var data = image.data();
         var width = image.width();
         var height = image.height();
 
@@ -115,7 +113,8 @@ public final class PercentileStretchStrategy implements StretchingStrategy {
             return;
         }
 
-        var pixels = PixelCollection.collect(data, width, height, pixelMask);
+        var data = image.pixels();
+        var pixels = PixelCollection.collect(data, pixelMask);
         if (pixels.length == 0) {
             return;
         }
@@ -130,19 +129,17 @@ public final class PercentileStretchStrategy implements StretchingStrategy {
 
         float range = highValue - lowValue;
 
-        RowStrips.forEach(height, (yStart, yEnd) -> {
-            for (int y = yStart; y < yEnd; y++) {
-                for (int x = 0; x < width; x++) {
-                    float v = data[y][x];
-                    if (clipMode == ClipMode.NONE) {
-                        data[y][x] = ((v - lowValue) / range) * MAX_PIXEL_VALUE;
-                    } else if (v <= lowValue) {
-                        data[y][x] = 0;
-                    } else if (v >= highValue) {
-                        data[y][x] = MAX_PIXEL_VALUE;
-                    } else {
-                        data[y][x] = ((v - lowValue) / range) * MAX_PIXEL_VALUE;
-                    }
+        data.updateRows((y, row) -> {
+            for (int x = 0; x < width; x++) {
+                float v = row[x];
+                if (clipMode == ClipMode.NONE) {
+                    row[x] = ((v - lowValue) / range) * MAX_PIXEL_VALUE;
+                } else if (v <= lowValue) {
+                    row[x] = 0;
+                } else if (v >= highValue) {
+                    row[x] = MAX_PIXEL_VALUE;
+                } else {
+                    row[x] = ((v - lowValue) / range) * MAX_PIXEL_VALUE;
                 }
             }
         });

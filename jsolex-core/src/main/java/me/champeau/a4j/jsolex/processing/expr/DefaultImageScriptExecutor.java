@@ -39,12 +39,12 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
 import me.champeau.a4j.jsolex.processing.util.CancellationSupport;
 import me.champeau.a4j.jsolex.processing.util.DurationFormatter;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageLabel;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.LoggingSupport;
+import me.champeau.a4j.jsolex.processing.util.MemoryAwareStreams;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.SolarParameters;
 
@@ -648,10 +648,8 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
     }
 
     private void executeExpressionsInParallel(int index, MemoizingExpressionEvaluator evaluator, List<Assignment> assignments, Set<Assignment> outputAssignments, AtomicInteger cpt, Map<String, ImageWrapper> imagesByLabel, Map<String, FileOutputResult> filesByLabel, Map<String, Object> valuesByLabel, List<InvalidExpression> invalidExpressions, ReentrantLock resultsLock, ProgressOperation progressOperation) {
-        var runtime = Runtime.getRuntime();
-        if (runtime.freeMemory() < 0.2 * runtime.totalMemory()) {
-            LOGGER.debug("Memory pressure detected ({} MB free of {} MB), running {} script assignments sequentially",
-                    runtime.freeMemory() >> 20, runtime.totalMemory() >> 20, assignments.size());
+        if (MemoryAwareStreams.underPressure()) {
+            LOGGER.debug("Memory pressure detected, running {} script assignments sequentially", assignments.size());
             for (var assignment : assignments) {
                 var isFromOutputSection = outputAssignments != null && outputAssignments.contains(assignment);
                 executeSingleExpression(index, evaluator, assignment, isFromOutputSection, cpt, imagesByLabel, filesByLabel, valuesByLabel, invalidExpressions, resultsLock, progressOperation);
@@ -829,13 +827,11 @@ public class DefaultImageScriptExecutor implements ImageMathScriptExecutor {
             var result = super.doEvaluate(expression);
             if (result instanceof ImageWrapper image) {
                 TransformationHistory.recordTransform(image, "ImageMath: " + expression);
-                result = FileBackedImage.wrap(image);
             } else if (result instanceof List<?> list) {
                 if (list.stream().allMatch(ImageWrapper.class::isInstance)) {
                     result = list.stream()
                             .map(ImageWrapper.class::cast)
                             .map(image -> TransformationHistory.recordTransform(image, "ImageMath: " + expression))
-                            .map(FileBackedImage::wrap)
                             .toList();
                 }
             }

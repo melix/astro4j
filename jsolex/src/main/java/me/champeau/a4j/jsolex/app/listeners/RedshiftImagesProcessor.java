@@ -44,7 +44,6 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
 import me.champeau.a4j.jsolex.processing.util.AnimationFormat;
 import me.champeau.a4j.jsolex.processing.util.Constants;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
@@ -208,12 +207,9 @@ public class RedshiftImagesProcessor {
     public void produceImages(RedshiftCreatorKind kind, int boxSize, int margin, boolean useFullRangePanels, boolean annotateAnimations, int[] annotationColor) {
         var rootOperation = ProgressOperation.root("", op -> {});
         var requiredShifts = createRange(margin, (int) Math.ceil(redshifts.stream().mapToDouble(RedshiftArea::pixelShift).max().orElse(0d)));
-        var missingShifts = requiredShifts.stream().filter(d -> !shiftImages.containsKey(new PixelShift(d))).toList();
-        if (!missingShifts.isEmpty()) {
-            restartProcessForMissingShifts(new LinkedHashSet<>(missingShifts), rootOperation);
-        }
         var progressOperation = rootOperation.createChild(message("producing.redshift.images"));
         broadcaster.broadcast(progressOperation);
+        computeMissingShifts(requiredShifts, progressOperation);
         double progress = 0;
         var computedShifts = new TreeSet<>(shiftImages.keySet());
         var adjustedRedshifts = shiftImages.get(new PixelShift(0d))
@@ -377,11 +373,7 @@ public class RedshiftImagesProcessor {
         var contrast = new AdjustContrast(Map.of(), broadcaster);
         var animate = new Animate(Map.of(AnimationFormat.class, Configuration.getInstance().getAnimationFormats()), broadcaster);
         var range = createMinMaxRange(minShift, maxShift, .25);
-        var missingShifts = range.stream().filter(d -> !shiftImages.containsKey(new PixelShift(d))).toList();
-        if (!missingShifts.isEmpty()) {
-            broadcaster.broadcast(progressOperation.update(0.1, message("computing.missing.shifts")));
-            restartProcessForMissingShifts(new LinkedHashSet<>(missingShifts), rootOperation);
-        }
+        computeMissingShifts(range, progressOperation);
         broadcaster.broadcast(progressOperation.update(0.3, message("adjusting.contrast")));
         var initialImages = range.stream().map(s -> shiftImages.get(new PixelShift(s))).toList();
         var maxWidth = initialImages.stream().mapToInt(ImageWrapper::width).max().orElse(0);
@@ -479,8 +471,6 @@ public class RedshiftImagesProcessor {
                     broadcaster.broadcast(progressOperation.update(progress.incrementAndGet() / totalImages));
                     return annotated;
                 })
-                .map(FileBackedImage::wrap)
-                .map(ImageWrapper.class::cast)
                 .toList();
             broadcaster.broadcast(progressOperation.complete());
         } else {
@@ -509,11 +499,7 @@ public class RedshiftImagesProcessor {
         var crop = new Crop(Map.of(), broadcaster);
         var contrast = new AdjustContrast(Map.of(), broadcaster);
         var range = createMinMaxRange(minShift, maxShift, 1);
-        var missingShifts = range.stream().filter(d -> !shiftImages.containsKey(new PixelShift(d))).toList();
-        if (!missingShifts.isEmpty()) {
-            broadcaster.broadcast(progressOperation.update(0.1, message("computing.missing.shifts")));
-            restartProcessForMissingShifts(new LinkedHashSet<>(missingShifts), rootOperation);
-        }
+        computeMissingShifts(range, progressOperation);
         broadcaster.broadcast(progressOperation.update(0.3, message("adjusting.contrast")));
         var initialImages = range.stream().map(s -> shiftImages.get(new PixelShift(s))).toList();
         var constrastAdjusted = contrast.autoContrast(Map.of("img", initialImages, "gamma", params.autoStretchParams().gamma()));
@@ -667,11 +653,11 @@ public class RedshiftImagesProcessor {
                 var r = rgb[0];
                 var g = rgb[1];
                 var b = rgb[2];
+                var line = new float[width];
 
                 for (int i = 0; i < snapshotsToDisplay.size(); i++) {
                     var snap = snapshotsToDisplay.get(i);
-                    var mono = (ImageWrapper32) snap.unwrapToMemory();
-                    var data = mono.data();
+                    var pixels = ((ImageWrapper32) snap).pixels();
                     var row = i / cols;
                     var col = i % cols;
                     var yOffset = row * height;
@@ -684,8 +670,9 @@ public class RedshiftImagesProcessor {
                     var legendOverlay = legendImage.getData();
                     var legendPixel = new int[1];
                     for (int y = 0; y < height; y++) {
+                        pixels.getRow(y, 0, line, 0, width);
                         for (int x = 0; x < width; x++) {
-                            var gray = data[y][x];
+                            var gray = line[x];
                             legendOverlay.getPixel(x, y, legendPixel);
                             if (legendPixel[0] > 0) {
                                 r[yOffset + y][xOffset + x] = Constants.MAX_PIXEL_VALUE * annotationColor[0] / 255;
@@ -724,13 +711,23 @@ public class RedshiftImagesProcessor {
         return legendImage;
     }
 
+    private void computeMissingShifts(Set<Double> requiredShifts, ProgressOperation parentOperation) {
+        var missingShifts = requiredShifts.stream().filter(d -> !shiftImages.containsKey(new PixelShift(d))).collect(Collectors.toCollection(LinkedHashSet::new));
+        if (!missingShifts.isEmpty()) {
+            var operation = parentOperation.createChild(message("computing.missing.shifts"));
+            broadcaster.broadcast(operation);
+            restartProcessForMissingShifts(missingShifts, operation);
+            broadcaster.broadcast(operation.complete());
+        }
+    }
+
     /**
      * Restarts processing to generate missing pixel shift images.
      *
      * @param missingShifts set of pixel shifts that need to be computed
-     * @param rootOperation the root progress operation for tracking processing progress
+     * @param parentOperation the progress operation under which processing progress is tracked
      */
-    private void restartProcessForMissingShifts(Set<Double> missingShifts, ProgressOperation rootOperation) {
+    private void restartProcessForMissingShifts(Set<Double> missingShifts, ProgressOperation parentOperation) {
         LOGGER.warn(message("restarting.process.missing.shifts"), missingShifts.stream().map(d -> String.format("%.2f", d)).toList());
         // restart processing to include missing images
         var tmpParams = params.withRequestedImages(
@@ -742,7 +739,7 @@ public class RedshiftImagesProcessor {
                 false,
                 false)
         ).withExtraParams(params.extraParams().withAutosave(false));
-        var solexVideoProcessor = new SolexVideoProcessor(serFile, outputDirectory, 0, tmpParams, LocalDateTime.now(), false, Configuration.getInstance().getMemoryRestrictionMultiplier(), rootOperation);
+        var solexVideoProcessor = new SolexVideoProcessor(serFile, outputDirectory, 0, tmpParams, LocalDateTime.now(), false, parentOperation);
         solexVideoProcessor.setRedshifts(new Redshifts(redshifts));
         solexVideoProcessor.setPolynomial(polynomial);
         solexVideoProcessor.setAverageImage(averageImage);

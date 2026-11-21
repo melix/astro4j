@@ -16,8 +16,6 @@
 package me.champeau.a4j.jsolex.processing.sun;
 
 import me.champeau.a4j.jsolex.processing.sun.workflow.WorkflowResults;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
-import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -81,9 +79,6 @@ public final class WorkflowState {
     }
 
     public void recordResult(WorkflowResults step, Object result) {
-        if (result instanceof ImageWrapper img) {
-            result = FileBackedImage.wrap(img);
-        }
         outcomes.put(step, result);
     }
 
@@ -93,11 +88,7 @@ public final class WorkflowState {
 
     public <T> Optional<T> findResult(WorkflowResults step) {
         //noinspection unchecked
-        var obj = outcomes.get(step);
-        if (obj instanceof FileBackedImage img) {
-            obj = img.unwrapToMemory();
-        }
-        return Optional.ofNullable((T) obj);
+        return Optional.ofNullable((T) outcomes.get(step));
     }
 
     /**
@@ -116,7 +107,7 @@ public final class WorkflowState {
     }
 
     public void setImage(ImageWrapper32 image) {
-        recordResult(WorkflowResults.ROTATED, image.wrap());
+        recordResult(WorkflowResults.ROTATED, image);
         discardResult(WorkflowResults.RECONSTRUCTED);
     }
 

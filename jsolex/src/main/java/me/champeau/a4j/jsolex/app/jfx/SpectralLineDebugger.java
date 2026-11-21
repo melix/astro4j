@@ -66,7 +66,7 @@ import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.jsolex.processing.util.SpectralLineFrameImageCreator;
-import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
+import me.champeau.a4j.utilities.TemporaryFolder;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.regression.LinearRegression;
 import me.champeau.a4j.math.tuples.DoublePair;
@@ -502,14 +502,14 @@ public class SpectralLineDebugger {
     }
 
     private static void drawRedshiftMarker(RGBImage rgb, int x, double signedShift, DoubleUnaryOperator poly) {
-        var r = rgb.r();
-        var g = rgb.g();
-        var b = rgb.b();
-        int h = r.length;
+        var r = rgb.red();
+        var g = rgb.green();
+        var b = rgb.blue();
+        int h = rgb.height();
         if (h == 0) {
             return;
         }
-        int w = r[0].length;
+        int w = rgb.width();
         if (x < 0 || x >= w) {
             return;
         }
@@ -518,17 +518,17 @@ public class SpectralLineDebugger {
         int yLo = Math.max(0, Math.min(yCenter, yCross));
         int yHi = Math.min(h - 1, Math.max(yCenter, yCross));
         for (int y = yLo; y <= yHi; y++) {
-            r[y][x] = 0;
-            g[y][x] = Constants.MAX_PIXEL_VALUE;
-            b[y][x] = Constants.MAX_PIXEL_VALUE;
+            r.set(x, y, 0);
+            g.set(x, y, Constants.MAX_PIXEL_VALUE);
+            b.set(x, y, Constants.MAX_PIXEL_VALUE);
         }
         int wy = Math.max(0, Math.min(h - 1, yCross));
         int xLo = Math.max(0, x - 1);
         int xHi = Math.min(w - 1, x + 1);
         for (int xi = xLo; xi <= xHi; xi++) {
-            r[wy][xi] = Constants.MAX_PIXEL_VALUE;
-            g[wy][xi] = Constants.MAX_PIXEL_VALUE;
-            b[wy][xi] = 0;
+            r.set(xi, wy, Constants.MAX_PIXEL_VALUE);
+            g.set(xi, wy, Constants.MAX_PIXEL_VALUE);
+            b.set(xi, wy, 0);
         }
     }
 
@@ -554,14 +554,14 @@ public class SpectralLineDebugger {
         int w = rgb.width();
         int h = rgb.height();
         int[] argb = new int[w * h];
-        var r = rgb.r();
-        var g = rgb.g();
-        var b = rgb.b();
+        var rr = new float[w];
+        var gg = new float[w];
+        var bb = new float[w];
         int idx = 0;
         for (int y = 0; y < h; y++) {
-            var rr = r[y];
-            var gg = g[y];
-            var bb = b[y];
+            rgb.red().getRow(y, rr);
+            rgb.green().getRow(y, gg);
+            rgb.blue().getRow(y, bb);
             for (int x = 0; x < w; x++) {
                 argb[idx++] = 0xFF000000 | (clamp8(rr[x]) << 16) | (clamp8(gg[x]) << 8) | clamp8(bb[x]);
             }
@@ -578,6 +578,19 @@ public class SpectralLineDebugger {
             return 255;
         }
         return b;
+    }
+
+    private static void boostContrast(float[][] buffer, int width, int height, double boost) {
+        if (boost > 0) {
+            var image = new ImageWrapper32(width, height, buffer, MutableMap.of());
+            for (int i = 0; i < boost; i++) {
+                new ArcsinhStretchingStrategy(0f, 0.25f, 0.25f).stretch(image);
+            }
+            var pixels = image.pixels();
+            for (int y = 0; y < height; y++) {
+                pixels.getRow(y, buffer[y]);
+            }
+        }
     }
 
     private void submitPlaybackFrame(int frame) {
@@ -617,11 +630,7 @@ public class SpectralLineDebugger {
         float[][] buffer = ImageWrapper.copyData(source);
         var analyzer = new SpectrumFrameAnalyzer(width, height, reader.header().isJSolexTrimmedSer(), req.sunThreshold());
         analyzer.analyze(buffer);
-        if (req.boost() > 0) {
-            for (int i = 0; i < req.boost(); i++) {
-                new ArcsinhStretchingStrategy(0f, 0.25f, 0.25f).stretch(new ImageWrapper32(width, height, buffer, MutableMap.of()));
-            }
-        }
+        boostContrast(buffer, width, height, req.boost());
         var creator = new SpectralLineFrameImageCreator(analyzer, buffer, width, height);
         var rgb = creator.generateDebugImage(req.lockedPoly());
         var detectedPoly = analyzer.result().distortionPolynomial().orElse(req.lockedPoly());
@@ -643,8 +652,8 @@ public class SpectralLineDebugger {
                 @Override
                 public void onActiveRegion(int x) {
                     for (int y = 0; y < height; y++) {
-                        rgb.r()[y + height + SPACING][x] = Constants.MAX_PIXEL_VALUE;
-                        rgb.b()[y + height + SPACING][x] = Constants.MAX_PIXEL_VALUE;
+                        rgb.red().set(x, y + height + SPACING, Constants.MAX_PIXEL_VALUE);
+                        rgb.blue().set(x, y + height + SPACING, Constants.MAX_PIXEL_VALUE);
                     }
                 }
             });
@@ -783,12 +792,7 @@ public class SpectralLineDebugger {
                 lockedPolynomial = null;
             }
         });
-        var boostValue = contrastBoost.getValue();
-        if (boostValue > 0) {
-            for (int i = 0; i < boostValue; i++) {
-                new ArcsinhStretchingStrategy(0f, 0.25f, 0.25f).stretch(new ImageWrapper32(width, height, buffer, MutableMap.of()));
-            }
-        }
+        boostContrast(buffer, width, height, contrastBoost.getValue());
         var creator = new SpectralLineFrameImageCreator(analyzer, buffer, width, height);
         var rgb = creator.generateDebugImage(lockedPolynomial);
         if (spectralRayDetectionResult != null) {
@@ -806,8 +810,8 @@ public class SpectralLineDebugger {
                 @Override
                 public void onActiveRegion(int x) {
                     for (int y = 0; y < height; y++) {
-                        rgb.r()[y + height + SPACING][x] = Constants.MAX_PIXEL_VALUE;
-                        rgb.b()[y + height + SPACING][x] = Constants.MAX_PIXEL_VALUE;
+                        rgb.red().set(x, y + height + SPACING, Constants.MAX_PIXEL_VALUE);
+                        rgb.blue().set(x, y + height + SPACING, Constants.MAX_PIXEL_VALUE);
                     }
                 }
             });

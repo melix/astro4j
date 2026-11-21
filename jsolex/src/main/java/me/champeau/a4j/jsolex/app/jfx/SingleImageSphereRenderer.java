@@ -18,7 +18,6 @@ package me.champeau.a4j.jsolex.app.jfx;
 import me.champeau.a4j.jsolex.app.jfx.gl.GlMatrix;
 import me.champeau.a4j.jsolex.app.jfx.gl.ShaderProgram;
 import me.champeau.a4j.jsolex.app.jfx.gl.SphereMeshBuilder;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
@@ -73,15 +72,8 @@ public class SingleImageSphereRenderer {
     private int bandIndexCount;
 
     public SingleImageSphereRenderer(ImageWrapper image) {
-        this.originalImage = unwrapImage(image);
+        this.originalImage = image;
         this.isRgb = originalImage instanceof RGBImage;
-    }
-
-    private ImageWrapper unwrapImage(ImageWrapper image) {
-        if (image instanceof FileBackedImage fileBackedImage) {
-            return unwrapImage(fileBackedImage.unwrapToMemory());
-        }
-        return image;
     }
 
     public void loadTextures() {
@@ -137,19 +129,25 @@ public class SingleImageSphereRenderer {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
 
-        var r = rgb.r();
-        var g = rgb.g();
-        var b = rgb.b();
+        var red = rgb.red();
+        var green = rgb.green();
+        var blue = rgb.blue();
         int srcWidth = rgb.width();
         int srcHeight = rgb.height();
+        var r = new float[srcWidth];
+        var g = new float[srcWidth];
+        var b = new float[srcWidth];
 
         // Find min/max for normalization
         float min = Float.MAX_VALUE;
         float max = Float.MIN_VALUE;
         for (int y = 0; y < srcHeight; y++) {
+            red.getRow(y, r);
+            green.getRow(y, g);
+            blue.getRow(y, b);
             for (int x = 0; x < srcWidth; x++) {
-                min = Math.min(min, Math.min(r[y][x], Math.min(g[y][x], b[y][x])));
-                max = Math.max(max, Math.max(r[y][x], Math.max(g[y][x], b[y][x])));
+                min = Math.min(min, Math.min(r[x], Math.min(g[x], b[x])));
+                max = Math.max(max, Math.max(r[x], Math.max(g[x], b[x])));
             }
         }
         float range = max - min;
@@ -162,13 +160,16 @@ public class SingleImageSphereRenderer {
         float scaleY = (float) srcHeight / textureHeight;
 
         for (int y = 0; y < textureHeight; y++) {
+            int srcY = Math.min((int) (y * scaleY), srcHeight - 1);
+            red.getRow(srcY, r);
+            green.getRow(srcY, g);
+            blue.getRow(srcY, b);
             for (int x = 0; x < textureWidth; x++) {
                 int srcX = Math.min((int) (x * scaleX), srcWidth - 1);
-                int srcY = Math.min((int) (y * scaleY), srcHeight - 1);
 
-                float rv = (r[srcY][srcX] - min) / range;
-                float gv = (g[srcY][srcX] - min) / range;
-                float bv = (b[srcY][srcX] - min) / range;
+                float rv = (r[srcX] - min) / range;
+                float gv = (g[srcX] - min) / range;
+                float bv = (b[srcX] - min) / range;
 
                 rv = Math.min(1.0f, Math.max(0.0f, rv));
                 gv = Math.min(1.0f, Math.max(0.0f, gv));
@@ -197,17 +198,19 @@ public class SingleImageSphereRenderer {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
 
-        var data = mono.data();
+        var pixels = mono.pixels();
         int srcWidth = mono.width();
         int srcHeight = mono.height();
+        var row = new float[srcWidth];
 
         // Find min/max for normalization
         float min = Float.MAX_VALUE;
         float max = Float.MIN_VALUE;
         for (int y = 0; y < srcHeight; y++) {
+            pixels.getRow(y, row);
             for (int x = 0; x < srcWidth; x++) {
-                min = Math.min(min, data[y][x]);
-                max = Math.max(max, data[y][x]);
+                min = Math.min(min, row[x]);
+                max = Math.max(max, row[x]);
             }
         }
         float range = max - min;
@@ -220,11 +223,12 @@ public class SingleImageSphereRenderer {
         float scaleY = (float) srcHeight / textureHeight;
 
         for (int y = 0; y < textureHeight; y++) {
+            int srcY = Math.min((int) (y * scaleY), srcHeight - 1);
+            pixels.getRow(srcY, row);
             for (int x = 0; x < textureWidth; x++) {
                 int srcX = Math.min((int) (x * scaleX), srcWidth - 1);
-                int srcY = Math.min((int) (y * scaleY), srcHeight - 1);
 
-                float v = (data[srcY][srcX] - min) / range;
+                float v = (row[srcX] - min) / range;
                 v = Math.min(1.0f, Math.max(0.0f, v));
 
                 byte gray = (byte) (v * 255);
@@ -251,24 +255,30 @@ public class SingleImageSphereRenderer {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
 
-        var r = rgb.r();
-        var g = rgb.g();
-        var b = rgb.b();
+        var red = rgb.red();
+        var green = rgb.green();
+        var blue = rgb.blue();
         int srcWidth = rgb.width();
         int srcHeight = rgb.height();
+        var r = new float[srcWidth];
+        var g = new float[srcWidth];
+        var b = new float[srcWidth];
 
         var buffer = BufferUtils.createByteBuffer(textureWidth * textureHeight * 4);
         float scaleX = (float) srcWidth / textureWidth;
         float scaleY = (float) srcHeight / textureHeight;
 
         for (int y = 0; y < textureHeight; y++) {
+            int srcY = Math.min((int) (y * scaleY), srcHeight - 1);
+            red.getRow(srcY, r);
+            green.getRow(srcY, g);
+            blue.getRow(srcY, b);
             for (int x = 0; x < textureWidth; x++) {
                 int srcX = Math.min((int) (x * scaleX), srcWidth - 1);
-                int srcY = Math.min((int) (y * scaleY), srcHeight - 1);
 
-                float rv = (r[srcY][srcX] - min) / range;
-                float gv = (g[srcY][srcX] - min) / range;
-                float bv = (b[srcY][srcX] - min) / range;
+                float rv = (r[srcX] - min) / range;
+                float gv = (g[srcX] - min) / range;
+                float bv = (b[srcX] - min) / range;
 
                 rv = Math.min(1.0f, Math.max(0.0f, rv));
                 gv = Math.min(1.0f, Math.max(0.0f, gv));
@@ -294,20 +304,22 @@ public class SingleImageSphereRenderer {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
 
-        var data = mono.data();
+        var pixels = mono.pixels();
         int srcWidth = mono.width();
         int srcHeight = mono.height();
+        var row = new float[srcWidth];
 
         var buffer = BufferUtils.createByteBuffer(textureWidth * textureHeight * 4);
         float scaleX = (float) srcWidth / textureWidth;
         float scaleY = (float) srcHeight / textureHeight;
 
         for (int y = 0; y < textureHeight; y++) {
+            int srcY = Math.min((int) (y * scaleY), srcHeight - 1);
+            pixels.getRow(srcY, row);
             for (int x = 0; x < textureWidth; x++) {
                 int srcX = Math.min((int) (x * scaleX), srcWidth - 1);
-                int srcY = Math.min((int) (y * scaleY), srcHeight - 1);
 
-                float v = (data[srcY][srcX] - min) / range;
+                float v = (row[srcX] - min) / range;
                 v = Math.min(1.0f, Math.max(0.0f, v));
 
                 byte gray = (byte) (v * 255);

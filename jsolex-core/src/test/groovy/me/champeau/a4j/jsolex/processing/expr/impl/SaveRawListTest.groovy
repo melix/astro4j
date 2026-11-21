@@ -52,7 +52,7 @@ class SaveRawListTest extends Specification {
         (0..<3).every { tempDir.resolve("frames_${it}.jraw").toFile().exists() }
 
         and: "each file holds the image it was given, in order"
-        (0..<3).every { RawImageIO.read(tempDir.resolve("frames_${it}.jraw")).data()[0][0] == (float) (it + 1) }
+        (0..<3).every { RawImageIO.read(tempDir.resolve("frames_${it}.jraw")).pixels().get(0, 0) == (float) (it + 1) }
     }
 
     def "save_raw inserts the index before an explicit extension"() {
@@ -79,6 +79,6 @@ class SaveRawListTest extends Specification {
 
         then:
         result.is(img)
-        RawImageIO.read(tempDir.resolve("single.jraw")).data()[0][0] == 42f
+        RawImageIO.read(tempDir.resolve("single.jraw")).pixels().get(0, 0) == 42f
     }
 }

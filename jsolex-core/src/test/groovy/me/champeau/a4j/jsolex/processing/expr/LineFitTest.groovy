@@ -44,8 +44,8 @@ class LineFitTest extends Specification {
         ]) as ImageWrapper32
 
         then:
-        Math.abs(result.data()[10][5]) < 0.05
-        Math.abs(result.data()[10][35] - 30) < 0.05
+        Math.abs(result.pixels().get(5, 10)) < 0.05
+        Math.abs(result.pixels().get(35, 10) - 30) < 0.05
 
         and: "the result is the image of the line"
         result.findMetadata(PixelShift).get().pixelShift() == 2.7d
@@ -65,7 +65,7 @@ class LineFitTest extends Specification {
         ]) as ImageWrapper32
 
         then:
-        result.data()[10][35] == 0f
+        result.pixels().get(35, 10) == 0f
     }
 
     def "requires images with a pixel shift"() {

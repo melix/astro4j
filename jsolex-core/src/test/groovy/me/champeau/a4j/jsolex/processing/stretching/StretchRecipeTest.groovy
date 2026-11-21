@@ -74,7 +74,7 @@ class StretchRecipeTest extends Specification {
         StretchStep.defaultsOf(StretchStepKind.LINEAR).toStrategy().stretch(image)
 
         then:
-        image.data() == expected.data()
+        image.pixels().toArray() == expected.pixels().toArray()
     }
 
     def "contrast enhancement techniques produce the same image as their strategy"() {
@@ -87,7 +87,7 @@ class StretchRecipeTest extends Specification {
         StretchRecipe.forContrastEnhancement(enhancement, new ClaheParams(16, 128, 1.2), new AutoStretchParams(2.0, 0.3, 1.5)).applyTo(image)
 
         then:
-        image.data() == expected.data()
+        image.pixels().toArray() == expected.pixels().toArray()
 
         where:
         enhancement                     | strategy
@@ -169,7 +169,7 @@ class StretchRecipeTest extends Specification {
 
         then:
         !materialized.is(image)
-        materialized.data() == expected.data()
+        materialized.pixels().toArray() == expected.pixels().toArray()
         materialized.findMetadata(StretchRecipe).isEmpty()
         materialized.findMetadata(TransformationHistory).get().transforms() == ["CLAHE2 (clip limit: 1.5)"]
 

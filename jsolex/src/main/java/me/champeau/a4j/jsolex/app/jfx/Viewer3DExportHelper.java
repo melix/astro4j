@@ -664,14 +664,20 @@ public final class Viewer3DExportHelper {
             var width = rgb.width();
             var height = rgb.height();
             var image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-            var r = rgb.r();
-            var g = rgb.g();
-            var b = rgb.b();
+            var red = rgb.red();
+            var green = rgb.green();
+            var blue = rgb.blue();
+            var r = new float[width];
+            var g = new float[width];
+            var b = new float[width];
             for (int y = 0; y < height; y++) {
+                red.getRow(y, r);
+                green.getRow(y, g);
+                blue.getRow(y, b);
                 for (int x = 0; x < width; x++) {
-                    int rv = Math.round(r[y][x]);
-                    int gv = Math.round(g[y][x]);
-                    int bv = Math.round(b[y][x]);
+                    int rv = Math.round(r[x]);
+                    int gv = Math.round(g[x]);
+                    int bv = Math.round(b[x]);
                     rv = (rv >> 8) & 0xFF;
                     gv = (gv >> 8) & 0xFF;
                     bv = (bv >> 8) & 0xFF;

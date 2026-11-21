@@ -28,7 +28,7 @@ class PercentileStretchStrategyTest extends Specification {
         new PercentileStretchStrategy(1, 99).stretch(image)
 
         then: "values below/above the percentiles are clipped, the middle maps linearly"
-        def data = image.data()[0]
+        def data = image.pixels().toArray()[0]
         data[0] == 0f
         data[99] == 65535f
         Math.abs(data[50] - 65535 * (50 - 1) / 98.0) < 500
@@ -44,7 +44,7 @@ class PercentileStretchStrategyTest extends Specification {
         then: "the result is identical to the same gradient shifted into positive values"
         def offsetImage = gradient(0, 400)
         new PercentileStretchStrategy(1, 99).stretch(offsetImage)
-        image.data()[0] == offsetImage.data()[0]
+        image.pixels().toArray()[0] == offsetImage.pixels().toArray()[0]
     }
 
     def "clip mode EXTEND raises the white point to the brightest pixel"() {
@@ -57,13 +57,13 @@ class PercentileStretchStrategyTest extends Specification {
         new PercentileStretchStrategy(1, 99, null, PercentileStretchStrategy.ClipMode.EXTEND).stretch(extended)
 
         then: "clamping saturates the top of the range"
-        clamped.data()[0][99] == 65535f
-        clamped.data()[0][98] == 65535f
+        clamped.pixels().get(99, 0) == 65535f
+        clamped.pixels().get(98, 0) == 65535f
 
         and: "with an extended white point only the brightest pixel reaches the maximum"
-        extended.data()[0][99] == 65535f
-        extended.data()[0][98] < 65535f
-        extended.data()[0][98] > extended.data()[0][97]
+        extended.pixels().get(99, 0) == 65535f
+        extended.pixels().get(98, 0) < 65535f
+        extended.pixels().get(98, 0) > extended.pixels().get(97, 0)
     }
 
     def "clip mode NONE is a pure affine transformation"() {
@@ -74,7 +74,7 @@ class PercentileStretchStrategyTest extends Specification {
         new PercentileStretchStrategy(1, 99, null, PercentileStretchStrategy.ClipMode.NONE).stretch(image)
 
         then: "pixels outside the percentile range keep scaling linearly"
-        def data = image.data()[0]
+        def data = image.pixels().toArray()[0]
         data[0] < 0f
         data[99] > 65535f
         Math.abs((data[50] - data[49]) - (data[99] - data[98])) < 1f
@@ -84,14 +84,14 @@ class PercentileStretchStrategyTest extends Specification {
         given: "two identical gradients, one with a hot pixel outside the percentile range"
         def clean = gradient(0, 400)
         def withHotPixel = gradient(0, 400)
-        withHotPixel.data()[0][99] = 1e7f
+        withHotPixel.pixels().set(99, 0, 1e7f)
 
         when:
         new PercentileStretchStrategy(1, 99, null, PercentileStretchStrategy.ClipMode.NONE).stretch(clean)
         new PercentileStretchStrategy(1, 99, null, PercentileStretchStrategy.ClipMode.NONE).stretch(withHotPixel)
 
         then:
-        clean.data()[0][50] == withHotPixel.data()[0][50]
+        clean.pixels().get(50, 0) == withHotPixel.pixels().get(50, 0)
     }
 
     private static ImageWrapper32 gradient(double from, double step) {

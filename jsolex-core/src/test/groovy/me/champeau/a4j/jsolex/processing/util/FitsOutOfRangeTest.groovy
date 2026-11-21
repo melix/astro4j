@@ -40,10 +40,10 @@ class FitsOutOfRangeTest extends Specification {
         var reloaded = (ImageWrapper32) FitsUtils.readFitsFile(file)
 
         then: "the extreme pixel saturates to white, and the in-range pixels are untouched"
-        reloaded.data()[0][0] == expected
-        reloaded.data()[0][1] == 1000f
-        reloaded.data()[0][2] == 30000f
-        reloaded.data()[0][3] == 65535f
+        reloaded.pixels().get(0, 0) == expected
+        reloaded.pixels().get(1, 0) == 1000f
+        reloaded.pixels().get(2, 0) == 30000f
+        reloaded.pixels().get(3, 0) == 65535f
 
         where:
         value     || expected

@@ -123,7 +123,7 @@ class ColumnBackgroundTest extends Specification {
         def ellipse = image.findMetadata(Ellipse).orElseThrow()
         def width = image.width()
         def height = image.height()
-        def data = image.data()
+        def data = image.pixels().toArray()
         def margin = ellipse.rescale(1.05d, 1.05d)
         def usable = { Integer x, Integer y -> !margin.isWithin(x, y) } as BiPredicate
 

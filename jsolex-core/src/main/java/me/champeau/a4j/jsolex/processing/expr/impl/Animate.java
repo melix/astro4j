@@ -22,14 +22,13 @@ import me.champeau.a4j.jsolex.processing.expr.SingleFileOutput;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.SourceInfo;
 import me.champeau.a4j.jsolex.processing.util.AnimationFormat;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.AnimatedGifWriter;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.Mp4SequenceEncoder;
 import me.champeau.a4j.jsolex.processing.util.ProcessingException;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
-import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
+import me.champeau.a4j.utilities.TemporaryFolder;
 import me.champeau.a4j.ser.EightBitConversionSupport;
 import org.jcodec.common.io.NIOUtils;
 import org.slf4j.Logger;
@@ -130,9 +129,6 @@ public class Animate extends AbstractFunctionImpl {
             try (var encoder = new Mp4SequenceEncoder(NIOUtils.writableChannel(tempFile.toFile()), (int) (1000 / delay))) {
                 for (Object argument : frames) {
                     broadcaster.broadcast(progressOperation.update(progress / frames.size(), "Encoding frame " + (int) progress + "/" + frames.size()));
-                    if (argument instanceof FileBackedImage fileBackedImage) {
-                        argument = fileBackedImage.unwrapToMemory();
-                    }
                     if (argument instanceof ImageWrapper32 image) {
                         addMonoFrame(encoder, image);
                     } else if (argument instanceof RGBImage rgb) {
@@ -152,21 +148,13 @@ public class Animate extends AbstractFunctionImpl {
         try {
             var tempFile = TemporaryFolder.newTempFile("anim_jsolex", ".gif");
             var outputStream = new FileImageOutputStream(tempFile.toFile());
-            var firstFrame = frames.getFirst();
-            if (firstFrame instanceof FileBackedImage fileBackedImage) {
-                firstFrame = fileBackedImage.unwrapToMemory();
-            }
-
-            var imageType = firstFrame instanceof RGBImage ? BufferedImage.TYPE_INT_RGB : BufferedImage.TYPE_BYTE_GRAY;
+            var imageType = frames.getFirst() instanceof RGBImage ? BufferedImage.TYPE_INT_RGB : BufferedImage.TYPE_BYTE_GRAY;
 
             try (var writer = new AnimatedGifWriter(outputStream, imageType, delay, true)) {
                 double progress = 0;
                 var progressOperation = newOperation().createChild("Encoding GIF frame");
                 for (Object argument : frames) {
                     broadcaster.broadcast(progressOperation.update(progress / frames.size(), "Encoding GIF frame " + (int) progress + "/" + frames.size()));
-                    if (argument instanceof FileBackedImage fileBackedImage) {
-                        argument = fileBackedImage.unwrapToMemory();
-                    }
                     if (argument instanceof ImageWrapper32 image) {
                         writer.writeToSequence(toBufferedImage(image));
                     } else if (argument instanceof RGBImage rgb) {
@@ -184,8 +172,7 @@ public class Animate extends AbstractFunctionImpl {
 
     private static BufferedImage toBufferedImage(ImageWrapper32 image) {
         var bufferedImage = new BufferedImage(image.width(), image.height(), BufferedImage.TYPE_BYTE_GRAY);
-        var data = image.data();
-        var bytes = EightBitConversionSupport.to8BitImage(data);
+        var bytes = EightBitConversionSupport.to8BitImage(image.pixels().toArray());
         var raster = bufferedImage.getRaster();
         for (int y = 0; y < image.height(); y++) {
             for (int x = 0; x < image.width(); x++) {
@@ -198,9 +185,9 @@ public class Animate extends AbstractFunctionImpl {
 
     private static BufferedImage toBufferedImage(RGBImage image) {
         var bufferedImage = new BufferedImage(image.width(), image.height(), BufferedImage.TYPE_INT_RGB);
-        var rBytes = EightBitConversionSupport.to8BitImage(image.r());
-        var gBytes = EightBitConversionSupport.to8BitImage(image.g());
-        var bBytes = EightBitConversionSupport.to8BitImage(image.b());
+        var rBytes = EightBitConversionSupport.to8BitImage(image.red().toArray());
+        var gBytes = EightBitConversionSupport.to8BitImage(image.green().toArray());
+        var bBytes = EightBitConversionSupport.to8BitImage(image.blue().toArray());
         for (int y = 0; y < image.height(); y++) {
             for (int x = 0; x < image.width(); x++) {
                 var idx = y * image.width() + x;
@@ -227,7 +214,7 @@ public class Animate extends AbstractFunctionImpl {
     private static void addMonoFrame(Mp4SequenceEncoder encoder, ImageWrapper32 image) throws IOException {
         var width = image.width() & ~1;
         var height = image.height() & ~1;
-        var bytes = to8BitImage(image.data());
+        var bytes = to8BitImage(image.pixels().toArray());
         var rgb = new int[width * height];
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
@@ -241,9 +228,9 @@ public class Animate extends AbstractFunctionImpl {
     private static void addColorFrame(Mp4SequenceEncoder encoder, RGBImage image) throws IOException {
         var width = image.width() & ~1;
         var height = image.height() & ~1;
-        var r = to8BitImage(image.r());
-        var g = to8BitImage(image.g());
-        var b = to8BitImage(image.b());
+        var r = to8BitImage(image.red().toArray());
+        var g = to8BitImage(image.green().toArray());
+        var b = to8BitImage(image.blue().toArray());
         var rgb = new int[width * height];
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
@@ -279,16 +266,16 @@ public class Animate extends AbstractFunctionImpl {
         }
         var output = new ArrayList<ImageWrapper>();
         for (int i = 0; i < listOfImages.size() - 1; i++) {
-            var first = ((ImageWrapper) listOfImages.get(i)).unwrapToMemory();
-            var second = ((ImageWrapper) listOfImages.get(i + 1)).unwrapToMemory();
+            var first = (ImageWrapper) listOfImages.get(i);
+            var second = (ImageWrapper) listOfImages.get(i + 1);
             if (first.width() != second.width() || first.height() != second.height()) {
                 throw new IllegalArgumentException("transition must use images of the same size");
             }
             if (!(first instanceof ImageWrapper32 mono1) || !(second instanceof ImageWrapper32 mono2)) {
                 throw new IllegalArgumentException("transition only supports mono images");
             }
-            var firstData = mono1.data();
-            var secondData = mono2.data();
+            var firstData = mono1.pixels().toArray();
+            var secondData = mono2.pixels().toArray();
             int scaledSteps = steps;
             if (requiresTimestamps) {
                 var ts1 = mono1.findMetadata(SourceInfo.class).map(SourceInfo::dateTime).orElse(null);
@@ -317,7 +304,7 @@ public class Animate extends AbstractFunctionImpl {
                                         data[y][x] = (float) (firstData[y][x] * (1 - coef) + secondData[y][x] * coef);
                                     }
                                 }
-                                return FileBackedImage.wrap(new ImageWrapper32(first.width(), first.height(), data, new HashMap<>(first.metadata())));
+                                return new ImageWrapper32(first.width(), first.height(), data, new HashMap<>(first.metadata()));
                             })
                             .toList()
             );

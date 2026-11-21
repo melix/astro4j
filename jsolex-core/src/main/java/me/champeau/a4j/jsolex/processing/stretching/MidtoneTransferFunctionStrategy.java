@@ -16,7 +16,6 @@
 package me.champeau.a4j.jsolex.processing.stretching;
 
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
-import me.champeau.a4j.math.RowStrips;
 
 import static me.champeau.a4j.jsolex.processing.util.Constants.MAX_PIXEL_VALUE;
 
@@ -55,7 +54,6 @@ public final class MidtoneTransferFunctionStrategy implements StretchingStrategy
     
     @Override
     public void stretch(ImageWrapper32 image) {
-        var data = image.data();
         var width = image.width();
         var height = image.height();
         
@@ -63,14 +61,11 @@ public final class MidtoneTransferFunctionStrategy implements StretchingStrategy
             return;
         }
         
-        // Apply MTF transformation to all pixels
-        RowStrips.forEach(height, (yStart, yEnd) -> {
-            for (var y = yStart; y < yEnd; y++) {
-                for (var x = 0; x < width; x++) {
-                    var originalValue = data[y][x];
-                    var transformedValue = mtfTransform(originalValue, midtones, shadows, highlights);
-                    data[y][x] = (float) Math.clamp(transformedValue, 0, MAX_PIXEL_VALUE);
-                }
+        image.pixels().updateRows((y, row) -> {
+            for (var x = 0; x < width; x++) {
+                var originalValue = row[x];
+                var transformedValue = mtfTransform(originalValue, midtones, shadows, highlights);
+                row[x] = (float) Math.clamp(transformedValue, 0, MAX_PIXEL_VALUE);
             }
         });
     }

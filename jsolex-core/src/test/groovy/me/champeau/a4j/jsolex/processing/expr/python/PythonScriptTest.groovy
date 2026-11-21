@@ -23,7 +23,6 @@ import me.champeau.a4j.jsolex.processing.sun.Broadcaster
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords
 import me.champeau.a4j.jsolex.processing.sun.workflow.SpectralLinePolynomial
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32
 import me.champeau.a4j.jsolex.processing.util.SolarParameters
 import me.champeau.a4j.math.regression.Ellipse
@@ -232,10 +231,10 @@ result = jsolex.createMono(2, 2, data)
         def img = (ImageWrapper32) result
         img.width() == 2
         img.height() == 2
-        img.data()[0][0] == 1.0f
-        img.data()[0][1] == 2.0f
-        img.data()[1][0] == 3.0f
-        img.data()[1][1] == 4.0f
+        img.pixels().get(0, 0) == 1.0f
+        img.pixels().get(1, 0) == 2.0f
+        img.pixels().get(0, 1) == 3.0f
+        img.pixels().get(1, 1) == 4.0f
     }
 
     // ==================== Control Structure Tests ====================
@@ -1901,7 +1900,113 @@ def single():
 
     // ==================== Memory Management Tests ====================
 
-    def "images returned by builtin functions are file backed, like in ImageMath"() {
+    def "getData reads the pixels of an image"() {
+        given:
+        def img = createImage(4, 2, 10.0f)
+        img.pixels().set(3, 1, 7.0f)
+
+        when:
+        def result = executor.executeInline('''
+data = jsolex.getData(img)
+result = [len(data), len(data[0]), data[1][3], data[0][0], sum(sum(row) for row in data)]
+''', [img: img])
+
+        then:
+        result == [2.0d, 4.0d, 7.0d, 10.0d, 77.0d]
+    }
+
+    def "changes made to the result of getData are applied to the image"() {
+        given:
+        def img = createImage(4, 2, 10.0f)
+
+        when:
+        executor.executeInline('''
+data = jsolex.getData(img)
+data[1][2] = 5.5
+data[1][3] += 1
+data[0] = [1, 2, 3, 4]
+result = None
+''', [img: img])
+
+        then:
+        img.pixels().get(2, 1) == 5.5f
+        img.pixels().get(3, 1) == 11.0f
+        img.pixels().get(0, 1) == 10.0f
+        img.pixels().toArray()[0] == [1f, 2f, 3f, 4f] as float[]
+    }
+
+    def "changes made to the result of copyData do not change the image"() {
+        given:
+        def img = createImage(4, 2, 10.0f)
+
+        when:
+        def result = executor.executeInline('''
+data = jsolex.copyData(img)
+data[1][2] = 5.5
+result = data[1][2]
+''', [img: img])
+
+        then:
+        result == 5.5d
+        img.pixels().get(2, 1) == 10.0f
+    }
+
+    def "the result of getData is returned to Java as an array"() {
+        given:
+        def img = createImage(4, 2, 10.0f)
+        img.pixels().set(3, 1, 7.0f)
+
+        when:
+        def result = executor.executeInline('''
+result = jsolex.getData(img)
+''', [img: img])
+
+        then:
+        result instanceof float[][]
+        result == img.pixels().toArray()
+    }
+
+    def "an image can be created from the result of getData"() {
+        given:
+        def img = createImage(4, 2, 10.0f)
+
+        when:
+        def result = executor.executeInline('''
+data = jsolex.getData(img)
+copy = jsolex.createMono(4, 2, data)
+data[0][0] = 99
+result = copy
+''', [img: img])
+
+        then:
+        result instanceof ImageWrapper32
+        result.pixels().toArray() == createImage(4, 2, 10.0f).pixels().toArray()
+        img.pixels().get(0, 0) == 99.0f
+    }
+
+    def "pixels outside of the image cannot be read with getData"() {
+        given:
+        def img = createImage(4, 2, 10.0f)
+
+        when:
+        def result = executor.executeInline('''
+data = jsolex.getData(img)
+try:
+    data[2][0]
+    result = "no error"
+except IndexError:
+    result = "row"
+try:
+    data[0][4]
+except IndexError:
+    result = result + " column"
+''', [img: img])
+
+        then:
+        result == "row column"
+    }
+
+    def "images returned by builtin functions are Java images, like in ImageMath"() {
         given:
         def img = createImage(4, 2, 10.0f)
 
@@ -1910,10 +2015,10 @@ def single():
         def list = executor.executeInline("result = jsolex.funcs.rotate_left([img, img])", [img: img])
 
         then:
-        single instanceof FileBackedImage
-        single.unwrapToMemory().data()[0][0] == 10.0f
+        single instanceof ImageWrapper32
+        single.pixels().get(0, 0) == 10.0f
         list instanceof List
-        list.every { it instanceof FileBackedImage }
+        list.every { it instanceof ImageWrapper32 }
     }
 
     def "lists passed from Python to builtin functions are copied into plain Java lists"() {
@@ -1943,7 +2048,7 @@ def single():
 
         then: "the subtraction keeps negative values, like the ImageMath operator"
         result instanceof ImageWrapper32
-        result.data()[0][0] == 70.0f
+        result.pixels().get(0, 0) == 70.0f
     }
 
     def "subtraction of images keeps negative values"() {
@@ -1955,7 +2060,7 @@ def single():
         def result = executor.executeInline("result = a - b", [a: a, b: b])
 
         then:
-        result.data()[0][0] == -70.0f
+        result.pixels().get(0, 0) == -70.0f
     }
 
     def "supports the four arithmetic operators between images"() {
@@ -1964,7 +2069,7 @@ def single():
         def b = createImage(4, 4, 4.0f)
 
         expect:
-        executor.executeInline("result = a ${op} b", [a: a, b: b]).data()[0][0] == expected
+        executor.executeInline("result = a ${op} b", [a: a, b: b]).pixels().get(0, 0) == expected
 
         where:
         op  || expected
@@ -1979,10 +2084,10 @@ def single():
         def img = createImage(4, 4, 10.0f)
 
         expect:
-        executor.executeInline("result = img * 3", [img: img]).data()[0][0] == 30.0f
-        executor.executeInline("result = 3 * img", [img: img]).data()[0][0] == 30.0f
-        executor.executeInline("result = img - 4", [img: img]).data()[0][0] == 6.0f
-        executor.executeInline("result = 40 - img", [img: img]).data()[0][0] == 30.0f
+        executor.executeInline("result = img * 3", [img: img]).pixels().get(0, 0) == 30.0f
+        executor.executeInline("result = 3 * img", [img: img]).pixels().get(0, 0) == 30.0f
+        executor.executeInline("result = img - 4", [img: img]).pixels().get(0, 0) == 6.0f
+        executor.executeInline("result = 40 - img", [img: img]).pixels().get(0, 0) == 30.0f
     }
 
     private static ImageWrapper32 createImage(int width, int height, float value) {

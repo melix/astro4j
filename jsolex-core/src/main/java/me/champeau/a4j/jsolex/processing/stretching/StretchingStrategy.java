@@ -19,6 +19,8 @@ import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
+import me.champeau.a4j.math.RowStrips;
+import me.champeau.a4j.math.image.ImagePlane;
 
 public sealed interface StretchingStrategy permits
     ArcsinhStretchingStrategy,
@@ -66,33 +68,50 @@ public sealed interface StretchingStrategy permits
      * @param image the RGB image to stretch
      */
     default void stretch(RGBImage image) {
-        var r = image.r();
-        var g = image.g();
-        var b = image.b();
-        int height = r.length;
-        int width = r[0].length;
-        var rgb = new float[][][]{r, g, b};
-        var hsl = new float[][][]{new float[height][width], new float[height][width], new float[height][width]};
-        ImageUtils.fromRGBtoHSL(rgb, hsl);
-        var lightness = hsl[2];
-        for (int y = 0; y < height; y++) {
-            var row = lightness[y];
-            for (int x = 0; x < width; x++) {
-                row[x] *= 65535f;
+        int width = image.width();
+        int height = image.height();
+        var red = image.red();
+        var green = image.green();
+        var blue = image.blue();
+        var hue = new float[height][width];
+        var saturation = new float[height][width];
+        var lightness = ImagePlane.allocate(width, height);
+        RowStrips.forEach(height, (yStart, yEnd) -> {
+            var r = new float[width];
+            var g = new float[width];
+            var b = new float[width];
+            var l = new float[width];
+            for (int y = yStart; y < yEnd; y++) {
+                red.getRow(y, r);
+                green.getRow(y, g);
+                blue.getRow(y, b);
+                ImageUtils.rgbToHsl(r, g, b, hue[y], saturation[y], l, width);
+                for (int x = 0; x < width; x++) {
+                    l[x] *= 65535f;
+                }
+                lightness.setRow(y, l);
             }
-        }
-        stretch(new ImageWrapper32(width, height, lightness, image.metadata()));
-        for (int y = 0; y < height; y++) {
-            var row = lightness[y];
-            for (int x = 0; x < width; x++) {
-                row[x] /= 65535f;
+        });
+        stretch(new ImageWrapper32(lightness, image.metadata()));
+        RowStrips.forEach(height, (yStart, yEnd) -> {
+            var r = new float[width];
+            var g = new float[width];
+            var b = new float[width];
+            var l = new float[width];
+            for (int y = yStart; y < yEnd; y++) {
+                lightness.getRow(y, l);
+                for (int x = 0; x < width; x++) {
+                    l[x] /= 65535f;
+                }
+                ImageUtils.hslToRgb(hue[y], saturation[y], l, r, g, b, width);
+                red.setRow(y, r);
+                green.setRow(y, g);
+                blue.setRow(y, b);
             }
-        }
-        ImageUtils.fromHSLtoRGB(hsl, rgb);
-
-        stretch(new ImageWrapper32(width, height, r, image.metadata()));
-        stretch(new ImageWrapper32(width, height, g, image.metadata()));
-        stretch(new ImageWrapper32(width, height, b, image.metadata()));
+        });
+        stretch(new ImageWrapper32(red, image.metadata()));
+        stretch(new ImageWrapper32(green, image.metadata()));
+        stretch(new ImageWrapper32(blue, image.metadata()));
     }
 
 }

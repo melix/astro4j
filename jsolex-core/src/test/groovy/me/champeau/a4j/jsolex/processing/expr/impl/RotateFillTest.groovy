@@ -42,7 +42,7 @@ class RotateFillTest extends Specification {
         var result = (ImageWrapper32) rotate.rotateDegrees([img: source, angle: 30])
 
         then: "the corners are filled with the background instead of black"
-        var corner = result.data()[0][0]
+        var corner = result.pixels().get(0, 0)
         corner == 6900f
     }
 
@@ -54,7 +54,7 @@ class RotateFillTest extends Specification {
         var result = (ImageWrapper32) rotate.rotateDegrees([img: source, angle: 30, bp: 0])
 
         then:
-        result.data()[0][0] == 0f
+        result.pixels().get(0, 0) == 0f
     }
 
     def "an image with a black background is still filled with black"() {
@@ -65,6 +65,6 @@ class RotateFillTest extends Specification {
         var result = (ImageWrapper32) rotate.rotateDegrees([img: source, angle: 30])
 
         then:
-        result.data()[0][0] == 0f
+        result.pixels().get(0, 0) == 0f
     }
 }

@@ -15,21 +15,23 @@
  */
 package me.champeau.a4j.jsolex.processing.util;
 
+import me.champeau.a4j.utilities.HeapPressure;
+
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 /**
  * Helpers to opt streams into parallel execution only when the heap
  * has enough headroom. Use these on streams whose per-element body
- * allocates large intermediate buffers (e.g. full-image float[][]).
+ * allocates large intermediate buffers or images.
  * <p>
- * Under heap pressure (free heap below 20% of total committed heap)
- * the returned stream is sequential, avoiding the multiplicative
- * memory cost of parallel allocation when it can't be afforded.
+ * Under heap pressure (more than 80% of the heap is used) the returned
+ * stream is sequential, avoiding the multiplicative memory cost of parallel
+ * allocation when it can't be afforded.
  */
 public final class MemoryAwareStreams {
 
-    private static final double PRESSURE_THRESHOLD = 0.2;
+    private static final double PRESSURE_THRESHOLD = 0.8;
 
     private MemoryAwareStreams() {
     }
@@ -44,7 +46,7 @@ public final class MemoryAwareStreams {
 
     /**
      * Number of tasks which can run concurrently when each of them needs
-     * {@code bytesPerLane} of heap that cannot be spilled to disk: half of the
+     * {@code bytesPerLane} of heap: half of the
      * heap still available, divided by that working set, between one lane and
      * one per core.
      */
@@ -58,8 +60,11 @@ public final class MemoryAwareStreams {
         return (int) Math.clamp(available / 2 / bytesPerLane, 1, cores);
     }
 
-    private static boolean underPressure() {
-        var runtime = Runtime.getRuntime();
-        return runtime.freeMemory() < PRESSURE_THRESHOLD * runtime.totalMemory();
+    /**
+     * Tells if the heap, where algorithms allocate their working buffers, is
+     * getting scarce.
+     */
+    public static boolean underPressure() {
+        return HeapPressure.current() > PRESSURE_THRESHOLD;
     }
 }

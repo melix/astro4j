@@ -60,7 +60,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.SpectroSolHubImageKind;
 import me.champeau.a4j.jsolex.processing.util.AnimationEditor;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
-import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
+import me.champeau.a4j.utilities.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
@@ -72,10 +72,10 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
@@ -113,7 +113,7 @@ public class MultipleImagesViewer extends Pane {
 
     private final AtomicInteger importGroupSequence = new AtomicInteger();
     private final Map<String, Integer> importGroupSeqById = new HashMap<>();
-    private final Set<ImageViewer> imageViews = new HashSet<>();
+    private final Set<ImageViewer> imageViews = ConcurrentHashMap.newKeySet();
     private final List<CategoryPane> safeCategories = new ArrayList<>();
     private final ObservableList<Node> categories;
     private final BorderPane borderPane;
@@ -269,16 +269,21 @@ public class MultipleImagesViewer extends Pane {
         try {
             lock.lock();
             FxUtils.runLater(() -> {
-                safeCategories.clear();
-                categories.clear();
-                borderPane.setCenter(null);
-                imageViews.clear();
-                viewerTitles.clear();
-                viewerKinds.clear();
-                onShowHooks.clear();
-                linkToViewer.clear();
-                mediaEntries.clear();
-                importGroupSeqById.clear();
+                lock.lock();
+                try {
+                    safeCategories.clear();
+                    categories.clear();
+                    borderPane.setCenter(null);
+                    imageViews.clear();
+                    viewerTitles.clear();
+                    viewerKinds.clear();
+                    onShowHooks.clear();
+                    linkToViewer.clear();
+                    mediaEntries.clear();
+                    importGroupSeqById.clear();
+                } finally {
+                    lock.unlock();
+                }
             });
             selected = null;
             selectedKind = null;
@@ -540,11 +545,16 @@ public class MultipleImagesViewer extends Pane {
             selected = null;
         }
 
-        var viewer = linkToViewer.remove(link);
-        if (viewer != null) {
-            imageViews.remove(viewer);
-            viewerTitles.remove(viewer);
-            viewerKinds.remove(viewer);
+        lock.lock();
+        try {
+            var viewer = linkToViewer.remove(link);
+            if (viewer != null) {
+                imageViews.remove(viewer);
+                viewerTitles.remove(viewer);
+                viewerKinds.remove(viewer);
+            }
+        } finally {
+            lock.unlock();
         }
     }
 
@@ -977,7 +987,7 @@ public class MultipleImagesViewer extends Pane {
                                 .map(SpectroSolHubImageKind::value)
                                 .orElse(null);
                         return new ImageInfo(
-                                stretched.wrap(),
+                                stretched,
                                 getImageTitle(viewer),
                                 getImageKind(viewer),
                                 spectroSolHubKind,

@@ -153,13 +153,14 @@ class OscillationCorrectionTest extends Specification {
         Math.abs(model.amplitude() - amplitude) < 0.3
 
         and: "the disk borders are realigned with the ellipse"
+        def corrected = image.pixels().toArray()
         def maxError = 0d
         for (int y = 400; y < 800; y++) {
             def pair = ellipse.findX(y).get()
             def x1 = Math.min(pair.a(), pair.b())
             int edge = -1
             for (int x = 0; x < width; x++) {
-                if (data[y][x] > 15000f) {
+                if (corrected[y][x] > 15000f) {
                     edge = x
                     break
                 }

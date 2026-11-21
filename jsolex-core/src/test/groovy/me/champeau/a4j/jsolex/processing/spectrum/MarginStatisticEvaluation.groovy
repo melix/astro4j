@@ -56,7 +56,8 @@ class MarginStatisticEvaluation extends Specification {
         when:
         def rows = fixtures.collect { fixture ->
             def image = (ImageWrapper32) FitsUtils.readFitsFile(fixture.file)
-            def analysis = new SpectrumFrameAnalyzer(image.width(), image.height(), false, null).analyze(image.data())
+            def data = image.pixels().toArray()
+            def analysis = new SpectrumFrameAnalyzer(image.width(), image.height(), false, null).analyze(data)
             def polynomial = analysis.distortionPolynomial().orElse(null)
             if (polynomial == null) {
                 return null
@@ -65,7 +66,7 @@ class MarginStatisticEvaluation extends Specification {
                     (fixture.binnings as int[])[0], fixture.instrument)
             def profile = SpectrumAnalyzer.computeDataPoints(probe, polynomial,
                     analysis.leftBorder().orElse(0), analysis.rightBorder().orElse(image.width()),
-                    image.width(), image.height(), image.data())
+                    image.width(), image.height(), data)
             def ranked = DeepLineIdentifier.rank(profile, fixture.instrument, fixture.pixelSize as double, fixture.binnings as int[])
             if (ranked.isEmpty()) {
                 return null

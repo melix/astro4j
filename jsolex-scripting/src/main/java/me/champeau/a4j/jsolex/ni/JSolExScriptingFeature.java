@@ -17,7 +17,7 @@ package me.champeau.a4j.jsolex.ni;
 
 import me.champeau.a4j.jsolex.processing.expr.python.PythonImageMathBridge;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
+import me.champeau.a4j.math.image.ImagePlane;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
@@ -39,7 +39,7 @@ public class JSolExScriptingFeature implements Feature {
             throw new RuntimeException(e);
         }
         var registered = new HashSet<Class<?>>();
-        for (var type : List.of(PythonImageMathBridge.class, ImageWrapper.class, ImageWrapper32.class, RGBImage.class, FileBackedImage.class, ProcessParams.class)) {
+        for (var type : List.of(PythonImageMathBridge.class, ImageWrapper.class, ImageWrapper32.class, RGBImage.class, ImagePlane.class, ProcessParams.class)) {
             registerPythonHostAccess(type, registered);
         }
     }

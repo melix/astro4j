@@ -32,8 +32,8 @@ public record RangeMask(double lo, double hi) implements ImageMask {
 
     @Override
     public BiPredicate<Integer, Integer> resolve(ImageWrapper image) {
-        if (image.unwrapToMemory() instanceof ImageWrapper32 mono) {
-            var data = mono.data();
+        if (image instanceof ImageWrapper32 mono) {
+            var data = mono.pixels().toArray();
             return (x, y) -> {
                 var v = data[y][x];
                 return v >= lo && v <= hi;

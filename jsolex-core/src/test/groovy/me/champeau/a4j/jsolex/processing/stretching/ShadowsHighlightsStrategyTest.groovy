@@ -40,7 +40,7 @@ class ShadowsHighlightsStrategyTest extends Specification {
         new ShadowsHighlightsStrategy(0, 0, RADIUS).stretch(image)
 
         then:
-        maxDifference(image.data(), expected.data()) < 1e-3
+        maxDifference(image.pixels().toArray(), expected.pixels().toArray()) < 1e-3
     }
 
     def "lifting the shadows brightens dark areas more than bright ones"() {
@@ -52,8 +52,8 @@ class ShadowsHighlightsStrategyTest extends Specification {
         new ShadowsHighlightsStrategy(50, 0, RADIUS).stretch(image)
 
         then:
-        def darkGain = image.data()[SIZE / 2 as int][20] - original.data()[SIZE / 2 as int][20]
-        def brightGain = image.data()[SIZE / 2 as int][SIZE - 20] - original.data()[SIZE / 2 as int][SIZE - 20]
+        def darkGain = image.pixels().get(20, SIZE / 2 as int) - original.pixels().get(20, SIZE / 2 as int)
+        def brightGain = image.pixels().get(SIZE - 20, SIZE / 2 as int) - original.pixels().get(SIZE - 20, SIZE / 2 as int)
         darkGain > 1000
         darkGain > 5 * brightGain
         brightGain >= 0
@@ -68,8 +68,8 @@ class ShadowsHighlightsStrategyTest extends Specification {
         new ShadowsHighlightsStrategy(0, 50, RADIUS).stretch(image)
 
         then:
-        def darkChange = image.data()[SIZE / 2 as int][20] - original.data()[SIZE / 2 as int][20]
-        def brightChange = image.data()[SIZE / 2 as int][SIZE - 20] - original.data()[SIZE / 2 as int][SIZE - 20]
+        def darkChange = image.pixels().get(20, SIZE / 2 as int) - original.pixels().get(20, SIZE / 2 as int)
+        def brightChange = image.pixels().get(SIZE - 20, SIZE / 2 as int) - original.pixels().get(SIZE - 20, SIZE / 2 as int)
         brightChange < -1000
         Math.abs(darkChange) < Math.abs(brightChange) / 5
     }
@@ -85,7 +85,7 @@ class ShadowsHighlightsStrategyTest extends Specification {
         new ShadowsHighlightsStrategy(50, 30, RADIUS).stretch(image)
 
         then:
-        def change = { int x -> image.data()[center][x] - original.data()[center][x] }
+        def change = { int x -> image.pixels().get(x, center) - original.pixels().get(x, center) }
         def farInside = change(center)
         def nearInside = change(center + diskRadius - 3 * RADIUS)
         def farOutside = change(SIZE - 2)
@@ -100,8 +100,8 @@ class ShadowsHighlightsStrategyTest extends Specification {
         given:
         def image = noise(7, SIZE, 50000)
         def reference = image.copy()
-        image.data()[32][32] = Float.NaN
-        reference.data()[32][32] = 0f
+        image.pixels().set(32, 32, Float.NaN)
+        reference.pixels().set(32, 32, 0f)
         def strategy = new ShadowsHighlightsStrategy(40, 10, 5)
 
         when:
@@ -109,7 +109,7 @@ class ShadowsHighlightsStrategyTest extends Specification {
         strategy.stretch(reference)
 
         then:
-        image.data() == reference.data()
+        image.pixels().toArray() == reference.pixels().toArray()
     }
 
     def "zero pixels stay at zero"() {
@@ -117,7 +117,7 @@ class ShadowsHighlightsStrategyTest extends Specification {
         def image = noise(2, SIZE, 50000)
         for (int y = 0; y < SIZE; y++) {
             for (int x = 0; x < SIZE / 3; x++) {
-                image.data()[y][x] = 0
+                image.pixels().set(x, y, 0f)
             }
         }
 
@@ -125,16 +125,17 @@ class ShadowsHighlightsStrategyTest extends Specification {
         new ShadowsHighlightsStrategy(80, -20, RADIUS).stretch(image)
 
         then:
-        (0..<SIZE).every { y -> (0..<(SIZE / 3 as int)).every { x -> image.data()[y][x] == 0f } }
-        image.data()[SIZE / 2 as int][SIZE - 1] > 0
+        (0..<SIZE).every { y -> (0..<(SIZE / 3 as int)).every { x -> image.pixels().get(x, y) == 0f } }
+        image.pixels().get(SIZE - 1, SIZE / 2 as int) > 0
     }
 
     def "color images keep their hue"() {
         given:
         def mono = halves(4000, 30000, SIZE)
-        def r = scaled(mono.data(), 1.0f)
-        def g = scaled(mono.data(), 0.6f)
-        def b = scaled(mono.data(), 0.3f)
+        def monoData = mono.pixels().toArray()
+        def r = scaled(monoData, 1.0f)
+        def g = scaled(monoData, 0.6f)
+        def b = scaled(monoData, 0.3f)
         def image = new RGBImage(SIZE, SIZE, r, g, b, [:])
         def originalGreen = g[SIZE / 2 as int][20]
 
@@ -144,11 +145,11 @@ class ShadowsHighlightsStrategyTest extends Specification {
         then:
         for (y in [10, SIZE / 2 as int, SIZE - 10]) {
             for (x in [5, 20, SIZE - 20, SIZE - 5]) {
-                assert Math.abs(g[y][x] / r[y][x] - 0.6f) < 1e-4
-                assert Math.abs(b[y][x] / r[y][x] - 0.3f) < 1e-4
+                assert Math.abs(image.green().get(x, y) / image.red().get(x, y) - 0.6f) < 1e-4
+                assert Math.abs(image.blue().get(x, y) / image.red().get(x, y) - 0.3f) < 1e-4
             }
         }
-        g[SIZE / 2 as int][20] > originalGreen
+        image.green().get(20, SIZE / 2 as int) > originalGreen
     }
 
     def "rejects out of range amounts"() {
@@ -176,8 +177,9 @@ class ShadowsHighlightsStrategyTest extends Specification {
         def result = stretching().shadowsHighlights(img: image, shadows: 40, highlights: 10, radius: 20) as ImageWrapper32
 
         then:
-        result.data() == expected.data()
-        maxDifference(image.data(), expected.data()) > 0
+        def expectedData = expected.pixels().toArray()
+        result.pixels().toArray() == expectedData
+        maxDifference(image.pixels().toArray(), expectedData) > 0
     }
 
     def "shadows_highlights function uses default amounts"() {
@@ -191,7 +193,7 @@ class ShadowsHighlightsStrategyTest extends Specification {
         def result = stretching().shadowsHighlights(img: image) as ImageWrapper32
 
         then:
-        result.data() == expected.data()
+        result.pixels().toArray() == expected.pixels().toArray()
     }
 
     def "the stretching step spreads the brightness range before adjusting it"() {
@@ -205,7 +207,7 @@ class ShadowsHighlightsStrategyTest extends Specification {
         StretchStep.defaultsOf(StretchStepKind.SHADOWS_HIGHLIGHTS).toStrategy().stretch(image)
 
         then:
-        image.data() == expected.data()
+        image.pixels().toArray() == expected.pixels().toArray()
     }
 
     def "describes the step with its parameters"() {

@@ -17,7 +17,6 @@ package me.champeau.a4j.jsolex.processing.stretching;
 
 import me.champeau.a4j.jsolex.processing.util.Histogram;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
-import me.champeau.a4j.math.RowStrips;
 import org.apache.commons.math3.analysis.polynomials.PolynomialFunction;
 import org.apache.commons.math3.fitting.GaussianCurveFitter;
 import org.apache.commons.math3.fitting.PolynomialCurveFitter;
@@ -46,28 +45,23 @@ public final class DynamicStretchStrategy implements StretchingStrategy {
         double a = 0.8*findLinearGrowthLimit(image);
         double linearSlope = target / a;
         double compressedSlope = (MAX_PIXEL_VALUE - target) / (MAX_PIXEL_VALUE - a);
-        var data = image.data();
         var observations = new ArrayList<WeightedObservedPoint>(65536);
         for (int i = 0; i < 65536; i++) {
             observations.add(new WeightedObservedPoint(1.0, i, i < a ? linearSlope * i : target + compressedSlope * (i - a)));
         }
         var fit = PolynomialCurveFitter.create(4).fit(observations);
         var poly = new PolynomialFunction(fit);
-        var height = image.height();
-        var width = image.width();
-        RowStrips.forEach(height, (yStart, yEnd) -> {
-            for (int y = yStart; y < yEnd; y++) {
-                for (int x = 0; x < width; x++) {
-                    var v = data[y][x];
-                    data[y][x] = (float) Math.clamp(poly.value(v), 0, MAX_PIXEL_VALUE);
-                }
+        image.pixels().updateRows((y, row) -> {
+            for (int x = 0; x < row.length; x++) {
+                var v = row[x];
+                row[x] = (float) Math.clamp(poly.value(v), 0, MAX_PIXEL_VALUE);
             }
         });
         RangeExpansionStrategy.DEFAULT.stretch(image);
     }
 
     private int findLinearGrowthLimit(ImageWrapper32 image) {
-        var histogram = Histogram.of(image.data(), 256);
+        var histogram = Histogram.of(image.pixels(), 256);
         var values = histogram.values();
         var observations = new ArrayList<WeightedObservedPoint>(2 * FIT_RANGE + 1);
         for (int i = Math.max(0, source - FIT_RANGE); i < Math.min(255, source + FIT_RANGE); i++) {

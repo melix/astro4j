@@ -46,10 +46,6 @@ final class StretchingTestImages {
         image(data)
     }
 
-    static float[][] copyOf(float[][] data) {
-        data.collect { it.clone() } as float[][]
-    }
-
     static double maxDifference(float[][] a, float[][] b) {
         double max = 0
         for (int y = 0; y < a.length; y++) {

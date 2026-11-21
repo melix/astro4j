@@ -119,7 +119,7 @@ class GeometryWarpAlignmentTest extends Specification {
         def corrected = GeometryUtils.applyGeometryCorrection(new ImageWrapper32(width, height, data, [:]), transform, 0f)
 
         then: "the interior is unchanged, no ripple and no level shift"
-        def d = corrected.data()
+        def d = corrected.pixels().toArray()
         def cy = corrected.height() / 2 as int
         def samples = (100..<(corrected.width() - 100)).collect { d[cy][it] as double }
         samples.min() > 29999
@@ -167,7 +167,7 @@ class GeometryWarpAlignmentTest extends Specification {
         double sx = 0
         double sy = 0
         double count = 0
-        def data = image.data()
+        def data = image.pixels().toArray()
         for (int y = 0; y < image.height(); y++) {
             for (int x = 0; x < image.width(); x++) {
                 if (data[y][x] > THRESHOLD) {
@@ -184,7 +184,7 @@ class GeometryWarpAlignmentTest extends Specification {
         double sx = 0
         double sy = 0
         double sum = 0
-        def data = image.data()
+        def data = image.pixels().toArray()
         for (int y = 0; y < image.height(); y++) {
             for (int x = 0; x < image.width(); x++) {
                 def v = data[y][x] as double
@@ -198,7 +198,7 @@ class GeometryWarpAlignmentTest extends Specification {
 
     private static double brightArea(ImageWrapper32 image) {
         double count = 0
-        def data = image.data()
+        def data = image.pixels().toArray()
         for (int y = 0; y < image.height(); y++) {
             for (int x = 0; x < image.width(); x++) {
                 if (data[y][x] > THRESHOLD) {

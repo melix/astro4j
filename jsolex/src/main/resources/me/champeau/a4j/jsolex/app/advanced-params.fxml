@@ -67,20 +67,6 @@
                             <Label text="ms" styleClass="field-unit"/>
                         </HBox>
                         
-                        <Label text="%memory.restriction" styleClass="field-label" GridPane.columnIndex="0" GridPane.rowIndex="2">
-                            <tooltip>
-                                <Tooltip text="%memory.restriction.tooltip"/>
-                            </tooltip>
-                        </Label>
-                        <VBox spacing="8" GridPane.columnIndex="1" GridPane.rowIndex="2">
-                            <Slider fx:id="memoryRestrictionMultiplier" blockIncrement="1.0" majorTickUnit="8.0" max="32.0" min="1.0" minorTickCount="1" value="1.0">
-                                <tooltip>
-                                    <Tooltip text="%memory.restriction.tooltip"/>
-                                </tooltip>
-                            </Slider>
-                            <Label fx:id="memoryRestrictionHelp" alignment="CENTER" text="Label" styleClass="help-text"/>
-                        </VBox>
-                        
                         <Label text="%bass2000.ftp.url" styleClass="field-label" GridPane.columnIndex="0" GridPane.rowIndex="3">
                             <tooltip>
                                 <Tooltip text="%bass2000.ftp.url.tooltip"/>

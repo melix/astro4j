@@ -18,7 +18,6 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.stretching.ConvolutionStrategy;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
@@ -61,11 +60,8 @@ public class Convolution extends AbstractFunctionImpl {
     }
 
     private Object convolve(ImageWrapper image, Kernel kernel) {
-        if (image instanceof FileBackedImage fileBackedImage) {
-            image = fileBackedImage.unwrapToMemory();
-        }
         if (image instanceof ImageWrapper32 mono) {
-            return new ImageWrapper32(mono.width(), mono.height(), imageMath.convolve(mono.asImage(), kernel).data(), mono.metadata());
+            return new ImageWrapper32(imageMath.convolve(mono.pixels(), kernel), mono.metadata());
         } else if (image instanceof RGBImage rgb) {
             var transformed = ConvolutionStrategy.filterLightness(rgb, lightness -> imageMath.convolve(lightness, kernel));
             return new RGBImage(rgb.width(), rgb.height(), transformed[0], transformed[1], transformed[2], rgb.metadata());
@@ -80,9 +76,6 @@ public class Convolution extends AbstractFunctionImpl {
             return expandToImageList("rl_decon", "img", arguments, this::richardsonLucy);
         }
         if (arg instanceof ImageWrapper image) {
-            if (image instanceof FileBackedImage fileBackedImage) {
-                image = fileBackedImage.unwrapToMemory();
-            }
             var radius = floatArg(arguments, "radius", (float) Deconvolution.DEFAULT_RADIUS);
             var sigma = floatArg(arguments, "sigma", (float) Deconvolution.DEFAULT_SIGMA);
             var iterations = intArg(arguments, "iterations", Deconvolution.DEFAULT_ITERATIONS);
@@ -105,8 +98,7 @@ public class Convolution extends AbstractFunctionImpl {
         if (arg instanceof ImageWrapper image) {
             var strength = doubleArg(arguments, "strength", 1.0d);
             var kernelSize = intArg(arguments, "kernel", 3);
-            var unwrapped = image.unwrapToMemory();
-            if (unwrapped instanceof ImageWrapper32 mono) {
+            if (image instanceof ImageWrapper32 mono) {
                 var sharpened = ConvolutionStrategy.unsharpMask(imageMath, mono.asImage(), strength, kernelSize);
                 return new ImageWrapper32(mono.width(), mono.height(), sharpened.data(), new LinkedHashMap<>(mono.metadata()));
             }

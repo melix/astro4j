@@ -19,7 +19,6 @@ import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.Wavelen;
@@ -96,7 +95,7 @@ public class ShiftCollectingImageExpressionEvaluator extends ImageExpressionEval
             if (cached != null) {
                 return cached;
             }
-            var loaded = FileBackedImage.wrap(super.findImage(shift));
+            var loaded = super.findImage(shift);
             cache.put(shift, loaded);
             return loaded;
         } finally {

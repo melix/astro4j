@@ -19,7 +19,6 @@ import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor.SectionKin
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift
 import me.champeau.a4j.jsolex.processing.util.Constants
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32
 import spock.lang.Specification
@@ -38,7 +37,7 @@ class ScaleUnitFunctionsTest extends Specification {
     }
 
     private static float[] dataOf(result, String label) {
-        return ((ImageWrapper32) ((FileBackedImage) result.imagesByLabel()[label]).unwrapToMemory()).data()[0]
+        return ((ImageWrapper32) result.imagesByLabel()[label]).pixels().toArray()[0]
     }
 
     def setup() {

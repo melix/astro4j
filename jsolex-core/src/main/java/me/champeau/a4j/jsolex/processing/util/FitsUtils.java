@@ -15,6 +15,7 @@
  */
 package me.champeau.a4j.jsolex.processing.util;
 
+import me.champeau.a4j.math.image.ImagePlane;
 import me.champeau.a4j.jsolex.processing.expr.stacking.DistorsionMap;
 import me.champeau.a4j.jsolex.processing.expr.stacking.DistorsionMaps;
 import me.champeau.a4j.jsolex.processing.params.ProcessParams;
@@ -167,8 +168,8 @@ public class FitsUtils {
 
     public static ImageWrapper readFitsFile(File source) {
         try (var fits = new Fits(source)) {
-            float[][] data = null;
-            float[][][] rgb = null;
+            ImagePlane data = null;
+            ImagePlane[] rgb = null;
             int rows = 0;
             int cols = 0;
             Map<Class<?>, Object> metadata = new HashMap<>();
@@ -201,7 +202,7 @@ public class FitsUtils {
                         boolean shouldFlipY = isJSolEx && hasSpectroHeader;
                         data = readChannel(mono, rows, cols, bzero, shouldFlipY);
                     } else if (kernel instanceof short[][][] channels) {
-                        rgb = new float[3][][];
+                        rgb = new ImagePlane[3];
                         for (int i = 0; i < channels.length; i++) {
                             short[][] channel = channels[i];
                             rows = channel.length;
@@ -219,10 +220,10 @@ public class FitsUtils {
                 }
             }
             if (data != null) {
-                return new ImageWrapper32(cols, rows, data, metadata);
+                return new ImageWrapper32(data, metadata);
             }
             if (rgb != null) {
-                return new RGBImage(cols, rows, rgb[0], rgb[1], rgb[2], metadata);
+                return new RGBImage(rgb[0], rgb[1], rgb[2], metadata);
             }
 
         } catch (IOException | FitsException e) {
@@ -251,15 +252,18 @@ public class FitsUtils {
         }
     }
 
-    private static float[][] readChannel(short[][] mono, int rows, int cols, int bzero, boolean flipY) {
-        float[][] data = new float[rows][cols];
+    private static ImagePlane readChannel(short[][] mono, int rows, int cols, int bzero, boolean flipY) {
+        var plane = ImagePlane.allocate(cols, rows);
+        var row = new float[cols];
         for (int y = 0; y < rows; y++) {
+            int sourceY = flipY ? (rows - y - 1) : y;
+            var source = mono[sourceY];
             for (int x = 0; x < cols; x++) {
-                int sourceY = flipY ? (rows - y - 1) : y;
-                data[y][x] = mono[sourceY][x] + bzero;
+                row[x] = source[x] + bzero;
             }
+            plane.setRow(y, row);
         }
-        return data;
+        return plane;
     }
 
     private static boolean isJSolEx(BinaryTableHDU binaryTableHdu) {
@@ -494,9 +498,6 @@ public class FitsUtils {
     }
 
     private void write(ImageWrapper image) {
-        if (image instanceof FileBackedImage fbi) {
-            image = fbi.unwrapToMemory();
-        }
         if (Objects.requireNonNull(image) instanceof ImageWrapper32 mono) {
             writeMono(mono);
         } else if (image instanceof RGBImage rgb) {
@@ -506,7 +507,7 @@ public class FitsUtils {
 
     private void writeRGB(RGBImage rgb) {
         try (var fits = new Fits()) {
-            var hdu = FitsFactory.hduFactory(toRows(rgb.width(), rgb.r(), rgb.g(), rgb.b()));
+            var hdu = FitsFactory.hduFactory(toRows(rgb.red(), rgb.green(), rgb.blue()));
             var header = hdu.getHeader();
             writeHeader(rgb, header);
             fits.addHDU(hdu);
@@ -519,7 +520,7 @@ public class FitsUtils {
 
     private void writeMono(ImageWrapper32 mono) {
         try (var fits = new Fits()) {
-            var hdu = FitsFactory.hduFactory(toRows(mono.width(), mono.data()));
+            var hdu = FitsFactory.hduFactory(toRows(mono.pixels()));
             var header = hdu.getHeader();
             writeHeader(mono, header);
             fits.addHDU(hdu);
@@ -954,13 +955,16 @@ public class FitsUtils {
         return str != null && !str.isEmpty();
     }
 
-    private short[] toRows(int width, float[][] data) {
-        var rowCount = data.length;
+    private short[] toRows(ImagePlane pixels) {
+        var width = pixels.width();
+        var rowCount = pixels.height();
         var result = new short[rowCount * width];
+        var row = new float[width];
         for (int y = 0; y < rowCount; y++) {
+            // BASS2000 requires bottom-up order
+            pixels.getRow(rowCount - y - 1, row);
             for (int x = 0; x < width; x++) {
-                // BASS2000 requires bottom-up order
-                int value = Math.round(data[rowCount - y - 1][x]);
+                int value = Math.round(row[x]);
                 if (value < 0) {
                     value = 0;
                 } else if (value > 65535) {
@@ -973,11 +977,11 @@ public class FitsUtils {
         return result;
     }
 
-    private short[][] toRows(int width, float[][] r, float[][] g, float[][] b) {
+    private short[][] toRows(ImagePlane r, ImagePlane g, ImagePlane b) {
         var rgb = new short[3][];
-        rgb[0] = toRows(width, r);
-        rgb[1] = toRows(width, g);
-        rgb[2] = toRows(width, b);
+        rgb[0] = toRows(r);
+        rgb[1] = toRows(g);
+        rgb[2] = toRows(b);
         return rgb;
     }
 }

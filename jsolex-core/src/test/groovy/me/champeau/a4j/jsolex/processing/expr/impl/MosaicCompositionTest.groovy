@@ -60,7 +60,7 @@ class MosaicCompositionTest extends Specification {
     }
 
     private static long countPixelsAbove(ImageWrapper32 img, float threshold) {
-        var data = img.data()
+        var data = img.pixels().toArray()
         long count = 0L
         for (int y = 0; y < img.height(); y++) {
             for (int x = 0; x < img.width(); x++) {
@@ -76,7 +76,7 @@ class MosaicCompositionTest extends Specification {
         int w = image.width()
         int h = image.height()
         var bi = new BufferedImage(w, h, BufferedImage.TYPE_BYTE_GRAY)
-        var data = image.data()
+        var data = image.pixels().toArray()
         for (int y = 0; y < h; y++) {
             for (int x = 0; x < w; x++) {
                 int v = Math.clamp((int) (data[y][x]) >> 8, 0, 255)

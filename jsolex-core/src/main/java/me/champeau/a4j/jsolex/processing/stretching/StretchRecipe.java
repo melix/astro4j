@@ -171,7 +171,7 @@ public record StretchRecipe(List<StretchStep> steps) {
      * @return the copy
      */
     public static ImageWrapper withoutRecipe(ImageWrapper image) {
-        var copy = image.unwrapToMemory().copy();
+        var copy = image.copy();
         copy.metadata().remove(StretchRecipe.class);
         return copy;
     }

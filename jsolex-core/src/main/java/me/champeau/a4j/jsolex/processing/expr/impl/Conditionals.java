@@ -17,7 +17,6 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
-import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 
 import java.util.List;
@@ -93,8 +92,8 @@ public class Conditionals extends AbstractFunctionImpl {
                                       Object value,
                                       DoubleBinaryPredicate numericPredicate,
                                       ObjectBinaryPredicate objectPredicate) {
-        var subjectImage = unwrapToImage(subject);
-        var valueImage = unwrapToImage(value);
+        var subjectImage = asMonoImage(subject);
+        var valueImage = asMonoImage(value);
         var subjectScalar = asScalar(subject);
         var valueScalar = asScalar(value);
 
@@ -128,8 +127,8 @@ public class Conditionals extends AbstractFunctionImpl {
         if (width != valueImage.width() || height != valueImage.height()) {
             throw new IllegalArgumentException("Images must have the same dimensions");
         }
-        var subjectData = subjectImage.data();
-        var valueData = valueImage.data();
+        var subjectData = subjectImage.pixels().toArray();
+        var valueData = valueImage.pixels().toArray();
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 if (!predicate.test(subjectData[y][x], valueData[y][x])) {
@@ -141,7 +140,7 @@ public class Conditionals extends AbstractFunctionImpl {
     }
 
     private static boolean allPixelsSatisfy(ImageWrapper32 image, double scalar, DoubleBinaryPredicate predicate) {
-        var data = image.data();
+        var data = image.pixels().toArray();
         for (int y = 0; y < image.height(); y++) {
             for (int x = 0; x < image.width(); x++) {
                 if (!predicate.test(data[y][x], scalar)) {
@@ -153,7 +152,7 @@ public class Conditionals extends AbstractFunctionImpl {
     }
 
     private static boolean allPixelsSatisfy(double scalar, ImageWrapper32 image, DoubleBinaryPredicate predicate) {
-        var data = image.data();
+        var data = image.pixels().toArray();
         for (int y = 0; y < image.height(); y++) {
             for (int x = 0; x < image.width(); x++) {
                 if (!predicate.test(scalar, data[y][x])) {
@@ -164,12 +163,9 @@ public class Conditionals extends AbstractFunctionImpl {
         return true;
     }
 
-    private static ImageWrapper32 unwrapToImage(Object obj) {
-        if (obj instanceof ImageWrapper wrapper) {
-            var unwrapped = wrapper.unwrapToMemory();
-            if (unwrapped instanceof ImageWrapper32 img) {
-                return img;
-            }
+    private static ImageWrapper32 asMonoImage(Object obj) {
+        if (obj instanceof ImageWrapper32 img) {
+            return img;
         }
         return null;
     }

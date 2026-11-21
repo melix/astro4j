@@ -18,7 +18,6 @@ package me.champeau.a4j.jsolex.processing.stretching;
 import me.champeau.a4j.jsolex.processing.color.ColorCurve;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
-import me.champeau.a4j.math.RowStrips;
 
 // Not worth running on GPU: memory transfer overhead dominates the simple polynomial evaluation
 public final class CurveTransformStrategy implements StretchingStrategy {
@@ -50,17 +49,11 @@ public final class CurveTransformStrategy implements StretchingStrategy {
     @Override
     public void stretch(ImageWrapper32 image) {
         var curve = ColorCurve.cachedPolynomial((int) in, (int) out);
-        var data = image.data();
-        int width = image.width();
-        int height = image.height();
-        RowStrips.forEach(height, (yStart, yEnd) -> {
-            for (int y = yStart; y < yEnd; y++) {
-                var line = data[y];
-                for (int x = 0; x < width; x++) {
-                    var v = line[x];
-                    if (v > protectLo && v < protectHi) {
-                        line[x] = (float) Math.clamp(curve.applyAsDouble(v), 0, Constants.MAX_PIXEL_VALUE);
-                    }
+        image.pixels().updateRows((y, line) -> {
+            for (int x = 0; x < line.length; x++) {
+                var v = line[x];
+                if (v > protectLo && v < protectHi) {
+                    line[x] = (float) Math.clamp(curve.applyAsDouble(v), 0, Constants.MAX_PIXEL_VALUE);
                 }
             }
         });

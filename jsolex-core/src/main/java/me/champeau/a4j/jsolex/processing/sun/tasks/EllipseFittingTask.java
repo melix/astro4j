@@ -25,6 +25,7 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter;
 import me.champeau.a4j.jsolex.processing.util.Constants;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.BlurKernel;
 import me.champeau.a4j.math.image.Image;
@@ -102,13 +103,13 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
     public EllipseFittingTask.Result doCall() throws Exception {
         broadcaster.broadcast(operation.update(0, message("analyzing.disk.geometry")));
         var imageMath = ImageMath.newInstance();
-        var tmp = truncate(image.copy());
-        workImage = ImageWrapper32.fromImage(tmp);
-        var data = tmp.data();
-        tmp = imageMath.convolve(tmp, Kernel33.GAUSSIAN_BLUR);
+        var truncated = truncate(image);
+        var data = truncated.data();
+        var tmp = imageMath.convolve(truncated, Kernel33.GAUSSIAN_BLUR);
         var height = image.height();
         var width = image.width();
         if (height == 0 || width == 0) {
+            workImage = ImageWrapper32.fromImage(truncated);
             return new Result(Ellipse.ofCartesian(new DoubleSextuplet(0, 0, 0, 0, 0, 0)), List.of());
         }
         for (int y = 0; y < height; y++) {
@@ -118,25 +119,27 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
             }
         }
         tmp = prepareForDetection(tmp, imageMath);
-        workImage = ImageWrapper32.fromImage(tmp);
         // Perform background neutralization to reduce impact of reflections,
         // particularly visible close to UV. We perform multiple iterations
         // because some gradients are particularly difficult to remove. The
-        // working buffer is allocated once and reused across all iterations
-        // — each call reads from the previous iteration's result (which lives
-        // in `bgBuffer`) and writes back into the same buffer. Was up to 17
-        // large allocations per task; now 1.
-        var bgBuffer = new float[height][width];
-        double bg = Constants.MAX_PIXEL_VALUE;
-        var blindBg = BackgroundRemoval.blindBackgroundNeutralization(workImage, bgBuffer);
-        workImage = blindBg.neutralized();
-        int maxIterations = 16;
-        while (Math.abs(bg - blindBg.averageBackground()) / Math.max(bg, blindBg.averageBackground()) > 0.02 && maxIterations-- > 0) {
-            bg = blindBg.averageBackground();
-            blindBg = BackgroundRemoval.blindBackgroundNeutralization(workImage, bgBuffer);
-            workImage = blindBg.neutralized();
-            LOGGER.debug("Background level was {}", blindBg.averageBackground());
-        }
+        // working buffer is allocated once and reused across all iterations:
+        // each pass reads the result of the previous one from the buffer and
+        // writes back into it.
+        var buffer = new float[height][width];
+        var current = tmp.data();
+        double previous;
+        double level = Constants.MAX_PIXEL_VALUE;
+        int iterations = 0;
+        do {
+            previous = level;
+            var averageBackground = BackgroundRemoval.blindBackgroundNeutralization(current, buffer, null);
+            if (averageBackground.isPresent()) {
+                current = buffer;
+            }
+            level = averageBackground.orElse(0);
+            LOGGER.debug("Background level was {}", level);
+        } while (Math.abs(previous - level) / Math.max(previous, level) > 0.02 && iterations++ < 16);
+        workImage = new ImageWrapper32(width, height, current, MutableMap.of());
         LinearStrechingStrategy.DEFAULT.stretch(workImage);
         return ellipseFitRun();
     }
@@ -169,7 +172,7 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
     }
 
     private Result ellipseFitRun() {
-        var magnitudes = workImage.data();
+        var magnitudes = workImage.pixels().toArray();
         broadcaster.broadcast(operation.update(0, message("fitting.ellipse")));
         var samples = isSaturatedDiskMode() ? findSamplesAtStrongestChange(magnitudes) : findSamplesUsingDynamicSensitivity(magnitudes);
         samples = decimate(samples);
@@ -476,7 +479,7 @@ public class EllipseFittingTask extends AbstractTask<EllipseFittingTask.Result> 
         if (debugImagesEmitter != null) {
             debugImagesEmitter.newColorImage(GeneratedImageKind.DEBUG, null, message("edge.detection"), "edge-detection", message("edge.detection.description"), image, debugImage -> {
                 float[][][] rgb = new float[3][][];
-                var mono = debugImage.data();
+                var mono = debugImage.pixels().toArray();
                 float[][] overlay = ImageWrapper.copyData(mono);
                 rgb[0] = overlay;
                 rgb[1] = mono;

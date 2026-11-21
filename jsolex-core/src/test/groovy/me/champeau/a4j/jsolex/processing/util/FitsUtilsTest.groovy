@@ -54,7 +54,7 @@ class FitsUtilsTest extends Specification {
         readImage instanceof ImageWrapper32
 
         and: "the image data matches within tolerance"
-        def readData = ((ImageWrapper32) readImage).data()
+        def readData = ((ImageWrapper32) readImage).pixels().toArray()
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 Math.abs(originalData[y][x] - readData[y][x]) < 1.0f
@@ -83,7 +83,7 @@ class FitsUtilsTest extends Specification {
         def readImage = FitsUtils.readFitsFile(fitsFile)
 
         then: "the Y coordinates should match (exposing any flip bug)"
-        def readData = ((ImageWrapper32) readImage).data()
+        def readData = ((ImageWrapper32) readImage).pixels().toArray()
 
         println "Original data:"
         for (int y = 0; y < height; y++) {

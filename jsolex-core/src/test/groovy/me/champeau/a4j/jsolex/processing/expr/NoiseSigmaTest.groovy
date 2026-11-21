@@ -60,7 +60,7 @@ class NoiseSigmaTest extends Specification {
         given:
         var clean = noisy(1000f, 20f, 7)
         var spiked = noisy(1000f, 20f, 7)
-        20.times { i -> spiked.data()[10 + i][10 + i] = 60000f }
+        20.times { i -> spiked.pixels().set(10 + i, 10 + i, 60000f) }
 
         when:
         var cleanSigma = statistics.noiseSigma(["img": clean]) as double
@@ -82,7 +82,7 @@ class NoiseSigmaTest extends Specification {
     def "the estimate scales linearly with an affine gain"() {
         given: "the same frame normalized with two different gains"
         var image = noisy(1000f, 25f, 3)
-        var scaled = new ImageWrapper32(SIZE, SIZE, image.data().collect { row -> row.collect { (float) (3 * it) } as float[] } as float[][], [:])
+        var scaled = new ImageWrapper32(SIZE, SIZE, image.pixels().toArray().collect { row -> row.collect { (float) (3 * it) } as float[] } as float[][], [:])
 
         when:
         var base = statistics.noiseSigma(["img": image]) as double

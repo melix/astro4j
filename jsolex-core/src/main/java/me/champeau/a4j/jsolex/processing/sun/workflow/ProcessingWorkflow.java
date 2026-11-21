@@ -51,12 +51,14 @@ import me.champeau.a4j.jsolex.processing.sun.tasks.EllipseFittingTask;
 import me.champeau.a4j.jsolex.processing.sun.tasks.GeometryCorrector;
 import me.champeau.a4j.jsolex.processing.util.CancellationSupport;
 import me.champeau.a4j.jsolex.processing.util.Constants;
-import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
+import me.champeau.a4j.jsolex.processing.util.MutableMap;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 import me.champeau.a4j.math.Point2D;
 import me.champeau.a4j.math.image.Deconvolution;
+import me.champeau.a4j.math.image.Image;
 import me.champeau.a4j.math.image.ImageMath;
+import me.champeau.a4j.math.image.ImagePlane;
 import me.champeau.a4j.math.image.SharpenKernel;
 import me.champeau.a4j.math.regression.Ellipse;
 import me.champeau.a4j.ser.Header;
@@ -68,6 +70,7 @@ import java.nio.file.Path;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -167,7 +170,7 @@ public class ProcessingWorkflow {
     private Supplier<ImageWrapper32> imageSupplier(WorkflowResults step) {
         return () -> (ImageWrapper32) state.findResult(step).map(r -> {
             if (r instanceof GeometryCorrector.Result geo) {
-                return geo.corrected().unwrapToMemory();
+                return geo.corrected();
             }
             if (r instanceof ImageWrapper32 img) {
                 return img;
@@ -212,7 +215,7 @@ public class ProcessingWorkflow {
         }
         var g = new GeometryCorrector(broadcaster, newOperation(message("geometry.correction")), imageSupplier(WorkflowResults.ROTATED), ellipse, forcedTilt, ratio, blackPoint, processParams, imagesEmitter, state, header).get();
         var kind = GeneratedImageKind.GEOMETRY_CORRECTED;
-        var geometryFixed = (ImageWrapper32) g.corrected().unwrapToMemory();
+        var geometryFixed = (ImageWrapper32) g.corrected();
         if (state.pixelShift() == processParams.spectrumParams().continuumShift()) {
             kind = GeneratedImageKind.CONTINUUM;
         }
@@ -224,7 +227,7 @@ public class ProcessingWorkflow {
         if (state.isInternal()) {
             return;
         }
-        var enhanced = (ImageWrapper32) g.enhanced().unwrapToMemory();
+        var enhanced = (ImageWrapper32) g.enhanced();
         broadcaster.broadcast(OutputImageDimensionsDeterminedEvent.of(message("geometry.corrected"), geometryFixed.width(), geometryFixed.height()));
         if (shouldProduce(GeneratedImageKind.GEOMETRY_CORRECTED_PROCESSED)) {
             var effectiveEnhancement = effectiveContrastEnhancement();
@@ -289,18 +292,12 @@ public class ProcessingWorkflow {
                 mono -> {
                     new LinearStrechingStrategy(0, .75f * Constants.MAX_PIXEL_VALUE).stretch(mono);
                     var rgb = RGBImage.toRGB(mono);
-                    var r = rgb.r();
-                    var g = rgb.g();
-                    var b = rgb.b();
                     var activeRegionsMetadata = mono.findMetadata(ActiveRegions.class);
                     if (activeRegionsMetadata.isPresent()) {
                         var activeRegions = activeRegionsMetadata.get();
-                        var img = ImageDraw.drawActiveRegions(rgb, activeRegions, true, true, broadcaster);
-                        r = img.r();
-                        g = img.g();
-                        b = img.b();
+                        rgb = ImageDraw.drawActiveRegions(rgb, activeRegions, true, true, broadcaster);
                     }
-                    return new float[][][]{r, g, b};
+                    return new float[][][]{rgb.red().toArray(), rgb.green().toArray(), rgb.blue().toArray()};
                 });
     }
 
@@ -311,10 +308,10 @@ public class ProcessingWorkflow {
                 message("redshift.description"),
                 geometryFixed, mono -> {
                     LinearStrechingStrategy.DEFAULT.stretch(mono);
-                    var data = mono.data();
-                    var r = ImageWrapper.copyData(data);
-                    var g = ImageWrapper.copyData(data);
-                    var b = ImageWrapper.copyData(data);
+                    var pixels = mono.pixels();
+                    var r = pixels.toArray();
+                    var g = pixels.toArray();
+                    var b = pixels.toArray();
                     return new float[][][]{r, g, b};
                 }, (gr, img) -> {
                     for (var redshift : redshifts) {
@@ -371,10 +368,10 @@ public class ProcessingWorkflow {
                 desc,
                 continuum, mono -> {
                     LinearStrechingStrategy.DEFAULT.stretch(mono);
-                    var data = mono.data();
-                    var r = ImageWrapper.copyData(data);
-                    var g = ImageWrapper.copyData(data);
-                    var b = ImageWrapper.copyData(data);
+                    var pixels = mono.pixels();
+                    var r = pixels.toArray();
+                    var g = pixels.toArray();
+                    var b = pixels.toArray();
                     return new float[][][]{r, g, b};
                 }, (gr, img) -> {
                     int id = 0;
@@ -396,8 +393,14 @@ public class ProcessingWorkflow {
     }
 
     private GeometryCorrector.Result performEnhancements(GeometryCorrector.Result g) {
-        var corrected = (ImageWrapper32) g.corrected().unwrapToMemory();
-        var image = corrected.asImage();
+        var sharpeningParams = processParams.enhancementParams().sharpeningParams();
+        var deconvolve = processParams.geometryParams().deconvolutionMode() == DeconvolutionMode.RICHARDSON_LUCY
+                && processParams.geometryParams().richardsonLucyDeconvolutionParams().isPresent();
+        if (!deconvolve && sharpeningParams instanceof SharpeningParams.None) {
+            return g;
+        }
+        var corrected = (ImageWrapper32) g.corrected();
+        var pixels = corrected.pixels();
         List<String> enhancements = new ArrayList<>();
         if (processParams.geometryParams().deconvolutionMode() == DeconvolutionMode.RICHARDSON_LUCY) {
             var deconv = new Deconvolution(imageMath);
@@ -408,33 +411,34 @@ public class ProcessingWorkflow {
                 var kernel = Deconvolution.generateGaussianPSF(radius, sigma);
                 var iterations = deconvolutionParams.get().iterations();
                 var decon = newOperation(message("deconvolution"));
+                var image = new Image(pixels.width(), pixels.height(), pixels.toArray());
                 for (int i = 0; i < iterations; i++) {
                     broadcaster.broadcast(ProgressEvent.of(decon.update(1d / iterations * i, message("deconvolution") + " " + (i + 1) + "/" + iterations)));
                     image = deconv.richardsonLucy(image, kernel, 1);
                 }
+                pixels = ImagePlane.of(image.width(), image.height(), image.data());
                 enhancements.add("Richardson-Lucy deconvolution (" + iterations + " iterations, radius: " + radius + ", sigma: " + sigma + ")");
                 broadcaster.broadcast(ProgressEvent.of(decon.update(1d, message("deconvolution"))));
             }
         }
-        var sharpeningParams = processParams.enhancementParams().sharpeningParams();
         switch (sharpeningParams) {
             case SharpeningParams.None none -> {
                 // No sharpening
             }
             case SharpeningParams.Sharpen sharpen -> {
                 enhancements.add("Sharpening (kernel size: " + sharpen.kernelSize() + ")");
-                image = imageMath.convolve(image, SharpenKernel.of(sharpen.kernelSize()));
+                pixels = imageMath.convolve(pixels, SharpenKernel.of(sharpen.kernelSize()));
             }
             case SharpeningParams.UnsharpMask unsharpMask -> {
                 enhancements.add("Unsharp mask (kernel size: " + unsharpMask.kernelSize() + ", strength: " + unsharpMask.strength() + ")");
                 var convolution = new Convolution(Map.of(), Broadcaster.NO_OP);
-                var unsharp = (ImageWrapper32) convolution.unsharpMask(Map.of("img", ImageWrapper32.fromImage(image), "kernel", unsharpMask.kernelSize(), "strength", unsharpMask.strength()));
-                image = unsharp.asImage();
+                var unsharp = (ImageWrapper32) convolution.unsharpMask(Map.of("img", new ImageWrapper32(pixels, MutableMap.of()), "kernel", unsharpMask.kernelSize(), "strength", unsharpMask.strength()));
+                pixels = unsharp.pixels();
             }
         }
         if (!enhancements.isEmpty()) {
             var metadata = new HashMap<>(corrected.metadata());
-            var result = new ImageWrapper32(corrected.width(), corrected.height(), image.data(), metadata);
+            var result = new ImageWrapper32(pixels, metadata);
             for (String enhancement : enhancements) {
                 TransformationHistory.recordTransform(result, enhancement);
             }
@@ -472,7 +476,7 @@ public class ProcessingWorkflow {
                         imagesEmitter.newColorImage(GeneratedImageKind.COLORIZED, null, MessageFormat.format(message("colorized"), curve.ray()), "colorized", String.format(message("colorized.description"), state.pixelShift()), stretched, monoImage -> {
                             new ArcsinhStretchingStrategy(blackPoint, COLORIZED_ARCSINH_STRETCH, COLORIZED_ARCSINH_MAX).stretch(monoImage);
                             new PercentileStretchStrategy(0, COLORIZED_PERCENTILE_HIGH).stretch(monoImage);
-                            return ImageUtils.convertToRGB(curve, monoImage.data());
+                            return ImageUtils.convertToRGB(curve, monoImage.pixels().toArray());
                         })
                 , () -> {
                     if (ray.wavelength().nanos() > 0) {
@@ -480,7 +484,7 @@ public class ProcessingWorkflow {
                             new ArcsinhStretchingStrategy(blackPoint, COLORIZED_ARCSINH_STRETCH, COLORIZED_ARCSINH_MAX).stretch(monoImage);
                             new PercentileStretchStrategy(0, COLORIZED_PERCENTILE_HIGH).stretch(monoImage);
                             var rgb = ray.toRGB();
-                            return Colorize.doColorize(stretched.width(), stretched.height(), monoImage.data(), rgb);
+                            return Colorize.doColorize(stretched.width(), stretched.height(), monoImage.pixels().toArray(), rgb);
                         });
                     }
                 });
@@ -535,31 +539,30 @@ public class ProcessingWorkflow {
         var kernelSize = (binning == null || binning == 1) ? 7 : 3;
 
         // Inverted disk: brighten, invert, apply a power-law contrast curve then sharpen
-        var disk = enhanced.copy();
-        var diskData = disk.data();
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                diskData[y][x] = Math.min(Constants.MAX_PIXEL_VALUE, NEGATIVE_DISK_BOOST * diskData[y][x]);
+        var disk = new ImageWrapper32(enhanced.pixels().mapRows((y, row) -> {
+            for (int x = 0; x < row.length; x++) {
+                row[x] = Math.min(Constants.MAX_PIXEL_VALUE, NEGATIVE_DISK_BOOST * row[x]);
             }
-        }
+        }), new LinkedHashMap<>(enhanced.metadata()));
         NegativeImageStrategy.DEFAULT.stretch(disk);
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                diskData[y][x] = (float) Math.pow(diskData[y][x], NEGATIVE_CONTRAST_EXPONENT);
+        disk.pixels().updateRows((y, row) -> {
+            for (int x = 0; x < row.length; x++) {
+                row[x] = (float) Math.pow(row[x], NEGATIVE_CONTRAST_EXPONENT);
             }
-        }
+        });
         LinearStrechingStrategy.DEFAULT.stretch(disk);
-        var sharpened = imageMath.convolve(disk.asImage(), SharpenKernel.of(kernelSize)).data();
+        var sharpened = imageMath.convolve(disk.pixels(), SharpenKernel.of(kernelSize));
 
         // Restrict the inversion to the solar disk, keeping an antialiased edge
         var maskData = new float[height][width];
         DiskFill.doFillWithGradient(ellipse, maskData, 1f, 0f);
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                sharpened[y][x] *= maskData[y][x];
+        sharpened.updateRows((y, row) -> {
+            var maskRow = maskData[y];
+            for (int x = 0; x < row.length; x++) {
+                row[x] *= maskRow[x];
             }
-        }
-        var masked = new ImageWrapper32(width, height, sharpened, new HashMap<>(enhanced.metadata()));
+        });
+        var masked = new ImageWrapper32(sharpened, new HashMap<>(enhanced.metadata()));
         LinearStrechingStrategy.DEFAULT.stretch(masked);
         new MidtoneTransferFunctionAutostretchStrategy(
                 MidtoneTransferFunctionAutostretchStrategy.DEFAULT_SHADOWS_CLIP,
@@ -569,14 +572,17 @@ public class ProcessingWorkflow {
 
         // Prominences are kept positive and blended back outside the disk
         var protus = enhanced.copy();
-        DiskFill.doFillWithGradient(ellipse, protus.data(), blackPoint);
+        var protusData = protus.pixels().toArray();
+        DiskFill.doFillWithGradient(ellipse, protusData, blackPoint);
+        protus.pixels().copyFrom(protusData);
         new ArcsinhStretchingStrategy(0, NEGATIVE_PROMINENCE_STRETCH, NEGATIVE_PROMINENCE_STRETCH).stretch(protus);
-        var protusData = protus.data();
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                sharpened[y][x] = Math.min(Constants.MAX_PIXEL_VALUE, sharpened[y][x] + protusData[y][x]);
+        var stretchedProtus = protus.pixels().toArray();
+        masked.pixels().updateRows((y, row) -> {
+            var protusRow = stretchedProtus[y];
+            for (int x = 0; x < row.length; x++) {
+                row[x] = Math.min(Constants.MAX_PIXEL_VALUE, row[x] + protusRow[x]);
             }
-        }
+        });
         emitNegativeImage(masked);
     }
 
@@ -594,20 +600,15 @@ public class ProcessingWorkflow {
                 var coronagraph = new CoronagraphTask(broadcaster, newOperation(message("generating.images")), imageSupplier(WorkflowResults.GEOMETRY_CORRECTION), diskEllipse, blackPoint).get();
                 imagesEmitter.newMonoImage(GeneratedImageKind.VIRTUAL_ECLIPSE, null, message("protus"), "protus", message("protus.description"), coronagraph);
                 if (produceMixed) {
-                    var data = geometryFixed.data();
-                    var copy = ImageWrapper.copyData(data);
-                    var work = new ImageWrapper32(geometryFixed.width(), geometryFixed.height(), copy, geometryFixed.metadata());
-                    var stretched = produceStretchedImage(work);
+                    var stretched = produceStretchedImage(geometryFixed);
                     new ArcsinhStretchingStrategy(blackPoint, 2, 2).stretch(stretched);
                     var width = geometryFixed.width();
                     var height = geometryFixed.height();
-                    for (int y = 0; y < stretched.data().length; y++) {
-                        System.arraycopy(stretched.data()[y], 0, copy[y], 0, width);
-                    }
+                    var copy = stretched.pixels().toArray();
                     float[][] mix = new float[height][width];
-                    var coronaData = coronagraph.data();
-                    var filtered = ImageWrapper.copyData(coronaData);
-                    neutralizeBg(new ImageWrapper32(width, height, filtered, Map.of()), 2, 3, 0.9f, null);
+                    var neutralized = new ImageWrapper32(coronagraph.pixels().copy(), Map.of());
+                    neutralizeBg(neutralized, 2, 3, 0.9f, null);
+                    var filtered = neutralized.pixels().toArray();
                     for (int y = 0; y < height; y++) {
                         for (int x = 0; x < width; x++) {
                             if (diskEllipse.isWithin(x, y)) {
@@ -617,9 +618,11 @@ public class ProcessingWorkflow {
                             }
                         }
                     }
+                    var data = geometryFixed.pixels().toArray();
                     for (int i = 0; i < 2; i++) {
                         bilinearSmoothing(diskEllipse, width, height, data);
                     }
+                    geometryFixed.pixels().copyFrom(data);
                     var metadata = new HashMap<>(geometryFixed.metadata());
                     metadata.put(Ellipse.class, diskEllipse);
                     for (int y = 0; y < height; y++) {
@@ -634,11 +637,11 @@ public class ProcessingWorkflow {
                     var colorCurve = ray.getColorCurve();
                     if (colorCurve.isPresent()) {
                         var curve = colorCurve.get();
-                        imagesEmitter.newColorImage(GeneratedImageKind.MIXED, null, message("mix"), "mix", message("mix.description"), mixedImage, monoImage -> ImageUtils.convertToRGB(curve, monoImage.data()));
+                        imagesEmitter.newColorImage(GeneratedImageKind.MIXED, null, message("mix"), "mix", message("mix.description"), mixedImage, monoImage -> ImageUtils.convertToRGB(curve, monoImage.pixels().toArray()));
                     } else if (ray.wavelength().nanos() > 0) {
                         imagesEmitter.newColorImage(GeneratedImageKind.MIXED, null, message("mix"), "mix", message("mix.description"), mixedImage, monoImage -> {
                             var rgbColor = ray.toRGB();
-                            return Colorize.doColorize(width, height, monoImage.data(), rgbColor);
+                            return Colorize.doColorize(width, height, monoImage.pixels().toArray(), rgbColor);
                         });
                     } else {
                         imagesEmitter.newMonoImage(GeneratedImageKind.MIXED, null, message("mix"), "mix", message("mix.description"), mixedImage);

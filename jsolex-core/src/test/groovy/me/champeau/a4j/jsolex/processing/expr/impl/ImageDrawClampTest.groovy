@@ -39,9 +39,9 @@ class ImageDrawClampTest extends Specification {
         def drawn = (RGBImage) new ImageDraw(Map.of(), Broadcaster.NO_OP, () -> Map.of()).drawText(image, "x", 2, 2, 'FFFFFF', 8)
 
         then:
-        drawn.r()[40][10] == 0f
-        drawn.r()[40][20] == 65280f
-        drawn.r()[40][30] == 768f
+        drawn.red().get(10, 40) == 0f
+        drawn.red().get(20, 40) == 65280f
+        drawn.red().get(30, 40) == 768f
     }
 
     def "out of range pixels are clamped when drawing on an RGB image"() {
@@ -56,7 +56,7 @@ class ImageDrawClampTest extends Specification {
         def drawn = (RGBImage) new ImageDraw(Map.of(), Broadcaster.NO_OP, () -> Map.of()).drawText(image, "x", 2, 2, 'FFFFFF', 8)
 
         then:
-        drawn.r()[40][10] == 0f
-        drawn.r()[40][20] == 65280f
+        drawn.red().get(10, 40) == 0f
+        drawn.red().get(20, 40) == 65280f
     }
 }

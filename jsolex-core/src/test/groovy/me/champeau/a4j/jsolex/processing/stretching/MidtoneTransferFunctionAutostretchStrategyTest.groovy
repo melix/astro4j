@@ -42,7 +42,7 @@ class MidtoneTransferFunctionAutostretchStrategyTest extends Specification {
         // A region far below the background, such as a disk filled with zero
         for (int y = 0; y < 32; y++) {
             for (int x = 0; x < 32; x++) {
-                image.data()[y][x] = 0f
+                image.pixels().set(x, y, 0f)
             }
         }
 
@@ -50,7 +50,7 @@ class MidtoneTransferFunctionAutostretchStrategyTest extends Specification {
         new MidtoneTransferFunctionAutostretchStrategy(-2.8, 0.25, null).stretch(image)
 
         then:
-        image.data()[0][0] == 0f
+        image.pixels().get(0, 0) == 0f
     }
 
     def "statistics restricted to a small disk do not saturate it"() {
@@ -72,7 +72,7 @@ class MidtoneTransferFunctionAutostretchStrategyTest extends Specification {
         new MidtoneTransferFunctionAutostretchStrategy(-2.8, 0.25, { x, y -> isInDisk(x, y, size, radius) }).stretch(masked)
 
         then:
-        unmasked.data()[size / 2 as int][size / 2 as int] / MAX > 0.99
+        unmasked.pixels().get(size / 2 as int, size / 2 as int) / MAX > 0.99
         Math.abs(medianInDisk(masked, radius) / MAX - 0.25) < 0.05
     }
 
@@ -84,10 +84,11 @@ class MidtoneTransferFunctionAutostretchStrategyTest extends Specification {
 
     private static double medianInDisk(ImageWrapper32 image, int radius) {
         var values = []
+        var data = image.pixels().toArray()
         for (int y = 0; y < image.height(); y++) {
             for (int x = 0; x < image.width(); x++) {
                 if (isInDisk(x, y, image.width(), radius)) {
-                    values << image.data()[y][x]
+                    values << data[y][x]
                 }
             }
         }
@@ -109,7 +110,7 @@ class MidtoneTransferFunctionAutostretchStrategyTest extends Specification {
     }
 
     private static double medianOf(ImageWrapper32 image) {
-        var values = image.data().collectMany { it as List<Float> }.sort()
+        var values = image.pixels().toArray().collectMany { it as List<Float> }.sort()
         return values[values.size() / 2 as int]
     }
 }

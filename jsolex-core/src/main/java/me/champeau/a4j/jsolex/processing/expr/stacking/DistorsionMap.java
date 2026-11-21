@@ -18,7 +18,7 @@ package me.champeau.a4j.jsolex.processing.expr.stacking;
 import me.champeau.a4j.math.MathUtils;
 import me.champeau.a4j.math.fft.FFTSupport;
 import me.champeau.a4j.math.opencl.OpenCLSupport;
-import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
+import me.champeau.a4j.utilities.TemporaryFolder;
 import me.champeau.a4j.math.regression.DistortionGridFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

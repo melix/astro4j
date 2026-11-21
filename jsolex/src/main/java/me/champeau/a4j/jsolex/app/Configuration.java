@@ -20,7 +20,7 @@ import me.champeau.a4j.jsolex.processing.expr.repository.ScriptRepository;
 import me.champeau.a4j.jsolex.processing.util.AnimationFormat;
 import me.champeau.a4j.jsolex.processing.util.FitsUtils;
 import me.champeau.a4j.jsolex.processing.util.ImageFormat;
-import me.champeau.a4j.jsolex.processing.util.TemporaryFolder;
+import me.champeau.a4j.utilities.TemporaryFolder;
 import me.champeau.a4j.jsolex.processing.util.VersionUtil;
 import me.champeau.a4j.math.opencl.OpenCLSupport;
 import me.champeau.a4j.math.tuples.IntPair;
@@ -52,7 +52,6 @@ public class Configuration {
     private static final String PREFERRED_HEIGHT = "preferred.height";
     private static final String LAST_DIRECTORY = "last.directory";
     private static final String CUSTOM_DIR = "custom.dir.";
-    private static final String MEMORY_RESTRICTION = "memory.restriction.multiplier";
     private static final String AUTO_START_SERVER = "auto.start.server";
     private static final String AUTO_START_SERVER_PORT = "auto.start.server.port";
     private static final String BASS2000_FTP_URL = "bass2000.ftp.url";
@@ -176,22 +175,6 @@ public class Configuration {
         var name = directory.toString();
         var key = CUSTOM_DIR + customKey;
         prefs.put(key, name);
-    }
-
-    /**
-     * Returns the memory restriction multiplier.
-     * @return the memory restriction multiplier
-     */
-    public int getMemoryRestrictionMultiplier() {
-        return prefs.getInt(MEMORY_RESTRICTION, 1);
-    }
-
-    /**
-     * Sets the memory restriction multiplier.
-     * @param multiplier the multiplier value
-     */
-    public void setMemoryRestrictionMultiplier(int multiplier) {
-        prefs.putInt(MEMORY_RESTRICTION, multiplier);
     }
 
     /**

@@ -48,13 +48,14 @@ class RawImageIOTest extends Specification {
         then:
         restored.width() == width
         restored.height() == height
+        def restoredData = restored.pixels().toArray()
         for (int y = 0; y < height; y++) {
-            assert Arrays.equals(restored.data()[y], data[y])
+            assert Arrays.equals(restoredData[y], data[y])
         }
         restored.findMetadata(Ellipse).present
 
         and: "negative and out-of-range values survive, unlike a 16 bit round-trip"
-        restored.data()[0].toList().min() < 0
+        restoredData[0].toList().min() < 0
     }
 
     def "rejects a file which is not a raw image"() {

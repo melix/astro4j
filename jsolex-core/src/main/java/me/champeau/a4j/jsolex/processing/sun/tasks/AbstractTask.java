@@ -30,7 +30,7 @@ import java.util.function.Supplier;
  * <p><b>Contract:</b> a task is a function from an input image to a result.
  * The input image — the {@code workImage} field set by {@link #prepareImage()}
  * — is treated as <b>read-only</b>. Subclasses must not mutate
- * {@code workImage.data()} (the float[][] buffer), nor add/remove entries
+ * {@code workImage.pixels()}, nor add/remove entries
  * from {@code workImage.metadata()}. Reassigning the {@code workImage} field
  * to point at a different {@link ImageWrapper32} is fine; that is not a
  * mutation of the input.
@@ -151,16 +151,6 @@ public abstract class AbstractTask<T> implements Callable<T>, Supplier<T> {
     }
 
     /**
-     * Returns this task image buffer. Subclasses must not mutate the
-     * returned array (see class-level contract).
-     *
-     * @return the image data buffer
-     */
-    public final float[][] getBuffer() {
-        return workImage.data();
-    }
-
-    /**
      * Returns the image metadata. Subclasses must not add or remove
      * entries from the returned map (see class-level contract).
      *
@@ -172,7 +162,10 @@ public abstract class AbstractTask<T> implements Callable<T>, Supplier<T> {
 
     private static int hashImage(ImageWrapper32 image) {
         int hash = 1;
-        for (float[] row : image.data()) {
+        var pixels = image.pixels();
+        var row = new float[image.width()];
+        for (int y = 0; y < image.height(); y++) {
+            pixels.getRow(y, row);
             for (float v : row) {
                 hash = 31 * hash + Float.floatToIntBits(v);
             }

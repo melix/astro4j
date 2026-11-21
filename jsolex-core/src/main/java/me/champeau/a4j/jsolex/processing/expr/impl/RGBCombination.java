@@ -16,7 +16,6 @@
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
 
@@ -35,19 +34,10 @@ public class RGBCombination {
         var ra = arguments.get("r");
         var ga = arguments.get("g");
         var ba = arguments.get("b");
-        if (ra instanceof FileBackedImage fileBackedImage) {
-            ra = fileBackedImage.unwrapToMemory();
-        }
-        if (ga instanceof FileBackedImage fileBackedImage) {
-            ga = fileBackedImage.unwrapToMemory();
-        }
-        if (ba instanceof FileBackedImage fileBackedImage) {
-            ba = fileBackedImage.unwrapToMemory();
-        }
         if (ra instanceof ImageWrapper32 r && ga instanceof ImageWrapper32 g && ba instanceof ImageWrapper32 b) {
             if ((r.width() == g.width()) && (r.width() == b.width())
                 && (r.height() == g.height()) && (r.height() == b.height())) {
-                return new RGBImage(r.width(), r.height(), r.data(), g.data(), b.data(), r.metadata());
+                return new RGBImage(r.pixels(), g.pixels(), b.pixels(), r.metadata());
             } else {
                 throw new IllegalArgumentException("Images must have the same dimensions");
             }

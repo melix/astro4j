@@ -16,6 +16,7 @@
 package me.champeau.a4j.jsolex.processing.expr.impl;
 
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
+import me.champeau.a4j.math.image.ImagePlane;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
@@ -118,7 +119,7 @@ public abstract class AbstractLimbFunction extends AbstractFunctionImpl {
     private static double[] limbPoints(ImageWrapper32 image, Circle circle) {
         var radii = new double[ANGLES];
         for (int k = 0; k < ANGLES; k++) {
-            radii[k] = limbRadius(image.data(), image.width(), image.height(), circle, 2 * Math.PI * k / ANGLES);
+            radii[k] = limbRadius(image.pixels(), image.width(), image.height(), circle, 2 * Math.PI * k / ANGLES);
         }
         return radii;
     }
@@ -197,7 +198,7 @@ public abstract class AbstractLimbFunction extends AbstractFunctionImpl {
      * which leave the image are not measured. The returned radius is relative to the
      * center of the circle.
      */
-    private static double limbRadius(float[][] data, int width, int height, Circle circle, double angle) {
+    private static double limbRadius(ImagePlane pixels, int width, int height, Circle circle, double angle) {
         var cos = Math.cos(angle);
         var sin = Math.sin(angle);
         var radius = circle.radius();
@@ -209,7 +210,7 @@ public abstract class AbstractLimbFunction extends AbstractFunctionImpl {
         var radii = new double[count];
         for (int i = 0; i < count; i++) {
             radii[i] = INNER * radius + i * STEP;
-            profile[i] = sample(data, width, height, circle.cx() + radii[i] * cos, circle.cy() + radii[i] * sin);
+            profile[i] = sample(pixels, width, height, circle.cx() + radii[i] * cos, circle.cy() + radii[i] * sin);
         }
         var disk = median(profile, radii, 0.92 * radius, 0.96 * radius);
         var sky = median(profile, radii, 1.06 * radius, 1.10 * radius);
@@ -288,7 +289,7 @@ public abstract class AbstractLimbFunction extends AbstractFunctionImpl {
         return solution;
     }
 
-    private static double sample(float[][] data, int width, int height, double x, double y) {
+    private static double sample(ImagePlane pixels, int width, int height, double x, double y) {
         var x0 = (int) Math.floor(x);
         var y0 = (int) Math.floor(y);
         var fx = x - x0;
@@ -297,7 +298,7 @@ public abstract class AbstractLimbFunction extends AbstractFunctionImpl {
         var y1 = Math.min(height - 1, Math.max(0, y0 + 1));
         x0 = Math.min(width - 1, Math.max(0, x0));
         y0 = Math.min(height - 1, Math.max(0, y0));
-        var top = data[y0][x0] * (1 - fx) + data[y0][x1] * fx;
-        var bottom = data[y1][x0] * (1 - fx) + data[y1][x1] * fx;
+        var top = pixels.get(x0, y0) * (1 - fx) + pixels.get(x1, y0) * fx;
+        var bottom = pixels.get(x0, y1) * (1 - fx) + pixels.get(x1, y1) * fx;
         return top * (1 - fy) + bottom * fy;
     }}

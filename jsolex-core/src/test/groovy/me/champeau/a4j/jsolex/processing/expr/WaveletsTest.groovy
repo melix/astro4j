@@ -38,20 +38,20 @@ class WaveletsTest extends Specification {
 
         then:
         scales.size() == 4
-        Math.abs(scales.sum { it.data()[20][30] } - image.data()[20][30]) < 1e-3
+        Math.abs(scales.sum { it.pixels().get(30, 20) } - image.pixels().get(30, 20)) < 1e-3
     }
 
     def "denoise keeps the pixels outside the mask"() {
         given:
         var image = noisyImage()
-        image.data()[5][5] = 0
+        image.pixels().set(5, 5, 0f)
 
         when:
         var denoised = wavelets.denoise([img: image, mask: new RangeMask(1, 65535)]) as ImageWrapper32
 
         then:
-        denoised.data()[5][5] == 0f
-        denoised.data()[20][30] != image.data()[20][30]
+        denoised.pixels().get(5, 5) == 0f
+        denoised.pixels().get(30, 20) != image.pixels().get(30, 20)
     }
 
     def "grain must be a fraction"() {

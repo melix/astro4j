@@ -24,7 +24,6 @@ import me.champeau.a4j.math.image.ImageMath
 import me.champeau.a4j.math.image.SharpenKernel
 import spock.lang.Specification
 
-import static me.champeau.a4j.jsolex.processing.stretching.StretchingTestImages.copyOf
 import static me.champeau.a4j.jsolex.processing.stretching.StretchingTestImages.halves
 import static me.champeau.a4j.jsolex.processing.stretching.StretchingTestImages.maxDifference
 import static me.champeau.a4j.jsolex.processing.stretching.StretchingTestImages.noise
@@ -42,7 +41,7 @@ class ConvolutionStrategyTest extends Specification {
         strategy.stretch(image)
 
         then:
-        maxDifference(image.data(), clip(expected)) == 0
+        maxDifference(image.pixels().toArray(), clip(expected)) == 0
 
         where:
         strategy                         | kernel
@@ -53,7 +52,7 @@ class ConvolutionStrategyTest extends Specification {
     def "unsharp mask adds the difference with a blurred copy"() {
         given:
         def image = noise(2)
-        def original = copyOf(image.data())
+        def original = image.pixels().toArray()
         def blurred = ImageMath.newInstance().convolve(image.asImage(), BlurKernel.of(3)).data()
 
         when:
@@ -63,7 +62,7 @@ class ConvolutionStrategyTest extends Specification {
         for (int y = 0; y < SIZE; y++) {
             for (int x = 0; x < SIZE; x++) {
                 def expected = Math.clamp(original[y][x] + 0.5 * (original[y][x] - blurred[y][x]), 0, MAX_PIXEL_VALUE)
-                assert Math.abs(image.data()[y][x] - expected) < 0.01
+                assert Math.abs(image.pixels().get(x, y) - expected) < 0.01
             }
         }
     }
@@ -77,7 +76,7 @@ class ConvolutionStrategyTest extends Specification {
         ConvolutionStrategy.unsharpMask(0, 7).stretch(image)
 
         then:
-        maxDifference(image.data(), expected.data()) == 0
+        maxDifference(image.pixels().toArray(), expected.pixels().toArray()) == 0
     }
 
     def "sharpened values are clipped to the range of pixel values"() {
@@ -88,7 +87,7 @@ class ConvolutionStrategyTest extends Specification {
         strategy.stretch(image)
 
         then:
-        def values = image.data().flatten() as List<Float>
+        def values = image.pixels().toArray().flatten() as List<Float>
         values.min() == 0f
         values.max() == MAX_PIXEL_VALUE
 
@@ -105,25 +104,27 @@ class ConvolutionStrategyTest extends Specification {
         def result = (ImageWrapper32) convolution.unsharpMask([img: image, strength: 3.0d, kernel: 5])
 
         then:
-        def values = result.data().flatten() as List<Float>
+        def values = result.pixels().toArray().flatten() as List<Float>
         values.min() < 0f
         values.max() > MAX_PIXEL_VALUE
-        image.data()[0][0] == 1000f
+        image.pixels().get(0, 0) == 1000f
     }
 
     def "color images are only filtered on their lightness"() {
         given:
         def mono = noise(4)
-        def grey = new RGBImage(SIZE, SIZE, copyOf(mono.data()), copyOf(mono.data()), copyOf(mono.data()), [:])
+        def pixels = mono.pixels()
+        def grey = new RGBImage(pixels.copy(), pixels.copy(), pixels.copy(), [:])
 
         when:
         ConvolutionStrategy.sharpen(3).stretch(mono)
         ConvolutionStrategy.sharpen(3).stretch(grey)
 
         then:
-        maxDifference(grey.r(), mono.data()) < 1
-        maxDifference(grey.g(), mono.data()) < 1
-        maxDifference(grey.b(), mono.data()) < 1
+        def monoData = mono.pixels().toArray()
+        maxDifference(grey.red().toArray(), monoData) < 1
+        maxDifference(grey.green().toArray(), monoData) < 1
+        maxDifference(grey.blue().toArray(), monoData) < 1
     }
 
     private static float[][] clip(float[][] data) {

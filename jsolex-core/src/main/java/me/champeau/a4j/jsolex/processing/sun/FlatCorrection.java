@@ -134,7 +134,7 @@ public class FlatCorrection {
     public ImageWrapper32 correctImage(ImageWrapper32 source, double[] normalized) {
         int width = source.width();
         int height = source.height();
-        var data = source.data();
+        var data = source.pixels().toArray();
         var outData = new float[height][width];
         for (int y = 0; y < height; y++) {
             var correction = normalized[y];

@@ -16,7 +16,6 @@
 package me.champeau.a4j.jsolex.app.listeners;
 
 import me.champeau.a4j.jsolex.app.jfx.CandidateImageDescriptor;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
 
 import java.io.File;
@@ -101,16 +100,12 @@ final class BatchImageCollector {
     /**
      * Adds the outputs of the script executed on one file. They are all added under the
      * same lock, so that when files are processed in parallel, the lists of every label
-     * remain in the same file order. Images are wrapped via {@link FileBackedImage}
-     * so their pixel data can spill to disk under memory pressure — batch-scoped retention
-     * across many files would otherwise pin every output image in heap.
+     * remain in the same file order.
      */
     void addScriptResult(int sequenceNumber, Map<String, ImageWrapper> images, Map<String, Object> values) {
-        var backed = new LinkedHashMap<String, FileBackedImage>();
-        images.forEach((label, image) -> backed.put(label, FileBackedImage.wrap(image)));
         dataLock.writeLock().lock();
         try {
-            backed.forEach((label, image) -> {
+            images.forEach((label, image) -> {
                 imagesByLabel.computeIfAbsent(label, unused -> new ArrayList<>()).add(image);
                 imageWrappersByIndex.computeIfAbsent(sequenceNumber, unused -> new ArrayList<>()).add(image);
             });

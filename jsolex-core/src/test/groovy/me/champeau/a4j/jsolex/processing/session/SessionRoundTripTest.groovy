@@ -20,7 +20,6 @@ import me.champeau.a4j.jsolex.processing.params.ProcessParamsIO
 import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShiftRange
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32
 import me.champeau.a4j.jsolex.processing.util.RGBImage
@@ -79,7 +78,7 @@ class SessionRoundTripTest extends Specification {
         def monoImg = (ImageWrapper32) restoredMono.image()
         monoImg.width() == 64
         monoImg.height() == 48
-        floatArraysEqual(monoImg.data(), mono.data())
+        floatArraysEqual(monoImg.pixels().toArray(), mono.pixels().toArray())
 
         and: "its metadata round-trips"
         monoImg.findMetadata(PixelShift.class).get().pixelShift() == 1.5d
@@ -89,32 +88,31 @@ class SessionRoundTripTest extends Specification {
 
         and: "the RGB image matches on all three channels"
         def rgbImg = (RGBImage) restored.images()[1].image()
-        floatArraysEqual(rgbImg.r(), rgb.r())
-        floatArraysEqual(rgbImg.g(), rgb.g())
-        floatArraysEqual(rgbImg.b(), rgb.b())
+        floatArraysEqual(rgbImg.red().toArray(), rgb.red().toArray())
+        floatArraysEqual(rgbImg.green().toArray(), rgb.green().toArray())
+        floatArraysEqual(rgbImg.blue().toArray(), rgb.blue().toArray())
     }
 
-    def "round-trips file-backed images and skips unknown metadata"() {
-        given: "an image wrapped as a FileBackedImage, as it is held by the viewer"
+    def "skips unknown metadata"() {
+        given: "an image carrying a metadata type which cannot be exported"
         def meta = [:] as Map<Class<?>, Object>
         meta.put(PixelShift.class, new PixelShift(0.5d))
         // a metadata type that is not in the allowlist: must be skipped, not fail the export
         meta.put(String.class, "some-internal-marker")
         def mono = new ImageWrapper32(40, 30, synthesise(40, 30, 9), meta)
-        def backed = FileBackedImage.wrap(mono)
         def data = new SessionData([
-                new SessionImage(GeneratedImageKind.RAW, "Backed", "backed", null, backed)
+                new SessionImage(GeneratedImageKind.RAW, "Mono", "mono", null, mono)
         ], [] as List<SessionMedia>)
 
         when:
-        def file = tempDir.resolve("backed" + Session.FILE_EXTENSION)
+        def file = tempDir.resolve("unknown-metadata" + Session.FILE_EXTENSION)
         SessionWriter.write(data, file, null)
         def restored = SessionReader.read(file, null)
 
         then: "the image is restored with the allowlisted metadata, the unknown one dropped"
         restored.images().size() == 1
         def img = (ImageWrapper32) restored.images()[0].image()
-        floatArraysEqual(img.data(), mono.data())
+        floatArraysEqual(img.pixels().toArray(), mono.pixels().toArray())
         img.findMetadata(PixelShift.class).get().pixelShift() == 0.5d
         img.findMetadata(String.class).isEmpty()
     }
@@ -220,7 +218,7 @@ class SessionRoundTripTest extends Specification {
         and: "the batch outputs round-trip"
         def outs = restored.reRun().batchOutputs()
         outs.imagesByLabel().get("recon").size() == 2
-        floatArraysEqual(((ImageWrapper32) outs.imagesByLabel().get("recon")[0]).data(), img1.data())
+        floatArraysEqual(((ImageWrapper32) outs.imagesByLabel().get("recon")[0]).pixels().toArray(), img1.pixels().toArray())
         outs.valuesByLabel().get("score") == [1.5d, 2.0d]
         outs.valuesByLabel().get("name") == ["best"]
     }

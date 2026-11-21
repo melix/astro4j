@@ -16,7 +16,6 @@
 package me.champeau.a4j.jsolex.processing.stretching;
 
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper32;
-import me.champeau.a4j.math.RowStrips;
 
 public final class NegativeImageStrategy implements StretchingStrategy {
     public static final NegativeImageStrategy DEFAULT = new NegativeImageStrategy();
@@ -27,15 +26,11 @@ public final class NegativeImageStrategy implements StretchingStrategy {
 
     @Override
     public void stretch(ImageWrapper32 image) {
-        var data = image.data();
-        var max = StretchingUtils.max(data, 0);
-        var height = image.height();
-        var width = image.width();
-        RowStrips.forEach(height, (yStart, yEnd) -> {
-            for (int y = yStart; y < yEnd; y++) {
-                for (int x = 0; x < width; x++) {
-                    data[y][x] = max - data[y][x];
-                }
+        var pixels = image.pixels();
+        var max = StretchingUtils.max(pixels, 0);
+        pixels.updateRows((y, row) -> {
+            for (int x = 0; x < row.length; x++) {
+                row[x] = max - row[x];
             }
         });
     }

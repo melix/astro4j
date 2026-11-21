@@ -18,8 +18,8 @@ package me.champeau.a4j.jsolex.processing.expr.impl;
 import me.champeau.a4j.jsolex.expr.BuiltinFunction;
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster;
 import me.champeau.a4j.jsolex.processing.sun.ImageUtils;
-import me.champeau.a4j.jsolex.processing.util.FileBackedImage;
 import me.champeau.a4j.jsolex.processing.util.RGBImage;
+import me.champeau.a4j.math.image.ImagePlane;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -38,14 +38,11 @@ public class Saturation extends AbstractFunctionImpl {
         }
         var saturation = doubleArg(arguments, "factor", 1);
         var exponent = Math.pow(2, -saturation);
-        if (arg instanceof FileBackedImage fileBackedImage) {
-            arg = fileBackedImage.unwrapToMemory();
-        }
         if (arg instanceof RGBImage rgb) {
             if (rgb.width() == 0 || rgb.height() == 0) {
                 return rgb;
             }
-            var hsl = ImageUtils.fromRGBtoHSL(new float[][][]{rgb.r(), rgb.g(), rgb.b()});
+            var hsl = ImageUtils.fromRGBtoHSL(rgb.red(), rgb.green(), rgb.blue());
             var s = hsl[1];
             for (float[] line : s) {
                 for (int i = 0; i < line.length; i++) {
@@ -53,9 +50,11 @@ public class Saturation extends AbstractFunctionImpl {
                     line[i] = (float) sat;
                 }
             }
-            var output = new float[3][rgb.height()][rgb.width()];
-            ImageUtils.fromHSLtoRGB(hsl, output);
-            return new RGBImage(rgb.width(), rgb.height(), output[0], output[1], output[2], new LinkedHashMap<>(rgb.metadata()));
+            var red = ImagePlane.allocate(rgb.width(), rgb.height());
+            var green = ImagePlane.allocate(rgb.width(), rgb.height());
+            var blue = ImagePlane.allocate(rgb.width(), rgb.height());
+            ImageUtils.fromHSLtoRGB(hsl, red, green, blue);
+            return new RGBImage(red, green, blue, new LinkedHashMap<>(rgb.metadata()));
         }
         return arg;
     }
