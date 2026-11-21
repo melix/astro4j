@@ -1348,6 +1348,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         var tooltip = new Tooltip();
         Tooltip.install(memoryBar, tooltip);
         var tooltipFormat = I18N.string(JSolEx.class, "app", "memory.tooltip");
+        var onDiskFormat = I18N.string(JSolEx.class, "app", "memory.disk");
         var lowMemory = I18N.string(JSolEx.class, "app", "memory.low");
         var timeline = new Timeline();
         timeline.getKeyFrames().add(new KeyFrame(Duration.seconds(1), event -> {
@@ -1363,6 +1364,10 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             memoryLabel.pseudoClassStateChanged(LOW_MEMORY, low);
             memoryLabel.setText(FXUtils.formatBytes(heapUsed + imagesUsed));
             var details = String.format(tooltipFormat, FXUtils.formatBytes(heapUsed), FXUtils.formatBytes(runtime.maxMemory()), FXUtils.formatBytes(imagesUsed));
+            var imagesOnDisk = ImageMemory.onDisk();
+            if (imagesOnDisk > 0) {
+                details += " · " + String.format(onDiskFormat, FXUtils.formatBytes(imagesOnDisk));
+            }
             tooltip.setText(low ? details + " · " + lowMemory : details);
         }));
         timeline.setCycleCount(Animation.INDEFINITE);

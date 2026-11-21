@@ -302,7 +302,7 @@ class OpenCLImageMath extends VectorApiImageMath {
     }
 
     private static GpuInput planeInput(ImagePlane plane) {
-        return (op, buffer) -> op.write(buffer, plane.segment());
+        return (op, buffer) -> plane.withSegment(segment -> op.write(buffer, segment));
     }
 
     private static Image readImage(GpuOp op, long buffer, int width, int height) {
@@ -313,7 +313,7 @@ class OpenCLImageMath extends VectorApiImageMath {
 
     private static ImagePlane readPlane(GpuOp op, long buffer, int width, int height) {
         var result = ImagePlane.allocate(width, height);
-        op.read(buffer, result.segment());
+        result.withSegment(segment -> op.read(buffer, segment));
         return result;
     }
 

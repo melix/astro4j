@@ -54,7 +54,7 @@ public class GPUImage implements AutoCloseable {
         var height = plane.height();
         long buffer = context.allocateBuffer(width * height * Float.BYTES, CL_MEM_READ_WRITE);
         try {
-            context.writeBuffer(buffer, plane.segment());
+            plane.withSegment(segment -> context.writeBuffer(buffer, segment));
         } catch (RuntimeException e) {
             context.releaseBuffer(buffer);
             throw e;
@@ -84,7 +84,7 @@ public class GPUImage implements AutoCloseable {
     public ImagePlane download() {
         checkNotClosed();
         var plane = ImagePlane.allocate(width, height);
-        context.readBuffer(buffer, plane.segment());
+        plane.withSegment(segment -> context.readBuffer(buffer, segment));
         return plane;
     }
 

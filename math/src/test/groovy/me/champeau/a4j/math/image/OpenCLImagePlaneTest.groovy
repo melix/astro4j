@@ -157,8 +157,8 @@ class OpenCLImagePlaneTest extends OpenCLSpecification {
         when:
         context.runOp({ op ->
             def buffer = op.allocateBuffer(width * height * Float.BYTES, CL_MEM_READ_WRITE)
-            op.write(buffer, plane.segment())
-            op.read(buffer, copy.segment())
+            plane.withSegment { op.write(buffer, it) }
+            copy.withSegment { op.read(buffer, it) }
         } as Consumer<GpuOp>)
 
         then:

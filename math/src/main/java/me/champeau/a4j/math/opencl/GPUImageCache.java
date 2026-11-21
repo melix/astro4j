@@ -96,7 +96,7 @@ public final class GPUImageCache implements AutoCloseable {
                                          int width,
                                          int height,
                                          IntFunction<ImagePlane> planeSupplier) {
-        return new GPUImageCache(context, maxCachedImages, width, height, (index, buffer) -> context.writeBuffer(buffer, planeSupplier.apply(index).segment()));
+        return new GPUImageCache(context, maxCachedImages, width, height, (index, buffer) -> planeSupplier.apply(index).withSegment(segment -> context.writeBuffer(buffer, segment)));
     }
 
     @FunctionalInterface

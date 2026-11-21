@@ -19,6 +19,7 @@ import me.champeau.a4j.math.RowStrips;
 
 import java.lang.foreign.MemorySegment;
 import java.util.Objects;
+import java.util.function.Consumer;
 
 import static java.lang.foreign.ValueLayout.JAVA_FLOAT;
 
@@ -30,12 +31,12 @@ import static java.lang.foreign.ValueLayout.JAVA_FLOAT;
 public final class ImagePlane {
     private final int width;
     private final int height;
-    private final MemorySegment segment;
+    private final ImageMemory.Pixels pixels;
 
-    private ImagePlane(int width, int height, MemorySegment segment) {
+    private ImagePlane(int width, int height, ImageMemory.Pixels pixels) {
         this.width = width;
         this.height = height;
-        this.segment = segment;
+        this.pixels = pixels;
     }
 
     /**
@@ -72,21 +73,39 @@ public final class ImagePlane {
     }
 
     /**
-     * Returns the memory holding the pixels of this plane: 32-bit floats in
-     * native byte order, row after row. Writing to it modifies the plane.
+     * Calls the action with the memory holding the pixels of this plane:
+     * 32-bit floats in native byte order, row after row. Writing to it
+     * modifies the plane. The memory must not be used once the action returns.
      *
-     * @return the segment of this plane
+     * @param action what to do with the memory of this plane
      */
-    public MemorySegment segment() {
-        return segment;
+    public void withSegment(Consumer<MemorySegment> action) {
+        var pin = pixels.pin();
+        try {
+            action.accept(pixels.segment());
+        } finally {
+            pixels.unpin(pin);
+        }
     }
 
     public float get(int x, int y) {
-        return segment.getAtIndex(JAVA_FLOAT, index(x, y));
+        var index = index(x, y);
+        var pin = pixels.pin();
+        try {
+            return pixels.segment().getAtIndex(JAVA_FLOAT, index);
+        } finally {
+            pixels.unpin(pin);
+        }
     }
 
     public void set(int x, int y, float value) {
-        segment.setAtIndex(JAVA_FLOAT, index(x, y), value);
+        var index = index(x, y);
+        var pin = pixels.pin();
+        try {
+            pixels.segment().setAtIndex(JAVA_FLOAT, index, value);
+        } finally {
+            pixels.unpin(pin);
+        }
     }
 
     private long index(int x, int y) {
@@ -113,7 +132,13 @@ public final class ImagePlane {
      * @param length the number of pixels to copy
      */
     public void getRow(int y, int x, float[] target, int offset, int length) {
-        MemorySegment.copy(segment, JAVA_FLOAT, byteOffset(x, y, length), target, offset, length);
+        var byteOffset = byteOffset(x, y, length);
+        var pin = pixels.pin();
+        try {
+            MemorySegment.copy(pixels.segment(), JAVA_FLOAT, byteOffset, target, offset, length);
+        } finally {
+            pixels.unpin(pin);
+        }
     }
 
     /**
@@ -136,7 +161,13 @@ public final class ImagePlane {
      * @param length the number of pixels to replace
      */
     public void setRow(int y, int x, float[] source, int offset, int length) {
-        MemorySegment.copy(source, offset, segment, JAVA_FLOAT, byteOffset(x, y, length), length);
+        var byteOffset = byteOffset(x, y, length);
+        var pin = pixels.pin();
+        try {
+            MemorySegment.copy(source, offset, pixels.segment(), JAVA_FLOAT, byteOffset, length);
+        } finally {
+            pixels.unpin(pin);
+        }
     }
 
     private long byteOffset(int x, int y, int length) {
@@ -271,7 +302,15 @@ public final class ImagePlane {
         if (other.width != width || other.height != height) {
             throw new IllegalArgumentException("Expected " + width + "x" + height + " pixels");
         }
-        segment.copyFrom(other.segment);
+        withSegment(target -> other.withSegment(target::copyFrom));
+    }
+
+    boolean moveToDisk() {
+        return pixels.moveToDisk();
+    }
+
+    boolean isOnDisk() {
+        return pixels.isOnDisk();
     }
 
     /**
