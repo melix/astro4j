@@ -12,6 +12,7 @@
 - Correction de l'outil de script autonome qui échouait sur les ordinateurs équipés d'une carte graphique.
 - Correction des scripts Python dans la version native de l'outil de script autonome.
 - Correction d'erreurs qui pouvaient interrompre le traitement à l'ouverture d'un nouveau fichier ou à l'affichage d'une image.
+- Correction d'une erreur lors de la création d'une animation ou d'un panneau avant la fin du traitement.
 
 ## Nouveautés de la version 5.6.1
 

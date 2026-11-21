@@ -12,6 +12,7 @@
 - Fixed the standalone scripting tool failing on computers with a graphics card.
 - Fixed Python scripts in the native version of the standalone scripting tool.
 - Fixed errors which could stop processing when a new file was opened or an image was displayed.
+- Fixed an error when creating an animation or a panel before processing had finished.
 
 ## What's New in Version 5.6.1
 

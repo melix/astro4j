@@ -902,10 +902,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                         // Only available if we have reference coordinates and a SER file
                         return addedImageViewer.getImage().findMetadata(ReferenceCoords.class).isPresent() && serFile != null;
                     }
-                    if (adjustedParams == null) {
-                        return false;
-                    }
-                    return true;
+                    return adjustedParams != null && imageEmitter != null;
                 }
 
                 @Override
