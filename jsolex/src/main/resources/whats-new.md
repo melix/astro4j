@@ -3,6 +3,7 @@
 ## What's New in Version 5.7.0
 
 - The image viewer can now blur and sharpen images, including with an unsharp mask.
+- More room for the image in the viewer: the buttons fit on two rows, with coloured icons, and the adjustments open in a panel next to the image.
 - Faster image stretching, in particular with CLAHE, CLAHE2 and AutoStretch.
 - More reliable detection of Ellerman bombs, based on the approach described by Stephan Schmelzing.
 - Each detected Ellerman bomb or flare now comes with a chart comparing its line profile with its surroundings.
@@ -11,6 +12,7 @@
 - Faster conversion of images to and from NumPy in Python scripts.
 - Python virtual environments must now be created with GraalPy 25.4.
 - The standalone scripting tool can now use a GraalPy virtual environment.
+- Fixed white corners on images rotated to correct the P angle.
 - Fixed the standalone scripting tool failing on computers with a graphics card.
 - Fixed Python scripts in the native version of the standalone scripting tool.
 - Fixed errors which could stop processing when a new file was opened or an image was displayed.

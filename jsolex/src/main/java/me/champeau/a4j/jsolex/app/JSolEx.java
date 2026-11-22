@@ -325,6 +325,9 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     private Label latestLogLabel;
 
     @FXML
+    private Label imageInfoLabel;
+
+    @FXML
     private Label progressBarLabel;
 
     @FXML
@@ -741,6 +744,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             setupConsoleActivityIndicator();
             setupExpandAnchor();
             multipleImagesViewer.setOnImageSelected(() -> collapsePanel(false));
+            imageInfoLabel.textProperty().bind(multipleImagesViewer.selectedImageInfoProperty());
             setupLogWindowContextMenu();
             setupImageMathEditorContextMenu();
             createFastModePane();

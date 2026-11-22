@@ -18,6 +18,8 @@ package me.champeau.a4j.jsolex.app.jfx;
 import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ReadOnlyStringProperty;
+import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -127,6 +129,7 @@ public class MultipleImagesViewer extends Pane {
     private Hyperlink selected = null;
     private GeneratedImageKind selectedKind = null;
     private Object selectedView;
+    private final ReadOnlyStringWrapper selectedImageInfo = new ReadOnlyStringWrapper(this, "selectedImageInfo", "");
 
     private JSolExInterface owner;
     private ProcessParams processParams;
@@ -274,6 +277,7 @@ public class MultipleImagesViewer extends Pane {
                     safeCategories.clear();
                     categories.clear();
                     borderPane.setCenter(null);
+                    showImageInfoOf(null);
                     imageViews.clear();
                     viewerTitles.clear();
                     viewerKinds.clear();
@@ -515,6 +519,7 @@ public class MultipleImagesViewer extends Pane {
                 selected = link;
                 selectedKind = kind;
                 selectedView = viewer;
+                showImageInfoOf(viewer);
                 onShow.accept(viewer);
                 viewer.display();
             }, this::onClose, newTitle -> {
@@ -543,6 +548,7 @@ public class MultipleImagesViewer extends Pane {
         if (selected == link) {
             borderPane.setCenter(null);
             selected = null;
+            showImageInfoOf(null);
         }
 
         lock.lock();
@@ -635,6 +641,7 @@ public class MultipleImagesViewer extends Pane {
             FxUtils.runLater(() -> borderPane.setCenter(contentBox));
             selected = link;
             selectedView = contentBox;
+            showImageInfoOf(null);
         }, this::onClose);
         if (select) {
             hyperlink.fire();
@@ -711,6 +718,7 @@ public class MultipleImagesViewer extends Pane {
             FxUtils.runLater(() -> borderPane.setCenter(contentBox));
             selected = link;
             selectedView = contentBox;
+            showImageInfoOf(null);
         }, this::onClose);
         if (select) {
             hyperlink.fire();
@@ -1031,6 +1039,25 @@ public class MultipleImagesViewer extends Pane {
             imageViews.forEach(viewer -> viewer.setFileCounts(fileCounts));
         } finally {
             lock.unlock();
+        }
+    }
+
+    /**
+     * Returns the size of the selected image and the position and value of the
+     * pixel under the mouse, or an empty text when no image is selected.
+     *
+     * @return the information about the selected image
+     */
+    public ReadOnlyStringProperty selectedImageInfoProperty() {
+        return selectedImageInfo.getReadOnlyProperty();
+    }
+
+    private void showImageInfoOf(ImageViewer viewer) {
+        selectedImageInfo.unbind();
+        if (viewer == null) {
+            selectedImageInfo.set("");
+        } else {
+            selectedImageInfo.bind(viewer.imageInfoProperty());
         }
     }
 

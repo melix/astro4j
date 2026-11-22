@@ -541,6 +541,9 @@ class OpenCLImageMath extends VectorApiImageMath {
 
     @Override
     public Image rotate(Image image, double angle, float blackpoint, boolean resize) {
+        if (blackpoint < 0) {
+            return super.rotate(image, angle, blackpoint, resize);
+        }
         return runOnGPU(shouldUseGPU(image), "rotate", image.width(), image.height(),
                 () -> rotateGPU(imageInput(image), image.width(), image.height(), OpenCLImageMath::readImage, angle, blackpoint, resize),
                 () -> super.rotate(image, angle, blackpoint, resize));
@@ -548,6 +551,9 @@ class OpenCLImageMath extends VectorApiImageMath {
 
     @Override
     public ImagePlane rotate(ImagePlane plane, double angle, float blackpoint, boolean resize) {
+        if (blackpoint < 0) {
+            return super.rotate(plane, angle, blackpoint, resize);
+        }
         return runOnGPU(shouldUseGPU(plane.width(), plane.height()), "rotate", plane.width(), plane.height(),
                 () -> rotateGPU(planeInput(plane), plane.width(), plane.height(), OpenCLImageMath::readPlane, angle, blackpoint, resize),
                 () -> super.rotate(plane, angle, blackpoint, resize));

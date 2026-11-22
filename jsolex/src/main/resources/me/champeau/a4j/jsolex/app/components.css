@@ -486,10 +486,6 @@
     -fx-text-fill: #dc3545;
 }
 
-.stretch-chain-arrow {
-    -fx-text-fill: #6c757d;
-}
-
 /* Icon/symbol buttons in the image viewer toolbar: fixed width so that
    single-glyph controls line up consistently regardless of glyph metrics. */
 .image-viewer-icon-button {
@@ -501,16 +497,119 @@
     -fx-alignment: center;
 }
 
-/* Group separators in the image viewer toolbar: a visible thin rule so that
-   button groups read as distinct clusters. */
-.toolbar-separator {
-    -fx-padding: 2 4 2 4;
+.image-viewer-group {
+    -fx-background-color: #f8f9fa;
+    -fx-border-color: #edf0f3;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-padding: 2 5 2 7;
+    -fx-spacing: 4;
+    -fx-alignment: center-left;
 }
 
-.toolbar-separator:vertical .line {
-    -fx-border-color: #ced4da;
-    -fx-border-width: 0 1 0 0;
+.image-viewer-group > .image-viewer-icon-button {
+    -fx-min-width: 30px;
+    -fx-pref-width: 30px;
+    -fx-max-width: 30px;
 }
+
+.image-viewer-group-caption {
+    -fx-text-fill: #6c757d;
+    -fx-font-size: 12px;
+}
+
+.image-viewer-file-name {
+    -fx-text-fill: #6c757d;
+}
+
+.adjustments-button,
+.adjustments-button:hover {
+    -fx-border-color: #86b7fe;
+    -fx-text-fill: #0a58ca;
+}
+
+.adjustments-button:selected {
+    -fx-background-color: #e7f1ff;
+}
+
+.adjustments-panel {
+    -fx-background-color: #ffffff;
+    -fx-background-insets: 0;
+    -fx-border-color: #d0d7de;
+    -fx-background-radius: 10;
+    -fx-border-radius: 10;
+    -fx-padding: 0;
+    -fx-effect: dropshadow(gaussian, rgba(15,32,57,0.20), 16, 0, 0, 4);
+}
+
+.adjustments-panel > .viewport {
+    -fx-background-color: transparent;
+}
+
+.adjustments-panel-content {
+    -fx-padding: 10 12 12 12;
+    -fx-spacing: 6;
+}
+
+.adjustments-panel-title {
+    -fx-text-fill: #0a58ca;
+    -fx-font-weight: bold;
+}
+
+.adjustments-panel-close {
+    -fx-text-fill: #6c757d;
+    -fx-font-size: 14px;
+    -fx-padding: 0 2;
+    -fx-cursor: hand;
+}
+
+.adjustments-panel-close:hover {
+    -fx-text-fill: #212529;
+}
+
+.image-info-label {
+    -fx-text-fill: #495057;
+}
+
+.toolbar-icon .fill-blue { -fx-fill: #1f6feb; }
+.toolbar-icon .fill-light-blue { -fx-fill: #e7f1ff; }
+.toolbar-icon .fill-pale-blue { -fx-fill: #cfe2ff; }
+.toolbar-icon .fill-grey { -fx-fill: #57606a; }
+.toolbar-icon .fill-light-grey { -fx-fill: #f6f8fa; }
+.toolbar-icon .fill-red { -fx-fill: #d73a49; }
+.toolbar-icon .fill-green { -fx-fill: #1a7f37; }
+.toolbar-icon .fill-teal { -fx-fill: #0e8a87; }
+.toolbar-icon .fill-pale-teal { -fx-fill: #d2f4f3; }
+.toolbar-icon .fill-orange { -fx-fill: #e8740c; }
+.toolbar-icon .fill-pale-purple { -fx-fill: #e5dbff; }
+.toolbar-icon .fill-pale-amber { -fx-fill: #fff1c2; }
+.toolbar-icon .fill-pale-indigo { -fx-fill: #c8d1ff; }
+.toolbar-icon .fill-yellow { -fx-fill: #f2b705; }
+.toolbar-icon .fill-pale-yellow { -fx-fill: #ffd34d; }
+.toolbar-icon .fill-white { -fx-fill: #ffffff; }
+
+.toolbar-icon .stroke-blue { -fx-stroke: #1f6feb; }
+.toolbar-icon .stroke-grey { -fx-stroke: #57606a; }
+.toolbar-icon .stroke-mid-grey { -fx-stroke: #8c959f; }
+.toolbar-icon .stroke-green { -fx-stroke: #1a7f37; }
+.toolbar-icon .stroke-teal { -fx-stroke: #0e8a87; }
+.toolbar-icon .stroke-orange { -fx-stroke: #e8740c; }
+.toolbar-icon .stroke-purple { -fx-stroke: #8250df; }
+.toolbar-icon .stroke-amber { -fx-stroke: #b08800; }
+.toolbar-icon .stroke-indigo { -fx-stroke: #6f7dff; }
+.toolbar-icon .stroke-dark-indigo { -fx-stroke: #3949d6; }
+.toolbar-icon .stroke-white { -fx-stroke: #ffffff; }
+
+.button:disabled .toolbar-icon .icon-fill { -fx-fill: #6c757d; }
+.button:disabled .toolbar-icon .icon-fill-pale { -fx-fill: #e9ecef; }
+.button:disabled .toolbar-icon .icon-stroke { -fx-stroke: #6c757d; }
+.button:disabled .toolbar-icon .icon-stroke-pale { -fx-stroke: #e9ecef; }
+.button:disabled .toolbar-icon .fill-white { -fx-fill: #ffffff; }
+.button:disabled .toolbar-icon .stroke-white { -fx-stroke: #ffffff; }
+
+.save-button-pending .toolbar-icon .fill-blue { -fx-fill: #ffffff; }
+.save-button-pending .toolbar-icon .fill-white { -fx-fill: #007bff; }
+.save-button-pending .toolbar-icon .fill-pale-blue { -fx-fill: #9ec5fe; }
 
 /* Overlay chips: compact toggle buttons embedded in the image viewer
    toolbar, with a colored bottom border showing the overlay color. */

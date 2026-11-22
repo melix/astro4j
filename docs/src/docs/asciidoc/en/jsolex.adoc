@@ -387,8 +387,10 @@ These tabs provide you with the ability to tweak the contrast of images and save
 
 image::image-display-en.jpg[]
 
-It is possible to zoom into the images by using the mouse wheel.
-In addition, right-clicking the image will let you open it into your file explorer or in a separate window.
+It is possible to zoom into the images by using the mouse wheel, or with the buttons of the "Zoom" group.
+The other buttons are grouped under "Orientation" (rotate and flip the image) and "Tools" (crop, annotations, measures, 3D view): hover a button to read what it does.
+The size of the image, and the position and value of the pixel under the mouse, are shown in the status bar at the bottom of the window.
+In addition, right-clicking the image, or the "More..." menu, will let you open it into your file explorer or in a separate window.
 
 You can also duplicate an image from the sidebar by right-clicking on its name and choosing "Duplicate", which is useful when you want to keep a clean original alongside an annotated version.
 
@@ -398,14 +400,15 @@ You can rotate it, flip it or crop it, then click "Apply": the operations are ap
 [[stretching-steps]]
 ==== Adjustments
 
-The "Adjustments" list at the top of each image selects how its brightness is adjusted, or how it is blurred or sharpened.
-The settings of the selected method are shown on the line below: move a slider or type a value in the field next to it, or pick a value in a list for the CLAHE tile size and bins and for the blur and sharpening sizes.
+Click the "Adjustments" button at the top of each image to open the adjustments panel on the right of the image: it stays open while you look at the result, including when you switch to another image, until you click the button again or the × of the panel.
+The list of the panel selects how the brightness of the image is adjusted, or how it is blurred or sharpened.
+The settings of the selected method are shown below it: move a slider or type a value in the field next to its name, or pick a value in a list for the CLAHE tile size and bins and for the blur and sharpening sizes.
 Hover the list to read what the selected method does and what its settings mean.
 The processed image starts with the contrast enhancement method chosen in the processing parameters, followed by a Linear stretch to adjust its black and white points.
 
-"+ Add an adjustment" applies another method on top of the previous ones, for example a Shadows/highlights adjustment or an Unsharp mask after the Linear stretch.
-The adjustments are then listed in the order they are applied: click one to select it, or click its × to remove it.
-The list of methods and the settings of the selected adjustment move to the line below, and choosing another method in the list replaces the selected adjustment.
+"Add an adjustment" applies another method on top of the previous ones, for example a Shadows/highlights adjustment or an Unsharp mask after the Linear stretch.
+The adjustments are then listed at the top of the panel, in the order they are applied: click one to select it, or click its × to remove it.
+Choosing another method in the list replaces the selected adjustment.
 "Reset" restores the original settings of the selected adjustment, without changing the other ones.
 
 The available methods are None, Linear, Curve, Midtones, Arcsinh, Autostretch, CLAHE, CLAHE (multi-scale), Shadows/highlights, Blur, Sharpen and Unsharp mask.

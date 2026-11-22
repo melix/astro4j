@@ -258,6 +258,7 @@
                     <AnchorPane prefWidth="200.0" HBox.hgrow="ALWAYS">
                         <children>
                             <HBox spacing="10.0" AnchorPane.rightAnchor="10" alignment="CENTER">
+                                <Label fx:id="imageInfoLabel" styleClass="image-info-label"/>
                                 <Label fx:id="spectralLinePrefix" visible="false" managed="false"/>
                                 <Label fx:id="spectralLineIndicator" styleClass="spectral-line-badge" visible="false" managed="false"/>
                                 <Label fx:id="tiltIndicator" styleClass="geometry-badge" visible="false" managed="false"/>
