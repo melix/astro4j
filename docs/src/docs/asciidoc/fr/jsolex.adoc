@@ -390,7 +390,7 @@ image::image-display-fr.jpg[]
 Vous pouvez zoomer dans les images en utilisant la molette de la souris, ou avec les boutons du groupe « Zoom ».
 Les autres boutons sont regroupés sous « Orientation » (pivoter et retourner l'image) et « Outils » (rognage, annotations, mesures, vue 3D) : survolez un bouton pour savoir ce qu'il fait.
 La taille de l'image, ainsi que la position et la valeur du pixel sous la souris, sont affichées dans la barre d'état en bas de la fenêtre.
-Un clic droit, ou le menu « Plus... », vous permettra d'ouvrir l'image générée dans votre explorateur de fichiers ou dans une nouvelle fenêtre.
+Le bouton en forme de dossier du groupe « Outils » ouvre l'image générée dans votre explorateur de fichiers. Un clic droit vous permettra également de l'ouvrir dans l'explorateur ou dans une nouvelle fenêtre.
 
 Vous pouvez aussi dupliquer une image depuis la barre latérale en faisant un clic droit sur son nom et en choisissant « Dupliquer », ce qui est utile lorsque vous voulez conserver une version originale à côté d'une version annotée.
 

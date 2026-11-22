@@ -346,11 +346,6 @@ public class ImageViewer implements WithRootNode {
     private void populateActionsMenu(MenuButton menu) {
         menu.getItems().clear();
         addCommonActionItems(menu.getItems(), false);
-        menu.getItems().add(new SeparatorMenuItem());
-        var openExplorer = new MenuItem(message("open.in.explorer"), ToolbarIcon.FOLDER.createNode());
-        openExplorer.disableProperty().bind(imageView.cannotOpenInExplorerProperty());
-        openExplorer.setOnAction(e -> imageView.openInExplorer());
-        menu.getItems().add(openExplorer);
     }
 
     private void populateContextMenu(ContextMenu menu) {
@@ -1000,6 +995,9 @@ public class ImageViewer implements WithRootNode {
             overlayButton.setOnAction(evt -> toggleOverlayPanel(overlayButton));
             var cropButton = createIconButton(ToolbarIcon.CROP);
             cropButton.setOnAction(evt -> imageView.startCropSelection());
+            var openExplorerButton = createIconButton(ToolbarIcon.FOLDER);
+            openExplorerButton.disableProperty().bind(imageView.cannotOpenInExplorerProperty());
+            openExplorerButton.setOnAction(e -> imageView.openInExplorer());
             var actionsMenu = new MenuButton(message("actions.menu"));
             actionsMenu.getStyleClass().add("image-viewer-button");
             actionsMenu.setMinWidth(Region.USE_PREF_SIZE);
@@ -1037,6 +1035,7 @@ public class ImageViewer implements WithRootNode {
                 measureButton.setTooltip(new Tooltip(message("measure.button.tooltip")));
                 view3dButton.setTooltip(new Tooltip(message("view3d.button.tooltip")));
                 overlayButton.setTooltip(new Tooltip(message("overlay.tooltip")));
+                openExplorerButton.setTooltip(new Tooltip(message("open.in.explorer")));
                 var fileLabel = new Label("(" + imageFile.getName() + ")");
                 fileLabel.getStyleClass().add("image-viewer-file-name");
                 fileLabel.setMinWidth(0);
@@ -1047,7 +1046,7 @@ public class ImageViewer implements WithRootNode {
                 var titleLine = new HBox(8, alignButton, titleLabel, fileLabel, prevButton, nextButton, titleSpacer, zoomGroup, saveButton, actionsMenu);
                 titleLine.setAlignment(Pos.CENTER_LEFT);
                 var orientationGroup = createGroup(message("toolbar.orientation"), correctAngleP, leftRotate, rightRotate, verticalMirror, horizontalMirror, applyNextTime);
-                var toolsGroup = createGroup(message("toolbar.tools"), cropButton, overlayButton, measureButton, view3dButton);
+                var toolsGroup = createGroup(message("toolbar.tools"), cropButton, overlayButton, measureButton, view3dButton, openExplorerButton);
                 var actionsLine = new FlowPane(6, 5, toggle, orientationGroup, toolsGroup);
                 actionsLine.setAlignment(Pos.CENTER_LEFT);
                 stretchChoice = choice;

@@ -390,7 +390,7 @@ image::image-display-en.jpg[]
 It is possible to zoom into the images by using the mouse wheel, or with the buttons of the "Zoom" group.
 The other buttons are grouped under "Orientation" (rotate and flip the image) and "Tools" (crop, annotations, measures, 3D view): hover a button to read what it does.
 The size of the image, and the position and value of the pixel under the mouse, are shown in the status bar at the bottom of the window.
-In addition, right-clicking the image, or the "More..." menu, will let you open it into your file explorer or in a separate window.
+In addition, the folder button of the "Tools" group opens it in your file explorer, and right-clicking the image will let you open it in your file explorer or in a separate window.
 
 You can also duplicate an image from the sidebar by right-clicking on its name and choosing "Duplicate", which is useful when you want to keep a clean original alongside an annotated version.
 
