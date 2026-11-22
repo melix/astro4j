@@ -171,7 +171,6 @@ public class SpectralLineDebugger {
     private ProcessParams processParams;
     private Consumer<? super String> onPolynomialComputed;
     private float[][] averageImage;
-    private float[][] blurredScratch;
     private ProgressOperation operation;
     private DoubleQuadruplet originalPolynomial;
     private Timeline playTimeline;
@@ -389,7 +388,6 @@ public class SpectralLineDebugger {
                 var header = reader.header();
                 var geometry = header.geometry();
                 this.geometry = geometry;
-                this.blurredScratch = new float[geometry.height()][geometry.width()];
                 int current = header.frameCount() / 2;
                 frameExec = Executors.newSingleThreadExecutor(r -> {
                     var t = new Thread(r, "frame-debugger-decode");
@@ -657,7 +655,7 @@ public class SpectralLineDebugger {
                     }
                 }
             });
-            detector.performDetection(frame, width, height, buffer, detectedPoly, reader.header(), blurredScratch);
+            detector.performDetection(frame, width, height, buffer, detectedPoly, reader.header());
         }
         int w = rgb.width();
         int h = rgb.height();
@@ -815,7 +813,7 @@ public class SpectralLineDebugger {
                     }
                 }
             });
-            detector.performDetection(frameId, width, height, buffer, polynomial, reader.header(), blurredScratch);
+            detector.performDetection(frameId, width, height, buffer, polynomial, reader.header());
         }
         image = rgbToFxImage(rgb);
         updateCanvasSize(scene);

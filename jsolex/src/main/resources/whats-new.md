@@ -4,6 +4,7 @@
 
 - The image viewer can now blur and sharpen images, including with an unsharp mask.
 - Faster image stretching, in particular with CLAHE, CLAHE2 and AutoStretch.
+- More reliable detection of Ellerman bombs, based on the approach described by Stephan Schmelzing.
 - Lower memory use during processing.
 - The "Memory consumption adjustment" setting has been removed, since it is no longer needed.
 - Faster conversion of images to and from NumPy in Python scripts.

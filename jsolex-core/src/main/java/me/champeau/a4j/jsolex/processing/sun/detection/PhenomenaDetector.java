@@ -19,8 +19,7 @@ import me.champeau.a4j.jsolex.processing.sun.SpectrumFrameAnalyzer;
 import me.champeau.a4j.jsolex.processing.util.Dispersion;
 import me.champeau.a4j.jsolex.processing.util.Wavelen;
 import me.champeau.a4j.math.Point2D;
-import me.champeau.a4j.math.image.Image;
-import me.champeau.a4j.math.image.ImageMath;
+import me.champeau.a4j.math.regression.Ellipse;
 import me.champeau.a4j.math.regression.EllipseRegression;
 import me.champeau.a4j.math.regression.LinearRegression;
 import me.champeau.a4j.math.tuples.DoublePair;
@@ -39,17 +38,13 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.Stack;
-import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.DoubleUnaryOperator;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class PhenomenaDetector {
@@ -60,29 +55,19 @@ public class PhenomenaDetector {
     private static final int MIN_AR_AREA = 8;
 
     private static final double SPEED_OF_LIGHT = 299792.458d;
-    private static final double ELLERMAN_WING_LIMIT_ANGSTROMS = 0.35;
-    private static final double ELLERMAN_MAX_RANGE_ANGSTROMS = 5;
-    private static final int MAX_ELLERMAN_CANDIDATE_LIMIT = 50;
-    private static final int MAX_ELLERMAN_COUNT = 5;
-    private static final int ELLERMAN_LOCAL_RANGE = 8;
-    private static final int ELLERMAN_MIN_WIDTH_FOR_DETECTION = 12 * ELLERMAN_LOCAL_RANGE;
-    private static final double ELLERMAN_SCORE_THRESHOLD = 12;
-    private static final double ELLERMAN_CANDIDATE_SCORE_THRESHOLD = ELLERMAN_SCORE_THRESHOLD / 2;
-    private static final int FLARE_DEDUP_DISTANCE = 16;
     private static final int REDSHIFT_NEIGHBOR_HALF_WINDOW = 3;
     private static final int REDSHIFT_MIN_VALID_NEIGHBORS = 3;
     private static final double REDSHIFT_MAX_NEIGHBOR_MAD = 2.5;
     private static final double REDSHIFT_MAX_RELATIVE_ERROR = 0.5;
 
     private final Map<Integer, List<Redshift>> redshiftsPerFrame = new ConcurrentHashMap<>();
-    private final Queue<CandidateFlare> candidateFlares = new ConcurrentLinkedQueue<>();
     private final Map<Integer, BitSet> activeRegionsPerFrame = new ConcurrentHashMap<>();
     private volatile BorderDetection borderDetection;
     private final Lock lock = new ReentrantLock();
     private final Dispersion dispersion;
     private final Wavelen lambda0;
     private final int reconstructedWidth;
-    private final ImageMath imageMath = ImageMath.newCpuInstance();
+    private final EllermanBombDetector ellermanBombDetector;
 
     private List<Flare> flares;
     private PhenomenaListener detectionListener;
@@ -96,6 +81,7 @@ public class PhenomenaDetector {
         this.dispersion = dispersion;
         this.lambda0 = lambda0;
         this.reconstructedWidth = reconstructedWidth;
+        this.ellermanBombDetector = new EllermanBombDetector(dispersion);
     }
 
     public void setDetectActiveRegions(boolean detectActiveRegions) {
@@ -135,14 +121,6 @@ public class PhenomenaDetector {
     }
 
     public void performDetection(int frameId, int width, int height, float[][] original, DoubleUnaryOperator polynomial, Header header) {
-        performDetection(frameId, width, height, original, polynomial, header, null, null);
-    }
-
-    public void performDetection(int frameId, int width, int height, float[][] original, DoubleUnaryOperator polynomial, Header header, float[][] blurredScratch) {
-        performDetection(frameId, width, height, original, polynomial, header, blurredScratch, null);
-    }
-
-    public void performDetection(int frameId, int width, int height, float[][] original, DoubleUnaryOperator polynomial, Header header, float[][] blurredScratch, float[][] blurTmpScratch) {
         if (!detectRedshifts && !detectActiveRegions && !findBorders && !detectEllermanBombs) {
             return;
         }
@@ -181,17 +159,12 @@ public class PhenomenaDetector {
             right -= (int) (range / 40d);
             var avgCenterLine = 0d;
             var avgCenterCount = 0;
-            var columnStats = new ColumnStats[width];
             var columnsAverages = new double[width];
             var columnsStddevs = new double[width];
             computeColumnAverages(original, left, right, height, columnsAverages);
             computeColumnStddevs(original, left, right, height, columnsAverages, columnsStddevs);
             for (int x = left; x < right; x++) {
-                var columnAvg = columnsAverages[x];
-                if (detectEllermanBombs) {
-                    columnStats[x] = computeColumnStatsForEllermanDetection(frameId, x, height, original, polynomial);
-                }
-                avgOfColumnAverages += columnAvg;
+                avgOfColumnAverages += columnsAverages[x];
                 var y = (int) Math.round(polynomial.applyAsDouble(x));
                 if (y < 0 || y >= height) {
                     continue;
@@ -207,10 +180,6 @@ public class PhenomenaDetector {
             var collector = new ArrayList<Redshift>();
             double finalAvgCenterLine = avgCenterLine;
             double finalAvgOfColumnAverages = avgOfColumnAverages;
-            var globalWingAvgForEllermanDetection = right - left < 64 ? -1 // not enough samples for Ellerman Bomb detection
-                    : Arrays.stream(columnStats).filter(Objects::nonNull).mapToDouble(c -> c.wingStats().average()).average().orElse(0);
-            var globalLineAvgForEllermanDetection = right - left < 64 ? -1 // not enough samples for Ellerman Bomb detection
-                    : Arrays.stream(columnStats).filter(Objects::nonNull).mapToDouble(c -> c.centerLineStats().average()).average().orElse(0);
             int leftBorder = left;
             int rightBorder = right;
             lock.lock();
@@ -220,13 +189,13 @@ public class PhenomenaDetector {
             } finally {
                 lock.unlock();
             }
-            var ellermanCandidates = new ArrayList<Integer>();
-            for (int x = left; x <= right; x++) {
-                analyzeColumn(frameId, x, width, height, polynomial, columnsAverages, columnsStddevs, models.avgModel(), models.stddevModel(), activeRegionsMask, columnStats, globalLineAvgForEllermanDetection, globalWingAvgForEllermanDetection, leftBorder, rightBorder, ellermanCandidates);
+            if (detectActiveRegions) {
+                for (int x = left; x <= right; x++) {
+                    detectActiveRegions(x, columnsAverages, columnsStddevs, models.avgModel(), models.stddevModel(), activeRegionsMask);
+                }
             }
-            if (!ellermanCandidates.isEmpty()) {
-                confirmEllermanCandidates(frameId, ellermanCandidates, original, columnStats, left, right, leftBorder, rightBorder, width, height, polynomial,
-                        globalLineAvgForEllermanDetection, globalWingAvgForEllermanDetection, blurredScratch, blurTmpScratch);
+            if (detectEllermanBombs) {
+                ellermanBombDetector.analyzeFrame(frameId, left, right, height, original, polynomial);
             }
             if (detectRedshifts) {
                 emitRedshifts(frameId, leftBorder, rightBorder, width, height, original, polynomial, wingShiftInPixels, finalAvgCenterLine, finalAvgOfColumnAverages, columnsAverages, collector);
@@ -315,213 +284,6 @@ public class PhenomenaDetector {
         return Math.sqrt(variance);
     }
 
-
-    private ColumnStats computeColumnStatsForEllermanDetection(int frameId, int column, int height, float[][] blurred, DoubleUnaryOperator polynomial) {
-        double lineSum = 0;
-        double wingSum = 0;
-        double lineCount = 0;
-        double wingCount = 0;
-        double wingLimit = ELLERMAN_WING_LIMIT_ANGSTROMS / dispersion.angstromsPerPixel();
-        double maxRange = ELLERMAN_MAX_RANGE_ANGSTROMS / dispersion.angstromsPerPixel();
-        var center = polynomial.applyAsDouble(column);
-        int offset = 5 * height / 100;
-        for (int y = offset; y < height - offset; y++) {
-            if (Math.abs(y - center) > maxRange) {
-                continue;
-            }
-            var v = blurred[y][column];
-            if (Math.abs(y - center) < wingLimit) {
-                lineSum += v;
-                lineCount++;
-            } else {
-                wingSum += v;
-                wingCount++;
-            }
-        }
-        double lineAvg = lineCount > 0 ? lineSum / lineCount : 0;
-        double wingAvg = wingCount > 0 ? wingSum / wingCount : 0;
-        double lineStddev = 0;
-        double wingStddev = 0;
-        float wingMaxValue = -1;
-        float wingMinValue = Float.MAX_VALUE;
-        int wingMaxY = Integer.MIN_VALUE;
-
-        for (int y = offset; y < height - offset; y++) {
-            if (Math.abs(y - center) < wingLimit) {
-                var delta = blurred[y][column] - lineAvg;
-                lineStddev += delta * delta;
-            } else {
-                var delta = blurred[y][column] - wingAvg;
-                wingStddev += delta * delta;
-                var v = blurred[y][column];
-                if (v < wingMinValue) {
-                    wingMinValue = v;
-                }
-            }
-        }
-        float max = 0;
-        for (int y = (int) (center + wingLimit + 1); y < Math.min(height, center + maxRange); y++) {
-            var v = blurred[y][column];
-            if (v > max) {
-                max = v;
-                wingMaxY = y;
-            } else {
-                break;
-            }
-        }
-        for (int y = (int) (center - wingLimit - 1); y > Math.max(0, center - maxRange); y--) {
-            var v = blurred[y][column];
-            if (v > max) {
-                max = v;
-                wingMaxY = y;
-            } else {
-                break;
-            }
-        }
-        wingMaxValue = max;
-        lineStddev = Math.sqrt(lineStddev / (lineCount - 1));
-        wingStddev = Math.sqrt(wingStddev / (wingCount - 1));
-        return new ColumnStats(
-                new PixelStats(lineAvg, lineStddev),
-                new PixelStats(wingAvg, wingStddev),
-                wingMaxY,
-                wingMaxValue,
-                wingMinValue
-        );
-    }
-
-    private void analyzeColumn(int frameId,
-                               int x,
-                               int width,
-                               int height,
-                               DoubleUnaryOperator polynomial,
-                               double[] columnsAverages,
-                               double[] columnsStddevs,
-                               DoubleUnaryOperator avgModel,
-                               DoubleUnaryOperator stddevModel,
-                               BitSet activeRegionMask,
-                               ColumnStats[] columnStats,
-                               double globalLineAvgForEllermanDetection,
-                               double globalWingAvgForEllermanDetection,
-                               int leftBorder,
-                               int rightBorder,
-                               List<Integer> ellermanCandidates) {
-        if (detectActiveRegions) {
-            detectActiveRegions(x, columnsAverages, columnsStddevs, avgModel, stddevModel, activeRegionMask);
-        }
-        if (detectEllermanBombs && globalWingAvgForEllermanDetection > 0 && x > leftBorder + 16 && x < rightBorder - 16
-                && performEllermanBombDetection(frameId, x, width, leftBorder, rightBorder, polynomial, columnStats, globalLineAvgForEllermanDetection, globalWingAvgForEllermanDetection, ELLERMAN_CANDIDATE_SCORE_THRESHOLD).isPresent()) {
-            ellermanCandidates.add(x);
-        }
-    }
-
-    private void confirmEllermanCandidates(int frameId,
-                                           List<Integer> candidates,
-                                           float[][] original,
-                                           ColumnStats[] columnStats,
-                                           int left,
-                                           int right,
-                                           int leftBorder,
-                                           int rightBorder,
-                                           int width,
-                                           int height,
-                                           DoubleUnaryOperator polynomial,
-                                           double globalLineAvg,
-                                           double globalWingAvg,
-                                           float[][] blurredScratch,
-                                           float[][] blurTmpScratch) {
-        var blurred = blurredScratch != null ? blurredScratch : new float[height][width];
-        var blurTmp = blurTmpScratch != null ? blurTmpScratch : new float[height][width];
-        var image = new Image(width, height, original);
-        var inBand = new boolean[width];
-        for (int candidate : candidates) {
-            int from = Math.max(left, candidate - ELLERMAN_LOCAL_RANGE);
-            int to = Math.min(right, candidate + ELLERMAN_LOCAL_RANGE + 1);
-            for (int x = from; x < to; x++) {
-                inBand[x] = true;
-            }
-        }
-        int x = left;
-        while (x < right) {
-            if (!inBand[x]) {
-                x++;
-                continue;
-            }
-            int runStart = x;
-            while (x < right && inBand[x]) {
-                x++;
-            }
-            int runEnd = x;
-            imageMath.gaussianBlur(image, blurred, blurTmp, runStart, runEnd);
-            for (int column = runStart; column < runEnd; column++) {
-                columnStats[column] = computeColumnStatsForEllermanDetection(frameId, column, height, blurred, polynomial);
-            }
-        }
-        for (int candidate : candidates) {
-            performEllermanBombDetection(frameId, candidate, width, leftBorder, rightBorder, polynomial, columnStats, globalLineAvg, globalWingAvg, ELLERMAN_SCORE_THRESHOLD)
-                    .ifPresent(flare -> candidateFlares.add(new CandidateFlare(flare, frameId, leftBorder, rightBorder)));
-        }
-    }
-
-    private Optional<Flare> performEllermanBombDetection(int frameId,
-                                                         int x,
-                                                         int width,
-                                                         int left,
-                                                         int right,
-                                                         DoubleUnaryOperator polynomial,
-                                                         ColumnStats[] columnStats,
-                                                         double globalLineAvg,
-                                                         double globalWingAvg,
-                                                         double scoreThreshold) {
-        if (right - left < ELLERMAN_MIN_WIDTH_FOR_DETECTION) {
-            return Optional.empty();
-        }
-        var avgCenter = 0d;
-        var avgWing = 0d;
-        var count = 0;
-        var colStats = columnStats[x];
-        for (int k = -ELLERMAN_LOCAL_RANGE; k <= ELLERMAN_LOCAL_RANGE; k++) {
-            if (x + k < 0 || x + k >= width) {
-                continue;
-            }
-            var col = columnStats[x + k];
-            if (col != null && k != 0 && col.wingStats().average() > 0.9 * globalWingAvg) {
-                avgCenter += col.centerLineStats().average();
-                avgWing += col.wingStats().average();
-                count++;
-            }
-        }
-        if (count > 0) {
-            avgCenter /= count;
-            avgWing /= count;
-            if (colStats != null) {
-                // Ellerman flares shouldn't have significant line brightening so we're using this as a normalization factor
-                double lineBrightening = Math.max(1, colStats.centerLineStats().average() / Math.min(avgCenter, globalLineAvg));
-                double score = (1 + (colStats.wingMaxValue() / Math.min(avgWing, globalWingAvg)));
-                score *= (count / (2d * ELLERMAN_LOCAL_RANGE));
-                var wingRelDiff = colStats.wingMaxValue() / avgWing;
-                if (wingRelDiff > 1.05) {
-                    score = Math.pow(score, Math.exp(wingRelDiff));
-                    score *= Math.sqrt(colStats.wingMaxValue() / colStats.centerLineStats().average());
-                    var wingMaxY = colStats.wingMaxY();
-                    var middle = polynomial.applyAsDouble(x);
-                    var shiftWithMaxValue = Math.abs(wingMaxY - middle);
-                    // convert to Angstroms
-                    var maxShift = shiftWithMaxValue * dispersion.angstromsPerPixel();
-                    score /= (1 + Math.abs(1 - maxShift)); // a maximum around 1A is expected
-                    if (score > scoreThreshold) {
-                        if (lineBrightening < 1.5) {
-                            return Optional.of(new Flare(Flare.Kind.ELLERMAN_BOMB, frameId, x, x, frameId, score));
-                        } else if (lineBrightening > 2) {
-                            return Optional.of(new Flare(Flare.Kind.FLARE, frameId, x, x, frameId, score));
-
-                        }
-                    }
-                }
-            }
-        }
-        return Optional.empty();
-    }
 
     private void emitRedshifts(int frameId,
                                int left,
@@ -780,70 +542,17 @@ public class PhenomenaDetector {
     }
 
     public Flares getFlares() {
-        if (flares != null) {
-            return new Flares(flares);
-        }
-        var candidates = new ArrayList<>(candidateFlares);
-        filterFlaresTooCloseToBorder(candidates);
-        // remove candidate flares detected on too small spans
-        candidates.sort(Comparator.<CandidateFlare>comparingDouble(c -> c.flare().score()).reversed());
-        if (!candidates.isEmpty()) {
-            // Take the top-N highest-scoring candidates before the O(n²) dedup.
-            // Caps cost and acts as a noise filter: anything past rank N is too
-            // weak to compete with the strongest detections in this image.
-            var topCandidates = candidates.size() > MAX_ELLERMAN_CANDIDATE_LIMIT
-                    ? candidates.subList(0, MAX_ELLERMAN_CANDIDATE_LIMIT)
-                    : candidates;
-            List<Flare> bombs = topCandidates.stream().map(CandidateFlare::flare).collect(Collectors.toList());
-            // remove flares that are too close to each other; the dedup
-            // distance is wider for FLARE than ELLERMAN_BOMB because flares
-            // are spatially broader phenomena than thin Ellerman bombs.
-            for (int i = 0; i < bombs.size(); i++) {
-                var bomb = bombs.get(i);
-                var p1 = new Point2D(bomb.x(), bomb.y());
-                var dedupDistance = bomb.kind() == Flare.Kind.FLARE ? FLARE_DEDUP_DISTANCE : ELLERMAN_LOCAL_RANGE;
-                for (int j = bombs.size() - 1; j > i; j--) {
-                    var otherBomb = bombs.get(j);
-                    var p2 = new Point2D(otherBomb.x(), otherBomb.y());
-                    if (p1.distanceTo(p2) < dedupDistance) {
-                        bombs.remove(j);
-                    }
-                }
-            }
-            if (bombs.size() > MAX_ELLERMAN_COUNT) {
-                // most likely misdetection
-                flares = Collections.emptyList();
-            } else {
-                flares = bombs.stream().toList();
-            }
-        } else {
-            flares = Collections.emptyList();
+        if (flares == null) {
+            flares = ellermanBombDetector.findFlares(fitDisk());
         }
         return new Flares(flares);
     }
 
-    private void filterFlaresTooCloseToBorder(List<CandidateFlare> candidates) {
+    private Optional<Ellipse> fitDisk() {
         try {
-            var ellipse = new EllipseRegression(borderPoints).solve();
-            var semiAxis = ellipse.semiAxis();
-            var maxDist = Math.max(semiAxis.a(), semiAxis.b());
-            var limit = 0.08d * maxDist;
-            candidates.removeIf(c -> {
-                var flare = c.flare();
-                var frameId = c.frameId();
-                var sourceX = flare.sourceX();
-                var maybeBorders = ellipse.findX(frameId);
-                if (maybeBorders.isPresent()) {
-                    var borders = maybeBorders.get();
-                    var distToBorder = Math.min(Math.abs(sourceX - borders.a()), Math.abs(sourceX - borders.b()));
-                    if (flare.score() < 15 && distToBorder < limit) {
-                        return true;
-                    }
-                }
-                return maybeBorders.isEmpty();
-            });
+            return Optional.of(new EllipseRegression(borderPoints).solve());
         } catch (Exception e) {
-            // ignore, this is not a problem if the regression fails
+            return Optional.empty();
         }
     }
 
@@ -1189,31 +898,5 @@ public class PhenomenaDetector {
             Arrays.fill(right, -1);
             return new BorderDetection(left, right);
         }
-    }
-
-    private record PixelStats(
-            double average,
-            double stddev
-    ) {
-
-    }
-
-    private record ColumnStats(
-            PixelStats centerLineStats,
-            PixelStats wingStats,
-            int wingMaxY,
-            float wingMaxValue,
-            float wingMinValue
-    ) {
-
-    }
-
-    private record CandidateFlare(
-            Flare flare,
-            int frameId,
-            int leftBorder,
-            int rightBorder
-    ) {
-
     }
 }

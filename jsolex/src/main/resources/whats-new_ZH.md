@@ -4,6 +4,7 @@
 
 - 图像查看器现在可以对图像进行模糊和锐化，包括 USM 锐化。
 - 图像拉伸速度更快，特别是 CLAHE、CLAHE2 和 AutoStretch。
+- Ellerman 炸弹的检测更加可靠，参考了 Stephan Schmelzing 描述的方法。
 - 处理过程中内存占用更低。
 - 已移除“内存占用调整”设置，因为不再需要。
 - Python 脚本中图像与 NumPy 之间的转换速度更快。
