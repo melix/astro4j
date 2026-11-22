@@ -66,6 +66,8 @@ import me.champeau.a4j.jsolex.processing.spectrum.IdentifiedLineResolver;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectralLineCatalog;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectrumAnalyzer;
 import me.champeau.a4j.jsolex.processing.sun.detection.ActiveRegions;
+import me.champeau.a4j.jsolex.processing.sun.detection.EllermanBombCharts;
+import me.champeau.a4j.jsolex.processing.sun.detection.EllermanBombProfile;
 import me.champeau.a4j.jsolex.processing.sun.detection.Flare;
 import me.champeau.a4j.jsolex.processing.sun.detection.Flares;
 import me.champeau.a4j.jsolex.processing.sun.detection.PhenomenaDetector;
@@ -97,7 +99,9 @@ import me.champeau.a4j.jsolex.processing.sun.workflow.TransformationHistory;
 import me.champeau.a4j.jsolex.processing.sun.workflow.TruncatedDisk;
 import me.champeau.a4j.jsolex.processing.sun.workflow.WorkflowResults;
 import me.champeau.a4j.jsolex.processing.util.CancellationSupport;
+import me.champeau.a4j.jsolex.processing.util.Charts;
 import me.champeau.a4j.jsolex.processing.util.Constants;
+import me.champeau.a4j.jsolex.processing.util.Dispersion;
 import me.champeau.a4j.jsolex.processing.util.FilesUtils;
 import me.champeau.a4j.math.image.ImagePlane;
 import me.champeau.a4j.jsolex.processing.util.ImageWrapper;
@@ -541,7 +545,7 @@ public class SolexVideoProcessor implements Broadcaster {
                     long unitSd = System.nanoTime();
                     var outputs = performImageReconstruction(converter, reader, 0, end, geometry, width, height, polynomial, current, totalImages, imageNamingStrategy, batch.toArray(new WorkflowState[0]));
                     maybeProduceRedshiftDetectionImages(outputs.redshifts, width, height, reader, converter, geometry, polynomial, imageNamingStrategy, baseName);
-                    maybeGenerateEllermanBombSpectrumImages(converter, reader, geometry, width, height, imageNamingStrategy, outputs.flares);
+                    maybeGenerateEllermanBombSpectrumImages(converter, reader, geometry, width, height, polynomial, imageNamingStrategy, outputs.flares);
                     if (redshifts == null && outputs.redshifts != null) {
                         redshifts = new Redshifts(outputs.redshifts);
                     }
@@ -653,14 +657,7 @@ public class SolexVideoProcessor implements Broadcaster {
                             var lastFrame = (int) y2;
                             var marginFrames = 10 * (lastFrame - firstFrame) / 100;
                             var marginWidth = 10 * (x2 - x1) / 100;
-                            var lambda0 = processParams.spectrumParams().ray().wavelength();
-                            var observationDetails = processParams.observationDetails();
-                            var instrument = observationDetails.instrument();
-                            var dispersion = SpectrumAnalyzer.computeSpectralDispersion(
-                                    instrument,
-                                    lambda0,
-                                    observationDetails.pixelSize() * observationDetails.binning()
-                            );
+                            var dispersion = computeDispersion();
                             broadcast(TrimmingParametersDeterminedEvent.of(
                                     serFile,
                                     Math.max(0, firstFrame - marginFrames),
@@ -1690,14 +1687,7 @@ public class SolexVideoProcessor implements Broadcaster {
         reader.seekFrame(start);
         int totalLines = end - start;
         var lambda0 = processParams.spectrumParams().ray().wavelength();
-        var observationDetails = processParams.observationDetails();
-        var instrument = observationDetails.instrument();
-        var dispersion = SpectrumAnalyzer.computeSpectralDispersion(
-                instrument,
-                lambda0,
-                observationDetails.pixelSize() * observationDetails.binning()
-        );
-        var phenomenaDetector = new PhenomenaDetector(dispersion, lambda0, width);
+        var phenomenaDetector = new PhenomenaDetector(computeDispersion(), lambda0, width);
         var hasRedshifts = new AtomicBoolean();
         var hasActiveRegions = new AtomicBoolean();
         var hasFlares = new AtomicBoolean();
@@ -1706,12 +1696,8 @@ public class SolexVideoProcessor implements Broadcaster {
         // its conversion + detection. No slot/refcount logic — the lane owns the
         // buffer for the whole batch and the next batch reuses the same buffers.
         var buffers = new float[laneCount][][];
-        var blurredBuffers = new float[laneCount][][];
-        var blurTmpBuffers = new float[laneCount][][];
         for (int k = 0; k < laneCount; k++) {
             buffers[k] = new float[geometry.height()][geometry.width()];
-            blurredBuffers[k] = new float[geometry.height()][geometry.width()];
-            blurTmpBuffers[k] = new float[geometry.height()][geometry.width()];
         }
         var jSolexSer = reader.header().isJSolexTrimmedSer();
         var flat = loadReadFlat(geometry.width(), geometry.height()).orElse(null);
@@ -1762,7 +1748,7 @@ public class SolexVideoProcessor implements Broadcaster {
                             processSingleFrame(state.isInternal(), width, height, buffer, y, original, polynomial, state.pixelShift(), totalLines, jSolexSer, truncationDetails);
                             state.setTruncationDetails(truncationDetails);
                             if (detectPhenomena && state.pixelShift() == 0) {
-                                phenomenaDetector.performDetection(frameId, width, height, original, polynomial, reader.header(), blurredBuffers[lane], blurTmpBuffers[lane]);
+                                phenomenaDetector.performDetection(frameId, width, height, original, polynomial, reader.header());
                                 if (phenomenaDetector.isRedShiftDetectionEnabled()) {
                                     hasRedshifts.set(true);
                                 }
@@ -1807,6 +1793,7 @@ public class SolexVideoProcessor implements Broadcaster {
                                                          ImageGeometry geometry,
                                                          int width,
                                                          int height,
+                                                         DoubleUnaryOperator polynomial,
                                                          FileNamingStrategy imageNamingStrategy,
                                                          Flares flares) {
         if (flares == null) {
@@ -1817,6 +1804,9 @@ public class SolexVideoProcessor implements Broadcaster {
             return;
         }
         var imageEmitter = createDefaultImageEmitter(imageNamingStrategy);
+        var flat = loadReadFlat(geometry.width(), geometry.height()).orElse(null);
+        var dispersion = computeDispersion();
+        var wavelengthGrowsWithRow = wavelengthGrowsWithRow();
         int ebIdx = 0;
         int flareIdx = 0;
         for (var flare : flareList) {
@@ -1862,7 +1852,7 @@ public class SolexVideoProcessor implements Broadcaster {
                             var size = height / 4f;
                             gc.setFont(font.deriveFont(size));
                             gc.drawString("Frame " + flare.frameId(), 16, size);
-                            gc.drawString(String.format(Locale.US, "Score %.2f", flare.score()), 16, 2 * size);
+                            gc.drawString(String.format(Locale.US, "Confidence %.0f %%", flare.score()), 16, 2 * size);
                             gc.setColor(Color.red);
                             gc.setStroke(new BasicStroke(2));
                             gc.drawRect(flare.sourceX() - margin, 0, margin * 2 + 1, height - 1);
@@ -1874,7 +1864,31 @@ public class SolexVideoProcessor implements Broadcaster {
                         };
                     }
             );
+            var profileTitle = String.format(message("phenomenon.profile.title"), title + " " + id);
+            var chartTitle = String.format(Locale.US, message("ellerman.bomb.profile.chart"), title + " " + id, flare.frameId(), flare.sourceX(), flare.score());
+            EllermanBombProfile.extract(flatCorrected(buffer, flat), flare.sourceX(), polynomial, dispersion, wavelengthGrowsWithRow)
+                    .ifPresent(profile -> imageEmitter.newColorImage(kind,
+                            category,
+                            profileTitle,
+                            category + id + "-profile",
+                            message("ellerman.bomb.profile.description"),
+                            Charts.WIDTH,
+                            Charts.HEIGHT,
+                            MutableMap.of(),
+                            () -> EllermanBombCharts.profile(profile, chartTitle)));
         }
+    }
+
+    private static float[][] flatCorrected(float[][] frame, float[] flat) {
+        if (flat == null) {
+            return frame;
+        }
+        var corrected = new float[frame.length][];
+        for (int y = 0; y < frame.length; y++) {
+            corrected[y] = frame[y].clone();
+        }
+        applyFlatCorrection(corrected, flat);
+        return corrected;
     }
 
     private static void applyFlatCorrection(float[][] original, float[] flat) {
@@ -1990,13 +2004,33 @@ public class SolexVideoProcessor implements Broadcaster {
      * the line is positive.
      */
     private boolean shouldSwitchDopplerChannels() {
+        var switched = wavelengthGrowsWithRow();
+        if (processParams.spectrumParams().dopplerColors() == DopplerColors.AUTO) {
+            LOGGER.info(message(switched ? "doppler.colors.switched" : "doppler.colors.normal"));
+        }
+        return switched;
+    }
+
+    /**
+     * Whether the wavelength grows with the row of a frame. When the Doppler colours are
+     * chosen by hand, the choice tells it, otherwise it is deduced from the curvature of
+     * the line.
+     */
+    private boolean wavelengthGrowsWithRow() {
         var dopplerColors = processParams.spectrumParams().dopplerColors();
         if (dopplerColors != DopplerColors.AUTO) {
             return dopplerColors == DopplerColors.SWITCHED;
         }
-        var switched = polynomialCoefficients != null && polynomialCoefficients.b() > 0;
-        LOGGER.info(message(switched ? "doppler.colors.switched" : "doppler.colors.normal"));
-        return switched;
+        return polynomialCoefficients != null && polynomialCoefficients.b() > 0;
+    }
+
+    private Dispersion computeDispersion() {
+        var observationDetails = processParams.observationDetails();
+        return SpectrumAnalyzer.computeSpectralDispersion(
+                observationDetails.instrument(),
+                processParams.spectrumParams().ray().wavelength(),
+                observationDetails.pixelSize() * observationDetails.binning()
+        );
     }
 
     /**

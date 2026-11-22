@@ -47,6 +47,7 @@ public class CategoryPane extends VBox {
 
     private final List<Hyperlink> safeLinks = Collections.synchronizedList(new ArrayList<>());
     private final ObservableList<Hyperlink> links = FXCollections.observableArrayList();
+    private final TitleOrder titleOrder = new TitleOrder();
     private final Map<Hyperlink, RowHandle> rows = new LinkedHashMap<>();
 
     private Hyperlink selected = null;
@@ -113,7 +114,7 @@ public class CategoryPane extends VBox {
             select(link);
         });
         link.getStyleClass().add("category-link");
-        safeLinks.add(link);
+        box.getProperties().put(Hyperlink.class, link);
         box.getChildren().add(link);
         if (badge != null) {
             var badgeLabel = new Label(badge);
@@ -139,14 +140,17 @@ public class CategoryPane extends VBox {
         }
         link.setTooltip(new Tooltip(shiftSuffix == null ? title : title + shiftSuffix));
         int insertPoint = 1;
+        int linkIndex = 0;
         for (int i = 1; i < getChildren().size(); i++) {
             var child = getChildren().get(i);
-            var shift = (PixelShift) child.getProperties().get(PixelShift.class);
-            if (shift == null || pixelShift == null || shift.pixelShift() > pixelShift.pixelShift()) {
+            var childLink = (Hyperlink) child.getProperties().get(Hyperlink.class);
+            if (childLink == null || comesAfter((PixelShift) child.getProperties().get(PixelShift.class), childLink, pixelShift, title)) {
                 break;
             }
             insertPoint++;
+            linkIndex++;
         }
+        safeLinks.add(Math.min(linkIndex, safeLinks.size()), link);
         var spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
         box.getChildren().add(spacer);
@@ -159,6 +163,18 @@ public class CategoryPane extends VBox {
         applyCollapseState(box);
         FxUtils.runLater(() -> links.setAll(safeLinks));
         return link;
+    }
+
+    private boolean comesAfter(PixelShift shift, Hyperlink link, PixelShift newShift, String newTitle) {
+        var comparison = Double.compare(valueOf(shift), valueOf(newShift));
+        if (comparison != 0) {
+            return comparison > 0;
+        }
+        return titleOrder.compare(link.getText(), newTitle) > 0;
+    }
+
+    private static double valueOf(PixelShift shift) {
+        return shift == null ? 0 : shift.pixelShift();
     }
 
     private void installContextMenu(HBox box, Hyperlink link, String shiftSuffix, Consumer<? super String> onRename, Runnable onClone) {
