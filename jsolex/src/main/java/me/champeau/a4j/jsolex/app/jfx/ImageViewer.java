@@ -21,6 +21,8 @@ import me.champeau.a4j.jsolex.app.util.FxUtils;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ListProperty;
+import javafx.beans.property.ReadOnlyStringProperty;
+import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleListProperty;
 import javafx.collections.FXCollections;
@@ -28,7 +30,6 @@ import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.event.EventTarget;
 import javafx.geometry.Insets;
-import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Parent;
@@ -46,11 +47,12 @@ import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.Separator;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.ScrollPane;
-import javafx.scene.control.Slider;
+import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.image.Image;
 import javafx.scene.layout.HBox;
@@ -154,14 +156,19 @@ public class ImageViewer implements WithRootNode {
     private ProcessParams processParams;
     private FileCounts fileCounts = FileCounts.SINGLE_FILE;
 
-    private final Label dimensions = new Label();
+    private static final double ADJUSTMENTS_PANEL_WIDTH = 300;
+    private static final AtomicBoolean ADJUSTMENTS_PANEL_SHOWN = new AtomicBoolean();
+
+    private final ReadOnlyStringWrapper imageInfo = new ReadOnlyStringWrapper(this, "imageInfo", "");
+    private String dimensionsText = "";
+    private String coordinatesText = "";
     private VBox stretchingParams;
     private ChoiceBox<StretchChoice> stretchChoice;
-    private HBox stretchParameters;
-    private HBox stretchChain;
-    private HBox inlineStretchEditor;
-    private HBox stretchEditorLine;
+    private VBox stretchParameters;
+    private VBox stretchChain;
     private Button resetStretchButton;
+    private ToggleButton adjustmentsToggle;
+    private Node adjustmentsPanel;
     private ZoomableImageView imageView;
     private StackPane imageContainer;
     private ProgressIndicator loadingIndicator;
@@ -339,6 +346,11 @@ public class ImageViewer implements WithRootNode {
     private void populateActionsMenu(MenuButton menu) {
         menu.getItems().clear();
         addCommonActionItems(menu.getItems(), false);
+        menu.getItems().add(new SeparatorMenuItem());
+        var openExplorer = new MenuItem(message("open.in.explorer"), ToolbarIcon.FOLDER.createNode());
+        openExplorer.disableProperty().bind(imageView.cannotOpenInExplorerProperty());
+        openExplorer.setOnAction(e -> imageView.openInExplorer());
+        menu.getItems().add(openExplorer);
     }
 
     private void populateContextMenu(ContextMenu menu) {
@@ -759,42 +771,32 @@ public class ImageViewer implements WithRootNode {
         var chips = new ArrayList<Node>();
         if (chained) {
             for (int i = 0; i < steps.size(); i++) {
-                if (i > 0) {
-                    var arrow = new Label("→");
-                    arrow.getStyleClass().add("stretch-chain-arrow");
-                    chips.add(arrow);
-                }
                 chips.add(createStretchChip(i, steps.get(i)));
             }
         }
         stretchChain.getChildren().setAll(chips);
         setShown(stretchChain, chained);
         var selected = selectedStep();
-        setShown(stretchEditorLine, selected != null);
+        setShown(stretchParameters, selected != null);
         resetStretchButton.setDisable(selected == null);
-        var editorIndent = stretchEditorLine.getChildren().getFirst();
-        if (chained) {
-            inlineStretchEditor.getChildren().clear();
-            stretchEditorLine.getChildren().setAll(editorIndent, stretchChoice, stretchParameters);
-        } else {
-            inlineStretchEditor.getChildren().setAll(stretchChoice);
-            stretchEditorLine.getChildren().setAll(editorIndent, stretchParameters);
-        }
         stretchChoice.getItems().setAll(stretchChoices());
         stretchChoice.setValue(new StretchChoice(selected == null ? null : selected.kind()));
         showStretchParameters();
     }
 
     private HBox createStretchChip(int index, StretchStep step) {
-        var name = new Label(StretchStepEditor.stepLabel(step.kind()));
+        var name = new Label((index + 1) + ". " + StretchStepEditor.stepLabel(step.kind()));
         var remove = new Label("×");
         remove.getStyleClass().add("stretch-chip-remove");
         remove.setOnMouseClicked(e -> {
             e.consume();
             removeStretch(index);
         });
-        var chip = new HBox(6, name, remove);
+        var spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        var chip = new HBox(6, name, spacer, remove);
         chip.setAlignment(Pos.CENTER_LEFT);
+        chip.setMaxWidth(Double.MAX_VALUE);
         chip.getStyleClass().add("stretch-chip");
         if (index == selectedIndex) {
             chip.getStyleClass().add("stretch-chip-selected");
@@ -830,9 +832,7 @@ public class ImageViewer implements WithRootNode {
         } else {
             var index = selectedIndex;
             stretchEditor = new StretchStepEditor(selected, step -> onStretchSettingsChanged(index, step));
-            var layout = stretchEditor.inlineLayout();
-            HBox.setHgrow(layout, Priority.ALWAYS);
-            stretchParameters.getChildren().setAll(layout);
+            stretchParameters.getChildren().setAll(stretchEditor.stackedLayout());
         }
         stretchChoice.setTooltip(selected == null ? null : createHelpTooltip(selected.kind()));
     }
@@ -840,53 +840,33 @@ public class ImageViewer implements WithRootNode {
     private void configureStretching() {
         try {
             displayLock.lock();
-            var line2 = new HBox(8);
-            line2.setAlignment(Pos.CENTER_LEFT);
-            var line3 = new HBox(8);
-            line3.setAlignment(Pos.CENTER_LEFT);
             var choice = new ChoiceBox<StretchChoice>();
+            choice.setMaxWidth(Double.MAX_VALUE);
+            HBox.setHgrow(choice, Priority.ALWAYS);
             choice.valueProperty().addListener((obs, oldValue, newValue) -> onStretchChoiceChanged(newValue));
-            var parameters = new HBox(8);
-            parameters.setAlignment(Pos.CENTER_LEFT);
-            HBox.setHgrow(parameters, Priority.ALWAYS);
-            var line1 = new HBox(8);
-            line1.setAlignment(Pos.CENTER_LEFT);
-            var stretchingLabel = new Label(message("stretching.label"));
-            preventEllipsis(stretchingLabel);
-            var chain = new HBox(6);
-            chain.setAlignment(Pos.CENTER_LEFT);
-            var inlineEditor = new HBox(8);
-            inlineEditor.setAlignment(Pos.CENTER_LEFT);
-            var stretchSpacer = new Region();
-            HBox.setHgrow(stretchSpacer, Priority.ALWAYS);
-            var addStretchButton = createButton(message("stretch.add"));
+            var parameters = new VBox(4);
+            var chain = new VBox(4);
+            var addStretchButton = createButton(message("stretch.add"), ToolbarIcon.ADD);
+            addStretchButton.setMaxWidth(Double.MAX_VALUE);
             addStretchButton.setOnAction(e -> addStretch());
-            var editorIndent = new Region();
-            editorIndent.minWidthProperty().bind(stretchingLabel.widthProperty());
-            var editorLine = new HBox(8, editorIndent);
-            editorLine.setAlignment(Pos.CENTER_LEFT);
-            var reset = createButton(message("reset"));
+            var reset = createButton(message("reset"), ToolbarIcon.RESET);
             reset.setOnAction(event -> resetStretch());
-            line1.getChildren().addAll(stretchingLabel, chain, inlineEditor, addStretchButton, stretchSpacer);
-            saveButton = createButton("💾 " + message("save"));
+            var toggle = createAdjustmentsToggle();
+            var panel = createAdjustmentsPanel(chain, addStretchButton, new HBox(6, choice, reset), parameters);
+            saveButton = createButton(message("save"), ToolbarIcon.SAVE);
             saveButton.setOnAction(e -> saveImage());
             saveButton.disableProperty().addListener((obs, was, disabled) -> updateSaveButtonStyle(disabled));
             updateSaveButtonStyle(saveButton.isDisable());
-            var openExplorerButton = createButton("📂 " + message("open.in.explorer"));
-            openExplorerButton.setOnAction(e -> imageView.openInExplorer());
-            openExplorerButton.disableProperty().bind(imageView.cannotOpenInExplorerProperty());
-            var zoomLabel = new Label(I18N.string(JSolEx.class, "common", "zoom"));
-            var zoomMinus = createIconButton("-");
+            var zoomMinus = createIconButton(ToolbarIcon.ZOOM_OUT);
             zoomMinus.setOnAction(evt -> {
                 clearPendingAlignment();
                 imageView.setZoomAroundCenter(imageView.getZoom() * 0.8);
             });
-            var zoomPlus = createIconButton("+");
+            var zoomPlus = createIconButton(ToolbarIcon.ZOOM_IN);
             zoomPlus.setOnAction(evt -> {
                 clearPendingAlignment();
                 imageView.setZoomAroundCenter(imageView.getZoom() * 1.2);
             });
-            var coordinatesLabel = new Label();
             imageView.setOnZoomChanged(z -> {
                 if (earthLayer != null) {
                     earthLayer.applyLayout();
@@ -920,13 +900,14 @@ public class ImageViewer implements WithRootNode {
                 if (cloudValue != null) {
                     extra = ", " + cloudValue;
                 }
-                coordinatesLabel.setText("(" + xx + ", " + yy + extra + ")");
+                coordinatesText = "(" + xx + ", " + yy + extra + ")";
+                updateImageInfo();
             });
             if (broadcaster instanceof CloudModelFitDisplay display && image.findMetadata(CloudInversionResult.class).isPresent()) {
                 imageView.setClickListener((x, y) -> image.findMetadata(CloudInversionResult.class)
                         .ifPresent(current -> display.showCloudModelFit(current, x, y)));
             }
-            var applyNextTime = createIconButton("✔");
+            var applyNextTime = createIconButton(ToolbarIcon.APPLY);
             correctAngleP.selectedProperty().addListener((obj, oldValue, newValue) -> {
                 stretchAndDisplay();
                 if (!Objects.equals(oldValue, newValue)) {
@@ -936,6 +917,7 @@ public class ImageViewer implements WithRootNode {
             var prevButton = createButton(message("prev.image"));
             prevButton.disableProperty().bind(currentImage.isEqualTo(0));
             prevButton.visibleProperty().bind(imageHistory.sizeProperty().greaterThan(1));
+            prevButton.managedProperty().bind(prevButton.visibleProperty());
             prevButton.setOnAction(evt -> {
                 currentImage.set(currentImage.get() - 1);
                 showImage();
@@ -947,12 +929,13 @@ public class ImageViewer implements WithRootNode {
             });
             nextButton.disableProperty().bind(currentImage.isEqualTo(imageHistory.sizeProperty().subtract(1)));
             nextButton.visibleProperty().bind(imageHistory.sizeProperty().greaterThan(1));
-            var fitButton = createButton("←fit→");
+            nextButton.managedProperty().bind(nextButton.visibleProperty());
+            var fitButton = createIconButton(ToolbarIcon.FIT_IMAGE);
             fitButton.setOnAction(evt -> {
                 clearPendingAlignment();
                 imageView.resetZoom(true);
             });
-            var fitToCenter = createButton("→fit←");
+            var fitToCenter = createIconButton(ToolbarIcon.FIT_DISK);
             fitToCenter.disableProperty().bind(imageView.canFitToCenterProperty().map(e -> !e));
             fitToCenter.setOnAction(evt -> {
                 clearPendingAlignment();
@@ -963,14 +946,14 @@ public class ImageViewer implements WithRootNode {
                 clearPendingAlignment();
                 imageView.oneToOneZoomAndCenter();
             });
-            var leftRotate = createIconButton("↶");
+            var leftRotate = createIconButton(ToolbarIcon.ROTATE_LEFT);
             leftRotate.setOnAction(evt -> {
                 rotation = (rotation - 1) % 4;
                 applyNextTime.setDisable(false);
                 stretchAndDisplay();
             });
             leftRotate.disableProperty().set(kind.cannotPerformManualRotation());
-            var rightRotate = createIconButton("↷");
+            var rightRotate = createIconButton(ToolbarIcon.ROTATE_RIGHT);
             rightRotate.setOnAction(evt -> {
                 rotation = (rotation + 1) % 4;
                 applyNextTime.setDisable(false);
@@ -978,7 +961,7 @@ public class ImageViewer implements WithRootNode {
                 stretchAndDisplay();
             });
             rightRotate.disableProperty().set(kind.cannotPerformManualRotation());
-            var verticalMirror = createIconButton("⇅");
+            var verticalMirror = createIconButton(ToolbarIcon.VERTICAL_FLIP);
             verticalMirror.setOnAction(evt -> {
                 vflip = !vflip;
                 rotation = -rotation;
@@ -986,7 +969,7 @@ public class ImageViewer implements WithRootNode {
                 stretchAndDisplay();
             });
             verticalMirror.disableProperty().set(kind.cannotPerformManualRotation());
-            var horizontalMirror = createIconButton("⇄");
+            var horizontalMirror = createIconButton(ToolbarIcon.HORIZONTAL_FLIP);
             horizontalMirror.setOnAction(evt -> {
                 rotation = (rotation + 2) % 4;
                 applyNextTime.setDisable(false);
@@ -999,13 +982,13 @@ public class ImageViewer implements WithRootNode {
                 applyNextTime.setDisable(true);
             });
             applyNextTime.setDisable(true);
-            var measureButton = createIconButton("⚖");
+            var measureButton = createIconButton(ToolbarIcon.MEASURE);
             measureButton.setDisable(true);
             maybeAddMeasurementTool(() -> {
                 measureButton.setDisable(false);
                 return measureButton;
             });
-            var view3dButton = createIconButton("3D");
+            var view3dButton = createIconButton(ToolbarIcon.VIEW_3D);
             view3dButton.setVisible(false);
             view3dButton.setManaged(false);
             maybeAdd3DView(() -> {
@@ -1013,21 +996,19 @@ public class ImageViewer implements WithRootNode {
                 view3dButton.setManaged(true);
                 return view3dButton;
             });
-            var overlayButton = createIconButton("⊕");
+            var overlayButton = createIconButton(ToolbarIcon.ANNOTATIONS);
             overlayButton.setOnAction(evt -> toggleOverlayPanel(overlayButton));
-            var cropButton = createIconButton("⛶");
+            var cropButton = createIconButton(ToolbarIcon.CROP);
             cropButton.setOnAction(evt -> imageView.startCropSelection());
             var actionsMenu = new MenuButton(message("actions.menu"));
             actionsMenu.getStyleClass().add("image-viewer-button");
+            actionsMenu.setMinWidth(Region.USE_PREF_SIZE);
             actionsMenu.setOnShowing(e -> populateActionsMenu(actionsMenu));
             populateActionsMenu(actionsMenu);
-            line1.getChildren().addAll(reset, prevButton, nextButton);
-            var readoutSpacer = new Region();
-            line2.getChildren().addAll(zoomLabel, zoomMinus, zoomPlus, fitButton, fitToCenter, oneToOneFit, verticalSeparator(), saveButton, openExplorerButton);
-            line3.getChildren().addAll(correctAngleP, leftRotate, rightRotate, verticalMirror, horizontalMirror, applyNextTime, verticalSeparator(), cropButton, overlayButton, measureButton, view3dButton, verticalSeparator(), actionsMenu, readoutSpacer, dimensions, coordinatesLabel);
             var titleLabel = new Label(title);
             titleLabel.setStyle("-fx-font-weight: bold");
-            var alignButton = createIconButton("⌖");
+            titleLabel.setMinWidth(Region.USE_PREF_SIZE);
+            var alignButton = createIconButton(ToolbarIcon.ALIGN);
             alignButton.setOnAction(evt -> {
                 onDisplayUpdate = null;
                 for (var viewer : siblings) {
@@ -1042,6 +1023,11 @@ public class ImageViewer implements WithRootNode {
 
             FxUtils.runLater(() -> {
                 alignButton.setTooltip(new Tooltip(message("align.images")));
+                zoomMinus.setTooltip(new Tooltip(message("zoom.out")));
+                zoomPlus.setTooltip(new Tooltip(message("zoom.in")));
+                fitButton.setTooltip(new Tooltip(message("zoom.fit.image")));
+                fitToCenter.setTooltip(new Tooltip(message("zoom.fit.disk")));
+                oneToOneFit.setTooltip(new Tooltip(message("zoom.one.to.one")));
                 cropButton.setTooltip(new Tooltip(message("crop")));
                 leftRotate.setTooltip(new Tooltip(message("rotate.left")));
                 rightRotate.setTooltip(new Tooltip(message("rotate.right")));
@@ -1051,36 +1037,107 @@ public class ImageViewer implements WithRootNode {
                 measureButton.setTooltip(new Tooltip(message("measure.button.tooltip")));
                 view3dButton.setTooltip(new Tooltip(message("view3d.button.tooltip")));
                 overlayButton.setTooltip(new Tooltip(message("overlay.tooltip")));
-                var titleBox = new HBox(alignButton, titleLabel, new Label("(" + imageFile.getName() + ")"));
-                titleBox.setSpacing(4);
-                titleBox.setAlignment(Pos.CENTER_LEFT);
+                var fileLabel = new Label("(" + imageFile.getName() + ")");
+                fileLabel.getStyleClass().add("image-viewer-file-name");
+                fileLabel.setMinWidth(0);
+                fileLabel.setTooltip(new Tooltip(imageFile.getName()));
+                var titleSpacer = new Region();
+                HBox.setHgrow(titleSpacer, Priority.ALWAYS);
+                var zoomGroup = createGroup(I18N.string(JSolEx.class, "common", "zoom"), zoomMinus, zoomPlus, fitButton, fitToCenter, oneToOneFit);
+                var titleLine = new HBox(8, alignButton, titleLabel, fileLabel, prevButton, nextButton, titleSpacer, zoomGroup, saveButton, actionsMenu);
+                titleLine.setAlignment(Pos.CENTER_LEFT);
+                var orientationGroup = createGroup(message("toolbar.orientation"), correctAngleP, leftRotate, rightRotate, verticalMirror, horizontalMirror, applyNextTime);
+                var toolsGroup = createGroup(message("toolbar.tools"), cropButton, overlayButton, measureButton, view3dButton);
+                var actionsLine = new FlowPane(6, 5, toggle, orientationGroup, toolsGroup);
+                actionsLine.setAlignment(Pos.CENTER_LEFT);
                 stretchChoice = choice;
                 stretchParameters = parameters;
                 stretchChain = chain;
-                inlineStretchEditor = inlineEditor;
-                stretchEditorLine = editorLine;
                 resetStretchButton = reset;
-                stretchingParams.getChildren().addAll(titleBox, line1, editorLine, line2, line3);
+                adjustmentsToggle = toggle;
+                adjustmentsPanel = panel;
+                stretchingParams.getChildren().addAll(titleLine, actionsLine);
+                imageContainer.getChildren().add(panel);
                 refreshStretchControls();
-                configureHGrow(line2.getChildren().stream().filter(e -> !(e instanceof Slider) && !(e instanceof Separator)).toList());
-                configureHGrow(line3.getChildren().stream().filter(e -> !(e instanceof Slider) && !(e instanceof Separator)).toList());
+                applyAdjustmentsPanelState();
             });
         } finally {
             displayLock.unlock();
         }
     }
 
-    private static void preventEllipsis(Label... labels) {
-        for (var label : labels) {
-            label.setMinSize(Button.USE_PREF_SIZE, Button.USE_PREF_SIZE);
-        }
+    private ToggleButton createAdjustmentsToggle() {
+        var toggle = new ToggleButton(message("stretching.label"), ToolbarIcon.ADJUSTMENTS.createNode());
+        toggle.getStyleClass().addAll("image-viewer-button", "adjustments-button");
+        toggle.setOnAction(e -> setAdjustmentsPanelShown(toggle.isSelected()));
+        return toggle;
     }
 
-    private static void configureHGrow(List<Node> nodes) {
-        nodes.forEach(e -> HBox.setHgrow(e, Priority.ALWAYS));
+    private Node createAdjustmentsPanel(Node chain, Node addButton, Node methodLine, Node parameters) {
+        var title = new Label(message("stretching.label"), ToolbarIcon.ADJUSTMENTS.createNode());
+        title.getStyleClass().add("adjustments-panel-title");
+        var close = new Label("×");
+        close.getStyleClass().add("adjustments-panel-close");
+        close.setOnMouseClicked(e -> setAdjustmentsPanelShown(false));
+        var spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        var header = new HBox(6, title, spacer, close);
+        header.setAlignment(Pos.CENTER_LEFT);
+        var content = new VBox(header, chain, addButton, new Separator(), methodLine, parameters);
+        content.getStyleClass().add("adjustments-panel-content");
+        var panel = new ScrollPane(content);
+        panel.setFitToWidth(true);
+        panel.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        panel.getStyleClass().add("adjustments-panel");
+        panel.setPrefWidth(ADJUSTMENTS_PANEL_WIDTH);
+        panel.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+        StackPane.setAlignment(panel, Pos.TOP_RIGHT);
+        StackPane.setMargin(panel, new Insets(6, 22, 0, 0));
+        setShown(panel, false);
+        return panel;
+    }
+
+    private void setAdjustmentsPanelShown(boolean shown) {
+        ADJUSTMENTS_PANEL_SHOWN.set(shown);
+        applyAdjustmentsPanelState();
+    }
+
+    private void applyAdjustmentsPanelState() {
+        if (adjustmentsPanel == null) {
+            return;
+        }
+        var shown = ADJUSTMENTS_PANEL_SHOWN.get();
+        setShown(adjustmentsPanel, shown);
+        adjustmentsToggle.setSelected(shown);
+    }
+
+    /**
+     * Returns the size of the displayed image and the position and value of the
+     * pixel under the mouse, as shown in the status bar.
+     *
+     * @return the image information
+     */
+    public ReadOnlyStringProperty imageInfoProperty() {
+        return imageInfo.getReadOnlyProperty();
+    }
+
+    private void updateImageInfo() {
+        imageInfo.set(coordinatesText.isEmpty() ? dimensionsText : dimensionsText + "  " + coordinatesText);
+    }
+
+    private static HBox createGroup(String caption, Node... nodes) {
+        var label = new Label(caption);
+        label.getStyleClass().add("image-viewer-group-caption");
+        label.setMinWidth(Region.USE_PREF_SIZE);
+        var group = new HBox(label);
+        group.getChildren().addAll(nodes);
+        group.getStyleClass().add("image-viewer-group");
+        group.setMinWidth(Region.USE_PREF_SIZE);
+        return group;
     }
 
     void display() {
+        applyAdjustmentsPanelState();
         if (image != null && firstShow) {
             firstShow = false;
             stretchAndDisplay(true);
@@ -1128,7 +1185,8 @@ public class ImageViewer implements WithRootNode {
             displayLock.lock();
             var imageForDimensions = displayedImage();
             if (imageForDimensions != null) {
-                dimensions.setText(imageForDimensions.width() + "x" + imageForDimensions.height());
+                dimensionsText = imageForDimensions.width() + "x" + imageForDimensions.height();
+                updateImageInfo();
             }
             imageView.setImage(newImage);
             imageView.setSolarDisk(image != null ? image.findMetadata(Ellipse.class).orElse(null) : null);
@@ -1981,15 +2039,16 @@ public class ImageViewer implements WithRootNode {
         return button;
     }
 
-    private static Button createIconButton(String glyph) {
-        var button = new Button(glyph);
-        button.getStyleClass().addAll("image-viewer-button", "image-viewer-icon-button");
+    private static Button createButton(String text, ToolbarIcon icon) {
+        var button = createButton(text);
+        button.setGraphic(icon.createNode());
         return button;
     }
 
-    private static Separator verticalSeparator() {
-        var separator = new Separator(Orientation.VERTICAL);
-        separator.getStyleClass().add("toolbar-separator");
-        return separator;
+    private static Button createIconButton(ToolbarIcon icon) {
+        var button = new Button();
+        button.setGraphic(icon.createNode());
+        button.getStyleClass().addAll("image-viewer-button", "image-viewer-icon-button");
+        return button;
     }
 }

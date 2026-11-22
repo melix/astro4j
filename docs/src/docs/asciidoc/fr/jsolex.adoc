@@ -387,8 +387,10 @@ Il vous est alors possible, en fonction des images, de modifier des paramètres 
 
 image::image-display-fr.jpg[]
 
-Vous pouvez zoomer dans les images en utilisant la molette de la souris.
-Un clic droit vous permettra d'ouvrir l'image générée dans votre explorateur de fichiers ou dans une nouvelle fenêtre.
+Vous pouvez zoomer dans les images en utilisant la molette de la souris, ou avec les boutons du groupe « Zoom ».
+Les autres boutons sont regroupés sous « Orientation » (pivoter et retourner l'image) et « Outils » (rognage, annotations, mesures, vue 3D) : survolez un bouton pour savoir ce qu'il fait.
+La taille de l'image, ainsi que la position et la valeur du pixel sous la souris, sont affichées dans la barre d'état en bas de la fenêtre.
+Un clic droit, ou le menu « Plus... », vous permettra d'ouvrir l'image générée dans votre explorateur de fichiers ou dans une nouvelle fenêtre.
 
 Vous pouvez aussi dupliquer une image depuis la barre latérale en faisant un clic droit sur son nom et en choisissant « Dupliquer », ce qui est utile lorsque vous voulez conserver une version originale à côté d'une version annotée.
 
@@ -398,14 +400,15 @@ Vous pouvez la pivoter, la retourner ou la rogner, puis cliquer sur « Appliquer
 [[stretching-steps]]
 ==== Retouches
 
-La liste « Retouches » en haut de chaque image choisit comment sa luminosité est réglée, ou comment elle est adoucie ou rendue plus nette.
-Les réglages de la méthode choisie sont affichés sur la ligne en dessous : déplacez un curseur ou saisissez une valeur dans le champ à côté, ou choisissez une valeur dans une liste pour la taille des tuiles et les bacs du CLAHE et pour la taille du flou et de la netteté.
+Cliquez sur le bouton « Retouches » en haut de chaque image pour ouvrir le panneau des retouches à droite de l'image : il reste ouvert pendant que vous regardez le résultat, y compris quand vous passez à une autre image, jusqu'à ce que vous cliquiez à nouveau sur le bouton ou sur le × du panneau.
+La liste du panneau choisit comment la luminosité de l'image est réglée, ou comment elle est adoucie ou rendue plus nette.
+Les réglages de la méthode choisie sont affichés en dessous : déplacez un curseur ou saisissez une valeur dans le champ à côté de son nom, ou choisissez une valeur dans une liste pour la taille des tuiles et les bacs du CLAHE et pour la taille du flou et de la netteté.
 Survolez la liste pour savoir ce que fait la méthode choisie et ce que signifient ses réglages.
 L'image traitée commence par la méthode d'amélioration du contraste choisie dans les paramètres de traitement, suivie d'un étirement linéaire pour régler ses points noir et blanc.
 
-« + Ajouter une retouche » applique une autre méthode par-dessus les précédentes, par exemple un réglage Ombres/hautes lumières ou un Masque flou après l'étirement linéaire.
-Les retouches sont alors listées dans l'ordre où elles sont appliquées : cliquez sur l'une d'elles pour la sélectionner, ou sur son × pour la retirer.
-La liste des méthodes et les réglages de la retouche sélectionnée passent alors sur la ligne en dessous, et choisir une autre méthode dans la liste remplace la retouche sélectionnée.
+« Ajouter une retouche » applique une autre méthode par-dessus les précédentes, par exemple un réglage Ombres/hautes lumières ou un Masque flou après l'étirement linéaire.
+Les retouches sont alors listées en haut du panneau, dans l'ordre où elles sont appliquées : cliquez sur l'une d'elles pour la sélectionner, ou sur son × pour la retirer.
+Choisir une autre méthode dans la liste remplace la retouche sélectionnée.
 « Réinitialiser » rétablit les réglages d'origine de la retouche sélectionnée, sans toucher aux autres.
 
 Les méthodes disponibles sont Aucune, Linéaire, Courbe, Tons moyens, Arcsinus hyperbolique, Autostretch, CLAHE, CLAHE (multi-échelle), Ombres/hautes lumières, Flou, Netteté et Masque flou.

@@ -3,6 +3,7 @@
 ## What's New in Version 5.7.0
 
 - The image viewer can now blur and sharpen images, including with an unsharp mask.
+- More room for the image in the viewer: the buttons fit on two rows, with coloured icons, and the adjustments open in a panel next to the image.
 - Faster image stretching, in particular with CLAHE, CLAHE2 and AutoStretch.
 - More reliable detection of Ellerman bombs, based on the approach described by Stephan Schmelzing.
 - Each detected Ellerman bomb or flare now comes with a chart comparing its line profile with its surroundings.

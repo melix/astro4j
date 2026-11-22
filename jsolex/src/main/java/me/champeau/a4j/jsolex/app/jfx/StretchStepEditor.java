@@ -25,6 +25,8 @@ import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.stretching.StretchParameter;
@@ -152,16 +154,25 @@ public final class StretchStepEditor {
     }
 
     /**
-     * Lays out all parameters on a single line.
+     * Lays out the parameters one below the other. The name and value of a range
+     * parameter share a line, with its slider below at full width.
      *
-     * @return the line
+     * @return the layout
      */
-    public HBox inlineLayout() {
-        var box = new HBox(6);
-        box.setAlignment(Pos.CENTER_LEFT);
+    public VBox stackedLayout() {
+        var box = new VBox(4);
         for (var control : controls) {
-            HBox.setHgrow(control.input(), Priority.ALWAYS);
-            box.getChildren().addAll(control.label(), control.input());
+            var spacer = new Region();
+            HBox.setHgrow(spacer, Priority.ALWAYS);
+            var header = new HBox(6, control.label(), spacer);
+            header.setAlignment(Pos.CENTER_LEFT);
+            box.getChildren().add(header);
+            if (inputs.get(control.parameter().name()) instanceof RangeInput(var slider, var field, _)) {
+                header.getChildren().add(field);
+                box.getChildren().add(slider);
+            } else {
+                header.getChildren().add(control.input());
+            }
         }
         return box;
     }
