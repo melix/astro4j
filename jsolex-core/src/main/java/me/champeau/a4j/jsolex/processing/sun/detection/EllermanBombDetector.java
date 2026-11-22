@@ -59,16 +59,16 @@ import java.util.function.DoubleUnaryOperator;
  */
 class EllermanBombDetector {
     private static final double CORE_LIMIT_ANGSTROMS = 0.35;
-    private static final double WING_START_ANGSTROMS = 0.75;
-    private static final double WING_END_ANGSTROMS = 2.25;
+    static final double WING_START_ANGSTROMS = 0.75;
+    static final double WING_END_ANGSTROMS = 2.25;
     private static final double REFERENCE_START_ANGSTROMS = 3.5;
-    private static final double REFERENCE_END_ANGSTROMS = 5;
+    static final double REFERENCE_END_ANGSTROMS = 5;
     private static final double MIN_REFERENCE_GAP_ANGSTROMS = 0.25;
     private static final double MIN_REFERENCE_WIDTH_ANGSTROMS = 1;
     private static final int MIN_WING_ROWS = 3;
-    private static final int MIN_REFERENCE_ROWS = 4;
-    private static final int GUARD_RANGE = 4;
-    private static final int LOCAL_RANGE = 12;
+    static final int MIN_REFERENCE_ROWS = 4;
+    static final int GUARD_RANGE = 4;
+    static final int LOCAL_RANGE = 12;
     private static final int MIN_RING_SIZE = LOCAL_RANGE - GUARD_RANGE + 1;
     private static final int BORDER_MARGIN = 16;
     private static final int MIN_WIDTH_FOR_DETECTION = 8 * LOCAL_RANGE;
@@ -214,7 +214,7 @@ class EllermanBombDetector {
         double coreLimit = CORE_LIMIT_ANGSTROMS / angstromsPerPixel;
         double wingStart = WING_START_ANGSTROMS / angstromsPerPixel;
         double wingEnd = WING_END_ANGSTROMS / angstromsPerPixel;
-        int margin = 5 * height / 100;
+        int margin = frameMargin(height);
         boolean hasReference = false;
         for (int x = left; x < right; x++) {
             double center = polynomial.applyAsDouble(x);
@@ -287,6 +287,10 @@ class EllermanBombDetector {
         return new Bands(core, lowWing, highWing, normalize(lowWing, reference), normalize(highWing, reference), averageCore);
     }
 
+    static int frameMargin(int height) {
+        return 5 * height / 100;
+    }
+
     private static double[] normalize(double[] values, double[] reference) {
         var normalized = new double[values.length];
         for (int x = 0; x < values.length; x++) {
@@ -343,7 +347,7 @@ class EllermanBombDetector {
         return n;
     }
 
-    private record ReferenceBand(double start, double end) {
+    record ReferenceBand(double start, double end) {
         static ReferenceBand of(double wingEnd, double available, double angstromsPerPixel) {
             double end = Math.min(REFERENCE_END_ANGSTROMS / angstromsPerPixel, available);
             double start = Math.max(wingEnd + MIN_REFERENCE_GAP_ANGSTROMS / angstromsPerPixel,

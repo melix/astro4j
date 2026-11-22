@@ -5,6 +5,7 @@
 - La visionneuse d'images peut maintenant adoucir les images ou les rendre plus nettes, y compris avec un masque flou.
 - Étirement des images plus rapide, en particulier avec CLAHE, CLAHE2 et AutoStretch.
 - Détection plus fiable des bombes d'Ellerman, inspirée de l'approche décrite par Stephan Schmelzing.
+- Chaque bombe d'Ellerman ou flare détecté est accompagné d'un graphique comparant le profil de sa raie à celui de son entourage.
 - Consommation mémoire réduite pendant le traitement.
 - Le réglage « Ajustement de la consommation mémoire » a été supprimé, car il n'est plus nécessaire.
 - Conversion plus rapide des images vers et depuis NumPy dans les scripts Python.
