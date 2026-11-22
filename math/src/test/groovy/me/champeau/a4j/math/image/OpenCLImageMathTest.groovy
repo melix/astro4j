@@ -386,6 +386,22 @@ class OpenCLImageMathTest extends OpenCLSpecification {
         Math.toRadians(30)     | 0f         | true
         Math.toRadians(45)     | 0f         | false
         Math.toRadians(90)     | 100f       | true
+        Math.toRadians(30)     | -1f        | true
+        Math.toRadians(30)     | -1f        | false
+    }
+
+    def "rotate with a negative blackpoint produces no negative pixels (resize=#resize)"() {
+        given:
+        def image = createTestImage(256, 256)
+
+        when:
+        def result = openclMath.rotate(image, Math.toRadians(30), -1f, resize)
+
+        then:
+        result.data().every { row -> row.every { it >= 0 } }
+
+        where:
+        resize << [true, false]
     }
 
     def "rotate has no NaN values"() {

@@ -11,6 +11,7 @@
 - Conversion plus rapide des images vers et depuis NumPy dans les scripts Python.
 - Les environnements virtuels Python doivent maintenant être créés avec GraalPy 25.4.
 - L'outil de script autonome peut maintenant utiliser un environnement virtuel GraalPy.
+- Correction des coins blancs sur les images pivotées pour corriger l'angle P.
 - Correction de l'outil de script autonome qui échouait sur les ordinateurs équipés d'une carte graphique.
 - Correction des scripts Python dans la version native de l'outil de script autonome.
 - Correction d'erreurs qui pouvaient interrompre le traitement à l'ouverture d'un nouveau fichier ou à l'affichage d'une image.

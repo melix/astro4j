@@ -11,6 +11,7 @@
 - Faster conversion of images to and from NumPy in Python scripts.
 - Python virtual environments must now be created with GraalPy 25.4.
 - The standalone scripting tool can now use a GraalPy virtual environment.
+- Fixed white corners on images rotated to correct the P angle.
 - Fixed the standalone scripting tool failing on computers with a graphics card.
 - Fixed Python scripts in the native version of the standalone scripting tool.
 - Fixed errors which could stop processing when a new file was opened or an image was displayed.

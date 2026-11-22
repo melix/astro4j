@@ -76,6 +76,20 @@ class OpenCLImagePlaneTest extends OpenCLSpecification {
         [width, height, resize] << SIZES.collectMany { size -> [true, false].collect { [size[0], size[1], it] } }
     }
 
+    def "plane rotate on GPU with a negative blackpoint produces no negative pixels (resize=#resize)"() {
+        given:
+        def plane = toPlane(randomImage(513, 257, 17))
+
+        when:
+        def result = gpuMath.rotate(plane, 0.7d, -1f, resize).toArray()
+
+        then:
+        result.every { row -> row.every { it >= 0 } }
+
+        where:
+        resize << [true, false]
+    }
+
     def "plane rescale on GPU matches image rescale (#width x #height -> #newWidth x #newHeight)"() {
         given:
         def image = randomImage(width, height, 13)
