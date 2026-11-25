@@ -1824,7 +1824,8 @@ public class SolexVideoProcessor implements Broadcaster {
             var buffer = converter.createBuffer(geometry);
             converter.convert(flare.frameId(), reader.currentFrame().data(), geometry, buffer);
             var title = flare.kind() == Flare.Kind.ELLERMAN_BOMB ? message("ellerman.bomb") : message("flare");
-            var desc = flare.kind() == Flare.Kind.ELLERMAN_BOMB ? message("ellerman.bomb.description") : message("flare.description");
+            var confidenceHelp = "\n\n" + message("ellerman.bomb.confidence.description");
+            var desc = (flare.kind() == Flare.Kind.ELLERMAN_BOMB ? message("ellerman.bomb.description") : message("flare.description")) + confidenceHelp;
             var category = flare.kind() == Flare.Kind.ELLERMAN_BOMB ? "EB" : "flare";
             var kind = flare.kind() == Flare.Kind.ELLERMAN_BOMB ? GeneratedImageKind.ELLERMAN_BOMBS : GeneratedImageKind.FLARES;
             imageEmitter.newColorImage(kind,
@@ -1871,7 +1872,7 @@ public class SolexVideoProcessor implements Broadcaster {
                             category,
                             profileTitle,
                             category + id + "-profile",
-                            message("ellerman.bomb.profile.description"),
+                            message("ellerman.bomb.profile.description") + confidenceHelp,
                             Charts.WIDTH,
                             Charts.HEIGHT,
                             MutableMap.of(),
