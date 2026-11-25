@@ -32,7 +32,7 @@ val jvmMemorySettings = listOf(
 extra["jvmMemorySettings"] = jvmMemorySettings
 
 val nativeAccessArgs = listOf("--enable-preview", "--enable-native-access=javafx.graphics", "--enable-native-access=org.lwjgl.opengl", "--enable-native-access=org.lwjgl", "--enable-native-access=ALL-UNNAMED")
-val sharedJvmArgs = jvmMemorySettings + jitSettings + nativeAccessArgs
+val sharedJvmArgs = jvmMemorySettings + nativeAccessArgs
 
 application {
     applicationDefaultJvmArgs = sharedJvmArgs

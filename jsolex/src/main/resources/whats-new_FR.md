@@ -10,7 +10,7 @@
 - Consommation mémoire réduite pendant le traitement.
 - Le réglage « Ajustement de la consommation mémoire » a été supprimé, car il n'est plus nécessaire.
 - Conversion plus rapide des images vers et depuis NumPy dans les scripts Python.
-- Les environnements virtuels Python doivent maintenant être créés avec GraalPy 25.4.
+- Les environnements virtuels Python doivent maintenant être créés avec GraalPy 25.6.
 - L'outil de script autonome peut maintenant utiliser un environnement virtuel GraalPy.
 - Correction des coins blancs sur les images pivotées pour corriger l'angle P.
 - Correction de l'outil de script autonome qui échouait sur les ordinateurs équipés d'une carte graphique.

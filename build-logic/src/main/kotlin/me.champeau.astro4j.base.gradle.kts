@@ -48,7 +48,6 @@ tasks.withType<JavaCompile>().configureEach {
 tasks.named<Test>("test") {
     useJUnitPlatform()
     maxHeapSize = "2g"
-    jvmArgs(jitSettings)
 }
 
 tasks.rat {
