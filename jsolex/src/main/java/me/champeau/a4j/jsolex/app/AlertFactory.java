@@ -52,8 +52,8 @@ public class AlertFactory {
                 var button = (Button) dialogPane.lookupButton(buttonType);
                 if (button != null) {
                     button.getStyleClass().removeAll("button");
-                    if (buttonType == ButtonType.CANCEL || buttonType == ButtonType.NO) {
-                        button.getStyleClass().add("default-button");
+                    if (buttonType == ButtonType.CANCEL || buttonType == ButtonType.YES || buttonType == ButtonType.NO) {
+                        button.getStyleClass().add(button.isDefaultButton() ? "primary-button" : "default-button");
                     } else {
                         button.getStyleClass().add("primary-button");
                     }
