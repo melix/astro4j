@@ -111,6 +111,14 @@ Si le fichier que vous ouvrez a été enregistré avec une autre caméra que cel
 
 Le lien "Choisir les réglages moi-même" ouvre la fenêtre de paramétrage complète décrite ci-dessous.
 
+=== Visite guidée
+
+À la fin du premier traitement réussi d'un fichier, une carte en bas à droite de la fenêtre propose une visite de l'écran. Elle ne bloque rien : vous pouvez l'ignorer et continuer à regarder vos images.
+
+La visite assombrit la fenêtre et met en avant une zone à la fois, avec une explication : la liste des images, l'image affichée, ses outils de retouche, les panneaux de droite, la barre d'état, le partage des images, les autres outils et les menus. Les boutons "Précédent" et "Suivant", ou les flèches du clavier, permettent de naviguer. La touche Échap ou le lien "Quitter la visite" la ferment.
+
+La carte n'est proposée qu'une fois. La visite reste disponible dans le menu "Aide", entrée "Visite guidée", dès qu'une image est affichée.
+
 == Traitement d'une vidéo
 
 JSol'Ex ne peut traiter que les fichiers SER, vous devez donc configurer votre logiciel de capture pour utiliser ce format.

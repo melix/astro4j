@@ -33,6 +33,7 @@ import javafx.css.PseudoClass;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -42,8 +43,10 @@ import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
+import javafx.scene.control.Labeled;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.Menu;
+import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.ScrollPane;
@@ -99,6 +102,9 @@ import me.champeau.a4j.jsolex.app.jfx.MetadataEditor;
 import me.champeau.a4j.jsolex.app.jfx.MultipleImagesViewer;
 import me.champeau.a4j.jsolex.app.jfx.NamingPatternEditor;
 import me.champeau.a4j.jsolex.app.jfx.OpenGLAvailability;
+import me.champeau.a4j.jsolex.app.jfx.onboarding.GuidedTour;
+import me.champeau.a4j.jsolex.app.jfx.onboarding.GuidedTour.Placement;
+import me.champeau.a4j.jsolex.app.jfx.onboarding.GuidedTour.Step;
 import me.champeau.a4j.jsolex.app.jfx.onboarding.HomePane;
 import me.champeau.a4j.jsolex.app.jfx.onboarding.OnboardingWizard;
 import me.champeau.a4j.jsolex.app.jfx.ProcessParamsController;
@@ -138,6 +144,7 @@ import me.champeau.a4j.jsolex.processing.event.FileGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.GeneratedImage;
 import me.champeau.a4j.jsolex.processing.event.ImageGeneratedEvent;
 import me.champeau.a4j.jsolex.processing.event.LivePushEventListener;
+import me.champeau.a4j.jsolex.processing.event.ProcessingDoneEvent;
 import me.champeau.a4j.jsolex.processing.event.ProcessingEventListener;
 import me.champeau.a4j.jsolex.processing.event.ProgressEvent;
 import me.champeau.a4j.jsolex.processing.event.ProgressOperation;
@@ -479,6 +486,27 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     @FXML
     private Button liveStatus;
 
+    @FXML
+    private MenuBar mainMenuBar;
+
+    @FXML
+    private Menu toolsMenu;
+
+    @FXML
+    private Menu sharingMenu;
+
+    @FXML
+    private Menu helpMenu;
+
+    @FXML
+    private MenuItem guidedTourMenuItem;
+
+    @FXML
+    private VBox rightPanel;
+
+    @FXML
+    private HBox statusIndicators;
+
     private final Map<String, ImageViewer> popupViewers = new ConcurrentHashMap<>();
 
     private final MultipleImagesViewer multipleImagesViewer = new MultipleImagesViewer();
@@ -609,6 +637,52 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         rightTabs.getSelectionModel().select(publishingTab);
     }
 
+    @FXML
+    private void showGuidedTour() {
+        startGuidedTour();
+    }
+
+    private void offerGuidedTour() {
+        if (config.isGuidedTourOffered() || !isImagesViewerShowingContent()) {
+            return;
+        }
+        config.setGuidedTourOffered();
+        GuidedTour.offer(rootStackPane, this::startGuidedTour);
+    }
+
+    private void startGuidedTour() {
+        if (imagesViewerTab != null && mainPane.getTabs().contains(imagesViewerTab)) {
+            mainPane.getSelectionModel().select(imagesViewerTab);
+        }
+        collapsePanel(false);
+        var viewer = multipleImagesViewer.getSelectedViewer();
+        var steps = new ArrayList<Step>();
+        steps.add(Step.of("images", Placement.RIGHT, multipleImagesViewer.getImageList()));
+        steps.add(Step.of("image", Placement.RIGHT, viewer == null ? null : viewer.getImageArea()));
+        steps.add(Step.of("adjustments", Placement.BELOW, viewer == null ? null : viewer.getToolbar()));
+        steps.add(Step.of("panels", Placement.LEFT, rightPanel));
+        steps.add(Step.of("status", Placement.ABOVE, statusIndicators));
+        if (!publishingTab.isDisable()) {
+            var panelBeforeSharing = new AtomicReference<Tab>();
+            steps.add(Step.of("sharing", Placement.LEFT, rightPanel, liveStatus, findMenuNode(sharingMenu)).withActions(
+                    () -> {
+                        panelBeforeSharing.set(rightTabs.getSelectionModel().getSelectedItem());
+                        showPublishingPanel();
+                    },
+                    () -> rightTabs.getSelectionModel().select(panelBeforeSharing.get())));
+        }
+        steps.add(Step.of("tools", Placement.BELOW, findMenuNode(toolsMenu)));
+        steps.add(Step.of("next", Placement.BELOW, mainMenuBar));
+        GuidedTour.start(rootStackPane, steps);
+    }
+
+    private Node findMenuNode(Menu menu) {
+        return mainMenuBar.lookupAll(".menu").stream()
+                .filter(node -> node instanceof Labeled labeled && menu.getText().equals(labeled.getText()))
+                .findFirst()
+                .orElse(null);
+    }
+
     @Override
     public Tab getStatsTab() {
         return statsTab;
@@ -733,6 +807,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             stage.setScene(rootScene);
             addIcons(stage);
             setupMainAreaSwitcher();
+            helpMenu.setOnShowing(e -> guidedTourMenuItem.setDisable(!isImagesViewerShowingContent()));
             configureRedshiftControls();
             referenceImageHelper = new ReferenceImageHelper(rootStage, referenceImageTab, this::findActiveImage);
             referenceImageHelper.initialize();
@@ -3186,9 +3261,19 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
                 processor.setOnReconstructionComplete(onReconstructionComplete);
                 var listener = createListener(operation, baseName, params, batchMode, sequenceNumber, context);
                 processor.addEventListener(listener);
+                var completed = new AtomicBoolean();
+                processor.addEventListener(new ProcessingEventListener() {
+                    @Override
+                    public void onProcessingDone(ProcessingDoneEvent e) {
+                        completed.set(true);
+                    }
+                });
                 try {
                     LOGGER.info(message("info.file"), selectedFile.getName());
                     processor.process();
+                    if (!batchMode && completed.get()) {
+                        FxUtils.runLater(this::offerGuidedTour);
+                    }
                 } catch (Throwable ex) {
                     LoggingSupport.logError(ex);
                     // In batch mode, notify listener about processing failure

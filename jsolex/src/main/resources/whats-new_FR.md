@@ -4,6 +4,7 @@
 
 - Ajout d'un assistant de configuration pour les nouveaux utilisateurs.
 - L'écran d'accueil affiche les réglages utilisés pour le traitement.
+- Une visite guidée de l'écran est proposée après le premier traitement.
 - La visionneuse d'images peut maintenant adoucir les images ou les rendre plus nettes, y compris avec un masque flou.
 - Plus de place pour l'image dans la visionneuse : les boutons tiennent sur deux lignes, avec des icônes en couleur, et les retouches s'ouvrent dans un panneau à côté de l'image.
 - Étirement des images plus rapide, en particulier avec CLAHE, CLAHE2 et AutoStretch.

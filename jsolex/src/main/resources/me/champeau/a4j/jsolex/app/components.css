@@ -2472,3 +2472,41 @@
     -fx-padding: 6 16 8 16;
     -fx-border-color: #e6e8eb transparent transparent transparent;
 }
+
+.tour-bubble, .tour-invite {
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 10;
+    -fx-padding: 16 18 12 18;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.35), 24, 0, 0, 6);
+}
+
+.tour-invite {
+    -fx-border-color: transparent transparent transparent #007bff;
+    -fx-border-width: 0 0 0 4;
+    -fx-border-radius: 10;
+    -fx-padding: 16 18 14 18;
+}
+
+.tour-title {
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #007bff;
+}
+
+.tour-invite .tour-title {
+    -fx-text-fill: #1f2328;
+}
+
+.tour-text, .tour-text-bold {
+    -fx-font-size: 13px;
+    -fx-fill: #1f2328;
+}
+
+.tour-text-bold {
+    -fx-font-weight: bold;
+}
+
+.tour-count {
+    -fx-font-size: 12px;
+    -fx-text-fill: #5f6772;
+}

@@ -62,7 +62,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
-import java.util.regex.Pattern;
 
 /**
  * Abstract base class for help overlays with an animated help button.
@@ -72,7 +71,6 @@ import java.util.regex.Pattern;
 public abstract class AbstractHelpOverlay extends StackPane {
 
     private static final String HELP_ICON = "?";
-    private static final Pattern BOLD_PATTERN = Pattern.compile("\\*\\*(.+?)\\*\\*");
     protected static final double BUTTON_SIZE = 32;
     private static final String NAVIGATION_BUTTON_STYLE = "-fx-background-color: rgba(80, 80, 100, 0.9); -fx-text-fill: white; "
             + "-fx-background-radius: 6; -fx-cursor: hand; -fx-padding: 8 20 8 20;";
@@ -770,24 +768,7 @@ public abstract class AbstractHelpOverlay extends StackPane {
      * Parses text with **bold** markdown markers into a TextFlow.
      */
     protected TextFlow parseFormattedText(String text) {
-        List<Node> nodes = new ArrayList<>();
-        text = text.replace("\\n", "\n");
-        var matcher = BOLD_PATTERN.matcher(text);
-        var lastEnd = 0;
-
-        while (matcher.find()) {
-            if (matcher.start() > lastEnd) {
-                nodes.add(createText(text.substring(lastEnd, matcher.start())));
-            }
-            nodes.add(createBoldText(matcher.group(1)));
-            lastEnd = matcher.end();
-        }
-
-        if (lastEnd < text.length()) {
-            nodes.add(createText(text.substring(lastEnd)));
-        }
-
-        var textFlow = new TextFlow(nodes.toArray(new Node[0]));
+        var textFlow = FormattedText.parse(text, this::createText, this::createBoldText);
         textFlow.setLineSpacing(4);
         return textFlow;
     }

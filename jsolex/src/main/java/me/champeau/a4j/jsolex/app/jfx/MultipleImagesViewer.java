@@ -180,6 +180,14 @@ public class MultipleImagesViewer extends Pane {
         return sideScrollPane != null && sideScrollPane.isVisible() ? sideScrollPane.getWidth() : 0;
     }
 
+    /**
+     * Returns the sidebar which lists the images.
+     * @return the image list
+     */
+    public Node getImageList() {
+        return sideScrollPane;
+    }
+
     private VBox createActionsSection() {
         var actionsSection = new VBox();
         actionsSection.getStyleClass().add("category-pane");

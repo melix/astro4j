@@ -4,6 +4,7 @@
 
 - Added a setup assistant for new users.
 - The home screen now shows the settings used for processing.
+- A guided tour of the screen is offered after the first processing.
 - The image viewer can now blur and sharpen images, including with an unsharp mask.
 - More room for the image in the viewer: the buttons fit on two rows, with coloured icons, and the adjustments open in a panel next to the image.
 - Faster image stretching, in particular with CLAHE, CLAHE2 and AutoStretch.
