@@ -110,6 +110,11 @@
 
 .category-header {
     -fx-alignment: center-left;
+    -fx-padding: 0 6 4 0;
+}
+
+.category-header .category-title {
+    -fx-padding: 2 4 2 4;
 }
 
 .run-pane {

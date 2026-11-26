@@ -2112,7 +2112,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
 
             // Create statistics panel
             var statsToDisplay = frameLineStatistics != null ? frameLineStatistics : currentLineStatistics;
-            var statisticsPanel = createStatisticsPanel(statsToDisplay, canDrawReference);
 
             // Create the CSV writer with statistics
             final var finalReferenceDataPoints = referenceDataPoints;
@@ -2178,9 +2177,6 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             showTomographyButton.setManaged(openGLAvailable);
             showTomographyButton.setDisable(shiftImages.isEmpty() || cachedAverageImagePayload == null);
 
-            var rightButtons = new HBox(10, show3DButton, showEvolutionButton, showTomographyButton);
-            rightButtons.setAlignment(Pos.CENTER_RIGHT);
-
             var absoluteValuesToggle = new CheckBox(message("spectral.absolute.values"));
             absoluteValuesToggle.setSelected(absoluteSpectralValues);
             absoluteValuesToggle.selectedProperty().addListener((obs, old, selected) -> {
@@ -2188,11 +2184,16 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 FxUtils.runLater(() -> enableTab(profileTab, profileViewFactory.get()));
             });
 
-            var topBar = new BorderPane();
+            absoluteValuesToggle.setMinWidth(CheckBox.USE_PREF_SIZE);
+            var statisticsPanel = createStatisticsPanel(statsToDisplay, canDrawReference, List.of(absoluteValuesToggle));
+
+            var topBar = new HBox(10, show3DButton, showEvolutionButton, showTomographyButton);
             topBar.setPadding(new Insets(5, 10, 5, 10));
-            topBar.setLeft(absoluteValuesToggle);
-            BorderPane.setAlignment(absoluteValuesToggle, Pos.CENTER_LEFT);
-            topBar.setRight(rightButtons);
+            topBar.setAlignment(Pos.CENTER_LEFT);
+            for (var button : topBar.getChildren()) {
+                HBox.setHgrow(button, Priority.ALWAYS);
+                ((Button) button).setMaxWidth(Double.MAX_VALUE);
+            }
 
             // Create the main layout with chart, legend explanation and statistics
             var hasFwhm = currentLineStatistics != null && currentLineStatistics.hasFWHMData();
@@ -2461,17 +2462,23 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 });
     }
 
-    private Parent createStatisticsPanel(SpectralLineAnalysis.LineStatistics stats, boolean hasWavelength) {
-        var statsBox = new HBox(20);
-        statsBox.setPadding(new Insets(10));
-        statsBox.setStyle(STATISTICS_PANEL_STYLE);
-
+    private Parent createStatisticsPanel(SpectralLineAnalysis.LineStatistics stats, boolean hasWavelength, List<? extends Node> headerControls) {
         var titleLabel = new Label(message("line.statistics"));
         titleLabel.setFont(Font.font(titleLabel.getFont().getFamily(), FontWeight.BOLD, 12));
+        var headerSpacer = new Region();
+        HBox.setHgrow(headerSpacer, Priority.ALWAYS);
+        var header = new HBox(10, titleLabel, headerSpacer);
+        header.setAlignment(Pos.CENTER_LEFT);
+        header.getChildren().addAll(headerControls);
+
+        var statsBox = new HBox(20);
+        var panel = new VBox(8, header, statsBox);
+        panel.setPadding(new Insets(10));
+        panel.setStyle(STATISTICS_PANEL_STYLE);
 
         if (stats == null) {
-            statsBox.getChildren().addAll(titleLabel, new Label("N/A"));
-            return statsBox;
+            statsBox.getChildren().add(new Label("N/A"));
+            return panel;
         }
 
         var depthBox = createStatItem(message("line.depth"), String.format(Locale.US, "%.2f%%", stats.lineDepth() * 100));
@@ -2484,8 +2491,8 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 ? String.format(Locale.US, "%.3f Å", stats.lineCenterWavelength())
                 : String.format(Locale.US, "%.2f px", stats.lineCenterWavelength()));
 
-        statsBox.getChildren().addAll(titleLabel, depthBox, fwhmBox, continuumBox, centerBox);
-        return statsBox;
+        statsBox.getChildren().addAll(depthBox, fwhmBox, continuumBox, centerBox);
+        return panel;
     }
 
     private TitledPane buildProfileLegendExplanation(boolean hasReference, boolean hasFrameAndLine, boolean hasFwhm) {
@@ -2952,7 +2959,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
                 pane.setCenter(newChart);
 
                 if (graphData instanceof GraphData.ProfileData profileData && profileData.statistics() != null) {
-                    pane.setBottom(createStatisticsPanel(profileData.statistics(), profileData.hasWavelength()));
+                    pane.setBottom(createStatisticsPanel(profileData.statistics(), profileData.hasWavelength(), List.of()));
                 }
 
                 var popupMenu = ChartExportHelper.createChartContextMenu(name, () -> pane, popupCsvWriter, outputDirectory, baseName, this::createNamingStrategy);
