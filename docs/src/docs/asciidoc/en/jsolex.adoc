@@ -85,6 +85,40 @@ image::../shared/cbsap_logo.png[link=http://www.paypal.me/CBSAP, height=200]
 
 Of course, you can also send a message of encouragement or appreciation, it is always nice to receive them!
 
+== Getting started
+
+=== Setup assistant
+
+On first launch, JSol'Ex opens an assistant which lets you process your first file without exploring the options.
+
+1. *File*: choose a SER file or drop it on the window. If your capture software (SharpCap, FireCapture) saved a settings file next to the video, the camera and the binning are read automatically. Otherwise, enter the model of your camera: the pixel size is found for most models. The "I don't have a file yet" link lets you declare your equipment before your first observation.
+2. *Spectroheliograph*: click the picture of your instrument (Sol'Ex, MLAstro SHG, Sunscan or Other), then choose its variant. The characteristics of the variant are shown, together with the dispersion obtained with your camera. If your instrument is different, the "My instrument is different" link lets you change these values: the result is saved as a new instrument.
+3. *Telescope and mount* and *Observer*: these two steps are optional. The mount type is used to orient the image. With an alt-azimuth mount, also enter your observation site.
+
+The "Start processing" button becomes active as soon as the camera and the spectroheliograph are known, whatever the step being shown. The bottom of the window tells what is still needed.
+
+The equipment is saved under the name "My equipment" and is used for the next processings. The assistant remains available from the "Equipment" menu.
+
+=== Home screen
+
+The home screen lets you process a SER file in one click, or by dropping it on the area provided.
+It shows the settings which will be used: the equipment, the observed line and the generated images.
+These settings are those of your last processing. When they differ from the automatic settings (line chosen by hand, custom image selection), they are highlighted and the "Go back to the automatic settings" link reverts them.
+
+The "Change" button opens a shorter window to change the equipment, the spectroheliograph and the camera. Choosing a saved setup fills in the camera, the telescope, the mount and the observation site. The "..." button next to the equipment and the spectroheliograph opens the matching editor. The telescope, mount and observer are in a folded section.
+
+If the file you open was recorded with another camera than the one of your equipment, JSol'Ex tells you before processing, because a wrong pixel size gives wrong wavelength and speed measurements.
+
+The "Choose the settings myself" link opens the full configuration window described below.
+
+=== Guided tour
+
+At the end of the first successful processing of a file, a card at the bottom right of the window offers a tour of the screen. It blocks nothing: you can ignore it and keep looking at your images.
+
+The tour darkens the window and highlights one area at a time, with an explanation: the image list, the displayed image, its adjustment tools, the panels on the right, the status bar, image sharing, the other tools and the menus. The "Previous" and "Next" buttons, or the arrow keys, move through the tour. The Escape key or the "Leave the tour" link closes it.
+
+The card is only offered once. The tour remains available in the "Help" menu, "Guided tour" entry, as soon as an image is displayed.
+
 == Processing a video file
 
 JSol'Ex only supports SER files, please make sure to configure your capture software to use this format.

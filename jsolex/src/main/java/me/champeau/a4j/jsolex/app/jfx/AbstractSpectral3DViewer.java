@@ -62,6 +62,7 @@ import javafx.scene.transform.Translate;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import me.champeau.a4j.jsolex.app.AlertFactory;
 import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.spectrum.SpectralLineSurfaceData;
@@ -1113,7 +1114,7 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
         var graphOnly = I18N.string(JSolEx.class, "spectral-surface-3d", "export.scope.graph");
         var wholeFrame = I18N.string(JSolEx.class, "spectral-surface-3d", "export.scope.frame");
 
-        var alert = new Alert(Alert.AlertType.CONFIRMATION);
+        var alert = AlertFactory.of(Alert.AlertType.CONFIRMATION);
         alert.setTitle(I18N.string(JSolEx.class, "spectral-surface-3d", "export.scope.title"));
         alert.setHeaderText(I18N.string(JSolEx.class, "spectral-surface-3d", "export.scope.header"));
         alert.setContentText(null);
@@ -1228,7 +1229,7 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
             var fileNames = existingFiles.stream()
                     .map(File::getName)
                     .collect(Collectors.joining(", "));
-            var alert = new Alert(Alert.AlertType.CONFIRMATION);
+            var alert = AlertFactory.of(Alert.AlertType.CONFIRMATION);
             alert.setTitle(I18N.string(JSolEx.class, "spectral-surface-3d", "export.video.overwrite.title"));
             alert.setHeaderText(I18N.string(JSolEx.class, "spectral-surface-3d", "export.video.overwrite.header"));
             alert.setContentText(fileNames);
@@ -1297,7 +1298,7 @@ public abstract class AbstractSpectral3DViewer extends BorderPane {
             } catch (IOException e) {
                 if (!cancelled.get()) {
                     FxUtils.runLater(() -> {
-                        var alert = new Alert(Alert.AlertType.ERROR);
+                        var alert = AlertFactory.of(Alert.AlertType.ERROR);
                         alert.setTitle(I18N.string(JSolEx.class, "common", "export.error"));
                         alert.setContentText(e.getMessage());
                         alert.showAndWait();

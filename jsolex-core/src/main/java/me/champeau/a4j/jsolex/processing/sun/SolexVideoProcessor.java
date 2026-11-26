@@ -360,8 +360,7 @@ public class SolexVideoProcessor implements Broadcaster {
     }
 
     private boolean tryReadMetadata() {
-        var md = CaptureSoftwareMetadataHelper.readSharpcapMetadata(serFile)
-                .or(() -> CaptureSoftwareMetadataHelper.readFireCaptureMetadata(serFile));
+        var md = CaptureSoftwareMetadataHelper.readMetadata(serFile);
         if (md.isPresent()) {
             var obsDetails = processParams.observationDetails();
             if (!obsDetails.forceCamera() && !CaptureSoftwareMetadataHelper.currentCameraContainsMetadata(obsDetails.camera(), md.get().camera())) {

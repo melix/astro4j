@@ -70,6 +70,7 @@ public class Configuration {
     private static final String SPECTROSOLHUB_TOKEN = "spectrosolhub.token";
     private static final String LIVE_SESSION_TITLE = "live.session.title";
     private static final String LIVE_STARTED_DIALOG_HIDDEN = "live.started.dialog.hidden";
+    private static final String GUIDED_TOUR_OFFERED = "guided.tour.offered";
     private static final String SPECTRUM_BROWSER_WIDTH = "spectrum.browser.width";
     private static final String SPECTRUM_BROWSER_HEIGHT = "spectrum.browser.height";
     private static final String SPECTRUM_BROWSER_INSTRUMENT = "spectrum.browser.instrument";
@@ -760,6 +761,14 @@ public class Configuration {
 
     public void setLiveStartedDialogHidden(boolean hidden) {
         prefs.putBoolean(LIVE_STARTED_DIALOG_HIDDEN, hidden);
+    }
+
+    public boolean isGuidedTourOffered() {
+        return prefs.getBoolean(GUIDED_TOUR_OFFERED, false);
+    }
+
+    public void setGuidedTourOffered() {
+        prefs.putBoolean(GUIDED_TOUR_OFFERED, true);
     }
 
     public String getSpectroSolHubUrl() {

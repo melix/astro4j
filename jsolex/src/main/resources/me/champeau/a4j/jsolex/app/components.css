@@ -1414,13 +1414,20 @@
     -fx-effect: dropshadow(gaussian, rgba(0,123,255,0.25), 4, 0, 0, 0);
 }
 
-.choice-box {
+.choice-box, .combo-box {
     -fx-background-color: #ffffff;
     -fx-border-color: #ced4da;
     -fx-border-radius: 6;
     -fx-background-radius: 6;
     -fx-padding: 2 2;
+}
+
+.choice-box {
     -fx-min-width: 160;
+}
+
+.combo-box .arrow-button {
+    -fx-background-color: transparent;
 }
 
 .check-box {
@@ -2219,4 +2226,287 @@
    window that this stylesheet does not reach. */
 .panel-selector-list .panel-selector-item-label {
     -fx-font-size: 13px;
+}
+
+.onboarding-root {
+    -fx-background-color: #f4f4f4;
+}
+
+.onboarding-scroll, .onboarding-scroll > .viewport {
+    -fx-background-color: #f4f4f4;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+}
+
+.onboarding-body {
+    -fx-padding: 24 34 16 34;
+}
+
+.onboarding-steps {
+    -fx-background-color: #ffffff;
+    -fx-border-color: transparent transparent #d5d8dd transparent;
+    -fx-padding: 12 26 12 26;
+    -fx-spacing: 6;
+}
+
+.onboarding-step-number {
+    -fx-min-width: 22;
+    -fx-min-height: 22;
+    -fx-max-width: 22;
+    -fx-max-height: 22;
+    -fx-alignment: center;
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 11;
+    -fx-border-color: #b8bcc3;
+    -fx-border-radius: 11;
+    -fx-text-fill: #8a9099;
+    -fx-font-size: 12px;
+}
+
+.onboarding-step-label {
+    -fx-text-fill: #8a9099;
+}
+
+.onboarding-step-optional {
+    -fx-text-fill: #8a9099;
+    -fx-font-size: 11px;
+}
+
+.onboarding-step-current .onboarding-step-number {
+    -fx-background-color: #007bff;
+    -fx-border-color: #007bff;
+    -fx-text-fill: #ffffff;
+}
+
+.onboarding-step-current .onboarding-step-label {
+    -fx-text-fill: #1f2328;
+    -fx-font-weight: bold;
+}
+
+.onboarding-step-done .onboarding-step-number {
+    -fx-background-color: #e6f4ea;
+    -fx-border-color: #1a7f37;
+    -fx-text-fill: #1a7f37;
+}
+
+.onboarding-step-done .onboarding-step-label {
+    -fx-text-fill: #1f2328;
+}
+
+.onboarding-title {
+    -fx-font-size: 19px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #1f2328;
+}
+
+.onboarding-subtitle, .onboarding-muted {
+    -fx-text-fill: #5f6772;
+}
+
+.onboarding-muted {
+    -fx-font-size: 12px;
+}
+
+.onboarding-ok, .onboarding-ok .onboarding-status-text {
+    -fx-text-fill: #1a7f37;
+    -fx-fill: #1a7f37;
+}
+
+.onboarding-warn, .onboarding-warn .onboarding-status-text {
+    -fx-text-fill: #9a6700;
+    -fx-fill: #9a6700;
+}
+
+.onboarding-value, .onboarding-question, .onboarding-panel-title, .onboarding-variant-name, .onboarding-card-title {
+    -fx-font-weight: bold;
+    -fx-text-fill: #1f2328;
+}
+
+.onboarding-value, .onboarding-card-title {
+    -fx-font-size: 14px;
+}
+
+.onboarding-tag {
+    -fx-font-size: 11px;
+    -fx-text-fill: #5f6772;
+    -fx-background-color: #ffffff;
+    -fx-border-color: #c4c7cc;
+    -fx-border-radius: 10;
+    -fx-background-radius: 10;
+    -fx-padding: 0 8 0 8;
+}
+
+.onboarding-block, .onboarding-info, .onboarding-variant-panel, .home-settings {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #d5d8dd;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+}
+
+.onboarding-block {
+    -fx-padding: 14 18 14 18;
+}
+
+.onboarding-info {
+    -fx-padding: 10 16 10 16;
+    -fx-text-fill: #5f6772;
+    -fx-font-size: 12px;
+}
+
+.onboarding-drop-zone {
+    -fx-background-color: #fafbfc;
+    -fx-background-radius: 12;
+    -fx-border-color: #b3b8c0;
+    -fx-border-style: segments(8, 6);
+    -fx-border-width: 2;
+    -fx-border-radius: 12;
+    -fx-padding: 40 20 34 20;
+}
+
+.onboarding-drop-title {
+    -fx-font-size: 17px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #1f2328;
+}
+
+.onboarding-card {
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 8;
+    -fx-border-color: #c9ccd2;
+    -fx-border-radius: 8;
+    -fx-padding: 8 8 12 8;
+    -fx-cursor: hand;
+}
+
+.onboarding-card:hover {
+    -fx-border-color: #8fb9ee;
+}
+
+.onboarding-card-selected, .onboarding-card-selected:hover {
+    -fx-border-color: #007bff;
+    -fx-border-width: 2;
+    -fx-padding: 7 7 11 7;
+    -fx-effect: dropshadow(gaussian, rgba(0,123,255,0.3), 6, 0, 0, 0);
+}
+
+.onboarding-placeholder {
+    -fx-background-color: #eef1f4;
+    -fx-background-radius: 5;
+    -fx-border-color: #8d949e;
+    -fx-border-style: segments(6, 5);
+    -fx-border-radius: 5;
+}
+
+.onboarding-placeholder-mark {
+    -fx-font-size: 30px;
+    -fx-text-fill: #8d949e;
+}
+
+.onboarding-variant-list {
+    -fx-background-color: #fafbfc;
+    -fx-background-radius: 8 0 0 8;
+    -fx-border-color: transparent #d5d8dd transparent transparent;
+    -fx-padding: 0 0 8 0;
+}
+
+.onboarding-variant-row {
+    -fx-padding: 6 16 6 13;
+    -fx-border-color: transparent;
+    -fx-border-width: 0 0 0 3;
+    -fx-cursor: hand;
+}
+
+.onboarding-variant-row:hover {
+    -fx-background-color: #eef4fc;
+}
+
+.onboarding-variant-row-selected, .onboarding-variant-row-selected:hover {
+    -fx-background-color: #e5f0ff;
+    -fx-border-color: #007bff;
+}
+
+.onboarding-dispersion {
+    -fx-background-color: #f3f8ff;
+    -fx-border-color: #007bff;
+    -fx-border-width: 0 0 0 3;
+    -fx-padding: 6 10 6 10;
+    -fx-font-size: 12px;
+}
+
+.onboarding-footer {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #d5d8dd transparent transparent transparent;
+    -fx-padding: 12 26 12 26;
+}
+
+.onboarding-status-text {
+    -fx-font-size: 12px;
+}
+
+.home-settings {
+    -fx-padding: 0;
+}
+
+.home-settings-header {
+    -fx-text-fill: #5f6772;
+    -fx-font-size: 12px;
+    -fx-padding: 9 16 9 16;
+    -fx-border-color: transparent transparent #e6e8eb transparent;
+    -fx-max-width: infinity;
+}
+
+.home-settings-rows {
+    -fx-padding: 0 16 0 16;
+}
+
+.home-settings-value, .home-settings-value-changed {
+    -fx-font-weight: bold;
+    -fx-text-fill: #1f2328;
+}
+
+.home-settings-value-changed {
+    -fx-text-fill: #9a6700;
+}
+
+.home-settings-footer {
+    -fx-padding: 6 16 8 16;
+    -fx-border-color: #e6e8eb transparent transparent transparent;
+}
+
+.tour-bubble, .tour-invite {
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 10;
+    -fx-padding: 16 18 12 18;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.35), 24, 0, 0, 6);
+}
+
+.tour-invite {
+    -fx-border-color: transparent transparent transparent #007bff;
+    -fx-border-width: 0 0 0 4;
+    -fx-border-radius: 10;
+    -fx-padding: 16 18 14 18;
+}
+
+.tour-title {
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #007bff;
+}
+
+.tour-invite .tour-title {
+    -fx-text-fill: #1f2328;
+}
+
+.tour-text, .tour-text-bold {
+    -fx-font-size: 13px;
+    -fx-fill: #1f2328;
+}
+
+.tour-text-bold {
+    -fx-font-weight: bold;
+}
+
+.tour-count {
+    -fx-font-size: 12px;
+    -fx-text-fill: #5f6772;
 }

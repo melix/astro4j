@@ -1,401 +1,51 @@
 # Bienvenue dans JSol'Ex {{version}} !
 
-## Nouveautés de la version 5.7.0
+## Nouveautés de la version 6.0.0
 
-- La visionneuse d'images peut maintenant adoucir les images ou les rendre plus nettes, y compris avec un masque flou.
-- Plus de place pour l'image dans la visionneuse : les boutons tiennent sur deux lignes, avec des icônes en couleur, et les retouches s'ouvrent dans un panneau à côté de l'image.
-- Étirement des images plus rapide, en particulier avec CLAHE, CLAHE2 et AutoStretch.
-- Détection plus fiable des bombes d'Ellerman, inspirée de l'approche décrite par Stephan Schmelzing.
-- Chaque bombe d'Ellerman ou flare détecté est accompagné d'un graphique comparant le profil de sa raie à celui de son entourage.
+- [Une prise en main simplifiée](#une-prise-en-main-simplifiée)
+- [Retouches dans la visionneuse](#retouches-dans-la-visionneuse)
+- [Bombes d'Ellerman et flares](#bombes-d-ellerman-et-flares)
+- [Scripts Python](#scripts-python)
+- [Corrections et améliorations](#corrections-et-améliorations)
+
+## Une prise en main simplifiée
+
+JSol'Ex est plus facile à découvrir. Au premier lancement, un assistant vous permet de traiter votre premier fichier sans explorer les options. Il lit la caméra dans le fichier de réglages de votre logiciel d'acquisition et vous fait choisir votre spectrohéliographe à partir de photos. La lunette, la monture et l'observateur sont facultatifs.
+
+![Assistant de configuration](/docs/setup-assistant-fr.png)
+
+L'écran d'accueil affiche maintenant les réglages qui seront utilisés pour le traitement, et permet de revenir aux réglages automatiques. Avant le traitement, JSol'Ex vous prévient si le fichier a été enregistré avec une autre caméra que celle de votre matériel.
+
+Après le premier traitement, une visite guidée vous présente les différentes zones de l'écran. Elle reste disponible dans le menu « Aide ».
+
+![Visite guidée](/docs/guided-tour-fr.jpg)
+
+## Retouches dans la visionneuse
+
+La visionneuse laisse plus de place à l'image : les boutons tiennent sur deux lignes, avec des icônes en couleur, et les retouches s'ouvrent dans un panneau à côté de l'image. Elle peut maintenant adoucir les images ou les rendre plus nettes, y compris avec un masque flou. L'étirement des images est aussi plus rapide, en particulier avec CLAHE, CLAHE2 et AutoStretch.
+
+![Visionneuse d'images](/docs/image-viewer-fr.jpg)
+
+## Bombes d'Ellerman et flares
+
+La détection des bombes d'Ellerman est plus fiable. Elle s'inspire de l'approche décrite par Stephan Schmelzing. Chaque bombe d'Ellerman ou flare détecté est accompagné d'un graphique comparant le profil de sa raie à celui de son entourage.
+
+## Scripts Python
+
+**Les environnements virtuels Python doivent maintenant être créés avec GraalPy 25.6.** Si vous en utilisez un, recréez-le avec cette version.
+
+- Conversion plus rapide des images vers et depuis NumPy.
+- L'outil de script autonome peut maintenant utiliser un environnement virtuel GraalPy.
+
+## Corrections et améliorations
+
 - Consommation mémoire réduite pendant le traitement.
 - Le réglage « Ajustement de la consommation mémoire » a été supprimé, car il n'est plus nécessaire.
-- Conversion plus rapide des images vers et depuis NumPy dans les scripts Python.
-- Les environnements virtuels Python doivent maintenant être créés avec GraalPy 25.6.
-- L'outil de script autonome peut maintenant utiliser un environnement virtuel GraalPy.
 - Correction des coins blancs sur les images pivotées pour corriger l'angle P.
 - Correction de l'outil de script autonome qui échouait sur les ordinateurs équipés d'une carte graphique.
 - Correction des scripts Python dans la version native de l'outil de script autonome.
 - Correction d'erreurs qui pouvaient interrompre le traitement à l'ouverture d'un nouveau fichier ou à l'affichage d'une image.
 - Correction d'une erreur lors de la création d'une animation ou d'un panneau avant la fin du traitement.
-
-## Nouveautés de la version 5.6.1
-
-- Les méthodes d'étirement peuvent maintenant être combinées sur n'importe quelle image.
-- L'amélioration du contraste de l'image traitée peut maintenant être changée sans retraiter le fichier.
-- Nouveau réglage ombres/hautes lumières.
-- L'amélioration du contraste « Meilleure méthode » utilise désormais le CLAHE multi-échelle pour le calcium.
-- Traitements GPU plus rapides.
-- La fonction CLAHE2 n'éclaircit plus le disque solaire près du limbe.
-- Correction d'un plantage lorsqu'un paramètre de traitement est incorrect.
-- Correction de l'image négative, qui était saturée lorsque l'image était recadrée avec une grande marge autour du Soleil.
-
-## Nouveautés de la version 5.6.0
-
-- Nouvel outil « Modèle de nuage H-alpha », qui cartographie la température, la masse et la vitesse des filaments et des fibrilles.
-- L'accélération GPU est désormais activée par défaut.
-- Les scripts exemples de l'éditeur de scripts peuvent désormais être utilisés directement, sans les enregistrer.
-- Réduction de la mémoire et de l'espace disque utilisés pendant le traitement.
-- Correction des scripts, qui produisaient des images supplémentaires pour chaque longueur d'onde utilisée, en plus de leurs résultats.
-- Correction de l'éditeur de scripts, qui ne prévenait pas toujours des modifications non enregistrées.
-- Correction des images du fichier précédent qui restaient en mémoire après l'ouverture d'un nouveau fichier.
-- Correction de l'accélération GPU, qui était toujours désactivée sous Windows.
-- La fenêtre affichée après un plantage au démarrage permet désormais de réactiver l'accélération GPU.
-- Correction de la mesure de la rotation différentielle sur les images retournées.
-- Correction de la barre de progression qui pouvait continuer à tourner après la fin d'un traitement par lots.
-- Correction des scripts de fin de traitement par lots qui mélangeaient images et valeurs lorsque des images étaient rejetées lors de la revue.
-- Correction des animations rognées ou pivotées, qui n'étaient pas ajoutées au groupe de l'animation d'origine.
-- Correction de la fonction `deghost`, qui pouvait laisser un anneau net autour du disque.
-- Nouvelle fonction de script `denoise`, qui retire le bruit d'une image en conservant ses détails.
-- Nouvelle fonction de script `line_fit`, qui mesure une raie d'émission pixel par pixel.
-- Nouvelle fonction de script `a_trous`, qui sépare une image en détails de différentes tailles.
-- La fonction `dedistort` est beaucoup plus rapide sans accélération GPU.
-- Correction de plusieurs problèmes de la version en ligne de commande.
-
-## Nouveautés de la version 5.5.2
-
-- Correction de l'assistant de soumission BASS2000, qui échouait car l'image à soumettre ne pouvait pas être générée.
-- Beaucoup plus de raies spectrales (Si I, Ni I, Ti II...) sont désormais nommées dans l'explorateur de spectre et dans l'identification des raies en direct, y compris le script SharpCap.
-- Correction de la détection d'un disque solaire trop petit en mode disque saturé lorsque seul le centre du disque est saturé.
-
-## Nouveautés de la version 5.5.1
-
-- La mesure de la rotation différentielle ne sous-estime plus la vitesse de rotation du Soleil, et sa courbe de référence tient désormais compte du mouvement de la Terre.
-- Les couleurs des images Doppler sont désormais déterminées automatiquement, pour afficher en rouge ce qui s'éloigne et en bleu ce qui s'approche.
-- La mesure personnalisée de la rotation différentielle peut combiner plusieurs balayages pour réduire les incertitudes, désormais affichées.
-- Le script SharpCap d'identification en direct des raies spectrales fonctionne désormais avec SharpCap 4.1.
-- Un nouveau script d'exemple, disponible en mode batch, produit une animation fluide d'une journée de scans H-alpha en les empilant avec une fenêtre glissante, avec une animation Doppler en option.
-- La nouvelle fonction `correct_limb` ramène le limbe solaire sur un cercle et aligne une série d'images sur le même cercle, ce qui supprime l'ondulation lente du disque dans les animations.
-- La nouvelle fonction `correct_periodic_error` supprime la déformation due à l'erreur périodique du suivi de la monture, qui fait osciller le disque d'avant en arrière dans les animations d'une journée de scans.
-- Les scripts Python ne conservent plus en mémoire toutes les images qu'ils produisent, ce qui pouvait faire planter l'application lors du traitement de nombreux fichiers en mode batch.
-- La fonction `radius_rescale` ne conserve plus en mémoire toutes les images redimensionnées, ce qui pouvait faire planter le traitement par lots de nombreux fichiers.
-- Les scripts Python ne se bloquent plus quand une fonction comme `anim` traite une liste d'images en parallèle.
-- Les animations ne basculent plus silencieusement sur l'encodeur de secours, plus lent, quand la mémoire est juste pendant l'export des vues pour ffmpeg.
-- Les scripts exécutés en fin de traitement par lots peuvent désormais être interrompus, et la barre de progression montre ce qu'ils font.
-
-## Nouveautés de la version 5.5.0
-
-- Identification en direct des raies spectrales dans SharpCap : un script, disponible dans le menu "Aide", dessine les raies par dessus la vue en direct de vos images SharpCap, ce qui rend l'identification très simple. Consultez la documentation pour plus de détails.
-- L'identification des raies spectrales prend désormais en compte les raies telluriques, ce qui la rend plus précise.
-- En sélection manuelle de la raie, une longueur d'onde peut désormais être saisie directement à côté de la liste des raies, sans avoir à ajouter la raie à votre liste au préalable.
-- L'explorateur de spectre identifie les images avec la même méthode que l'identification en direct, raies telluriques comprises, et peut afficher le spectre de référence tel qu'observé à travers l'atmosphère.
-- La suppression des stries (destripe) peut désormais être choisie à la place de la correction de bandes dans les paramètres de traitement : elle est plus efficace sur les transversalliums marqués. Contribution d'[icelin](https://github.com/nuan-xing).
-- JSol'Ex est désormais disponible en chinois. Contribution d'[icelin](https://github.com/nuan-xing).
-- Le flou et l'accentuation ne tronquent plus les valeurs négatives ou supérieures au point blanc.
-
-## Nouveautés de la version 5.4.2
-
-- Les animations et vidéos affichées dans le visualiseur d'images peuvent désormais être rognées, retournées ou pivotées.
-- La prise en charge d'OpenGL peut désormais être réactivée depuis les paramètres avancés si elle avait été désactivée.
-- Les scripts Python peuvent désormais émettre des animations avec `jsolex.emit`.
-- Le résumé des scripts d'un dépôt indique désormais quand une version plus récente d'un script est disponible mais nécessite une version plus récente de JSol'Ex.
-- Correction d'un blocage ou d'un plantage de l'application au démarrage sur certains ordinateurs dont les pilotes de carte graphique sont défectueux.
-- Correction des scripts Python qui, en mode batch, produisaient parfois les images d'un autre fichier lorsque plusieurs fichiers étaient traités simultanément.
-- Correction de l'afficheur de revue d'images qui affichait parfois une image vide lors de la navigation entre les fichiers.
-- Correction du sélecteur de langage de script de la fenêtre principale qui restait bloqué une fois un script chargé ou enregistré.
-- Le fichier `config.json` qui enregistre les paramètres de traitement est désormais sauvegardé à côté du fichier de log, avec les images générées, au lieu du dossier contenant la vidéo.
-- Correction de la détection du disque solaire, trop grand en mode disque saturé à cause du halo qui entoure le disque.
-
-## Nouveautés de la version 5.4.1
-
-- Détection plus précise de la courbure de la raie spectrale, pour une géométrie plus fidèle des images reconstruites.
-- Génération des images plus rapide, grâce à une meilleure utilisation des cœurs du processeur.
-- Correction de scripts qui échouaient ou utilisaient de mauvaises images parce que certains décalages de pixels étaient considérés à tort comme hors limites.
-- Nouvelle fonction ImageMath `descatter`, qui retire l'excès de fond laissé autour du disque par la lumière diffusée dans l'instrument.
-- Nouvelle détection « Recherche automatique sur tout le spectre », utilisée par défaut, qui reconnaît des raies qui ne figurent pas dans votre liste.
-- Lorsque vous sélectionnez une raie spectrale, JSol'Ex vérifie maintenant que la raie détectée est bien celle-ci, et se corrige lorsqu'une raie voisine est plus sombre.
-- Ajout de la raie du fer (Fe I 5302), utilisée comme référence pour l'imagerie de la couronne.
-- Le choix "Other" dans la liste des longueurs d'onde permet désormais de saisir la longueur d'onde de la raie observée, sans avoir à l'ajouter à vos raies.
-- Suppression de la raie du mercure (e), qui est une longueur d'onde de lampe et non une raie solaire.
-- Correction des paramètres de traitement imposés par un script qui étaient tous ignorés dès que l'un d'entre eux était invalide.
-- Correction des fonctions `weighted_avg` et `weighted_avg2` qui retenaient la position du disque solaire de la dernière image empilée au lieu de la moyenner sur toutes, ce qui pouvait décaler le rognage et l'étirement final.
-- Correction de la fonction `noise_sigma` sur les images comportant de grandes zones écrêtées ou saturées, qui pouvait donner un poids démesuré à une seule image lors d'un empilement avec `weighted_avg` ou `weighted_avg2`.
-- Réduction de la mémoire nécessaire pour combiner de nombreuses images avec `avg`, `min`, `max`, `weighted_avg` et `weighted_avg2`, ce qui permet de traiter de grandes piles d'images sur des machines disposant de moins de mémoire.
-- Correction des fonctions de script `weighted_avg` et `weighted_avg2` qui échouaient lorsqu'un lot ne contenait qu'un seul fichier.
-- Les étiquettes de l'échelle des protubérances peuvent désormais être pivotées, afin qu'elles ne se superposent pas aux protubérances.
-- Les scripts Python peuvent désormais utiliser `+`, `-`, `*` et `/` directement entre images, comme les scripts ImageMath.
-- Correction d'une soustraction ou d'une division écrite avec le nombre en premier, comme `1000 - image`, qui calculait le résultat dans l'autre sens.
-- Nouvelle fonction de script `img_percentile`, qui mesure un niveau de référence sur une région de l'image sans qu'une poignée de pixels aberrants ne le faussent.
-- Les fonctions `img_min` et `img_max` acceptent désormais un masque, comme les autres fonctions de mesure, afin de les restreindre à une région de l'image.
-- Les erreurs de scripts sont désormais rapportées en détail, au lieu d'afficher parfois un message vide qui rendait la cause introuvable.
-- La correction géométrique est désormais réalisée en une seule passe de meilleure qualité, qui préserve nettement plus de détails fins, en particulier horizontalement.
-- Le limbe solaire et la raie spectrale sont désormais localisés avec une précision inférieure au pixel.
-
-## Nouveautés de la version 5.4.0
-
-- **Changement important pour les scripts** : les opérations entre images ne modifient plus leur résultat pour le maintenir dans la plage affichable. Une soustraction conserve les valeurs négatives, au lieu de décaler toute l'image pour la rendre positive, et la moyenne d'images conserve les valeurs plus brillantes que le blanc. Les scripts qui soustraient le continuum peuvent donc donner un résultat différent, et peuvent utiliser la nouvelle fonction `lift` pour retrouver le résultat précédent.
-
-### Mode lot
-
-
-- Le mode lot gère désormais les balayages aller-retour : les fichiers sont triés par heure de capture et un scan sur deux est retourné automatiquement.
-- Un lot peut désormais surveiller un dossier et y ajouter automatiquement les nouveaux fichiers SER qui y apparaissent.
-- Vous pouvez désormais ajouter des fichiers à un lot terminé sans retraiter ceux déjà traités.
-- Le mode lot peut désormais n'appliquer une inversion qu'aux fichiers capturés avant ou après une date donnée, utile lorsque l'orientation a changé pendant la session, par exemple après un retournement au méridien.
-- Les erreurs de script survenant pendant le traitement des fichiers individuels d'un lot sont désormais rapportées dans la boîte de dialogue d'erreur finale, au lieu du seul journal par fichier.
-
-### Traitement et images
-
-
-- Une nouvelle option de renforcement du contraste « Meilleure méthode » choisit automatiquement la meilleure technique selon la raie spectrale détectée : CLAHE pour le calcium et Autostretch pour les autres raies.
-- Les images produites par l'outil d'empilement peuvent désormais être partagées vers SpectroSolHub.
-- Lors du partage vers SpectroSolHub, vous pouvez désormais choisir quelle image sert de référence pour l'orientation.
-- Les images empilées conservent désormais la raie spectrale des images source au lieu de revenir à une longueur d'onde incorrecte.
-- La rotation d'une image remplit désormais les coins créés avec le niveau du fond de l'image au lieu du noir, sauf si une valeur de remplissage est précisée.
-- La taille apparente du Soleil, enregistrée dans les fichiers FITS et accessible aux scripts Python, ne reste plus identique toute l'année et grossit à nouveau en janvier pour diminuer en juillet.
-
-### Scripts ImageMath
-
-
-- Une nouvelle fonction de script `load_sdo` télécharge l'image du Solar Dynamics Observatory la plus proche de votre observation, avec son disque solaire déjà positionné, afin de la placer côte à côte avec votre propre image.
-- La fonction de script `radius_rescale2` accepte désormais une image de référence, et redimensionne son argument à la même taille de disque solaire, ce qui évite d'avoir à calculer les valeurs soi-même.
-- La fonction de script `draw_text` accepte désormais des coordonnées négatives, comptées depuis les bords droit et bas, ce qui permet de placer une légende dans les coins inférieurs quelle que soit la taille de l'image.
-- La fonction `unsharp_mask` n'éclaircit plus toute l'image en plus de l'accentuer, son résultat est donc plus sombre et plus contrasté qu'avant pour une même force.
-- Une nouvelle fonction de script `noise_sigma` mesure le bruit d'une image, ce qui permet à un script d'évaluer la qualité de chaque fichier d'un lot au lieu de la juger à l'œil.
-- La fonction `deghost` peut désormais supprimer plusieurs reflets à la fois, où qu'ils soient autour du disque.
-- Une nouvelle fonction de script `clamp` limite une image à une plage de valeurs, par défaut la plage affichable, et une nouvelle fonction `lift` décale une image vers le haut pour qu'elle ne contienne plus de valeurs négatives.
-- La fonction de script `signed_diff` est dépréciée : une simple soustraction `a - b` fait désormais exactement la même chose.
-- Une nouvelle fonction de script `weighted_avg2` combine des images avec à la fois un poids par image et un rejet des valeurs aberrantes, afin que les meilleures images contribuent davantage à l'empilement.
-- Les fonctions de script `mtf_autostretch` et `percentile_stretch` peuvent désormais calculer leurs statistiques sur un masque, par exemple un anneau autour du disque solaire, ce qui rend le résultat indépendant du facteur de rognage.
-- Les fonctions de script `mtf` et `mtf_autostretch` utilisent désormais toute la plage affichable : les parties les plus sombres atteignent le noir au lieu de rester grises, les images sont donc plus contrastées, et le niveau de fond demandé est bien celui obtenu.
-- La fonction de script `bg_model` peut désormais être restreinte à un masque, afin que le fond soit mesuré sur un anneau éloigné du disque au lieu de suivre le signal qui l'entoure.
-- Les fonctions de script `img_avg` et `img_median` peuvent elles aussi être restreintes à un masque.
-- Une nouvelle fonction de script `log_stats` écrit les statistiques d'une image dans le journal sans la modifier, ce qui permet de voir comment une valeur évolue d'un fichier d'un lot au suivant.
-- La fonction de script `percentile_stretch` gère désormais les images contenant des valeurs négatives, comme les images après soustraction du continuum, et peut préserver toute la dynamique avec `clip: 0`.
-- Ajout d'une fonction de script `destripe` qui supprime les bandes horizontales de n'importe quelle image, y compris celles dont le fond est proche de zéro comme les images après soustraction du continuum.
-- Une nouvelle fonction de script `column_bg_model` modélise l'excès de fond des colonnes balayées devant le disque solaire, causé par la lumière diffusée dans l'instrument, afin de pouvoir le supprimer.
-- Une nouvelle fonction de script `save_raw` enregistre une image avec ses valeurs exactes et ses métadonnées, pour pouvoir la recharger avec `load` sans la perte de précision du FITS ou du PNG.
-- Dans la section `[outputs]`, une variable dont le nom commence par `__` n'est plus considérée comme une sortie : elle est calculée et utilisable par les autres expressions, mais n'est ni affichée ni sauvegardée.
-- Les scripts peuvent désormais utiliser les variables `inputFilesCount` et `keptFilesCount` pour connaître le nombre de fichiers traités et le nombre de fichiers conservés après la revue des images.
-- La fonction `draw_text` peut désormais afficher la valeur de n'importe quelle variable du script avec `%VAR_nom%`.
-- Multiplier ou diviser une liste de valeurs par un nombre unique l'applique désormais à chaque élément de la liste.
-- Les images produites par `crop_ar` portent désormais le nom de la région active qu'elles montrent.
-- Les détails d'observation et la fonction `draw_text` peuvent désormais afficher le nombre de fichiers traités avec `%INPUT_FILES%` et `%KEPT_FILES%`.
-- Les scripts peuvent désormais forcer les paramètres de traitement dont ils ont besoin, comme désactiver la correction des bandes ou élargir le rognage, quels que soient les paramètres de traitement sélectionnés.
-
-### Corrections
-
-
-- Correction du dernier fichier d'un lot qui affichait tous les autres fichiers après la revue des images.
-- Correction de la liste des fichiers du lot qui disparaissait lors de l'exécution d'un script avec l'option « Fermer images existantes » cochée.
-- Correction des images entièrement noires lorsque la correction des bandes était désactivée.
-
-## Nouveautés de la version 5.3.4
-
-- Un nouveau « mode disque saturé » permet de réutiliser le polynôme de la raie spectrale du scan non saturé le plus proche lorsque le disque solaire est surexposé.
-- Une nouvelle fonction de script `deghost` atténue l'image fantôme du disque solaire causée par les reflets optiques.
-- L'explorateur de spectre peut désormais être superposé à votre logiciel de capture, avec transparence réglable et correspondance de la courbure du spectre.
-- La fenêtre de l'explorateur de spectre peut désormais être affichée sans bordure avec ses contrôles déplacés en bas, pour une superposition plus propre en haut de l'écran.
-- Correction d'artefacts en forme de lignes pouvant apparaître lors de l'empilement avec la dédistorsion locale activée.
-- Les animations et vidéos sont désormais regroupées dans les mêmes sections par exécution que les images lors d'une nouvelle exécution d'un script.
-- Une section de la liste des images peut désormais être fermée d'un coup grâce au bouton de fermeture situé à côté de son titre.
-- Le rogneur de fichiers SER affiche à nouveau une barre de progression pendant le rognage, et la mise en page de sa fenêtre a été corrigée.
-- Les paramètres des scripts Python sont désormais affichés dans l'ordre où ils sont déclarés dans le script.
-
-## Nouveautés de la version 5.3.3
-
-- Correction des images Hélium qui n'étaient parfois pas générées lorsque la ligne de référence était trop proche du bord de l'image.
-
-## Nouveautés de la version 5.3.2
-
-- Vous pouvez désormais exporter les images en cours dans un fichier de session, puis le rouvrir plus tard pour partager vos résultats sans retraiter la vidéo d'origine.
-- Le recadrage dans la visionneuse est désormais interactif, avec les actions courantes accessibles depuis la barre d'outils.
-- Une nouvelle correction expérimentale permet de détecter et supprimer les ondulations régulières du limbe solaire causées par des oscillations de la monture.
-- Les autres raies spectrales connues présentes dans la fenêtre de capture sont désormais extraites automatiquement.
-- Les vues spectrales 3D disposent désormais d'une option « Inverser » et d'un curseur d'opacité pour mieux révéler les zones sombres comme les taches solaires.
-- Les images monochromes peuvent désormais être colorisées directement dans la visionneuse, depuis le panneau d'annotations, à l'aide d'un profil spectral ou d'une couleur personnalisée.
-- Optimisation de l'accélération GPU
-- Le bouton d'interruption arrête désormais le traitement de manière fiable.
-
-## Nouveautés de la version 5.3.1
-
-- Traitement des images plus rapide, avec notamment un premier traitement plus rapide après le lancement de l'application.
-- La vue de reconstruction peut désormais être parcourue pixel par pixel avec les touches fléchées (maintenez Maj pour des déplacements plus grands).
-- Ajout d'un calque d'annotation des régions actives.
-- Ajout d'annotations de texte libre.
-- Lors de l'enregistrement d'une image annotée, vous pouvez désormais conserver l'original intact et enregistrer les annotations sur une copie.
-- Le bouton d'enregistrement est désormais mis en évidence lorsqu'une image a des modifications non enregistrées.
-- Correction d'une vue de reconstruction dupliquée apparaissant parfois pour le même décalage de pixels.
-
-## Nouveautés de la version 5.3.0
-
-- La fiche technique générée séparément est remplacée par des annotations interactives activables image par image : grille d'orientation, détails d'observation, paramètres solaires, échelle des protubérances, référence de taille Terre déplaçable à la souris et signature libre, avec couleurs, épaisseur de trait et modèles personnalisables, le tout enregistrable en tant que préréglage.
-- Les images peuvent désormais être dupliquées via le menu contextuel de la barre latérale, pour conserver une version originale à côté d'une version annotée.
-- Les mesures de redshift sont plus fiables et leur incertitude est désormais bien plus réaliste.
-- Ajout d'une nouvelle fonction ImageMath `average_image` qui renvoie l'image moyenne, éventuellement corrigée de la distorsion.
-- Correction des fichiers log qui étaient vides en mode batch
-- Correction d'un plantage lors de la génération des animations et panneaux de redshift
-- Ajout d'un suivi de progression lors de la génération des animations et panneaux de redshift
-- Réorganisation du panneau de droite avec un sélecteur de panneau et un panneau de publication d'images dédié.
-- Correction du marqueur de raie spectrale dans la vue de reconstruction qui était mal positionné
-- Le profil spectral normalise désormais les intensités de la trame et de la ligne cliquée par rapport à l'image moyenne
-- L'onglet du profil spectral peut désormais afficher les intensités absolues (ADU) au lieu des valeurs normalisées à 100
-- L'onglet d'image de référence GONG permet désormais de choisir l'observatoire et la taille de l'image, jusqu'à la pleine résolution
-- L'onglet d'image de référence GONG peut détecter d'éventuels miroirs de votre image active par rapport à la référence GONG
-- Rafraîchissement de la fenêtre principale avec un thème de couleurs cohérent.
-- La réexécution d'un script regroupe désormais ses résultats dans des sections de passe numérotées et repliables, pour distinguer et comparer facilement les exécutions successives
-
-## Nouveautés de la version 5.2.2
-
-- L'assistant de soumission BASS2000 liste désormais les soumissions en attente d'autres observateurs pour la même date et la même longueur d'onde, avec une frise visuelle indiquant leurs heures de capture.
-- Les vitesses de redshift sont désormais calculées au subpixel et accompagnées d'une incertitude.
-- Correction du bouton d'exécution des scripts ImageMath qui perdait son menu de paramètres avancés au lancement d'un traitement par lots.
-- Correction d'une fuite mémoire native dans les transferts d'images vers le GPU qui pouvait épuiser la mémoire après plusieurs traitements par lots.
-- Correction de la vue de reconstruction qui affichait la croix du spectre du mauvais côté de la ligne de référence lors d'un clic sur l'image solaire.
-- Correction d'une erreur pouvant survenir lors de l'enregistrement de certaines images de débogage.
-
-## Nouveautés de la version 5.2.1
-
-- Correction d'une erreur qui pouvait empêcher la génération de l'image inversée lorsque le disque solaire était petit dans l'image.
-- L'image inversée n'affiche plus les informations d'observation.
-- L'import SunScan ignore désormais les scans déjà présents dans le dossier de téléchargement au lieu de les télécharger à nouveau.
-- Réduction de l'utilisation mémoire lors de plusieurs traitements par lot successifs, qui pouvait auparavant provoquer des erreurs de mémoire insuffisante.
-
-## Nouveautés de la version 5.2.0
-
-- Refonte de l'écran de traitement par lots avec un tableau de bord de progression, des lignes compactes et un panneau latéral de détails.
-- Les fichiers d'un lot sont désormais traités dans l'ordre de soumission.
-- L'étirement automatique produit désormais une luminosité plus douce et plus naturelle, préservant les détails dans les régions actives sans écraser les protubérances ni le dégradé du limbe.
-- L'image inversée n'inverse désormais que le disque solaire, avec un contraste accentué sur ses détails, tout en conservant les protubérances dans leur orientation naturelle.
-- Les images colorisées bénéficient désormais d'une plage tonale plus équilibrée grâce à une chaîne d'étirement revue.
-- Les images dans la barre latérale peuvent désormais être renommées via le menu contextuel (clic droit) pour les distinguer dans les collages.
-- La fonction ImageMath `dedistort` accepte désormais un paramètre `drizzle` (toute valeur entre 1 et 4, par ex. 1.5, 2, 3) qui produit une image super-résolue pour récupérer des détails sous d'excellentes conditions.
-- Les scans acquis sur un appareil SunScan peuvent être détectés et importés directement depuis le menu Fichier.
-- Correction d'images générées parfois absentes des résultats du traitement par lots et de la fenêtre de revue.
-- Le double-clic sur une image pour zoomer à 1:1 centre désormais la vue sur le point cliqué.
-- Ajout d'un paramètre avancé pour choisir le dossier où sont écrits les fichiers temporaires.
-- Correction de l'aperçu de reconstruction parfois non ajusté en contraste pendant le traitement.
-- Ajout d'un indicateur d'activité des journaux pour rendre visible le travail en arrière-plan depuis n'importe quel onglet.
-
-## Nouveautés de la version 5.1.3
-
-- Traitement des fichiers SER plus rapide grâce à la réduction des copies mémoire lors de la lecture des images.
-- Correction des courbes de couleur personnalisées silencieusement perdues lors d'une mise à jour depuis une version antérieure.
-- Ajout d'une option « Faire confiance à la profondeur de bits déclarée » dans les paramètres de traitement avancés pour contourner la détection automatique lorsqu'elle donne un résultat incorrect.
-- Correction des vues 3D (image 3D et tomographie sphérique, modes coquilles et lissé) qui ne s'affichaient pas sur macOS.
-- Analyseur de vidéo : ajout d'un bouton de lecture avec un réglage de vitesse (jusqu'à 300 i/s) pour lire les images comme une vidéo.
-- Ajout d'une entrée « Aller aux coordonnées... » dans le menu contextuel de la vue de reconstruction pour atteindre des coordonnées (X, Y) précises sans avoir à cliquer sur l'image.
-
-## Nouveautés de la version 5.1.2
-
-- Ajout d'une nouvelle fonction ImageMath `clahe2` qui calcule la moyenne de plusieurs passes CLAHE à des tailles de tuiles adaptées au disque solaire, produisant des artefacts au limbe nettement plus doux qu'une CLAHE classique.
-- Correction de la taille de noyau par défaut affichée à la sélection de « Renforcement » ou « Masque flou ».
-- La composition de mosaïques utilise désormais un mélange multi-bandes (pyramide laplacienne) avec égalisation locale de l'exposition dans la zone de recouvrement.
-- Assistant d'empilement et de mosaïque : un nouveau choix « Méthode d'empilement » permet de choisir entre « Rapide » et « Consensus ».
-- Correction d'un plantage lors de l'empilement (« Progress must be between 0.0 and 1.0 ») lorsque la hauteur de l'image n'était pas un multiple du pas de tuile.
-- Correction de la lenteur des boutons Suivant/Précédent et de l'ouverture de l'assistant de revue des images du traitement par lot.
-- Correction de l'affichage bref du mauvais type d'image dans le panneau de référence de l'assistant de revue des images après navigation.
-- Correction de l'ordre incohérent des images dans la liste latérale de l'assistant de revue des images du traitement par lot d'un fichier SER à l'autre.
-- Correction du collage créé via Outils | Charger des images qui était enregistré dans le dossier d'installation de JSol'Ex ; il est désormais placé dans le dossier des images chargées.
-- Correction de la fenêtre de collage qui s'ouvrait parfois avec une bande d'images vide ou bloquait l'interface pendant le chargement des miniatures.
-- Correction de « Ouvrir dans une nouvelle fenêtre » qui produisait une fenêtre vide impossible à fermer lorsqu'elle était utilisée sur une image ouverte via Outils | Charger des images.
-- Correction de la fonction ImageMath `sort` qui retournait la liste non triée lorsque le suffixe `asc` était utilisé dans l'argument d'ordre (par exemple `sort(images, "date asc")`).
-- Correction des fonctions ImageMath `rotate_deg`, `rotate_left` et `rotate_right` qui échouaient ou tournaient d'un angle erroné lorsqu'elles étaient appliquées à une liste d'images.
-- Correction de `dedistort` qui échouait sur des listes d'images de tailles différentes ; les images sont désormais alignées automatiquement.
-- Les marqueurs de `draw_text` utilisent désormais les métadonnées propres à chaque image lorsqu'elles sont disponibles.
-- Ajout de `copy_metadata(to: ...; from: ...)` pour copier les métadonnées d'observation entre images.
-
-## Nouveautés de la version 5.1.1
-
-- SpectroSolHub En Direct : des événements de progression sont désormais affichés pendant l'envoi des images
-- SpectroSolHub En Direct : les images brutes et de reconstruction ne sont plus envoyées
-- SpectroSolHub En Direct : en mode lot, seules les images produites par la section de sortie `[[batch]]` des scripts sont envoyées. Un avertissement est consigné à la fin du lot si aucune image n'a été envoyée.
-- Assistants d'orientation (BASS2000, SpectroSolHub) : l'image de référence GONG peut être changée pour celle d'un autre observatoire via un sélecteur superposé à l'image, et l'alignement automatique peut être restreint à la rotation seule quand l'image est déjà correctement retournée.
-- Correction de l'alignement des images qui n'était pas annulé lors d'un clic sur un bouton de zoom (+, -, 1:1, ajuster) après avoir activé l'alignement des images.
-- Correction du traitement par lot qui lançait bien plus de fichiers en parallèle que la limite configurée, ce qui pouvait épuiser la mémoire sur les gros lots.
-- Correction du tableau du traitement par lot qui affichait parfois le contenu d'une autre ligne (barre de progression, redshift ou liens vers les images générées) lors du défilement sur de nombreux fichiers.
-- ImageMath : le bloc `meta { ... }` accepte désormais une section optionnelle `requirements { images = [...] }` qui garantit la génération des types d'images listés lorsque le script s'exécute.
-- ImageMath : les valeurs par défaut négatives (par exemple `default = -1`) sont désormais acceptées dans le bloc `meta { params { ... } }`.
-
-## Nouveautés de la version 5.1.0
-
-- Ajout du mode SpectroSolHub En Direct : diffusez votre session de traitement en temps réel pour que d'autres puissent la suivre sur spectrosolhub.com/live. Accessible depuis le menu Partage.
-- Toutes les images peuvent désormais être téléversées sur SpectroSolHub, et non plus uniquement celles où le disque solaire a été détecté
-- Correction du téléchargement des dépôts de scripts dont les noms de fichiers contiennent des espaces
-- Amélioration des messages d'erreur lors du chargement des dépôts SpectroSolHub
-- Réexécuter un script ImageMath après avoir modifié un paramètre est désormais beaucoup plus rapide : seules les expressions qui dépendent du paramètre modifié sont recalculées.
-- Ajout de deux fonctions ImageMath, `scale_to_unit` et `scale_from_unit`, pour convertir les valeurs des pixels entre les plages [0;65535] et [0;1] (avec écrêtage optionnel).
-- Amélioration de la qualité de `dedistort` sur les exécutions multi-itérations en mode consensus grâce à une convergence adaptative par tuile.
-- Ajout de raccourcis clavier dans l'inspecteur d'images.
-- Amélioration de l'ergonomie de l'assistant de publication SpectroSolHub
-
-## Nouveautés de la version 5.0.4
-
-- Correction d'un problème de performance dans l'extraction Hélium si l'accélération GPU était désactivée
-- Correction d'une limite de traitement en parallèle qui pouvait conduire à un traitement incomplet
-- Ajout d'un alignement automatique dans l'assistant de soumission BASS2000
-
-## Nouveautés de la version 5.0.3
-
-- Ajout d'un nouveau menu « Partage » avec des entrées pour publier sur BASS2000 et partager sur SpectroSolHub
-- Ajout de la possibilité de post-traiter les images en externe avant de les téléverser sur SpectroSolHub. Dans l'étape de sélection des images, cochez l'option de post-traitement pour modifier vos images (contraste, netteté, etc.) dans votre éditeur préféré avant le téléversement.
-- Correction de résultats de dédistorsion non déterministes
-- Amélioration des performances sur les systèmes multi-core
-- Refonte de l'extraction des images hélium
-- Ajout de la possibilité de déclarer le type d'image généré dans les scripts
-
-## Nouveautés de la version 5.0.2
-
-- Ajout de la possibilité de configurer le niveau de parallélisme utilisé dans le mode traitement par lots
-- Correction de l'accélération GPU qui échouait sur les appareils avec une taille de groupe de travail limitée, provoquant un repli inutile sur le CPU
-- Lorsqu'un crash OpenGL précédent est détecté, une boîte de dialogue propose de réessayer au lieu de désactiver silencieusement le visualiseur 3D
-
-## Nouveautés de la version 5.0.1
-
-- Correction du téléversement SpectroSolHub qui n'appliquait pas les transformations (comme la correction de l'angle P) aux images non consultées individuellement avant le téléversement
-- Correction de l'étape de comparaison d'orientation SpectroSolHub qui n'appliquait pas la correction de l'angle P à l'image utilisateur lors de la comparaison avec la référence GONG
-
-## Nouveautés de la version 5.0.0
-
-- [Intégration SpectroSolHub](#intégration-spectrosolhub)
-- [Scripts Python](#scripts-python)
-- [Correction de rotation Doppler](#correction-de-rotation-doppler)
-- [Améliorations de l'explorateur de spectre](#améliorations-de-lexplorateur-de-spectre)
-- [Nouvelles fonctions ImageMath](#nouvelles-fonctions-imagemath)
-- [Corrections et améliorations](#corrections-et-améliorations)
-
-## Intégration SpectroSolHub
-
-[SpectroSolHub](https://spectrosolhub.com) est un nouveau service compagnon de JSol'Ex. Actuellement en bêta, il vous permet de partager vos images spectrohéliographiques avec la communauté. Il est développé par l'auteur de JSol'Ex.
-
-![SpectroSolHub](/docs/spectrosolhub.png)
-
-Vous pouvez désormais publier vos images traitées directement sur SpectroSolHub depuis JSol'Ex. Après le traitement d'un fichier SER, cliquez sur le bouton « SpectroSolHub » dans la barre d'état pour ouvrir l'assistant de publication. L'assistant vous guide à travers l'authentification, la sélection d'images, les métadonnées de session et le téléversement.
-
-Vous pouvez également parcourir et ajouter des dépôts de scripts depuis SpectroSolHub directement depuis le gestionnaire de dépôts de scripts. Cliquez sur « Parcourir SpectroSolHub » pour découvrir les dépôts disponibles et les ajouter en un clic.
-
-**Note :** En téléversant des images sur SpectroSolHub, vous accordez une licence non exclusive, mondiale et libre de redevance pour l'utilisation de votre contenu à des fins de recherche scientifique.
-
-## Scripts Python
-
-JSol'Ex 5.0 introduit le scripting Python, une avancée majeure en matière d'extensibilité.
-Vous pouvez désormais écrire des scripts de traitement d'image en Python, en complément du langage ImageMath existant.
-Les scripts Python ont accès à l'ensemble du pipeline de traitement et peuvent exploiter le riche écosystème Python pour des analyses avancées.
-
-Consultez la documentation pour les détails sur l'écriture et l'utilisation des scripts Python.
-
-## Correction de rotation Doppler
-
-JSol'Ex 5.0 introduit un nouveau type d'image « Doppler (correction de rotation) ».
-Cette image Doppler est générée en soustrayant le gradient lisse de rotation solaire par ajustement polynomial 2D, ce qui rend les structures de vitesse chromosphériques beaucoup plus faciles à identifier.
-
-Deux nouvelles fonctions ImageMath accompagnent cette fonctionnalité : `SIGNED_DIFF(a, b)` calcule la différence entre deux images en préservant le signe (sans normalisation), tandis que `POLY_FIT_2D(image, degree)` ajuste une surface polynomiale 2D dans le disque solaire.
-
-## Améliorations de l'explorateur de spectre
-
-L'explorateur de spectre a été considérablement amélioré dans cette version :
-
-- Les graduations de longueur d'onde s'adaptent automatiquement au niveau de zoom, avec des graduations mineures et des lignes de grille pour une meilleure lisibilité
-- Ajout de niveaux de zoom prédéfinis (25%, 50%, 75%, 100%, 150%, 200%, 400%) relatifs à la dispersion de l'instrument
-
-## Nouvelles fonctions ImageMath
-
-- `COLLAGE` : crée des mises en page via un motif textuel (ex : `collage(".X. / X.X", images)` pour une pyramide)
-- `SIGNED_DIFF(a, b)` : calcule la différence entre deux images en préservant le signe
-- `POLY_FIT_2D(image, degree)` : ajuste une surface polynomiale 2D dans le disque solaire
-
-## Corrections et améliorations
-
-- Correction d'une fuite mémoire lors de la reconstruction, visible sur les très gros fichiers SER
 
 ## Message aux utilisateurs français
 

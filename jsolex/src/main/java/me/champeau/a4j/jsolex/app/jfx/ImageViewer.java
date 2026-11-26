@@ -1946,6 +1946,24 @@ public class ImageViewer implements WithRootNode {
     }
 
     /**
+     * Returns the toolbar shown above the image.
+     *
+     * @return the toolbar
+     */
+    public Node getToolbar() {
+        return stretchingParams;
+    }
+
+    /**
+     * Returns the area which displays the image.
+     *
+     * @return the image area
+     */
+    public Node getImageArea() {
+        return imageContainer;
+    }
+
+    /**
      * Updates the displayed image.
      *
      * @param baseName the base name

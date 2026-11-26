@@ -97,7 +97,6 @@ class ChineseLocalizationTest extends Specification {
 
         expect:
         versionsInHeadings(chinese) == versionsInHeadings(english)
-        chinese.contains('## 致美国公民和极右翼支持者')
         !chinese.contains('\uFFFD')
         chinese.readLines().size() >= english.readLines().size() - 10
     }

@@ -87,6 +87,15 @@ public abstract class ProcessParamsIO {
         return builder;
     }
 
+    /**
+     * Returns whether default parameters were saved, which is not the case on the first run.
+     *
+     * @return true if a defaults file exists
+     */
+    public static boolean hasSavedDefaults() {
+        return Files.exists(resolveDefaultsFile());
+    }
+
     public static ProcessParams loadDefaults() {
         var defaultsFile = resolveDefaultsFile();
         ProcessParams params = readFrom(defaultsFile);

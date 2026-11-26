@@ -11,7 +11,7 @@
     <top>
         <VBox>
             <HBox alignment="CENTER_LEFT" styleClass="menu-bar-container">
-                <MenuBar HBox.hgrow="NEVER">
+                <MenuBar fx:id="mainMenuBar" HBox.hgrow="NEVER">
                     <Menu text="%file">
                         <MenuItem onAction="#open" text="%open.ser.file"/>
                         <MenuItem onAction="#openBatch" text="%open.batch"/>
@@ -26,7 +26,7 @@
                         <SeparatorMenuItem/>
                         <MenuItem onAction="#exit" text="%exit"/>
                     </Menu>
-                    <Menu text="%tools">
+                    <Menu fx:id="toolsMenu" text="%tools">
                         <MenuItem onAction="#showFrameDebugger" text="%video.analyzer"/>
                         <MenuItem onAction="#showExposureCalculator" text="%exposure.calculator"/>
                         <MenuItem onAction="#showMosaicParams" text="%mosaic.stacking"/>
@@ -42,17 +42,20 @@
                         <MenuItem onAction="#showEmbeddedServerMenu" text="%embedded.server"/>
                     </Menu>
                     <Menu text="%equipment">
+                        <MenuItem onAction="#showOnboardingWizard" text="%onboarding.wizard"/>
+                        <SeparatorMenuItem/>
                         <MenuItem onAction="#showSHGEditor" text="%shg.editor"/>
                         <MenuItem onAction="#showSetupEditor" text="%setup.editor"/>
                     </Menu>
-                    <Menu text="%sharing">
+                    <Menu fx:id="sharingMenu" text="%sharing">
                         <MenuItem fx:id="bass2000MenuItem" onAction="#showBass2000Submission" text="%bass2000.menu.submit" disable="true"/>
                         <MenuItem fx:id="spectroSolHubMenuItem" onAction="#showSpectroSolHubPublishing" text="%spectrosolhub.menu.publish" disable="true"/>
                         <SeparatorMenuItem/>
                         <MenuItem onAction="#showLiveSessionDialog" text="%live.menu"/>
                     </Menu>
-                    <Menu text="%help">
+                    <Menu fx:id="helpMenu" text="%help">
                         <MenuItem onAction="#showHelp" text="%documentation"/>
+                        <MenuItem fx:id="guidedTourMenuItem" onAction="#showGuidedTour" text="%guided.tour"/>
                         <MenuItem onAction="#openDiscord" text="%discord"/>
                         <SeparatorMenuItem/>
                         <MenuItem onAction="#exportPythonStubs" text="%export.python.stubs"/>
@@ -80,7 +83,7 @@
                 <HBox fx:id="mainSwitcherBar" styleClass="main-switcher-bar" managed="false" visible="false"/>
                 <TabPane fx:id="mainPane" VBox.vgrow="ALWAYS"/>
             </VBox>
-            <VBox>
+            <VBox fx:id="rightPanel">
                 <HBox alignment="CENTER_LEFT" spacing="8" styleClass="panel-selector-bar">
                     <padding>
                         <Insets bottom="6" left="8" right="8" top="6"/>
@@ -257,7 +260,7 @@
                 <HBox spacing="10.0" HBox.hgrow="ALWAYS">
                     <AnchorPane prefWidth="200.0" HBox.hgrow="ALWAYS">
                         <children>
-                            <HBox spacing="10.0" AnchorPane.rightAnchor="10" alignment="CENTER">
+                            <HBox fx:id="statusIndicators" spacing="10.0" AnchorPane.rightAnchor="10" alignment="CENTER">
                                 <Label fx:id="imageInfoLabel" styleClass="image-info-label"/>
                                 <Label fx:id="spectralLinePrefix" visible="false" managed="false"/>
                                 <Label fx:id="spectralLineIndicator" styleClass="spectral-line-badge" visible="false" managed="false"/>
