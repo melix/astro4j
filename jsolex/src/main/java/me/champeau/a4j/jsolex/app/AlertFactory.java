@@ -17,52 +17,108 @@ package me.champeau.a4j.jsolex.app;
 
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
+import javafx.scene.control.Dialog;
+import javafx.scene.control.DialogPane;
+import javafx.scene.control.TextInputDialog;
+import javafx.scene.layout.Region;
 
 /**
- * Factory for creating styled alert dialogs.
+ * Factory for creating styled dialogs. Every dialog of the application must be created
+ * through this factory, so that its buttons use the application style: the default button
+ * is the primary one, the other buttons are secondary.
  */
 public class AlertFactory {
     private AlertFactory() {
     }
 
     private static Alert newAlert(Alert.AlertType type, String message) {
-        var alert = new Alert(type);
+        var alert = style(new Alert(type));
         alert.setWidth(600);
         alert.setResizable(true);
         if (message != null) {
             alert.setContentText(message);
         }
+        return alert;
+    }
 
-        var dialogPane = alert.getDialogPane();
+    /**
+     * Applies the application style to a dialog. The buttons are styled when the dialog
+     * is shown, whatever the dialog does with its own show handlers.
+     *
+     * @param dialog the dialog to style
+     * @param <D> the type of the dialog
+     * @return the same dialog
+     */
+    public static <D extends Dialog<?>> D style(D dialog) {
+        var dialogPane = dialog.getDialogPane();
         dialogPane.getStylesheets().add(JSolEx.class.getResource("components.css").toExternalForm());
-
         dialogPane.getStyleClass().add("params-dialog");
-
+        dialogPane.setMinHeight(Region.USE_PREF_SIZE);
         if (dialogPane.getHeader() != null) {
             dialogPane.getHeader().getStyleClass().add("params-header");
         }
-
         if (dialogPane.getContent() != null) {
             dialogPane.getContent().getStyleClass().add("parameter-panel");
         }
-
-        alert.setOnShown(e -> {
-            for (var buttonType : dialogPane.getButtonTypes()) {
-                var button = (Button) dialogPane.lookupButton(buttonType);
-                if (button != null) {
-                    button.getStyleClass().removeAll("button");
-                    if (buttonType == ButtonType.CANCEL || buttonType == ButtonType.YES || buttonType == ButtonType.NO) {
-                        button.getStyleClass().add(button.isDefaultButton() ? "primary-button" : "default-button");
-                    } else {
-                        button.getStyleClass().add("primary-button");
-                    }
-                    button.setStyle(button.getStyle() + "; -fx-alignment: center; -fx-text-alignment: center;");
-                }
+        dialog.showingProperty().addListener((obs, wasShowing, showing) -> {
+            if (showing) {
+                styleButtons(dialogPane);
             }
         });
+        return dialog;
+    }
 
-        return alert;
+    private static void styleButtons(DialogPane dialogPane) {
+        var buttons = dialogPane.getButtonTypes().stream()
+                .map(dialogPane::lookupButton)
+                .filter(Button.class::isInstance)
+                .map(Button.class::cast)
+                .toList();
+        var primary = buttons.stream()
+                .filter(Button::isDefaultButton)
+                .findFirst()
+                .or(() -> buttons.stream().filter(button -> !button.isCancelButton()).findFirst());
+        for (var button : buttons) {
+            button.getStyleClass().removeAll("button", "primary-button", "default-button");
+            button.getStyleClass().add(primary.filter(button::equals).isPresent() ? "primary-button" : "default-button");
+            button.setStyle(button.getStyle() + "; -fx-alignment: center; -fx-text-alignment: center;");
+        }
+    }
+
+    /**
+     * Creates an alert of the given type with no message.
+     * @param type the alert type
+     * @return the alert
+     */
+    public static Alert of(Alert.AlertType type) {
+        return newAlert(type, null);
+    }
+
+    /**
+     * Creates an alert of the given type with a message.
+     * @param type the alert type
+     * @param message the message to display
+     * @return the alert
+     */
+    public static Alert of(Alert.AlertType type, String message) {
+        return newAlert(type, message);
+    }
+
+    /**
+     * Creates a dialog with no content.
+     * @param <T> the result type
+     * @return the dialog
+     */
+    public static <T> Dialog<T> dialog() {
+        return style(new Dialog<>());
+    }
+
+    /**
+     * Creates a text input dialog.
+     * @return the dialog
+     */
+    public static TextInputDialog textInput() {
+        return style(new TextInputDialog());
     }
 
     /**

@@ -42,6 +42,8 @@
                         <MenuItem onAction="#showEmbeddedServerMenu" text="%embedded.server"/>
                     </Menu>
                     <Menu text="%equipment">
+                        <MenuItem onAction="#showOnboardingWizard" text="%onboarding.wizard"/>
+                        <SeparatorMenuItem/>
                         <MenuItem onAction="#showSHGEditor" text="%shg.editor"/>
                         <MenuItem onAction="#showSetupEditor" text="%setup.editor"/>
                     </Menu>

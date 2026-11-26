@@ -40,6 +40,7 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 import javafx.util.StringConverter;
+import me.champeau.a4j.jsolex.app.AlertFactory;
 import me.champeau.a4j.jsolex.app.listeners.DifferentialRotationConfig;
 import me.champeau.a4j.jsolex.app.listeners.NoiseReductionMethod;
 import me.champeau.a4j.jsolex.app.listeners.SampleRejectionMethod;
@@ -258,7 +259,7 @@ public class DifferentialRotationConfigDialog {
             var config = buildConfig();
             var error = config.validate();
             if (error != null) {
-                var alert = new Alert(Alert.AlertType.ERROR);
+                var alert = AlertFactory.of(Alert.AlertType.ERROR);
                 alert.setTitle(message("error"));
                 alert.setHeaderText(null);
                 alert.setContentText(error);
@@ -267,7 +268,7 @@ public class DifferentialRotationConfigDialog {
             }
             var warning = config.warning();
             if (warning != null) {
-                var alert = new Alert(Alert.AlertType.WARNING);
+                var alert = AlertFactory.of(Alert.AlertType.WARNING);
                 alert.setTitle(message("warning"));
                 alert.setHeaderText(null);
                 alert.setContentText(warning);

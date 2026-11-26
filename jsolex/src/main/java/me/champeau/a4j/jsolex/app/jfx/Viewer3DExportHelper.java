@@ -36,6 +36,7 @@ import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
+import me.champeau.a4j.jsolex.app.AlertFactory;
 import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.expr.impl.ImageDraw;
@@ -449,7 +450,7 @@ public final class Viewer3DExportHelper {
             var fileNames = existingFiles.stream()
                     .map(File::getName)
                     .collect(Collectors.joining(", "));
-            var alert = new Alert(Alert.AlertType.CONFIRMATION);
+            var alert = AlertFactory.of(Alert.AlertType.CONFIRMATION);
             alert.setTitle(I18N.string(JSolEx.class, i18nBundle, "export.video.overwrite.title"));
             alert.setHeaderText(I18N.string(JSolEx.class, i18nBundle, "export.video.overwrite.header"));
             alert.setContentText(fileNames);
@@ -509,7 +510,7 @@ public final class Viewer3DExportHelper {
             if (exportContext == null || !exportContext.glView().waitForInitialization(10000)) {
                 FxUtils.runLater(() -> {
                     progressStage.close();
-                    var alert = new Alert(Alert.AlertType.ERROR);
+                    var alert = AlertFactory.of(Alert.AlertType.ERROR);
                     alert.setTitle(I18N.string(JSolEx.class, "common", "export.error"));
                     alert.setContentText(I18N.string(JSolEx.class, "common", "export.opengl.failed"));
                     alert.showAndWait();
@@ -555,7 +556,7 @@ public final class Viewer3DExportHelper {
             } catch (IOException e) {
                 if (!cancelled.get()) {
                     FxUtils.runLater(() -> {
-                        var alert = new Alert(Alert.AlertType.ERROR);
+                        var alert = AlertFactory.of(Alert.AlertType.ERROR);
                         alert.setTitle(I18N.string(JSolEx.class, "common", "export.error"));
                         alert.setContentText(e.getMessage());
                         alert.showAndWait();

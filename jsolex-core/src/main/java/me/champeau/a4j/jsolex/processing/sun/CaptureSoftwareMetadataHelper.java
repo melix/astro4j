@@ -50,6 +50,16 @@ public class CaptureSoftwareMetadataHelper {
         return Optional.empty();
     }
 
+    /**
+     * Reads the capture settings written next to the SER file by SharpCap, or else by FireCapture.
+     *
+     * @param serFile the SER file
+     * @return the capture metadata, if a settings file was found
+     */
+    public static Optional<CaptureMetadata> readMetadata(File serFile) {
+        return readSharpcapMetadata(serFile).or(() -> readFireCaptureMetadata(serFile));
+    }
+
     public static Optional<CaptureMetadata> readSharpcapMetadata(File serFile) {
         var baseName = computeSerFileBasename(serFile);
         File sharpcapFile = new File(serFile.getParentFile(), baseName + ".CameraSettings.txt");

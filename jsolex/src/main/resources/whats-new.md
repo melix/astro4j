@@ -2,6 +2,8 @@
 
 ## What's New in Version 5.7.0
 
+- Added a setup assistant for new users.
+- The home screen now shows the settings used for processing.
 - The image viewer can now blur and sharpen images, including with an unsharp mask.
 - More room for the image in the viewer: the buttons fit on two rows, with coloured icons, and the adjustments open in a panel next to the image.
 - Faster image stretching, in particular with CLAHE, CLAHE2 and AutoStretch.

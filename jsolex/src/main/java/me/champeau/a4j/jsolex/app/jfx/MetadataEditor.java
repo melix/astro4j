@@ -38,7 +38,6 @@ import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
-import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
@@ -47,6 +46,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.util.Duration;
+import me.champeau.a4j.jsolex.app.AlertFactory;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.expr.ImageMathParser;
 import me.champeau.a4j.jsolex.expr.ast.ImageMathScript;
@@ -584,7 +584,7 @@ public class MetadataEditor {
 
     @FXML
     private void handleAddParameter() {
-        var dialog = new TextInputDialog();
+        var dialog = AlertFactory.textInput();
         dialog.setTitle(I18N.string(JSolEx.class, "metadata-editor", "add.parameter"));
         dialog.setHeaderText(null);
         dialog.setContentText(I18N.string(JSolEx.class, "metadata-editor", "parameter.name.prompt"));
@@ -711,7 +711,7 @@ public class MetadataEditor {
     }
 
     private void showError(String message) {
-        var alert = new Alert(Alert.AlertType.ERROR);
+        var alert = AlertFactory.of(Alert.AlertType.ERROR);
         alert.setContentText(message);
         alert.initOwner(stage);
         alert.showAndWait();
@@ -750,7 +750,7 @@ public class MetadataEditor {
 
     @FXML
     private void handleAddOutput() {
-        var dialog = new TextInputDialog();
+        var dialog = AlertFactory.textInput();
         dialog.setTitle(I18N.string(JSolEx.class, "metadata-editor", "add.output"));
         dialog.setHeaderText(null);
         dialog.setContentText(I18N.string(JSolEx.class, "metadata-editor", "output.name.prompt"));

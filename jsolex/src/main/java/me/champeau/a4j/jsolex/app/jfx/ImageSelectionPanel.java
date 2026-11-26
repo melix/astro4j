@@ -26,7 +26,6 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
-import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.FlowPane;
@@ -35,6 +34,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import me.champeau.a4j.jsolex.app.AlertFactory;
 import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.app.script.JSolExScriptExecutor;
@@ -967,7 +967,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
     }
 
     private void saveCurrentSelectionAsPreset() {
-        var dialog = new TextInputDialog();
+        var dialog = AlertFactory.textInput();
         dialog.setTitle(I18N.string(JSolEx.class, "process-params", "preset.name.dialog.title"));
         dialog.setHeaderText(I18N.string(JSolEx.class, "process-params", "preset.name.dialog.header"));
         dialog.setContentText(I18N.string(JSolEx.class, "process-params", "preset.name.dialog.content"));
@@ -982,7 +982,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
             }
 
             if (UserPresetIO.presetExists(trimmedName)) {
-                var confirmDialog = new Alert(Alert.AlertType.CONFIRMATION);
+                var confirmDialog = AlertFactory.of(Alert.AlertType.CONFIRMATION);
                 confirmDialog.setTitle(I18N.string(JSolEx.class, "process-params", "preset.name.dialog.title"));
                 confirmDialog.setHeaderText(I18N.string(JSolEx.class, "process-params", "preset.name.exists.error"));
                 confirmDialog.initOwner(getScene().getWindow());
@@ -1283,7 +1283,7 @@ public class ImageSelectionPanel extends BaseParameterPanel {
     }
 
     private void deleteUserPreset(String presetName) {
-        var alert = new Alert(Alert.AlertType.CONFIRMATION);
+        var alert = AlertFactory.of(Alert.AlertType.CONFIRMATION);
         alert.setTitle(I18N.string(JSolEx.class, "process-params", "preset.delete.confirm.title"));
         alert.setHeaderText(I18N.string(JSolEx.class, "process-params", "preset.delete.confirm.header").replace("{0}", presetName));
         alert.setContentText(I18N.string(JSolEx.class, "process-params", "preset.delete.confirm.content"));
@@ -1302,14 +1302,14 @@ public class ImageSelectionPanel extends BaseParameterPanel {
     }
 
     private void showError(String message) {
-        var alert = new Alert(Alert.AlertType.ERROR);
+        var alert = AlertFactory.of(Alert.AlertType.ERROR);
         alert.setContentText(message);
         alert.initOwner(getScene().getWindow());
         alert.showAndWait();
     }
 
     private void showInfo(String message) {
-        var alert = new Alert(Alert.AlertType.INFORMATION);
+        var alert = AlertFactory.of(Alert.AlertType.INFORMATION);
         alert.setContentText(message);
         alert.initOwner(getScene().getWindow());
         alert.showAndWait();

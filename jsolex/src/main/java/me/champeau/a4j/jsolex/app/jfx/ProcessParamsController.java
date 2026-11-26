@@ -354,7 +354,7 @@ public class ProcessParamsController {
         if (obsDetails.altAzMode()) {
             var coordinates = obsDetails.coordinates();
             if (coordinates == null || coordinates.a() == 0.0 || coordinates.b() == 0.0) {
-                var alert = new Alert(Alert.AlertType.CONFIRMATION);
+                var alert = AlertFactory.of(Alert.AlertType.CONFIRMATION);
                 alert.initOwner(stage);
                 alert.setTitle(I18N.string(JSolEx.class, "process-params", "altazmode.warning.header"));
                 alert.setContentText(I18N.string(JSolEx.class, "process-params", "altazmode.warning.content"));

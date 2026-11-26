@@ -41,7 +41,6 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContextMenu;
-import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.Menu;
@@ -65,7 +64,6 @@ import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.BackgroundFill;
-import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.CornerRadii;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
@@ -101,6 +99,8 @@ import me.champeau.a4j.jsolex.app.jfx.MetadataEditor;
 import me.champeau.a4j.jsolex.app.jfx.MultipleImagesViewer;
 import me.champeau.a4j.jsolex.app.jfx.NamingPatternEditor;
 import me.champeau.a4j.jsolex.app.jfx.OpenGLAvailability;
+import me.champeau.a4j.jsolex.app.jfx.onboarding.HomePane;
+import me.champeau.a4j.jsolex.app.jfx.onboarding.OnboardingWizard;
 import me.champeau.a4j.jsolex.app.jfx.ProcessParamsController;
 import me.champeau.a4j.jsolex.app.jfx.ProgressHandler;
 import me.champeau.a4j.jsolex.app.jfx.ProgressPathFormatter;
@@ -289,7 +289,12 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
                 "*" + LOG_EXTENSION);
     }
 
-    private static FileChooser.ExtensionFilter serFilesExtensionFilter() {
+    /**
+     * Returns the file chooser filter for SER files.
+     *
+     * @return the SER files filter
+     */
+    public static FileChooser.ExtensionFilter serFilesExtensionFilter() {
         return new FileChooser.ExtensionFilter(
                 I18N.string(JSolEx.class, "common", "file.filter.ser"), "*.ser", "*.SER");
     }
@@ -500,6 +505,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     private final AtomicReference<ProgressHandler.ProgressSnapshot> latestProgress = new AtomicReference<>(ProgressHandler.ProgressSnapshot.hidden());
     private UiApiServer uiApiServer;
     private ReferenceImageHelper referenceImageHelper;
+    private HomePane homePane;
     private final BatchProcessingHelper batchProcessingHelper = new BatchProcessingHelper();
 
     /**
@@ -747,7 +753,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
             imageInfoLabel.textProperty().bind(multipleImagesViewer.selectedImageInfoProperty());
             setupLogWindowContextMenu();
             setupImageMathEditorContextMenu();
-            createFastModePane();
+            createHomePane();
             stage.setOnCloseRequest(e -> exit());
             startWatcherThread();
             repositoryUpdateService.checkAtStartup();
@@ -1046,19 +1052,60 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         return message.replaceAll("\\s+", " ").trim();
     }
 
-    private void createFastModePane() {
-        var loader = I18N.fxmlLoader(getClass(), "fast-mode-open");
-        try {
-            loader.setController(this);
-            var pane = (BorderPane) loader.load();
-            var stack = new StackPane();
-            pane.prefWidthProperty().bind(stack.widthProperty());
-            stack.setAlignment(Pos.CENTER);
-            stack.getChildren().add(pane);
-            mainPane.getTabs().add(new Tab(I18N.string(getClass(), "common", "fast.mode"), stack));
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+    private void createHomePane() {
+        homePane = new HomePane(rootStage, new HomePane.Actions() {
+            @Override
+            public void chooseAndProcess() {
+                selectSerFileAndThen(JSolEx.this::processFromHome);
+            }
+
+            @Override
+            public void process(File serFile) {
+                processFromHome(serFile);
+            }
+
+            @Override
+            public void openBatch() {
+                JSolEx.this.openBatch();
+            }
+
+            @Override
+            public void openWithSettings() {
+                open();
+            }
+
+            @Override
+            public void configure() {
+                runOnboardingWizard(null);
+            }
+        });
+        var tab = new Tab(I18N.string(getClass(), "common", "fast.mode"), homePane);
+        tab.selectedProperty().addListener((obs, wasSelected, selected) -> {
+            if (selected) {
+                homePane.refresh();
+            }
+        });
+        mainPane.getTabs().add(tab);
+    }
+
+    private void processFromHome(File serFile) {
+        if (!ProcessParamsIO.hasSavedDefaults()) {
+            runOnboardingWizard(serFile);
+            return;
         }
+        homePane.paramsFor(serFile).ifPresent(params -> doOpen(serFile, false, params));
+    }
+
+    private void runOnboardingWizard(File serFile) {
+        OnboardingWizard.show(rootStage, serFile).ifPresent(result -> {
+            homePane.refresh();
+            result.serFile().ifPresent(file -> doOpen(file, false, result.params()));
+        });
+    }
+
+    @FXML
+    private void showOnboardingWizard() {
+        runOnboardingWizard(null);
     }
 
     @FXML
@@ -1154,13 +1201,19 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     private void maybeShowWelcomeMessage(Scene current) throws IOException {
         var markerFile = VersionUtil.getJsolexDir().resolve("welcome.txt");
         if (!Files.exists(markerFile) || !Files.readString(markerFile).equals(VersionUtil.getVersion())) {
-            showWelcomeMessage(current, () -> {
+            Runnable markAsSeen = () -> {
                 try {
                     Files.writeString(markerFile, VersionUtil.getVersion());
                 } catch (IOException e) {
                     // ignore
                 }
-            });
+            };
+            if (ProcessParamsIO.hasSavedDefaults()) {
+                showWelcomeMessage(current, markAsSeen);
+            } else {
+                markAsSeen.run();
+                FxUtils.runLater(() -> runOnboardingWizard(null));
+            }
         }
     }
 
@@ -1844,11 +1897,6 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
     }
 
     @FXML
-    private void openFastMode() {
-        selectSerFileAndThen(f -> doOpen(f, false, ProcessParams.loadDefaults()));
-    }
-
-    @FXML
     private void openBatch() {
         List<File> allSelectedFiles = new ArrayList<>();
         boolean addMoreFiles = true;
@@ -2324,7 +2372,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
 
     @FXML
     private void showLiveSessionDialog() {
-        var dialog = new Dialog<Void>();
+        var dialog = AlertFactory.<Void>dialog();
         dialog.setTitle(I18N.string(JSolEx.class, "app", "live.menu"));
         dialog.initOwner(rootStage);
         dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
@@ -2353,7 +2401,6 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         grid.add(actionButton, 1, 1);
 
         dialog.getDialogPane().setContent(grid);
-        dialog.getDialogPane().getStylesheets().add(JSolEx.class.getResource("components.css").toExternalForm());
         dialog.showAndWait();
     }
 
@@ -3248,9 +3295,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         dialog.setTitle(I18N.string(getClass(), "process-params", "process.parameters"));
 
         var controller = new ProcessParamsController();
-        var md = CaptureSoftwareMetadataHelper.readSharpcapMetadata(serFile)
-                .or(() -> CaptureSoftwareMetadataHelper.readFireCaptureMetadata(serFile))
-                .orElse(null);
+        var md = CaptureSoftwareMetadataHelper.readMetadata(serFile).orElse(null);
 
         controller.setup(dialog, progressOperation, evt -> {
                     if (evt instanceof ProgressEvent pg) {
@@ -3314,7 +3359,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         mainPane.getTabs().clear();
         resetInspectorTabs();
         trimmingParameters = null;
-        createFastModePane();
+        createHomePane();
     }
 
     @Override

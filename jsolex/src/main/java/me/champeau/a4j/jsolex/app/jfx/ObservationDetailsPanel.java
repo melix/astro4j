@@ -390,11 +390,7 @@ public class ObservationDetailsPanel extends BaseParameterPanel {
             instrument.getItems().add(sunscan);
         }
         instrument.setValue(sunscan);
-        SetupsIO.loadDefaults().stream()
-                .filter(s -> s.label().toLowerCase(Locale.US).contains("sunscan")
-                        || (s.telescope() != null && s.telescope().toLowerCase(Locale.US).contains("sunscan")))
-                .findFirst()
-                .ifPresent(this::updateFromSetup);
+        SetupsIO.findSunscan().ifPresent(this::updateFromSetup);
     }
 
     /**

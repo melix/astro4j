@@ -516,8 +516,7 @@ public class SpectrumBrowser extends BorderPane {
                 wrapper = rgb.toMono();
             }
             if (wrapper instanceof ImageWrapper32 image) {
-                CaptureSoftwareMetadataHelper.readSharpcapMetadata(file)
-                    .or(() -> CaptureSoftwareMetadataHelper.readFireCaptureMetadata(file))
+                CaptureSoftwareMetadataHelper.readMetadata(file)
                     .ifPresent(md -> {
                         var observationDetails = ProcessParamsIO.loadDefaults().observationDetails();
                         FxUtils.runLater(() -> pixelSize.set(observationDetails.pixelSize() * md.binning()));

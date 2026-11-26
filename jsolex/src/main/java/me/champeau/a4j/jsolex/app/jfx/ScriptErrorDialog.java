@@ -28,6 +28,7 @@ import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import me.champeau.a4j.jsolex.app.AlertFactory;
 import me.champeau.a4j.jsolex.processing.expr.InvalidExpression;
 
 import java.util.List;
@@ -74,7 +75,7 @@ public class ScriptErrorDialog {
      * The dialog shows a summary of errors and expandable details with stack traces.
      */
     public void showAndWait() {
-        var alert = new Alert(Alert.AlertType.ERROR);
+        var alert = AlertFactory.of(Alert.AlertType.ERROR);
         alert.setTitle(title);
         alert.setHeaderText(header);
         alert.setResizable(true);

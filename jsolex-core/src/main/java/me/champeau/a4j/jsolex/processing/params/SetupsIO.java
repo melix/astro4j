@@ -26,6 +26,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import static me.champeau.a4j.jsolex.processing.util.FilesUtils.createDirectoriesIfNeeded;
@@ -56,12 +57,35 @@ public abstract class SetupsIO {
         var defaultsFile = resolveDefaultsFile();
         List<Setup> patterns = readFrom(defaultsFile);
         if (patterns != null) {
-            if (patterns.stream().noneMatch(s -> s.label().toLowerCase(Locale.US).contains("sunscan") || (s.telescope() != null && s.telescope().toLowerCase(Locale.US).contains("sunscan")))) {
+            if (patterns.stream().noneMatch(SetupsIO::isSunscan)) {
                 patterns = Stream.concat(patterns.stream(), Stream.of(SUNSCAN)).toList();
             }
             return patterns;
         }
         return List.of(SUNSCAN);
+    }
+
+    /**
+     * Returns whether a setup describes a SunScan, from its label or its telescope.
+     *
+     * @param setup the setup
+     * @return true for a SunScan setup
+     */
+    public static boolean isSunscan(Setup setup) {
+        return containsSunscan(setup.label()) || containsSunscan(setup.telescope());
+    }
+
+    /**
+     * Returns the SunScan setup among the saved setups.
+     *
+     * @return the SunScan setup, if any
+     */
+    public static Optional<Setup> findSunscan() {
+        return loadDefaults().stream().filter(SetupsIO::isSunscan).findFirst();
+    }
+
+    private static boolean containsSunscan(String text) {
+        return text != null && text.toLowerCase(Locale.US).contains("sunscan");
     }
 
     @SuppressWarnings("unchecked")

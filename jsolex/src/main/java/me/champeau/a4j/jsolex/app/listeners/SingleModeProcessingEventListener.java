@@ -35,7 +35,6 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.ContextMenu;
-import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ProgressBar;
@@ -68,6 +67,7 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import javafx.util.StringConverter;
+import me.champeau.a4j.jsolex.app.AlertFactory;
 import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.app.jfx.ApplyUserRotation;
@@ -748,7 +748,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
     }
 
     private void showGoToDialog(ZoomableImageView solarView, int frameCount, BiConsumer<Double, Double> triggerAt) {
-        var dialog = new Dialog<int[]>();
+        var dialog = AlertFactory.<int[]>dialog();
         dialog.setTitle(message("recon.goto.title"));
         dialog.initOwner(solarView.getScene().getWindow());
         var okType = ButtonType.OK;
@@ -787,7 +787,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             scrollToCenter(solarView, x, y);
             FxUtils.runLater(() -> triggerAt.accept((double) x, (double) y));
         } catch (NumberFormatException ex) {
-            var alert = new Alert(Alert.AlertType.WARNING, message("recon.goto.invalid"));
+            var alert = AlertFactory.of(Alert.AlertType.WARNING, message("recon.goto.invalid"));
             alert.initOwner(solarView.getScene().getWindow());
             alert.showAndWait();
         }
@@ -1178,9 +1178,9 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             FxUtils.runLater(() -> {
                 popup.stage().close();
                 if (singleScanOrientationIssue) {
-                    new Alert(Alert.AlertType.WARNING, message("doppler.rotation.scan.orientation")).showAndWait();
+                    AlertFactory.of(Alert.AlertType.WARNING, message("doppler.rotation.scan.orientation")).showAndWait();
                 } else if (serFiles.size() > 1 && !ignoredScans.isEmpty()) {
-                    new Alert(Alert.AlertType.WARNING, String.format(message("doppler.rotation.scans.ignored"), String.join(", ", ignoredScans))).showAndWait();
+                    AlertFactory.of(Alert.AlertType.WARNING, String.format(message("doppler.rotation.scans.ignored"), String.join(", ", ignoredScans))).showAndWait();
                 }
                 if (!scans.isEmpty()) {
                     showRotationProfileChart(scans, currentParams, config);
@@ -1591,7 +1591,7 @@ public class SingleModeProcessingEventListener implements ProcessingEventListene
             return;
         }
         FxUtils.runLater(() -> {
-            var alert = new Alert(Alert.AlertType.valueOf(e.type().name()));
+            var alert = AlertFactory.of(Alert.AlertType.valueOf(e.type().name()));
             alert.setResizable(true);
             alert.getDialogPane().setPrefSize(480, 320);
             alert.setTitle(e.title());

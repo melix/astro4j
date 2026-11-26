@@ -85,6 +85,32 @@ image::../shared/cbsap_logo.png[link=http://www.paypal.me/CBSAP, height=200]
 
 Bien entendu, vous pouvez également envoyer un message d'encouragement ou d'appréciation, c'est toujours agréable à recevoir !
 
+== Premiers pas
+
+=== Assistant de configuration
+
+Au premier lancement, JSol'Ex ouvre un assistant qui vous permet de traiter votre premier fichier sans explorer les options.
+
+1. *Fichier* : choisissez un fichier SER ou déposez-le dans la fenêtre. Si votre logiciel d'acquisition (SharpCap, FireCapture) a enregistré un fichier de réglages à côté de la vidéo, la caméra et le binning sont lus automatiquement. Sinon, indiquez le modèle de votre caméra : la taille des pixels est trouvée pour la plupart des modèles. Le lien "Je n'ai pas encore de fichier" permet de déclarer votre matériel avant votre première observation.
+2. *Spectrohéliographe* : cliquez sur la photo de votre instrument (Sol'Ex, MLAstro SHG, Sunscan ou Autre), puis choisissez sa variante. Les caractéristiques de la variante sont affichées, avec la dispersion obtenue avec votre caméra. Si votre instrument est différent, le lien "Mon instrument est différent" permet de modifier ces valeurs : le résultat est enregistré comme un nouvel instrument.
+3. *Lunette et monture* et *Observateur* : ces deux étapes sont facultatives. Le type de monture sert à orienter l'image. Avec une monture altazimutale, indiquez aussi votre lieu d'observation.
+
+Le bouton "Lancer le traitement" devient actif dès que la caméra et le spectrohéliographe sont connus, quelle que soit l'étape affichée. Le bas de la fenêtre indique ce qu'il reste à renseigner.
+
+Le matériel est enregistré sous le nom "Mon matériel" et sert aux traitements suivants. L'assistant reste accessible depuis le menu "Matériel".
+
+=== Écran d'accueil
+
+L'écran d'accueil permet de traiter un fichier SER en un clic, ou en le déposant dans la zone prévue.
+Il affiche les réglages qui seront utilisés : le matériel, la raie observée et les images générées.
+Ces réglages sont ceux de votre dernier traitement. Quand ils s'écartent des réglages automatiques (raie choisie à la main, sélection d'images personnalisée), ils sont signalés et le lien "Revenir aux réglages automatiques" permet de les annuler.
+
+Le bouton "Modifier" ouvre une fenêtre plus courte pour changer l'équipement, le spectrohéliographe et la caméra. Choisir un équipement enregistré remplit la caméra, la lunette, la monture et le lieu d'observation. Le bouton "..." placé à côté de l'équipement et du spectrohéliographe ouvre l'éditeur correspondant. La lunette, la monture et l'observateur se trouvent dans une section repliée.
+
+Si le fichier que vous ouvrez a été enregistré avec une autre caméra que celle de votre matériel, JSol'Ex vous le signale avant le traitement, car une taille de pixels erronée fausse les mesures de longueur d'onde et de vitesse.
+
+Le lien "Choisir les réglages moi-même" ouvre la fenêtre de paramétrage complète décrite ci-dessous.
+
 == Traitement d'une vidéo
 
 JSol'Ex ne peut traiter que les fichiers SER, vous devez donc configurer votre logiciel de capture pour utiliser ce format.

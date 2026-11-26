@@ -20,7 +20,6 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
-import javafx.scene.control.Dialog;
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
@@ -29,6 +28,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Window;
+import me.champeau.a4j.jsolex.app.AlertFactory;
 import me.champeau.a4j.jsolex.app.Configuration;
 import me.champeau.a4j.jsolex.app.JSolEx;
 import me.champeau.a4j.jsolex.processing.util.BackgroundOperations;
@@ -49,7 +49,7 @@ public class SpectroSolHubLoginPane extends VBox {
     private static final Logger LOGGER = LoggerFactory.getLogger(SpectroSolHubLoginPane.class);
 
     public static Optional<String> showLoginDialog(Window owner) {
-        var dialog = new Dialog<String>();
+        var dialog = AlertFactory.<String>dialog();
         dialog.setTitle(message("auth.title"));
         dialog.initOwner(owner);
         dialog.getDialogPane().getButtonTypes().add(ButtonType.CANCEL);
@@ -66,7 +66,6 @@ public class SpectroSolHubLoginPane extends VBox {
         loginPane.load();
 
         dialog.getDialogPane().setContent(loginPane);
-        dialog.getDialogPane().getStylesheets().add(JSolEx.class.getResource("components.css").toExternalForm());
         dialog.setResultConverter(button -> result[0]);
 
         return dialog.showAndWait();
