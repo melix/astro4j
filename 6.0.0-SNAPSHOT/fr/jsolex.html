@@ -1202,22 +1202,44 @@ Lorsque vous avez suffisamment de points, cliquez sur le bouton "Calculer le pol
 <div class="sect3">
 <h4 id="saturated-disk-mode">Mode disque saturé</h4>
 <div class="paragraph">
-<p>Lorsque le disque solaire est surexposé (saturé), la raie spectrale ne peut plus être distinguée de façon fiable, et JSol&#8217;Ex ne peut donc pas détecter le polynôme de distorsion à partir du scan lui-même.
-Dans ce cas, vous pouvez capturer un ou plusieurs scans de référence <strong>non saturés</strong> et laisser JSol&#8217;Ex réutiliser leur polynôme.</p>
+<p>Lorsque le disque solaire est surexposé (saturé), par exemple pour imager la couronne, la raie spectrale ne peut plus être distinguée sur le disque, et la détection habituelle du polynôme de distorsion échoue.
+Le réglage "Mode disque saturé" (sous "Forcer le polynôme") propose deux façons de trouver la raie spectrale dans cette situation.</p>
 </div>
 <div class="paragraph">
-<p>Cochez la case "Mode disque saturé" (sous "Forcer le polynôme") et sélectionnez le répertoire contenant vos scans de référence non saturés.
+<p><strong>Sans scans de référence</strong> : JSol&#8217;Ex trouve la raie spectrale sur le scan saturé lui-même, à partir des trames enregistrées avant que le disque n&#8217;arrive sur la fente et après qu&#8217;il l&#8217;a quittée.
+Sur ces trames, la fente ne reçoit que la lumière diffusée autour du Soleil, qui n&#8217;est pas saturée et montre les raies spectrales sur toute la longueur de la fente.
+Toutes ces trames sont moyennées, et le polynôme est détecté sur le résultat de la même façon que pour un scan ordinaire.</p>
+</div>
+<div class="paragraph">
+<p>Ce mode ne demande aucune capture supplémentaire, mais chaque scan doit commencer avant le disque et se terminer après.
+Comme la raie est mesurée sur chaque scan, une dérive lente du spectre au cours d&#8217;une session est suivie.
+Si un scan ne contient aucune trame avant ou après le disque, JSol&#8217;Ex revient à la détection automatique habituelle.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+Le mode disque saturé a été introduit dans JSol&#8217;Ex 5.3.4, avec des scans de référence. La méthode sans scans de référence s&#8217;inspire du mode couronne qu&#8217;INTI, de Valérie Desnoux, a proposé à son tour dans sa version 7.1 et qui cherche la raie sur quelques trames précédant le disque. JSol&#8217;Ex utilise toutes les trames enregistrées avant et après le disque, sur toute la longueur de la fente.
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p><strong>Avec scans de référence</strong> : JSol&#8217;Ex réutilise le polynôme de scans de référence <strong>non saturés</strong>, que vous capturez en plus des scans saturés, par exemple un toutes les 10 captures.
+Sélectionnez le répertoire contenant ces scans de référence.
 Lors du traitement d&#8217;un fichier, JSol&#8217;Ex recherche le scan de référence le plus proche dans le temps (d&#8217;après les dates des fichiers SER) et applique son polynôme.</p>
 </div>
 <div class="paragraph">
-<p>Ce mode est particulièrement utile en traitement par lots : plusieurs scans saturés peuvent partager le même scan de référence, auquel cas le polynôme de référence n&#8217;est calculé qu&#8217;une seule fois puis réutilisé.</p>
+<p>Plusieurs scans saturés peuvent partager le même scan de référence, auquel cas le polynôme de référence n&#8217;est calculé qu&#8217;une seule fois puis réutilisé.
+La raie spectrale peut dériver entre deux scans de référence : si le plus proche est éloigné dans le temps, un avertissement est émis car le polynôme peut ne plus être précis.
+Si aucun scan de référence utilisable n&#8217;est trouvé, JSol&#8217;Ex revient à la détection automatique habituelle.
+Utilisez ce mode lorsque vos scans ne couvrent pas le ciel de part et d&#8217;autre du disque.</p>
 </div>
 <div class="paragraph">
-<p>Si le scan de référence le plus proche est éloigné dans le temps, un avertissement est émis car le polynôme peut ne plus être précis.
-Si aucun scan de référence utilisable n&#8217;est trouvé, JSol&#8217;Ex revient à la détection automatique habituelle.</p>
-</div>
-<div class="paragraph">
-<p>Ce mode modifie également la détection du bord du disque solaire : le halo qui entoure un disque saturé est suffisamment lumineux pour être confondu avec le disque, JSol&#8217;Ex place donc le bord là où la luminosité change le plus brusquement, c&#8217;est-à-dire au limbe et non dans le halo.</p>
+<p>Les deux modes modifient également la détection du bord du disque solaire : le halo qui entoure un disque saturé est suffisamment lumineux pour être confondu avec le disque, JSol&#8217;Ex place donc le bord là où la luminosité change le plus brusquement, c&#8217;est-à-dire au limbe et non dans le halo.</p>
 </div>
 <div class="admonitionblock note">
 <table>
@@ -3081,7 +3103,7 @@ Lorsqu&#8217;une inversion conditionnelle est activée, elle remplace la case «
 </table>
 </div>
 <div class="paragraph">
-<p>Lorsque le mode disque saturé est également activé, seuls les scans de référence capturés du même côté de la date pivot que le fichier en cours de traitement sont pris en compte : un retournement au méridien modifie les flexions mécaniques, et un scan de référence de l&#8217;autre côté donnerait un polynôme biaisé.
+<p>Lorsque le mode disque saturé avec scans de référence est également activé, seuls les scans de référence capturés du même côté de la date pivot que le fichier en cours de traitement sont pris en compte : un retournement au méridien modifie les flexions mécaniques, et un scan de référence de l&#8217;autre côté donnerait un polynôme biaisé.
 Dans ce cas, veillez à ce que la date pivot corresponde à la première capture après le retournement, scans de référence compris : un scan de référence capturé entre le retournement et le fichier choisi comme pivot serait sinon considéré à tort comme capturé avant le retournement.</p>
 </div>
 </div>

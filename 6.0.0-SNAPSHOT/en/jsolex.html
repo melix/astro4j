@@ -1194,22 +1194,44 @@ When you have enough points, click on the "Compute polynomial" button, which wil
 <div class="sect3">
 <h4 id="saturated-disk-mode">Saturated disk mode</h4>
 <div class="paragraph">
-<p>When the solar disk is overexposed (saturated), the spectral line can no longer be distinguished reliably, so JSol&#8217;Ex cannot detect the distortion polynomial from the scan itself.
-In this situation, you can capture one or more <strong>non saturated</strong> reference scans and let JSol&#8217;Ex reuse their polynomial.</p>
+<p>When the solar disk is overexposed (saturated), for example to image the corona, the spectral line can no longer be distinguished on the disk, so the usual detection of the distortion polynomial fails.
+The "Saturated disk mode" setting (below "Force polynomial") offers two ways of finding the spectral line in this situation.</p>
 </div>
 <div class="paragraph">
-<p>Check the "Saturated disk mode" box (below "Force polynomial") and select the directory containing your non saturated reference scans.
+<p><strong>Without reference scans</strong>: JSol&#8217;Ex finds the spectral line on the saturated scan itself, using the frames recorded before the disk enters the slit and after it leaves it.
+On these frames, the slit only receives the light scattered around the Sun, which is not saturated and shows the spectral lines over the whole length of the slit.
+All these frames are averaged, and the polynomial is detected on the result in the same way as for a regular scan.</p>
+</div>
+<div class="paragraph">
+<p>This mode does not need any additional capture, but each scan must start before the disk and end after it.
+Because the line is measured on each scan, a slow drift of the spectrum during a session is followed.
+If a scan has no frame before or after the disk, JSol&#8217;Ex falls back to the regular automatic detection.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+The saturated disk mode was introduced in JSol&#8217;Ex 5.3.4, with reference scans. The method without reference scans is inspired by the corona mode which INTI, by Valérie Desnoux, introduced in turn in its version 7.1, and which looks for the line on a few frames preceding the disk. JSol&#8217;Ex uses all the frames recorded before and after the disk, over the whole length of the slit.
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p><strong>With reference scans</strong>: JSol&#8217;Ex reuses the polynomial of <strong>non saturated</strong> reference scans, which you capture in addition to the saturated ones, for example one every 10 captures.
+Select the directory containing these reference scans.
 When processing a file, JSol&#8217;Ex looks up the reference scan which is the closest in time (based on the SER file dates) and applies its polynomial.</p>
 </div>
 <div class="paragraph">
-<p>This mode is especially useful in batch processing: several saturated scans may share the same reference scan, in which case the reference polynomial is computed only once and reused.</p>
+<p>Several saturated scans may share the same reference scan, in which case the reference polynomial is computed only once and reused.
+The spectral line can drift between two reference scans, so if the closest one is far away in time, a warning is issued because the polynomial may no longer be accurate.
+If no usable reference scan is found, JSol&#8217;Ex falls back to the regular automatic detection.
+Use this mode when your scans do not cover the sky on both sides of the disk.</p>
 </div>
 <div class="paragraph">
-<p>If the closest reference scan is far away in time, a warning is issued because the polynomial may no longer be accurate.
-If no usable reference scan is found, JSol&#8217;Ex falls back to the regular automatic detection.</p>
-</div>
-<div class="paragraph">
-<p>This mode also changes how the edge of the solar disk is detected: the glow surrounding a saturated disk is bright enough to be mistaken for the disk, so JSol&#8217;Ex places the edge where the brightness changes most sharply, which is the limb rather than the outer part of the glow.</p>
+<p>Both modes also change how the edge of the solar disk is detected: the glow surrounding a saturated disk is bright enough to be mistaken for the disk, so JSol&#8217;Ex places the edge where the brightness changes most sharply, which is the limb rather than the outer part of the glow.</p>
 </div>
 <div class="admonitionblock note">
 <table>
@@ -3230,7 +3252,7 @@ When a conditional flip is enabled, it replaces the corresponding "Flip horizont
 </table>
 </div>
 <div class="paragraph">
-<p>When the saturated disk mode is also enabled, only reference scans captured on the same side of the pivot date as the file being processed are considered: a meridian flip changes the mechanical flexions, so a reference from the other side would give a biased polynomial.
+<p>When the saturated disk mode with reference scans is also enabled, only reference scans captured on the same side of the pivot date as the file being processed are considered: a meridian flip changes the mechanical flexions, so a reference from the other side would give a biased polynomial.
 In this case, make sure the pivot corresponds to the first capture after the flip, reference scans included: if a reference scan was captured between the flip and the file you select as the pivot, it would incorrectly count as captured before the flip.</p>
 </div>
 </div>
