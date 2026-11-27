@@ -23,12 +23,23 @@ Je vous invite à ne pas céder aux sirènes de la haine et à vous tourner vers
 
 == Téléchargement
 
+ifdef::snapshot[]
+Cette documentation correspond à une version de développement de JSol'Ex, qui n'est disponible que sous forme de fichier zip.
+Cliquez sur le bouton correspondant à votre système ci-dessous pour la télécharger, décompressez le fichier dans un répertoire de votre choix et lancez l'application (dans le dossier `bin`, `jsolex.bat` sous Windows, `jsolex` sous Linux et MacOS).
+
+link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-windows-latest/{fullName}-{fullVersion}.zip[icon:windows[] ZIP JSol'Ex (Windows), role="badge"]
+link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-ubuntu-latest/{fullName}-{fullVersion}.zip[icon:linux[] ZIP JSol'Ex (Linux), role="badge"]
+link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/{fullName}-{fullVersion}.zip[icon:apple[] ZIP JSol'Ex (Mac ARM64), role="badge"]
+link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-15-intel/{fullName}-{fullVersion}.zip[icon:apple[] ZIP JSol'Ex (Mac Intel), role="badge"]
+
+endif::snapshot[]
+ifndef::snapshot[]
 Cliquez sur le bouton correspondant à votre système ci-dessous pour télécharger l'installeur de JSol'Ex :
 
-link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-windows-latest/{prefixName}-{version}.msi[icon:windows[] JSol'Ex (Windows), role="badge"]
-link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-ubuntu-latest/{prefixName}_{version}_amd64.deb[icon:linux[] JSol'Ex (Linux), role="badge"]
-link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/{prefixName}-{version}.pkg[icon:apple[] JSol'Ex (Mac ARM64), role="badge"]
-link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-15-intel/{prefixName}-{version}.pkg[icon:apple[] JSol'Ex (Mac Intel), role="badge"]
+link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-windows-latest/{fullName}-{version}.msi[icon:windows[] JSol'Ex (Windows), role="badge"]
+link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-ubuntu-latest/{fullName}_{version}_amd64.deb[icon:linux[] JSol'Ex (Linux), role="badge"]
+link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/{fullName}-{version}.pkg[icon:apple[] JSol'Ex (Mac ARM64), role="badge"]
+link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-15-intel/{fullName}-{version}.pkg[icon:apple[] JSol'Ex (Mac Intel), role="badge"]
 
 === Fichiers zips
 
@@ -38,6 +49,8 @@ Certains utilisateurs préfèreront télécharger un fichier zip contenant les b
 - link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-ubuntu-latest/{fullName}-{fullVersion}.zip[ZIP JSol'Ex (Linux)]
 - link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/{fullName}-{fullVersion}.zip[ZIP JSol'Ex (Mac ARM64)]
 - link:https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-15-intel/{fullName}-{fullVersion}.zip[ZIP JSol'Ex (Mac Intel)]
+
+endif::snapshot[]
 
 === Compilation depuis les sources
 

@@ -78,8 +78,8 @@ They are provided as-is, without any warranty.
   - [JSol'Ex 5.6.1 (MacOS)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/jsolex-5.6.1.pkg)
   - [JSol'Ex (Zip Windows)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-windows-latest/jsolex-5.6.1.zip)
   - [JSol'Ex (Zip Linux)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-ubuntu-latest/jsolex-5.6.1.zip)
-  - [JSol'Ex (Zip MacOS ARM64)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/jsolex-5.6.1.pkg)
-  - [JSol'Ex (Zip MacOS Intel)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-15-intel/jsolex-5.6.1.pkg)
+  - [JSol'Ex (Zip MacOS ARM64)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/jsolex-5.6.1.zip)
+  - [JSol'Ex (Zip MacOS Intel)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-15-intel/jsolex-5.6.1.zip)
   - [Ser Player 5.6.1 (Linux, deb, AMD64)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-ubuntu-latest/ser-player_5.6.1_amd64.deb)
   - [Ser Player 5.6.1 (Windows)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-windows-latest/ser-player-5.6.1.msi)
   - [Ser Player 5.6.1 (MacOS)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-macos-latest/ser-player-5.6.1.pkg)
@@ -89,19 +89,13 @@ They are provided as-is, without any warranty.
   - [Ser Player (Zip MacOS Intel)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-macos-15-intel/ser-player-5.6.1.zip)
 
 You can also install the _development_ version of JSol'Ex as it can contain numerous bugfixes and improvements over the release versions.
+Development versions are only available as zip files: unzip the file in a directory of your choice and launch the application from the `bin` folder (`.bat` file on Windows, the file without extension on Linux and MacOS).
 
 - Development versions (updated on each commit)
-  - [JSol'Ex (Linux, deb, AMD64)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-ubuntu-latest/jsolex-devel_6.0.0-SNAPSHOT_amd64.deb)
-  - [JSol'Ex (Windows)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-windows-latest/jsolex-devel-6.0.0.msi)
-  - [JSol'Ex (MacOS)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/jsolex-devel-6.0.0.pkg)
-  - [JSol'Ex (MacOS Intel)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-15-intel/jsolex-devel-6.0.0.pkg)
   - [JSol'Ex (Zip Windows)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-windows-latest/jsolex-6.0.0-SNAPSHOT.zip)
   - [JSol'Ex (Zip Linux)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-ubuntu-latest/jsolex-6.0.0-SNAPSHOT.zip)
-  - [JSol'Ex (Zip MacOS ARM64)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/jsolex-6.0.0-SNAPSHOT.pkg)
-  - [JSol'Ex (Zip MacOS Intel)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-15-intel/jsolex-6.0.0-SNAPSHOT.pkg)
-  - [Ser Player (Linux, deb, AMD64)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-ubuntu-latest/ser-player-devel_6.0.0-SNAPSHOT_amd64.deb)
-  - [Ser Player (Windows)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-windows-latest/ser-player-devel-6.0.0.msi)
-  - [Ser Player (MacOS)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-macos-latest/ser-player-devel-6.0.0.pkg)
+  - [JSol'Ex (Zip MacOS ARM64)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-latest/jsolex-6.0.0-SNAPSHOT.zip)
+  - [JSol'Ex (Zip MacOS Intel)](https://jsolex.s3.eu-west-3.amazonaws.com/jsolex-macos-15-intel/jsolex-6.0.0-SNAPSHOT.zip)
   - [Ser Player (Zip Windows)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-windows-latest/ser-player-6.0.0-SNAPSHOT.zip)
   - [Ser Player (Zip Linux)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-ubuntu-latest/ser-player-6.0.0-SNAPSHOT.zip)
   - [Ser Player (Zip MacOS ARM64)](https://jsolex.s3.eu-west-3.amazonaws.com/ser-player-macos-latest/ser-player-6.0.0-SNAPSHOT.zip)

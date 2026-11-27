@@ -21,18 +21,8 @@ asciidoc {
                         exclude("**")
                     }
                 }
-                val downloadVersion = if (version.toString().contains("-SNAPSHOT")) {
-                    version.toString().substringBefore("-SNAPSHOT")
-                } else {
-                    version.toString()
-                }
-                val prefixName = if (version.toString().contains("-SNAPSHOT")) {
-                    "jsolex-devel"
-                } else {
-                    "jsolex"
-                }
-                var fullName = "jsolex"
-                var fullVersion = version.toString()
+                val fullVersion = version.toString()
+                val snapshot = fullVersion.contains("-SNAPSHOT")
                 attributes {
                     addAll(mapOf(
                         "reproducible" to "",
@@ -41,14 +31,13 @@ asciidoc {
                         "docinfo" to "shared",
                         "source-highlighter" to "highlight.js",
                         "highlightjs-theme" to "github",
-                        "version" to downloadVersion,
-                        "prefixName" to prefixName,
-                        "fullName" to fullName,
+                        "version" to fullVersion.substringBefore("-SNAPSHOT"),
+                        "fullName" to "jsolex",
                         "fullVersion" to fullVersion,
                         "revnumber" to fullVersion,
                         "generated-funs" to "_functions",
                         "python-examples" to rootProject.file("jsolex-core/src/test/resources/python-examples").absolutePath,
-                    ))
+                    ) + if (snapshot) mapOf("snapshot" to "") else emptyMap())
                 }
             }
         }
