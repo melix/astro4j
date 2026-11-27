@@ -194,6 +194,7 @@ public class SolexVideoProcessor implements Broadcaster {
     private DoubleUnaryOperator polynomial;
     private DoubleQuadruplet polynomialCoefficients;
     private float[][] averageImage;
+    private AverageImageCreator.OffDiskAverage offDiskAverage;
     private double scanDurationSeconds;
     private PixelShiftRange pixelShiftRange;
     private boolean forceDetectActiveRegions;
@@ -281,7 +282,9 @@ public class SolexVideoProcessor implements Broadcaster {
         applyScriptMetadata();
         broadcast(ProcessingStartEvent.of(System.nanoTime(), processParams));
         var converter = ImageUtils.createImageConverter(processParams.videoParams().colorMode(), processParams.geometryParams().isSpectrumVFlip());
-        var detector = new AverageImageCreator(converter, rootOperation, this);
+        var geometryParams = processParams.geometryParams();
+        var usesOffDiskFrames = geometryParams.isSaturatedDiskMode() && geometryParams.referencePolynomialDirectory().isEmpty();
+        var detector = new AverageImageCreator(converter, rootOperation, this, usesOffDiskFrames);
         try (SerFileReader reader = SerFileReader.of(serFile, processParams.videoParams().trustSerFileBitDepth())) {
             var header = reader.header();
             saveConfigFile(header);
@@ -299,6 +302,7 @@ public class SolexVideoProcessor implements Broadcaster {
             if (averageImage == null) {
                 detector.computeAverageImage(reader);
                 averageImage = detector.getAverageImage();
+                offDiskAverage = detector.getOffDiskAverage().orElse(null);
             }
             scanDurationSeconds = reader.computeSequenceDuration().map(d -> d.toNanos() / 1e9).orElse(0d);
             var fps = reader.estimateFps().orElse(null);
@@ -437,37 +441,24 @@ public class SolexVideoProcessor implements Broadcaster {
         var analysis = detected.result();
         if (polynomial == null && processParams.geometryParams().isSaturatedDiskMode()) {
             var referenceDirectory = processParams.geometryParams().referencePolynomialDirectory().orElse(null);
-            if (referenceDirectory != null) {
-                var referencePolynomial = ReferencePolynomialProvider.getInstance().findPolynomial(
-                        new File(referenceDirectory),
-                        header.metadata().utcDateTime(),
-                        serFile,
-                        processParams.videoParams().colorMode(),
-                        processParams.geometryParams().isSpectrumVFlip(),
-                        processParams.videoParams().trustSerFileBitDepth(),
-                        flipConditions,
-                        rootOperation,
-                        requestedLineDetails());
-                referencePolynomial.ifPresent(doubleQuadruplet -> {
-                    polynomial = doubleQuadruplet.asPolynomial();
-                    polynomialCoefficients = doubleQuadruplet;
-                });
-            }
+            var saturatedDiskPolynomial = referenceDirectory != null
+                    ? findReferencePolynomial(referenceDirectory, header)
+                    : findOffDiskPolynomial(width, height, header);
+            saturatedDiskPolynomial.ifPresent(this::usePolynomial);
         }
         if (polynomial == null && processParams.geometryParams().isForcePolynomial()) {
             var forcedPolynomialString = processParams.geometryParams().forcedPolynomial();
             if (forcedPolynomialString.isPresent()) {
                 var forcedPolynomial = DoubleQuadruplet.parsePolynomial(forcedPolynomialString.get());
                 forcedPolynomial.ifPresentOrElse(doubleQuadruplet -> {
-                            polynomial = doubleQuadruplet.asPolynomial();
-                            polynomialCoefficients = doubleQuadruplet;
+                            usePolynomial(doubleQuadruplet);
                             LOGGER.info(message("forced.polynomial"));
                         },
                         () -> LOGGER.error(message("invalid.forced.polynomial"), forcedPolynomialString.get()));
             }
         }
         if (polynomial == null) {
-            // In saturated disk mode the realignment is carried by the reference scan.
+            // In saturated disk mode the realignment is carried by the reference scan or the off-disk frames.
             analysis = SpectralLineRealigner.realign(averageImage, width, height, header.isJSolexTrimmedSer(), analysis, requestedLineDetails());
         }
         var maybePolynomial = Optional.ofNullable(polynomial).or(analysis::distortionPolynomial);
@@ -1932,6 +1923,41 @@ public class SolexVideoProcessor implements Broadcaster {
         return Optional.of(flat);
     }
 
+
+    private void usePolynomial(DoubleQuadruplet coefficients) {
+        polynomial = coefficients.asPolynomial();
+        polynomialCoefficients = coefficients;
+    }
+
+    private Optional<DoubleQuadruplet> findReferencePolynomial(String referenceDirectory, Header header) {
+        return ReferencePolynomialProvider.getInstance().findPolynomial(
+                new File(referenceDirectory),
+                header.metadata().utcDateTime(),
+                serFile,
+                processParams.videoParams().colorMode(),
+                processParams.geometryParams().isSpectrumVFlip(),
+                processParams.videoParams().trustSerFileBitDepth(),
+                flipConditions,
+                rootOperation,
+                requestedLineDetails());
+    }
+
+    private Optional<DoubleQuadruplet> findOffDiskPolynomial(int width, int height, Header header) {
+        if (offDiskAverage == null) {
+            LOGGER.warn(message("saturated.disk.no.off.disk.frames"));
+            return Optional.empty();
+        }
+        var image = offDiskAverage.image();
+        var analysis = SpectralLineRealigner.realign(image,
+                width,
+                height,
+                header.isJSolexTrimmedSer(),
+                analyzeAverageImage(width, height, image, header).result(),
+                requestedLineDetails());
+        var offDiskPolynomial = analysis.distortionQuadruplet();
+        offDiskPolynomial.ifPresent(_ -> LOGGER.info(message("saturated.disk.using.off.disk.frames"), offDiskAverage.frameCount()));
+        return offDiskPolynomial;
+    }
 
     private AverageImageAnalysis analyzeAverageImage(int width, int height, float[][] averageImage, Header header) {
         var analyzer = new SpectrumFrameAnalyzer(width, height, header.isJSolexTrimmedSer(), null);

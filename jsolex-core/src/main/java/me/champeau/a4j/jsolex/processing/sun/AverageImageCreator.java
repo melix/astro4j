@@ -26,7 +26,9 @@ import me.champeau.a4j.ser.bayer.ImageConverter;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.locks.ReentrantLock;
@@ -43,14 +45,20 @@ public class AverageImageCreator {
      * Fraction of the brightest frame mean below which a frame is excluded from the average.
      */
     public static final float FRAME_INCLUSION_THRESHOLD = 0.5f;
+    /**
+     * Fraction of the brightest column mean below which the disk is considered to be off the slit.
+     */
+    private static final float OFF_DISK_THRESHOLD = 0.5f;
 
     private static final int IO_PARALLELISM = Runtime.getRuntime().availableProcessors();
 
     private final ImageConverter<float[][]> imageConverter;
     private final ProgressOperation rootOperation;
     private final Broadcaster broadcaster;
+    private final boolean computeOffDiskAverage;
 
     private float[][] averageImage;
+    private OffDiskAverage offDiskAverage;
 
     /**
      * Creates a new average image creator.
@@ -62,9 +70,25 @@ public class AverageImageCreator {
     public AverageImageCreator(ImageConverter<float[][]> imageConverter,
                                ProgressOperation rootOperation,
                                Broadcaster broadcaster) {
+        this(imageConverter, rootOperation, broadcaster, false);
+    }
+
+    /**
+     * Creates a new average image creator.
+     *
+     * @param imageConverter        the converter for processing raw frame data
+     * @param rootOperation         the root progress operation for reporting progress
+     * @param broadcaster           the broadcaster for publishing progress events
+     * @param computeOffDiskAverage whether to also average the frames where the disk is off the slit
+     */
+    public AverageImageCreator(ImageConverter<float[][]> imageConverter,
+                               ProgressOperation rootOperation,
+                               Broadcaster broadcaster,
+                               boolean computeOffDiskAverage) {
         this.imageConverter = imageConverter;
         this.rootOperation = rootOperation;
         this.broadcaster = broadcaster;
+        this.computeOffDiskAverage = computeOffDiskAverage;
     }
 
     /**
@@ -85,8 +109,9 @@ public class AverageImageCreator {
         var sampleFrameIds = sampleFrameIds(frameCount);
         int sampleCount = sampleFrameIds.size();
         double totalFrames = sampleCount + frameCount;
-        var maxMean = findMaxMeanBySampling(reader, sampleFrameIds, totalFrames, progressOperation, geometry, imageMath);
-        var threshold = FRAME_INCLUSION_THRESHOLD * maxMean;
+        var maxima = findMaximaBySampling(reader, sampleFrameIds, totalFrames, progressOperation, geometry, imageMath);
+        var threshold = FRAME_INCLUSION_THRESHOLD * maxima.frameMean();
+        var offDiskThreshold = OFF_DISK_THRESHOLD * maxima.columnMean();
 
         // Per-thread sum accumulators (double precision to avoid overflow) to eliminate lock contention
         var accumulators = new ConcurrentLinkedQueue<double[][]>();
@@ -106,6 +131,10 @@ public class AverageImageCreator {
         for (int k = 0; k < laneCount; k++) {
             buffers[k] = new float[height][width];
         }
+        // Each lane also owns its off-disk accumulator
+        var offDiskSums = computeOffDiskAverage ? new double[laneCount][height][width] : null;
+        var offDiskCounts = new int[laneCount];
+        var columnSums = new double[laneCount][width];
         try (var ioExecutor = ParallelExecutor.newExecutor(IO_PARALLELISM)) {
             reader.seekFrame(0);
             for (int batchStart = 0; batchStart < frameCount; batchStart += laneCount) {
@@ -129,16 +158,13 @@ public class AverageImageCreator {
                             var frameAvg = imageMath.averageOf(buffer);
                             if (frameAvg > threshold) {
                                 var local = localAccumulator.get();
-                                var sum = (double[][]) local[0];
                                 var count = (int[]) local[1];
-                                for (int y = 0; y < height; y++) {
-                                    var sumRow = sum[y];
-                                    var bufRow = buffer[y];
-                                    for (int x = 0; x < width; x++) {
-                                        sumRow[x] += bufRow[x];
-                                    }
-                                }
+                                accumulate((double[][]) local[0], buffer);
                                 count[0]++;
+                            }
+                            if (offDiskSums != null && maxColumnMean(buffer, columnSums[lane]) < offDiskThreshold) {
+                                accumulate(offDiskSums[lane], buffer);
+                                offDiskCounts[lane]++;
                             }
                         } finally {
                             latch.countDown();
@@ -153,34 +179,62 @@ public class AverageImageCreator {
             broadcaster.broadcast(progressOperation.complete());
         }
 
-        // Merge per-thread sums into the final average
-        averageImage = new float[height][width];
         int totalCount = 0;
         for (var count : counters) {
             totalCount += count[0];
         }
-        if (totalCount > 0) {
-            // Accumulate all thread sums in double precision
-            var merged = new double[height][width];
-            for (var sum : accumulators) {
-                for (int y = 0; y < height; y++) {
-                    var mergedRow = merged[y];
-                    var sumRow = sum[y];
-                    for (int x = 0; x < width; x++) {
-                        mergedRow[x] += sumRow[x];
-                    }
-                }
+        averageImage = totalCount > 0 ? merge(accumulators, totalCount, width, height) : new float[height][width];
+        if (offDiskSums != null) {
+            int offDiskCount = Arrays.stream(offDiskCounts).sum();
+            offDiskAverage = offDiskCount > 0 ? new OffDiskAverage(merge(Arrays.asList(offDiskSums), offDiskCount, width, height), offDiskCount) : null;
+        }
+    }
+
+    private static void accumulate(double[][] sum, float[][] frame) {
+        for (int y = 0; y < frame.length; y++) {
+            var sumRow = sum[y];
+            var frameRow = frame[y];
+            for (int x = 0; x < frameRow.length; x++) {
+                sumRow[x] += frameRow[x];
             }
-            // Convert to float average
-            double invCount = 1.0 / totalCount;
+        }
+    }
+
+    private static float[][] merge(Iterable<double[][]> sums, int count, int width, int height) {
+        var merged = new double[height][width];
+        for (var sum : sums) {
             for (int y = 0; y < height; y++) {
-                var avgRow = averageImage[y];
                 var mergedRow = merged[y];
+                var sumRow = sum[y];
                 for (int x = 0; x < width; x++) {
-                    avgRow[x] = (float) (mergedRow[x] * invCount);
+                    mergedRow[x] += sumRow[x];
                 }
             }
         }
+        var average = new float[height][width];
+        double invCount = 1.0 / count;
+        for (int y = 0; y < height; y++) {
+            var averageRow = average[y];
+            var mergedRow = merged[y];
+            for (int x = 0; x < width; x++) {
+                averageRow[x] = (float) (mergedRow[x] * invCount);
+            }
+        }
+        return average;
+    }
+
+    private static float maxColumnMean(float[][] frame, double[] columnSums) {
+        Arrays.fill(columnSums, 0);
+        for (var row : frame) {
+            for (int x = 0; x < row.length; x++) {
+                columnSums[x] += row[x];
+            }
+        }
+        double max = 0;
+        for (var sum : columnSums) {
+            max = Math.max(max, sum);
+        }
+        return (float) (max / frame.length);
     }
 
     private static List<Integer> sampleFrameIds(int frameCount) {
@@ -192,8 +246,9 @@ public class AverageImageCreator {
         return sampleFrameIds;
     }
 
-    private float findMaxMeanBySampling(SerFileReader reader, List<Integer> sampleFrameIds, double totalFrames, ProgressOperation progressOperation, ImageGeometry geometry, ImageMath imageMath) {
+    private SampledMaxima findMaximaBySampling(SerFileReader reader, List<Integer> sampleFrameIds, double totalFrames, ProgressOperation progressOperation, ImageGeometry geometry, ImageMath imageMath) {
         var maxMean = new float[]{0f};
+        var maxColumnMean = new float[]{0f};
         var maxLock = new ReentrantLock();
         int height = geometry.height();
         int width = geometry.width();
@@ -203,6 +258,7 @@ public class AverageImageCreator {
         for (int k = 0; k < laneCount; k++) {
             buffers[k] = new float[height][width];
         }
+        var columnSums = new double[laneCount][width];
         try (var executor = ParallelExecutor.newExecutor(IO_PARALLELISM)) {
             for (int batchStart = 0; batchStart < sampleCount; batchStart += laneCount) {
                 int batchEnd = Math.min(batchStart + laneCount, sampleCount);
@@ -225,10 +281,14 @@ public class AverageImageCreator {
                             var img = buffers[lane];
                             imageConverter.convert(frameId, frameDataBatch[lane], geometry, img);
                             var mean = imageMath.averageOf(img);
+                            var columnMean = computeOffDiskAverage ? maxColumnMean(img, columnSums[lane]) : 0f;
                             maxLock.lock();
                             try {
                                 if (mean > maxMean[0]) {
                                     maxMean[0] = mean;
+                                }
+                                if (columnMean > maxColumnMean[0]) {
+                                    maxColumnMean[0] = columnMean;
                                 }
                             } finally {
                                 maxLock.unlock();
@@ -243,7 +303,10 @@ public class AverageImageCreator {
         } catch (Exception e) {
             throw new ProcessingException(e);
         }
-        return maxMean[0];
+        return new SampledMaxima(maxMean[0], maxColumnMean[0]);
+    }
+
+    private record SampledMaxima(float frameMean, float columnMean) {
     }
 
     /**
@@ -253,5 +316,27 @@ public class AverageImageCreator {
      */
     public float[][] getAverageImage() {
         return averageImage;
+    }
+
+    /**
+     * Returns the average of the frames where the disk is off the slit. These frames only
+     * contain scattered light, which shows the spectral lines even when the disk is saturated.
+     * <p>
+     * Inspired by the corona mode of INTI 7.1 by Valérie Desnoux, which measures the spectral
+     * line on the frames preceding the disk.
+     *
+     * @return the off-disk average, empty if it was not requested or no such frame exists
+     */
+    public Optional<OffDiskAverage> getOffDiskAverage() {
+        return Optional.ofNullable(offDiskAverage);
+    }
+
+    /**
+     * The average of the frames where the disk is off the slit.
+     *
+     * @param image      the average image
+     * @param frameCount the number of frames which were averaged
+     */
+    public record OffDiskAverage(float[][] image, int frameCount) {
     }
 }
