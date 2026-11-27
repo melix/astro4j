@@ -2102,7 +2102,7 @@ except IndexError:
         when:
         executor.executeInline('''
 import tempfile
-with tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False) as f:
+with tempfile.NamedTemporaryFile("w", suffix=".csv", newline="", delete=False) as f:
     f.write("a,b\\n1,2\\n")
 jsolex.emit(f.name, "Region statistics", "region_stats")
 ''', [:])
