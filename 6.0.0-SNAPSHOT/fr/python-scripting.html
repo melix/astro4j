@@ -571,34 +571,58 @@ Pour les bibliothèques externes comme NumPy, voir <a href="#external-python-lib
 <div class="paragraph">
 <p>Pour utiliser des bibliothèques externes comme NumPy, configurez un environnement virtuel GraalPy.</p>
 </div>
-<div class="admonitionblock important">
+<div class="admonitionblock tip">
 <table>
 <tr>
 <td class="icon">
-<i class="fa icon-important" title="Important"></i>
+<i class="fa icon-tip" title="Tip"></i>
 </td>
 <td class="content">
-Pour de meilleures performances, installez NumPy et PyArrow ensemble. PyArrow permet un transfert de données efficace sans copie entre Java et Python, accélérant significativement les opérations <code>toNumpy()</code> et <code>fromNumpy()</code> sur les grandes images.
+PyArrow est facultatif. Quand il est installé, <code>toNumpy()</code> et <code>fromNumpy()</code> sont beaucoup plus rapides sur les grandes images.
 </td>
 </tr>
 </table>
 </div>
 <div class="sect2">
 <h3 id="_support_par_plateforme">Support par plateforme</h3>
-<div class="admonitionblock warning">
-<table>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 35%;">
+<col style="width: 40%;">
+</colgroup>
+<thead>
 <tr>
-<td class="icon">
-<i class="fa icon-warning" title="Warning"></i>
-</td>
-<td class="content">
-<strong>Windows ne supporte pas NumPy ni les autres extensions natives.</strong> GraalPy sous Windows ne peut installer que des packages Python purs (pas d&#8217;extensions C, pas de compilation depuis les sources). NumPy, PyArrow et les bibliothèques similaires nécessitant du code natif ne fonctionneront pas. Si vous avez besoin de ces bibliothèques, utilisez Linux ou macOS.
-</td>
+<th class="tableblock halign-left valign-top">Système</th>
+<th class="tableblock halign-left valign-top">NumPy</th>
+<th class="tableblock halign-left valign-top">PyArrow</th>
 </tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Linux (x86_64)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Paquet prêt à l&#8217;emploi</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Paquet prêt à l&#8217;emploi</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Linux (ARM)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Paquet prêt à l&#8217;emploi</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Non disponible</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Windows</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Paquet prêt à l&#8217;emploi</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Non disponible</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">macOS</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Compilé pendant l&#8217;installation</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Non disponible</p></td>
+</tr>
+</tbody>
 </table>
-</div>
 <div class="paragraph">
-<p>Sous Windows, vous pouvez tout de même utiliser GraalPy pour du scripting Python pur (sans <code>import numpy</code>). Pour mettre cela en place, passez directement à <a href="#graalpy-venv-windows">[graalpy-venv-windows]</a>.</p>
+<p>Là où PyArrow n&#8217;est pas disponible, NumPy fonctionne sans lui, avec des conversions plus lentes.</p>
 </div>
 </div>
 <div class="sect2">
@@ -646,12 +670,21 @@ sudo dnf install gcc gcc-c++ patch</code></pre>
 <p>Choisissez un répertoire pour votre environnement virtuel, par exemple <code>graalpy-venv</code> dans votre dossier personnel.</p>
 </div>
 <div class="paragraph">
-<p><strong>Linux / macOS</strong></p>
+<p><strong>Linux (x86_64)</strong></p>
 </div>
 <div class="listingblock">
 <div class="content">
 <pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">graalpy -m venv ~/graalpy-venv
 ~/graalpy-venv/bin/pip install numpy pyarrow</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p><strong>Linux (ARM) / macOS</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">graalpy -m venv ~/graalpy-venv
+~/graalpy-venv/bin/pip install numpy</code></pre>
 </div>
 </div>
 <div class="admonitionblock note">
@@ -661,17 +694,18 @@ sudo dnf install gcc gcc-c++ patch</code></pre>
 <i class="fa icon-note" title="Note"></i>
 </td>
 <td class="content">
-L&#8217;installation peut prendre plusieurs minutes si NumPy doit être compilé depuis les sources.
+Sous macOS, l&#8217;installation peut prendre plusieurs minutes, car NumPy est compilé depuis les sources.
 </td>
 </tr>
 </table>
 </div>
-<div id="graalpy-venv-windows" class="paragraph">
-<p><strong>Windows</strong> (Python pur uniquement, sans NumPy)</p>
+<div class="paragraph">
+<p><strong>Windows</strong></p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-cmd hljs" data-lang="cmd">graalpy -m venv C:\Users\&lt;votre-utilisateur&gt;\graalpy-venv</code></pre>
+<pre class="highlightjs highlight"><code class="language-cmd hljs" data-lang="cmd">graalpy -m venv C:\Users\&lt;votre-utilisateur&gt;\graalpy-venv
+C:\Users\&lt;votre-utilisateur&gt;\graalpy-venv\Scripts\python.exe -m pip --no-cache-dir install numpy</code></pre>
 </div>
 </div>
 <div class="admonitionblock tip">
@@ -681,7 +715,7 @@ L&#8217;installation peut prendre plusieurs minutes si NumPy doit être compilé
 <i class="fa icon-tip" title="Tip"></i>
 </td>
 <td class="content">
-Sous Windows, l&#8217;environnement virtuel place les exécutables dans le dossier <code>Scripts</code> (et non <code>bin</code>). Pour installer des packages Python purs, utilisez le <code>python.exe</code> de l&#8217;environnement virtuel avec le flag <code>--no-cache-dir</code> : <code>C:\Users\&lt;votre-utilisateur&gt;\graalpy-venv\Scripts\python.exe -m pip --no-cache-dir install &lt;package&gt;</code>.
+Sous Windows, l&#8217;environnement virtuel place les exécutables dans le dossier <code>Scripts</code> (et non <code>bin</code>). N&#8217;appelez pas <code>pip</code> directement, utilisez le <code>python.exe</code> de l&#8217;environnement virtuel comme ci-dessus.
 </td>
 </tr>
 </table>
@@ -715,7 +749,7 @@ Sous Windows, l&#8217;environnement virtuel place les exécutables dans le dossi
 <p><strong><code>pip</code> n&#8217;est pas reconnu (Windows)</strong>&#8201;&#8212;&#8201;N&#8217;appelez pas <code>pip</code> ou <code>pip.exe</code> directement. Utilisez <code>Scripts\python.exe -m pip --no-cache-dir install &#8230;&#8203;</code> depuis l&#8217;environnement virtuel.</p>
 </div>
 <div class="paragraph">
-<p><strong>L&#8217;installation de NumPy échoue sous Windows</strong>&#8201;&#8212;&#8201;GraalPy sous Windows ne supporte pas les extensions natives. NumPy ne peut pas être installé. Utilisez Linux ou macOS si vous avez besoin de NumPy.</p>
+<p><strong>L&#8217;installation échoue pendant la compilation de PyArrow</strong>&#8201;&#8212;&#8201;PyArrow n&#8217;est disponible que sous Linux (x86_64). Sur les autres systèmes, installez NumPy seul.</p>
 </div>
 <div class="paragraph">
 <p><strong><code>GraalPy needs the 'patch' utility</code> (Linux / macOS)</strong>&#8201;&#8212;&#8201;Installez la commande <code>patch</code> via le gestionnaire de packages de votre système (voir les prérequis ci-dessus).</p>
@@ -840,7 +874,7 @@ jsolex.vars.my_result = processed_image</code></pre>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>emit(value, title, &#8230;&#8203;)</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Émet une image ou un fichier généré (par exemple une animation) vers l&#8217;interface JSol&#8217;Ex pendant l&#8217;exécution</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Émet une image, un fichier généré (par exemple une animation) ou un fichier écrit par le script vers l&#8217;interface JSol&#8217;Ex pendant l&#8217;exécution</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>getVariable(name)</code></p></td>
@@ -853,6 +887,10 @@ jsolex.vars.my_result = processed_image</code></pre>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>getSourceInfo()</code></p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Retourne <code>{fileName, parentDir, dateTime, width, height}</code> pour le fichier SER source</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>copyData(img)</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Renvoie une copie des pixels d&#8217;une image monochrome, sous forme de liste de lignes (ne nécessite pas NumPy)</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>toNumpy(img)</code></p></td>
@@ -887,6 +925,23 @@ jsolex.emit(img, "Améliorée",
 # Les animations peuvent aussi être émises
 film = jsolex.funcs.anim([img0, img1, img2], 50)
 jsolex.emit(film, "Mon animation")</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Un fichier écrit par le script, par exemple un fichier CSV, peut être émis en passant son chemin.
+Le fichier est déplacé dans le répertoire de sortie et nommé comme les autres sorties :</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-python hljs" data-lang="python">import csv
+import tempfile
+
+with tempfile.NamedTemporaryFile("w", suffix=".csv", newline="", delete=False) as out:
+    writer = csv.writer(out)
+    writer.writerow(["pixel_shift", "median"])
+    for shift in [-1, 0, 1]:
+        writer.writerow([shift, jsolex.funcs.img_median(jsolex.funcs.img(shift))])
+jsolex.emit(out.name, "Statistiques", name="stats")</code></pre>
 </div>
 </div>
 </div>
