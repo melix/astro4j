@@ -525,6 +525,7 @@ public class SolexVideoProcessor implements Broadcaster {
             addPixelShiftsForAutoContinnum(canGenerateHeliumD3Images, width, newHeight, imageList, heliumLineShift);
             addPixelShiftsForAlternateLines(width, newHeight, imageList);
             broadcast(new AverageImageComputedEvent(new AverageImageComputedEvent.AverageImage(avgImage, polynomial, analysis.leftBorder().orElse(0), analysis.rightBorder().orElse(width), processParams)));
+            logObservationSetup();
             LOGGER.info(message("starting.reconstruction"));
             LOGGER.info(message("distortion.polynomial"), polynomial);
             var current = new AtomicInteger(0);
@@ -2085,6 +2086,32 @@ public class SolexVideoProcessor implements Broadcaster {
         }
         var binning = binningIsReliable ? processParams.observationDetails().binning() : 1;
         return new SpectrumAnalyzer.QueryDetails(ray, pixelSize, binning, instrument);
+    }
+
+    private void logObservationSetup() {
+        var spectrumParams = processParams.spectrumParams();
+        if (spectrumParams.detectionMode().requiresDetection() || spectrumParams.ray() == null) {
+            LOGGER.info(message("spectral.line.undetermined"));
+        } else {
+            LOGGER.info(message("spectral.line.used"), spectrumParams.ray());
+        }
+        var details = processParams.observationDetails();
+        if (details.instrument() != null) {
+            LOGGER.info(message("observation.instrument"), details.instrument().label());
+        }
+        logIfPresent("observation.telescope", details.telescope());
+        logIfPresent("observation.focal.length", details.focalLength());
+        logIfPresent("observation.aperture", details.aperture());
+        logIfPresent("observation.camera", details.camera());
+        if (details.pixelSize() != null && details.pixelSize() > 0) {
+            LOGGER.info(String.format(Locale.US, message("observation.pixel.size"), details.pixelSize(), details.binning() == null ? 1 : details.binning()));
+        }
+    }
+
+    private static void logIfPresent(String messageKey, Object value) {
+        if (value != null && !value.toString().isBlank()) {
+            LOGGER.info(message(messageKey), value);
+        }
     }
 
     private record AverageImageAnalysis(SpectrumFrameAnalyzer analyzer, SpectrumFrameAnalyzer.Result result) {
