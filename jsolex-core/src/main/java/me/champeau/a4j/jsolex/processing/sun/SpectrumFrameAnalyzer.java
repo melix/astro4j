@@ -231,18 +231,32 @@ public class SpectrumFrameAnalyzer {
         int l = leftBorder != null ? leftBorder : 0;
         int r = rightBorder != null ? rightBorder + 1 : width;
         int mid = (l + r) / 2;
-        double previousY = -1;
 
-        var p1 = findPolynomialAround(leftBorder, rightBorder, findLocalMinimum(mid, data, 0), mid, previousY, l, r);
-        var p2 = findPolynomialAround(leftBorder, rightBorder, findLocalMinimum(mid, data, 1), mid, previousY, l, r);
         // keep polynomial with the lowest average value
-        var avg1 = averageFor(p1);
-        var avg2 = averageFor(p2);
-        if (avg1 < avg2) {
-            return p1;
-        } else {
-            return p2;
+        Result darkest = null;
+        var darkestAverage = Double.MAX_VALUE;
+        for (var centerY : findCandidateLines(mid)) {
+            var candidate = findPolynomialAround(leftBorder, rightBorder, centerY, mid, -1, l, r);
+            var average = averageFor(candidate);
+            if (darkest == null || average < darkestAverage) {
+                darkest = candidate;
+                darkestAverage = average;
+            }
         }
+        return darkest;
+    }
+
+    /**
+     * Lists the ordinates of the lines which cross a column, away from the top and
+     * bottom margins. The deepest one in this column is not necessarily the darkest
+     * once followed along the slit, so each of them is a candidate.
+     */
+    private List<Double> findCandidateLines(int column) {
+        int margin = Math.max(1, height / 10);
+        var candidates = findMinima(column, data, margin + 1, height - margin - 1).stream()
+                .map(Minimum::y)
+                .toList();
+        return candidates.isEmpty() ? List.of(-1d) : candidates;
     }
 
     private double averageFor(Result r) {
@@ -253,15 +267,21 @@ public class SpectrumFrameAnalyzer {
             int right = r.rightBorder().orElse(width);
             for (int x = left; x < right; x++) {
                 int y = (int) Math.round(polynomial.applyAsDouble(x));
-                if (y < 0 || y >= height) {
-                    continue;
-                }
-                sum += data[y][x];
+                // where the line leaves the frame, it must not count as darker than the column
+                sum += y < 0 || y >= height ? columnAverage(x) : data[y][x];
             }
             return sum / (right - left);
         } else {
             return Double.MAX_VALUE;
         }
+    }
+
+    private double columnAverage(int column) {
+        double sum = 0;
+        for (var row : data) {
+            sum += row[column];
+        }
+        return sum / height;
     }
 
     private Result findPolynomialAround(Integer leftBorder, Integer rightBorder, double centerY, int mid, double previousY, int l, int r) {
@@ -448,16 +468,6 @@ public class SpectrumFrameAnalyzer {
                 .min(Comparator.comparingDouble(Minimum::value));
     }
 
-
-    private double findLocalMinimum(int column, float[][] data, int skip) {
-        int margin = Math.max(1, data.length / 10);
-        return findMinima(column, data, margin + 1, data.length - margin - 1).stream()
-                .sorted(Comparator.comparingDouble(Minimum::value))
-                .skip(skip)
-                .findFirst()
-                .map(Minimum::y)
-                .orElse(-1d);
-    }
 
     /**
      * Collects the local minima of a column, between the given ordinates.

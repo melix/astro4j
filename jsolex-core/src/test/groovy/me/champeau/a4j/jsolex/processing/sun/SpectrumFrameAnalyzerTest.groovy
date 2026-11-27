@@ -79,6 +79,54 @@ class SpectrumFrameAnalyzerTest extends Specification {
         1
     }
 
+    def "follows every line crossing the middle of the slit, not only the two deepest ones"() {
+        given: "frames recorded off the disk, where the only line which stays in the window is the third deepest at mid-width"
+        def image = ImageIO.read(getClass().getResourceAsStream("/detection/three-deep-lines.png"))
+        int width = image.width
+        int height = image.height
+        float[][] data = new float[height][width]
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                data[y][x] = image.raster.getSample(x, y, 0)
+            }
+        }
+
+        when:
+        def result = new SpectrumFrameAnalyzer(width, height, false, null).analyze(data)
+
+        then: "the line near the top of the window is detected"
+        def polynomial = result.distortionPolynomial().get()
+        Math.abs(polynomial.applyAsDouble(width / 2d) - 10.3d) < 0.5d
+
+        and: "it is followed over the whole slit"
+        result.samplePoints.size() > 0.95d * width
+        result.samplePoints.every { Math.abs(polynomial.applyAsDouble(it.x()) - it.y()) < 1d }
+    }
+
+    def "does not favour a line because it leaves the window"() {
+        given: "a line which leaves the window near the borders of the disk, and a slightly fainter one which stays in"
+        int width = 400
+        int height = 60
+        float[][] data = new float[height][width]
+        def leavingLine = { int x -> 45d + 20d * ((x - 200d) / 150d)**2 }
+        def stayingLine = { int x -> 15d + 20d * ((x - 200d) / 150d)**2 }
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                double continuum = x >= 50 && x < 350 ? 1000d : 20d
+                double leaving = 0.50d * Math.exp(-(y - leavingLine(x))**2 / 4.5d)
+                double staying = 0.48d * Math.exp(-(y - stayingLine(x))**2 / 4.5d)
+                data[y][x] = (float) (continuum * (1d - leaving - staying))
+            }
+        }
+
+        when:
+        def result = new SpectrumFrameAnalyzer(width, height, false, null).analyze(data)
+
+        then:
+        def polynomial = result.distortionPolynomial().get()
+        Math.abs(polynomial.applyAsDouble(200d) - stayingLine(200)) < 0.5d
+    }
+
     @Unroll
     def "identifies spectral lines (#file.name = #expectedLine)"() {
         given:
