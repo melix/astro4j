@@ -661,6 +661,7 @@ public class JSolEx implements JSolExInterface, BatchProcessingHelper.BatchConte
         steps.add(Step.of("image", Placement.RIGHT, viewer == null ? null : viewer.getImageArea()));
         steps.add(Step.of("adjustments", Placement.BELOW, viewer == null ? null : viewer.getToolbar()));
         steps.add(Step.of("panels", Placement.LEFT, rightPanel));
+        steps.add(Step.of("selector", Placement.LEFT, panelSelector));
         steps.add(Step.of("status", Placement.ABOVE, statusIndicators));
         if (!publishingTab.isDisable()) {
             var panelBeforeSharing = new AtomicReference<Tab>();
