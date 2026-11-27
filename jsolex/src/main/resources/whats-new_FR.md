@@ -41,6 +41,7 @@ La détection des bombes d'Ellerman est plus fiable. Elle s'inspire de l'approch
 
 ## Corrections et améliorations
 
+- Le mode disque saturé n'a plus besoin de scans de référence : la raie spectrale peut être trouvée sur le scan saturé lui-même.
 - Consommation mémoire réduite pendant le traitement.
 - Le réglage « Ajustement de la consommation mémoire » a été supprimé, car il n'est plus nécessaire.
 - Correction des coins blancs sur les images pivotées pour corriger l'angle P.

@@ -51,11 +51,12 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * Controller for the process parameters dialog.
@@ -372,19 +373,25 @@ public class ProcessParamsController {
     }
 
     private boolean validateFields() {
-        var invalidProcessingFields = processingPanel.findInvalidFields();
-        var invalidObservationFields = observationPanel.findInvalidFields();
-        if (invalidProcessingFields.isEmpty() && invalidObservationFields.isEmpty()) {
+        var invalidFieldsBySection = new LinkedHashMap<String, List<BaseParameterPanel.InvalidField>>();
+        invalidFieldsBySection.put("processing", processingPanel.findInvalidFields());
+        invalidFieldsBySection.put("observation", observationPanel.findInvalidFields());
+        invalidFieldsBySection.put("advanced", advancedPanel.findInvalidFields());
+        var invalidFields = invalidFieldsBySection.values().stream().flatMap(List::stream).toList();
+        if (invalidFields.isEmpty()) {
             return true;
         }
-        var invalidFields = Stream.concat(invalidProcessingFields.stream(), invalidObservationFields.stream()).toList();
         var message = I18N.string(JSolEx.class, "process-params", "invalid.fields") + "\n" + invalidFields.stream()
                 .map(field -> "- " + field.label())
                 .collect(Collectors.joining("\n"));
         var alert = AlertFactory.error(message);
         alert.initOwner(stage);
         alert.showAndWait();
-        var sectionId = invalidProcessingFields.isEmpty() ? "observation" : "processing";
+        var sectionId = invalidFieldsBySection.entrySet().stream()
+                .filter(entry -> !entry.getValue().isEmpty())
+                .map(Map.Entry::getKey)
+                .findFirst()
+                .orElseThrow();
         navigationSidebar.getNavigationItems().stream()
                 .filter(item -> sectionId.equals(item.getId()))
                 .findFirst()

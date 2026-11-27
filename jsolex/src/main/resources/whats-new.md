@@ -41,6 +41,7 @@ The detection of Ellerman bombs is more reliable. It is based on the approach de
 
 ## Bug Fixes and Improvements
 
+- Saturated disk mode no longer needs reference scans: the spectral line can be found on the saturated scan itself.
 - Lower memory use during processing.
 - The "Memory consumption adjustment" setting has been removed, since it is no longer needed.
 - Fixed white corners on images rotated to correct the P angle.
