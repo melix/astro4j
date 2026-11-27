@@ -42,13 +42,20 @@ For external libraries like NumPy, see <<external-python-libraries>>.
 
 To use external libraries like NumPy, configure a GraalPy virtual environment.
 
-IMPORTANT: For best performance, install both NumPy and PyArrow together. PyArrow enables efficient zero-copy data transfer between Java and Python, significantly speeding up `toNumpy()` and `fromNumpy()` operations on large images.
+TIP: PyArrow is optional. When it is installed, `toNumpy()` and `fromNumpy()` are much faster on large images.
 
 === Platform support
 
-WARNING: **Windows does not support NumPy or other native extensions.** GraalPy on Windows can only install pure Python packages (no C extensions, no source builds). NumPy, PyArrow, and similar libraries requiring native code will not work. If you need these libraries, use Linux or macOS.
+[%header,cols="25%,35%,40%"]
+|===
+|System|NumPy|PyArrow
+|Linux (x86_64)|Ready-made package|Ready-made package
+|Linux (ARM)|Ready-made package|Not available
+|Windows|Ready-made package|Not available
+|macOS|Compiled during installation|Not available
+|===
 
-On Windows, you can still use GraalPy for pure Python scripting (no `import numpy`). To set this up, skip to <<graalpy-venv-windows>>.
+Where PyArrow is not available, NumPy works without it, with slower conversions.
 
 === Step 1: Install GraalPy
 
@@ -85,7 +92,7 @@ xcode-select --install
 
 Choose a directory for your virtual environment, for example `graalpy-venv` in your home folder.
 
-**Linux / macOS**
+**Linux (x86_64)**
 
 [source,bash]
 ----
@@ -93,17 +100,25 @@ graalpy -m venv ~/graalpy-venv
 ~/graalpy-venv/bin/pip install numpy pyarrow
 ----
 
-NOTE: The installation may take several minutes if NumPy needs to be compiled from source.
+**Linux (ARM) / macOS**
 
-[[graalpy-venv-windows]]
-**Windows** (pure Python only, no NumPy)
+[source,bash]
+----
+graalpy -m venv ~/graalpy-venv
+~/graalpy-venv/bin/pip install numpy
+----
+
+NOTE: On macOS, the installation may take several minutes, since NumPy is compiled from source.
+
+**Windows**
 
 [source,cmd]
 ----
 graalpy -m venv C:\Users\<your-username>\graalpy-venv
+C:\Users\<your-username>\graalpy-venv\Scripts\python.exe -m pip --no-cache-dir install numpy
 ----
 
-TIP: On Windows, the virtual environment places executables in the `Scripts` folder (not `bin`). To install pure Python packages, use the `python.exe` from inside the venv with the `--no-cache-dir` flag: `C:\Users\<your-username>\graalpy-venv\Scripts\python.exe -m pip --no-cache-dir install <package>`.
+TIP: On Windows, the virtual environment places executables in the `Scripts` folder (not `bin`). Do not call `pip` directly, use the `python.exe` of the virtual environment as shown above.
 
 === Step 4: Configure JSol'Ex
 
@@ -120,7 +135,7 @@ Restart JSol'Ex for the change to take effect.
 
 **`pip` is not recognized (Windows)** -- Do not call `pip` or `pip.exe` directly. Use `Scripts\python.exe -m pip --no-cache-dir install ...` from inside the virtual environment.
 
-**NumPy installation fails on Windows** -- GraalPy on Windows does not support native extensions. NumPy cannot be installed. Use Linux or macOS if you need NumPy.
+**The installation fails while building PyArrow** -- PyArrow is only available on Linux (x86_64). On other systems, install NumPy alone.
 
 **`GraalPy needs the 'patch' utility` (Linux / macOS)** -- Install the `patch` command using your system package manager (see prerequisites above).
 
@@ -214,10 +229,11 @@ jsolex.vars.my_result = processed_image
 |Function|Description
 |`load(path)`|Loads an image from a file
 |`save(img, path)`|Saves an image to a FITS file
-|`emit(value, title, ...)`|Emits an image or a file output (e.g. an animation) to the JSol'Ex UI during execution
+|`emit(value, title, ...)`|Emits an image, a file output (e.g. an animation) or a file written by the script to the JSol'Ex UI during execution
 |`getVariable(name)`|Gets a script parameter or variable by name
 |`getProcessParams()`|Gets the current processing parameters
 |`getSourceInfo()`|Returns `{fileName, parentDir, dateTime, width, height}` for the source SER file
+|`copyData(img)`|Returns a copy of the pixels of a mono image, as a list of rows (does not require NumPy)
 |`toNumpy(img)`|Converts image to NumPy array (requires NumPy)
 |`fromNumpy(data)`|Creates image from NumPy array (requires NumPy)
 |`copyMetadataFrom(src, dst)`|Copies metadata (ellipse, solar parameters) between images
@@ -240,6 +256,22 @@ jsolex.emit(img, "Enhanced",
 # Animations can be emitted too
 film = jsolex.funcs.anim([img0, img1, img2], 50)
 jsolex.emit(film, "My animation")
+----
+
+A file written by the script, such as a CSV file, can be emitted by passing its path.
+The file is moved to the output directory and named like the other outputs:
+
+[source,python]
+----
+import csv
+import tempfile
+
+with tempfile.NamedTemporaryFile("w", suffix=".csv", newline="", delete=False) as out:
+    writer = csv.writer(out)
+    writer.writerow(["pixel_shift", "median"])
+    for shift in [-1, 0, 1]:
+        writer.writerow([shift, jsolex.funcs.img_median(jsolex.funcs.img(shift))])
+jsolex.emit(out.name, "Statistics", name="stats")
 ----
 
 == Standalone Python Scripts

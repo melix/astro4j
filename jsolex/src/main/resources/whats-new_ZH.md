@@ -36,6 +36,8 @@ Ellerman 炸弹的检测更加可靠，参考了 Stephan Schmelzing 描述的方
 
 - Python 脚本中图像与 NumPy 之间的转换速度更快。
 - 独立脚本工具现在可以使用 GraalPy 虚拟环境。
+- 现在可以在 Windows 上使用 NumPy。
+- 脚本现在可以将自己生成的文件（例如 CSV 文件）与其他输出一起保存。
 
 ## 错误修复与改进
 

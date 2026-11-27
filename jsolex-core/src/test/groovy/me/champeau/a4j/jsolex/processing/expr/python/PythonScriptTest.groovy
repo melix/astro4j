@@ -20,6 +20,8 @@ import me.champeau.a4j.jsolex.processing.expr.ImageMathScriptExecutor.SectionKin
 import me.champeau.a4j.jsolex.processing.expr.ScriptExecutionContext
 import me.champeau.a4j.jsolex.processing.expr.ShiftCollectingImageExpressionEvaluator
 import me.champeau.a4j.jsolex.processing.sun.Broadcaster
+import me.champeau.a4j.jsolex.processing.sun.workflow.GeneratedImageKind
+import me.champeau.a4j.jsolex.processing.sun.workflow.ImageEmitter
 import me.champeau.a4j.jsolex.processing.sun.workflow.PixelShift
 import me.champeau.a4j.jsolex.processing.sun.workflow.ReferenceCoords
 import me.champeau.a4j.jsolex.processing.sun.workflow.SpectralLinePolynomial
@@ -32,6 +34,7 @@ import spock.lang.Specification
 import spock.lang.Subject
 
 import java.nio.file.Files
+import java.nio.file.Path
 
 class PythonScriptTest extends Specification {
 
@@ -2088,6 +2091,31 @@ except IndexError:
         executor.executeInline("result = 3 * img", [img: img]).pixels().get(0, 0) == 30.0f
         executor.executeInline("result = img - 4", [img: img]).pixels().get(0, 0) == 6.0f
         executor.executeInline("result = 40 - img", [img: img]).pixels().get(0, 0) == 30.0f
+    }
+
+    def "emits a file written by the script"() {
+        given:
+        def emitter = Mock(ImageEmitter)
+        context.put(ImageEmitter, emitter)
+        Path emitted = null
+
+        when:
+        executor.executeInline('''
+import tempfile
+with tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False) as f:
+    f.write("a,b\\n1,2\\n")
+jsolex.emit(f.name, "Region statistics", "region_stats")
+''', [:])
+
+        then:
+        1 * emitter.newGenericFile(GeneratedImageKind.IMAGE_MATH, null, "Region statistics", "region_stats", null, _) >> { args -> emitted = args[5] }
+        emitted.fileName.toString().endsWith(".csv")
+        Files.readString(emitted) == "a,b\n1,2\n"
+
+        cleanup:
+        if (emitted != null) {
+            Files.deleteIfExists(emitted)
+        }
     }
 
     private static ImageWrapper32 createImage(int width, int height, float value) {

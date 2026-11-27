@@ -36,6 +36,8 @@ The detection of Ellerman bombs is more reliable. It is based on the approach de
 
 - Faster conversion of images to and from NumPy.
 - The standalone scripting tool can now use a GraalPy virtual environment.
+- NumPy can now be used on Windows.
+- Scripts can save files of their own, such as CSV files, alongside the other outputs.
 
 ## Bug Fixes and Improvements
 

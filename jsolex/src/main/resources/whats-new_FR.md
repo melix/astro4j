@@ -36,6 +36,8 @@ La détection des bombes d'Ellerman est plus fiable. Elle s'inspire de l'approch
 
 - Conversion plus rapide des images vers et depuis NumPy.
 - L'outil de script autonome peut maintenant utiliser un environnement virtuel GraalPy.
+- NumPy peut maintenant être utilisé sous Windows.
+- Les scripts peuvent enregistrer leurs propres fichiers, par exemple des fichiers CSV, avec les autres sorties.
 
 ## Corrections et améliorations
 

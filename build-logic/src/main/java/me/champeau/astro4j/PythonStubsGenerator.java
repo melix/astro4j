@@ -226,12 +226,13 @@ public abstract class PythonStubsGenerator extends AbstractBuiltinFunctionGenera
 
         out.println("def emit(value: Any, title: str, name: str = None, category: str = None, description: str = None) -> None:");
         out.println("    \"\"\"");
-        out.println("    Emit an image or a file output (e.g. an animation) to the JSol'Ex UI during script execution.");
-        out.println("    Images are displayed in the image viewer as script-generated images, file outputs are saved");
-        out.println("    to the output directory and displayed like ImageMath file outputs.");
+        out.println("    Emit an image, a file output (e.g. an animation) or a file written by the script to the");
+        out.println("    JSol'Ex UI during script execution. Images are displayed in the image viewer as");
+        out.println("    script-generated images, file outputs are saved to the output directory and displayed");
+        out.println("    like ImageMath file outputs. A file given by its path is moved to the output directory.");
         out.println();
         out.println("    Args:");
-        out.println("        value: The image or file output to emit");
+        out.println("        value: The image, file output or path of the file to emit");
         out.println("        title: The display title");
         out.println("        name: The file name (optional, defaults to title)");
         out.println("        category: The category (optional)");

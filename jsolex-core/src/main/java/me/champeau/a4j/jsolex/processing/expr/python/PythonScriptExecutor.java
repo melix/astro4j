@@ -307,7 +307,7 @@ public class PythonScriptExecutor {
                     _jsolex_module.save = _java_bridge.save
                     
                     def _emit(value, title, name=None, category=None, description=None):
-                        # Emit an image or file output (e.g. an animation) to the JSol'Ex UI during script execution
+                        # Emit an image, a file output (e.g. an animation) or the path of a file written by the script to the JSol'Ex UI during script execution
                         _java_bridge.emit(value, title, name, category, description)
                     _jsolex_module.emit = _emit
                     
@@ -347,7 +347,7 @@ public class PythonScriptExecutor {
                         except ImportError:
                             # Slow path: use a copy of the pixel data
                             data = _java_bridge.copyData(img)
-                            return np.array(data)
+                            return np.array([list(row) for row in data], dtype=np.float32)
                     
                     def _fromNumpy(data):
                         # Create image from NumPy array. Uses Arrow if pyarrow is installed (fast), otherwise falls back to createMono (slow).

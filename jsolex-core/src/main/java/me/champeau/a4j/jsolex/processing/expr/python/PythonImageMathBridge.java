@@ -156,11 +156,12 @@ public class PythonImageMathBridge implements AutoCloseable {
     }
 
     /**
-     * Emits an image or a file output (e.g. an animation) to the JSol'Ex UI during script execution.
-     * Images are displayed in the image viewer as script-generated images, file outputs are saved
-     * to the output directory and displayed like ImageMath file outputs.
+     * Emits an image, a file output (e.g. an animation) or a file written by the script to the
+     * JSol'Ex UI during script execution. Images are displayed in the image viewer as
+     * script-generated images, file outputs are saved to the output directory and displayed
+     * like ImageMath file outputs. A file given by its path is moved to the output directory.
      *
-     * @param value       the image or file output to emit
+     * @param value       the image, file output or path of the file to emit
      * @param title       the display title
      * @param name        the file name (optional, defaults to title)
      * @param category    the category (optional)
@@ -190,6 +191,8 @@ public class PythonImageMathBridge implements AutoCloseable {
                     imageEmitter.newGenericFile(GeneratedImageKind.IMAGE_MATH, category, title, effectiveName, description, file);
                 }
             }
+            case String path ->
+                    imageEmitter.newGenericFile(GeneratedImageKind.IMAGE_MATH, category, title, effectiveName, description, Path.of(path));
             case null, default ->
                     LOGGER.warn("Unsupported type for emit: {}", value == null ? "null" : value.getClass().getName());
         }
